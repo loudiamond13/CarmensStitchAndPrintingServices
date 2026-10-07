@@ -1044,16 +1044,16 @@ If the API runs under a `FakeTimeProvider`, mint tokens from the same provider. 
 | A16 | Two SPF records cause a permerror; the Permissions-Policy feature list is recognized by browsers | Patterns 4, 15 | Owner guidance only; Phase 2 Playwright catches console errors |
 | A17 | SYSLIB0057 is the id for the obsolete `X509Certificate2` ctor | Pattern 9b | Irrelevant if the loader API is used |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the SmarterASP Basic account that will host CSPS also host the live legacy site and `csptailoringdb`?**
+1. **Does the SmarterASP Basic account that will host CSPS also host the live legacy site and `csptailoringdb`?** RESOLVED: D-28 (owner).
    - Known: Basic = 1 MSSQL DB, unlimited sites, 256 MB pool [CITED], and the legacy site + DB are on SmarterASP.NET (PROJECT.md:81).
    - Unclear: whether it's the same account. If yes, there's no DB for CSPS before cutover, the FND-13 SQL facts can only come from read-only server-level queries on the legacy DB (owner approval needed), and the compat level of a *new* DB is unknowable until cutover. Phase 3 deploys also have nowhere to go without a plan change.
    - Recommendation: the FND-13 plan's first task is an owner question (`checkpoint:decision`). Record `Unverified` rather than probe the legacy DB. Test the idempotent script at both 160 and 170 so either host default is covered.
-2. **Where may the HostProbe run?** It needs a separate site/subdomain in the account, and the owner must confirm it shares nothing with the legacy site's folder or app pool. Recommendation: owner-run, deleted after use, key-protected. If the owner declines, mark the runtime/IP/PFX facts `Unverified` and revisit before Phase 3.
-3. **FND-04 scope in Phase 1.** Users, orders, expenses and price list don't exist until Phases 4, 6, 7 and 11. Recommendation: Phase 1 ships the guarded tool, step framework and SiteSettings step. Mark FND-04 "established; extended per phase" in VERIFICATION, consistent with the ROADMAP's "Pieces that grow".
-4. **Add `GET /api/v1/site-settings` (Staff) in Phase 1?** It gives SEC-02 a non-anonymous matrix row and FND-05 a reliable 500 path. It's not in any requirement text. Recommendation: include it (small) or, if declined, prove the matrix with synthetic endpoints only.
-5. **Application branch-coverage threshold.** D-17 says "Application ≥ 95%" without saying line or branch. Recommendation: line ≥ 95 **and** branch ≥ 95. Confirm cheaply at plan review.
+2. **Where may the HostProbe run?** RESOLVED: D-28 + plan 01-12 Task 1 checkpoint:decision (owner decides at execution time). It needs a separate site/subdomain in the account, and the owner must confirm it shares nothing with the legacy site's folder or app pool. Recommendation: owner-run, deleted after use, key-protected. If the owner declines, mark the runtime/IP/PFX facts `Unverified` and revisit before Phase 3.
+3. **FND-04 scope in Phase 1.** RESOLVED: D-30 (owner). Users, orders, expenses and price list don't exist until Phases 4, 6, 7 and 11. Recommendation: Phase 1 ships the guarded tool, step framework and SiteSettings step. Mark FND-04 "established; extended per phase" in VERIFICATION, consistent with the ROADMAP's "Pieces that grow".
+4. **Add `GET /api/v1/site-settings` (Staff) in Phase 1?** RESOLVED: D-29 (owner). It gives SEC-02 a non-anonymous matrix row and FND-05 a reliable 500 path. It's not in any requirement text. Recommendation: include it (small) or, if declined, prove the matrix with synthetic endpoints only.
+5. **Application branch-coverage threshold.** RESOLVED (default): D-31. The gate is line ≥ 95%, branch not gated. This is the planner's default reading of QUAL-03, not an owner answer, and it differs from the recommendation below. D-17 says "Application ≥ 95%" without saying line or branch. Recommendation: line ≥ 95 **and** branch ≥ 95. Confirm cheaply at plan review.
 
 ## Environment Availability
 
