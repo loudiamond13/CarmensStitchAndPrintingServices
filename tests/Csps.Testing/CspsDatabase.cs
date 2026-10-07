@@ -1,6 +1,8 @@
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Respawn;
+using Respawn.Graph;
 using Xunit;
 
 namespace Csps.Testing;
@@ -18,6 +20,7 @@ public sealed class CspsDatabase : IAsyncLifetime
     private const int MaxCompatibilityLevel = 170;
 
     private SqlServerInstance? _server;
+    private Respawner? _respawner;
 
     /// <summary>The generated database name, <c>CSPS_Test_&lt;lowercase guid&gt;</c>.</summary>
     public string DatabaseName { get; } = TestDatabaseName.NewName();
@@ -79,12 +82,34 @@ public sealed class CspsDatabase : IAsyncLifetime
         }
     }
 
-    /// <summary>Deletes the rows of every user table, except the migration history and the SiteSettings row.</summary>
+    /// <summary>
+    /// Deletes the rows of every user table with Respawn, except the migration history and the migration-seeded
+    /// SiteSettings row (research Pattern 11). The Respawner is built on first use, so tables a test created
+    /// before its first reset are included. Respawn deletes with DELETE: plan 09 adds AuditLog and
+    /// AuditLogTruncateGuard to the ignore list, because the append-only trigger rejects deletes (Pitfall 1).
+    /// </summary>
     /// <returns>A task that completes when the data is gone.</returns>
-    public Task ResetAsync()
+    public async Task ResetAsync()
     {
-        _ = ConnectionString;
-        return Task.CompletedTask;
+        if (string.IsNullOrEmpty(ConnectionString))
+        {
+            throw new InvalidOperationException("The test database is not initialized yet.");
+        }
+
+        var connection = new SqlConnection(ConnectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync().ConfigureAwait(false);
+            _respawner ??= await Respawner.CreateAsync(
+                connection,
+                new RespawnerOptions
+                {
+                    DbAdapter = DbAdapter.SqlServer,
+                    TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("SiteSettings")],
+                }).ConfigureAwait(false);
+
+            await _respawner.ResetAsync(connection).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Creates a new context on this database. The caller disposes it.</summary>
