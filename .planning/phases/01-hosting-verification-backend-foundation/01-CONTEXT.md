@@ -79,7 +79,7 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 
 ### Audit log (FND-10)
 - **D-24:** The IP is stored **truncated**: IPv4 to /24 (for example `203.177.12.0`) and IPv6 to /48 (RA 10173 data minimization). The user-agent is stored as its family only.
-- **D-25:** Retention is **2 years**. Phase 1 builds the append-only table and blocks UPDATE and DELETE at the DB level. The purge job, a short idempotent cron-triggered endpoint, comes in the hardening phase. Because shared hosting probably gives one `db_owner` login, `DENY` permissions likely won't stop the app user. The researcher should verify that a trigger-based block (INSTEAD OF / AFTER UPDATE, DELETE → THROW) works there, and design how the future purge legitimately bypasses it. — **Reversibility:** one-way. Once audit rows exist, weakening append-only guarantees undermines their evidentiary value.
+- **D-25:** Retention is **8 months** (amended by D-32; originally 2 years). Phase 1 builds the append-only table and blocks UPDATE and DELETE at the DB level. The purge job, a short idempotent cron-triggered endpoint, comes in the hardening phase. Because shared hosting probably gives one `db_owner` login, `DENY` permissions likely won't stop the app user. The researcher should verify that a trigger-based block (INSTEAD OF / AFTER UPDATE, DELETE → THROW) works there, and design how the future purge legitimately bypasses it. — **Reversibility:** one-way. Once audit rows exist, weakening append-only guarantees undermines their evidentiary value.
 
 ### Errors (FND-05)
 - **D-26:** API error titles and details are in **plain English** (en-PH), short and human, consistent with the UI-spec copy, for example "This order was changed by someone else."
@@ -90,6 +90,7 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 - **D-29:** Phase 1 adds **`GET /api/v1/site-settings`**, protected by the Staff policy (Admin or Manager). It gives the authorization matrix a real protected endpoint and gives FND-05 a real path for error tests. Read-only; editing stays in a later phase.
 - **D-30:** **FND-04 scope in Phase 1:** the guarded `tools/` dev-seed command (refuses any DB except `CSPS_Dev`/`CSPS_E2E`), the seed-step framework and a **SiteSettings step**. The users, orders (with children), company expenses and price-list steps are added by the phases that create those entities.
 - **D-31:** **Application coverage gate is line ≥ 95% (branch not gated).** This is the planner's default reading of QUAL-03 ("Domain 100% line + branch, Application ≥ 95%" names branch only for Domain) and D-17. It is **not an owner answer**: research Open Question 5 recommended line + branch, and the owner was not asked. The owner may tighten it to line + branch later. That is a reversible one-line change to the gate script (`tools/scripts/Invoke-CoverageGate.ps1`, plan 01-11).
+- **D-32:** **D-25 checkpoint answer (owner, 2026-10-07): audit entries older than 8 months may be deleted.** Mechanism is option-a: the AuditLog trigger refuses every UPDATE and every DELETE, except a DELETE on a connection that has set the read-only session flag `csps.audit_purge = 1` where every deleted row is older than 8 months (`DATEADD(month, -8, SYSUTCDATETIME())`). Recent rows can never be deleted, and nothing is ever editable. This replaces the 2-year retention from D-25 and the Phase 1 discussion. The purge job itself stays in the hardening phase. — **Reversibility:** one-way once real audit rows exist (Phase 4 onward).
 
 ### Claude's Discretion
 - The correlation-id header name and propagation (W3C `traceparent` vs `X-Correlation-Id`). Default to the Activity/W3C trace id surfaced as `traceId`.
@@ -153,7 +154,7 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 
 - Error alerting (for example a throttled email on unhandled exceptions). Revisit in hardening, after SMTP exists (Phase 4).
 - An uptime monitor. The owner declined for now, but it can be added free later (for example the UptimeRobot free tier).
-- The audit-log purge job (2-year retention). Hardening phase, together with OD-10.
+- The audit-log purge job (8-month retention, D-32). Hardening phase, together with OD-10.
 - The SiteSettings editing UI, including a Manager-editable time zone. Later site-content phase.
 - Staging environment: re-enable if the hosting plan is upgraded from Basic (affects OPS-04, Phase 3).
 - FND-04 seed steps for users (both roles), orders with all children, company expenses and the price list. Each is added by the phase that creates its entity (D-30).
