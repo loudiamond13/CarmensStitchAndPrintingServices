@@ -1,0 +1,39 @@
+# Production data and local-only files (CSPS-PRD.md §0, §16.1, §18). Never commit.
+_local/
+*.bak
+*.mdf
+*.ldf
+
+# Secrets and local configuration
+appsettings.*.local.json
+.env*
+secrets.json
+
+# IDE / tooling
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+
+# .NET build output
+bin/
+obj/
+TestResults/
+*.trx
+coverage*/
+
+# Node / web build output
+node_modules/
+dist/
+**/wwwroot/assets/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# OS
+Thumbs.db
+.DS_Store
