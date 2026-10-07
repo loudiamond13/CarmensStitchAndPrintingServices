@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <!-- Development secrets (Jwt:SigningKey) live in this user-secrets store, never in git (D-15, T-01-31). -->
+  <PropertyGroup>
+    <UserSecretsId>7d33a131-9aea-4f9c-90eb-213d2b59cbee</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Infrastructure\Csps.Infrastructure.csproj" />
   </ItemGroup>

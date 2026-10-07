@@ -38,6 +38,13 @@ builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
 // Composes EF Core, the cache and the ports. Never migrates or seeds at startup (D-08).
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
+// Access-token validation (JwtBearer) and default-deny authorization: a fallback policy that requires an authenticated
+// user plus the named Staff and Manager policies (SEC-02). The API refuses to start without valid Jwt settings.
+builder.Services.AddCspsSecurity();
+
+// One handler per use case, no mediator (PRD section 3.3).
+builder.Services.AddCspsApplication();
+
 // OpenAPI is registered in Development only (D-14).
 builder.Services.AddCspsOpenApi(builder.Environment);
 
@@ -65,8 +72,13 @@ app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.H
 var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
 app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
 
+// Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapCspsHealth();
 app.MapApiFallback();
+app.MapSiteSettings();
 app.MapCspsApiDocs();
 
 app.Run();

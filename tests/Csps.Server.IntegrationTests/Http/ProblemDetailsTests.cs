@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using Csps.Application.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -91,7 +92,9 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
             builder.ConfigureTestServices(services => services.AddTransient<IStartupFilter, ThrowingEndpointFilter>()));
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync(new Uri(ThrowingEndpointFilter.Path, UriKind.Relative), TestContext.Current.CancellationToken);
+        // The test-only path is no endpoint, so the fallback policy (plan 01-08) requires a signed-in caller.
+        using var request = ApiRequests.Get(ThrowingEndpointFilter.Path, TestTokens.For(Roles.Manager, TimeProvider.System));
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
