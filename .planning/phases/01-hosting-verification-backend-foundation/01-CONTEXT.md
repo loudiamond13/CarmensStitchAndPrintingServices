@@ -1,0 +1,159 @@
+# Phase 1: Hosting Verification & Backend Foundation - Context
+
+**Gathered:** 2026-10-07
+**Status:** Ready for planning
+
+<domain>
+## Phase Boundary
+
+Deliver a zero-warning onion API (`Csps.slnx`: Domain, Application, Infrastructure, Server, plus test projects and `tools/`). It must:
+
+- run against an empty, EF-migrated `CSPS_` database
+- carry the platform contract: ProblemDetails, `/health`, Serilog with correlation ids, strict security headers, default-deny authorization with a discovery-driven matrix test
+- provide the shared primitives: business calendar, SiteSettings core with a cached port, append-only audit log, SQL test fixture
+
+Alongside the API sits a verified SmarterASP.NET hosting record (FND-13).
+
+Requirements: FND-01..13, QUAL-01, QUAL-03, QUAL-06, SEC-01, SEC-02, SEC-04.
+
+Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email sending (Phase 4).
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+### Project-wide rule (from this discussion)
+- **D-00:** **No paid licenses, tools or services.** Every package, tool and service must be free. The only paid items are the SmarterASP.NET hosting and the domain the owner already pays for. Allowed licenses: MIT, Apache-2.0, BSD, ISC, plus the S-5 exceptions below. This feeds Phase 3's C-27: on a private repo, use free substitutes for CodeQL and dependency-review (NuGetAudit as error, `npm audit`, license gates, gitleaks), or make the repo public. Never use GitHub Code Security.
+
+### Locale & business clock (OD-1, OD-2)
+- **D-01:** Currency and locale are PHP `₱` with `en-PH` formatting, for example `₱12,450.00` with a U+2212 minus and dates like `Oct 6, 2026`. Single currency, no conversion.
+- **D-02:** The business time zone is `Asia/Manila`, stored in SiteSettings and **Manager-editable** later. The editing UI belongs to a later site-content phase. Phase 1 only builds the entity, seed and cached read port. `IBusinessCalendar` must read the zone from SiteSettings through the cached port, with an `Asia/Manila` fallback chain (IANA → Windows id) when the stored value can't be resolved. Cache invalidation on edit must be designed now. — **Reversibility:** costly. A later zone change shifts every "today", month and year bucket, so reports would re-bucket historical data.
+- **D-03:** "Year" means the calendar year, Jan–Dec. There is no fiscal-year setting.
+- **D-04:** The SiteSettings seed uses the real business name "Carmen's Stitch & Printing Services". Contact fields (email, phone, address, Facebook) keep the UI-spec placeholders, such as `[hello@yourdomain.ph]`, until the owner supplies real values.
+
+### Local & test databases (C-20, C-28, C-29, C-30)
+- **D-05:** Use a dedicated LocalDB instance named **`CSPS`** (`sqllocaldb create CSPS`), never the shared `MSSQLLocalDB` that TheBETSLLC uses. Dev DB: `(localdb)\CSPS` / `CSPS_Dev`. E2E DB: `CSPS_E2E`. Test DBs: `CSPS_Test_<guid>`. Cleanup code may drop only names matching `^CSPS_Test_[0-9a-f-]{36}$`. Named pipes only, so no ports.
+- **D-06:** The legacy `.bak` will be restored as **`CSPS_Legacy_Restore`** (in the legacy-discovery phase), never over `CSPS_Dev`. The CLAUDE.md line is amended accordingly.
+- **D-07:** The test fixture selects its backend from `CSPS_TEST_SQL=localdb|container`, set per process only. Local runs always use LocalDB, and Docker/Testcontainers never run locally. CI (ubuntu) uses Testcontainers with an explicit `mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04` image. No exception to the 49152–65535 rule is needed. Integration tests run in parallel with a database per class or collection, reset with Respawn.
+- **D-08:** The dev seed is an **explicit command** in a `tools/` project, for example `dotnet run --project tools/Csps.DevSeed -- --reset`. It refuses any database not named `CSPS_Dev` or `CSPS_E2E`. Nothing seeds or migrates at app startup.
+
+### Hosting record & email (C-45, FND-13, OD-12, C-31)
+- **D-09:** The owner has SmarterASP.NET access. Phase 1 delivers a **verification checklist**: SQL queries (`@@VERSION`, compat level, collation, DB size/quota) plus a minimal probe (runtime patch, in-process hosting, `X-Forwarded-For` and client-IP topology). The owner runs it and pastes the results into the hosting record. Missing facts are marked unverified, never guessed.
+- **D-10:** The hosting plan is **SmarterASP.NET Basic**: 1 database, a 256 MB app pool and no host scheduler. Consequences:
+  - keep memory use small, with a small HybridCache and no heavy in-process work
+  - scheduled jobs must run from a GitHub Actions cron calling a secret-protected endpoint
+  - CI and integration tests never touch the hosted DB
+- **D-11:** **No staging environment.** Production deploys go behind a manual approval gate, after CI tests pass against containers. This **amends OPS-04** (Phase 3): drop the staging site and the staging smoke E2E, or run the smoke check against production after deploy. — **Reversibility:** reversible. Upgrading the plan later re-enables staging.
+- **D-12:** The system sender uses the **domain of the current legacy production site**, which the owner controls. The exact domain name is still to come from the owner. Constraints:
+  - Add SPF/DKIM/DMARC by **merging** with any existing records. The legacy site may already send mail, so never replace an existing SPF record.
+  - DNS edits must not disturb the live legacy site (Prime Directive 1).
+  - The SPF/DKIM/DMARC pass-to-Gmail check is the last item in the hosting record.
+- **D-13:** **No JSON columns anywhere**, only relational columns. Pin `UseCompatibilityLevel(160)` provisionally, then re-pin to the host's verified level once FND-13 reports it. This is safe because no JSON columns exist. The idempotent script must apply twice at the pinned level.
+
+### Security & tooling (OD-13, C-32, S-3, S-4, S-5, S-10, S-11)
+- **D-14:** OpenAPI uses the built-in `Microsoft.AspNetCore.OpenApi`, with **Scalar** (`Scalar.AspNetCore`, MIT) as the viewer. Both `/openapi/v1.json` and `/scalar` are mapped **only in Development**. Production exposes neither, so Scalar's inline bootstrap never meets the strict production CSP. The researcher must confirm Scalar serves its assets locally (no CDN) and check whether Development needs a CSP carve-out for `/scalar`. Record Scalar's license and legitimacy check.
+- **D-15:** Data Protection keys persist to the DB with `PersistKeysToDbContext` and `SetApplicationName("Csps")`. They are **encrypted with `ProtectKeysWithCertificate`**, using a self-signed PFX supplied as a host secret: base64 PFX plus password in host app settings, never in git. A script generates a dev PFX and stores it in `dotnet user-secrets`. Production and Development use the same code path, and no "No XML encryptor configured" warning appears. Document certificate rotation. — **Reversibility:** costly. Losing the cert, or rotating it without keeping the old one, makes the existing keys unreadable and signs everyone out.
+- **D-16:** Architecture tests use **TngTech.ArchUnitNET 0.13.4 + ArchUnitNET.xUnitV3** (Apache-2.0), replacing the PRD's NetArchTest pin for maintenance reasons (CWE-1104). Record it as a PRD substitution.
+- **D-17:** .NET coverage uses **coverlet.MTP** (MIT) with **ReportGenerator** (Apache-2.0) enforcing per-assembly thresholds: Domain 100% line and branch, Application ≥ 95%. Never use `coverlet.collector` or `Microsoft.Testing.Extensions.CodeCoverage`, which has a proprietary license.
+- **D-18:** License exceptions are approved:
+  - MPL-2.0 for axe-core and its wrappers, dev/test only
+  - OFL-1.1 for the @fontsource fonts, which ship
+  - an allow-list-with-review policy for transitive dev-only licenses
+
+  Production dependencies stay strict.
+- **D-19:** **Release cool-down is 14 days.** Adopt only package versions at least 14 days old, and set Dependabot `cooldown` to 14 days. Record "aged" or "accepted with reason" per package. Security fixes may skip the cool-down with a recorded reason. Many versions in STACK.md (dated 2026-10-06) are younger than 14 days, so the researcher must choose the newest version that is at least 14 days old.
+- **D-20:** Remove `Microsoft.AspNetCore.SpaProxy` and the whole VS scaffold (`CarmensStitchAndPrintingServices.Server`, `.client`, `.esproj`). The Phase 2 Vite dev server proxies `/api` with hard-coded ports, never `ASPNETCORE_HTTPS_PORT`. Keep the API ports 5115/7028 in `launchSettings.json`, minus the SpaProxy env var.
+
+### Logging (FND-07)
+- **D-21:** Production logs are Serilog compact JSON files in `{contentRoot}/logs` (outside `wwwroot`), with:
+  - a daily roll
+  - `retainedFileCountLimit: 30`
+  - a 10 MB per-file cap, `shared: true` and `flushToDiskInterval`
+  - the `logs` folder excluded from Web Deploy sync
+
+  There is no DB sink, and logs mask passwords, codes, tokens and secrets.
+- **D-22:** No error alerting in Phase 1, only logging. The decision is deferred.
+
+### Health (FND-06)
+- **D-23:** `/health` is **anonymous and public, with a minimal body**: overall status plus per-check name and status (liveness, DB reachable, time-zone resolvable). It never includes versions, connection strings, exception text or timings that reveal internals. Keep it cheap. There is no uptime monitor; the owner checks manually.
+
+### Audit log (FND-10)
+- **D-24:** The IP is stored **truncated**: IPv4 to /24 (for example `203.177.12.0`) and IPv6 to /48 (RA 10173 data minimization). The user-agent is stored as its family only.
+- **D-25:** Retention is **2 years**. Phase 1 builds the append-only table and blocks UPDATE and DELETE at the DB level. The purge job, a short idempotent cron-triggered endpoint, comes in the hardening phase. Because shared hosting probably gives one `db_owner` login, `DENY` permissions likely won't stop the app user. The researcher should verify that a trigger-based block (INSTEAD OF / AFTER UPDATE, DELETE → THROW) works there, and design how the future purge legitimately bypasses it. — **Reversibility:** one-way. Once audit rows exist, weakening append-only guarantees undermines their evidentiary value.
+
+### Errors (FND-05)
+- **D-26:** API error titles and details are in **plain English** (en-PH), short and human, consistent with the UI-spec copy, for example "This order was changed by someone else."
+- **D-27:** A production 500 returns a generic message plus the `traceId` as a reference, such as "Something went wrong. Reference: <traceId>". There is never a stack trace or exception text outside Development.
+
+### Claude's Discretion
+- The correlation-id header name and propagation (W3C `traceparent` vs `X-Correlation-Id`). Default to the Activity/W3C trace id surfaced as `traceId`.
+- The exact `/health` JSON shape within D-23's limits.
+- SiteSettings cache invalidation (HybridCache tags) and the shape of the business-calendar API.
+- The project and test-project names within PRD §3.1.
+</decisions>
+
+<canonical_refs>
+## Canonical References
+
+**Downstream agents MUST read these before planning or implementing.**
+
+### Scope & requirements
+- `.planning/ROADMAP.md` § "Phase 1: Hosting Verification & Backend Foundation": goal, success criteria, owner decisions, research flag
+- `.planning/REQUIREMENTS.md`: FND-01..13, QUAL-01, QUAL-03, QUAL-06, SEC-01, SEC-02, SEC-04 (and OPS-04, amended by D-11)
+- `.planning/PROJECT.md`: constraints, OD-1..14, C-1..21
+
+### Product spec
+- `CSPS-PRD.md` §2 (stack), §3 / §3.1 / §3.2 / §3.3 (onion layout and rules), §5.6 (schema ownership), §11 / §11.3 / §11.4 (security headers, CSP, audit), §14 / §17 / §17.1 (quality gates), §19 / §19.1–19.3 (hosting, static caching, migrations, scheduled jobs)
+- `CSPS-UI-SPEC.md` §12: dev-seed fake data shapes (FND-04)
+
+### Research
+- `.planning/research/SUMMARY.md`: S-1..S-11 and C-22..C-45 (especially C-28..C-32 and C-45)
+- `.planning/research/STACK.md`: pinned versions, licenses and compatibility (apply D-19's 14-day cool-down when choosing versions)
+- `.planning/research/ARCHITECTURE.md`: onion layout, fixture design and the compat-level discussion
+- `.planning/research/PITFALLS.md`: Pitfalls 6, 7, 8, 16, 17 and 21 (Phase 1)
+
+### Machine rules
+- `CLAUDE.md` (root): ports, the `CSPS_` DB prefix, preflight, env-var rules
+- `C:\Work\dev-tools\preflight.ps1`: run with `-Ports 5180,5115,7028,5199` before dev servers or full test runs
+</canonical_refs>
+
+<code_context>
+## Existing Code Insights
+
+### Reusable Assets
+- None worth keeping. The VS template scaffold (`CarmensStitchAndPrintingServices.Server` with WeatherForecast, Controllers and SpaProxy; `carmensstitchandprintingservices.client` with `.esproj`) is replaced wholesale (D-20, FND-02).
+
+### Established Patterns
+- `Properties/launchSettings.json` already uses the right ports: http 5115, https 7028. Carry them over without the `ASPNETCORE_HOSTINGSTARTUPASSEMBLIES=...SpaProxy` env var.
+- The scaffold's `vite.config.js` derives its proxy target from `env.ASPNETCORE_HTTPS_PORT`, which CLAUDE.md forbids relying on. Phase 2 replaces it with hard-coded ports.
+- The scaffold already references `Microsoft.AspNetCore.OpenApi 10.0.12`, and SpaProxy with a floating version (to remove).
+- `.gitignore` already excludes `_local/` and `appsettings.*.local.json`.
+
+### Integration Points
+- Docker 29.8 is installed, but per D-07 it is not used locally.
+- LocalDB currently has only the shared `MSSQLLocalDB`. The `CSPS` instance must be created (document the setup step, and make it idempotent).
+</code_context>
+
+<specifics>
+## Specific Ideas
+
+- The owner explicitly asked for **Scalar** as the API docs viewer.
+- The owner wants **everything free**: no paid licenses, tools or services (D-00).
+- The hosting checklist should be copy-paste friendly. The owner runs it and pastes the results back.
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+- Error alerting (for example a throttled email on unhandled exceptions). Revisit in hardening, after SMTP exists (Phase 4).
+- An uptime monitor. The owner declined for now, but it can be added free later (for example the UptimeRobot free tier).
+- The audit-log purge job (2-year retention). Hardening phase, together with OD-10.
+- The SiteSettings editing UI, including a Manager-editable time zone. Later site-content phase.
+- Staging environment: re-enable if the hosting plan is upgraded from Basic (affects OPS-04, Phase 3).
+- The exact sender domain name and SPF/DKIM/DMARC records. The owner supplies the legacy site domain; the checks finish at the end of FND-13 or before Phase 4.
+</deferred>
+
+---
+
+*Phase: 01-hosting-verification-backend-foundation*
+*Context gathered: 2026-10-07*
