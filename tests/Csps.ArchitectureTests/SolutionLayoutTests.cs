@@ -10,6 +10,41 @@ public sealed class SolutionLayoutTests
 
     private static readonly string[] IgnoredDirectoryNames = ["bin", "obj", "node_modules", ".git", ".vs", "_local"];
 
+    // The complete Phase 1 solution (FND-02). Adding or removing a project is a deliberate change made here too.
+    private static readonly string[] ExpectedProjects =
+    [
+        "src/Csps.Domain/Csps.Domain.csproj",
+        "src/Csps.Application/Csps.Application.csproj",
+        "src/Csps.Infrastructure/Csps.Infrastructure.csproj",
+        "src/Csps.Server/Csps.Server.csproj",
+        "tests/Csps.Domain.UnitTests/Csps.Domain.UnitTests.csproj",
+        "tests/Csps.Application.UnitTests/Csps.Application.UnitTests.csproj",
+        "tests/Csps.Infrastructure.IntegrationTests/Csps.Infrastructure.IntegrationTests.csproj",
+        "tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj",
+        "tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj",
+        "tests/Csps.Testing/Csps.Testing.csproj",
+        "tools/Csps.DevSeed/Csps.DevSeed.csproj",
+        "tools/Csps.HostProbe/Csps.HostProbe.csproj",
+    ];
+
+    [Fact]
+    public void SlnxListsExactlyTheExpectedProjects()
+    {
+        var listed = SolutionProjects();
+
+        var missing = ExpectedProjects.Except(listed, StringComparer.Ordinal).ToList();
+        var unexpected = listed.Except(ExpectedProjects, StringComparer.Ordinal).ToList();
+        var duplicates = listed
+            .GroupBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+
+        missing.ShouldBeEmpty("Csps.slnx is missing expected projects.");
+        unexpected.ShouldBeEmpty("Csps.slnx lists projects outside the agreed layout (FND-02); update ExpectedProjects deliberately.");
+        duplicates.ShouldBeEmpty("Csps.slnx lists a project more than once.");
+    }
+
     [Fact]
     public void SolutionListsTheFourProductionProjects()
     {
