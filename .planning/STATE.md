@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-10-07T15:40:35.833Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-10-07T16:03:18.833Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 71d5fdbb22d2175cd9b847d073eb391663ccde2d
+state_head: 79222519f22a7e8cadfce77b537686b0c2f5c423
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 7 of 13
+Plan: 8 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | 29 min | 3 tasks | 22 files |
 | Phase 01 P05 | 9 min | 3 tasks | 6 files |
 | Phase 01 P06 | 17 min | 3 tasks | 22 files |
+| Phase 01 P07 | 18 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,12 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: IpPrefix picks /24 vs /48 from AddressFamily; IPAddress holds only 4 or 16 bytes, so there is no unreachable third-family branch (keeps Domain at 100% branch)
 - [Phase 01]: UserAgentFamily reads only the first 512 chars as a span; blank within them is Unknown; Edge/Opera/Samsung precede Chrome and bots precede everything
 - [Phase 01]: tdd-red-evidence matches theory target names against raw JUnit text, so theory targets must use &quot; entities
+- [Phase 01]: Serilog uses preserveStaticLogger: true and UseSerilogRequestLogging gets the host's own Serilog.ILogger, so parallel hosts never share the static Log.Logger
+- [Phase 01]: CspsLogging:WriteToFile defaults on; only CspsApiFactory turns it off (LogFileSwitchKey = LoggingRegistration.WriteToFileKey)
+- [Phase 01]: Request-completion events are matched by Serilog's template 'HTTP {RequestMethod} {RequestPath} responded {StatusCode}'; framework events also carry RequestPath and StatusCode
+- [Phase 01]: The masking enricher also walks captured structures, dictionaries and sequences; the destructuring policy masks {@x} objects before capture
+- [Phase 01]: IRequestContext uses Connection.RemoteIpAddress only; ForwardedHeadersTests blocks forwarded-headers setup or proxy-header reads under src/ until FND-13
+- [Phase 01]: Shared log files are read in tests with FileShare.ReadWrite|Delete and a short retry (a sharing violation on fresh %TEMP% files is transient)
 
 ### Pending Todos
 
@@ -115,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T15:40:35.792Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-10-07T16:03:18.790Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
