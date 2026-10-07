@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-07T14:18:51.733Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-07T14:35:52.886Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 791801d8ece2d0d967e97261f93c3e09a760d011
+state_head: bbad9ab7c280965ea8c361f956b37339ff6c2db5
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 3 of 13
+Plan: 4 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 14 min | 3 tasks | 43 files |
 | Phase 01 P02 | 25 min | 3 tasks | 39 files |
+| Phase 01 P03 | 13 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: CspsApiFactory keeps one public ctor (xUnit1056); the (string) ctor is protected and CspsApiFactory.ForDatabase(connectionString) is the public entry for real databases
 - [Phase 01]: LocalDB (localdb)\CSPS 17.0 connects with Integrated Security and no TrustServerCertificate (A12 confirmed); CSPS_Dev is created by dotnet ef at compat 170 while EF SQL and test DBs are pinned to 160
 - [Phase 01]: TestDatabaseName.IsDisposable also checks exact length because .NET $ matches before a trailing newline
+- [Phase 01]: BusinessClock (Domain, pure) gives business day/month/calendar-year ranges as [StartUtc, EndUtcExclusive); DST-gap midnight starts at the first valid minute, ambiguous midnight at the first occurrence
+- [Phase 01]: Both database-backed /health checks (database, time-zone) share a 3 s timeout: on a cold cache the time-zone check reads SiteSettings and SqlClient retries a failed login after 10 s
+- [Phase 01]: AddInfrastructure calls AddLogging (TryAdd only) so the health service validates on a plain ServiceCollection
+- [Phase 01]: MinimalHealthWriter sends no body for HEAD; status, Content-Type and Cache-Control: no-store are kept
 
 ### Pending Todos
 
@@ -98,6 +103,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T14:18:51.696Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-07T14:35:52.844Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None

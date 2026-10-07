@@ -20,9 +20,9 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **FND-03**: Architecture tests fail the build when a layer references a forbidden layer or package (PRD §3.2) ⚑ S-3 (NetArchTest vs ArchUnitNET)
 - [ ] **FND-04**: A development seed creates realistic fake data from UI-SPEC §12 (users for both roles, orders with all children, company expenses, price list, site settings), so every screen is usable without real data
 - [ ] **FND-05**: Every API error is an RFC 9457 ProblemDetails with `traceId` and field `errors`. No stack traces outside Development. Unknown `/api/*` routes return a ProblemDetails 404, never `index.html`
-- [ ] **FND-06**: `/health` reports liveness, DB reachability and business time-zone resolution without exposing internals
+- [x] **FND-06**: `/health` reports liveness, DB reachability and business time-zone resolution without exposing internals
 - [ ] **FND-07**: Structured Serilog logging with a correlation id per request, and destructuring policies that mask passwords, codes, tokens and secrets (CWE-532/117)
-- [ ] **FND-08**: Business calendar (`IBusinessCalendar` over `TimeProvider`) resolves "today", month and year boundaries in the configured business time zone (Asia/Manila fallback chain). No `DateTime.Now` in code ⚑ OD-2
+- [x] **FND-08**: Business calendar (`IBusinessCalendar` over `TimeProvider`) resolves "today", month and year boundaries in the configured business time zone (Asia/Manila fallback chain). No `DateTime.Now` in code ⚑ OD-2
 - [x] **FND-09**: SiteSettings core (business name, time zone, currency/locale, contact placeholders) exists as an entity with seed data and a cached read port, available to all later phases ⚑ OD-1
 - [ ] **FND-10**: Append-only AuditLog table and `IAuditTrail` port record UTC time, actor, action, target, truncated IP, user-agent family and correlation id, with no secrets. Updates and deletes are rejected at the DB level (PRD §11.4)
 - [ ] **FND-11**: The test SQL fixture runs integration tests against LocalDB (`CSPS_Test_<guid>`) locally and Testcontainers SQL Server 2025 in CI, with Respawn resets and parallel isolation ⚑ C-20, C-29, C-30
@@ -309,9 +309,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-03 | Phase 1 | Complete |
 | FND-04 | Phase 1 | Pending |
 | FND-05 | Phase 1 | Pending |
-| FND-06 | Phase 1 | Pending |
+| FND-06 | Phase 1 | Complete |
 | FND-07 | Phase 1 | Pending |
-| FND-08 | Phase 1 | Pending |
+| FND-08 | Phase 1 | Complete |
 | FND-09 | Phase 1 | Complete |
 | FND-10 | Phase 1 | Pending |
 | FND-11 | Phase 1 | Pending |
