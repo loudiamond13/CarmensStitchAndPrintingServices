@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T15:52:30-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T16:38:02-05:00*
 
 ## Overview
 
@@ -133,7 +133,7 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 - The sources contradict each other on EF compatibility level and the `json` type (C-31).
 - MapStaticAssets cache headers and `AllowAnonymous` on static files and the SPA fallback need a spike.
 
-**Plans**: 12/13 plans executed in 7 waves
+**Plans**: 13/13 plans executed in 7 waves
 
 Plans:
 **Wave 1**
@@ -161,7 +161,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [x] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
-- [ ] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
+- [x] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
 
 ### Phase 2: Web Foundation & Design System
 
@@ -848,7 +848,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Hosting Verification & Backend Foundation | 12/13 | In Progress|  |
+| 1. Hosting Verification & Backend Foundation | 13/13 | In Progress|  |
 | 2. Web Foundation & Design System | 0/TBD | Not started | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |

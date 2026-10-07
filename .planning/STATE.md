@@ -1,21 +1,21 @@
 ---
-created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T15:55:49-05:00"
 gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
-status: executing
-stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-10-07T20:55:49.779Z"
+status: verifying
+stopped_at: Completed 01-13-PLAN.md
+last_updated: "2026-10-07T21:37:41.422Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 415c7cbe580d3081e8ba155c09f4f4beb15b0ef6
+state_head: efc471d46451d4fd0d439d9a7baa30916abcf9c9
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
+created: "2026-10-07T00:08:54-05:00"
+updated: "2026-10-07T16:38:02-05:00"
 ---
 
 # Project State
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
 Plan: 13 of 13
-Status: Ready to execute
-Last activity: 2026-10-07 - Completed quick task 261007-kz6: nuqs URL state requirement (Phase 1 paused at plan 01-13 owner checkpoint)
+Status: Phase complete — ready for verification
+Last activity: 2026-10-07 - Completed 01-13 (hosting record transcribed, D-33 SQL Server 2025 target, compat pin 160 provisional); Phase 1 ready for verification
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -70,6 +70,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P09 | 15 min | 3 tasks | 18 files |
 | Phase 01 P10 | 23min | 3 tasks | 15 files |
 | Phase 01 P11 | 29min | 3 tasks | 13 files |
+| Phase 01 P13 | 4 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: 01-10: No-database test hosts keep the (certificate-encrypted) key ring in memory; DB-backed hosts use dbo.DataProtectionKeys
 - [Phase 01]: 01-11: Owner approved (2026-10-07, Option A) a narrow version-pinned license exception: Microsoft.Data.SqlClient.SNI.runtime 6.0.2 and Microsoft.Identity.Client.NativeInterop 0.20.6 (Microsoft Software License Terms; free, not open source, shipped unmodified inside the app only, Microsoft notices kept). Recorded in docs/license-exceptions.json; any other version fails the license gate.
 - [Phase 01]: 01-11: License gate fails on stale exceptions (an entry matching no package), so an SqlClient/EF upgrade that moves either package needs a new owner approval.
+- [Phase 01]: D-33 (owner, 2026-10-07): target production DB is SQL Server 2025 (host is 2022 today); the 2025 move happens at cutover after a fresh backup; SqlCompatibility.Level stays 160 provisional, re-pin to 170 after the 2025 DB exists and is verified
+- [Phase 01]: 01-13: Host facts (2026-10-07): .NET Basic, 1/1 DB, 1000 MB, SQL Server 2022 16.0.x Web, app login db_owner; probe impossible (no extra site) so runtime/in-process/proxy/tz/PFX facts are verified on the Phase 3 first deploy
+- [Phase 01]: 01-13: cspstailoring.com SPF ends -all and DMARC is p=reject; Phase 4 mail must use SmarterASP.NET mail servers (include:_spf.site4now.net) with aligned DKIM; Gmail D2 check still due
 
 ### Pending Todos
 
@@ -128,7 +132,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: The FND-13 hosting record needs SmarterASP.NET control-panel access, and the SMTP check needs a sender domain with DNS (C-45, OD-12). If access lags, the hosting spike runs last and the compatibility level is pinned provisionally.
+- [Phase 1]: FND-13 record filled 2026-10-07 (01-13). Still open: Gmail SPF/DKIM/DMARC pass check (D2) before Phase 4; probe facts verified on the Phase 3 first deploy; ask SmarterASP.NET about SQL Server 2025 cost/availability (D-33).
 - [Phase 3]: The owner must create the GitHub repo and provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
 - [Phase 4]: Send the security batch (OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33) before the phase starts. Email delivery is a hard dependency for sign-in.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
@@ -153,6 +157,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T18:07:50.003Z
-Stopped at: Completed 01-11-PLAN.md
+Last session: 2026-10-07T21:37:41.371Z
+Stopped at: Completed 01-13-PLAN.md
 Resume file: None
