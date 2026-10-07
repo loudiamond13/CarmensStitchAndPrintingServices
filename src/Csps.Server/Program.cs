@@ -1,6 +1,15 @@
+using Csps.Server.Endpoints;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services
+    .AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy());
+
 var app = builder.Build();
+
+app.MapCspsHealth();
 
 app.Run();
 
