@@ -44,8 +44,12 @@ internal static class LogEvents
         return value.ShouldBeOfType<ScalarValue>().Value;
     }
 
+    // Serilog's request-logging template. Framework events can also carry RequestPath (from the hosting log scope)
+    // and StatusCode, so the template is what identifies the one completion event.
+    private const string CompletionTemplatePrefix = "HTTP {RequestMethod} {RequestPath} responded {StatusCode}";
+
     private static bool IsRequestCompletion(LogEvent logEvent, string path) =>
-        logEvent.Properties.ContainsKey("StatusCode")
+        logEvent.MessageTemplate.Text.StartsWith(CompletionTemplatePrefix, StringComparison.Ordinal)
         && logEvent.Properties.TryGetValue("RequestPath", out var requestPath)
         && requestPath is ScalarValue { Value: string value }
         && string.Equals(value, path, StringComparison.Ordinal);
