@@ -19,6 +19,10 @@ public sealed class CspsDatabase : IAsyncLifetime
     private const int MinCompatibilityLevel = 100;
     private const int MaxCompatibilityLevel = 170;
 
+    // Never reset: migration history, the migration-seeded SiteSettings row, and the append-only audit log with its
+    // empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
+    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AuditLog", "AuditLogTruncateGuard"];
+
     private SqlServerInstance? _server;
     private Respawner? _respawner;
 
@@ -87,7 +91,8 @@ public sealed class CspsDatabase : IAsyncLifetime
     /// SiteSettings row (research Pattern 11). The Respawner is built on first use, so tables a test created
     /// before its first reset are included. Respawn deletes with DELETE, which the append-only trigger rejects, so
     /// AuditLog and its AuditLogTruncateGuard are never reset (research Pitfall 1). Audit tests therefore find their
-    /// own rows by a unique correlation id.
+    /// own rows by a unique correlation id. When every user table is on the ignore list there is nothing to reset, and
+    /// the call returns without building the Respawner (Respawn itself would throw "No tables found").
     /// </summary>
     /// <returns>A task that completes when the data is gone.</returns>
     public async Task ResetAsync()
@@ -101,21 +106,41 @@ public sealed class CspsDatabase : IAsyncLifetime
         await using (connection.ConfigureAwait(false))
         {
             await connection.OpenAsync().ConfigureAwait(false);
+            if (_respawner is null && !await HasResettableTableAsync(connection).ConfigureAwait(false))
+            {
+                return;
+            }
+
             _respawner ??= await Respawner.CreateAsync(
                 connection,
                 new RespawnerOptions
                 {
                     DbAdapter = DbAdapter.SqlServer,
-                    TablesToIgnore =
-                    [
-                        new Table("__EFMigrationsHistory"),
-                        new Table("SiteSettings"),
-                        new Table("AuditLog"),
-                        new Table("AuditLogTruncateGuard"),
-                    ],
+                    TablesToIgnore = [.. IgnoredTables.Select(name => new Table(name))],
                 }).ConfigureAwait(false);
 
             await _respawner.ResetAsync(connection).ConfigureAwait(false);
+        }
+    }
+
+    // True when at least one user table is not on the ignore list (names compared like Respawn: any schema).
+    private static async Task<bool> HasResettableTableAsync(SqlConnection connection)
+    {
+        var command = connection.CreateCommand();
+        await using (command.ConfigureAwait(false))
+        {
+            var parameters = new List<string>();
+            for (var index = 0; index < IgnoredTables.Length; index++)
+            {
+                var parameter = "@ignored" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                parameters.Add(parameter);
+                command.Parameters.AddWithValue(parameter, IgnoredTables[index]);
+            }
+
+            command.CommandText = "SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0 AND name NOT IN ("
+                + string.Join(", ", parameters) + ");";
+            var count = await command.ExecuteScalarAsync().ConfigureAwait(false);
+            return Convert.ToInt32(count, System.Globalization.CultureInfo.InvariantCulture) > 0;
         }
     }
 
