@@ -55,7 +55,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
 - [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
-- [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders
+- [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
 - [ ] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
@@ -486,10 +486,10 @@ Plans:
 
 ### Phase 10: Admin Dashboard
 
-**Goal**: Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent.
+**Goal**: Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent. Each staff member also sees the money they hold and can hand it to a coworker (owner addition, 2026-10-07).
 **Mode:** mvp
 **Depends on**: Phase 6, Phase 8. Until this phase ships, `/admin` redirects to Orders.
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, MONEY-01, MONEY-02, MONEY-03, MONEY-04, MONEY-05, MONEY-06, MONEY-07, MONEY-08
 **Success Criteria** (what must be TRUE):
   1. **Landing.** After sign-in, staff land on the dashboard. They see "Good morning/afternoon/evening, {firstName}", today's date in Manila time, and View Orders and New Order actions.
   2. **KPI cards,** per the C-40 definitions:
@@ -502,6 +502,8 @@ Plans:
      - "Orders by status" shows the active total.
      - The 6 most recent orders link to their detail pages.
   4. **Card states.** Every card shows a skeleton while loading, an empty state when there's no data and an error state with retry.
+  5. **Money on hand.** Each staff member sees their own server-computed money on hand (payments they received + transfers in − transfers out) and its ledger, plus a dashboard card. An Admin sees only their own figures and transfers and gets 403 for anyone else's. A Manager sees every staff member's balance and all transfers.
+  6. **Coworker transfers.** A staff member can transfer part of their money on hand to another active staff member: above zero, not to themselves, not future-dated in Manila time and, by default, never more than they hold, even under two concurrent attempts. A double-click records one transfer. Transfers can't be edited. Only a Manager can delete one (an Admin gets 403), and every delete lands in the audit log with the full record. Every new endpoint has authorization-matrix rows for anonymous, Admin and Manager.
 
 **Owner decisions to close at discuss step:**
 - **C-40** metric definitions:
@@ -510,6 +512,10 @@ Plans:
   - whether cancelled orders appear in "Orders by status"
   - whether receivables include overdue orders
 - **C-18** confirm the dashboard scope
+- **OD-16** staff balance rules: transfers above the sender's balance (default: refuse); a payment correction or order deletion that pushes a balance below zero; whether expenses or refunds paid from a staff member's cash count (default: only payments and transfers, as the owner described); how money still held by a deactivated or deleted staff member is handed over (otherwise the sender is always the signed-in user)
+- **OD-17** transfer edits (default: none; delete and re-create)
+- **OD-18** soft vs hard delete for transfers (recommended: soft)
+- **OD-19** apply the 2026-10-07 ruling: only Managers delete transfers, an Admin sees only their own money and transfers, and a Manager sees everyone's
 - **OD-14**
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
@@ -681,12 +687,13 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - value shapes, without real customer data
      - data-quality anomalies, with counts
      - image storage and user accounts
-  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress.
+  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress. It includes the rule that gives every migrated payment a Received by (MIG-09, OD-15).
   4. **Approval gate.** The owner has approved `LEGACY-MAPPING.md`, and no ETL code was written before that approval.
 
 **Owner decisions to close at discuss step:**
 - **C-28** final name of the legacy-restore database
 - the rulings real data may break: **C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7**. Examples: multiple discounts, overpayments, more than 5 images, missing due dates, unknown statuses, local-time timestamps.
+- **OD-15** (final) how migrated payments get a Received by, whether they count toward money on hand, and whether staff start with opening balances at go-live
 
 **Owner prerequisites:** Owner approval of `LEGACY-MAPPING.md`. This is a blocking checkpoint.
 
@@ -699,7 +706,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Goal**: Every legacy order, payment, discount, expense, image and user lands in a fresh EF-migrated database with 100% reconciliation, proven by a timed dress rehearsal on staging.
 **Mode:** mvp
 **Depends on**: Phase 15 (approved mapping)
-**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08
+**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08, MIG-09
 **Success Criteria** (what must be TRUE):
   1. **Legacy columns.** The approved legacy-only columns (`LegacyId`, legacy order number) exist as nullable columns, added through normal migrations. The app still builds, tests and runs on an empty database.
   2. **ETL.** The `tools/Csps.LegacyMigration` ETL:
@@ -717,6 +724,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
      It lists every transformed or rejected row with a reason, and blocks cutover unless reconciliation is 100% with zero unexplained differences.
   5. **Dress rehearsal.** A timed dress rehearsal on the staging site, using a fresh `.bak`, runs end to end and passes reconciliation.
+  6. **Payment receivers.** Every migrated payment has a Received by under the approved OD-15 rule. None was dropped or changed, and reconciliation covers them all.
 
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
@@ -779,17 +787,17 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 | **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44, OD-15 (shape only) | The order aggregate, numbering, invariants and schema (Core Value) |
 | **Phase 8 discuss** | C-13 (labels), C-18, OD-20 | Order screens, payment receiver label |
 | **Phase 9 discuss** | OD-9 / C-26, C-2, C-16 (+ Cloudinary account) | Image delivery, per-order limit, accessible reorder |
-| **Phase 10 discuss** | C-40, C-18 | Dashboard metric definitions |
+| **Phase 10 discuss** | C-40, C-18, OD-16, OD-17, OD-18 | Dashboard metric definitions, staff money rules |
 | **Phase 11 discuss** | C-21, C-12, C-36 (scope only), C-17 | Content model, Contact layout, whether Phase 13 runs |
 | **Phase 12 discuss** | OD-10 (full retention set), OD-11 | Retention jobs, legal text |
 | **Phase 13 discuss** | C-36 (details), OD-10 (inquiry retention) | Inquiry storage, inbox, attachment types |
 | **Phase 14 discuss** | OD-10 (audit and financial records), OD-13 (confirm), C-32 (confirm), every open OD-14 item | Release readiness |
-| **Phase 15** | C-28 (final), re-check C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7 against real data; **LEGACY-MAPPING.md approval** | All ETL code |
+| **Phase 15** | C-28 (final), OD-15 (final), re-check C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7 against real data; **LEGACY-MAPPING.md approval** | All ETL code |
 | **Phase 17** | Cutover window, monitoring period, legacy-backup retention, point of no return | Go-live |
 
 ## Coverage
 
-All 163 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 172 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
@@ -802,15 +810,15 @@ All 163 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22 | 11 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
 | 9 | ORD-04, IMG-01…IMG-05, JOB-01, JOB-02 | 8 |
-| 10 | DASH-01…DASH-06 | 6 |
+| 10 | DASH-01…DASH-06, MONEY-01…MONEY-08 | 14 |
 | 11 | PUB-01…PUB-06, GAL-01…GAL-03, CONT-01…CONT-05 | 14 |
 | 12 | ANL-01…ANL-09, LEGAL-01…LEGAL-05 | 14 |
 | 13 | INQ-01…INQ-08 | 8 |
 | 14 | SEC-05, A11Y-05, PERF-06, PERF-07, LEGAL-06 | 5 |
 | 15 | MIG-01, MIG-02 | 2 |
-| 16 | MIG-03…MIG-08 | 6 |
+| 16 | MIG-03…MIG-09 | 7 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **163** |
+| **Total** | | **172** |
 
 ## Progress
 

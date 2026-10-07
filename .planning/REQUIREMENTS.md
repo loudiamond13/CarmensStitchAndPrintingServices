@@ -158,6 +158,19 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **DASH-05**: The dashboard shows the 6 most recent orders with links to detail
 - [ ] **DASH-06**: Every dashboard card has loading (skeleton), empty and error states
 
+### Staff Money (MONEY)
+
+Added by the owner on 2026-10-07: "Every user can have money tied to them and users can transfer their money to basically other user which they are coworker." The owner then ruled the same day that only Managers delete transfers, and that an Admin sees only their own money while a Manager sees everyone's (OD-19, resolved). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover this yet.
+
+- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them. Deleted transfers never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side) ⚑ OD-15, OD-16
+- [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server
+- [ ] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
+- [ ] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
+- [ ] **MONEY-05**: By default, a transfer larger than the sender's current money on hand is refused with a plain-English error. The balance check and the insert run in one transaction that locks the sender's ledger (e.g. `UPDLOCK, HOLDLOCK`, or SERIALIZABLE; SEC-07), so two concurrent transfers from the same sender can never together overdraw it. An integration test sends two concurrent transfers that together exceed the balance and asserts that exactly one succeeds, the other is refused, and both balances stay exact ⚑ OD-16
+- [ ] **MONEY-06**: Only the **Manager** role can delete a transfer record; an Admin gets 403 and an anonymous caller 401 (owner ruling OD-19, 2026-10-07). Delete asks for confirmation and needs the current `rowversion` (a stale one gets 409, SEC-07). Every delete writes an append-only audit entry through `IAuditTrail` (FND-10): who deleted it, when, and what the record said (from, to, amount, date, note, recorded by). Soft delete is recommended, so the record stays visible and past balances stay explainable; a hard delete silently changes past balances, and its audit copy is purged after 8 months (D-32) ⚑ OD-18
+- [ ] **MONEY-07**: Transfers can't be edited. There is no update endpoint, and a wrong transfer is corrected by deleting it (MONEY-06) and recording a new one ⚑ OD-17
+- [ ] **MONEY-08**: Every staff-money endpoint has authorization-matrix rows for {anonymous, Admin, Manager} with exact statuses (SEC-02). Anonymous gets 401 everywhere. Own balance, own ledger, transfer create and transfer list succeed for both roles, and an Admin's list holds only their own transfers. Another user's balance or ledger, and the all-balances list, get 403 for an Admin and succeed for a Manager. Transfer delete gets 403 for an Admin and succeeds for a Manager. The transfer-deleted event joins the AUDIT-01 catalog
+
 ### Public Site (PUB)
 
 - [ ] **PUB-01**: Visitors can browse Home, Products, Gallery and Contact/Get a Quote, built to UI-SPEC §7, plus the legal pages (§13) and a 404 page
@@ -241,6 +254,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **MIG-06**: Legacy user accounts (if any) become profiles. Passwords are not carried over unless verifiably compatible, and users get a "set your password" email at go-live
 - [ ] **MIG-07**: An automated reconciliation report compares legacy source vs new: row counts per entity; Σ items, payments, discounts, order expenses and company expenses; per-order Total/Paid/Balance. Every transformed or rejected row is listed with a reason. Cutover is blocked unless it is 100% with zero unexplained differences
 - [ ] **MIG-08**: A timed dress rehearsal on the staging site with a fresh `.bak` succeeds end to end
+- [ ] **MIG-09**: Every migrated payment gets a Received by (ORD-22) under the rule in the approved `LEGACY-MAPPING.md`, because legacy payments probably name no receiver. Example rules: a designated "Legacy / unassigned" holder that can't sign in, or an owner-chosen staff user. No migrated payment is dropped or changed (amount, date, method, reference and order link stay exact), and MIG-07 reconciliation covers every one. The same ruling says whether migrated payments count toward money on hand (MONEY-01) ⚑ OD-15
 
 ### Cutover (CUT)
 
@@ -408,6 +422,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-04 | Phase 10 | Pending |
 | DASH-05 | Phase 10 | Pending |
 | DASH-06 | Phase 10 | Pending |
+| MONEY-01 | Phase 10 | Pending |
+| MONEY-02 | Phase 10 | Pending |
+| MONEY-03 | Phase 10 | Pending |
+| MONEY-04 | Phase 10 | Pending |
+| MONEY-05 | Phase 10 | Pending |
+| MONEY-06 | Phase 10 | Pending |
+| MONEY-07 | Phase 10 | Pending |
+| MONEY-08 | Phase 10 | Pending |
 | PUB-01 | Phase 11 | Pending |
 | PUB-02 | Phase 11 | Pending |
 | PUB-03 | Phase 11 | Pending |
@@ -465,13 +487,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIG-06 | Phase 16 | Pending |
 | MIG-07 | Phase 16 | Pending |
 | MIG-08 | Phase 16 | Pending |
+| MIG-09 | Phase 16 | Pending |
 | CUT-01 | Phase 17 | Pending |
 | CUT-02 | Phase 17 | Pending |
 | CUT-03 | Phase 17 | Pending |
 
 **Coverage:**
-- v1 requirements: 163 total
-- Mapped to phases: 163
+- v1 requirements: 172 total
+- Mapped to phases: 172
 - Unmapped: 0 ✓
 
 Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where their gate is first built. Every later phase enforces them through the PRD §22 Definition of Done (see ROADMAP.md "Roadmap Conventions").

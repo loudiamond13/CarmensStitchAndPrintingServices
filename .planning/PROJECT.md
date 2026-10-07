@@ -47,6 +47,7 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 - [ ] **Order images:** Cloudinary signed server-side upload, a per-order limit, cover image, reorder, alt text, lazy responsive delivery, cleanup job (ORD-04, PRD §10)
 - [ ] **Company expenses:** CRUD with filters, search and period totals (CEXP-01..02)
 - [ ] **Admin dashboard:** KPIs, income vs expenses chart, orders by status, recent orders (UI-SPEC §8.3)
+- [ ] **Staff money (owner addition, 2026-10-07):** every payment names the staff member who received it ("Received by", the owner's "PaidTo"); each staff member has a server-computed money on hand; staff can transfer money to coworkers. An Admin sees only their own money and a Manager sees everyone's; only a Manager can delete a transfer, and every delete is audited (ORD-22, MONEY-01..08, MIG-09; open rulings OD-15..OD-18, OD-20). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover it yet and need a later update
 - [ ] **Public site:** Home, Products, Gallery and Contact/Get a Quote per the UI spec, with database-managed content, prices and business info, SEO and JSON-LD (PUB-01..04, UI-SPEC §7)
 - [ ] **Site content management (Manager only):** site settings, price list, public content (PUB-03)
 - [ ] **Consent & analytics:** cookie banner (accept, reject, customize), GPC, clear-my-data, consented analytics, cookieless aggregates, Manager metrics dashboard, retention (ANL-01..09)
@@ -142,6 +143,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 | Server is authoritative for all money math. The client uses the UI-spec `orderTotals()` only for live previews | PRD §3.3 and UI-SPEC §9.2 both require it, and both must produce identical figures | — Pending |
 | Legacy `.bak` is opened only in the legacy-discovery phase | Prime Directive 11 and PRD §16 | — Pending |
 | TDD mode on for every phase | PRD Prime Directive 3 and §14 | ✓ Good |
+| **OD-19 resolved** and owner answers (2026-10-07): only the Manager role deletes money transfers (Admin 403); an Admin sees only their own money on hand and transfers, a Manager sees everyone's; every state-changing form post is idempotent (SEC-06, WEB-09); concurrency guarantees are explicit (SEC-07) | The owner answered in chat. The rulings match PRD §4, where the Manager is the senior role. Duplicate posts and lost updates would break the Core Value of correct, server-computed money | ✓ Owner decided (2026-10-07) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -164,6 +166,9 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-13 | OpenAPI in production: Managers only, or disabled | — | Foundation / hardening |
 | OD-14 | UI-spec items that conflict with WCAG | See C-16 below | Every UI phase |
 | OD-15 | Legacy payments' "Received by": a designated "Legacy / unassigned" holder that can't sign in, or an owner-chosen staff user. Also: do migrated payments count toward money on hand, and do staff start with opening balances at go-live? | Neither document covers it (owner addition, 2026-10-07). Legacy payments probably name no receiver, and ORD-22 makes the field required. A migrated payment is never dropped or changed | Phase 7 (import shape), Phase 15 (final) |
+| OD-16 | Staff balance rules: may a transfer exceed the sender's balance; what happens when a payment correction or order deletion pushes a balance below zero; do expenses or refunds paid from a staff member's cash count; how is money still held by a deactivated or deleted staff member handed over? | Not covered. Defaults: refuse transfers above the balance; count only payments and transfers, as the owner described; the sender is always the signed-in user | Phase 10 |
+| OD-17 | Can a money transfer be edited? | Not covered. Default: no edit; delete and re-create | Phase 10 |
+| OD-18 | Money-transfer delete: soft or hard | Not covered. Recommended: soft, so history stays and past balances stay explainable. A hard delete changes past balances, and its audit copy is purged after 8 months (D-32) | Phase 10 |
 | OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP) | Phase 8 |
 
 ## PRD ↔ UI-Spec Conflicts (found at initialization; the owner rules at the relevant phase)
