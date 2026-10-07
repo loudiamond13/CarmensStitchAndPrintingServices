@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-10-PLAN.md
-last_updated: "2026-10-07T17:36:48.517Z"
+stopped_at: Completed 01-11-PLAN.md
+last_updated: "2026-10-07T18:07:50.052Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: f5dbd5c65a1bc178cfbd47e5593774b13e90f9c8
+state_head: c8b4360ebb46b7035649b457c3df9ca5f6590af4
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 12 of 13
+Plan: 13 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P08 | 17 min | 3 tasks | 26 files |
 | Phase 01 P09 | 15 min | 3 tasks | 18 files |
 | Phase 01 P10 | 23min | 3 tasks | 15 files |
+| Phase 01 P11 | 29min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: 01-10: AddCspsDataProtection loads the DP certificates from IConfiguration at registration (XmlKeyDecryptionOptions is internal); ValidateOnStart still stops the host on any bad secret
 - [Phase 01]: 01-10: A refusing XML encryptor is installed when no certificate loads, so no composition can store a key unencrypted
 - [Phase 01]: 01-10: No-database test hosts keep the (certificate-encrypted) key ring in memory; DB-backed hosts use dbo.DataProtectionKeys
+- [Phase 01]: 01-11: Owner approved (2026-10-07, Option A) a narrow version-pinned license exception: Microsoft.Data.SqlClient.SNI.runtime 6.0.2 and Microsoft.Identity.Client.NativeInterop 0.20.6 (Microsoft Software License Terms; free, not open source, shipped unmodified inside the app only, Microsoft notices kept). Recorded in docs/license-exceptions.json; any other version fails the license gate.
+- [Phase 01]: 01-11: License gate fails on stale exceptions (an entry matching no package), so an SqlClient/EF upgrade that moves either package needs a new owner approval.
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T17:36:48.472Z
-Stopped at: Completed 01-10-PLAN.md
+Last session: 2026-10-07T18:07:50.003Z
+Stopped at: Completed 01-11-PLAN.md
 Resume file: None
