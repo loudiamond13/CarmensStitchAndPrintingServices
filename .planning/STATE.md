@@ -4,10 +4,10 @@ current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: verifying
 stopped_at: Completed 01-13-PLAN.md
-last_updated: "2026-10-07T21:37:41.422Z"
+last_updated: "2026-10-07T23:31:59.238Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: efc471d46451d4fd0d439d9a7baa30916abcf9c9
+state_head: 50a0cd3badab8566749a90cc95c49b11533d7232
 progress:
   total_phases: 17
   completed_phases: 0
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
 Plan: 13 of 13
 Status: Phase complete — ready for verification
-Last activity: 2026-10-07 - Completed 01-13 (hosting record transcribed, D-33 SQL Server 2025 target, compat pin 160 provisional); Phase 1 ready for verification
+Last activity: 2026-10-07 - Completed quick task 261007-p98: Fix WR-04 dev-seed guard server allow-list (after Phase 1 UAT 11/11 passed)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -92,7 +92,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: AddInfrastructure calls AddLogging (TryAdd only) so the health service validates on a plain ServiceCollection
 - [Phase 01]: MinimalHealthWriter sends no body for HEAD; status, Content-Type and Cache-Control: no-store are kept
 - [Phase 01]: Dev-seed CLI (tools/Csps.DevSeed) creates the database and pins it to SqlCompatibility.Level before migrating; CSPS_Dev is now at 160
-- [Phase 01]: DevSeedTargetGuard allows only CSPS_Dev/CSPS_E2E (OrdinalIgnoreCase) on any server; refuses MSSQLLocalDB, AttachDBFilename, empty/unparseable; reasons never echo the connection string
+- [Phase 01]: DevSeedTargetGuard allows only CSPS_Dev/CSPS_E2E (OrdinalIgnoreCase) and only on `(localdb)\CSPS` or a loopback container (`127.0.0.1,<port>` / `localhost,<port>`); refuses every other server (incl. MSSQLLocalDB, named-pipe aliases, remote hosts), Failover Partner, AttachDBFilename, empty/unparseable; reasons never echo the connection string (WR-04 fixed, quick 261007-p98)
 - [Phase 01]: Seed steps implement ISeedStep with a unique Order and are appended to DevSeedSteps.All by the phase that creates their entity; DevSeeder rejects duplicate Order before running
 - [Phase 01]: ArchUnitNET rules against types from unloaded assemblies must use NotDependOnAnyTypesThat(); NotDependOnAny(Types().That()...) misses them
 - [Phase 01]: CspsDatabase.ResetAsync (Respawn) ignores __EFMigrationsHistory and SiteSettings; plan 09 must add AuditLog and AuditLogTruncateGuard
@@ -146,6 +146,7 @@ None yet.
 | 261007-j0u | Add staff money requirements (payment Received by, staff balances, coworker transfers, Manager-only transfer delete), idempotent form posts and concurrency guarantees | 2026-10-07 | ac2f224 | [261007-j0u-add-staff-money-requirements-payment-rec](./quick/261007-j0u-add-staff-money-requirements-payment-rec/) |
 | 261007-k45 | Add expense Paid by (company and order expenses, deducts from money on hand) and record-level Created by / Updated by on every record | 2026-10-07 | 1bb8dd7 | [261007-k45-add-expense-paid-by-and-record-level-cre](./quick/261007-k45-add-expense-paid-by-and-record-level-cre/) |
 | 261007-kz6 | URL query-string UI state with nuqs 2.10.1 (owner-approved): WEB-10, list requirements, analytics query stripping, planned dependency record | 2026-10-07 | 415c7cb | [261007-kz6-url-query-string-ui-state-with-nuqs](./quick/261007-kz6-url-query-string-ui-state-with-nuqs/) |
+| 261007-p98 | Fix WR-04: dev-seed guard allows only (localdb)\\CSPS or a loopback container (127.0.0.1/localhost,<port>), refuses Failover Partner | 2026-10-07 | 50a0cd3 | [261007-p98-fix-wr-04-dev-seed-guard-server-allow-li](./quick/261007-p98-fix-wr-04-dev-seed-guard-server-allow-li/) |
 
 ## Deferred Items
 
