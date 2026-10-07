@@ -140,8 +140,32 @@ public sealed class SiteSettings
     /// <returns>True when at least one value differed and was reset; false when nothing changed.</returns>
     public bool ResetToSeedDefaults(DateTimeOffset utcNow)
     {
-        _ = utcNow;
-        _ = BusinessName;
-        return false;
+        // Ordinal: the seed values must round-trip byte-exact, so a case-only difference is a difference.
+        var differs =
+            !string.Equals(BusinessName, SiteSettingsDefaults.BusinessName, StringComparison.Ordinal)
+            || !string.Equals(TimeZoneId, SiteSettingsDefaults.TimeZoneId, StringComparison.Ordinal)
+            || !string.Equals(CurrencyCode, SiteSettingsDefaults.CurrencyCode, StringComparison.Ordinal)
+            || !string.Equals(Locale, SiteSettingsDefaults.Locale, StringComparison.Ordinal)
+            || !string.Equals(ContactEmail, SiteSettingsDefaults.ContactEmail, StringComparison.Ordinal)
+            || !string.Equals(ContactPhone, SiteSettingsDefaults.ContactPhone, StringComparison.Ordinal)
+            || !string.Equals(AddressLine, SiteSettingsDefaults.AddressLine, StringComparison.Ordinal)
+            || !string.Equals(FacebookUrl, SiteSettingsDefaults.FacebookUrl, StringComparison.Ordinal);
+
+        if (!differs)
+        {
+            return false;
+        }
+
+        BusinessName = SiteSettingsDefaults.BusinessName;
+        TimeZoneId = SiteSettingsDefaults.TimeZoneId;
+        CurrencyCode = SiteSettingsDefaults.CurrencyCode;
+        Locale = SiteSettingsDefaults.Locale;
+        ContactEmail = SiteSettingsDefaults.ContactEmail;
+        ContactPhone = SiteSettingsDefaults.ContactPhone;
+        AddressLine = SiteSettingsDefaults.AddressLine;
+        FacebookUrl = SiteSettingsDefaults.FacebookUrl;
+        UpdatedAtUtc = utcNow;
+        UpdatedByUserId = null;
+        return true;
     }
 }

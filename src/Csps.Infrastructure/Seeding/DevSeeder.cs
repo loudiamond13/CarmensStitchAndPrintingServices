@@ -22,15 +22,33 @@ public sealed class DevSeeder
         _time = time;
     }
 
-    /// <summary>Runs every step.</summary>
+    /// <summary>
+    /// Runs every step in ascending <see cref="ISeedStep.Order"/> and saves after each one. Fails before any
+    /// step runs when two steps share an order, so the run order is always fully specified.
+    /// </summary>
     /// <param name="db">The context to seed.</param>
     /// <param name="cancellationToken">Cancels the run.</param>
-    /// <returns>One result per step.</returns>
-    public Task<IReadOnlyList<SeedStepResult>> RunAsync(CspsDbContext db, CancellationToken cancellationToken = default)
+    /// <returns>One result per step, in run order.</returns>
+    /// <exception cref="InvalidOperationException">Two steps share an order.</exception>
+    public async Task<IReadOnlyList<SeedStepResult>> RunAsync(CspsDbContext db, CancellationToken cancellationToken = default)
     {
-        _ = db;
-        _ = _time;
-        _ = cancellationToken;
-        return Task.FromResult<IReadOnlyList<SeedStepResult>>([]);
+        ArgumentNullException.ThrowIfNull(db);
+
+        var duplicate = _steps.GroupBy(step => step.Order).FirstOrDefault(group => group.Skip(1).Any());
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException(
+                $"Seed steps {string.Join(", ", duplicate.Select(step => step.Name))} share Order {duplicate.Key}. Every step needs its own Order.");
+        }
+
+        var results = new List<SeedStepResult>(_steps.Count);
+        foreach (var step in _steps.OrderBy(step => step.Order))
+        {
+            var changed = await step.RunAsync(db, _time, cancellationToken).ConfigureAwait(false);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            results.Add(new SeedStepResult(step.Order, step.Name, changed));
+        }
+
+        return results;
     }
 }
