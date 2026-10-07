@@ -1,5 +1,7 @@
 # Dependencies: what we use and why it costs nothing
 
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-07T15:53:21-05:00*
+
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
 ## What a software license is
@@ -54,6 +56,16 @@ We adopt a new version of a package only after it has been public for **at least
 ## Owner approval
 
 The owner approved the full Phase 1 list on **2026-10-07**, before anything was downloaded (plan 01-01, package legitimacy gate). The approval is recorded in `docs/dependencies.json` under `approvals`.
+
+## Planned (not yet installed)
+
+These are approved for a later phase but not downloaded yet. They sit in a separate `planned` list in `docs/dependencies.json`. The automated check reads only the main list, because nothing here is installed yet. The phase that installs a planned package moves it into the main list and pins its exact version.
+
+| Package | Version | License | What it does | Approved | Installed in |
+|---------|---------|---------|--------------|----------|--------------|
+| nuqs | 2.10.1 | MIT (free) | Keeps what a list shows (filters, search, sort, page, tab and view) in the web address, so Back, refresh, bookmarks and shared links reopen the same view. It adds about 5.6 KB, compressed, to the pages that use it. Its one helper package, @standard-schema/spec 1.1.0, is MIT too. | Owner, 2026-10-07 | Phase 2 (Web Foundation) |
+
+Before installing, Phase 2 checks again for a newer stable version that is at least 14 days old, for example a 2.10.2, which fixes a known bug. It switches only if the owner approves that exact version. Phase 2 also teaches the automated check to read the web project's pins (`web/package.json`), so the main list and the web pins can never disagree.
 
 ## Adding a dependency
 

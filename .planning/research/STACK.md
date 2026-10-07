@@ -1,5 +1,7 @@
 # Stack Research
 
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-07T15:53:21-05:00*
+
 **Domain:** Small-business order management + public marketing site (custom sublimation jerseys / tailoring, Philippines). .NET 10 Minimal API + React 19 SPA served from `wwwroot`, SmarterASP.NET shared Windows/IIS hosting.
 **Researched:** 2026-10-06
 **Confidence:** HIGH for versions, licenses and peer ranges (read directly from the registries today). MEDIUM for behavior and compatibility claims taken from official docs and READMEs. LOW for hosting-plan details (vendor marketing pages; verify in the control panel).
@@ -98,6 +100,7 @@
 | react, react-dom | 19.3.0 | MIT | UI | — | HIGH [R] |
 | react-router | 8.4.0 | MIT | Routing | See Core. | HIGH [R] |
 | @tanstack/react-query | 5.104.1 | MIT | Server state | `@tanstack/react-query-devtools` 5.104.1 is dev-only and lazy-loaded, never in the prod bundle. | HIGH [R] |
+| nuqs | 2.10.1 (2026-08-25; **owner-approved 2026-10-07, planned for Phase 2**) | MIT | List-page state in the URL query string (WEB-10) | Adapter `nuqs/adapters/react-router/v8` (since 2.9.0; imports only from `react-router`), rendered inside the router around `<Outlet/>`, never around `RouterProvider`. About 5.6 KB gz in a real Vite 8.3.3 build. One dependency, `@standard-schema/spec` 1.1.0 (MIT). CSP-safe (no `eval` or `new Function`). Known bugs avoided by WEB-10's rules: #1567 (no nuqs `startTransition` option), #1563 (keep `shallow: true`), #1245 (no `<Navigate>` that sets query params). **At install, recheck:** if a stable 2.10.2 or later is at least 14 days old, ask the owner before switching; never take `2.10.2-beta.1`. Research: `.planning/quick/261007-kz6-url-query-string-ui-state-with-nuqs/261007-kz6-RESEARCH.md`. | HIGH [R] |
 | react-hook-form | 7.89.0 | MIT | Forms | Peers React 16.8–19. | HIGH [R] |
 | zod | 4.6.5 | MIT | Client-side UX validation (mirrors FluentValidation) | Import from `zod` (v4). `zod/mini` is an option if the admin budget gets tight [K]. | HIGH [R] |
 | @hookform/resolvers | 5.9.1 | MIT | zod ↔ RHF bridge | Peers `zod ^3.25 \|\| ^4`, `react-hook-form ^7.55`. | HIGH [R] |
@@ -264,7 +267,7 @@ Local tools (`dotnet new tool-manifest`): `dotnet-ef` 10.0.12, `dotnet-reportgen
 ```bash
 # Runtime
 npm i react@19.3.0 react-dom@19.3.0 react-router@8.4.0 @tanstack/react-query@5.104.1 \
-  react-hook-form@7.89.0 zod@4.6.5 @hookform/resolvers@5.9.1 clsx@2.1.1 \
+  react-hook-form@7.89.0 zod@4.6.5 @hookform/resolvers@5.9.1 clsx@2.1.1 nuqs@2.10.1 \
   @fontsource/barlow-condensed@5.3.0 @fontsource-variable/archivo@5.3.0 web-vitals@6.2.3
 
 # TypeScript (side-by-side, per Microsoft's TS 7 guidance)
@@ -349,6 +352,7 @@ import babel from '@rolldown/plugin-babel';
 | `Microsoft.AspNetCore.SpaProxy` (scaffold) | Doesn't fit the build-into-`wwwroot` model. The scaffold references it with a **floating** `10.*-*` version, which violates PRD §17.1. | Vite dev server with `/api` proxy → Kestrel 7028 |
 | Recharts / Chart.js / ECharts | Budget (admin ≤ 250 KB gz), and the UI spec already draws charts in SVG | Hand-rolled SVG per UI spec |
 | `vite-plugin-pwa` `injectRegister: 'inline'` | Inline script violates `script-src 'self'` | `injectRegister: null` + `virtual:pwa-register/react` |
+| `nuqs/adapters/react-router` (generic, deprecated), `/v6`, `/v7`, `nuqs/adapters/react`; `nuqs@2.10.2-beta.1`; the nuqs `startTransition` option; `shallow: false`; `parseAsIsoDate` | Deprecated or wrong router adapters; a beta inside the cool-down; nuqs bugs #1567 and #1563; UTC dates shift the day in Manila | `nuqs/adapters/react-router/v8`, a stable version at least 14 days old, the default `shallow: true` and the shared `parseAsBusinessDate` (`YYYY-MM-DD` strings) (WEB-10) |
 
 ---
 
@@ -400,6 +404,7 @@ import babel from '@rolldown/plugin-babel';
 | openapi-typescript 7.13.0 | typescript **^5.x** | ❌ with the TS 6 alias / TS 7. Isolate it. |
 | react-router 8.4.0 | react/react-dom ≥ 19.2.7, Node ≥ 22.22.0, Vite ≥ 7 | ✅ React 19.3, Node 24.21 (local). CI must use Node ≥ 22.22. |
 | @tanstack/react-query 5.104.1 | react ^18 / ^19 | ✅ |
+| nuqs 2.10.1 | react ≥ 18.2 / ^19; react-router ^5–^8 (optional peer) | ✅ React 19.3 + react-router 8.4.0 through `nuqs/adapters/react-router/v8` (jsdom probe 2026-10-07: read, push, `clearOnDefault` and Back work). With `@vitejs/plugin-react` 6.1.2, Vite emits no `"use client"` directive warnings. Phase 2 confirms zero React Compiler diagnostics. |
 | @hookform/resolvers 5.9.1 | zod ^3.25 / ^4, react-hook-form ^7.55 | ✅ zod 4.6.5, RHF 7.89 |
 | vite-plugin-pwa 1.3.0 / 2.0.0 | vite ^3–^8, workbox 7.4.1 | ✅ |
 | rollup-plugin-visualizer 7.1.1 | rolldown 1.x | ✅ Vite 8 |
