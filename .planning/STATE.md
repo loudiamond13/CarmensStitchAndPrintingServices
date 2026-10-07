@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-09-PLAN.md
-last_updated: "2026-10-07T17:09:44.126Z"
+stopped_at: Completed 01-10-PLAN.md
+last_updated: "2026-10-07T17:36:48.517Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 6e2fea2a4468497a75bd00d33afa803e14c36d59
+state_head: f5dbd5c65a1bc178cfbd47e5593774b13e90f9c8
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 11 of 13
+Plan: 12 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P12 | 10min | 3 tasks | 10 files |
 | Phase 01 P08 | 17 min | 3 tasks | 26 files |
 | Phase 01 P09 | 15 min | 3 tasks | 18 files |
+| Phase 01 P10 | 23min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: D-25/D-32 resolved as option-a with 8-month retention (owner, 2026-10-07): TR_AuditLog_AppendOnly refuses every UPDATE (51000) and DELETE (51001) except a DELETE with read-only session flag csps.audit_purge = 1 where every row is older than 8 months; mixed statements fail as a whole; TRUNCATE blocked by AuditLogTruncateGuard FK
 - [Phase 01]: AddInfrastructure requires a host-registered IRequestContext (AuditTrail depends on it); plain-ServiceCollection callers (tests, tools) must register one
 - [Phase 01]: Append-only audit log enforced in three layers: DB trigger, FK truncate guard, EF AuditLogAppendOnlyInterceptor registered once in CspsDbContextOptions.Configure; Respawn never resets AuditLog/AuditLogTruncateGuard
+- [Phase 01]: 01-10: AddCspsDataProtection loads the DP certificates from IConfiguration at registration (XmlKeyDecryptionOptions is internal); ValidateOnStart still stops the host on any bad secret
+- [Phase 01]: 01-10: A refusing XML encryptor is installed when no certificate loads, so no composition can store a key unencrypted
+- [Phase 01]: 01-10: No-database test hosts keep the (certificate-encrypted) key ring in memory; DB-backed hosts use dbo.DataProtectionKeys
 
 ### Pending Todos
 
@@ -136,6 +140,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T17:09:32.675Z
-Stopped at: Completed 01-09-PLAN.md
+Last session: 2026-10-07T17:36:48.472Z
+Stopped at: Completed 01-10-PLAN.md
 Resume file: None

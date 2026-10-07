@@ -62,7 +62,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **SEC-01**: Security headers on every response: strict CSP per PRD §11.3 (no `unsafe-inline`/`unsafe-eval`), HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP, `frame-ancestors 'none'`, and server headers removed
 - [x] **SEC-02**: Default-deny authorization: a fallback policy plus named policies. A discovery-driven integration test fails if any endpoint lacks a policy or an authorization-matrix row (endpoint × {anonymous, Admin, Manager} → exact status)
 - [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100)
-- [ ] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
+- [x] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
 
 ### Authentication (AUTH)
@@ -339,7 +339,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 4 | Pending |
-| SEC-04 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 14 | Pending |
 | AUTH-01 | Phase 4 | Pending |
 | AUTH-02 | Phase 4 | Pending |
