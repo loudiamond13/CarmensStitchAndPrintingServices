@@ -134,6 +134,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **ORD-19**: The order detail shows internal Order Expenses and Estimated Profit (Total − Discount − Order Expenses), visible to staff only
 - [ ] **ORD-20**: The order math reproduces the UI-SPEC §12.2 fixtures exactly (ORD-2026-0148: Total ₱22,450.00 · Discount −₱1,122.50 · Paid −₱12,000.00 · Balance ₱9,327.50 · Expenses ₱6,065.00 · Profit ₱15,262.50)
 - [ ] **ORD-21**: The domain exposes a lenient import path (`Order.Import`) and configurable rule constants, so legacy data can be brought in without schema rewrites
+- [ ] **ORD-22**: Every order payment has a required **Received by**: the staff user who took the money. The owner calls it "PaidTo"; the domain name is `ReceivedByUserId`, a required (non-null) reference, and the on-screen label is the owner's choice. The server validates it like the other ORD-05 invariants on payment create, payment edit and the full-aggregate create (ORD-03): a new payment, or a change of receiver, must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. A saved payment keeps its receiver, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). A change of receiver moves money between staff balances (MONEY-01), so it is written to the audit log (old → new receiver, who, when). A staff lookup (id and display name of active Admins and Managers) serves both roles, because the USER-01 roster is Manager-only. `Order.Import` (ORD-21) accepts the legacy receiver rule (MIG-09) ⚑ OD-15, OD-20
 
 ### Background Jobs (JOB)
 
@@ -393,6 +394,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-19 | Phase 8 | Pending |
 | ORD-20 | Phase 7 | Pending |
 | ORD-21 | Phase 7 | Pending |
+| ORD-22 | Phase 7 | Pending |
 | JOB-01 | Phase 9 | Pending |
 | JOB-02 | Phase 9 | Pending |
 | IMG-01 | Phase 9 | Pending |
@@ -468,8 +470,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CUT-03 | Phase 17 | Pending |
 
 **Coverage:**
-- v1 requirements: 162 total
-- Mapped to phases: 162
+- v1 requirements: 163 total
+- Mapped to phases: 163
 - Unmapped: 0 ✓
 
 Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where their gate is first built. Every later phase enforces them through the PRD §22 Definition of Done (see ROADMAP.md "Roadmap Conventions").

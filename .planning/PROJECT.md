@@ -163,6 +163,8 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-12 | System sender email/domain; SPF/DKIM/DMARC feasibility | Footer placeholder `[hello@yourdomain.ph]` | Auth phase (email) |
 | OD-13 | OpenAPI in production: Managers only, or disabled | — | Foundation / hardening |
 | OD-14 | UI-spec items that conflict with WCAG | See C-16 below | Every UI phase |
+| OD-15 | Legacy payments' "Received by": a designated "Legacy / unassigned" holder that can't sign in, or an owner-chosen staff user. Also: do migrated payments count toward money on hand, and do staff start with opening balances at go-live? | Neither document covers it (owner addition, 2026-10-07). Legacy payments probably name no receiver, and ORD-22 makes the field required. A migrated payment is never dropped or changed | Phase 7 (import shape), Phase 15 (final) |
+| OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP) | Phase 8 |
 
 ## PRD ↔ UI-Spec Conflicts (found at initialization; the owner rules at the relevant phase)
 

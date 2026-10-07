@@ -19,7 +19,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   - a UI-spec match at 320/768/1280 px
   - CWE rows mitigated and tested
   - production data untouched
-- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow and ORD-08's conflict UX, against IDs that stay mapped to Phase 7.
+- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow, ORD-08's conflict UX and ORD-22's "Received by" field, against IDs that stay mapped to Phase 7.
 - **Pieces that grow.** Each of these is set up once, then extended by every later phase for its own entities and endpoints:
   - the dev seed (FND-04)
   - the audit event catalog (AUDIT-01)
@@ -31,7 +31,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   2. `/gsd-plan-phase N --tdd`.
   3. Phases with a UI hint run `/gsd-ui-phase N`, with `CSPS-UI-SPEC.md` as the source of truth.
   4. `/gsd-secure-phase N`, `/gsd-ui-review N` and `/gsd-verify-work` all complete before `/gsd-ship N`.
-- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-14 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
+- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-20 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
 - **Shared machine.** CLAUDE.md binds every phase:
   - Run the preflight before any dev server, Playwright run or full test run.
   - Use only ports 5180, 5115, 7028 and 5199.
@@ -380,7 +380,7 @@ Plans:
 **Goal**: The order aggregate and its full API enforce every owner-ruled business rule and always return correct, server-computed totals. The API covers create, read, list/search, update, child mutations, status and delete. Fixtures, invariant tests and race tests prove the Core Value before Phase 8 builds on it.
 **Mode:** mvp
 **Depends on**: Phase 6 (the proven slice pattern), Phase 4 (staff policies)
-**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21
+**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22
 **Success Criteria** (what must be TRUE):
   1. **Atomic create and numbering.** One API call creates an order atomically: customer details, dates, status, notes and one or more items, plus optional payments, discounts and expenses.
      - The order gets the next `ORD-{YYYY}-{NNNN}` number, with no duplicates under 20 parallel creates and the correct year across New Year in Manila.
@@ -389,6 +389,7 @@ Plans:
   3. **Concurrency.** Two concurrent edits to the same order never both succeed; the stale one gets 409. This holds for child-only edits too, such as two payments against one balance.
   4. **Status rules.** Status changes follow only the ruled transitions, and each one is recorded: from, to, who and when. Payments on cancelled orders and refunds follow the ruled policy, so collected-cash figures stay correct.
   5. **Legacy import path.** `Order.Import` accepts legacy-shaped data (preserved order numbers, lenient rules) through configurable rule constants. An owner ruling then becomes a constant change rather than a schema change.
+  6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
 
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
@@ -405,6 +406,7 @@ Plans:
 - **C-42** optional early read-only legacy fit check. If approved, insert it as Phase 7.1, and never derive the schema from it.
 - **C-43** payment methods, e.g. cheque
 - **C-44** fixed `ProductType` enum with no price-item FK
+- **OD-15** (shape only; the final rule is a Phase 15 ruling) how legacy payments get a receiver: `Order.Import` must be able to accept it, e.g. a "Legacy / unassigned" holder that can't sign in
 
 **Research flag:** Needs research:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
@@ -429,12 +431,14 @@ Plans:
   3. **Detail page.** The detail page shows the customer card, the live OrderTotals panel and tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals.
      - After every save, the figures come from the server.
      - A 409 conflict explains itself, keeps the user's input and offers a reload.
+     - The payment modal has a required "Received by" picker of active staff (ORD-22, label per OD-20). The UI spec's modal lacks this field, so it is marked SPEC-GAP.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
 - **C-18** where Estimated Profit appears
+- **OD-20** payment field label: "Received by" or the owner's "Paid to"
 - **OD-14**
 - The Phase 7 rulings (C-3 flow, OD-5, OD-6) apply.
 
@@ -772,8 +776,8 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 | **Before Phase 4 starts** (one security batch) | OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33 | Sign-in, 2FA, reset, onboarding and email change. Email is a hard sign-in dependency, so send this batch early |
 | **Phase 5 discuss** | C-41 (+ C-4 and C-9 if still open) | User delete semantics, onboarding, email change |
 | **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43 | Expense schema and categories |
-| **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44 | The order aggregate, numbering, invariants and schema (Core Value) |
-| **Phase 8 discuss** | C-13 (labels), C-18 | Order screens |
+| **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44, OD-15 (shape only) | The order aggregate, numbering, invariants and schema (Core Value) |
+| **Phase 8 discuss** | C-13 (labels), C-18, OD-20 | Order screens, payment receiver label |
 | **Phase 9 discuss** | OD-9 / C-26, C-2, C-16 (+ Cloudinary account) | Image delivery, per-order limit, accessible reorder |
 | **Phase 10 discuss** | C-40, C-18 | Dashboard metric definitions |
 | **Phase 11 discuss** | C-21, C-12, C-36 (scope only), C-17 | Content model, Contact layout, whether Phase 13 runs |
@@ -785,7 +789,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 162 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 163 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
@@ -795,7 +799,7 @@ All 162 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, A11Y-03, AUDIT-01 | 17 |
 | 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02 | 13 |
 | 6 | CEXP-01…CEXP-04, PERF-04 | 5 |
-| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21 | 10 |
+| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22 | 11 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
 | 9 | ORD-04, IMG-01…IMG-05, JOB-01, JOB-02 | 8 |
 | 10 | DASH-01…DASH-06 | 6 |
@@ -806,7 +810,7 @@ All 162 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 15 | MIG-01, MIG-02 | 2 |
 | 16 | MIG-03…MIG-08 | 6 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **162** |
+| **Total** | | **163** |
 
 ## Progress
 
