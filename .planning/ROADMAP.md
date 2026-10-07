@@ -67,6 +67,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Hosting Verification & Backend Foundation
+
 **Goal**: A developer can clone the repo and run a zero-warning onion API against an empty, EF-migrated `CSPS_` database. The API carries the platform contract (ProblemDetails, health, logging, security headers, default-deny authorization) and the shared primitives every slice needs (business calendar, SiteSettings core, append-only audit log, SQL test fixture). A verified record of the SmarterASP.NET hosting facts sits alongside it.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
@@ -95,6 +96,7 @@ Decimal phases appear between their surrounding integers in numeric order.
      - in-process hosting and the proxy/client-IP topology
      - the SMTP SPF/DKIM/DMARC result
      - scheduler availability, DB quota and the staging-site option
+
 **Owner decisions to close at discuss step:**
 - **OD-1** currency/locale
 - **OD-2** business time zone
@@ -127,21 +129,35 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 **Plans**: 13 plans in 7 waves
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Owner package-legitimacy gate, strict onion solution (scaffold removed), /health liveness, architecture/build/registry tests (W1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Empty-DB schema from InitialCreate, SiteSettings singleton + cached port, LocalDB `CSPS_Test_` fixture, zone fallback chain (W2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — /health database + time-zone checks over IBusinessCalendar; Manila day/month/year boundaries; health failure modes (W3)
 - [ ] 01-04-PLAN.md — Guarded `tools/Csps.DevSeed`, migration verification (idempotent ×2 at 160/170), startup-safety rule, Respawn + isolation, stale-DB cleanup (W3)
 - [ ] 01-05-PLAN.md — AuditEntry domain record with /24 and /48 IP truncation and regex-free UA family (W3)
 - [ ] 01-06-PLAN.md — ProblemDetails contract + /api 404 fallback, Result/Error mapping, strict security headers, web.config, Development-only OpenAPI/Scalar (W3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-07-PLAN.md — Serilog compact JSON with correlation id, secret masking, D-21 file retention, IRequestContext without forwarded headers (W4)
+- [ ] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-08-PLAN.md — JWT validation, default-deny + Staff/Manager policies, GET /api/v1/site-settings, discovery-driven authorization matrix, 401/403/500 paths (W5)
 - [ ] 01-09-PLAN.md — Owner D-25 decision, append-only AuditLog (trigger, truncate guard, EF interceptor), IAuditTrail (W5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 01-10-PLAN.md — Data Protection keys in DB encrypted by certificate, rotation runbook, local full-stack run (W6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
-- [ ] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
 - [ ] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
 
 ### Phase 2: Web Foundation & Design System
+
 **Goal**: Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -175,6 +191,7 @@ Plans:
      - After the preflight, Playwright runs on 5199 across Chromium, Firefox, WebKit and phone viewports. It fails on any console error, CSP violation or axe violation.
      - Lighthouse CI scores the public shell ≥ 95 on mobile.
      - Every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied.
+
 **Owner decisions to close at discuss step:**
 - **OD-14** UI-spec items that conflict with WCAG
 - **C-10** icons: in-house `icons.ts` vs `lucide-react` (S-12 quantifies the trade-off)
@@ -204,6 +221,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 3: CI/CD & Staging Deploy
+
 **Goal**: Every pull request is gated by the full pipeline. Every merge to `main` deploys to a SmarterASP.NET staging site that passes a smoke test, and production deploys wait for manual approval.
 **Mode:** mvp
 **Depends on**: Phase 2, because the pipeline runs the web gates. If owner prerequisites arrive late, this phase can run alongside Phase 4.
@@ -242,6 +260,7 @@ Plans:
 **Plans**: TBD
 
 ### Phase 4: Identity & Authentication
+
 **Goal**: Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Mode:** mvp
 **Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. Run Phase 3 first if possible so auth ships through CI and staging.
@@ -270,6 +289,7 @@ Plans:
      - Auth emails go out through the outbox, from the business sender over TLS.
      - E2E reads codes from the Testing-only sink, and a test proves the sink is absent from Release.
      - Sign-in, 2FA, lockout and reset events appear in the audit log.
+
 **Owner decisions to close at discuss step:** Send these as one security batch before the phase starts.
 - **OD-12** sender address/domain, SPF/DKIM/DMARC
 - **C-4** emailed invite link vs a Manager-set temporary password (ruled here, applied in Phase 5)
@@ -297,6 +317,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 5: Profile & User Management
+
 **Goal**: Every staff member can manage their own name, email, password and theme. Managers can run the staff roster safely: invite, edit, lock, deactivate and delete users under guard rules. Every action is audited and can be reviewed.
 **Mode:** mvp
 **Depends on**: Phase 4
@@ -316,6 +337,7 @@ Plans:
   3. **Guard rules.** A Manager can't delete, deactivate or demote themselves. Two simultaneous attempts can never remove the last active Manager. A role or status change signs the affected user out at once.
   4. **Manager-only access.** An Admin never sees the Users navigation item. Opening `/admin/users` redirects to `/admin`, and the API answers 403.
   5. **Audit-log viewer.** A Manager can open the audit log, filter it by actor, action, target and date range, and find every user-management action.
+
 **Owner decisions to close at discuss step:**
 - **C-41** soft-delete users: scramble the email, block sign-in, keep the name
 - **C-4 and C-9** apply the Phase 4 rulings, or ask now if still open
@@ -329,6 +351,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 6: Company Expenses
+
 **Goal**: Staff can record, find and total the shop's company expenses, with month KPIs that are correct in Manila time. This is the simplest aggregate, so it proves the slice pattern before the order aggregate: rowversion 409s, filters, period totals, query-count guards and ConfirmDialog.
 **Mode:** mvp
 **Depends on**: Phase 5, because "Recorded by" must survive user deletion
@@ -339,6 +362,7 @@ Plans:
   3. **Month KPIs.** KPI cards show this month, the last full month and this month's top category with its share. Month boundaries are in Asia/Manila, so an expense at 07:00 Manila time on the 1st counts in the new month.
   4. **Attribution.** Each expense shows a read-only "Recorded by", and it still shows the name after that user is deleted.
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
+
 **Owner decisions to close at discuss step:**
 - **OD-5** hard vs soft delete for company expenses
 - **OD-8** fixed vs Manager-editable categories, for both the company and the order expense lists
@@ -352,6 +376,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 7: Order Domain & API
+
 **Goal**: The order aggregate and its full API enforce every owner-ruled business rule and always return correct, server-computed totals. The API covers create, read, list/search, update, child mutations, status and delete. Fixtures, invariant tests and race tests prove the Core Value before Phase 8 builds on it.
 **Mode:** mvp
 **Depends on**: Phase 6 (the proven slice pattern), Phase 4 (staff policies)
@@ -364,6 +389,7 @@ Plans:
   3. **Concurrency.** Two concurrent edits to the same order never both succeed; the stale one gets 409. This holds for child-only edits too, such as two payments against one balance.
   4. **Status rules.** Status changes follow only the ruled transitions, and each one is recorded: from, to, who and when. Payments on cancelled orders and refunds follow the ruled policy, so collected-cash figures stay correct.
   5. **Legacy import path.** `Order.Import` accepts legacy-shaped data (preserved order numbers, lenient rules) through configurable rule constants. An owner ruling then becomes a constant change rather than a schema change.
+
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
 - **OD-4 + C-38** overpayments, including via removed items or added discounts
@@ -387,6 +413,7 @@ Plans:
 **Plans**: TBD
 
 ### Phase 8: Order Screens
+
 **Goal**: Staff can run every order day to day in the portal. They can find an order, create one, work its detail page (items, payments, discounts, expenses, totals and estimated profit) and delete it safely.
 **Mode:** mvp
 **Depends on**: Phase 7
@@ -404,6 +431,7 @@ Plans:
      - A 409 conflict explains itself, keeps the user's input and offers a reload.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
+
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
 - **C-18** where Estimated Profit appears
@@ -416,6 +444,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 9: Order Images & Maintenance Jobs
+
 **Goal**: Staff can attach, arrange and view order photos, including straight from a phone camera. The photos load fast and stay private per the OD-9 ruling. Storage cleanup and token purges run as short, reliable, scheduled jobs.
 **Mode:** mvp
 **Depends on**: Phase 8, because the Images card joins the order form and detail page
@@ -452,6 +481,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 10: Admin Dashboard
+
 **Goal**: Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent.
 **Mode:** mvp
 **Depends on**: Phase 6, Phase 8. Until this phase ships, `/admin` redirects to Orders.
@@ -468,6 +498,7 @@ Plans:
      - "Orders by status" shows the active total.
      - The 6 most recent orders link to their detail pages.
   4. **Card states.** Every card shows a skeleton while loading, an empty state when there's no data and an error state with retry.
+
 **Owner decisions to close at discuss step:**
 - **C-40** metric definitions:
   - "due this week" boundaries
@@ -483,6 +514,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 11: Public Site & Content Management
+
 **Goal**: Visitors arriving on a phone from Facebook can browse Home, Products, Gallery and Contact, with real business info and prices from the database, and their link previews look right. Managers keep all that content current without a developer.
 **Mode:** mvp
 **Depends on**: Phase 4 (Manager policy), Phase 9 (the image upload pipeline, reused for gallery photos)
@@ -523,6 +555,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 12: Consent, Analytics & Legal
+
 **Goal**: Visitors get a fair cookie choice and can wipe their data. Managers see visitor metrics that respect privacy. Visitors can read versioned legal pages marked DRAFT.
 **Mode:** mvp
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
@@ -543,6 +576,7 @@ Plans:
      - Raw events are aggregated and purged after the ruled retention.
   4. **Metrics dashboard.** A Manager can view metrics for a chosen date range and export them as CSV: unique visitors, sessions, page views, top pages and referrers, device/browser split, a trend chart and Core Web Vitals.
   5. **Legal pages.** Visitors can read the Privacy Policy, the Cookie Policy (linked from the banner), the Terms of Use and the Accessibility Statement. All are linked in the footer, versioned with "last updated" dates and marked DRAFT until the owner approves the text.
+
 **Owner decisions to close at discuss step:**
 - **OD-10** retention: analytics 13 months. Ask the full set now: orders and financial records, audit log, inquiries.
 - **OD-11** jurisdiction (likely the Data Privacy Act of 2012, RA 10173) and who reviews the legal text
@@ -559,6 +593,7 @@ Plans:
 **UI hint**: yes
 
 ### Phase 13: Quote Inquiries
+
 **Goal**: Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
 **Mode:** mvp
 **Depends on**: Phase 12 (Privacy Policy for the collection notice), Phase 8 (order creation), Phase 9 (private storage and jobs)
@@ -577,6 +612,7 @@ Plans:
 
      They can convert an inquiry into a new order prefilled with customer, team, contact and product type, and the two stay linked.
   5. **Retention.** The maintenance job purges unconverted inquiries and their attachments after the ruled retention period.
+
 **Owner decisions to close at discuss step:**
 - **C-36** the inquiry feature's shape:
   - persistence and the inbox
@@ -599,6 +635,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **UI hint**: yes
 
 ### Phase 14: Hardening & Release Readiness
+
 **Goal**: The complete app, still on an empty database, is proven ready for release: reviewed end to end for security, accessible under manual testing, installable for staff, and backed by runbooks.
 **Mode:** mvp
 **Depends on**: Phase 13 (all features built)
@@ -613,6 +650,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
   3. **PWA.** Staff can install the admin portal as a PWA. The service worker caches only static assets and the app shell, never API or authenticated responses. A "new version available — reload" prompt appears after a deploy.
   4. **Motion.** Route changes use View Transitions where the browser supports them, and all motion stops under `prefers-reduced-motion`.
   5. **Runbooks and final audit.** Documented Manager procedures cover data subject requests (access, correction, deletion) and breach response, including the owner notification steps. They sit alongside the break-glass mail and lockout runbooks. Budgets and Lighthouse scores are re-audited on staging across every public page.
+
 **Owner decisions to close at discuss step:**
 - **OD-10** audit-log and financial-record retention, if Phase 12 didn't close it
 - **OD-13** confirm OpenAPI exposure in production
@@ -627,6 +665,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **UI hint**: yes
 
 ### Phase 15: Legacy Discovery & Mapping
+
 **Goal**: The owner approves a complete, written map of how every legacy table and field fits the new schema, before any import code exists.
 **Mode:** mvp
 **Depends on**: Phase 14. Per Prime Directive 11, the complete app must run on an empty database first.
@@ -640,6 +679,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - image storage and user accounts
   3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress.
   4. **Approval gate.** The owner has approved `LEGACY-MAPPING.md`, and no ETL code was written before that approval.
+
 **Owner decisions to close at discuss step:**
 - **C-28** final name of the legacy-restore database
 - the rulings real data may break: **C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7**. Examples: multiple discounts, overpayments, more than 5 images, missing due dates, unknown statuses, local-time timestamps.
@@ -651,6 +691,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Plans**: TBD
 
 ### Phase 16: Legacy Data Import
+
 **Goal**: Every legacy order, payment, discount, expense, image and user lands in a fresh EF-migrated database with 100% reconciliation, proven by a timed dress rehearsal on staging.
 **Mode:** mvp
 **Depends on**: Phase 15 (approved mapping)
@@ -672,6 +713,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
      It lists every transformed or rejected row with a reason, and blocks cutover unless reconciliation is 100% with zero unexplained differences.
   5. **Dress rehearsal.** A timed dress rehearsal on the staging site, using a fresh `.bak`, runs end to end and passes reconciliation.
+
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
 - How each class of rejected row is treated.
@@ -685,6 +727,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Plans**: TBD
 
 ### Phase 17: Production Cutover
+
 **Goal**: The shop moves from the legacy system to CSPS in one cutover with the owner present and a rollback path, and runs on CSPS from then on.
 **Mode:** mvp
 **Depends on**: Phase 16
@@ -704,6 +747,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      6. the owner checks sample orders and totals
      7. domain switch
   3. **Post-go-live.** After go-live, logs, errors and the key flows (sign-in, order create, payments) are monitored for the agreed period, and migrated users have received their set-password emails.
+
 **Owner decisions to close at discuss step:** The cutover window, the post-go-live monitoring period, how long to keep the legacy backup, and the point of no return (PRD §19.4).
 
 **Owner prerequisites:**
