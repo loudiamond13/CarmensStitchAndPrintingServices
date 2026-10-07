@@ -126,7 +126,7 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 - The sources contradict each other on EF compatibility level and the `json` type (C-31).
 - MapStaticAssets cache headers and `AllowAnonymous` on static files and the SPA fallback need a spike.
 
-**Plans**: 7/13 plans executed in 7 waves
+**Plans**: 8/13 plans executed in 7 waves
 
 Plans:
 **Wave 1**
@@ -143,7 +143,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [x] 01-07-PLAN.md — Serilog compact JSON with correlation id, secret masking, D-21 file retention, IRequestContext without forwarded headers (W4)
-- [ ] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
+- [x] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-08-PLAN.md — JWT validation, default-deny + Staff/Manager policies, GET /api/v1/site-settings, discovery-driven authorization matrix, 401/403/500 paths (W5)
@@ -817,7 +817,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Hosting Verification & Backend Foundation | 7/13 | In Progress|  |
+| 1. Hosting Verification & Backend Foundation | 8/13 | In Progress|  |
 | 2. Web Foundation & Design System | 0/TBD | Not started | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |

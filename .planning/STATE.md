@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-10-07T16:03:18.833Z"
+stopped_at: Completed 01-12-PLAN.md
+last_updated: "2026-10-07T16:21:22.567Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 79222519f22a7e8cadfce77b537686b0c2f5c423
+state_head: 6ea69a9f6eaa55320b77568a38f22368b93dedd8
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 8 of 13
+Plan: 9 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 9 min | 3 tasks | 6 files |
 | Phase 01 P06 | 17 min | 3 tasks | 22 files |
 | Phase 01 P07 | 18 min | 3 tasks | 18 files |
+| Phase 01 P12 | 10min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: The masking enricher also walks captured structures, dictionaries and sequences; the destructuring policy masks {@x} objects before capture
 - [Phase 01]: IRequestContext uses Connection.RemoteIpAddress only; ForwardedHeadersTests blocks forwarded-headers setup or proxy-header reads under src/ until FND-13
 - [Phase 01]: Shared log files are read in tests with FileShare.ReadWrite|Delete and a short retry (a sharing violation on fresh %TEMP% files is transient)
+- [Phase 01]: D-28 decision: option-a (2026-10-07). The owner may create one temporary probe site next to the live site (never inside it) and run SELECT-only queries on the live database in the control panel; the probe site is deleted afterwards and its key never enters chat or git
+- [Phase 01]: tools/Csps.HostProbe is a throwaway key-protected probe (503 without a 32+ char key, 401 empty body without a match, fixed-time SHA-256 compare); never referenced by src/ or deployed with the site
+- [Phase 01]: HOSTING-RECORD.md Facts rows start Unverified and are doc-linted by HostingRecordTests (valid statuses, Verified needs result and date, no secrets, D-28 line)
 
 ### Pending Todos
 
@@ -122,6 +126,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T16:03:18.790Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-10-07T16:21:12.939Z
+Stopped at: Completed 01-12-PLAN.md
 Resume file: None
