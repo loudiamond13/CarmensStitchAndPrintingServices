@@ -9,5 +9,7 @@
     <Project Path="tests/Csps.Testing/Csps.Testing.csproj" />
     <Project Path="tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj" />
     <Project Path="tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj" />
+    <Project Path="tests/Csps.Domain.UnitTests/Csps.Domain.UnitTests.csproj" />
+    <Project Path="tests/Csps.Infrastructure.IntegrationTests/Csps.Infrastructure.IntegrationTests.csproj" />
   </Folder>
 </Solution>

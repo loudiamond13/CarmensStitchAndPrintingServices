@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Pure unit tests of the BCL-only Domain (coverage target 100%). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Domain\Csps.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
