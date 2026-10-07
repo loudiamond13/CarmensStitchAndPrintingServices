@@ -2,16 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-10-07T13:19:42.561Z"
-last_activity: "2026-10-07: Roadmap created. 17 phases; all 162 of 162 v1 requirements mapped."
-state_head: f6e45a07b9c32b7603540de70ed5e2c03cb4480d
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-10-07T13:48:32.918Z"
+last_activity: 2026-10-07
+last_activity_desc: Phase 1 execution started
+state_head: 9703566960fbad0d58146a07dee053c9567cef5b
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -22,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 1: Hosting Verification & Backend Foundation
+**Current focus:** Phase 1 — Hosting Verification & Backend Foundation
 
 ## Current Position
 
-Phase: 1 (Hosting Verification & Backend Foundation) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
-Status: Ready to plan (run `/gsd-discuss-phase 1` first to close the Phase 1 owner decisions)
-Last activity: 2026-10-07: Roadmap created. 17 phases; all 162 of 162 v1 requirements mapped.
+Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
+Plan: 2 of 13
+Status: Ready to execute
+Last activity: 2026-10-07 — Phase 1 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -51,6 +52,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 14 min | 3 tasks | 43 files |
 
 ## Accumulated Context
 
@@ -61,6 +67,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Roadmap]: Took the 14-phase structure from research/SUMMARY.md and renumbered its Phase 1a/1b/1c as Phases 1–3. Inquiries were split out of the public-site phase into Phase 13, giving 17 phases. Legacy discovery, legacy import and cutover stay last (Prime Directive 11).
 - [Roadmap]: Company Expenses (Phase 6) comes before Orders to prove the slice pattern. Orders are split three ways: domain & API (7), screens (8), images & jobs (9). The Admin Dashboard is added as Phase 10.
 - [Roadmap]: Cross-cutting QUAL/SEC/A11Y/PERF requirements map to the phase where their gate is first built. The PRD §22 Definition of Done enforces them in every later phase.
+- [Phase 01]: Owner approved the full Phase 1 package list (01-01 Task 1 legitimacy gate) on 2026-10-07 before first restore; recorded in docs/dependencies.json approvals
+- [Phase 01]: Dependency registry scopes are runtime|build|test|tool|font; D-18 exceptions MPL-2.0->test, OFL-1.1->font; pin/registry mismatch fails DependencyRegistryTests
+- [Phase 01]: xUnit v3 MTP: zero-match filter exits 8 (A14 first half confirmed); report switches are --report-xunit-junit/--report-xunit-trx
 
 ### Pending Todos
 
@@ -85,6 +94,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T11:45:20.628Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-hosting-verification-backend-foundation/01-CONTEXT.md
+Last session: 2026-10-07T13:48:23.850Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

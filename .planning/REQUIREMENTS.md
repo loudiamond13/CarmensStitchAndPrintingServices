@@ -17,7 +17,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 - [ ] **FND-01**: A developer can clone the repo and get the full schema on an empty database from `dotnet ef database update` alone, with no `.bak` present (Prime Directive 11, PRD §5.6)
 - [ ] **FND-02**: Solution `Csps.slnx` has the four `src/` projects (Domain, Application, Infrastructure, Server), the five test projects and `tools/` per PRD §3.1. The VS template scaffold (`CarmensStitchAndPrintingServices.*`, SpaProxy, `.esproj`) is removed and the port assignments are kept (Vite 5180, API 5115/7028)
-- [ ] **FND-03**: Architecture tests fail the build when a layer references a forbidden layer or package (PRD §3.2) ⚑ S-3 (NetArchTest vs ArchUnitNET)
+- [x] **FND-03**: Architecture tests fail the build when a layer references a forbidden layer or package (PRD §3.2) ⚑ S-3 (NetArchTest vs ArchUnitNET)
 - [ ] **FND-04**: A development seed creates realistic fake data from UI-SPEC §12 (users for both roles, orders with all children, company expenses, price list, site settings), so every screen is usable without real data
 - [ ] **FND-05**: Every API error is an RFC 9457 ProblemDetails with `traceId` and field `errors`. No stack traces outside Development. Unknown `/api/*` routes return a ProblemDetails 404, never `index.html`
 - [ ] **FND-06**: `/health` reports liveness, DB reachability and business time-zone resolution without exposing internals
@@ -42,7 +42,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Quality Gates (QUAL)
 
-- [ ] **QUAL-01**: .NET builds have `TreatWarningsAsErrors`, nullable, latest-recommended analyzers, code style in build, NuGet audit as errors, central package management with no floating versions, and `dotnet format --verify-no-changes` (PRD §17.1)
+- [x] **QUAL-01**: .NET builds have `TreatWarningsAsErrors`, nullable, latest-recommended analyzers, code style in build, NuGet audit as errors, central package management with no floating versions, and `dotnet format --verify-no-changes` (PRD §17.1)
 - [ ] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [ ] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `lib/http` 100%, web overall ≥ 90% ⚑ S-4
 - [ ] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
@@ -306,7 +306,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Pending |
 | FND-02 | Phase 1 | Pending |
-| FND-03 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Complete |
 | FND-04 | Phase 1 | Pending |
 | FND-05 | Phase 1 | Pending |
 | FND-06 | Phase 1 | Pending |
@@ -325,7 +325,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-06 | Phase 2 | Pending |
 | WEB-07 | Phase 2 | Pending |
 | WEB-08 | Phase 2 | Pending |
-| QUAL-01 | Phase 1 | Pending |
+| QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Pending |
 | QUAL-03 | Phase 1 | Pending |
 | QUAL-04 | Phase 2 | Pending |
