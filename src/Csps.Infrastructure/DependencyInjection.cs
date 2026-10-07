@@ -65,6 +65,10 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IBusinessCalendar, BusinessCalendar>();
 
+        // The health service needs ILogger<>. The web host already provides logging (AddLogging only TryAdds), but
+        // a plain ServiceCollection, such as a tools/ command or an integration test, would fail to validate.
+        services.AddLogging();
+
         // Runs after the Server's "self" check, so the report order is self, database, time-zone.
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>(DatabaseHealthCheckName, timeout: DatabaseHealthCheckTimeout)
