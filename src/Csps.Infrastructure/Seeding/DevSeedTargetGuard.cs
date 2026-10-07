@@ -9,8 +9,9 @@ namespace Csps.Infrastructure.Seeding;
 /// <c>(localdb)\CSPS</c> instance, or a SQL Server container on this machine addressed as <c>127.0.0.1,&lt;port&gt;</c>
 /// or <c>localhost,&lt;port&gt;</c>, is allowed. Every other server is refused, including the shared
 /// <c>(localdb)\MSSQLLocalDB</c> instance, named-pipe and <c>tcp:</c> addresses, named instances and hosted servers.
-/// Then only <see cref="DevDatabase"/> and <see cref="E2EDatabase"/> are allowed, compared case-insensitively because
-/// SQL Server names are case-insensitive under the default collation. That keeps every other database out of reach:
+/// The allow-list covers every server the connection could reach, so a <c>Failover Partner</c> is refused too. Then
+/// only <see cref="DevDatabase"/> and <see cref="E2EDatabase"/> are allowed, compared case-insensitively because SQL
+/// Server names are case-insensitive under the default collation. That keeps every other database out of reach:
 /// another project's <c>BetsLLC_*</c> databases, the read-only <c>CSPS_Legacy_Restore</c> (D-06), test databases and
 /// any hosted database.
 /// </summary>
@@ -59,6 +60,11 @@ public static class DevSeedTargetGuard
         if (!string.IsNullOrEmpty(builder.AttachDBFilename))
         {
             return Refused(database, "AttachDBFilename is not allowed. Name the database with Initial Catalog instead.");
+        }
+
+        if (!string.IsNullOrEmpty(builder.FailoverPartner))
+        {
+            return Refused(database, "Failover Partner is not allowed: it names a second server the dev seed could connect to. Remove it.");
         }
 
         if (!IsAllowedServer(builder.DataSource))
