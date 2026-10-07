@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T15:49:48-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T15:52:30-05:00*
 
 ## Overview
 
@@ -868,4 +868,4 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-07 after the owner added expense "Paid by" (CEXP-05, ORD-23, MIG-10), expenses in money on hand (MONEY-01) and record-level "Recorded by / Last changed by" (SEC-08)*
+*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10, Phase 2) and the matching Definition-of-Done bullet*

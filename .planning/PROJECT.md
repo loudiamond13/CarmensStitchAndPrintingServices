@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T15:49:48-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T15:52:30-05:00*
 
 ## What This Is
 
@@ -223,4 +223,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-07 after the owner added expense "Paid by", expenses in money on hand and record-level "Recorded by / Last changed by"*
+*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs, search in the URL and gallery filters in the URL (WEB-10)*

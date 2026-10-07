@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-07T15:49:48-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-07T15:52:30-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -65,7 +65,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 - [x] **SEC-01**: Security headers on every response: strict CSP per PRD §11.3 (no `unsafe-inline`/`unsafe-eval`), HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP, `frame-ancestors 'none'`, and server headers removed
 - [x] **SEC-02**: Default-deny authorization: a fallback policy plus named policies. A discovery-driven integration test fails if any endpoint lacks a policy or an authorization-matrix row (endpoint × {anonymous, Admin, Manager} → exact status)
-- [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100)
+- [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100). List endpoints also cap free-text search at 100 characters and reject longer text with a 400 field error, because search text travels in URLs (WEB-10)
 - [x] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
 - [ ] **SEC-06**: Form posts are idempotent, so a double-click, retry or network replay never creates a duplicate (owner, 2026-10-07). Every state-changing `POST` requires an `Idempotency-Key` header holding a client-generated UUID. The server stores each key in a relational table with the user id (none for anonymous forms), the route, a SHA-256 hash of the request body, and the response status and body (`nvarchar`, never a JSON column, D-13) for 24 hours, and a key only ever matches for the same user and route. A replay with the same key and body returns the stored response without running the handler again. The same key with a different body gets a 422 ProblemDetails, a duplicate arriving while the first request is still running gets 409, and a missing or malformed key gets 400. Expired keys are ignored at once, and a JOB-01 maintenance job purges them (cron-endpoint pattern, no host scheduler). The only exemptions are POSTs on an explicit allow-list with a written reason, such as sign-in, 2FA verify, refresh and sign-out (their responses carry tokens, which must never be stored) and analytics beacons (ANL-05; beacons can't send headers). The endpoint discovery test (SEC-02) fails on any POST that is neither covered nor allow-listed, and an integration test proves a duplicate POST creates exactly one record. PUT, PATCH and DELETE rely on `rowversion` instead (SEC-07), so a replay can never apply a second change
@@ -97,7 +97,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### User Management — Manager only (USER)
 
-- [ ] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status
+- [ ] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status. The search, filters and page live in the URL (WEB-10)
 - [ ] **USER-02**: A Manager can create a user (first name, last name, email, role). The user is onboarded without the Manager ever seeing or setting their password (emailed invitation link per PRD) ⚑ C-4
 - [ ] **USER-03**: A Manager can edit a user's name, email and role, lock/unlock, deactivate/reactivate, and delete with confirmation. Deleted users' names remain on the orders and expenses they recorded ⚑ C-41
 - [ ] **USER-04**: A Manager cannot delete, deactivate or demote themselves, and the system never allows removing the last active Manager (race-safe)
@@ -109,11 +109,11 @@ Initial release: everything needed to replace the production system at cutover.
 ### Audit (AUDIT)
 
 - [ ] **AUDIT-01**: These events are recorded in the audit log: sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/change, email change, session revocation, user CRUD/role/status changes, order and company-expense deletions, order status changes and site-content changes
-- [ ] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern)
+- [ ] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern). The filters and page live in the URL (WEB-10), and the actor filter holds the user id, never an email
 
 ### Company Expenses (CEXP)
 
-- [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total
+- [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
 - [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
 - [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
 - [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
@@ -122,15 +122,15 @@ Initial release: everything needed to replace the production system at cutover.
 ### Orders (ORD)
 
 - [ ] **ORD-01**: Staff see a paginated order preview list (grid cards or table) with order number, customer/team, dates, status, Total, Total Paid, Total Discount, Balance, and the cover image as a lazy thumbnail (placeholder if none). The list is projected server-side without N+1 queries ⚑ C-13
-- [ ] **ORD-02**: Staff can search orders by number, customer name, team and phone; filter by status (default "Active + recent"), order-date range, product type and "has balance"; sort by due date, newest, balance or total, with server-side pagination (default 20)
+- [ ] **ORD-02**: Staff can search orders by number, customer name, team and phone; filter by status (default "Active + recent"), order-date range, product type and "has balance"; sort by due date, newest, balance or total, with server-side pagination (default 20). The search, filters, sort and page live in the URL (WEB-10)
 - [ ] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
 - [ ] **ORD-04**: Staff can upload images to an order (during creation and later): a per-order maximum, reorder via an accessible non-drag alternative, choose the cover, set alt text and delete images ⚑ C-2, C-16, OD-9
 - [ ] **ORD-05**: Staff can update order details and add/edit/remove items, payments, discount(s) and order expenses. Each change revalidates invariants (quantity > 0, unit price ≥ 0, description 1–200 chars, payment > 0 and not future-dated in business time, percent 0–100, discount ≤ items total, overpayment rule across all mutation types) and recomputes totals server-side ⚑ C-1, OD-4, C-38
 - [ ] **ORD-06**: Staff can delete an order through a cascade confirmation that shows child counts and requires typing the order number. Deletion removes all children in one transaction and schedules its images for storage cleanup ⚑ OD-5, OD-6
-- [ ] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card
+- [ ] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card. The active tab lives in the URL (WEB-10), so Back and a shared link reopen the same tab
 - [ ] **ORD-08**: Concurrent edits to the same order, including child-only edits, return 409. The UI explains the conflict, preserves the user's input and offers reload
 - [ ] **ORD-09**: Money displays as `₱12,450.00` (en-PH, U+2212 minus) and dates as `Oct 6, 2026`. Money inputs accept only valid 2-decimal amounts with the numeric keypad ⚑ OD-1
-- [ ] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`
+- [ ] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`. With URL state (WEB-10, owner 2026-10-07), the view shown is the URL's `view` when it is valid (`grid` or `table`), otherwise the saved `localStorage['csps-orders-view']` when it is valid, otherwise Grid, the UI spec's default. Only the explicit toggle writes both the URL (`replace`) and localStorage, so a shared or bookmarked link with `?view=table` applies to that visit only and never overwrites the viewer's saved choice. The `view` parser has no `withDefault`, so a missing value falls through to localStorage, and no localStorage-derived default is ever handed to nuqs (that would break `clearOnDefault`). A component test covers the URL × localStorage matrix
 - [ ] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
 - [ ] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
 - [ ] **ORD-13**: Each order item has a product type (the 6 fixed types) and a free-text size/variant ⚑ C-44
@@ -162,7 +162,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 - [ ] **DASH-01**: Staff land on a dashboard with a greeting ("Good morning/afternoon/evening, {firstName}") and the date in business time, plus View Orders / New Order actions
 - [ ] **DASH-02**: The dashboard shows KPIs: active orders (+ due this week), total receivables (Σ max(balance, 0) of active orders), collected this month (+ delta vs same day last month), company expenses this month (+ count, top category) ⚑ C-40
-- [ ] **DASH-03**: The dashboard shows an income vs expenses chart for the last 6 or 12 months. Income is payments by payment date; expenses are company + order expenses
+- [ ] **DASH-03**: The dashboard shows an income vs expenses chart for the last 6 or 12 months. Income is payments by payment date; expenses are company + order expenses. The 6- or 12-month choice lives in the URL (WEB-10)
 - [ ] **DASH-04**: The dashboard shows orders by status, with the active total ⚑ C-40
 - [ ] **DASH-05**: The dashboard shows the 6 most recent orders with links to detail
 - [ ] **DASH-06**: Every dashboard card has loading (skeleton), empty and error states
@@ -172,7 +172,7 @@ Initial release: everything needed to replace the production system at cutover.
 Added by the owner on 2026-10-07: "Every user can have money tied to them and users can transfer their money to basically other user which they are coworker." The owner then ruled the same day that only Managers delete transfers, and that an Admin sees only their own money while a Manager sees everyone's (OD-19, resolved). Later that day the owner added that every expense records who paid it, and that the amount comes off the payer's money on hand (CEXP-05, ORD-23). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover this yet.
 
 - [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23; owner ruling, 2026-10-07). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), so Phase 10 depends on both and no phase moves. An integration test gives one staff member payments received, transfers in and out, and company and order expenses paid, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16
-- [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out, and expenses they paid with their category, plus the order number for order expenses), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server
+- [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out, and expenses they paid with their category, plus the order number for order expenses), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server. The ledger's page lives in the URL (WEB-10)
 - [ ] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
 - [ ] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
 - [ ] **MONEY-05**: By default, a transfer larger than the sender's current money on hand is refused with a plain-English error. The balance check and the insert run in one transaction that locks the sender's ledger (e.g. `UPDLOCK, HOLDLOCK`, or SERIALIZABLE; SEC-07), so two concurrent transfers from the same sender can never together overdraw it. The lock covers every ledger source, including the expenses the sender paid (CEXP-05, ORD-23), so an expense saved at the same moment can't slip past the check. If OD-16 rules that paying an expense may not take the payer below zero, expense create, edit and payer change run the same locked check. An integration test sends two concurrent transfers that together exceed the balance and asserts that exactly one succeeds, the other is refused, and both balances stay exact ⚑ OD-16
@@ -191,7 +191,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Gallery (GAL)
 
-- [ ] **GAL-01**: Visitors can browse a masonry gallery filtered by category pills with correct counts
+- [ ] **GAL-01**: Visitors can browse a masonry gallery filtered by category pills with correct counts. The chosen category lives in the URL (WEB-10, owner 2026-10-07), so a shared gallery link opens on the same category
 - [ ] **GAL-02**: Visitors can open a gallery item in a lightbox with position, prev/next wrapping within the filter, Esc/←/→, and swipe plus a button alternative on phones ⚑ C-35
 - [ ] **GAL-03**: A Manager can manage gallery items (upload photo, team, category, pieces, note, order, publish/unpublish)
 
@@ -209,7 +209,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [ ] **INQ-02**: Visitors can attach reference files to an inquiry, within the owner-approved file types, size and count limits, validated by magic bytes and stored privately ⚑ C-36 (CWE-434)
 - [ ] **INQ-03**: The inquiry endpoint is protected by a honeypot, minimum time-to-submit and per-IP rate limits (no CAPTCHA)
 - [ ] **INQ-04**: Staff are emailed a notification for each new inquiry, without attachments. The inquiry is persisted before the email is sent ⚑ C-36 (recipient)
-- [ ] **INQ-05**: Staff can review inquiries in an admin inbox (unread badge, detail with attachments, status New → Contacted → Quoted → Converted / Closed / Spam, internal note) ⚑ C-36 (visibility)
+- [ ] **INQ-05**: Staff can review inquiries in an admin inbox (unread badge, detail with attachments, status New → Contacted → Quoted → Converted / Closed / Spam, internal note). The inbox's filters and page live in the URL (WEB-10) ⚑ C-36 (visibility)
 - [ ] **INQ-06**: Staff can convert an inquiry into a new order with customer, team, contact and product type prefilled, and the two stay linked
 - [ ] **INQ-07**: Unconverted inquiries and their attachments are purged after the configured retention period ⚑ OD-10
 - [ ] **INQ-08**: The inquiry form shows a privacy notice at collection, linking to the Privacy Policy
@@ -220,10 +220,10 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [ ] **ANL-02**: The browser Global Privacy Control signal is honored as "reject analytics"
 - [ ] **ANL-03**: A persistent footer "Cookie settings" link reopens preferences at any time
 - [ ] **ANL-04**: A "Clear my cookies & data" button expires non-essential cookies (server-side for HttpOnly ones), clears local/session storage and deletes server-side analytics tied to the visitor id
-- [ ] **ANL-05**: With consent, analytics records visitor id (random UUID cookie, ≤ 12 months), sessions, page views, referrer host and device/browser/OS family. IPs are never stored in clear (truncated, then HMAC'd with a rotating salt). Core Web Vitals are collected only with consent
+- [ ] **ANL-05**: With consent, analytics records visitor id (random UUID cookie, ≤ 12 months), sessions, page views, referrer host and device/browser/OS family. IPs are never stored in clear (truncated, then HMAC'd with a rotating salt). Core Web Vitals are collected only with consent. Here and in ANL-06, a page's path is `location.pathname` only: the client never sends the query string or fragment, which can hold search text (WEB-10); Core Web Vitals reports carry the same path; and the server cuts a reported path at the first `?` or `#` before storing it, so a crafted beacon can't store one either
 - [ ] **ANL-06**: Without consent, only anonymous aggregate counts (path + day) are recorded, with no cookies or identifiers
 - [ ] **ANL-07**: Consent is re-requested when the cookie policy version changes or after 12 months, and every consent decision is logged as proof
-- [ ] **ANL-08**: A Manager can view a metrics dashboard (unique visitors, sessions, page views, top pages, top referrers, device/browser split, trend chart, Core Web Vitals) for a chosen date range, and export it as CSV
+- [ ] **ANL-08**: A Manager can view a metrics dashboard (unique visitors, sessions, page views, top pages, top referrers, device/browser split, trend chart, Core Web Vitals) for a chosen date range, and export it as CSV. The date range lives in the URL (WEB-10)
 - [ ] **ANL-09**: Raw analytics events are retained for 13 months, then aggregated and purged ⚑ OD-10
 
 ### Legal (LEGAL)
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-07 after the owner added expense "Paid by", expenses in money on hand and record-level attribution (CEXP-05, ORD-23, MIG-10, SEC-08; CEXP-04, ORD-22, MONEY-01, MONEY-02 and MONEY-05 sharpened; 179/179 mapped)*
+*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10; ORD-10 precedence; USER-01, AUDIT-02, CEXP-01, ORD-02, ORD-07, DASH-03, MONEY-02, GAL-01, INQ-05, ANL-05, ANL-08 and SEC-03 sharpened; 180/180 mapped)*
