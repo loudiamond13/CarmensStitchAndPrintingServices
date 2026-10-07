@@ -9,4 +9,9 @@
     <PackageReference Include="NSubstitute" />
   </ItemGroup>
 
+  <!-- Coverage under Microsoft.Testing.Platform (D-17); thresholds are enforced by tools/scripts/Invoke-CoverageGate.ps1. -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.MTP" />
+  </ItemGroup>
+
 </Project>
