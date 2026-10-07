@@ -65,6 +65,12 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(TestJwt.AudienceSetting, TestJwt.Audience);
         builder.UseSetting(TestJwt.SigningKeySetting, TestJwt.SigningKeyBase64);
 
+        // Test-only Data Protection certificate (TestCertificates, D-15), created in memory once per run. Rotation and
+        // fail-fast tests override these two keys, or add DataProtection:PreviousCertificates, through
+        // WithWebHostBuilder(b => b.UseSetting(...)), which runs after this method.
+        builder.UseSetting(TestCertificates.CertificateBase64Setting, TestCertificates.Current.Base64);
+        builder.UseSetting(TestCertificates.CertificatePasswordSetting, TestCertificates.Current.Password);
+
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");
