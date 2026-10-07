@@ -1,13 +1,15 @@
 ---
+created: "2026-10-07T00:08:54-05:00"
+updated: "2026-10-07T15:55:49-05:00"
 gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
 stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-10-07T19:48:25.236Z"
+last_updated: "2026-10-07T20:55:49.779Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 1bb8dd76f25cbe6fa75265351c536fc42a21c5f1
+state_head: 415c7cbe580d3081e8ba155c09f4f4beb15b0ef6
 progress:
   total_phases: 17
   completed_phases: 0
@@ -30,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
 Plan: 13 of 13
 Status: Ready to execute
-Last activity: 2026-10-07 - Completed quick task 261007-k45: expense Paid by and record attribution requirements (Phase 1 paused at plan 01-13 owner checkpoint)
+Last activity: 2026-10-07 - Completed quick task 261007-kz6: nuqs URL state requirement (Phase 1 paused at plan 01-13 owner checkpoint)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -139,6 +141,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 261007-j0u | Add staff money requirements (payment Received by, staff balances, coworker transfers, Manager-only transfer delete), idempotent form posts and concurrency guarantees | 2026-10-07 | ac2f224 | [261007-j0u-add-staff-money-requirements-payment-rec](./quick/261007-j0u-add-staff-money-requirements-payment-rec/) |
 | 261007-k45 | Add expense Paid by (company and order expenses, deducts from money on hand) and record-level Created by / Updated by on every record | 2026-10-07 | 1bb8dd7 | [261007-k45-add-expense-paid-by-and-record-level-cre](./quick/261007-k45-add-expense-paid-by-and-record-level-cre/) |
+| 261007-kz6 | URL query-string UI state with nuqs 2.10.1 (owner-approved): WEB-10, list requirements, analytics query stripping, planned dependency record | 2026-10-07 | 415c7cb | [261007-kz6-url-query-string-ui-state-with-nuqs](./quick/261007-kz6-url-query-string-ui-state-with-nuqs/) |
 
 ## Deferred Items
 
