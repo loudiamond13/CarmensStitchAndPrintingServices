@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-12-PLAN.md
-last_updated: "2026-10-07T16:21:22.567Z"
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-10-07T16:43:18.888Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 6ea69a9f6eaa55320b77568a38f22368b93dedd8
+state_head: 396043018a06e8470e56f2a00e11293bd039374c
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 9 of 13
+Plan: 10 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P06 | 17 min | 3 tasks | 22 files |
 | Phase 01 P07 | 18 min | 3 tasks | 18 files |
 | Phase 01 P12 | 10min | 3 tasks | 10 files |
+| Phase 01 P08 | 17 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,11 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: D-28 decision: option-a (2026-10-07). The owner may create one temporary probe site next to the live site (never inside it) and run SELECT-only queries on the live database in the control panel; the probe site is deleted afterwards and its key never enters chat or git
 - [Phase 01]: tools/Csps.HostProbe is a throwaway key-protected probe (503 without a 32+ char key, 401 empty body without a match, fixed-time SHA-256 compare); never referenced by src/ or deployed with the site
 - [Phase 01]: HOSTING-RECORD.md Facts rows start Unverified and are doc-linted by HostingRecordTests (valid statuses, Verified needs result and date, no secrets, D-28 line)
+- [Phase 01]: Default deny: fallback RequireAuthenticatedUser plus named Staff/Manager policies; every endpoint needs an AuthorizationMatrix row and either an allow-listed AllowAnonymous or a Policies constant (DiscoveredEndpointsAreFullyCovered)
+- [Phase 01]: JwtBearer challenge is a bare Bearer (IncludeErrorDetails false, CWE-209); MapInboundClaims false keeps the raw sub and role claims
+- [Phase 01]: Jwt:SigningKey (base64, >= 32 bytes) comes only from user-secrets (UserSecretsId 7d33a131-9aea-4f9c-90eb-213d2b59cbee, tools/scripts/Initialize-DevSecrets.ps1) or host settings; ValidateOnStart fails startup otherwise
+- [Phase 01]: Test JWT keys are SHA-384 digests of fixed labels computed in-process (TestJwt), so no key literal is committed
+- [Phase 01]: Unknown non-API paths answer 401 to anonymous callers (A3 confirmed); Phase 2 must map and allow-list the SPA host anonymously
 
 ### Pending Todos
 
@@ -126,6 +132,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T16:21:12.939Z
-Stopped at: Completed 01-12-PLAN.md
+Last session: 2026-10-07T16:43:18.843Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None

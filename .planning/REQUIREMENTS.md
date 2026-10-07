@@ -19,7 +19,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **FND-02**: Solution `Csps.slnx` has the four `src/` projects (Domain, Application, Infrastructure, Server), the five test projects and `tools/` per PRD §3.1. The VS template scaffold (`CarmensStitchAndPrintingServices.*`, SpaProxy, `.esproj`) is removed and the port assignments are kept (Vite 5180, API 5115/7028)
 - [x] **FND-03**: Architecture tests fail the build when a layer references a forbidden layer or package (PRD §3.2) ⚑ S-3 (NetArchTest vs ArchUnitNET)
 - [x] **FND-04**: A development seed creates realistic fake data from UI-SPEC §12 (users for both roles, orders with all children, company expenses, price list, site settings), so every screen is usable without real data
-- [ ] **FND-05**: Every API error is an RFC 9457 ProblemDetails with `traceId` and field `errors`. No stack traces outside Development. Unknown `/api/*` routes return a ProblemDetails 404, never `index.html`
+- [x] **FND-05**: Every API error is an RFC 9457 ProblemDetails with `traceId` and field `errors`. No stack traces outside Development. Unknown `/api/*` routes return a ProblemDetails 404, never `index.html`
 - [x] **FND-06**: `/health` reports liveness, DB reachability and business time-zone resolution without exposing internals
 - [x] **FND-07**: Structured Serilog logging with a correlation id per request, and destructuring policies that mask passwords, codes, tokens and secrets (CWE-532/117)
 - [x] **FND-08**: Business calendar (`IBusinessCalendar` over `TimeProvider`) resolves "today", month and year boundaries in the configured business time zone (Asia/Manila fallback chain). No `DateTime.Now` in code ⚑ OD-2
@@ -59,8 +59,8 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Security (SEC)
 
-- [ ] **SEC-01**: Security headers on every response: strict CSP per PRD §11.3 (no `unsafe-inline`/`unsafe-eval`), HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP, `frame-ancestors 'none'`, and server headers removed
-- [ ] **SEC-02**: Default-deny authorization: a fallback policy plus named policies. A discovery-driven integration test fails if any endpoint lacks a policy or an authorization-matrix row (endpoint × {anonymous, Admin, Manager} → exact status)
+- [x] **SEC-01**: Security headers on every response: strict CSP per PRD §11.3 (no `unsafe-inline`/`unsafe-eval`), HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP, `frame-ancestors 'none'`, and server headers removed
+- [x] **SEC-02**: Default-deny authorization: a fallback policy plus named policies. A discovery-driven integration test fails if any endpoint lacks a policy or an authorization-matrix row (endpoint × {anonymous, Admin, Manager} → exact status)
 - [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100)
 - [ ] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
@@ -308,7 +308,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-02 | Phase 1 | Pending |
 | FND-03 | Phase 1 | Complete |
 | FND-04 | Phase 1 | Complete |
-| FND-05 | Phase 1 | Pending |
+| FND-05 | Phase 1 | Complete |
 | FND-06 | Phase 1 | Complete |
 | FND-07 | Phase 1 | Complete |
 | FND-08 | Phase 1 | Complete |
@@ -336,8 +336,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-03 | Phase 3 | Pending |
 | OPS-04 | Phase 3 | Pending |
 | OPS-05 | Phase 3 | Pending |
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Complete |
+| SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 4 | Pending |
 | SEC-04 | Phase 1 | Pending |
 | SEC-05 | Phase 14 | Pending |
