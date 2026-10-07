@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T15:52:30-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T19:30:00-05:00*
 
 ## What This Is
 
@@ -107,7 +107,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 ## Constraints
 
 - **Tech stack (pinned, PRD §2)**:
-  - Backend: .NET 10 LTS / C# 14 Minimal APIs under `/api/v1`, EF Core 10 code-first with Fluent configuration only, SQL Server 2025, ASP.NET Core Identity (`IdentityUser<Guid>`), FluentValidation, MailKit SMTP via SmarterASP.NET, Cloudinary, Serilog.
+  - Backend: .NET 10 LTS / C# 14 controller-based APIs (`[ApiController]` + attribute routes) under `/api/v1`, EF Core 10 code-first with Fluent configuration only, SQL Server 2025, ASP.NET Core Identity (`IdentityUser<Guid>`), FluentValidation, MailKit SMTP via SmarterASP.NET, Cloudinary, Serilog.
   - Frontend: React 19 + TypeScript strict + Vite, Tailwind v4, React Router, TanStack Query, react-hook-form + zod.
   - Tests: xUnit v3, NSubstitute, Shouldly, Testcontainers, Respawn, NetArchTest, Vitest + RTL + vitest-axe + MSW, Playwright + axe.
 - **Forbidden libraries**: axios (and wrappers), MediatR, AutoMapper, FluentAssertions v8+, jQuery, any UI kit conflicting with the UI spec, and any GPL/AGPL/SSPL/commercial license. Only MIT, Apache-2.0, BSD and ISC are allowed. Every new dependency needs its purpose, license, maintenance status and a legitimacy check recorded in the phase RESEARCH.md.
@@ -140,6 +140,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 
 | Decision | Rationale | Outcome |
 |---|---|---|
+| API style is controller-based (`[ApiController]`, attribute routes under `/api/v1`), not Minimal APIs (owner, 2026-10-07) | Owner preference. Conventions: thin actions → one handler; default-deny fallback policy with explicit `[Authorize(Policy)]`/`[AllowAnonymous]`; automatic model-state 400s suppressed, FluentValidation in handlers → `Result<T>` → ProblemDetails. The one existing Minimal API endpoint (`GET /api/v1/site-settings`) converts when a later phase touches it | — Pending |
 | Follow the PRD's 12-phase vertical-slice roadmap as the baseline (Fine granularity) | The PRD §20 phases are already dependency-ordered vertical slices. Phases 1–9 run on an empty DB, and only 10–12 touch legacy data | — Pending |
 | Replace the VS template scaffold with the PRD §3.1 layout and keep its port config | The template layout (`*.Server` + `*.client` + SpaProxy) doesn't match the onion layout or the build-into-`wwwroot` model | — Pending |
 | `CSPS-UI-SPEC.md` governs visuals, copy and component markup. The PRD governs behavior, security, a11y and data rules | PRD Prime Directive 5. Where they conflict on security or a11y, stop and ask the owner | — Pending |

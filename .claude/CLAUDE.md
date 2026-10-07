@@ -15,7 +15,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 ### Constraints (binding)
 
 - **Stack (PRD §2):**
-  - Backend: .NET 10 / C# 14 Minimal APIs under `/api/v1`, EF Core 10 code-first with Fluent config only, SQL Server 2025, Identity (`IdentityUser<Guid>`), FluentValidation, MailKit, Cloudinary, Serilog.
+  - Backend: .NET 10 / C# 14 controller-based APIs (`[ApiController]` + attribute routes) under `/api/v1`, EF Core 10 code-first with Fluent config only, SQL Server 2025, Identity (`IdentityUser<Guid>`), FluentValidation, MailKit, Cloudinary, Serilog.
   - Frontend: React 19 + TS strict + Vite, Tailwind v4, React Router, TanStack Query, RHF + zod.
 - **Free only:** no paid licenses, tools or services, except the hosting and domain the owner already pays for. Licenses allowed: MIT, Apache-2.0, BSD and ISC, plus approved exceptions: MPL-2.0 for axe (dev/test only), OFL-1.1 for the @fontsource fonts, and two free Microsoft-licensed runtime parts of the SQL Server driver, pinned to exact versions in `docs/license-exceptions.json` (Microsoft.Data.SqlClient.SNI.runtime 6.0.2, Microsoft.Identity.Client.NativeInterop 0.20.6; any other version needs a new owner approval). Never GPL, AGPL, SSPL or commercial licenses.
 - **Forbidden:** axios, MediatR, AutoMapper, FluentAssertions v8+, jQuery, any UI kit, `react-router-dom`, `coverlet.collector`, `Microsoft.Testing.Extensions.CodeCoverage`, Swashbuckle/NSwag, `FluentValidation.AspNetCore`, SpaProxy, and Serilog DB sinks.
@@ -23,6 +23,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - **Architecture (PRD §3):**
   - Onion: Domain ← Application ← Infrastructure ← Server, enforced by **ArchUnitNET** tests.
   - No mediator: one handler per use case and manual mapping. `Result<T>` maps to RFC 9457 ProblemDetails.
+  - Controllers (owner, 2026-10-07): one `[ApiController]` per resource with attribute routes under `/api/v1`; thin actions call one handler, no logic in controllers. Default-deny stays: the global fallback policy requires an authenticated user, every controller/action declares `[Authorize(Policy = ...)]` or `[AllowAnonymous]` explicitly, and the authorization-matrix test discovers every action. Automatic 400 model-state responses are off (`SuppressModelStateInvalidFilter`); validation is FluentValidation in handlers → `Result<T>` → ProblemDetails. The existing Minimal API endpoint (`GET /api/v1/site-settings`) converts when a later phase touches it; `/health`, `/openapi` and `/scalar` stay framework-mapped.
   - `rowversion` per aggregate (409 on conflict).
   - UTC storage plus `TimeProvider` / `IBusinessCalendar`. Never `DateTime.Now`.
   - Money is `decimal(18,2)` and computed server-side only.

@@ -50,7 +50,7 @@ These rules override every other instruction, convenience, or "quick fix".
 | Concern | Choice | Notes |
 |---|---|---|
 | Runtime | **.NET 10 (LTS), C# 14** | `global.json` pins the SDK. Solution file: `Csps.slnx`. |
-| API style | ASP.NET Core **Minimal APIs** with endpoint groups, typed results | Versioned under `/api/v1`. |
+| API style | ASP.NET Core **controller-based APIs** (`[ApiController]`, attribute routing; one controller per resource; thin actions calling one handler) | Versioned under `/api/v1`. Owner change 2026-10-07 (was Minimal APIs). Automatic model-state 400s are suppressed; validation runs in handlers and errors are RFC 9457 ProblemDetails. |
 | ORM | **EF Core 10** (SQL Server provider) | Code-first migrations; Fluent configuration only (no attributes in Domain). |
 | Database | **SQL Server 2025** | Local/dev/test via Docker image `mcr.microsoft.com/mssql/server:2025-latest`. |
 | Identity | **ASP.NET Core Identity** (`IdentityUser<Guid>`, roles) | §8. |
@@ -95,7 +95,7 @@ Domain  <--  Application  <--  Infrastructure  <--  Server
   /Csps.Domain                   entities, value objects, domain rules, domain errors — NO package refs
   /Csps.Application              use cases, DTOs, interfaces (ports), validators, authorization policies names
   /Csps.Infrastructure           EF Core DbContext + migrations, Identity, Cloudinary, SMTP, clock, crypto
-  /Csps.Server                   Minimal API endpoints, auth wiring, middleware, DI composition, wwwroot host
+  /Csps.Server                   API controllers, auth wiring, middleware, DI composition, wwwroot host
 /web                             React + TS + Tailwind app (builds into src/Csps.Server/wwwroot)
   /src
   /tests/e2e                     Playwright specs
@@ -370,7 +370,7 @@ Each requirement has an ID for GSD traceability. Every requirement needs unit + 
   - Dark mode and theme tokens only if `CSPS-UI-SPEC.md` defines them (otherwise [OWNER DECISION]).
   - Respect `prefers-color-scheme` when a dark theme exists.
 - **Backend:**
-  - .NET 10 Minimal APIs with built-in validation and OpenAPI.
+  - .NET 10 controller-based APIs (`[ApiController]`) with built-in OpenAPI; validation via FluentValidation in handlers.
   - `TimeProvider` for time.
   - Primary constructors and records where they improve clarity.
   - No outdated patterns (no `Startup.cs`, no `WebClient`, no synchronous I/O).
