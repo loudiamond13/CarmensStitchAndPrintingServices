@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-10-07T16:43:18.888Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-10-07T17:09:44.126Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 396043018a06e8470e56f2a00e11293bd039374c
+state_head: 6e2fea2a4468497a75bd00d33afa803e14c36d59
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 10 of 13
+Plan: 11 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P07 | 18 min | 3 tasks | 18 files |
 | Phase 01 P12 | 10min | 3 tasks | 10 files |
 | Phase 01 P08 | 17 min | 3 tasks | 26 files |
+| Phase 01 P09 | 15 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: Jwt:SigningKey (base64, >= 32 bytes) comes only from user-secrets (UserSecretsId 7d33a131-9aea-4f9c-90eb-213d2b59cbee, tools/scripts/Initialize-DevSecrets.ps1) or host settings; ValidateOnStart fails startup otherwise
 - [Phase 01]: Test JWT keys are SHA-384 digests of fixed labels computed in-process (TestJwt), so no key literal is committed
 - [Phase 01]: Unknown non-API paths answer 401 to anonymous callers (A3 confirmed); Phase 2 must map and allow-list the SPA host anonymously
+- [Phase 01]: D-25/D-32 resolved as option-a with 8-month retention (owner, 2026-10-07): TR_AuditLog_AppendOnly refuses every UPDATE (51000) and DELETE (51001) except a DELETE with read-only session flag csps.audit_purge = 1 where every row is older than 8 months; mixed statements fail as a whole; TRUNCATE blocked by AuditLogTruncateGuard FK
+- [Phase 01]: AddInfrastructure requires a host-registered IRequestContext (AuditTrail depends on it); plain-ServiceCollection callers (tests, tools) must register one
+- [Phase 01]: Append-only audit log enforced in three layers: DB trigger, FK truncate guard, EF AuditLogAppendOnlyInterceptor registered once in CspsDbContextOptions.Configure; Respawn never resets AuditLog/AuditLogTruncateGuard
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T16:43:18.843Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-10-07T17:09:32.675Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
