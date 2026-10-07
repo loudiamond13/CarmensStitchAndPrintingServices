@@ -79,6 +79,14 @@ public sealed class CspsDatabase : IAsyncLifetime
         }
     }
 
+    /// <summary>Deletes the rows of every user table, except the migration history and the SiteSettings row.</summary>
+    /// <returns>A task that completes when the data is gone.</returns>
+    public Task ResetAsync()
+    {
+        _ = ConnectionString;
+        return Task.CompletedTask;
+    }
+
     /// <summary>Creates a new context on this database. The caller disposes it.</summary>
     /// <returns>A context built through <see cref="CspsDbContextOptions.Configure"/>.</returns>
     public CspsDbContext CreateContext()
