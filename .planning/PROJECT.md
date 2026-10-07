@@ -217,4 +217,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-06 after initialization*
+*Last updated: 2026-10-07 after the owner added staff money tracking, idempotent form posts and concurrency guarantees*

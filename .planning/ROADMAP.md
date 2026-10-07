@@ -14,6 +14,8 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
 - **Requirement mapping.** Each v1 requirement maps to exactly one phase: the one that establishes it. Cross-cutting QUAL/SEC/A11Y/PERF requirements map to the phase where their gate is first built. **From then on, every later phase enforces them through the PRD §22 Definition of Done:**
   - zero warnings, coverage gates and architecture tests
   - authorization-matrix rows for every new endpoint
+  - an `Idempotency-Key` on every new POST, or a written allow-list entry (SEC-06)
+  - `rowversion` 409s and a two-writer test for every new mutable aggregate (SEC-07)
   - axe at zero violations, plus a keyboard pass
   - bundle budgets and Lighthouse scores
   - a UI-spec match at 320/768/1280 px
@@ -26,6 +28,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   - rate-limit policies (SEC-03)
   - maintenance jobs (JOB-01)
   - the authorization matrix (SEC-02)
+  - the idempotency allow-list (SEC-06)
 - **Per-phase workflow:**
   1. `/gsd-discuss-phase N` closes the listed owner decisions before the first test.
   2. `/gsd-plan-phase N --tdd`.
@@ -161,7 +164,7 @@ Plans:
 **Goal**: Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
+**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, WEB-09, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
 **Success Criteria** (what must be TRUE):
   1. **Build and dev server:**
      - `npm run build` emits the app into `src/Csps.Server/wwwroot`.
@@ -185,6 +188,7 @@ Plans:
   4. **Money math, HTTP and data fetching:**
      - The shared golden-vector file (≥ 200 cases, including half-centavo values) passes identically in xUnit and Vitest.
      - `httpClient.ts` has 100% coverage, including the single-flight 401 refresh.
+     - Every POST carries an `Idempotency-Key` created once per form submission and reused on retry, and submit buttons stay disabled while a request is pending (WEB-09).
      - Lint rejects `fetch`, `httpClient` or `axios` imports outside `api.ts`.
      - TanStack Query defaults are in place: stale time, keep-previous pagination, and a 300 ms debounced search that can be cancelled.
   5. **E2E, Lighthouse and WCAG rulings:**
@@ -264,7 +268,7 @@ Plans:
 **Goal**: Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Mode:** mvp
 **Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. Run Phase 3 first if possible so auth ships through CI and staging.
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, A11Y-03, AUDIT-01
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01
 **Success Criteria** (what must be TRUE):
   1. **Sign-in with the emailed code.** A staff member enters email and password, receives a 6-digit code by email, pastes or types it (`autocomplete="one-time-code"`) and reaches the admin portal. An unknown email, a wrong password and a deactivated or locked account all get the same generic error with similar timing, and none gets a session.
   2. **Code and lockout limits:**
@@ -289,6 +293,7 @@ Plans:
      - Auth emails go out through the outbox, from the business sender over TLS.
      - E2E reads codes from the Testing-only sink, and a test proves the sink is absent from Release.
      - Sign-in, 2FA, lockout and reset events appear in the audit log.
+  6. **Idempotent form posts.** Every state-changing POST needs an `Idempotency-Key` (SEC-06). Replaying a request returns the first response and creates nothing new; for example, a repeated forgot-password post queues one email. Reusing a key with a different body gets 422, a duplicate that arrives mid-request gets 409 and a missing key gets 400. The endpoint discovery test fails on any POST that is neither covered nor on the written allow-list (e.g. sign-in, 2FA verify, refresh, sign-out). Keys expire after 24 hours.
 
 **Owner decisions to close at discuss step:** Send these as one security batch before the phase starts.
 - **OD-12** sender address/domain, SPF/DKIM/DMARC
@@ -321,7 +326,7 @@ Plans:
 **Goal**: Every staff member can manage their own name, email, password and theme. Managers can run the staff roster safely: invite, edit, lock, deactivate and delete users under guard rules. Every action is audited and can be reviewed.
 **Mode:** mvp
 **Depends on**: Phase 4
-**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02
+**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02, SEC-07
 **Success Criteria** (what must be TRUE):
   1. **Own profile.** A signed-in user can:
      - change their name
@@ -337,6 +342,7 @@ Plans:
   3. **Guard rules.** A Manager can't delete, deactivate or demote themselves. Two simultaneous attempts can never remove the last active Manager. A role or status change signs the affected user out at once.
   4. **Manager-only access.** An Admin never sees the Users navigation item. Opening `/admin/users` redirects to `/admin`, and the API answers 403.
   5. **Audit-log viewer.** A Manager can open the audit log, filter it by actor, action, target and date range, and find every user-management action.
+  6. **Conflict-safe edits.** Two people saving the same record never both succeed (SEC-07). The stale save gets 409 with "This was changed by someone else. Reload and try again.", and the screen shows that message and reloads the latest version. A two-writer integration test proves it, and the same rule applies to every later aggregate.
 
 **Owner decisions to close at discuss step:**
 - **C-41** soft-delete users: scramble the email, block sign-in, keep the name
@@ -463,7 +469,7 @@ Plans:
   4. **Phone camera.** On a phone, staff can take a photo with the camera, and it's downscaled before upload.
   5. **Cleanup jobs.** Deleting an image or an order queues the Cloudinary deletion in the same transaction. The secret-protected maintenance endpoint, triggered on a schedule:
      - processes that queue with leases and retries
-     - purges expired tokens and 2FA codes
+     - purges expired tokens, 2FA codes and idempotency keys
 
      A weekly orphan sweep reconciles storage.
 **Owner decisions to close at discuss step:**
@@ -797,15 +803,15 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 172 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 175 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
 | 1 | FND-01…FND-13, QUAL-01, QUAL-03, QUAL-06, SEC-01, SEC-02, SEC-04 | 19 |
-| 2 | WEB-01…WEB-08, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 18 |
+| 2 | WEB-01…WEB-09, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 19 |
 | 3 | OPS-01…OPS-05 | 5 |
-| 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, A11Y-03, AUDIT-01 | 17 |
-| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02 | 13 |
+| 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
+| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07 | 14 |
 | 6 | CEXP-01…CEXP-04, PERF-04 | 5 |
 | 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22 | 11 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
@@ -818,7 +824,7 @@ All 172 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 15 | MIG-01, MIG-02 | 2 |
 | 16 | MIG-03…MIG-09 | 7 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **172** |
+| **Total** | | **175** |
 
 ## Progress
 
@@ -849,3 +855,4 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 ---
 *Roadmap created: 2026-10-07*
+*Last updated: 2026-10-07 after the owner added staff money tracking (ORD-22, MONEY-01…MONEY-08, MIG-09), idempotent form posts (SEC-06, WEB-09) and concurrency guarantees (SEC-07)*

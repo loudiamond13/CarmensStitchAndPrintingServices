@@ -39,6 +39,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **WEB-06**: Shared primitives exist with unit + axe tests: Skeleton family with `aria-busy` + polite live region, EmptyState, ErrorState with retry, ConfirmDialog, Toast, DataTable (`.s-rt` → cards on phones), Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput. No primitive is re-implemented in feature code (PRD §9.2)
 - [ ] **WEB-07**: The money/date formatters and order math (`formatPeso`, `formatDate`, `orderTotals`) agree with the server on a shared golden-vector file (≥ 200 cases including half-centavo values) consumed by both xUnit and Vitest ⚑ C-25 (client rounding change)
 - [ ] **WEB-08**: TanStack Query provider and query-key conventions: `staleTime` defaults, keep-previous-data pagination, 300 ms debounced search with `AbortSignal` cancellation, intent prefetch
+- [ ] **WEB-09**: The `lib/http` client (WEB-03) sends an `Idempotency-Key` (a UUID from `crypto.randomUUID()`) with every POST (SEC-06). It creates one key per form submission and reuses it on every retry of that submission, including the single-flight 401 refresh retry; a POST carrying a key counts as idempotent for WEB-03's capped retries. Submit buttons are disabled (`aria-disabled`, keeping keyboard focus) and show a pending state while the request is in flight, so a double-click sends one request. `lib/http`'s 100% coverage includes key reuse on retry, and component tests cover the pending button (owner, 2026-10-07)
 
 ### Quality Gates (QUAL)
 
@@ -64,6 +65,8 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100)
 - [x] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
+- [ ] **SEC-06**: Form posts are idempotent, so a double-click, retry or network replay never creates a duplicate (owner, 2026-10-07). Every state-changing `POST` requires an `Idempotency-Key` header holding a client-generated UUID. The server stores each key in a relational table with the user id (none for anonymous forms), the route, a SHA-256 hash of the request body, and the response status and body (`nvarchar`, never a JSON column, D-13) for 24 hours, and a key only ever matches for the same user and route. A replay with the same key and body returns the stored response without running the handler again. The same key with a different body gets a 422 ProblemDetails, a duplicate arriving while the first request is still running gets 409, and a missing or malformed key gets 400. Expired keys are ignored at once, and a JOB-01 maintenance job purges them (cron-endpoint pattern, no host scheduler). The only exemptions are POSTs on an explicit allow-list with a written reason, such as sign-in, 2FA verify, refresh and sign-out (their responses carry tokens, which must never be stored) and analytics beacons (ANL-05; beacons can't send headers). The endpoint discovery test (SEC-02) fails on any POST that is neither covered nor allow-listed, and an integration test proves a duplicate POST creates exactly one record. PUT, PATCH and DELETE rely on `rowversion` instead (SEC-07), so a replay can never apply a second change
+- [ ] **SEC-07**: Concurrent writes never lose an update or produce wrong money (owner, 2026-10-07). This sharpens CEXP-02, ORD-08 and USER-04 and applies to every later aggregate. Every mutable aggregate (orders with their items, payments, discounts and expenses; company expenses; users; site content; money transfers) uses optimistic concurrency: a `rowversion` (for users, a `rowversion` or Identity's concurrency stamp) comes with every read and must match on every update or delete. A stale write gets a 409 ProblemDetails reading "This was changed by someone else. Reload and try again.", and the UI shows that message and reloads the latest version (ORD-08 also keeps the user's typed input). Check-then-write money operations, such as the transfer balance check (MONEY-05) and the overpayment rule (ORD-05), run in one transaction with locking (e.g. `UPDLOCK, HOLDLOCK` on the guarded rows, or SERIALIZABLE), so two concurrent requests can't both pass the check. Order totals, balances and other server-computed figures are never served stale after a write: no server cache holds them across a write, and the client invalidates every affected query after each mutation. For each aggregate, integration tests run two concurrent conflicting writes and assert that exactly one wins, the other gets 409 or a refusal, and totals and balances stay exact
 
 ### Authentication (AUTH)
 
@@ -138,7 +141,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Background Jobs (JOB)
 
-- [ ] **JOB-01**: Maintenance work (Cloudinary deletions, token/2FA purge, analytics aggregation and purge, inquiry retention) runs as short, leased, idempotent jobs behind a secret-protected maintenance endpoint, triggered on a schedule (host scheduler or GitHub Actions cron). Nothing relies on long-running in-memory state
+- [ ] **JOB-01**: Maintenance work (Cloudinary deletions, token/2FA purge, idempotency-key purge, analytics aggregation and purge, inquiry retention) runs as short, leased, idempotent jobs behind a secret-protected maintenance endpoint, triggered on a schedule (host scheduler or GitHub Actions cron). Nothing relies on long-running in-memory state
 - [ ] **JOB-02**: Image deletions are queued in the same transaction as the business change and retried until they succeed. Failures are logged and an orphan sweep reconciles storage
 
 ### Images (IMG)
@@ -304,7 +307,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Multi-language UI | English copy per UI spec (PRD §23) |
 | Marketing emails | Transactional email only, no marketing without separate consent (PRD §13, §23) |
 | Inventory | Not part of the shop's workflow (PRD §23) |
-| Financial reporting beyond order summary, expense totals, dashboard KPIs, visitor metrics | PRD §23 |
+| Financial reporting beyond order summary, expense totals, dashboard KPIs, visitor metrics | PRD §23. Staff money on hand (MONEY-*) is an owner-added ledger, not a report (2026-10-07) |
 | Meta Pixel / Messenger chat plugin | Privacy and performance cost. The plugin was retired in 2024; use `m.me` links |
 | reCAPTCHA / cognitive puzzles | Accessibility (WCAG 3.3.8) and privacy. Use honeypot + time-trap + rate limits instead |
 | Embedded Google Maps iframe | CSP, privacy and performance. The UI spec's stylized SVG map + "Directions" link is used |
@@ -340,6 +343,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-06 | Phase 2 | Pending |
 | WEB-07 | Phase 2 | Pending |
 | WEB-08 | Phase 2 | Pending |
+| WEB-09 | Phase 2 | Pending |
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Pending |
 | QUAL-03 | Phase 1 | Complete |
@@ -356,6 +360,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-03 | Phase 4 | Pending |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 14 | Pending |
+| SEC-06 | Phase 4 | Pending |
+| SEC-07 | Phase 5 | Pending |
 | AUTH-01 | Phase 4 | Pending |
 | AUTH-02 | Phase 4 | Pending |
 | AUTH-03 | Phase 4 | Pending |
@@ -493,12 +499,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CUT-03 | Phase 17 | Pending |
 
 **Coverage:**
-- v1 requirements: 172 total
-- Mapped to phases: 172
+- v1 requirements: 175 total
+- Mapped to phases: 175
 - Unmapped: 0 ✓
 
 Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where their gate is first built. Every later phase enforces them through the PRD §22 Definition of Done (see ROADMAP.md "Roadmap Conventions").
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-07 after roadmap creation (traceability filled, 162/162 mapped)*
+*Last updated: 2026-10-07 after the owner added staff money tracking, idempotent form posts and concurrency guarantees (ORD-22, MONEY-01…MONEY-08, MIG-09, SEC-06, SEC-07, WEB-09; 175/175 mapped)*
