@@ -4,25 +4,23 @@ using System.Security.Cryptography.X509Certificates;
 namespace Csps.Infrastructure.DataProtection;
 
 /// <summary>
-/// Opens the Data Protection certificate from its base64 PFX and password (D-15). The key is loaded with
+/// Opens a Data Protection certificate from its base64 PFX and password (D-15). The key is loaded with
 /// <see cref="X509KeyStorageFlags.EphemeralKeySet"/>, so nothing is written to the machine or user key store; the
 /// IIS app pool on the host has no loaded user profile. Error messages never contain the PFX or the password.
 /// </summary>
 public static class CertificateLoader
 {
     /// <summary>The failure message when the PFX value is empty.</summary>
-    public const string MissingMessage =
-        "DataProtection:CertificateBase64 is not configured. In Development run tools/scripts/Initialize-DevSecrets.ps1; "
-        + "in Production set it in the host settings.";
+    public const string MissingMessage = "No certificate is configured.";
 
     /// <summary>The failure message when the PFX value is not base64.</summary>
-    public const string NotBase64Message = "The Data Protection certificate is not valid base64.";
+    public const string NotBase64Message = "The certificate is not valid base64.";
 
     /// <summary>The failure message when the PFX cannot be opened, for example because the password is wrong.</summary>
-    public const string CannotOpenMessage = "The Data Protection certificate could not be opened. Check the PFX and its password.";
+    public const string CannotOpenMessage = "The certificate could not be opened. Check the PFX and its password.";
 
     /// <summary>The failure message when the PFX holds no private key.</summary>
-    public const string NoPrivateKeyMessage = "The Data Protection certificate has no private key, so it cannot decrypt the key ring.";
+    public const string NoPrivateKeyMessage = "The certificate has no private key, so it cannot decrypt the key ring.";
 
     /// <summary>Loads a certificate with its private key. The caller disposes it.</summary>
     /// <param name="base64">The PFX bytes, base64-encoded.</param>
