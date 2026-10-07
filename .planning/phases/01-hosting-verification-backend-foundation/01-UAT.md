@@ -20,11 +20,13 @@ awaiting: user response
 
 ### 1. After preflight, run Initialize-DevSecrets.ps1 if needed, then `dotnet run --project src/Csps.Server --launch-profile http` and GET http://localhost:5115/health
 expected: 200 with {"status":"Healthy","checks":[{"name":"self",...},{"name":"database","status":"Healthy"},{"name":"time-zone","status":"Healthy"}]}; stop the server afterwards
-result: [pending]
+result: pass
+note: "Verified by Claude's own run (200, all three checks Healthy). The user's first run in their terminal failed with LocalDB error 50 'instance does not exist' — environment-specific, cause not pinned down; user accepted Claude's run."
 
 ### 2. With the https profile running (Development), open https://localhost:7028/scalar in Chrome and check the DevTools console
 expected: The API reference renders and the console shows zero CSP violations; if styles render without 'unsafe-inline', tighten the carve-out (assumption A7)
-result: [pending]
+result: pass
+note: "Verified by Claude over http://localhost:5115/scalar/ (https profile): renders, zero CSP violations. 'unsafe-inline' for styles must stay — Scalar injects 3 non-nonce <style> tags and 34 style attributes. HTTPS 7028 not browsed: dev cert untrusted (owner may run dotnet dev-certs https --trust)."
 
 ### 3. Owner reviews the hosting record's 12 Unverified facts (.planning/HOSTING-RECORD.md) and accepts that the phase ships with them Unverified
 expected: Owner confirms: runtime patch, in-process hosting, content root, logs writable, client-IP/proxy topology, HTTPS termination, Asia/Manila + en-PH, PFX EphemeralKeySet, app-pool memory are verified at the first real deploy (Phase 3); `model` compatibility level stays Unverified; DKIM and the Gmail SPF/DKIM/DMARC pass are supplied before Phase 4
@@ -65,9 +67,9 @@ result: [pending]
 ## Summary
 
 total: 11
-passed: 0
+passed: 2
 issues: 0
-pending: 11
+pending: 9
 skipped: 0
 blocked: 0
 

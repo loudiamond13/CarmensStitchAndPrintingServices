@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-07T16:34:13-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-07T18:05:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -159,15 +159,16 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Server collation | B2 (ServerCollation) | SQL_Latin1_General_CP1_CI_AS | Verified | 2026-10-07 |
 | Database compatibility level (new databases / model) | B3 (`model` row) | Not returned: B3 gave only the live database row, so this account cannot see `model` and the server default is unknown | Unverified | - |
 | Legacy database settings | B3 (live database row) | `db_…_csptailoringdb`: compatibility_level 150, collation SQL_Latin1_General_CP1_CI_AS, is_read_committed_snapshot_on 0, recovery SIMPLE | Verified | 2026-10-07 |
+| SQL Server 2025 offered | Service-desk ticket (owner, 2026-10-07) | Yes: a new SQL Server 2025 database can be created in the control panel. There is no in-place upgrade; the live data moves by restoring a .bak into the new database. Not answered: extra cost, and whether the Basic plan's 1-database limit allows a second database | Verified | 2026-10-07 |
 | Database allocated size | B4 | AllocatedMB 16.0 | Verified | 2026-10-07 |
 | Hosting login owns the database | B5 (IsDbOwner only) | IsDbOwner 1 (the hosting login is a member of db_owner) | Verified | 2026-10-07 |
 | Hosting login permissions | B6 | db_owner-level: CONTROL plus all DDL/DML (among them CONTROL, ALTER, CREATE TABLE, BACKUP DATABASE and ALTER ANY DATABASE DDL TRIGGER); the full list was provided by the owner | Verified | 2026-10-07 |
-| .NET runtime patch | C probe: frameworkDescription, environmentVersion | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| In-process hosting | C probe: processName, inProcess | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| .NET runtime patch | C probe: frameworkDescription, environmentVersion | Probe not possible: the plan allows no extra site. The live legacy app's web.config (owner-pasted 2026-10-07) runs framework-dependent (`processPath="dotnet"`) and the owner says it targets .NET 10, so a .NET 10 shared runtime is installed. The exact patch is checked on the first real deploy (Phase 3) | Unverified | - |
+| In-process hosting | C probe: processName, inProcess; or the live legacy app's web.config (owner-pasted) | The live legacy app's web.config uses AspNetCoreModuleV2 with `hostingModel="inprocess"`, so the host runs ASP.NET Core in-process | Verified | 2026-10-07 |
 | Content root vs current directory | C probe: contentRootPath, currentDirectory | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | Logs folder writable | C probe: logsWritable | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Outside view of the live site (2026-10-07): IIS 10 serves a Let's Encrypt certificate and http answers 307 to https, so TLS ends at IIS. What the app itself sees is checked on the first real deploy (Phase 3) | Unverified | - |
 | Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | PFX EphemeralKeySet round trip | C probe: ephemeralPfxRoundTrip | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
@@ -184,13 +185,18 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
   hosting and restore the live data onto a SQL Server 2025 database. Notes for that move:
   - Restoring a SQL Server 2022 backup onto SQL Server 2025 is supported. The database keeps its old compatibility
     level after the restore, and the level is raised afterwards.
-  - Still to ask SmarterASP.NET: whether SQL Server 2025 is offered on this plan, and whether it costs anything
-    extra. Any extra cost is an owner decision under the free-only rule (D-00).
+  - SmarterASP.NET answered (2026-10-07): SQL Server 2025 is offered. There is no in-place upgrade; create a new
+    SQL Server 2025 database in the control panel and restore a .bak of the live database into it. Still to ask:
+    whether it costs anything extra (an owner decision under the free-only rule, D-00), and whether the Basic plan
+    allows a second database while the live one still exists.
   - The Basic plan allows only 1 database, and it is in use. Deleting the current database first would take the
-    live legacy site down until the restore finishes. Take a fresh backup first, and ask SmarterASP.NET about an
-    in-place version upgrade or a temporary second database.
+    live legacy site down until the restore finishes. Take a fresh backup first. An in-place upgrade is not offered,
+    so ask SmarterASP.NET whether a temporary second database is allowed.
   - Timing: only during cutover planning and execution (Phases 15-17; only Phase 17 touches the live system), never
     before. The live site must stay up (Prime Directive 1).
+- **Live site certificate (observed 2026-10-07).** The live site's Let's Encrypt certificate expires 2026-10-13.
+  These normally renew about 30 days before expiry, so automatic renewal may be failing. The owner checks the SSL
+  section of the control panel or asks SmarterASP.NET. This is not CSPS work, but it affects the live site.
 - **Compatibility level (D-13, D-33).** `SqlCompatibility.Level` stays at **160, provisional**. It is not re-pinned
   now: the `model` level is Unverified (B3 returned no `model` row), and the owner's target is SQL Server 2025.
   160 is valid on both SQL Server 2022 and 2025, and the idempotent script is proven at 160 and 170
