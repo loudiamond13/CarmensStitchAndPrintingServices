@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
-current_phase_name: Hosting Verification & Backend Foundation
-status: verifying
-stopped_at: Completed 01-13-PLAN.md
-last_updated: "2026-10-07T23:31:59.238Z"
+current_phase: 2
+current_phase_name: Web Foundation & Design System
+status: planning
+stopped_at: Phase 1 complete, ready to plan Phase 2
+last_updated: "2026-10-07T23:41:14.192Z"
 last_activity: 2026-10-07
-last_activity_desc: Phase 1 execution started
-state_head: 50a0cd3badab8566749a90cc95c49b11533d7232
+last_activity_desc: Phase 1 complete, transitioned to Phase 2
+state_head: f6a6e29731f68ef393118b0f85b6091c1b898392
 progress:
   total_phases: 17
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 13
   completed_plans: 13
-  percent: 0
+  percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T16:38:02-05:00"
+updated: "2026-10-07T20:05:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-06)
+See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 1 — Hosting Verification & Backend Foundation
+**Current focus:** Phase 2 — Web Foundation & Design System
 
 ## Current Position
 
-Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 13 of 13
-Status: Phase complete — ready for verification
-Last activity: 2026-10-07 - Completed quick task 261007-p98: Fix WR-04 dev-seed guard server allow-list (after Phase 1 UAT 11/11 passed)
+Phase: 2 — Web Foundation & Design System
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-07 — Phase 1 complete, transitioned to Phase 2
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 6%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
+- Total plans completed: 13
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,7 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 | 13 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -132,8 +132,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: FND-13 record filled 2026-10-07 (01-13). Still open: Gmail SPF/DKIM/DMARC pass check (D2) before Phase 4; probe facts verified on the Phase 3 first deploy; ask SmarterASP.NET about SQL Server 2025 cost/availability (D-33).
-- [Phase 3]: The owner must create the GitHub repo and provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
+- [Phase 1 → 3/4/17]: Hosting record still has Unverified facts: probe facts (runtime patch, content root, logs, client IP, HTTPS, Manila/en-PH, PFX, memory) verified on the Phase 3 first deploy; Gmail SPF/DKIM/DMARC pass (D2) before Phase 4. SmarterASP.NET confirmed SQL Server 2025 is offered (new DB + `.bak` restore, no in-place upgrade); still ask whether a temporary second database is allowed at no cost (Phase 17 prerequisite, D-33).
+- [Phase 4]: Code review WR-02 (IpPrefix 6to4/NAT64 → IPv4 before truncation) is owner-deferred and MUST be fixed before any code path writes audit rows. Also triage the remaining open review items (WR-01, WR-03, WR-05..WR-09, IN-*) before shipping.
+- [Phase 2+]: API style is now controller-based (owner, 2026-10-07); `GET /api/v1/site-settings` converts to a controller when a phase touches it.
+- [Phase 3]: GitHub repo exists (private, default branch `dev`; PRs target `dev`). The owner must still provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
 - [Phase 4]: Send the security batch (OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33) before the phase starts. Email delivery is a hard dependency for sign-in.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
@@ -158,6 +160,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T21:37:41.371Z
-Stopped at: Completed 01-13-PLAN.md
+Last session: 2026-10-07T20:05:00-05:00
+Stopped at: Phase 1 complete, ready to plan Phase 2
 Resume file: None

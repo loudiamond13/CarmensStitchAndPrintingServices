@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T19:30:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T20:00:00-05:00*
 
 ## What This Is
 
@@ -34,13 +34,12 @@ All existing production data is migrated in without loss. The API is client-agno
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ **Foundation:** onion solution, zero-warning builds, architecture tests, EF Core code-first schema with a guarded dev seed, ProblemDetails, `/health`, Serilog JSON logs, business calendar, SiteSettings core, append-only AuditLog, SQL test fixture, idempotent migration scripts, hosting record, coverage and license gates, security headers, default-deny authorization, Data Protection key ring (FND-01..13, QUAL-01/03/06, SEC-01/02/04) — Phase 1 (2026-10-07: UAT 11/11, 526 tests, threats_open 0)
 
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Foundation:** Onion solution (`Csps.slnx`, 4 `src/` projects plus test projects), strict zero-warning builds, architecture tests, EF Core code-first schema with a dev seed, ProblemDetails, logging, `/health`, security headers, CI, staging deploy (PRD §3, §5.6, §17, §18)
 - [ ] **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system copied verbatim, `httpClient.ts` (no axios) and `api.ts`, shared primitives, skeletons (PRD §9, UI-SPEC §2)
 - [ ] **Authentication:** email + password, mandatory 6-digit email second factor, remember me (90 days), rotating refresh tokens with reuse detection, lockout, rate limits, forgot/reset password, sign out everywhere (AUTH-01..10, PRD §8)
 - [ ] **Profile:** name, email change with confirmation, password change (PROF-01..03)
@@ -140,6 +139,9 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 
 | Decision | Rationale | Outcome |
 |---|---|---|
+| SQL Server 2025 is the production target; compatibility level stays pinned at 160 until the 2025 database exists (D-33) | SmarterASP.NET offers 2025 only as a new database plus `.bak` restore, not an in-place upgrade; the Basic plan has 1 database. The move happens at the Phase 17 cutover | — Pending |
+| Two free Microsoft runtime parts of the SQL Server driver ship under an exact-version license exception (`docs/license-exceptions.json`) | They are free but not open source; Microsoft.Data.SqlClient needs them on Windows. Any other version needs a new owner approval | ✓ Good (Phase 1) |
+| The dev seed runs only on `(localdb)\CSPS` or a loopback test container (code review WR-04) | Keeps sample data and `--reset` away from the live host and TheBETSLLC's databases | ✓ Good (quick 261007-p98) |
 | API style is controller-based (`[ApiController]`, attribute routes under `/api/v1`), not Minimal APIs (owner, 2026-10-07) | Owner preference. Conventions: thin actions → one handler; default-deny fallback policy with explicit `[Authorize(Policy)]`/`[AllowAnonymous]`; automatic model-state 400s suppressed, FluentValidation in handlers → `Result<T>` → ProblemDetails. The one existing Minimal API endpoint (`GET /api/v1/site-settings`) converts when a later phase touches it | — Pending |
 | Follow the PRD's 12-phase vertical-slice roadmap as the baseline (Fine granularity) | The PRD §20 phases are already dependency-ordered vertical slices. Phases 1–9 run on an empty DB, and only 10–12 touch legacy data | — Pending |
 | Replace the VS template scaffold with the PRD §3.1 layout and keep its port config | The template layout (`*.Server` + `*.client` + SpaProxy) doesn't match the onion layout or the build-into-`wwwroot` model | — Pending |
@@ -224,4 +226,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs, search in the URL and gallery filters in the URL (WEB-10)*
+*Last updated: 2026-10-07 after Phase 1 (Hosting Verification & Backend Foundation)*

@@ -53,7 +53,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives
+- [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [ ] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates
 - [ ] **Phase 3: CI/CD & Staging Deploy** - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
@@ -133,7 +133,7 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 - The sources contradict each other on EF compatibility level and the `json` type (C-31).
 - MapStaticAssets cache headers and `AllowAnonymous` on static files and the SPA fallback need a spike.
 
-**Plans**: 13/13 plans executed in 7 waves
+**Plans**: 13/13 plans complete in 7 waves
 
 Plans:
 **Wave 1**
@@ -850,7 +850,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Hosting Verification & Backend Foundation | 13/13 | In Progress|  |
+| 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 0/TBD | Not started | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
