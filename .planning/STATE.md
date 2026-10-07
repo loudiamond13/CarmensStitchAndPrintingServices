@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-07T13:48:32.918Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-07T14:18:51.733Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: 9703566960fbad0d58146a07dee053c9567cef5b
+state_head: 791801d8ece2d0d967e97261f93c3e09a760d011
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 2 of 13
+Plan: 3 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 14 min | 3 tasks | 43 files |
+| Phase 01 P02 | 25 min | 3 tasks | 39 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: Owner approved the full Phase 1 package list (01-01 Task 1 legitimacy gate) on 2026-10-07 before first restore; recorded in docs/dependencies.json approvals
 - [Phase 01]: Dependency registry scopes are runtime|build|test|tool|font; D-18 exceptions MPL-2.0->test, OFL-1.1->font; pin/registry mismatch fails DependencyRegistryTests
 - [Phase 01]: xUnit v3 MTP: zero-match filter exits 8 (A14 first half confirmed); report switches are --report-xunit-junit/--report-xunit-trx
+- [Phase 01]: CspsApiFactory keeps one public ctor (xUnit1056); the (string) ctor is protected and CspsApiFactory.ForDatabase(connectionString) is the public entry for real databases
+- [Phase 01]: LocalDB (localdb)\CSPS 17.0 connects with Integrated Security and no TrustServerCertificate (A12 confirmed); CSPS_Dev is created by dotnet ef at compat 170 while EF SQL and test DBs are pinned to 160
+- [Phase 01]: TestDatabaseName.IsDisposable also checks exact length because .NET $ matches before a trailing newline
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T13:48:23.850Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-07T14:18:51.696Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

@@ -23,7 +23,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **FND-06**: `/health` reports liveness, DB reachability and business time-zone resolution without exposing internals
 - [ ] **FND-07**: Structured Serilog logging with a correlation id per request, and destructuring policies that mask passwords, codes, tokens and secrets (CWE-532/117)
 - [ ] **FND-08**: Business calendar (`IBusinessCalendar` over `TimeProvider`) resolves "today", month and year boundaries in the configured business time zone (Asia/Manila fallback chain). No `DateTime.Now` in code ⚑ OD-2
-- [ ] **FND-09**: SiteSettings core (business name, time zone, currency/locale, contact placeholders) exists as an entity with seed data and a cached read port, available to all later phases ⚑ OD-1
+- [x] **FND-09**: SiteSettings core (business name, time zone, currency/locale, contact placeholders) exists as an entity with seed data and a cached read port, available to all later phases ⚑ OD-1
 - [ ] **FND-10**: Append-only AuditLog table and `IAuditTrail` port record UTC time, actor, action, target, truncated IP, user-agent family and correlation id, with no secrets. Updates and deletes are rejected at the DB level (PRD §11.4)
 - [ ] **FND-11**: The test SQL fixture runs integration tests against LocalDB (`CSPS_Test_<guid>`) locally and Testcontainers SQL Server 2025 in CI, with Respawn resets and parallel isolation ⚑ C-20, C-29, C-30
 - [ ] **FND-12**: Migrations are verified to apply cleanly to an empty DB and to the previous version. The idempotent script (`migrations script --idempotent`) applies twice without error at the host's compatibility level ⚑ C-31
@@ -312,7 +312,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-06 | Phase 1 | Pending |
 | FND-07 | Phase 1 | Pending |
 | FND-08 | Phase 1 | Pending |
-| FND-09 | Phase 1 | Pending |
+| FND-09 | Phase 1 | Complete |
 | FND-10 | Phase 1 | Pending |
 | FND-11 | Phase 1 | Pending |
 | FND-12 | Phase 1 | Pending |
