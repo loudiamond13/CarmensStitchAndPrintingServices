@@ -1,5 +1,7 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-07T16:34:13-05:00*
+
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
 This file records the facts about the SmarterASP.NET hosting that CSPS depends on. The owner reads them in the
@@ -7,12 +9,17 @@ control panel, in the database query tool and from a one-time probe, then pastes
 the Facts table from what was pasted. The checks are run in plan 01-13. Nothing here was guessed: a fact that was not
 seen stays **Unverified** (D-09).
 
+**Results received 2026-10-07 (plan 01-13).** The owner ran sections A and B and step D1, and pasted the results.
+Section C (the probe) was **not run**: the Basic plan does not let the owner create a free extra site, so no probe
+site was created or deleted, and every probe fact stays Unverified. Step D2 (the Gmail "Show original" check) has not
+been done yet. The account prefix of the database name is masked as `db_…_csptailoringdb`.
+
 ## Status legend
 
 | Status | Meaning |
 |--------|---------|
 | Verified | Seen by the owner. The Result column holds what was seen and the Date column the day it was seen (yyyy-MM-dd). |
-| Unverified | Not seen yet, or could not be checked. Result and Date stay "-". Later phases must not rely on it. |
+| Unverified | Not seen yet, or could not be checked. The Result column says why, and Date stays "-". Later phases must not rely on it. |
 | N/A | Does not apply to this account. The Result column says why. |
 
 ## Safety rules (read before every step)
@@ -96,6 +103,10 @@ plan has no spare scratch database. That check stays in our own test databases u
 
 ## C. One-time probe on a separate site (allowed by the D-28 decision)
 
+**Not run (2026-10-07).** The Basic plan does not let the owner create a free extra site, so this section was
+skipped. The steps below stay for the first real deploy (Phase 3), where the same facts can be read from the CSPS
+site itself.
+
 Full steps with commands: `tools/Csps.HostProbe/README.md`. In short:
 
 1. Claude builds the probe package (`dotnet publish tools/Csps.HostProbe -c Release -o artifacts/hostprobe`). The
@@ -114,7 +125,8 @@ Full steps with commands: `tools/Csps.HostProbe/README.md`. In short:
 
 ## D. Email sender and DNS (last, D-12)
 
-This part waits until the owner names the live site's domain (the email sender uses that domain).
+This part waits until the owner names the live site's domain (the email sender uses that domain). The owner named
+it on 2026-10-07: `cspstailoring.com` (public, not secret).
 
 1. Record the existing DNS text records. In PowerShell:
    - `nslookup -type=TXT <domain>`
@@ -133,49 +145,82 @@ This part waits until the owner names the live site's domain (the email sender u
 
 | Fact | How to check | Result | Status | Date |
 |------|--------------|--------|--------|------|
-| Plan name | A1 | - | Unverified | - |
-| Databases allowed / used | A2 | - | Unverified | - |
-| Database size quota | A3 | - | Unverified | - |
-| .NET versions offered | A4 | - | Unverified | - |
-| Legacy site and database in this account | A5 | - | Unverified | - |
-| App settings method | A6 | - | Unverified | - |
-| Web Deploy availability | A7 | - | Unverified | - |
-| Scheduler availability | A8 | - | Unverified | - |
-| Staging-site option | A9 | - | Unverified | - |
-| SQL Server @@VERSION | B1 | - | Unverified | - |
-| SQL Server product level and edition | B2 | - | Unverified | - |
-| Server collation | B2 (ServerCollation) | - | Unverified | - |
-| Database compatibility level (new databases / model) | B3 (`model` row) | - | Unverified | - |
-| Legacy database settings | B3 (live database row) | - | Unverified | - |
-| Database allocated size | B4 | - | Unverified | - |
-| Hosting login owns the database | B5 (IsDbOwner only) | - | Unverified | - |
-| Hosting login permissions | B6 | - | Unverified | - |
-| .NET runtime patch | C probe: frameworkDescription, environmentVersion | - | Unverified | - |
-| In-process hosting | C probe: processName, inProcess | - | Unverified | - |
-| Content root vs current directory | C probe: contentRootPath, currentDirectory | - | Unverified | - |
-| Logs folder writable | C probe: logsWritable | - | Unverified | - |
-| Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | - | Unverified | - |
-| HTTPS termination | C probe: isHttps, xForwardedProto | - | Unverified | - |
-| Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | - | Unverified | - |
-| PFX EphemeralKeySet round trip | C probe: ephemeralPfxRoundTrip | - | Unverified | - |
-| App pool memory available | C probe: totalAvailableMemoryBytes | - | Unverified | - |
-| Sender domain | Owner names the live site's domain | - | Unverified | - |
-| SPF | D1 and D2 | - | Unverified | - |
-| DKIM | D2 | - | Unverified | - |
-| DMARC | D1 and D2 | - | Unverified | - |
+| Plan name | A1 | .NET Basic | Verified | 2026-10-07 |
+| Databases allowed / used | A2 | 1 allowed, 1 in use | Verified | 2026-10-07 |
+| Database size quota | A3 | 1000 MB | Verified | 2026-10-07 |
+| .NET versions offered | A4 | .NET 10 (the version the owner uses; no other versions were listed in the reply) | Verified | 2026-10-07 |
+| Legacy site and database in this account | A5 | Yes: the live legacy site and the live database (`db_…_csptailoringdb`) are in this account | Verified | 2026-10-07 |
+| App settings method | A6 | Environment variables in the app-pool manager, and web.config | Verified | 2026-10-07 |
+| Web Deploy availability | A7 | Yes (FTP is also offered) | Verified | 2026-10-07 |
+| Scheduler availability | A8 | No | Verified | 2026-10-07 |
+| Staging-site option | A9 | No | Verified | 2026-10-07 |
+| SQL Server @@VERSION | B1 | Microsoft SQL Server 2022 (RTM-CUxx) (KBxxxxxxx) - 16.0.x (X64), Web Edition (64-bit) on Windows Server 2022 Standard 10.0 (Build 20348) (Hypervisor) | Verified | 2026-10-07 |
+| SQL Server product level and edition | B2 | ProductVersion 16.0.x, ProductLevel RTM, Edition Web Edition (64-bit) | Verified | 2026-10-07 |
+| Server collation | B2 (ServerCollation) | SQL_Latin1_General_CP1_CI_AS | Verified | 2026-10-07 |
+| Database compatibility level (new databases / model) | B3 (`model` row) | Not returned: B3 gave only the live database row, so this account cannot see `model` and the server default is unknown | Unverified | - |
+| Legacy database settings | B3 (live database row) | `db_…_csptailoringdb`: compatibility_level 150, collation SQL_Latin1_General_CP1_CI_AS, is_read_committed_snapshot_on 0, recovery SIMPLE | Verified | 2026-10-07 |
+| Database allocated size | B4 | AllocatedMB 16.0 | Verified | 2026-10-07 |
+| Hosting login owns the database | B5 (IsDbOwner only) | IsDbOwner 1 (the hosting login is a member of db_owner) | Verified | 2026-10-07 |
+| Hosting login permissions | B6 | db_owner-level: CONTROL plus all DDL/DML (among them CONTROL, ALTER, CREATE TABLE, BACKUP DATABASE and ALTER ANY DATABASE DDL TRIGGER); the full list was provided by the owner | Verified | 2026-10-07 |
+| .NET runtime patch | C probe: frameworkDescription, environmentVersion | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| In-process hosting | C probe: processName, inProcess | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| Content root vs current directory | C probe: contentRootPath, currentDirectory | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| Logs folder writable | C probe: logsWritable | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| PFX EphemeralKeySet round trip | C probe: ephemeralPfxRoundTrip | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
+| SPF | D1 (DNS record on cspstailoring.com) | `v=spf1 a mx include:_spf.site4now.net -all` | Verified | 2026-10-07 |
+| DKIM | D2 | Gmail "Show original" result not provided yet; the owner may supply it later. Needed before Phase 4 email | Unverified | - |
+| DMARC | D1 (DNS record on _dmarc.cspstailoring.com) | `v=DMARC1;p=reject;pct=100;rua=mailto:postmaster@cspstailoring.com` | Verified | 2026-10-07 |
+| SPF / DKIM / DMARC pass in Gmail | D2 | Gmail "Show original" result not provided yet; the owner may supply it later. Needed before Phase 4 email | Unverified | - |
 
 ## Consequences for later phases
 
-- **Compatibility level (D-13).** The EF Core compatibility level stays pinned at 160 for now. Plan 01-13 re-pins
-  it to the `model` level from B3 once that fact is Verified, and the idempotent script is re-tested at that level.
-  If it stays Unverified, 160 remains the provisional pin and the record is re-checked before cutover planning.
+- **Database version target (D-33, owner, 2026-10-07).** The host runs SQL Server 2022 today, but the owner's
+  target production database is **SQL Server 2025**. The owner plans to retire the current SQL Server 2022 database
+  hosting and restore the live data onto a SQL Server 2025 database. Notes for that move:
+  - Restoring a SQL Server 2022 backup onto SQL Server 2025 is supported. The database keeps its old compatibility
+    level after the restore, and the level is raised afterwards.
+  - Still to ask SmarterASP.NET: whether SQL Server 2025 is offered on this plan, and whether it costs anything
+    extra. Any extra cost is an owner decision under the free-only rule (D-00).
+  - The Basic plan allows only 1 database, and it is in use. Deleting the current database first would take the
+    live legacy site down until the restore finishes. Take a fresh backup first, and ask SmarterASP.NET about an
+    in-place version upgrade or a temporary second database.
+  - Timing: only during cutover planning and execution (Phases 15-17; only Phase 17 touches the live system), never
+    before. The live site must stay up (Prime Directive 1).
+- **Compatibility level (D-13, D-33).** `SqlCompatibility.Level` stays at **160, provisional**. It is not re-pinned
+  now: the `model` level is Unverified (B3 returned no `model` row), and the owner's target is SQL Server 2025.
+  160 is valid on both SQL Server 2022 and 2025, and the idempotent script is proven at 160 and 170
+  (MigrationScriptTests). Re-pin to **170** only after the SQL Server 2025 database exists and its level is
+  verified, then re-run MigrationScriptTests. CI's SQL Server 2025 container image stays as planned, which matches
+  the target. The live legacy database itself is at level 150.
+- **Append-only audit log (D-25, D-32).** The hosting login is db_owner (B5) with CONTROL and full DDL rights (B6),
+  so `DENY` permissions could not stop it. This confirms the trigger-based append-only design.
+- **Database size.** The quota is 1000 MB and the live database uses 16.0 MB today, so space is not a near-term
+  concern. Re-check it before cutover.
+- **App settings and secrets (Phase 3).** Settings can come from environment variables in the app-pool manager or
+  from web.config. Secrets (the JWT signing key, the Data Protection PFX and its password, the connection string)
+  go into app-pool environment variables, never into a committed web.config.
+- **Deploys (Phase 3).** Web Deploy is offered (FTP too), so the deploy job uses Web Deploy.
+- **Probe facts (Phase 3).** The probe could not run, so the runtime patch, in-process hosting, content root, logs
+  folder, client IP and proxy topology, HTTPS termination, Asia/Manila and en-PH, the PFX EphemeralKeySet load and
+  app-pool memory are all Unverified. Phase 3 verifies them on the first real deploy. If the runtime patch is below
+  what the app needs, Phase 3 publishes self-contained `win-x64`.
 - **Forwarded headers.** The API keeps ignoring `X-Forwarded-For` and similar headers (ForwardedHeadersTests)
   until "Client IP / proxy topology" is Verified. Only then may a later plan turn on forwarded-headers handling,
-  limited to the proxy addresses the probe actually showed.
-- **Scheduled jobs (D-10).** The Basic plan has no host scheduler. Scheduled jobs run from a GitHub Actions cron
-  that calls a secret-protected endpoint.
-- **No staging (D-11, amends OPS-04).** There is no staging site. Production deploys need a manual approval after CI
-  passes, and any smoke check runs against production after the deploy.
+  limited to the proxy addresses actually seen.
+- **Email (Phase 4, D-12).** The SPF record ends in `-all` and DMARC is `p=reject`, so mail that fails is rejected,
+  not just marked. The app must send through SmarterASP.NET's mail servers (covered by
+  `include:_spf.site4now.net`) with DKIM aligned to `cspstailoring.com`. Any other sending service must be **merged
+  into the one existing SPF record**, never added as a second record. The Gmail SPF/DKIM/DMARC pass check (D2) is
+  still due before Phase 4 relies on email.
+- **Scheduled jobs (D-10).** The Basic plan has no host scheduler (A8). Scheduled jobs run from a GitHub Actions
+  cron that calls a secret-protected endpoint.
+- **No staging (D-11, amends OPS-04).** There is no staging site (A9). Production deploys need a manual approval
+  after CI passes, and any smoke check runs against production after the deploy.
 - **CI never touches the hosted database (D-10).** Tests use LocalDB on this computer and a SQL Server container in
   CI. Nothing automated connects to the SmarterASP.NET database.
 - **Re-check before relying on it.** These facts are only as current as their dates. A host upgrade can change the

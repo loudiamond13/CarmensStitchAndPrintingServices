@@ -1,5 +1,7 @@
 # Phase 1: Hosting Verification & Backend Foundation - Context
 
+*Created: 2026-10-07T06:45:19-05:00 · Updated: 2026-10-07T16:34:13-05:00*
+
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
 
@@ -91,6 +93,14 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 - **D-30:** **FND-04 scope in Phase 1:** the guarded `tools/` dev-seed command (refuses any DB except `CSPS_Dev`/`CSPS_E2E`), the seed-step framework and a **SiteSettings step**. The users, orders (with children), company expenses and price-list steps are added by the phases that create those entities.
 - **D-31:** **Application coverage gate is line ≥ 95% (branch not gated).** This is the planner's default reading of QUAL-03 ("Domain 100% line + branch, Application ≥ 95%" names branch only for Domain) and D-17. It is **not an owner answer**: research Open Question 5 recommended line + branch, and the owner was not asked. The owner may tighten it to line + branch later. That is a reversible one-line change to the gate script (`tools/scripts/Invoke-CoverageGate.ps1`, plan 01-11).
 - **D-32:** **D-25 checkpoint answer (owner, 2026-10-07): audit entries older than 8 months may be deleted.** Mechanism is option-a: the AuditLog trigger refuses every UPDATE and every DELETE, except a DELETE on a connection that has set the read-only session flag `csps.audit_purge = 1` where every deleted row is older than 8 months (`DATEADD(month, -8, SYSUTCDATETIME())`). Recent rows can never be deleted, and nothing is ever editable. This replaces the 2-year retention from D-25 and the Phase 1 discussion. The purge job itself stays in the hardening phase. — **Reversibility:** one-way once real audit rows exist (Phase 4 onward).
+- **D-33:** **Database version (owner, 2026-10-07, plan 01-13).** The hosting check found SQL Server 2022 (16.0.x, Web Edition). Asked which compatibility level to pin for it, the owner answered: "We will be using 2025, I will delete the current db hosting when we can and create sql server 2025 with my live data if thats possible please." So:
+  - The target production database is **SQL Server 2025**. The owner intends to replace the current SQL Server 2022 database hosting and restore the live data onto SQL Server 2025.
+  - Feasibility: restoring a 2022 backup onto 2025 is supported, and the compatibility level is raised after the restore. Still to verify with SmarterASP.NET: whether 2025 is offered on the plan and whether it costs extra (any cost is an owner decision under D-00).
+  - The Basic plan allows only 1 database, so deleting the current one first would take the live legacy site down until the restore. Take a fresh backup first, and ask SmarterASP.NET about an in-place version upgrade or a temporary second database.
+  - Timing: only during cutover planning and execution (Phases 15–17; only Phase 17 touches the live system), never before. The live site stays up (Prime Directive 1).
+  - **No re-pin now.** `SqlCompatibility.Level` stays **160, provisional** (valid on both 2022 and 2025; the `model` level was Unverified). The idempotent script is proven at 160 and 170. Re-pin to **170** only after the SQL Server 2025 database exists and its level is verified. The CI Testcontainers image (SQL Server 2025) stays as planned and matches the target.
+  - Email consequence: the domain's SPF ends in `-all` and DMARC is `p=reject`, so Phase 4 mail must go through SmarterASP.NET's mail servers (`include:_spf.site4now.net`) with aligned DKIM; any other sender is merged into the one existing SPF record, never added as a second record.
+  — **Reversibility:** reversible until the cutover. The 2025 move itself touches the live database and is planned with the cutover runbook.
 
 ### Claude's Discretion
 - The correlation-id header name and propagation (W3C `traceparent` vs `X-Correlation-Id`). Default to the Activity/W3C trace id surfaced as `traceId`.
@@ -158,7 +168,8 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 - The SiteSettings editing UI, including a Manager-editable time zone. Later site-content phase.
 - Staging environment: re-enable if the hosting plan is upgraded from Basic (affects OPS-04, Phase 3).
 - FND-04 seed steps for users (both roles), orders with all children, company expenses and the price list. Each is added by the phase that creates its entity (D-30).
-- The exact sender domain name and SPF/DKIM/DMARC records. The owner supplies the legacy site domain; the checks finish at the end of FND-13 or before Phase 4.
+- The exact sender domain name and SPF/DKIM/DMARC records. The owner supplies the legacy site domain; the checks finish at the end of FND-13 or before Phase 4. Update 2026-10-07: the domain is `cspstailoring.com` and its SPF and DMARC records are recorded in `.planning/HOSTING-RECORD.md`; the Gmail "Show original" pass check is still due before Phase 4.
+- Moving the production database to SQL Server 2025 and re-pinning the compatibility level to 170 (D-33). Cutover planning (Phases 15–17).
 </deferred>
 
 ---
