@@ -1,0 +1,1 @@
+{"content":"EF Core 7+ SaveChanges uses OUTPUT clause which fails on tables with triggers; EF8+ mitigation ToTable(tb => tb.UseSqlOutputClause(false)) or HasTrigger(name). Verified both compile on EF 10.0.12.","source":"web","provider":"webfetch","confidence":"MEDIUM","fetched_at":"2026-10-07T12:07:20.166Z","ttl":86400000,"kind":"docs"}

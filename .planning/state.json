@@ -1,0 +1,98 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Hosting Verification & Backend Foundation",
+      "status": "in_progress"
+    },
+    {
+      "number": "2",
+      "name": "Web Foundation & Design System",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "CI/CD & Staging Deploy",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Identity & Authentication",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Profile & User Management",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Company Expenses",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Order Domain & API",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "Order Screens",
+      "status": "pending"
+    },
+    {
+      "number": "9",
+      "name": "Order Images & Maintenance Jobs",
+      "status": "pending"
+    },
+    {
+      "number": "10",
+      "name": "Admin Dashboard",
+      "status": "pending"
+    },
+    {
+      "number": "11",
+      "name": "Public Site & Content Management",
+      "status": "pending"
+    },
+    {
+      "number": "12",
+      "name": "Consent, Analytics & Legal",
+      "status": "pending"
+    },
+    {
+      "number": "13",
+      "name": "Quote Inquiries",
+      "status": "pending"
+    },
+    {
+      "number": "14",
+      "name": "Hardening & Release Readiness",
+      "status": "pending"
+    },
+    {
+      "number": "15",
+      "name": "Legacy Discovery & Mapping",
+      "status": "pending"
+    },
+    {
+      "number": "16",
+      "name": "Legacy Data Import",
+      "status": "pending"
+    },
+    {
+      "number": "17",
+      "name": "Production Cutover",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step (verify)",
+    "reason": "Phase 1 of 17 · 0% · ready to verify"
+  },
+  "updated_at": "2026-10-07T21:37:36.681Z"
+}
