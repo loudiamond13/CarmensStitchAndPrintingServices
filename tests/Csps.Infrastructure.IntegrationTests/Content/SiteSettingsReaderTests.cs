@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Infrastructure.IntegrationTests.Auditing;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -107,6 +108,9 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
             .Build();
 
         var services = new ServiceCollection();
+
+        // The host provides IRequestContext (the Server reads it from HttpContext); the audit trail needs it.
+        services.AddSingleton<IRequestContext>(new FixedRequestContext());
         services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }

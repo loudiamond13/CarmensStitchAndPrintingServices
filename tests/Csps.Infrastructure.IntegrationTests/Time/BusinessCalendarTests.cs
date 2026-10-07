@@ -1,5 +1,6 @@
 using Csps.Application.Ports;
 using Csps.Domain.Time;
+using Csps.Infrastructure.IntegrationTests.Auditing;
 using Csps.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +41,9 @@ public sealed class BusinessCalendarTests(CspsDatabase database) : IClassFixture
 
         var services = new ServiceCollection();
         services.AddSingleton(timeProvider);
+
+        // The host provides IRequestContext (the Server reads it from HttpContext); the audit trail needs it.
+        services.AddSingleton<IRequestContext>(new FixedRequestContext());
         services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }

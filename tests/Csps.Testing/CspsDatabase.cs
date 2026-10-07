@@ -85,8 +85,9 @@ public sealed class CspsDatabase : IAsyncLifetime
     /// <summary>
     /// Deletes the rows of every user table with Respawn, except the migration history and the migration-seeded
     /// SiteSettings row (research Pattern 11). The Respawner is built on first use, so tables a test created
-    /// before its first reset are included. Respawn deletes with DELETE: plan 09 adds AuditLog and
-    /// AuditLogTruncateGuard to the ignore list, because the append-only trigger rejects deletes (Pitfall 1).
+    /// before its first reset are included. Respawn deletes with DELETE, which the append-only trigger rejects, so
+    /// AuditLog and its AuditLogTruncateGuard are never reset (research Pitfall 1). Audit tests therefore find their
+    /// own rows by a unique correlation id.
     /// </summary>
     /// <returns>A task that completes when the data is gone.</returns>
     public async Task ResetAsync()
@@ -105,7 +106,13 @@ public sealed class CspsDatabase : IAsyncLifetime
                 new RespawnerOptions
                 {
                     DbAdapter = DbAdapter.SqlServer,
-                    TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("SiteSettings")],
+                    TablesToIgnore =
+                    [
+                        new Table("__EFMigrationsHistory"),
+                        new Table("SiteSettings"),
+                        new Table("AuditLog"),
+                        new Table("AuditLogTruncateGuard"),
+                    ],
                 }).ConfigureAwait(false);
 
             await _respawner.ResetAsync(connection).ConfigureAwait(false);

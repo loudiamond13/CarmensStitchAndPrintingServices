@@ -1,3 +1,4 @@
+using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : DbC
 {
     /// <summary>The SiteSettings singleton (one row, Id 1).</summary>
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
+
+    /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
+    public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

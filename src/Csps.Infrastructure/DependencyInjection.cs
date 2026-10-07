@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Persistence;
@@ -32,8 +33,9 @@ public static class DependencyInjection
     private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
-    /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar and the
-    /// <c>database</c> and <c>time-zone</c> health checks, reading the connection string from configuration.
+    /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar, the audit trail
+    /// and the <c>database</c> and <c>time-zone</c> health checks, reading the connection string from configuration.
+    /// The host must also register <see cref="IRequestContext"/>, which the audit trail reads.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration; must contain <c>ConnectionStrings:Csps</c>.</param>
@@ -66,6 +68,9 @@ public static class DependencyInjection
         // Time comes only from TimeProvider (RS0030 bans the clock statics); tests replace it with a fake clock.
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IBusinessCalendar, BusinessCalendar>();
+
+        // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
+        services.AddScoped<IAuditTrail, AuditTrail>();
 
         // The health service needs ILogger<>. The web host already provides logging (AddLogging only TryAdds), but
         // a plain ServiceCollection, such as a tools/ command or an integration test, would fail to validate.
