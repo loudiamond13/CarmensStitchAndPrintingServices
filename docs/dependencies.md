@@ -22,7 +22,23 @@ A software license is **permission**, not a bill. It is the author's written sta
 | MPL-2.0 | Test tools (axe-core accessibility checks) | Free. It only asks that changes to *those files* stay open. Test tools never ship to the website. |
 | OFL-1.1 | Web fonts (@fontsource) | Free font license. Fonts may ship with the site; they just cannot be sold on their own. |
 
-Licenses that are **never** allowed: GPL, AGPL, SSPL, and any paid or proprietary ("commercial") license.
+Licenses that are **never** allowed: GPL, AGPL, SSPL, and any paid or proprietary ("commercial") license. The only exception is the two free Microsoft parts below, each approved by the owner for one exact version.
+
+## Two free Microsoft parts that are not open source (approved 2026-10-07)
+
+The SQL Server driver that the app uses to talk to its database brings along two small Microsoft parts. They are not open source. They come under Microsoft's own "Microsoft Software License Terms" instead of one of the licenses above. The owner approved them on **2026-10-07** after reading what that means:
+
+- **Free.** They cost nothing, now or later. No subscription, seat or payment.
+- **Not open source.** We may use them and ship them with the app, but we may not change them or sell them on their own.
+- **Ships inside the app only.** They are copied, unchanged, into the published website files and nowhere else.
+- **Microsoft's notices are kept.** `THIRD-PARTY-NOTICES.md` lists both with a link to the full license text.
+
+| Part | Exact version | License | Why it is there |
+|------|---------------|---------|-----------------|
+| Microsoft.Data.SqlClient.SNI.runtime | 6.0.2 | Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library | The driver's network library on Windows. Pulled in by Microsoft.Data.SqlClient 6.1.6, which EF Core's SQL Server provider 10.0.12 uses. |
+| Microsoft.Identity.Client.NativeInterop | 0.20.6 | Microsoft Software License Terms | A sign-in helper the driver always brings along. Pulled in by Microsoft.Identity.Client.Broker 4.84.2, which Microsoft.Data.SqlClient 6.1.6 uses. |
+
+The approval covers **only these exact versions**. They are listed in `docs/license-exceptions.json`, and the license gate (`tools/scripts/New-ThirdPartyNotices.ps1`) fails if either part changes version, or if any other package arrives under a license we do not allow. A new version needs a new owner approval. The approval is also recorded in `docs/dependencies.json` under `approvals`.
 
 ## What ships to the website
 
@@ -45,3 +61,4 @@ The owner approved the full Phase 1 list on **2026-10-07**, before anything was 
 2. Pin an exact version in `Directory.Packages.props` (or `.config/dotnet-tools.json` for a tool) that is at least 14 days old.
 3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id.
 4. Run `dotnet test --project tests/Csps.ArchitectureTests`. It fails if anything is missing, mismatched, unsorted, duplicated or under a license we do not allow.
+5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/New-ThirdPartyNotices.ps1`. It checks the license of every package the new one pulls in, and regenerates `THIRD-PARTY-NOTICES.md`. Commit the updated notices. If it reports a package it does not allow, ask the owner first. Never widen `docs/allowed-licenses.json` or `docs/license-exceptions.json` to make it pass.

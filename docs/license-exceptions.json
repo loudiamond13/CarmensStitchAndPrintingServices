@@ -1,0 +1,25 @@
+{
+  "description": "Owner-approved, version-pinned license exceptions for the license gate in tools/scripts/New-ThirdPartyNotices.ps1. A package is exempt only when BOTH its id and its exact version match an entry. Any other version of these packages, and any other package outside docs/allowed-licenses.json, still fails the gate. A new version needs a new owner approval (D-00, D-18). An entry that no longer matches a package in the build also fails the gate, so the list cannot go stale.",
+  "exceptions": [
+    {
+      "packageId": "Microsoft.Data.SqlClient.SNI.runtime",
+      "version": "6.0.2",
+      "license": "Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library",
+      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.2/license",
+      "pulledInBy": "Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "reason": "Native SQL Server network library that the SQL Server driver needs on Windows. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "packageId": "Microsoft.Identity.Client.NativeInterop",
+      "version": "0.20.6",
+      "license": "Microsoft Software License Terms",
+      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license",
+      "pulledInBy": "Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "reason": "Native sign-in helper that the SQL Server driver always brings along. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    }
+  ]
+}

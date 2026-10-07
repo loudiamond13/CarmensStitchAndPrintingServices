@@ -26,6 +26,11 @@
       "date": "2026-10-07",
       "by": "owner",
       "scope": "Every Phase 1 package and tool in this file (plan 01-01 Task 1, package legitimacy gate), approved before the first restore"
+    },
+    {
+      "date": "2026-10-07",
+      "by": "owner",
+      "scope": "Version-pinned license exceptions (plan 01-11 Task 2) for two transitive runtime packages that the SQL Server driver brings along: Microsoft.Data.SqlClient.SNI.runtime 6.0.2 (Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library) and Microsoft.Identity.Client.NativeInterop 0.20.6 (Microsoft Software License Terms). Free of charge, not open source, shipped unmodified inside the app only, with Microsoft's notices kept. Only these exact versions are exempt; the machine-readable list is docs/license-exceptions.json and the license gate is tools/scripts/New-ThirdPartyNotices.ps1."
     }
   ],
   "packages": [
