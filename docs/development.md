@@ -59,6 +59,8 @@ Run these once, in this order.
    This targets `CSPS_Dev` on `(localdb)\CSPS`. To target the E2E database instead, add
    `--connection "Server=(localdb)\CSPS;Database=CSPS_E2E;Integrated Security=true"`.
 
+   When this command creates a new database, SQL Server gives it the server's default compatibility level (170 on SQL Server 2025). The seed in step 5 pins it to 160, the level the app's SQL is generated for, so always run step 5 after creating a database.
+
 5. **Seed development data.** The seed is an explicit command. Nothing seeds or migrates when the API starts. It only accepts `CSPS_Dev` (the default) or `CSPS_E2E` and refuses every other database. It also applies any pending migrations before seeding, and is safe to re-run.
 
    ```powershell
