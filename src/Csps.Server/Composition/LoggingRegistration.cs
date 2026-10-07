@@ -1,3 +1,4 @@
+using Csps.Server.Logging;
 using Serilog;
 
 namespace Csps.Server.Composition;
@@ -34,7 +35,10 @@ public static class LoggingRegistration
                 logger
                     .ReadFrom.Configuration(configuration)
                     .ReadFrom.Services(serviceProvider)
-                    .Enrich.FromLogContext();
+                    .Enrich.FromLogContext()
+                    // Masking runs after every other enricher, so nothing added later can carry a secret (CWE-532).
+                    .Enrich.With<SensitiveDataMaskingEnricher>()
+                    .Destructure.With<SensitiveDataDestructuringPolicy>();
 
                 if (environment.IsDevelopment())
                 {
