@@ -10,6 +10,7 @@
     <Project Path="tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj" />
     <Project Path="tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj" />
     <Project Path="tests/Csps.Domain.UnitTests/Csps.Domain.UnitTests.csproj" />
+    <Project Path="tests/Csps.Application.UnitTests/Csps.Application.UnitTests.csproj" />
     <Project Path="tests/Csps.Infrastructure.IntegrationTests/Csps.Infrastructure.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/tools/">

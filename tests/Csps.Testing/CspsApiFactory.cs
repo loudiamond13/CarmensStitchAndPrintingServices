@@ -60,6 +60,11 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(EnvironmentName);
         builder.UseSetting(DependencyInjection.ConnectionStringKey, _connectionString);
 
+        // Test-only JWT settings (TestJwt). Real keys never reach a test host.
+        builder.UseSetting(TestJwt.IssuerSetting, TestJwt.Issuer);
+        builder.UseSetting(TestJwt.AudienceSetting, TestJwt.Audience);
+        builder.UseSetting(TestJwt.SigningKeySetting, TestJwt.SigningKeyBase64);
+
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");

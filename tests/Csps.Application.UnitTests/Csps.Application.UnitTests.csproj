@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests of the Application use cases, with NSubstitute fakes for the ports (coverage target 95%). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Application\Csps.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+</Project>
