@@ -304,13 +304,176 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | |
+| FND-01 | Phase 1 | Pending |
+| FND-02 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Pending |
+| FND-04 | Phase 1 | Pending |
+| FND-05 | Phase 1 | Pending |
+| FND-06 | Phase 1 | Pending |
+| FND-07 | Phase 1 | Pending |
+| FND-08 | Phase 1 | Pending |
+| FND-09 | Phase 1 | Pending |
+| FND-10 | Phase 1 | Pending |
+| FND-11 | Phase 1 | Pending |
+| FND-12 | Phase 1 | Pending |
+| FND-13 | Phase 1 | Pending |
+| WEB-01 | Phase 2 | Pending |
+| WEB-02 | Phase 2 | Pending |
+| WEB-03 | Phase 2 | Pending |
+| WEB-04 | Phase 2 | Pending |
+| WEB-05 | Phase 2 | Pending |
+| WEB-06 | Phase 2 | Pending |
+| WEB-07 | Phase 2 | Pending |
+| WEB-08 | Phase 2 | Pending |
+| QUAL-01 | Phase 1 | Pending |
+| QUAL-02 | Phase 2 | Pending |
+| QUAL-03 | Phase 1 | Pending |
+| QUAL-04 | Phase 2 | Pending |
+| QUAL-05 | Phase 4 | Pending |
+| QUAL-06 | Phase 1 | Pending |
+| OPS-01 | Phase 3 | Pending |
+| OPS-02 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Pending |
+| OPS-04 | Phase 3 | Pending |
+| OPS-05 | Phase 3 | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 4 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| SEC-05 | Phase 14 | Pending |
+| AUTH-01 | Phase 4 | Pending |
+| AUTH-02 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| AUTH-04 | Phase 4 | Pending |
+| AUTH-05 | Phase 4 | Pending |
+| AUTH-06 | Phase 4 | Pending |
+| AUTH-07 | Phase 4 | Pending |
+| AUTH-08 | Phase 4 | Pending |
+| AUTH-09 | Phase 4 | Pending |
+| AUTH-10 | Phase 4 | Pending |
+| AUTH-11 | Phase 4 | Pending |
+| AUTH-12 | Phase 4 | Pending |
+| AUTH-13 | Phase 4 | Pending |
+| PROF-01 | Phase 5 | Pending |
+| PROF-02 | Phase 5 | Pending |
+| PROF-03 | Phase 5 | Pending |
+| PROF-04 | Phase 5 | Pending |
+| USER-01 | Phase 5 | Pending |
+| USER-02 | Phase 5 | Pending |
+| USER-03 | Phase 5 | Pending |
+| USER-04 | Phase 5 | Pending |
+| USER-05 | Phase 5 | Pending |
+| USER-06 | Phase 5 | Pending |
+| USER-07 | Phase 5 | Pending |
+| USER-08 | Phase 5 | Pending |
+| AUDIT-01 | Phase 4 | Pending |
+| AUDIT-02 | Phase 5 | Pending |
+| CEXP-01 | Phase 6 | Pending |
+| CEXP-02 | Phase 6 | Pending |
+| CEXP-03 | Phase 6 | Pending |
+| CEXP-04 | Phase 6 | Pending |
+| ORD-01 | Phase 8 | Pending |
+| ORD-02 | Phase 8 | Pending |
+| ORD-03 | Phase 7 | Pending |
+| ORD-04 | Phase 9 | Pending |
+| ORD-05 | Phase 7 | Pending |
+| ORD-06 | Phase 8 | Pending |
+| ORD-07 | Phase 8 | Pending |
+| ORD-08 | Phase 7 | Pending |
+| ORD-09 | Phase 2 | Pending |
+| ORD-10 | Phase 8 | Pending |
+| ORD-11 | Phase 8 | Pending |
+| ORD-12 | Phase 8 | Pending |
+| ORD-13 | Phase 7 | Pending |
+| ORD-14 | Phase 7 | Pending |
+| ORD-15 | Phase 8 | Pending |
+| ORD-16 | Phase 7 | Pending |
+| ORD-17 | Phase 7 | Pending |
+| ORD-18 | Phase 7 | Pending |
+| ORD-19 | Phase 8 | Pending |
+| ORD-20 | Phase 7 | Pending |
+| ORD-21 | Phase 7 | Pending |
+| JOB-01 | Phase 9 | Pending |
+| JOB-02 | Phase 9 | Pending |
+| IMG-01 | Phase 9 | Pending |
+| IMG-02 | Phase 9 | Pending |
+| IMG-03 | Phase 9 | Pending |
+| IMG-04 | Phase 9 | Pending |
+| IMG-05 | Phase 9 | Pending |
+| DASH-01 | Phase 10 | Pending |
+| DASH-02 | Phase 10 | Pending |
+| DASH-03 | Phase 10 | Pending |
+| DASH-04 | Phase 10 | Pending |
+| DASH-05 | Phase 10 | Pending |
+| DASH-06 | Phase 10 | Pending |
+| PUB-01 | Phase 11 | Pending |
+| PUB-02 | Phase 11 | Pending |
+| PUB-03 | Phase 11 | Pending |
+| PUB-04 | Phase 11 | Pending |
+| PUB-05 | Phase 11 | Pending |
+| PUB-06 | Phase 11 | Pending |
+| GAL-01 | Phase 11 | Pending |
+| GAL-02 | Phase 11 | Pending |
+| GAL-03 | Phase 11 | Pending |
+| CONT-01 | Phase 11 | Pending |
+| CONT-02 | Phase 11 | Pending |
+| CONT-03 | Phase 11 | Pending |
+| CONT-04 | Phase 11 | Pending |
+| CONT-05 | Phase 11 | Pending |
+| INQ-01 | Phase 13 | Pending |
+| INQ-02 | Phase 13 | Pending |
+| INQ-03 | Phase 13 | Pending |
+| INQ-04 | Phase 13 | Pending |
+| INQ-05 | Phase 13 | Pending |
+| INQ-06 | Phase 13 | Pending |
+| INQ-07 | Phase 13 | Pending |
+| INQ-08 | Phase 13 | Pending |
+| ANL-01 | Phase 12 | Pending |
+| ANL-02 | Phase 12 | Pending |
+| ANL-03 | Phase 12 | Pending |
+| ANL-04 | Phase 12 | Pending |
+| ANL-05 | Phase 12 | Pending |
+| ANL-06 | Phase 12 | Pending |
+| ANL-07 | Phase 12 | Pending |
+| ANL-08 | Phase 12 | Pending |
+| ANL-09 | Phase 12 | Pending |
+| LEGAL-01 | Phase 12 | Pending |
+| LEGAL-02 | Phase 12 | Pending |
+| LEGAL-03 | Phase 12 | Pending |
+| LEGAL-04 | Phase 12 | Pending |
+| LEGAL-05 | Phase 12 | Pending |
+| LEGAL-06 | Phase 14 | Pending |
+| A11Y-01 | Phase 2 | Pending |
+| A11Y-02 | Phase 2 | Pending |
+| A11Y-03 | Phase 4 | Pending |
+| A11Y-04 | Phase 2 | Pending |
+| A11Y-05 | Phase 14 | Pending |
+| PERF-01 | Phase 2 | Pending |
+| PERF-02 | Phase 2 | Pending |
+| PERF-03 | Phase 2 | Pending |
+| PERF-04 | Phase 6 | Pending |
+| PERF-05 | Phase 2 | Pending |
+| PERF-06 | Phase 14 | Pending |
+| PERF-07 | Phase 14 | Pending |
+| MIG-01 | Phase 15 | Pending |
+| MIG-02 | Phase 15 | Pending |
+| MIG-03 | Phase 16 | Pending |
+| MIG-04 | Phase 16 | Pending |
+| MIG-05 | Phase 16 | Pending |
+| MIG-06 | Phase 16 | Pending |
+| MIG-07 | Phase 16 | Pending |
+| MIG-08 | Phase 16 | Pending |
+| CUT-01 | Phase 17 | Pending |
+| CUT-02 | Phase 17 | Pending |
+| CUT-03 | Phase 17 | Pending |
 
 **Coverage:**
 - v1 requirements: 162 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 162 ⚠️
+- Mapped to phases: 162
+- Unmapped: 0 ✓
+
+Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where their gate is first built. Every later phase enforces them through the PRD §22 Definition of Done (see ROADMAP.md "Roadmap Conventions").
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-06 after initial definition*
+*Last updated: 2026-10-07 after roadmap creation (traceability filled, 162/162 mapped)*
