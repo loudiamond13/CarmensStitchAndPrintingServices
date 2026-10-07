@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-07T14:35:52.886Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-07T15:08:52.101Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: bbad9ab7c280965ea8c361f956b37339ff6c2db5
+state_head: e1d23aa044142b72ecec148fb21a1268a1569dc4
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 4 of 13
+Plan: 5 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 14 min | 3 tasks | 43 files |
 | Phase 01 P02 | 25 min | 3 tasks | 39 files |
 | Phase 01 P03 | 13 min | 3 tasks | 12 files |
+| Phase 01 P04 | 29 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,11 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: Both database-backed /health checks (database, time-zone) share a 3 s timeout: on a cold cache the time-zone check reads SiteSettings and SqlClient retries a failed login after 10 s
 - [Phase 01]: AddInfrastructure calls AddLogging (TryAdd only) so the health service validates on a plain ServiceCollection
 - [Phase 01]: MinimalHealthWriter sends no body for HEAD; status, Content-Type and Cache-Control: no-store are kept
+- [Phase 01]: Dev-seed CLI (tools/Csps.DevSeed) creates the database and pins it to SqlCompatibility.Level before migrating; CSPS_Dev is now at 160
+- [Phase 01]: DevSeedTargetGuard allows only CSPS_Dev/CSPS_E2E (OrdinalIgnoreCase) on any server; refuses MSSQLLocalDB, AttachDBFilename, empty/unparseable; reasons never echo the connection string
+- [Phase 01]: Seed steps implement ISeedStep with a unique Order and are appended to DevSeedSteps.All by the phase that creates their entity; DevSeeder rejects duplicate Order before running
+- [Phase 01]: ArchUnitNET rules against types from unloaded assemblies must use NotDependOnAnyTypesThat(); NotDependOnAny(Types().That()...) misses them
+- [Phase 01]: CspsDatabase.ResetAsync (Respawn) ignores __EFMigrationsHistory and SiteSettings; plan 09 must add AuditLog and AuditLogTruncateGuard
 
 ### Pending Todos
 
@@ -103,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T14:35:52.844Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-07T15:08:52.062Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
