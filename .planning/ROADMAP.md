@@ -16,6 +16,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   - authorization-matrix rows for every new endpoint
   - an `Idempotency-Key` on every new POST, or a written allow-list entry (SEC-06)
   - `rowversion` 409s and a two-writer test for every new mutable aggregate (SEC-07)
+  - `CreatedBy`/`CreatedAt`/`UpdatedBy`/`UpdatedAt` set server-side on every record a phase makes creatable or editable, plus a test proving client-sent values are ignored (SEC-08)
   - axe at zero violations, plus a keyboard pass
   - bundle budgets and Lighthouse scores
   - a UI-spec match at 320/768/1280 px
@@ -326,7 +327,7 @@ Plans:
 **Goal**: Every staff member can manage their own name, email, password and theme. Managers can run the staff roster safely: invite, edit, lock, deactivate and delete users under guard rules. Every action is audited and can be reviewed.
 **Mode:** mvp
 **Depends on**: Phase 4
-**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02, SEC-07
+**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02, SEC-07, SEC-08
 **Success Criteria** (what must be TRUE):
   1. **Own profile.** A signed-in user can:
      - change their name
@@ -343,9 +344,10 @@ Plans:
   4. **Manager-only access.** An Admin never sees the Users navigation item. Opening `/admin/users` redirects to `/admin`, and the API answers 403.
   5. **Audit-log viewer.** A Manager can open the audit log, filter it by actor, action, target and date range, and find every user-management action.
   6. **Conflict-safe edits.** Two people saving the same record never both succeed (SEC-07). The stale save gets 409 with "This was changed by someone else. Reload and try again.", and the screen shows that message and reloads the latest version. A two-writer integration test proves it, and the same rule applies to every later aggregate.
+  7. **Who entered it.** Every user a Manager creates or edits, and every profile change, records who did it and when (SEC-08): `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock. Values a client sends for them are ignored, and an integration test proves it. Users created before this phase, such as the bootstrap Manager, show "System". The user detail shows "Recorded by" and "Last changed by" read-only (SPEC-GAP), and the names survive deactivation and deletion. The same rule applies to every later record staff create or edit.
 
 **Owner decisions to close at discuss step:**
-- **C-41** soft-delete users: scramble the email, block sign-in, keep the name
+- **C-41** soft-delete users: scramble the email, block sign-in, keep the name. The ruling also decides how "Recorded by" and "Last changed by" (SEC-08) keep a deleted user's name: the soft-deleted user's kept name, or a stored name snapshot
 - **C-4 and C-9** apply the Phase 4 rulings, or ask now if still open
 - **C-35** apply the Phase 2 ruling on inactive-row contrast
 - **C-17** spec-gap screens: email-change confirmation, audit log
@@ -366,7 +368,7 @@ Plans:
   1. **List and filter.** Staff can list company expenses (last 30 days by default, newest first), filter by date range and category, search by description or staff name, page through results and see the period total.
   2. **Edit with conflict protection.** Staff can add, edit and delete (after confirmation) an expense with a date, category, description and an amount above zero. Saving over someone else's newer change shows a 409 conflict instead of overwriting it. Deletion follows the OD-5 ruling.
   3. **Month KPIs.** KPI cards show this month, the last full month and this month's top category with its share. Month boundaries are in Asia/Manila, so an expense at 07:00 Manila time on the 1st counts in the new month.
-  4. **Attribution.** Each expense shows a read-only "Recorded by", and it still shows the name after that user is deleted.
+  4. **Attribution.** Each expense shows a read-only "Recorded by", which is its creator even in the Edit modal, and, once edited, a read-only "Last changed by" (SEC-08). Both still show the name after that user is deleted, and values a client sends for them are ignored.
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
   6. **Paid by.** Every expense names who paid it (CEXP-05): a required, server-validated reference to an active Admin or Manager on create and edit, chosen from a staff lookup that both roles can use, with a plain-English field error otherwise. The list shows it, the staff-name search matches it, and a change of payer is audited because it moves money between staff balances (MONEY-01).
 
@@ -443,6 +445,7 @@ Plans:
      - A 409 conflict explains itself, keeps the user's input and offers a reload.
      - The payment modal has a required "Received by" picker of active staff (ORD-22, label per OD-20). The UI spec's modal lacks this field, so it is marked SPEC-GAP.
      - The order-expense modal has a required "Paid by" picker of active staff (ORD-23), and the Expenses tab shows it. The UI spec's modal and tab lack this field, so they are marked SPEC-GAP.
+     - The order header and every add/edit modal show a read-only "Recorded by" and, once changed, "Last changed by" (SEC-08). On a payment, Received by is who took the money and Recorded by is who entered it.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
@@ -809,7 +812,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 178 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 179 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
@@ -817,7 +820,7 @@ All 178 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 2 | WEB-01…WEB-09, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 19 |
 | 3 | OPS-01…OPS-05 | 5 |
 | 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
-| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07 | 14 |
+| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07, SEC-08 | 15 |
 | 6 | CEXP-01…CEXP-05, PERF-04 | 6 |
 | 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22, ORD-23 | 12 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
@@ -830,7 +833,7 @@ All 178 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 15 | MIG-01, MIG-02 | 2 |
 | 16 | MIG-03…MIG-10 | 8 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **178** |
+| **Total** | | **179** |
 
 ## Progress
 
@@ -861,4 +864,4 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-07 after the owner added staff money tracking (ORD-22, MONEY-01…MONEY-08, MIG-09), idempotent form posts (SEC-06, WEB-09) and concurrency guarantees (SEC-07)*
+*Last updated: 2026-10-07 after the owner added expense "Paid by" (CEXP-05, ORD-23, MIG-10), expenses in money on hand (MONEY-01) and record-level "Recorded by / Last changed by" (SEC-08)*
