@@ -1,5 +1,7 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T15:49:48-05:00*
+
 ## Overview
 
 CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + React 19 app. The work runs in four stretches:
@@ -17,6 +19,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   - an `Idempotency-Key` on every new POST, or a written allow-list entry (SEC-06)
   - `rowversion` 409s and a two-writer test for every new mutable aggregate (SEC-07)
   - `CreatedBy`/`CreatedAt`/`UpdatedBy`/`UpdatedAt` set server-side on every record a phase makes creatable or editable, plus a test proving client-sent values are ignored (SEC-08)
+  - every list page keeps its filters, search, sort and page in the URL via the shared WEB-10 parsers
   - axe at zero violations, plus a keyboard pass
   - bundle budgets and Lighthouse scores
   - a UI-spec match at 320/768/1280 px
@@ -165,7 +168,7 @@ Plans:
 **Goal**: Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, WEB-09, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
+**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, WEB-09, WEB-10, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
 **Success Criteria** (what must be TRUE):
   1. **Build and dev server:**
      - `npm run build` emits the app into `src/Csps.Server/wwwroot`.
@@ -196,6 +199,7 @@ Plans:
      - After the preflight, Playwright runs on 5199 across Chromium, Firefox, WebKit and phone viewports. It fails on any console error, CSP violation or axe violation.
      - Lighthouse CI scores the public shell ≥ 95 on mobile.
      - Every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied.
+  6. **URL state.** List state lives in the URL query string through nuqs (WEB-10). The shared hook and parsers pass their unit and component tests: `?size=9999`, `?page=0` and `?status=bogus` fall back to their defaults and the URL is rewritten once; a page change adds a history entry, while a filter, search, sort, tab or view change replaces it and returns to page 1; defaults never appear in the URL; date filters stay `YYYY-MM-DD` in Manila time; and the search query key waits 300 ms. `NuqsAdapter` from `nuqs/adapters/react-router/v8` sits inside the router around `<Outlet/>`, and ESLint rejects the deprecated adapter paths, the nuqs `startTransition` option and `shallow: false`. The installed version is 2.10.1, or a newer stable version at least 14 days old that the owner approved at install.
 
 **Owner decisions to close at discuss step:**
 - **OD-14** UI-spec items that conflict with WCAG
@@ -812,12 +816,12 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 179 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 180 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
 | 1 | FND-01…FND-13, QUAL-01, QUAL-03, QUAL-06, SEC-01, SEC-02, SEC-04 | 19 |
-| 2 | WEB-01…WEB-09, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 19 |
+| 2 | WEB-01…WEB-10, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 20 |
 | 3 | OPS-01…OPS-05 | 5 |
 | 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
 | 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07, SEC-08 | 15 |
@@ -833,7 +837,7 @@ All 179 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 15 | MIG-01, MIG-02 | 2 |
 | 16 | MIG-03…MIG-10 | 8 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **179** |
+| **Total** | | **180** |
 
 ## Progress
 
