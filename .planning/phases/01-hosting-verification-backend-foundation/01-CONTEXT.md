@@ -85,6 +85,11 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 - **D-26:** API error titles and details are in **plain English** (en-PH), short and human, consistent with the UI-spec copy, for example "This order was changed by someone else."
 - **D-27:** A production 500 returns a generic message plus the `traceId` as a reference, such as "Something went wrong. Reference: <traceId>". There is never a stack trace or exception text outside Development.
 
+### Plan-phase answers (2026-10-07, after research)
+- **D-28:** Treat the SmarterASP.NET Basic account as **the same account that holds the live legacy site and DB** (`csptailoringdb`), or unsure. Its one DB slot is taken. The FND-13 plan starts with an owner decision checkpoint. Host checks use **read-only** queries against the live DB (owner-approved, run by the owner), plus a throwaway probe app only where the owner allows a separate site. Any fact that can't be checked is marked **Unverified**, never guessed. Nothing is created, altered or deployed on the live DB or site.
+- **D-29:** Phase 1 adds **`GET /api/v1/site-settings`**, protected by the Staff policy (Admin or Manager). It gives the authorization matrix a real protected endpoint and gives FND-05 a real path for error tests. Read-only; editing stays in a later phase.
+- **D-30:** **FND-04 scope in Phase 1:** the guarded `tools/` dev-seed command (refuses any DB except `CSPS_Dev`/`CSPS_E2E`), the seed-step framework and a **SiteSettings step**. The users, orders (with children), company expenses and price-list steps are added by the phases that create those entities.
+
 ### Claude's Discretion
 - The correlation-id header name and propagation (W3C `traceparent` vs `X-Correlation-Id`). Default to the Activity/W3C trace id surfaced as `traceId`.
 - The exact `/health` JSON shape within D-23's limits.
@@ -150,6 +155,7 @@ Out of this phase: the web app (Phase 2), CI/deploy (Phase 3), auth and email se
 - The audit-log purge job (2-year retention). Hardening phase, together with OD-10.
 - The SiteSettings editing UI, including a Manager-editable time zone. Later site-content phase.
 - Staging environment: re-enable if the hosting plan is upgraded from Basic (affects OPS-04, Phase 3).
+- FND-04 seed steps for users (both roles), orders with all children, company expenses and the price list. Each is added by the phase that creates its entity (D-30).
 - The exact sender domain name and SPF/DKIM/DMARC records. The owner supplies the legacy site domain; the checks finish at the end of FND-13 or before Phase 4.
 </deferred>
 
