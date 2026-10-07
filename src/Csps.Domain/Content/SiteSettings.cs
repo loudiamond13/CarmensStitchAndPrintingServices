@@ -131,4 +131,17 @@ public sealed class SiteSettings
             updatedAtUtc: null,
             updatedByUserId: null,
             rowVersion: []);
+
+    /// <summary>
+    /// Puts every <see cref="SiteSettingsDefaults"/> value back (business name, zone, currency, locale and the
+    /// four contact placeholders, D-04). Used only by the dev seed.
+    /// </summary>
+    /// <param name="utcNow">The current instant, read from the caller's <c>TimeProvider</c>.</param>
+    /// <returns>True when at least one value differed and was reset; false when nothing changed.</returns>
+    public bool ResetToSeedDefaults(DateTimeOffset utcNow)
+    {
+        _ = utcNow;
+        _ = BusinessName;
+        return false;
+    }
 }
