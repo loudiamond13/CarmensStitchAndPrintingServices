@@ -1,8 +1,11 @@
 using Csps.Application.Ports;
 using Csps.Infrastructure.Content;
+using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.Time;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Csps.Infrastructure;
@@ -15,11 +18,20 @@ public static class DependencyInjection
 
     private const string ConnectionStringName = "Csps";
 
+    /// <summary>The name of the database health check in the <c>/health</c> report.</summary>
+    public const string DatabaseHealthCheckName = "database";
+
+    /// <summary>The name of the business time-zone health check in the <c>/health</c> report.</summary>
+    public const string TimeZoneHealthCheckName = "time-zone";
+
     private const int MaximumCachePayloadBytes = 64 * 1024;
 
+    // Bounds the worst-case /health latency when the database is unreachable (D-23, T-01-11).
+    private static readonly TimeSpan DatabaseHealthCheckTimeout = TimeSpan.FromSeconds(3);
+
     /// <summary>
-    /// Adds persistence, the in-process HybridCache and the SiteSettings ports, reading the connection string
-    /// from configuration.
+    /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar and the
+    /// <c>database</c> and <c>time-zone</c> health checks, reading the connection string from configuration.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration; must contain <c>ConnectionStrings:Csps</c>.</param>
@@ -48,6 +60,15 @@ public static class DependencyInjection
         services.AddScoped<SiteSettingsReader>();
         services.AddScoped<ISiteSettingsReader>(provider => provider.GetRequiredService<SiteSettingsReader>());
         services.AddScoped<ISiteSettingsCache>(provider => provider.GetRequiredService<SiteSettingsReader>());
+
+        // Time comes only from TimeProvider (RS0030 bans the clock statics); tests replace it with a fake clock.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<IBusinessCalendar, BusinessCalendar>();
+
+        // Runs after the Server's "self" check, so the report order is self, database, time-zone.
+        services.AddHealthChecks()
+            .AddCheck<DatabaseHealthCheck>(DatabaseHealthCheckName, timeout: DatabaseHealthCheckTimeout)
+            .AddCheck<TimeZoneHealthCheck>(TimeZoneHealthCheckName);
 
         return services;
     }
