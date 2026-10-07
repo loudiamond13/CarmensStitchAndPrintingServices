@@ -15,7 +15,7 @@ public class CspsApiFactory : WebApplicationFactory<Program>
     public const string EnvironmentName = "Testing";
 
     /// <summary>The configuration key that turns the D-21 log file sink on or off.</summary>
-    public const string LogFileSwitchKey = "CspsLogging:WriteToFile";
+    public const string LogFileSwitchKey = Csps.Server.Composition.LoggingRegistration.WriteToFileKey;
 
     private readonly string _connectionString;
 

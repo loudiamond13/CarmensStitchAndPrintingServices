@@ -1,5 +1,6 @@
 using Csps.Server.Logging;
 using Serilog;
+using Serilog.Formatting.Compact;
 
 namespace Csps.Server.Composition;
 
@@ -10,6 +11,12 @@ namespace Csps.Server.Composition;
 /// </summary>
 public static class LoggingRegistration
 {
+    /// <summary>
+    /// The switch for the D-21 file sink. It is on unless set to false; only the integration-test factory turns it
+    /// off, because its content root is the source folder.
+    /// </summary>
+    public const string WriteToFileKey = "CspsLogging:WriteToFile";
+
     /// <summary>
     /// Registers Serilog. Minimum levels and overrides come from the <c>Serilog</c> configuration section; sinks are
     /// built in code. Any <c>ILogEventSink</c> registered in DI is attached too, which is how tests collect events.
@@ -32,13 +39,29 @@ public static class LoggingRegistration
         services.AddSerilog(
             (serviceProvider, logger) =>
             {
+                // Masking is the last enricher, so nothing added after it can carry a secret (CWE-532).
                 logger
                     .ReadFrom.Configuration(configuration)
                     .ReadFrom.Services(serviceProvider)
                     .Enrich.FromLogContext()
-                    // Masking runs after every other enricher, so nothing added later can carry a secret (CWE-532).
                     .Enrich.With<SensitiveDataMaskingEnricher>()
                     .Destructure.With<SensitiveDataDestructuringPolicy>();
+
+                if (configuration.GetValue(WriteToFileKey, defaultValue: true))
+                {
+                    // Always the absolute content-root path, never a relative one (D-21, research A8).
+                    var file = LogFileSettings.For(environment.ContentRootPath);
+                    logger.WriteTo.File(
+                        new CompactJsonFormatter(),
+                        file.Path,
+                        fileSizeLimitBytes: file.FileSizeLimitBytes,
+                        shared: file.Shared,
+                        flushToDiskInterval: file.FlushToDiskInterval,
+                        rollingInterval: file.RollingInterval,
+                        rollOnFileSizeLimit: file.RollOnFileSizeLimit,
+                        retainedFileCountLimit: file.RetainedFileCountLimit,
+                        retainedFileTimeLimit: file.RetainedFileTimeLimit);
+                }
 
                 if (environment.IsDevelopment())
                 {

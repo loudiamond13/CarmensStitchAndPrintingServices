@@ -1,3 +1,4 @@
+using Csps.Application.Ports;
 using Csps.Infrastructure;
 using Csps.Server.Composition;
 using Csps.Server.Endpoints;
@@ -28,6 +29,11 @@ builder.Services.AddProblemDetails(options =>
 builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy());
+
+// Request facts for Application code (user, connection IP, User-Agent, correlation id). No forwarded headers until
+// the FND-13 hosting record proves the proxy topology (research Pitfall 17).
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
 
 // Composes EF Core, the cache and the ports. Never migrates or seeds at startup (D-08).
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
