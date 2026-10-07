@@ -1,0 +1,1 @@
+No external API integration: Phase 1 builds only the project's own API, its SQL Server database and a throwaway owner-run host probe; the detector's signals were "integration test" and ".NET SDK" wording, and Cloudinary, MailKit/SMTP sending and HIBP are not in Phase 1 scope.

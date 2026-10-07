@@ -24,7 +24,7 @@ created: "2026-10-07"
 | **Config file** | `global.json` (`"test": { "runner": "Microsoft.Testing.Platform" }`) + per-project `OutputType Exe` — none yet, Wave 0 installs |
 | **Quick run command** | `dotnet test --project tests/<project under change>` |
 | **Full suite command** | `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Work\dev-tools\preflight.ps1 -Ports 5180,5115,7028,5199` then `dotnet test --solution Csps.slnx` |
-| **Coverage gate** | `dotnet run tools/scripts/coverage-gate.cs` |
+| **Coverage gate** | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Invoke-CoverageGate.ps1` (plan 01-11; PowerShell instead of a file-based app so repo-wide props/CPM cannot interfere) |
 | **Format gate** | `dotnet format Csps.slnx --verify-no-changes` |
 | **Estimated runtime** | unit projects < 30 s; integration ≈ 3–8 s per class (one LocalDB DB per class) |
 
@@ -59,7 +59,7 @@ Task IDs are bound by the planner in each PLAN.md `<verify>` block; this map fix
 | FND-12 | Idempotent script ×2 at 160 and 170; step-through; no pending model changes; no JSON | integration | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*MigrationScriptTests"` | ❌ W0 | ⬜ pending |
 | FND-13 | Hosting record complete (each row Verified/Unverified/N/A) | doc-lint arch | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests"` | ❌ W0 | ⬜ pending |
 | QUAL-01 | Zero warnings; format clean; editorconfig migrations section | build + arch | `dotnet build Csps.slnx` && `dotnet format Csps.slnx --verify-no-changes` | ❌ W0 | ⬜ pending |
-| QUAL-03 | Domain 100/100, Application ≥ 95 or gate exits non-zero | script | `dotnet run tools/scripts/coverage-gate.cs` | ❌ W0 | ⬜ pending |
+| QUAL-03 | Domain 100/100, Application ≥ 95 or gate exits non-zero | script | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Invoke-CoverageGate.ps1` (plan 01-11; PowerShell instead of a file-based app so repo-wide props/CPM cannot interfere) | ❌ W0 | ⬜ pending |
 | QUAL-06 | Every package/tool in `docs/dependencies.json` with allowed license + cool-down | arch (file) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*DependencyRegistryTests"` | ❌ W0 | ⬜ pending |
 | SEC-01 | Header set on 200/401/404/500/health; HSTS; no Server header; Production 404 for `/scalar` | integration + file | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*SecurityHeaders*"` | ❌ W0 | ⬜ pending |
 | SEC-02 | Discovery: every endpoint has policy or allow-listed anon + matrix row | unit + integration | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*Authorization*"` | ❌ W0 | ⬜ pending |
@@ -74,7 +74,7 @@ Task IDs are bound by the planner in each PLAN.md `<verify>` block; this map fix
 - [ ] `global.json`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, `BannedSymbols.txt`, `.config/dotnet-tools.json`
 - [ ] `tools/scripts/Initialize-LocalDb.ps1` (creates and starts `CSPS`; idempotent) and `Initialize-DevSecrets.ps1`
 - [ ] Five test projects + `tests/Csps.Testing` (SqlServerInstance, CspsDatabase, CspsApiFactory, TestTokens, CollectingSink, test PFX)
-- [ ] `tools/scripts/coverage-gate.cs`
+- [ ] `tools/scripts/Invoke-CoverageGate.ps1` (plan 01-11)
 - [ ] Verify research assumption A14 (MTP option pass-through, `dotnet format` and generated code) in the first plan
 
 ---

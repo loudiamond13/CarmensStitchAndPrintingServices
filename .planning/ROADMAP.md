@@ -124,7 +124,22 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 - The sources contradict each other on EF compatibility level and the `json` type (C-31).
 - MapStaticAssets cache headers and `AllowAnonymous` on static files and the SPA fallback need a spike.
 
-**Plans**: TBD
+**Plans**: 13 plans in 7 waves
+
+Plans:
+- [ ] 01-01-PLAN.md — Owner package-legitimacy gate, strict onion solution (scaffold removed), /health liveness, architecture/build/registry tests (W1)
+- [ ] 01-02-PLAN.md — Empty-DB schema from InitialCreate, SiteSettings singleton + cached port, LocalDB `CSPS_Test_` fixture, zone fallback chain (W2)
+- [ ] 01-03-PLAN.md — /health database + time-zone checks over IBusinessCalendar; Manila day/month/year boundaries; health failure modes (W3)
+- [ ] 01-04-PLAN.md — Guarded `tools/Csps.DevSeed`, migration verification (idempotent ×2 at 160/170), startup-safety rule, Respawn + isolation, stale-DB cleanup (W3)
+- [ ] 01-05-PLAN.md — AuditEntry domain record with /24 and /48 IP truncation and regex-free UA family (W3)
+- [ ] 01-06-PLAN.md — ProblemDetails contract + /api 404 fallback, Result/Error mapping, strict security headers, web.config, Development-only OpenAPI/Scalar (W3)
+- [ ] 01-07-PLAN.md — Serilog compact JSON with correlation id, secret masking, D-21 file retention, IRequestContext without forwarded headers (W4)
+- [ ] 01-08-PLAN.md — JWT validation, default-deny + Staff/Manager policies, GET /api/v1/site-settings, discovery-driven authorization matrix, 401/403/500 paths (W5)
+- [ ] 01-09-PLAN.md — Owner D-25 decision, append-only AuditLog (trigger, truncate guard, EF interceptor), IAuditTrail (W5)
+- [ ] 01-10-PLAN.md — Data Protection keys in DB encrypted by certificate, rotation runbook, local full-stack run (W6)
+- [ ] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
+- [ ] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
+- [ ] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
 
 ### Phase 2: Web Foundation & Design System
 **Goal**: Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
@@ -758,7 +773,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Hosting Verification & Backend Foundation | 0/TBD | Not started | - |
+| 1. Hosting Verification & Backend Foundation | 0/13 | Planned | - |
 | 2. Web Foundation & Design System | 0/TBD | Not started | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
