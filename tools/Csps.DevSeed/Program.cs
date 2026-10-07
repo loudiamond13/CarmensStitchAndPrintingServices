@@ -6,8 +6,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 
 // The explicit dev-seed command (D-08, FND-04). Exit codes: 0 done, 1 failed, 2 refused by the guard, 64 usage error.
-// It only ever touches CSPS_Dev or CSPS_E2E: the guard runs on the final connection string before any connection
-// opens. Seed content is fake or a bracketed placeholder; this tool never reads _local/.
+// It only ever touches CSPS_Dev or CSPS_E2E, and only on (localdb)\CSPS or a loopback container (127.0.0.1,<port> or
+// localhost,<port>): the guard runs on the final connection string before any connection opens. Seed content is fake
+// or a bracketed placeholder; this tool never reads _local/.
 const int Succeeded = 0;
 const int Failed = 1;
 const int Refused = 2;
