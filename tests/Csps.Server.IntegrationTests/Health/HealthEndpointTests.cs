@@ -4,13 +4,19 @@ using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Health;
 
-public sealed class HealthEndpointTests(CspsApiFactory factory) : IClassFixture<CspsApiFactory>
+/// <summary>
+/// FND-06, D-23: the walking skeleton end to end. <c>GET /health</c> runs the self, database and time-zone checks
+/// against a migrated <c>CSPS_Test_&lt;guid&gt;</c> database, where the zone comes from the SiteSettings row.
+/// </summary>
+public sealed class HealthEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
-    private const string ExpectedBody = """{"status":"Healthy","checks":[{"name":"self","status":"Healthy"}]}""";
+    private const string ExpectedBody =
+        """{"status":"Healthy","checks":[{"name":"self","status":"Healthy"},{"name":"database","status":"Healthy"},{"name":"time-zone","status":"Healthy"}]}""";
 
     [Fact]
-    public async Task ReturnsHealthyLivenessJson()
+    public async Task ReturnsHealthyWithAllChecks()
     {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -24,6 +30,7 @@ public sealed class HealthEndpointTests(CspsApiFactory factory) : IClassFixture<
     [Fact]
     public async Task IsNotCacheable()
     {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -35,49 +42,13 @@ public sealed class HealthEndpointTests(CspsApiFactory factory) : IClassFixture<
     [Fact]
     public async Task ExposesNoInternals()
     {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        using var document = JsonDocument.Parse(body);
-        var keys = CollectPropertyNames(document.RootElement);
-        string[] forbidden = ["duration", "description", "exception", "data", "version"];
-        foreach (var name in forbidden)
-        {
-            keys.ShouldNotContain(key => string.Equals(key, name, StringComparison.OrdinalIgnoreCase));
-        }
-    }
-
-    private static List<string> CollectPropertyNames(JsonElement element)
-    {
-        var names = new List<string>();
-        Collect(element, names);
-        return names;
-
-        static void Collect(JsonElement current, List<string> sink)
-        {
-            switch (current.ValueKind)
-            {
-                case JsonValueKind.Object:
-                    foreach (var property in current.EnumerateObject())
-                    {
-                        sink.Add(property.Name);
-                        Collect(property.Value, sink);
-                    }
-
-                    break;
-                case JsonValueKind.Array:
-                    foreach (var item in current.EnumerateArray())
-                    {
-                        Collect(item, sink);
-                    }
-
-                    break;
-                default:
-                    break;
-            }
-        }
+        HealthBody.PropertyNames(body).ShouldBe(HealthBody.AllowedPropertyNames, ignoreOrder: true);
     }
 }
