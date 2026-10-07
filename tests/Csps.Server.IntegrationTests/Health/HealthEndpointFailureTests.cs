@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using Csps.Testing;
@@ -22,8 +23,12 @@ public sealed class HealthEndpointFailureTests(CspsDatabase database) : IClassFi
         await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();
 
+        var elapsed = Stopwatch.StartNew();
         using var response = await GetHealthAsync(client);
+        elapsed.Stop();
 
+        // Both database-backed checks time out at 3 s and run in parallel (T-01-11); allow generous overhead.
+        elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(8));
         response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
         ShouldNotBeCacheable(response);
         var body = await ReadBodyAsync(response);

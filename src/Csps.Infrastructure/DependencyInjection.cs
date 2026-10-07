@@ -26,8 +26,10 @@ public static class DependencyInjection
 
     private const int MaximumCachePayloadBytes = 64 * 1024;
 
-    // Bounds the worst-case /health latency when the database is unreachable (D-23, T-01-11).
-    private static readonly TimeSpan DatabaseHealthCheckTimeout = TimeSpan.FromSeconds(3);
+    // Bounds the worst-case /health latency when the database is unreachable (D-23, T-01-11). Both checks need it:
+    // the time-zone check reads SiteSettings from the database when the cache is cold, and SqlClient retries a
+    // failed login after 10 seconds. The checks run in parallel, so /health takes as long as the slowest one.
+    private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
     /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar and the
@@ -71,8 +73,8 @@ public static class DependencyInjection
 
         // Runs after the Server's "self" check, so the report order is self, database, time-zone.
         services.AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>(DatabaseHealthCheckName, timeout: DatabaseHealthCheckTimeout)
-            .AddCheck<TimeZoneHealthCheck>(TimeZoneHealthCheckName);
+            .AddCheck<DatabaseHealthCheck>(DatabaseHealthCheckName, timeout: HealthCheckTimeout)
+            .AddCheck<TimeZoneHealthCheck>(TimeZoneHealthCheckName, timeout: HealthCheckTimeout);
 
         return services;
     }

@@ -22,6 +22,12 @@ public static class MinimalHealthWriter
         context.Response.ContentType = "application/json";
         context.Response.Headers[HeaderNames.CacheControl] = "no-store";
 
+        // HEAD gets the same status and headers, without a body (RFC 9110 section 9.3.2).
+        if (HttpMethods.IsHead(context.Request.Method))
+        {
+            return;
+        }
+
         var body = context.Response.Body;
         await using var writer = new Utf8JsonWriter(body);
         writer.WriteStartObject();
