@@ -123,6 +123,19 @@ public sealed class DevSeedTargetGuardTests
         check.Reason.ShouldNotContain("LOCALDB#351DA954");
     }
 
+    [Theory]
+    [InlineData(@"Server=(localdb)\CSPS;Failover Partner=sql1234.site4now.net;Database=CSPS_Dev;Integrated Security=true")]
+    [InlineData(@"Server=127.0.0.1,32768;Failover Partner=(localdb)\MSSQLLocalDB;Database=CSPS_E2E;User ID=sa;Password=NotARealSecret1;TrustServerCertificate=True")]
+    public void RefusesAFailoverPartner(string connectionString)
+    {
+        var check = DevSeedTargetGuard.Check(connectionString);
+
+        check.Allowed.ShouldBeFalse();
+        check.Reason.ShouldContain("Failover Partner");
+        check.Reason.ShouldNotContain("site4now");
+        check.Reason.ShouldNotContain("NotARealSecret1");
+    }
+
     [Fact]
     public async Task AllowsTheServerTheTestFixtureUses()
     {
