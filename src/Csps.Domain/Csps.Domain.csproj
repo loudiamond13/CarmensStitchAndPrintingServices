@@ -2,4 +2,8 @@
 
   <!-- Domain: BCL only. No package or project references (PRD section 3.2). -->
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Csps.Domain.UnitTests" />
+  </ItemGroup>
+
 </Project>
