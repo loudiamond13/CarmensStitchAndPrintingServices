@@ -21,6 +21,8 @@ public sealed class LogFileTests
 {
     private const string ClientIp = "203.0.113.45";
     private const string ClientUserAgent = "CspsTestAgent/1.0";
+    private const int RetryAttempts = 20;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
 
     [Fact]
     public void LogFileSettingsHasD21Values()
@@ -70,7 +72,7 @@ public sealed class LogFileTests
             Directory.Exists(logDirectory).ShouldBeTrue("the file sink writes under {contentRoot}/logs");
             var file = Directory.GetFiles(logDirectory).ShouldHaveSingleItem();
             Path.GetFileName(file).ShouldMatch(@"^csps-\d{8}\.json$");
-            var lines = await File.ReadAllLinesAsync(file, TestContext.Current.CancellationToken);
+            var lines = await ReadSharedLinesAsync(file, TestContext.Current.CancellationToken);
             lines.ShouldNotBeEmpty();
             foreach (var line in lines)
             {
@@ -82,7 +84,45 @@ public sealed class LogFileTests
         }
         finally
         {
-            Directory.Delete(contentRoot, recursive: true);
+            await DeleteWithRetryAsync(contentRoot);
+        }
+    }
+
+    /// <summary>
+    /// Reads a log file the way a shared log must be read: allowing other writers. A freshly closed file in the temp
+    /// folder can also be held briefly by a scanner or indexer (a sharing violation), so a few short retries follow.
+    /// </summary>
+    private static async Task<string[]> ReadSharedLinesAsync(string file, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                var text = await reader.ReadToEndAsync(cancellationToken);
+                return text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+            catch (IOException) when (attempt < RetryAttempts)
+            {
+                await Task.Delay(RetryDelay, cancellationToken);
+            }
+        }
+    }
+
+    private static async Task DeleteWithRetryAsync(string directory)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < RetryAttempts)
+            {
+                await Task.Delay(RetryDelay);
+            }
         }
     }
 
