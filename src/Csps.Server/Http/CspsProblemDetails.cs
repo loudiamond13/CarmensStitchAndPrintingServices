@@ -1,0 +1,70 @@
+using Microsoft.AspNetCore.Mvc;
+
+namespace Csps.Server.Http;
+
+/// <summary>
+/// The single place every RFC 9457 ProblemDetails gets its plain-English title, its <c>traceId</c> and, for
+/// server errors, the fixed reference text (FND-05, D-26, D-27). Exception text never reaches a response.
+/// </summary>
+public static class CspsProblemDetails
+{
+    /// <summary>The ProblemDetails extension that carries the correlation id.</summary>
+    public const string TraceIdKey = "traceId";
+
+    /// <summary>Builds a complete ProblemDetails for the current request.</summary>
+    /// <param name="context">The current HTTP context.</param>
+    /// <param name="status">The HTTP status code.</param>
+    /// <param name="detail">A short plain-English detail. Ignored for 5xx, which always get the reference text.</param>
+    /// <param name="errors">Field errors; when given, the result is an <see cref="HttpValidationProblemDetails"/>
+    /// whose keys keep the given order.</param>
+    /// <returns>The populated ProblemDetails.</returns>
+    public static ProblemDetails Build(HttpContext context, int status, string? detail = null, IDictionary<string, string[]>? errors = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var problem = errors is null ? new ProblemDetails() : new HttpValidationProblemDetails(errors);
+        problem.Status = status;
+        problem.Detail = detail;
+        Apply(problem, context);
+        return problem;
+    }
+
+    /// <summary>
+    /// Applies the CSPS rules to any ProblemDetails, including ones the framework creates: plain-English title,
+    /// <c>traceId</c>, and for 5xx the fixed detail "Something went wrong. Reference: &lt;traceId&gt;" with every
+    /// other extension removed.
+    /// </summary>
+    /// <param name="problem">The ProblemDetails to update.</param>
+    /// <param name="context">The current HTTP context.</param>
+    public static void Apply(ProblemDetails problem, HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var status = problem.Status ?? StatusCodes.Status500InternalServerError;
+        var traceId = CorrelationId.For(context);
+
+        problem.Status = status;
+        problem.Title = PlainEnglish.TitleFor(status);
+        if (status >= StatusCodes.Status500InternalServerError)
+        {
+            problem.Detail = $"Something went wrong. Reference: {traceId}";
+            problem.Extensions.Clear();
+        }
+
+        problem.Extensions[TraceIdKey] = traceId;
+    }
+
+    /// <summary>
+    /// Writes a ProblemDetails for <paramref name="status"/> as <c>application/problem+json</c>, whatever the
+    /// request's Accept header says (research Pitfall 5).
+    /// </summary>
+    /// <param name="context">The current HTTP context.</param>
+    /// <param name="status">The HTTP status code.</param>
+    /// <returns>A task that completes when the response is written.</returns>
+    public static Task WriteAsync(HttpContext context, int status)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return TypedResults.Problem(Build(context, status)).ExecuteAsync(context);
+    }
+}
