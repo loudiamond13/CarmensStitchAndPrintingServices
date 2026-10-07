@@ -9,7 +9,7 @@ findings:
     title: "HybridCache factory runs on the first caller's scoped DbContext, which can be disposed while joined callers still wait"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: deferred
     title: "IpPrefix keeps the full client IPv4 for 6to4 addresses (data-minimization bypass)"
   - id: WR-03
     severity: warning
@@ -17,7 +17,7 @@ findings:
     title: "AuditTrail.AppendAsync commits every pending change on the shared scoped DbContext"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The dev-seed guard has no server allow-list, and the MSSQLLocalDB block is a bypassable substring check"
   - id: WR-05
     severity: warning
@@ -75,11 +75,11 @@ findings:
     severity: info
     disposition: open
     title: "CLAUDE.md still states 2-year audit retention"
-open: 18
+open: 16
 total: 18
 recorded: 2026-10-07T21:51:29.767Z
 created: 2026-10-07T16:51:40-05:00
-updated: 2026-10-07T16:51:40-05:00
+updated: 2026-10-07T18:29:59-05:00
 ---
 
 # Phase 01: Code Review Disposition
@@ -87,9 +87,9 @@ updated: 2026-10-07T16:51:40-05:00
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-02 | warning | deferred | Owner deferred in UAT test 10 (2026-10-07); must be fixed before any code path writes audit rows (Phase 4) |
 | WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
+| WR-04 | warning | fixed | quick-261007-p98 (server allow-list + Failover Partner refusal, test-first; commits ed02c70, 9245949) |
 | WR-05 | warning | open | - |
 | WR-06 | warning | open | - |
 | WR-07 | warning | open | - |
