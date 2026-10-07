@@ -1,10 +1,11 @@
 # CarmensStitchAndPrintingServices
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-07T18:50:51-05:00*
 
 ## Shared machine: do not collide with TheBETSLLC (C:\Work\TheBETSLLC)
 
 Another project is developed on this machine at the same time, often by a separate Claude session. These rules keep the two from interfering.
 
-- **This project's ports:** Vite 5180 (`strictPort: true`), API 5115 http / 7028 https, Playwright E2E host 5199 (when Playwright is added; use `reuseExistingServer: false`).
+- **This project's ports:** Vite 5180 (`strictPort: true`), API 5115 http / 7028 https, HostProbe tool 5116 http / 7029 https, Playwright E2E host 5199 (when Playwright is added; use `reuseExistingServer: false`).
 - **Never use** 5173, 5023 or 5099. Those belong to TheBETSLLC.
 - **Avoid ports 49152-65535** (the Windows dynamic range). Hyper-V/WSL reserve blocks there and other programs grab them.
 - **LocalDB:** use the dedicated instance `(localdb)\CSPS` (`sqllocaldb create CSPS`), never the shared `MSSQLLocalDB`. Databases use the `CSPS_` prefix (`CSPS_Dev`, `CSPS_E2E`, `CSPS_Test_<guid>`, `CSPS_Legacy_Restore`). Automated cleanup may drop only `^CSPS_Test_[0-9a-f-]{36}$`. Never create, reset, restore over or drop any `BetsLLC_*` database.
