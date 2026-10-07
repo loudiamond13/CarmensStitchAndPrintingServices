@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Hosting Verification & Backend Foundation
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-10-07T15:08:52.101Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-07T15:21:36.378Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 execution started
-state_head: e1d23aa044142b72ecec148fb21a1268a1569dc4
+state_head: 44592d74a393c793d3457948d90e14e99ffcd96e
 progress:
   total_phases: 17
   completed_phases: 0
   total_plans: 13
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 1 (Hosting Verification & Backend Foundation) — EXECUTING
-Plan: 5 of 13
+Plan: 6 of 13
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 1 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 25 min | 3 tasks | 39 files |
 | Phase 01 P03 | 13 min | 3 tasks | 12 files |
 | Phase 01 P04 | 29 min | 3 tasks | 22 files |
+| Phase 01 P05 | 9 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: Seed steps implement ISeedStep with a unique Order and are appended to DevSeedSteps.All by the phase that creates their entity; DevSeeder rejects duplicate Order before running
 - [Phase 01]: ArchUnitNET rules against types from unloaded assemblies must use NotDependOnAnyTypesThat(); NotDependOnAny(Types().That()...) misses them
 - [Phase 01]: CspsDatabase.ResetAsync (Respawn) ignores __EFMigrationsHistory and SiteSettings; plan 09 must add AuditLog and AuditLogTruncateGuard
+- [Phase 01]: AuditEntry.Create (Domain) stores only IpPrefix.From (/24, /48) and UserAgentFamily.Classify labels; throws ArgumentNullException/ArgumentException for programming errors and never echoes rejected values
+- [Phase 01]: IpPrefix picks /24 vs /48 from AddressFamily; IPAddress holds only 4 or 16 bytes, so there is no unreachable third-family branch (keeps Domain at 100% branch)
+- [Phase 01]: UserAgentFamily reads only the first 512 chars as a span; blank within them is Unknown; Edge/Opera/Samsung precede Chrome and bots precede everything
+- [Phase 01]: tdd-red-evidence matches theory target names against raw JUnit text, so theory targets must use &quot; entities
 
 ### Pending Todos
 
@@ -109,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T15:08:52.062Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-10-07T15:21:36.338Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
