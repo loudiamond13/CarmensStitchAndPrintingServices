@@ -1,4 +1,5 @@
 using Csps.Infrastructure;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -19,14 +20,19 @@ public class CspsApiFactory : WebApplicationFactory<Program>
 
     private readonly string _connectionString;
 
+    // True only for the parameterless constructor, whose database never exists.
+    private readonly bool _withoutDatabase;
+
     /// <summary>
     /// Creates the factory with an https://localhost base address and a connection string to a fresh
     /// <c>CSPS_Test_&lt;guid&gt;</c> name on <c>(localdb)\CSPS</c> that is never created or opened. Use it for
-    /// tests that do not touch the database; nothing connects at startup.
+    /// tests that do not touch the database; nothing connects at startup. Its Data Protection key ring is kept in
+    /// memory (still certificate-encrypted), because the database key store would try the missing database.
     /// </summary>
     public CspsApiFactory()
         : this(UnopenedLocalDbConnectionString())
     {
+        _withoutDatabase = true;
     }
 
     /// <summary>
@@ -75,6 +81,14 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");
         builder.ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(Sink));
+
+        if (_withoutDatabase)
+        {
+            // Replaces only the key store; the certificate encryptor stays the production one.
+            builder.ConfigureTestServices(services => services.PostConfigure<KeyManagementOptions>(
+                options => options.XmlRepository = new InMemoryXmlRepository()));
+        }
+
         ConfigureSettings(builder);
     }
 
