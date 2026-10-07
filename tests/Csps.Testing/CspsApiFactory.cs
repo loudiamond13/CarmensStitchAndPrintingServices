@@ -1,7 +1,10 @@
 using Csps.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog.Core;
 
 namespace Csps.Testing;
 
@@ -10,6 +13,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
 {
     /// <summary>The environment name every integration test runs under.</summary>
     public const string EnvironmentName = "Testing";
+
+    /// <summary>The configuration key that turns the D-21 log file sink on or off.</summary>
+    public const string LogFileSwitchKey = "CspsLogging:WriteToFile";
 
     private readonly string _connectionString;
 
@@ -41,12 +47,23 @@ public class CspsApiFactory : WebApplicationFactory<Program>
     /// <returns>A new factory.</returns>
     public static CspsApiFactory ForDatabase(string connectionString) => new(connectionString);
 
+    /// <summary>
+    /// Gets the in-memory sink that receives every Serilog event this factory's host writes. Hosts derived with
+    /// <c>WithWebHostBuilder</c> share it.
+    /// </summary>
+    public CollectingSink Sink { get; } = new();
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.UseEnvironment(EnvironmentName);
         builder.UseSetting(DependencyInjection.ConnectionStringKey, _connectionString);
+
+        // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
+        // repository (research Pitfall 8). Logs go to the in-memory sink instead.
+        builder.UseSetting(LogFileSwitchKey, "false");
+        builder.ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(Sink));
         ConfigureSettings(builder);
     }
 
