@@ -37,3 +37,10 @@ playwright/.cache/
 # OS
 Thumbs.db
 .DS_Store
+
+# Runtime output and key material (T-01-02)
+logs/
+artifacts/
+*.pfx
+*.pem
+*.key

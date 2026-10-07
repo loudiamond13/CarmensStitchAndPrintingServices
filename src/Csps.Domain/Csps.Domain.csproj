@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain: BCL only. No package or project references (PRD section 3.2). -->
+
+</Project>

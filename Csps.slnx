@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Csps.Domain/Csps.Domain.csproj" />
+    <Project Path="src/Csps.Application/Csps.Application.csproj" />
+    <Project Path="src/Csps.Infrastructure/Csps.Infrastructure.csproj" />
+    <Project Path="src/Csps.Server/Csps.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Csps.Testing/Csps.Testing.csproj" />
+    <Project Path="tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
