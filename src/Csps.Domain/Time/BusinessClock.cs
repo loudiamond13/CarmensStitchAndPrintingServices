@@ -14,4 +14,32 @@ public sealed record BusinessClock(TimeZoneInfo Zone, ZoneSource Source, DateTim
 
     /// <summary>Today's date in the business zone.</summary>
     public DateOnly Today => DateOnly.FromDateTime(LocalNow.DateTime);
+
+    /// <summary>RED stub.</summary>
+    public int Year => UtcNow.Year;
+
+    /// <summary>RED stub.</summary>
+    /// <param name="day">Any day.</param>
+    /// <returns>Stub.</returns>
+    public static (DateOnly First, DateOnly Last) MonthOf(DateOnly day) => (day, day);
+
+    /// <summary>RED stub.</summary>
+    /// <param name="from">First day.</param>
+    /// <param name="toInclusive">Last day.</param>
+    /// <returns>Stub.</returns>
+    public (DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive) UtcRange(DateOnly from, DateOnly toInclusive) =>
+        (new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) + (UtcNow - UtcNow),
+            new DateTimeOffset(toInclusive.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
+
+    /// <summary>RED stub.</summary>
+    /// <param name="anyDayInMonth">Any day.</param>
+    /// <returns>Stub.</returns>
+    public (DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive) MonthUtcRange(DateOnly anyDayInMonth) =>
+        UtcRange(anyDayInMonth, anyDayInMonth);
+
+    /// <summary>RED stub.</summary>
+    /// <param name="year">The year.</param>
+    /// <returns>Stub.</returns>
+    public (DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive) YearUtcRange(int year) =>
+        UtcRange(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31));
 }
