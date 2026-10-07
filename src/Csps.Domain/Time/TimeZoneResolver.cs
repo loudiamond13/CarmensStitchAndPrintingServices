@@ -1,6 +1,10 @@
 namespace Csps.Domain.Time;
 
-/// <summary>Resolves the stored business time zone through the D-02 fallback chain.</summary>
+/// <summary>
+/// Resolves the stored business time zone through the D-02 fallback chain: the stored id, then
+/// <see cref="DefaultIana"/>, then <see cref="DefaultWindows"/>, then a fixed UTC+08 zone. Never throws.
+/// IANA ids on Windows need ICU, so <c>InvariantGlobalization</c> must never be enabled.
+/// </summary>
 public static class TimeZoneResolver
 {
     /// <summary>The default business zone (IANA id).</summary>
@@ -8,6 +12,10 @@ public static class TimeZoneResolver
 
     /// <summary>The Windows id of the same UTC+08, no-DST zone.</summary>
     public const string DefaultWindows = "Singapore Standard Time";
+
+    // Last resort. The Philippines has no daylight saving time, so a fixed offset is exact.
+    private static readonly TimeZoneInfo FixedOffsetZone =
+        TimeZoneInfo.CreateCustomTimeZone("CSPS+08", TimeSpan.FromHours(8), "UTC+08", "UTC+08");
 
     /// <summary>Resolves <paramref name="storedId"/> against the system time-zone database.</summary>
     /// <param name="storedId">The id stored in SiteSettings; may be null, blank or unknown.</param>
@@ -27,6 +35,11 @@ public static class TimeZoneResolver
             return (iana, ZoneSource.FallbackIana);
         }
 
-        return (TimeZoneInfo.Utc, ZoneSource.FallbackIana);
+        if (find(DefaultWindows) is { } windows)
+        {
+            return (windows, ZoneSource.FallbackWindows);
+        }
+
+        return (FixedOffsetZone, ZoneSource.FixedOffset);
     }
 }
