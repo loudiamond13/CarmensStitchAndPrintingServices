@@ -1,0 +1,1 @@
+{"content":"MDN: __Host- cookies must be Secure, set from HTTPS, have no Domain, and Path=/ - a __Host- cookie with Path=/api/v1/auth is rejected by the browser. Use __Secure- prefix for path-scoped refresh cookie.","source":"web","provider":"websearch","confidence":"MEDIUM","fetched_at":"2026-10-07T04:28:17.512Z","ttl":86400000,"kind":"web"}

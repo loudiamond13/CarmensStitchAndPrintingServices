@@ -1,0 +1,1 @@
+{"content":"SQL Server 2025 (17.x) ships LocalDB with Express edition. This machine has LocalDB 17.0.4025.3 (SQL Server 2025) installed and Docker 29.8.1 with a linux/amd64 engine, so both LocalDB and Testcontainers mssql 2025 are viable locally.","source":"web","provider":"websearch","confidence":"HIGH","fetched_at":"2026-10-07T04:27:58.588Z","ttl":86400000,"kind":"web"}
