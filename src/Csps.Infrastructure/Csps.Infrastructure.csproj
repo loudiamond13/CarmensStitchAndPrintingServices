@@ -5,6 +5,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Csps.Infrastructure.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Health checks and the Data Protection builder live in the shared framework. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

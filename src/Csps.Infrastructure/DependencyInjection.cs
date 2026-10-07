@@ -15,7 +15,12 @@ public static class DependencyInjection
 
     private const string ConnectionStringName = "Csps";
 
-    /// <summary>Adds persistence and the SiteSettings ports, reading the connection string from configuration.</summary>
+    private const int MaximumCachePayloadBytes = 64 * 1024;
+
+    /// <summary>
+    /// Adds persistence, the in-process HybridCache and the SiteSettings ports, reading the connection string
+    /// from configuration.
+    /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration; must contain <c>ConnectionStrings:Csps</c>.</param>
     /// <param name="environment">The host environment.</param>
@@ -36,6 +41,9 @@ public static class DependencyInjection
         }
 
         services.AddCspsPersistence(connectionString);
+
+        // In-process only (no IDistributedCache) and small: the host app pool has 256 MB (D-10).
+        services.AddHybridCache(options => options.MaximumPayloadBytes = MaximumCachePayloadBytes);
 
         services.AddScoped<SiteSettingsReader>();
         services.AddScoped<ISiteSettingsReader>(provider => provider.GetRequiredService<SiteSettingsReader>());
