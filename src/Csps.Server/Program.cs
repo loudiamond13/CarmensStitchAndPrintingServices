@@ -3,8 +3,12 @@ using Csps.Server.Composition;
 using Csps.Server.Endpoints;
 using Csps.Server.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog with the request's W3C trace id on every event; files under {contentRoot}/logs (FND-07, D-21, D-22).
+builder.Services.AddCspsLogging(builder.Configuration, builder.Environment);
 
 // No "Server: Kestrel" banner (SEC-01). IIS removes its own banner through web.config.
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
@@ -49,6 +53,11 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
 app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.HttpContext, context.HttpContext.Response.StatusCode));
+
+// One completion event per request: method, path (no query string), status and elapsed time. It writes through this
+// host's own logger, never the process-wide static one, and never logs headers or bodies (FND-07).
+var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
+app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
 
 app.MapCspsHealth();
 app.MapApiFallback();
