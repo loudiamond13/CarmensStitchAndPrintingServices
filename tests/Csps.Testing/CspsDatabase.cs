@@ -14,6 +14,9 @@ namespace Csps.Testing;
 /// </summary>
 public sealed class CspsDatabase : IAsyncLifetime
 {
+    private const int MinCompatibilityLevel = 100;
+    private const int MaxCompatibilityLevel = 170;
+
     private SqlServerInstance? _server;
 
     /// <summary>The generated database name, <c>CSPS_Test_&lt;lowercase guid&gt;</c>.</summary>
@@ -39,17 +42,35 @@ public sealed class CspsDatabase : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    /// Creates an ad-hoc, empty database (no migrations applied) at the given compatibility level, for tests
+    /// that apply the schema themselves, such as the idempotent-script tests (FND-12). The caller disposes it.
+    /// </summary>
+    /// <param name="compatibilityLevel">A SQL Server compatibility level, 100 to 170.</param>
+    /// <returns>The empty database.</returns>
+    public static async Task<CspsDatabase> CreateEmptyAsync(int compatibilityLevel)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(compatibilityLevel, MinCompatibilityLevel);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(compatibilityLevel, MaxCompatibilityLevel);
+
+        var database = new CspsDatabase();
+        try
+        {
+            await database.CreateDatabaseAsync(compatibilityLevel).ConfigureAwait(false);
+            return database;
+        }
+        catch
+        {
+            await database.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
     /// <summary>Creates the database, pins its compatibility level and applies every migration.</summary>
     /// <returns>A task that completes when the schema is in place.</returns>
     public async ValueTask InitializeAsync()
     {
-        _server = await SqlServerInstance.GetSharedAsync().ConfigureAwait(false);
-        var quoted = QuotedName();
-
-        await ExecuteOnMasterAsync($"CREATE DATABASE {quoted};").ConfigureAwait(false);
-        await ExecuteOnMasterAsync($"ALTER DATABASE {quoted} SET COMPATIBILITY_LEVEL = {SqlCompatibility.Level};").ConfigureAwait(false);
-
-        ConnectionString = _server.ConnectionStringFor(DatabaseName);
+        await CreateDatabaseAsync(SqlCompatibility.Level).ConfigureAwait(false);
 
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
@@ -86,6 +107,17 @@ public sealed class CspsDatabase : IAsyncLifetime
         await ExecuteOnMasterAsync(
             $"IF DB_ID(N'{DatabaseName}') IS NOT NULL BEGIN ALTER DATABASE {quoted} SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE {quoted}; END;")
             .ConfigureAwait(false);
+    }
+
+    private async Task CreateDatabaseAsync(int compatibilityLevel)
+    {
+        _server = await SqlServerInstance.GetSharedAsync().ConfigureAwait(false);
+        var quoted = QuotedName();
+
+        await ExecuteOnMasterAsync($"CREATE DATABASE {quoted};").ConfigureAwait(false);
+        await ExecuteOnMasterAsync($"ALTER DATABASE {quoted} SET COMPATIBILITY_LEVEL = {compatibilityLevel};").ConfigureAwait(false);
+
+        ConnectionString = _server.ConnectionStringFor(DatabaseName);
     }
 
     // Every DDL statement goes through here, so the name is re-validated before it reaches SQL (CWE-89).
