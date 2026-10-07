@@ -18,5 +18,6 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CspsDbContext).Assembly);
     }
 }
