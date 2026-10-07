@@ -1,10 +1,10 @@
 ---
 phase: 01-hosting-verification-backend-foundation
-verified: 2026-10-07T22:02:13Z
+verified: 2026-10-07T23:38:06Z
 created: 2026-10-07T17:02:13-05:00
-updated: 2026-10-07T18:40:00-05:00
-status: human_needed
-score: 16/23 must-haves verified (4 abstained as insufficient_spec, 3 need a human)
+updated: 2026-10-07T18:38:06-05:00
+status: passed
+score: 19/23 must-haves verified; 4 non-inferable backstops owner-accepted (UAT 5-8); 1 override applied
 covered_files:
   - ".config/dotnet-tools.json"
   - ".editorconfig"
@@ -220,363 +220,248 @@ covered_files:
   - "tools/scripts/Invoke-CoverageGate.ps1"
   - "tools/scripts/New-ThirdPartyNotices.ps1"
   - "tools/scripts/Remove-StaleTestDatabases.ps1"
-covered_digest: "v2:sha256:30a7b14ff7753c25b81f51b44099ec6e87107c8668359d4c3e42f6bc55890454"
+covered_digest: "v2:sha256:16f34eb2f8a8a0bd176efa9e9c9cc31b67919bfa2f6f9104f87ecd4491f100f2"
 behavior_unverified: 0
 insufficient_spec: 4
+insufficient_spec_resolution: "Owner accepted the existing structural backstops in 01-UAT.md tests 5, 6 and 8 (no new held-out tests); FND-07 two-process append to be observed on the host at the Phase 3 first deploy (UAT test 7)"
 overrides_applied: 1
 overrides:
   - must_have: "MUST NOT admit any dependency or tool whose license costs money, is proprietary, or is GPL/AGPL/SSPL"
     reason: "Two free Microsoft runtime parts of Microsoft.Data.SqlClient (SNI.runtime 6.0.2, Identity.Client.NativeInterop 0.20.6) ship unmodified under an exact-version exception (docs/license-exceptions.json); QUAL-06 allows owner-approved exceptions"
     accepted_by: "owner"
     accepted_at: "2026-10-07T18:40:00-05:00"
+re_verification:
+  previous_status: human_needed
+  previous_score: 16/23 must-haves verified (4 abstained as insufficient_spec, 3 need a human)
+  reason: "Previous report went stale: quick 261007-p98 changed covered files (DevSeedTargetGuard.cs, DevSeedTargetCheck.cs, tools/Csps.DevSeed/Program.cs, DevSeedTargetGuardTests.cs, docs/development.md)"
+  gaps_closed:
+    - "01-04 test-tier prohibition (dev seed never touches MSSQLLocalDB or a hosted DB): WR-04 bypasses closed by the server allow-list and Failover Partner refusal; re-verified by the verifier's own test run and CLI refusals"
+    - "Truth 16 (hosting record): owner accepted the Unverified facts (UAT 3); in-process hosting now Verified"
+    - "Truth 22 (local full-stack run): observed in UAT test 1 (200, all three checks Healthy)"
+    - "Truth 23 (Scalar CSP): observed in UAT test 2 (zero CSP violations; 'unsafe-inline' for styles must stay)"
+    - "Provisional compatibility pin: ROADMAP 01-13 line and Phase 17 success criterion 1 now track the re-pin (UAT 4)"
+  gaps_remaining: []
+  regressions: []
 deferred:
   - truth: "Integration tests run against Testcontainers SQL Server 2025 in CI (CSPS_TEST_SQL=container); the container path exists but has never run (no CI yet, and Docker is never used locally per D-07)"
     addressed_in: "Phase 3"
     evidence: "Phase 3 success criterion 1: the PR merge gate runs '3. unit, integration and architecture tests' and '6. coverage gates and generated THIRD-PARTY-NOTICES'"
-  - truth: "Hosting record fact 'In-process hosting' is Unverified (probe could not run on the Basic plan)"
+  - truth: "Hosting record probe facts (runtime patch, content root, logs writable, client-IP/proxy topology, HTTPS termination, Manila/en-PH, PFX EphemeralKeySet, app-pool memory) and the FND-07 two-process log append are observed at the first real deploy"
     addressed_in: "Phase 3"
-    evidence: "Phase 3 success criterion 4: 'Staging serves in-process with: HTTPS redirect, server headers removed ...' (staging itself is amended by D-11)"
+    evidence: "Owner acceptance in 01-UAT.md tests 3 and 7; Phase 3 success criterion 4 covers the first served deployment"
   - truth: "Hosting record facts DKIM and 'SPF / DKIM / DMARC pass in Gmail' are Unverified"
     addressed_in: "Phase 4 / Phase 17"
     evidence: "Phase 4 owner prerequisites: 'DNS access to publish SPF/DKIM/DMARC, if Phase 1 didn't finish it'; Phase 17 success criterion 1: 'SPF/DKIM/DMARC passing on the sender domain'"
+  - truth: "SqlCompatibility.Level stays at the provisional 160; the host's own level is Unverified"
+    addressed_in: "Phase 17"
+    evidence: "ROADMAP Phase 17 success criterion 1: 'a SQL Server 2025 database created ... Its compatibility level is verified, SqlCompatibility.Level is re-pinned from the provisional 160 to that level (170 expected), and MigrationScriptTests is re-run at the new pin'"
   - truth: "QUAL-03 web thresholds (lib/http 100%, web >= 90%) cannot exist before web/ exists"
     addressed_in: "Phase 2 / Phase 3"
     evidence: "Phase 2 success criterion 4: '`httpClient.ts` has 100% coverage'; Phase 3 success criterion 1 step 4: 'Vitest with coverage' and step 6 'coverage gates'"
   - truth: "FND-04 seed steps for users (both roles), orders with children, company expenses and price list (D-30)"
     addressed_in: "Phases 4-11 (each entity's phase)"
     evidence: "ROADMAP Conventions, 'Pieces that grow': 'the dev seed (FND-04)' is set up once, then extended by every later phase for its own entities"
-human_verification:
-  - test: "After preflight, run Initialize-DevSecrets.ps1 if needed, then `dotnet run --project src/Csps.Server --launch-profile http` and GET http://localhost:5115/health"
-    expected: "200 with {\"status\":\"Healthy\",\"checks\":[{\"name\":\"self\",...},{\"name\":\"database\",\"status\":\"Healthy\"},{\"name\":\"time-zone\",\"status\":\"Healthy\"}]}; stop the server afterwards"
-    why_human: "Plan 01-10 truth 8 (the documented local full-stack run) needs a running server; the verifier does not start servers. The same composition root is proven through WebApplicationFactory against a migrated CSPS_Test database, CSPS_Dev has all 3 migrations applied, and the three dev secrets exist in user-secrets."
-  - test: "With the https profile running (Development), open https://localhost:7028/scalar in Chrome and check the DevTools console"
-    expected: "The API reference renders and the console shows zero CSP violations; if styles render without 'unsafe-inline', tighten the carve-out (assumption A7)"
-    why_human: "Plan 01-06 Task 3 <human-check>; browser CSP enforcement cannot be observed from tests. NOT done yet."
-  - test: "Owner reviews the hosting record's 12 Unverified facts (.planning/HOSTING-RECORD.md) and accepts that the phase ships with them Unverified"
-    expected: "Owner confirms: runtime patch, in-process hosting, content root, logs writable, client-IP/proxy topology, HTTPS termination, Asia/Manila + en-PH, PFX EphemeralKeySet, app-pool memory are verified at the first real deploy (Phase 3); `model` compatibility level stays Unverified; DKIM and the Gmail SPF/DKIM/DMARC pass are supplied before Phase 4"
-    why_human: "The phase goal promises 'a verified record of the SmarterASP.NET hosting facts'. 19 of 31 rows are Verified; 12 are honestly Unverified because the Basic plan allows no probe site. Nothing was guessed, but 'verified' is only partly true, and that is an owner call."
-  - test: "Owner/maintainer acknowledges the provisional compatibility pin (SqlCompatibility.Level = 160, D-33) and adds the re-pin to 170 to the ROADMAP (Phase 15-17 cutover text)"
-    expected: "A roadmap success criterion or plan item tracks 'create the SQL Server 2025 database, verify its level, re-pin SqlCompatibility.Level, re-run MigrationScriptTests'; ROADMAP line 164 ('compatibility level re-pinned and re-proven') is corrected to 'kept at 160, provisional'"
-    why_human: "The idempotent script is proven at 150, 160 and 170, so the behavior holds for every plausible host level, but the host's own level is Unverified and the re-pin is tracked only in CONTEXT D-33, not in the ROADMAP (so it cannot be formally deferred)."
-  - test: "Write a held-out test for FND-01 concurrency (insufficient_spec): interrupt `dotnet ef database update` / MigrateAsync mid-run (for example a fault-injecting interceptor on the second migration) and re-run"
-    expected: "After the interruption the database holds exactly the migrations before the failed one; re-running completes the rest"
-    why_human: "Non-inferable (backstop) truth. EachMigrationAppliesOnTopOfItsPredecessor proves resumption from a committed boundary, but no test interrupts a migration. Presence + wiring never qualifies. Unverified - held-out test recommended."
-  - test: "Write a held-out test for FND-12 concurrency (insufficient_spec): apply the idempotent script with a batch that fails inside the second migration, then re-apply"
-    expected: "History holds only the first migration and no partial objects of the second remain; the re-run completes"
-    why_human: "Non-inferable (backstop) truth. IdempotentScriptWrapsEachMigrationInItsOwnTransaction only counts BEGIN TRANSACTION/COMMIT lines (structural). Unverified - held-out test recommended."
-  - test: "Write a held-out test (or observe on the host at the Phase 3 first deploy) for FND-07 multi-process logging (insufficient_spec): two processes write to the same daily log file with shared: true"
-    expected: "Both processes append without IOException and every event is a valid compact-JSON line"
-    why_human: "Non-inferable (backstop) truth. LogFileTests only asserts settings.Shared == true (configuration). Unverified - held-out test recommended."
-  - test: "Write a held-out test for SEC-04 concurrency (insufficient_spec): start two hosts at the same moment against one empty DataProtectionKeys table"
-    expected: "Each may create a key; payloads protected by either host are readable by both"
-    why_human: "Non-inferable (backstop) truth. KeyRingSurvivesRestart and SecondStartReusesKey are sequential, not simultaneous. Unverified - held-out test recommended."
-  - test: "Owner confirms (or records an override for) the 01-01 license prohibition against the two owner-approved Microsoft-licensed runtime packages"
-    expected: "Either an override entry is added (Microsoft.Data.SqlClient.SNI.runtime 6.0.2 and Microsoft.Identity.Client.NativeInterop 0.20.6: free, proprietary, shipped unmodified, exact-version exception in docs/license-exceptions.json), or a substitute is planned; CLAUDE.md's license line mentions the exception"
-    why_human: "Flagged prohibition: plan 01-01 says 'MUST NOT admit any dependency ... whose license ... is proprietary; production dependencies are limited to MIT, Apache-2.0, BSD and ISC'. QUAL-06 allows 'an owner-approved exception', and 01-11 records Option A as owner-approved on 2026-10-07, but that approval exists only in executor-written docs, not as a CONTEXT decision."
-  - test: "Review the two partially enforced test-tier prohibitions: 01-05 (no full client IP in audit rows) vs code-review WR-02, and 01-04 (dev seed never touches MSSQLLocalDB or a hosted DB) vs WR-04"
-    expected: "Decide fix-now or defer: map 6to4 (2002::/16) and NAT64 (64:ff9b::/96) to IPv4 before truncation; replace the MSSQLLocalDB substring check with a data-source allow-list"
-    why_human: "Unverified-prohibition: both are enforced by passing tests, but confirmed bypasses exist (2002:cbb1:0c2d::1 is stored as 2002:cbb1:c2d::, which encodes the full IPv4 203.177.12.45; a named-pipe alias or a remote server with Database=CSPS_E2E passes the guard). No Phase 1 code path writes audit rows yet."
-  - test: "Review the non-authoritative LLM verdicts on the 7 judgment-tier prohibitions (table 'Prohibitions' below)"
-    expected: "Owner/maintainer agrees with each verdict or records a gap"
-    why_human: "Judgment-tier prohibitions are never silently passed. The verifier recorded a verdict for each, but it is not authoritative: unverified-prohibition - human review recommended."
 ---
 
 # Phase 1: Hosting Verification & Backend Foundation Verification Report
 
 **Phase Goal:** A developer can clone the repo and run a zero-warning onion API against an empty, EF-migrated `CSPS_` database. The API carries the platform contract (ProblemDetails, health, logging, security headers, default-deny authorization) and the shared primitives every slice needs (business calendar, SiteSettings core, append-only audit log, SQL test fixture). A verified record of the SmarterASP.NET hosting facts sits alongside it.
-**Verified:** 2026-10-07T22:02:13Z
-**Status:** human_needed
-**Re-verification:** No (initial verification)
+**Verified:** 2026-10-07T23:38:06Z
+**Status:** passed
+**Re-verification:** Yes. The previous report (`human_needed`, 16/23) went stale when quick task 261007-p98 changed covered files to fix code-review WR-04. All 11 human items from that report are resolved in `01-UAT.md` (status complete, 11/11 pass).
 
-> **MVP-mode discrepancy.** ROADMAP marks Phase 1 `**Mode:** mvp`, but the goal is not a user story (`user-story.validate` returned `valid: false`: no "As a", "I want to" or "so that" slots). Per the MVP rules no User Flow Coverage table was produced (it would be invented). Run `/gsd mvp-phase 1` if story framing is wanted. The standard goal-backward verification below was done in full.
+> **MVP-mode discrepancy (unchanged).** ROADMAP marks Phase 1 `**Mode:** mvp`, but the goal is not a user story, so no User Flow Coverage table was produced. The standard goal-backward verification below was done in full.
 
-## Independent evidence gathered by the verifier
+## What changed since the last run
 
-All runs were on this machine after a clean preflight (ports 5180/5115/7028/5199 free, no dev/test processes). Only `(localdb)\CSPS` was used. No Docker, no remote host, no `MSSQLLocalDB`, no `BetsLLC_*`.
+`git diff 25cd9e8 HEAD` outside `.planning/` touches only these files:
+- `src/Csps.Infrastructure/Seeding/DevSeedTargetGuard.cs`, `DevSeedTargetCheck.cs`
+- `tools/Csps.DevSeed/Program.cs` (comment only)
+- `tests/Csps.Infrastructure.IntegrationTests/Seeding/DevSeedTargetGuardTests.cs`
+- `docs/development.md` (step 5 server rule)
+- `.gitignore` (adds `.gsd/` and `.planning/milestone.lock`)
+- the owner/orchestrator docs: `CLAUDE.md` (now tracked), `.claude/CLAUDE.md`, `CSPS-PRD.md`, `CSPS-UI-SPEC.md`
+
+No file in Domain, Application or Server changed, and no csproj, package pin or migration changed. The changed source files got a full re-check. Everything else got a regression check: a full rebuild, one full test run, a format check and a LocalDB state check.
+
+## Independent evidence gathered by the verifier (this run)
+
+The preflight was clean: ports 5180/5115/7028/5199 free, no dev/test processes, and TheBETSLLC's `BetsLLC_*` databases untouched on `MSSQLLocalDB`. Every run used `(localdb)\CSPS`, with `CSPS_TEST_SQL=localdb` set for that one process only.
 
 | Check | Command | Result |
 |-------|---------|--------|
-| Build | `dotnet build Csps.slnx -tl:off` | exit 0, **0 Warning(s), 0 Error(s)** |
-| Full suite (run once) | `dotnet test --solution Csps.slnx --no-build` | **501/501 passed**, 0 skipped, 0 failed |
+| Zero-warning build (forced full rebuild) | `dotnet build Csps.slnx -tl:off --no-incremental` | **0 Warning(s), 0 Error(s)** |
+| Full suite (run once) | `CSPS_TEST_SQL=localdb dotnet test --solution Csps.slnx --no-build` | **526/526 passed**, 0 failed, 0 skipped (501 last time; the extra 25 are the new guard cases) |
 | Format | `dotnet format Csps.slnx --verify-no-changes --no-restore` | exit 0 |
-| Coverage gate | `Invoke-CoverageGate.ps1` | PASS: Domain 100% line (297/297) + 100% branch (136/136); Application 100% line (38/38) |
-| Coverage gate fails | `Invoke-CoverageGate.ps1 -ApplicationLineThreshold 101` | exit 1 (gate can fail) |
-| Dev DB migrated | `dotnet ef migrations list --no-build` | InitialCreate, AddAuditLog, AddDataProtectionKeys; none pending |
-| LocalDB state (read-only) | `sqlcmd` on `(localdb)\CSPS` | CSPS_Dev and CSPS_E2E at level 160, 5 tables each, trigger `TR_AuditLog_AppendOnly` enabled, 1 SiteSettings row; **no leftover `CSPS_Test_` databases** after the suite |
-| Idempotent script at **150** (new) | script from `dotnet ef migrations script --idempotent`, applied twice with `sqlcmd -b` to a throwaway `CSPS_Test_<guid>` at level 150, then dropped | apply 1 exit 0, apply 2 exit 0, 3 history rows, 1 SiteSettings row, trigger enabled; DB dropped, 0 leftovers |
-| Decision coverage | `check.decision-coverage-verify` | 34/34 CONTEXT decisions honored |
-| Commits | `verify.commits` on 18 hashes cited in SUMMARYs | all valid |
-| Dev secrets present | `dotnet user-secrets list` (key names only) | Jwt:SigningKey, DataProtection:CertificatePassword, DataProtection:CertificateBase64 |
-
-The level-150 run matters: the host's live legacy DB is at 150 (HOSTING-RECORD B3), the Basic plan has one DB, and a SQL Server 2022 backup restored onto 2025 keeps its old level until raised (D-33).
+| Guard refuses a hosted server | `dotnet run --project tools/Csps.DevSeed -- --reset --connection "Server=sql1234.site4now.invalid;Database=CSPS_E2E;..."` | exit 2, fixed reason; no host or password echoed |
+| Guard refuses a Failover Partner | `... --connection "Server=(localdb)\CSPS;Failover Partner=sql1234.site4now.invalid;Database=CSPS_Dev;..."` | exit 2, Failover Partner reason |
+| Guard refuses the shared instance | `... --connection "Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;..."` | exit 2, server reason |
+| LocalDB state (read-only) | `sqlcmd` on `(localdb)\CSPS` | `CSPS_Dev` and `CSPS_E2E` at level 160; **no leftover `CSPS_Test_` databases** after the suite |
+| Coverage gate | not re-run | Domain and Application are byte-identical to the last run, which passed at 100%/100%/100% and failed as expected at threshold 101. Re-running would mean a second full test run |
 
 ## Goal Achievement
 
 ### Observable Truths
 
-ROADMAP success criteria 1-5 are the contract (split into sub-truths 1-16). Rows 17-23 are PLAN must-haves that need their own disposition (backstops and human checks). Every other PLAN truth was checked and folds into the row named in its evidence.
-
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | SC1: from a fresh clone with no `.bak`, `dotnet ef database update` builds the full schema on an empty `CSPS_` LocalDB DB, and the dev seed makes it usable | ✓ VERIFIED | `MigrationTests` (empty `CSPS_Test_` gets full schema + singleton, migrate twice is a no-op); `dotnet ef migrations list` shows 3/3 applied on CSPS_Dev; CSPS_E2E holds all 5 tables and the seeded row; `DevSeederTests` + `DevSeedTargetGuardTests` pass; no `.bak` tracked (`*.bak` git-ignored); source tree equals HEAD (`git status` shows only planning files). The literal fresh-clone run was not repeated (a full restore would hit nuget.org); 01-11 SUMMARY records it. |
-| 2 | SC1: the idempotent migration script applies twice without error at the host's compatibility level | ✓ VERIFIED (provisional pin) | `MigrationScriptTests.IdempotentScriptAppliesTwice` at 160 and 170 (pass), plus the verifier's own run at 150 (pass). Pin stays `SqlCompatibility.Level = 160` (D-33). The host `model` level is Unverified, so see human item 4. |
-| 3 | SC2: `Csps.slnx` (4 src projects, test projects, tools/) builds with zero warnings; the VS scaffold is gone | ✓ VERIFIED | Build 0/0; slnx lists 4 src + 5 test projects + Csps.Testing + 2 tools; `CarmensStitch*`, `carmens*` and `*.esproj` are absent; `SolutionLayoutTests` pass; `TreatWarningsAsErrors` + `MSBuildTreatWarningsAsErrors` set |
-| 4 | SC2: a forbidden layer or package reference, a floating version, or a package without a recorded license or legitimacy check fails the build or the architecture tests | ✓ VERIFIED | `LayerTests` (ArchUnitNET + reflection + csproj rules), `BuildConfigTests.EveryCentralPinIsAnExactVersion` / `NoForbiddenPackageIsReferenced` / `NoProjectPinsAVersionOutsideCentralManagement`, `DependencyRegistryTests` (registry entry per pin, license allow-list, 14-day cool-down). All pass; the 01-01 SUMMARY records 3 mutation runs that failed as expected (not re-run, because that would need source edits) |
-| 5 | SC2: missing a coverage threshold fails the test run | ✓ VERIFIED | The verifier ran the gate: PASS at defaults, exit 1 at `-ApplicationLineThreshold 101` |
-| 6 | SC3: `/health` reports liveness, DB reachability and time-zone resolution without exposing internals | ✓ VERIFIED | `HealthEndpoint` + `MinimalHealthWriter` (status + name/status only, no-store); `database` (CanConnectAsync) and `time-zone` (IBusinessCalendar → SiteSettings) checks with a 3 s timeout; `HealthEndpointTests`, `HealthEndpointFailureTests` (503 minimal body, no `Data Source`/`CSPS_Test_`) pass |
-| 7 | SC3: an unknown `/api/*` route returns a ProblemDetails 404 with `traceId`, never `index.html` | ✓ VERIFIED | `ApiRouting.MapApiFallback` (`/api/{**path}`, every method) → `CspsProblemDetails.Build`; status-code pages write problem+json whatever the Accept header; `ProblemDetailsTests` pass |
-| 8 | SC3: every response carries the strict CSP/HSTS header set | ✓ VERIFIED | `SecurityHeadersMiddleware` registered first and sets headers in `OnStarting` (CSP verbatim PRD §11.3, nosniff, Referrer-Policy, Permissions-Policy, COOP; HSTS on HTTPS only; Server/X-Powered-By removed); `web.config` removeServerHeader; `SecurityHeadersTests` cover 404/500/GET+HEAD /health; `AuthorizationFailureTests` cover 401/403/503 |
-| 9 | SC3: an endpoint without a policy or a matrix row fails the discovery-driven authorization test | ✓ VERIFIED | `AuthorizationMatrixTests.DiscoveredEndpointsAreFullyCovered` reads the real `EndpointDataSource` (guarded against an empty list); `AuthorizationCoverageTests` prove each violation kind with synthetic endpoints; fallback policy `RequireAuthenticatedUser` in `SecurityRegistration` |
-| 10 | SC4: under a fake clock at Manila boundaries, "today" and the month and year boundaries resolve in the business zone | ✓ VERIFIED | `BusinessClock` (pure, exclusive-end UTC ranges, DST gap/ambiguity handled); `BusinessClockTests` (15:59:59Z/16:00:00Z, month, year edges) and `BusinessCalendarTests` (FakeTimeProvider + SiteSettings zone) pass; RS0030 bans the clock statics (a grep finds no use in src/tools) |
-| 11 | SC4: SiteSettings (name, zone, currency/locale, contact placeholders) are read through a cached port | ✓ VERIFIED | `SiteSettingsReader` (HybridCache, tag `site-settings`, `RemoveByTagAsync` invalidation) behind `ISiteSettingsReader`/`ISiteSettingsCache`; `SiteSettingsReaderTests` pass. WR-01 (scoped DbContext captured in the cache factory) is an open warning |
-| 12 | SC4: audit rows can be appended, but DB-level UPDATE and DELETE fail | ✓ VERIFIED | Migration `AddAuditLog`: AFTER UPDATE, DELETE trigger (51000/51001, 8-month purge flag per D-32) + `AuditLogTruncateGuard` FK; trigger enabled in CSPS_Dev; `AuditLogAppendOnlyTests` (raw SQL update/delete/truncate refused, purge boundary) and `AuditTrailTests` pass; EF interceptor as defense in depth |
-| 13 | SC4: logs carry a correlation id and mask secrets | ✓ VERIFIED | Serilog request logging through the host logger; `RequestLoggingTests` (TraceId equals ProblemDetails traceId, 10 parallel requests); `SensitiveDataMaskingTests` (exact + suffix rules, nested structures, CR/LF escaped). WR-05 (Identity names such as PasswordHash and SecurityStamp are not masked yet) is an open warning |
-| 14 | SC4: Data Protection keys survive an app restart | ✓ VERIFIED | `PersistKeysToDbContext` + `ProtectKeysWithCertificate`; `DataProtectionTests.KeyRingSurvivesRestart` (two hosts in sequence, exactly one key row), `StoredKeyXmlIsEncrypted`, `SecondStartReusesKey`, `RotationKeepsOldKeysReadable` pass |
-| 15 | SC5: integration tests run in parallel against isolated `CSPS_Test_<guid>` DBs with Respawn resets (Testcontainers in CI) | ✓ VERIFIED (LocalDB); container path deferred | `CspsDatabase` (per-class DB, name guard + exact length, compat pin, real migrations, Respawn ignoring history/SiteSettings/AuditLog); `SqlFixtureTests.ConcurrentDatabasesAreDistinctAndMigrated` passes; 0 leftover DBs after the full run. The container backend has never run (Phase 3 CI, see Deferred) |
-| 16 | SC5: the hosting verification record lists runtime patch, @@VERSION, compat level, collation, in-process hosting, proxy/client-IP topology, SPF/DKIM/DMARC result, scheduler, DB quota, staging option | ? UNCERTAIN (human) | `.planning/HOSTING-RECORD.md` lists every required fact (`HostingRecordTests` 4/4 pass). 19 of 31 rows are Verified (plan, quota 1000 MB, scheduler No, staging No, @@VERSION SQL Server 2022 16.0.x Web, collation, SPF, DMARC ...). 12 are **Unverified**: .NET runtime patch, in-process hosting, client-IP/proxy topology, HTTPS termination, content root, logs writable, Manila/en-PH, PFX EphemeralKeySet, app-pool memory, `model` compatibility level, DKIM, Gmail SPF/DKIM/DMARC pass. Nothing was guessed, but the record is only partly "verified" (human item 3) |
-| 17 | (01-02, backstop) An interrupted `dotnet ef database update` leaves the DB at the last committed migration, and re-running completes the rest (FND-01 concurrency) | ⚠️ insufficient_spec (abstained) | Partial evidence only: `EachMigrationAppliesOnTopOfItsPredecessor` resumes from each committed boundary. No test interrupts a migration. Held-out test recommended |
-| 18 | (01-04, backstop) Each migration in the idempotent script runs in its own transaction (FND-12 concurrency) | ⚠️ insufficient_spec (abstained) | `IdempotentScriptWrapsEachMigrationInItsOwnTransaction` counts BEGIN TRANSACTION/COMMIT lines (3 each; the verifier also counted 3 in the generated script). That is structural, not an interrupted apply |
-| 19 | (01-07, backstop) During an IIS overlapped recycle, two worker processes append to the same daily log file (`shared: true`) | ⚠️ insufficient_spec (abstained) | `LogFileTests.LogFileSettingsHasD21Values` asserts `Shared == true` (config only). No multi-process write test |
-| 20 | (01-08, backstop) Authorization is stateless per request; parallel requests with different tokens each get their own row's status (SEC-02 concurrency) | ✓ VERIFIED | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` fires 4× the full matrix × {anonymous, Admin, Manager} concurrently on one client and asserts every status. It passed in the verifier's run |
-| 21 | (01-10, backstop) Two instances starting together against an empty key ring each may create a key, and both keys stay readable by both (SEC-04 concurrency) | ⚠️ insufficient_spec (abstained) | Only sequential-start tests exist (`KeyRingSurvivesRestart`, `SecondStartReusesKey`). Held-out test recommended |
-| 22 | (01-10) The documented local full-stack run (`dotnet run --launch-profile http`) serves `/health` with all three checks Healthy | ? UNCERTAIN (human) | Same `Program` proven through WebApplicationFactory against a migrated DB; CSPS_Dev is migrated; dev secrets exist. The verifier does not start servers (human item 1) |
-| 23 | (01-06) In Development only, `/scalar` uses a nonce carve-out CSP, and the browser shows zero CSP violations (assumption A7) | ? UNCERTAIN (human) | `ScalarDevelopmentCsp` + `OpenApiExposureTests` (Production maps neither path; no unsafe-inline outside dev /scalar) pass. The browser check has **not** been done (human item 2) |
+| 1 | SC1: from a fresh clone with no `.bak`, `dotnet ef database update` builds the full schema on an empty `CSPS_` LocalDB database, and the dev seed makes it usable | ✓ VERIFIED | `MigrationTests` pass, CSPS_Dev and CSPS_E2E are migrated at level 160, and `DevSeederTests` pass. `DevSeedTargetGuardTests` (49 cases) pass, including `AllowsTheServerTheTestFixtureUses`, which proves the tightened guard still accepts the real `(localdb)\CSPS` connection string. The 01-11 SUMMARY records the fresh-clone run |
+| 2 | SC1: the idempotent migration script applies twice without error at the host's compatibility level | ✓ VERIFIED (provisional pin, deferred re-pin) | `MigrationScriptTests` pass at 160 and 170, and the previous run also applied it at 150. The re-pin is now tracked in ROADMAP Phase 17 SC1 (UAT 4) |
+| 3 | SC2: `Csps.slnx` builds with zero warnings, and the VS scaffold is gone | ✓ VERIFIED | Forced rebuild gave 0/0. `SolutionLayoutTests` pass |
+| 4 | SC2: a forbidden layer or package reference, a floating version, or an unrecorded or unvetted package fails the build or the architecture tests | ✓ VERIFIED | `LayerTests`, `BuildConfigTests` and `DependencyRegistryTests` pass. No package or csproj changed |
+| 5 | SC2: missing a coverage threshold fails the test run | ✓ VERIFIED | Proven in the previous run (pass at defaults, exit 1 at 101). The inputs (Domain and Application) are unchanged |
+| 6 | SC3: `/health` reports liveness, DB reachability and time-zone resolution without exposing internals | ✓ VERIFIED | `HealthEndpointTests` and `HealthEndpointFailureTests` pass. UAT 1 observed a live 200 with all three checks Healthy |
+| 7 | SC3: an unknown `/api/*` route returns a ProblemDetails 404 with `traceId`, never `index.html` | ✓ VERIFIED | `ProblemDetailsTests` pass |
+| 8 | SC3: every response carries the strict CSP/HSTS header set | ✓ VERIFIED | `SecurityHeadersTests` and `AuthorizationFailureTests` pass |
+| 9 | SC3: an endpoint without a policy or a matrix row fails the discovery-driven authorization test | ✓ VERIFIED | `AuthorizationMatrixTests.DiscoveredEndpointsAreFullyCovered` and `AuthorizationCoverageTests` pass |
+| 10 | SC4: under a fake clock at Manila boundaries, "today", the month and the year resolve in the business zone | ✓ VERIFIED | `BusinessClockTests` and `BusinessCalendarTests` pass |
+| 11 | SC4: SiteSettings are read through a cached port | ✓ VERIFIED | `SiteSettingsReaderTests` and `SiteSettingsEndpointTests` pass (WR-01 is an open warning) |
+| 12 | SC4: audit rows can be appended, but DB-level UPDATE and DELETE fail | ✓ VERIFIED | `AuditLogAppendOnlyTests` and `AuditTrailTests` pass |
+| 13 | SC4: logs carry a correlation id and mask secrets | ✓ VERIFIED | `RequestLoggingTests` and `SensitiveDataMaskingTests` pass (WR-05 is an open warning) |
+| 14 | SC4: Data Protection keys survive an app restart | ✓ VERIFIED | `DataProtectionTests` pass (`KeyRingSurvivesRestart`, `StoredKeyXmlIsEncrypted`, `SecondStartReusesKey`, `RotationKeepsOldKeysReadable`) |
+| 15 | SC5: integration tests run in parallel against isolated `CSPS_Test_<guid>` databases with Respawn resets (Testcontainers in CI) | ✓ VERIFIED (LocalDB); container path deferred to Phase 3 | `SqlFixtureTests.ConcurrentDatabasesAreDistinctAndMigrated` passes, and no `CSPS_Test_` databases were left after 526 tests |
+| 16 | SC5: the hosting record lists runtime patch, @@VERSION, compat level, collation, in-process hosting, proxy/client-IP topology, SPF/DKIM/DMARC result, scheduler, DB quota and staging option | ✓ VERIFIED (owner-accepted scope) | `HostingRecordTests` pass, and every required fact has a row. In-process hosting is now Verified from the live web.config. The owner accepted the remaining Unverified rows in UAT 3: probe facts at the Phase 3 deploy, DKIM/Gmail before Phase 4 or 17, and the `model` level at Phase 17. Nothing is guessed |
+| 17 | (01-02 backstop) An interrupted migration leaves the DB at the last committed migration, and a re-run completes the rest | ⚠️ insufficient_spec, owner-accepted (UAT 5) | Only structural or sequential evidence exists (`EachMigrationAppliesOnTopOfItsPredecessor`). The owner accepted it without a held-out fault-injection test |
+| 18 | (01-04 backstop) Each migration in the idempotent script runs in its own transaction | ⚠️ insufficient_spec, owner-accepted (UAT 6) | `IdempotentScriptWrapsEachMigrationInItsOwnTransaction` (structural count) |
+| 19 | (01-07 backstop) Two worker processes append to the same daily log file (`shared: true`) | ⚠️ insufficient_spec, owner-accepted (UAT 7) | Only the config value is asserted. It will be observed on the host at the Phase 3 first deploy |
+| 20 | (01-08 backstop) Parallel requests with different tokens each get their own row's status | ✓ VERIFIED | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` passes |
+| 21 | (01-10 backstop) Two instances starting together against an empty key ring stay mutually readable | ⚠️ insufficient_spec, owner-accepted (UAT 8) | Only sequential-start tests exist. The owner accepted them |
+| 22 | (01-10) The documented local full-stack run serves `/health` with all three checks Healthy | ✓ VERIFIED | UAT 1: Claude's run returned 200 with self, database and time-zone all Healthy. The owner accepted it. The owner's own terminal hit LocalDB error 50, which was environment-specific and recorded in UAT |
+| 23 | (01-06) In Development only, `/scalar` uses a nonce carve-out CSP with zero browser CSP violations | ✓ VERIFIED | UAT 2: renders with zero CSP violations. `'unsafe-inline'` for styles is required (Scalar injects non-nonce style tags). `OpenApiExposureTests` prove Production maps neither path |
 
-**Score:** 16/23 truths verified (0 present-but-behavior-unverified; 4 abstained as insufficient_spec; 3 uncertain, routed to a human)
-
-All other PLAN truths across the 13 plans were checked through the tests named above, and all pass in the verifier's 501/501 run. That covers the guard near-misses, the singleton CHECK, UTF-16 round-trip, the 401/403 token cases, startup refusal on bad JWT or certificate settings, the 5xx reference text, the HTTPS redirect outside Development/Testing, the probe key gate and the IP/UA minimization. None of them failed.
+**Score:** 19/23 truths verified. 0 are present-but-behavior-unverified. 4 non-inferable backstops are insufficient_spec, and the owner accepted each one in `01-UAT.md` with a recorded resolution, so none is left for a human. 1 override was applied (a license prohibition).
 
 ### Deferred Items
 
-Items not yet met, each covered explicitly by a later phase in the ROADMAP.
-
 | # | Item | Addressed In | Evidence |
 |---|------|-------------|----------|
-| 1 | Testcontainers SQL Server 2025 backend never exercised | Phase 3 | SC1: PR gate runs "unit, integration and architecture tests" |
-| 2 | Host fact "In-process hosting" Unverified | Phase 3 | SC4: "Staging serves in-process ..." (staging amended by D-11) |
-| 3 | DKIM and Gmail SPF/DKIM/DMARC pass Unverified | Phase 4 / Phase 17 | Phase 4 prerequisite "DNS access to publish SPF/DKIM/DMARC, if Phase 1 didn't finish it"; Phase 17 SC1 "SPF/DKIM/DMARC passing on the sender domain" |
-| 4 | QUAL-03 web thresholds (lib/http 100%, web ≥ 90%) | Phase 2 / Phase 3 | Phase 2 SC4 "httpClient.ts has 100% coverage"; Phase 3 SC1 "Vitest with coverage", "coverage gates" |
-| 5 | FND-04 users/orders/expenses/price-list seed steps (D-30) | Each entity's phase | ROADMAP Conventions: "the dev seed (FND-04)" is a piece that grows |
-
-The runtime patch, proxy topology and `model` compatibility level are **not** formally deferred. No later ROADMAP criterion names them; only HOSTING-RECORD and CONTEXT do. They stay in human items 3 and 4.
+| 1 | Testcontainers SQL Server 2025 backend never exercised | Phase 3 | SC1 PR gate runs unit, integration and architecture tests |
+| 2 | Host probe facts and the FND-07 two-process append | Phase 3 | UAT 3 and 7; first served deploy |
+| 3 | DKIM and the Gmail SPF/DKIM/DMARC pass | Phase 4 / Phase 17 | Phase 4 prerequisite; Phase 17 SC1 |
+| 4 | Re-pin `SqlCompatibility.Level` from the provisional 160 | Phase 17 | Phase 17 SC1 (added in UAT 4) |
+| 5 | QUAL-03 web thresholds | Phase 2 / Phase 3 | Phase 2 SC4; Phase 3 SC1 |
+| 6 | FND-04 users/orders/expenses/price-list seed steps (D-30) | Each entity's phase | ROADMAP "Pieces that grow" |
 
 ### Required Artifacts
 
-`verify.artifacts` reported "Missing export" for C# members, and "File not found" for the glob paths `*_AddAuditLog.cs` and `*_AddDataProtectionKeys.cs`. These are tool false positives: the tool's export detector does not parse C#, and it does not expand globs. The verifier checked each one by hand.
+Every artifact from the previous report was regression-checked: the build covers all of them, and 526/526 tests pass. The changed artifacts got a full re-check:
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `Csps.slnx` | 4 src + tests + tools | ✓ VERIFIED | 12 projects, exact set per 01-11 |
-| `Directory.Build.props` / `Directory.Packages.props` / `global.json` / `BannedSymbols.txt` | strict build, exact pins, SDK 10.0.401 + MTP, RS0030 list | ✓ VERIFIED | Read in full; 6 banned symbols |
-| `src/Csps.Server/Program.cs` | composition root | ✓ VERIFIED | Headers outermost, exception handler, status pages, auth, health, fallback, site-settings, dev-only docs; no migrate/seed |
-| `src/Csps.Server/Http/MinimalHealthWriter.cs` | `WriteAsync` | ✓ VERIFIED | public static `WriteAsync(HttpContext, HealthReport)` |
-| `src/Csps.Infrastructure/Persistence/SqlCompatibility.cs` | single pin | ✓ VERIFIED | `Level = 160` (provisional) |
-| `src/Csps.Infrastructure/Persistence/Migrations/20261007165906_AddAuditLog.cs` | table, guard, trigger | ✓ VERIFIED | Trigger inside EXEC after CreateTable |
-| `src/Csps.Infrastructure/Persistence/Migrations/20261007171939_AddDataProtectionKeys.cs` | key table | ✓ VERIFIED | Present, applied in CSPS_Dev/E2E |
-| `src/Csps.Domain/Time/BusinessClock.cs`, `TimeZoneResolver.cs` | time math, fallback chain | ✓ VERIFIED | Today, Year, MonthOf, UtcRange, MonthUtcRange, YearUtcRange, Resolve all public |
-| `src/Csps.Domain/Auditing/{AuditEntry,IpPrefix,UserAgentFamily}.cs` | minimization | ✓ VERIFIED | Create/From/Classify public (see WR-02) |
-| `src/Csps.Server/Http/{CspsProblemDetails,SecurityHeadersMiddleware}.cs`, `Endpoints/ApiRouting.cs`, `web.config` | contract | ✓ VERIFIED | Read in full |
-| `src/Csps.Server/Composition/SecurityRegistration.cs`, `Endpoints/SiteSettingsEndpoints.cs` | default-deny, Staff group | ✓ VERIFIED | Fallback policy + Staff/Manager |
-| `src/Csps.Infrastructure/DataProtection/*` | DB key ring + certificate | ✓ VERIFIED | `SetApplicationName("Csps")`, refusing encryptor |
-| `tools/Csps.DevSeed/Program.cs`, `Seeding/*` | guarded seed | ✓ VERIFIED | Guard runs before any connection (see WR-04) |
-| `tools/Csps.HostProbe/*` | key-protected probe | ✓ VERIFIED | Not deployed (Basic plan) |
-| `tests/Csps.Testing/*` | fixture, factory, tokens, certs | ✓ VERIFIED | LocalDB default; container only on `CSPS_TEST_SQL=container` |
-| `tools/scripts/Invoke-CoverageGate.ps1`, `New-ThirdPartyNotices.ps1` | gates | ✓ VERIFIED | Coverage gate run by the verifier; the license gate was not re-run (nuget-license may contact nuget.org); the orchestrator's run gave exit 0, 71 packages |
-| `THIRD-PARTY-NOTICES.md`, `docs/*` | notices, registry, guides, runbooks | ✓ VERIFIED | Tracked in git |
-| `.planning/HOSTING-RECORD.md` | Facts table | ✓ VERIFIED (exists) / see truth 16 | 31 fact rows |
+| `src/Csps.Infrastructure/Seeding/DevSeedTargetGuard.cs` | Pure guard: server allow-list, then database allow-list | ✓ VERIFIED | Order of checks: empty, parse, AttachDBFilename, Failover Partner, server allow-list (`(localdb)\CSPS` OrdinalIgnoreCase, or exactly `127.0.0.1\|localhost,<1-65535>` parsed with `NumberStyles.None`), missing catalog, then `CSPS_Dev`/`CSPS_E2E`. The server and Failover Partner reasons are fixed text. No environment reads, no connection |
+| `src/Csps.Infrastructure/Seeding/DevSeedTargetCheck.cs` | Verdict record | ✓ VERIFIED | Doc comment only |
+| `tools/Csps.DevSeed/Program.cs` | Guard before any connection | ✓ VERIFIED (WIRED) | `DevSeedTargetGuard.Check(options.ConnectionString)` runs before `CspsDbContext` is built, and `Refused` returns 2. The CLI spot-checks confirm it |
+| `tests/.../Seeding/DevSeedTargetGuardTests.cs` | WR-04 cases | ✓ VERIFIED | 19 server-refusal cases (hosted, `tcp:`, `np:`, named instance, `.`, `(local)`, port-less loopback, bad ports, 127.0.0.2, look-alike host), 2 Failover Partner cases, and the allowed loopback and fixture forms. Each refusal asserts that no secret or host is echoed |
+| `docs/development.md` | Step 5 states the server rule | ✓ VERIFIED | Names the allowed servers, the refusals and exit code 2 |
+| All other Phase 1 artifacts | unchanged | ✓ VERIFIED (regression) | No diff since the last verification |
 
 ### Key Link Verification
 
-`verify.key-links`: 34/34 links verified across all 13 plans. Spot-checked by reading code: Program → AddInfrastructure / AddCspsSecurity / SecurityHeadersMiddleware / CspsProblemDetails / UseSerilogRequestLogging; SiteSettingsEndpoints → GetSiteSettingsHandler → ISiteSettingsReader; BusinessCalendar → SiteSettingsReader (TimeZoneId); TimeZoneHealthCheck → GetClockAsync; CspsDbContextOptions → AddInterceptors(AuditLogAppendOnlyInterceptor); AuditTrail → AuditEntry.Create + IRequestContext; DevSeed → DevSeedTargetGuard.Check before CspsDbContext; MigrationScriptTests → SqlCompatibility.Level. All WIRED.
+The links are unchanged from the previous run (34/34 WIRED). The one link touched this round, DevSeed `Program` → `DevSeedTargetGuard.Check` before `CspsDbContext`, was re-read and exercised by the CLI: exit 2 with no connection attempted. **WIRED.**
 
 ### Data-Flow Trace (Level 4)
 
-| Artifact | Data Variable | Source | Produces Real Data | Status |
-|----------|---------------|--------|--------------------|--------|
-| `GET /api/v1/site-settings` | `SiteSettingsDto` | HybridCache → `db.SiteSettings.AsNoTracking()` (migration-seeded row) | Yes (endpoint test returns the seeded values) | ✓ FLOWING |
-| `/health` `time-zone` check | `ZoneSource` | `BusinessCalendar` → `ISiteSettingsReader` → DB | Yes | ✓ FLOWING |
-| `/health` `database` check | connectivity | `CanConnectAsync` | Yes (503 when unreachable, tested) | ✓ FLOWING |
-| Audit row | `AuditEntry` | `IRequestContext` (connection IP, UA, W3C trace id) + TimeProvider | Yes (`AuditTrailTests`); no Phase 1 caller yet | ✓ FLOWING |
+Unchanged from the previous run: site-settings endpoint, `/health` time-zone and database checks, and the audit row are all ✓ FLOWING, and no source on those paths changed.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Zero-warning build | `dotnet build Csps.slnx -tl:off` | 0 Warning(s) 0 Error(s) | ✓ PASS |
-| Whole suite | `dotnet test --solution Csps.slnx --no-build` (once) | 501/501 | ✓ PASS |
-| Coverage gate passes and can fail | `Invoke-CoverageGate.ps1` (default, then `-ApplicationLineThreshold 101`) | exit 0 / exit 1 | ✓ PASS |
-| Migrations applied, none pending | `dotnet ef migrations list --no-build` | 3 applied | ✓ PASS |
-| Idempotent script at 150 | apply twice to a throwaway `CSPS_Test_<guid>` at level 150 | exit 0 / exit 0, dropped | ✓ PASS |
+| Zero-warning build | `dotnet build --no-incremental` | 0/0 | ✓ PASS |
+| Whole suite | `dotnet test --solution Csps.slnx --no-build` (once) | 526/526 | ✓ PASS |
 | Format clean | `dotnet format --verify-no-changes` | exit 0 | ✓ PASS |
-| Local `dotnet run` + `/health`; Scalar in a browser | - | not run (no servers started) | ? SKIP → human |
+| Dev seed refuses hosted / Failover Partner / MSSQLLocalDB targets | `dotnet run --project tools/Csps.DevSeed -- --reset --connection ...` ×3 (unreachable targets) | exit 2 ×3, fixed reasons | ✓ PASS |
+| No leftover test databases | `sqlcmd` read-only query | only CSPS_Dev and CSPS_E2E | ✓ PASS |
 
 ### Probe Execution
 
-Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one. `tools/Csps.HostProbe` is an owner-run host probe, not a verification probe. It was never deployed: the Basic plan allows no extra site (HOSTING-RECORD §C). **SKIPPED (no declared probes).**
+There is no `scripts/*/tests/probe-*.sh` and no plan declares a probe. `tools/Csps.HostProbe` is an owner-run host probe that was never deployed (Basic plan). **SKIPPED (no declared probes).**
 
 ### Requirements Coverage
 
-All 19 phase IDs are claimed by at least one plan. REQUIREMENTS.md maps exactly these 19 to Phase 1, so none are orphaned.
+All 19 phase IDs are claimed by plans. REQUIREMENTS.md maps exactly these 19 to Phase 1, all marked Complete, so none is orphaned.
 
-| Requirement | Source Plan(s) | Description (short) | Status | Evidence |
-|-------------|----------------|---------------------|--------|----------|
-| FND-01 | 01-02, 01-04, 01-11 | Full schema on an empty DB from migrations alone | ✓ SATISFIED | Truth 1 (concurrency backstop abstained, truth 17) |
-| FND-02 | 01-01, 01-11 | Csps.slnx layout, scaffold removed, ports kept | ✓ SATISFIED | Truth 3; launchSettings 5115/7028 |
-| FND-03 | 01-01 | Architecture tests fail on forbidden layer/package | ✓ SATISFIED | Truth 4 |
-| FND-04 | 01-04 | Dev seed (Phase 1 scope per D-30) | ✓ SATISFIED (Phase 1 scope) | Guarded command + step framework + SiteSettings step. REQUIREMENTS.md text (users, orders, expenses, price list) is wider; the rest grows per the ROADMAP convention (Deferred 5) |
-| FND-05 | 01-06, 01-08 | RFC 9457 everywhere, traceId, field errors, API 404 | ✓ SATISFIED | Truth 7; `ResultHttpExtensionsTests`, `CspsProblemDetailsTests` |
-| FND-06 | 01-03 | /health liveness, DB, zone, no internals | ✓ SATISFIED | Truth 6 |
-| FND-07 | 01-07 | Serilog, correlation id, masking | ✓ SATISFIED | Truth 13 (WR-05, WR-08 open; backstop truth 19 abstained) |
-| FND-08 | 01-02, 01-03 | IBusinessCalendar over TimeProvider, Manila fallback | ✓ SATISFIED | Truth 10 |
-| FND-09 | 01-02 | SiteSettings entity, seed, cached port | ✓ SATISFIED | Truth 11 |
-| FND-10 | 01-05, 01-09 | Append-only AuditLog + IAuditTrail | ✓ SATISFIED | Truth 12 (WR-02, WR-03, WR-06 open) |
-| FND-11 | 01-02, 01-04 | LocalDB locally, Testcontainers in CI, Respawn, parallel | ✓ SATISFIED (local); CI half deferred | Truth 15 |
-| FND-12 | 01-04, 01-13 | Migrations verified; idempotent script ×2 at the host level | ✓ SATISFIED (provisional pin) | Truth 2; proven at 150/160/170 (backstop truth 18 abstained) |
-| FND-13 | 01-12, 01-13 | Hosting verification record | ? NEEDS HUMAN | Truth 16. REQUIREMENTS.md marks it `[x] Complete`, but 12 facts are Unverified |
-| QUAL-01 | 01-01 | Strict .NET build, CPM, audit, format | ✓ SATISFIED | Build 0/0, format exit 0, `BuildConfigTests` |
-| QUAL-03 | 01-11 | Coverage gates | ✓ SATISFIED (.NET); web part deferred | Truth 5 |
-| QUAL-06 | 01-01, 01-11 | Registry, license gate, notices, cool-down | ✓ SATISFIED (flagged) | `DependencyRegistryTests`; notices tracked; two owner-approved Microsoft exceptions (human item 9) |
-| SEC-01 | 01-06, 01-08 | Security headers on every response | ✓ SATISFIED | Truth 8 (WR-07 HSTS includeSubDomains open) |
-| SEC-02 | 01-08 | Default deny + discovery-driven matrix | ✓ SATISFIED | Truths 9, 20 |
-| SEC-04 | 01-10 | DP keys persisted, encrypted at rest | ✓ SATISFIED | Truth 14 (backstop truth 21 abstained) |
-
-### Decision Coverage
-
-All trackable CONTEXT.md decisions are honored by shipped artifacts: **34/34** (D-00..D-33). Non-blocking gate.
+| Requirement | Source Plan(s) | Status | Evidence |
+|-------------|----------------|--------|----------|
+| FND-01 | 01-02, 01-04, 01-11 | ✓ SATISFIED | Truth 1 (backstop 17 owner-accepted) |
+| FND-02 | 01-01, 01-11 | ✓ SATISFIED | Truth 3 |
+| FND-03 | 01-01 | ✓ SATISFIED | Truth 4 |
+| FND-04 | 01-04 (+ quick 261007-p98) | ✓ SATISFIED (Phase 1 scope) | Truth 1; the guard is tightened (WR-04 fixed); entity seed steps deferred (item 6) |
+| FND-05 | 01-06, 01-08 | ✓ SATISFIED | Truth 7 |
+| FND-06 | 01-03 | ✓ SATISFIED | Truth 6 |
+| FND-07 | 01-07 | ✓ SATISFIED | Truth 13 (backstop 19 owner-accepted, observed at the Phase 3 deploy) |
+| FND-08 | 01-02, 01-03 | ✓ SATISFIED | Truth 10 |
+| FND-09 | 01-02 | ✓ SATISFIED | Truth 11 |
+| FND-10 | 01-05, 01-09 | ✓ SATISFIED | Truth 12 (WR-02 deferred by the owner, must close before any audit writer) |
+| FND-11 | 01-02, 01-04 | ✓ SATISFIED (local); CI half deferred | Truth 15 |
+| FND-12 | 01-04, 01-13 | ✓ SATISFIED (provisional pin) | Truth 2 (backstop 18 owner-accepted) |
+| FND-13 | 01-12, 01-13 | ✓ SATISFIED (owner-accepted scope) | Truth 16, UAT 3 |
+| QUAL-01 | 01-01 | ✓ SATISFIED | Build 0/0, format clean |
+| QUAL-03 | 01-11 | ✓ SATISFIED (.NET); web part deferred | Truth 5 |
+| QUAL-06 | 01-01, 01-11 | ✓ SATISFIED (override) | Owner-approved Microsoft exception; override carried forward |
+| SEC-01 | 01-06, 01-08 | ✓ SATISFIED | Truth 8 |
+| SEC-02 | 01-08 | ✓ SATISFIED | Truths 9, 20 |
+| SEC-04 | 01-10 | ✓ SATISFIED | Truth 14 (backstop 21 owner-accepted) |
 
 ### Prohibitions (must-NOT)
 
 | Plan | Prohibition (short) | Tier | Disposition |
 |------|---------------------|------|-------------|
-| 01-01 | No paid/proprietary/GPL dependency; production limited to MIT/Apache/BSD/ISC | test | ⚠️ **flagged.** The enforcement is wired (registry + license gate), but two proprietary (free) Microsoft runtime packages ship under an exact-version exception recorded as owner-approved. That conflicts with the literal text (human item 9; override suggested below) |
-| 01-02 | Test code never drops a non-`CSPS_Test_` DB, never touches MSSQLLocalDB/BetsLLC_* | test | ✓ enforced: `TestDatabaseNameTests`, `QuotedName` re-check, LocalDB connection string fixed to `(localdb)\CSPS` |
-| 01-02 | No Docker/Testcontainers locally | test | ✓ enforced: `SqlBackendTests` (unset → LocalDb) |
-| 01-02 | Contact placeholders stay bracketed | test | ✓ enforced: `MigrationTests` asserts the bracketed values |
-| 01-04 | Seed never touches anything but CSPS_Dev/CSPS_E2E (never MSSQLLocalDB or a hosted DB) | test | ⚠️ **flagged, partially enforced**: `DevSeedTargetGuardTests` pass, but WR-04 bypasses exist (named-pipe alias, remote server named CSPS_E2E) (human item 10) |
-| 01-04 | No real data in seed | judgment | LLM verdict (non-authoritative): complies. Only the owner-approved business name and bracketed placeholders (`SiteSettingsDefaults`). Flagged for human review |
-| 01-04 | No migrate/seed at startup | test | ✓ enforced: `StartupSafetyTests` (ArchUnit + reflection) |
-| 01-05 | No full IP or full UA in audit rows | test | ⚠️ **flagged, partially enforced**: tests pass, but WR-02 (confirmed in `IpPrefix.cs`) keeps the full IPv4 inside a 6to4 /48 (human item 10) |
-| 01-06 | No exception text/jargon/blame in ProblemDetails outside Development | judgment | LLM verdict: complies (`PlainEnglish` titles; 5xx fixed text + reference; tested). Flagged for human review |
-| 01-07 | No full IP or raw UA in application logs | test | ✓ enforced: `LogsNeverContainClientIpOrUserAgent`, `QueryStringIsNotLogged` |
-| 01-09 | No PII/secrets in AuditLog | judgment | LLM verdict: complies by design (ids only, Detail ≤ 400 chars, no caller in Phase 1). Future callers are not constrained beyond doc comments. Flagged |
-| 01-11 | No coverage via exclusions or lowered thresholds | judgment | LLM verdict: complies (no `ExcludeFromCodeCoverage` or `--coverlet-exclude` in src/tools; defaults 100/100/95). Flagged |
-| 01-12 | No writes to the live site/DB | judgment | LLM verdict: complies as far as the repo shows (SELECT-only checklist; probe never deployed). What the owner did in the control panel cannot be observed. Flagged |
-| 01-12 | No guessed host facts | judgment | LLM verdict: complies (12 rows Unverified with reasons; A4 records only what the owner listed). Flagged |
-| 01-13 | No fact marked Verified without owner output | judgment | LLM verdict: complies (each Verified row cites A/B/D1 output and a date). Flagged |
-
-**Suggested override (if the owner accepts the Microsoft exception).** Add to this file's frontmatter:
-
-```yaml
-overrides:
-  - must_have: "MUST NOT admit any dependency or tool whose license costs money, is proprietary, or is GPL/AGPL/SSPL"
-    reason: "Two free Microsoft runtime parts of Microsoft.Data.SqlClient (SNI.runtime 6.0.2, Identity.Client.NativeInterop 0.20.6) ship unmodified under an exact-version exception (docs/license-exceptions.json); QUAL-06 allows owner-approved exceptions"
-    accepted_by: "{owner}"
-    accepted_at: "{ISO timestamp}"
-```
+| 01-01 | No paid/proprietary/GPL dependency | test | **PASSED (override)**: owner accepted the two exact-version Microsoft runtime exceptions (UAT 9). The override is carried forward verbatim |
+| 01-02 | Test code never drops a non-`CSPS_Test_` DB or touches MSSQLLocalDB/BetsLLC_* | test | ✓ enforced (`TestDatabaseNameTests`; fixed `(localdb)\CSPS`) |
+| 01-02 | No Docker/Testcontainers locally | test | ✓ enforced (`SqlBackendTests`) |
+| 01-02 | Contact placeholders stay bracketed | test | ✓ enforced (`MigrationTests`) |
+| 01-04 | Seed never touches anything but CSPS_Dev/CSPS_E2E (never MSSQLLocalDB or a hosted DB) | test | ✓ **enforced (newly closed)**: WR-04 fixed. The server allow-list and Failover Partner refusal are covered by 49 passing guard tests and 3 CLI refusals in this run. The previous bypasses (named-pipe alias, remote server named CSPS_E2E) are now refused |
+| 01-04 | No real data in seed | judgment | Owner agreed with the verdict (UAT 11) |
+| 01-04 | No migrate/seed at startup | test | ✓ enforced (`StartupSafetyTests`) |
+| 01-05 | No full IP or full UA in audit rows | test | Owner-deferred (UAT 10). WR-02 (6to4/NAT64) is `deferred` in 01-REVIEW-DISPOSITION and must close before any code path writes audit rows. No Phase 1 code path writes audit rows. All other cases are enforced by passing tests |
+| 01-06 | No exception text/jargon in ProblemDetails outside Development | judgment | Owner agreed (UAT 11) |
+| 01-07 | No full IP or raw UA in logs | test | ✓ enforced |
+| 01-09 | No PII/secrets in AuditLog | judgment | Owner agreed (UAT 11) |
+| 01-11 | No coverage via exclusions or lowered thresholds | judgment | Owner agreed (UAT 11) |
+| 01-12 | No writes to the live site/DB | judgment | Owner agreed and confirmed no live changes (UAT 11) |
+| 01-12 | No guessed host facts | judgment | Owner agreed (UAT 11) |
+| 01-13 | No fact marked Verified without owner output | judgment | Owner agreed (UAT 11) |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `tests/Csps.Server.IntegrationTests/Health/HealthEndpointTests.cs` | 25 | `ContentType?.MediaType.ShouldBe(...)` passes vacuously (WR-09, deferred-items.md) | ⚠️ Warning | The content-type assertion cannot fail on a missing header; body-shape assertions still run |
-| `tests/Csps.Server.IntegrationTests/Health/HealthEndpointFailureTests.cs` | 95 | same | ⚠️ Warning | `HtmlAcceptStillGetsJson`'s key assertion is weak |
-| `src/Csps.Infrastructure/Content/SiteSettingsReader.cs` | 14, 31 | scoped DbContext captured by the HybridCache factory (WR-01) | ⚠️ Warning | A cold-cache race on cancellation can give a 500 or an Unhealthy check |
-| `src/Csps.Domain/Auditing/IpPrefix.cs` | 37-40 | 6to4/NAT64 not mapped before /48 (WR-02) | ⚠️ Warning | Data-minimization bypass for 6to4 clients |
-| `src/Csps.Infrastructure/Auditing/AuditTrail.cs` | 31-32 | `SaveChangesAsync` on the shared scoped context (WR-03) | ⚠️ Warning | Phase 4 callers could commit unrelated changes |
-| `src/Csps.Infrastructure/Seeding/DevSeedTargetGuard.cs` | 50 | substring blocklist, no server allow-list (WR-04) | ⚠️ Warning | Guard bypass |
-| `src/Csps.Server/Logging/SensitiveDataMasking.cs` | 15-31 | Identity secret names not masked (WR-05) | ⚠️ Warning | Phase 4 risk (PasswordHash, SecurityStamp) |
-| `src/Csps.Server/Http/CorrelationId.cs` | 20-22 | non-W3C fallback breaks the IRequestContext contract (WR-06) | ⚠️ Warning | An audit write on that path throws |
-| `src/Csps.Server/Http/SecurityHeadersMiddleware.cs` | 24 | HSTS `includeSubDomains` on the legacy domain (WR-07) | ⚠️ Warning | Could break live subdomains once deployed |
-| `src/Csps.Server/Logging/LogFileSettings.cs` | 46-54 | 30-file cap can evict 30-day retention (WR-08) | ⚠️ Warning | Log evasion under a flood |
-| `tests/Csps.ArchitectureTests/HostingRecordTests.cs` | 37 | `"TBD"`/`"TODO"` appear as string literals in a detector list | ℹ️ Info | Not a debt marker (it is data, not a comment); no unreferenced TBD/FIXME/XXX found in phase files |
-| `.planning/ROADMAP.md` | 164 | 01-13 described as "compatibility level re-pinned and re-proven" | ℹ️ Info | Inaccurate: the level stays 160, provisional (D-33) |
-| `CLAUDE.md` (root) | - | Untracked in git; still says "2-year audit retention" (IN-09; D-32 is 8 months) | ℹ️ Info | A fresh clone lacks the shared-machine rules file |
+| `src/Csps.Infrastructure/Seeding/DevSeedTargetGuard.cs` | — | none: no debt markers, no stubs; reasons are fixed text | — | Changed file is clean |
+| `tests/.../Health/HealthEndpointTests.cs`, `HealthEndpointFailureTests.cs` | 25, 95 | vacuous content-type assertion (WR-09, open) | ⚠️ Warning | Body-shape assertions still run |
+| `src/Csps.Infrastructure/Content/SiteSettingsReader.cs` | 14, 31 | scoped DbContext in HybridCache factory (WR-01, open) | ⚠️ Warning | Cold-cache cancellation race |
+| `src/Csps.Domain/Auditing/IpPrefix.cs` | 37-40 | 6to4/NAT64 not mapped (WR-02, **owner-deferred**) | ⚠️ Warning | Must close before the first audit writer (Phase 4). It is tracked only in 01-REVIEW-DISPOSITION and not in a ROADMAP criterion, so the Phase 4 plan should pick it up |
+| `src/Csps.Infrastructure/Auditing/AuditTrail.cs` | 31-32 | SaveChanges on the shared scoped context (WR-03, open) | ⚠️ Warning | Phase 4 caller risk |
+| `src/Csps.Server/Logging/SensitiveDataMasking.cs` | 15-31 | Identity secret names not masked (WR-05, open) | ⚠️ Warning | Phase 4 risk |
+| `src/Csps.Server/Http/CorrelationId.cs` | 20-22 | non-W3C fallback (WR-06, open) | ⚠️ Warning | Audit write could throw on that path |
+| `src/Csps.Server/Http/SecurityHeadersMiddleware.cs` | 24 | HSTS `includeSubDomains` (WR-07, open) | ⚠️ Warning | Matters at the first deploy |
+| `src/Csps.Server/Logging/LogFileSettings.cs` | 46-54 | 30-file cap vs 30-day retention (WR-08, open) | ⚠️ Warning | Log flood eviction |
+| `CLAUDE.md` (root) | Audit/logs bullet | still says "2-year audit retention" (IN-09, open) | ℹ️ Info | The file is now tracked (previous Info resolved), but the retention text still differs from D-32 |
+| `tools/Csps.HostProbe/Properties/launchSettings.json` | 9 | **untracked** VS-generated file using ports 53693/53694 (Windows dynamic range, which CLAUDE.md says to avoid) | ℹ️ Info | Not in git and not shipped. Delete it, or set non-dynamic ports, before it is ever committed |
+| `src/Csps.Server/Endpoints/SiteSettingsEndpoints.cs` | — | Minimal API endpoint after the 2026-10-07 switch to controllers | ℹ️ Info | Explicitly allowed to stay until a later phase touches it (owner rule change). Not a gap |
 
-Code review (01-REVIEW.md): 0 critical, 9 warnings, 9 info, **all still `open`** in 01-REVIEW-DISPOSITION.md. None blocks the phase goal. The warnings above are the confirmed ones the verifier checked against code (WR-02, WR-05, WR-09 re-read directly). They should be triaged (fixed or deferred with a reason) before `/gsd-ship 1`.
-
-### Test Quality Audit
-
-| Test File | Linked Req | Active | Skipped | Circular | Assertion Level | Verdict |
-|-----------|-----------|--------|---------|----------|-----------------|---------|
-| Persistence/MigrationTests, MigrationScriptTests | FND-01, FND-12 | 8 | 0 | No | Value (raw SQL reads) | OK |
-| Health/HealthEndpointTests, HealthEndpointFailureTests | FND-06 | 8 | 0 | No | Value; content-type assertion vacuous (WR-09) | ⚠️ Insufficient (1 assertion) |
-| Http/SecurityHeadersTests, ProblemDetailsTests, CspsProblemDetailsTests | SEC-01, FND-05 | 17 | 0 | No | Value + behavioral (real pipeline 500) | OK |
-| Authorization/* | SEC-02 | 25 | 0 | No | Behavioral (real JWTs, discovered endpoints) | OK |
-| Auditing/* (Domain + Infrastructure) | FND-10 | 53 | 0 | No | Value + DB behavioral (raw SQL refused) | OK |
-| Logging/* | FND-07 | 14 | 0 | No | Value + behavioral (parallel ids) | OK |
-| Security/DataProtectionTests | SEC-04 | 7 | 0 | No | Behavioral (two hosts) | OK |
-| Time/*, Content/* | FND-08, FND-09 | 27 | 0 | No | Value (fixed vectors, fake clock) | OK |
-| ArchitectureTests/* | FND-02/03, QUAL-01/06, FND-13 | 50 | 0 | No | Value (file/assembly rules) | OK |
-
-**Disabled tests on requirements:** 0. **Circular patterns detected:** 0. **Insufficient assertions:** 1 (WR-09). That is a WARNING, because other assertions in the same tests cover the requirement.
+There are no unreferenced `TBD`/`FIXME`/`XXX` markers in the files this round changed (a grep matched only binaries under `bin/`). The open warnings are the code-review findings, none of which blocks the phase goal: 16 open, WR-02 deferred, WR-04 fixed.
 
 ### Human Verification Required
 
-#### 1. Local full-stack run
-**Test:** After preflight, run `dotnet run --project src/Csps.Server --launch-profile http` and request `GET http://localhost:5115/health`.
-**Expected:** 200 with self, database and time-zone all `Healthy`. Stop the server afterwards.
-**Why human:** Needs a running server. The verifier does not start servers.
-
-#### 2. Scalar CSP browser check (assumption A7). NOT done yet
-**Test:** With the `https` profile, open https://localhost:7028/scalar in Chrome and look at the DevTools console.
-**Expected:** The reference renders, with zero CSP violations. Tighten the carve-out if `'unsafe-inline'` turns out to be unnecessary.
-**Why human:** Browser CSP enforcement. This is the planned end-of-phase `<human-check>` from plan 01-06.
-
-#### 3. Hosting record: 12 facts Unverified
-**Test:** The owner reads the Facts table in `.planning/HOSTING-RECORD.md`.
-**Expected:** The owner accepts that:
-- the 9 probe facts are verified at the first real deploy (Phase 3)
-- `model` compat stays Unverified
-- DKIM and the Gmail pass are supplied before Phase 4
-**Why human:** The goal says "verified record". It is honest, but only partly verified.
-
-#### 4. Provisional compatibility pin
-**Test:** Acknowledge `SqlCompatibility.Level = 160` (D-33), then add the re-pin to 170 to the ROADMAP cutover phases and fix ROADMAP line 164.
-**Expected:** The re-pin is tracked by a roadmap criterion.
-**Why human:** The re-pin is tracked only in CONTEXT D-33. The behavior is proven at 150, 160 and 170.
-
-#### 5-8. Non-inferable backstop truths: unverified, held-out test recommended (reason: insufficient_spec)
-- **FND-01 concurrency:** interrupt a migration, then re-run.
-- **FND-12 concurrency:** make a script batch fail inside the second migration, then re-apply.
-- **FND-07 multi-process:** two processes write the same `shared: true` log file.
-- **SEC-04 concurrency:** two hosts start at the same moment against an empty key ring.
-
-The completion line for these reads: "complete with 4 unverified non-inferable checks".
-
-#### 9. License prohibition vs the Microsoft exception
-**Test:** Confirm the owner's Option A approval (2026-10-07). Then either add the override shown above or plan a substitute, and mention the exception in CLAUDE.md's license line.
-**Why human:** Flagged prohibition. The approval appears only in executor-written docs.
-
-#### 10. Partially enforced prohibitions (WR-02 6to4 IP, WR-04 dev-seed server allow-list)
-**Test:** Decide whether to fix these now or defer them with a recorded reason.
-**Why human:** These are confirmed bypasses of must-NOT rules.
-
-#### 11. Judgment-tier prohibitions (7)
-**Test:** Review the non-authoritative verdicts in the Prohibitions table.
-**Why human:** A judgment-tier prohibition is never silently passed.
+None. Every item from the previous report was resolved in `01-UAT.md` (11/11 pass, owner notes recorded), and this round found no new item that needs a human.
 
 ### Gaps Summary
 
-No must-have is FAILED, no artifact is MISSING or a STUB, no key link is NOT_WIRED, and there are no unreferenced debt markers. The verifier independently confirmed the core technical claims:
-- 0-warning build, 501/501 tests, format clean
-- coverage gate passes and can fail
-- migrations applied on the dev and E2E databases with no leftovers
-- the idempotent script applies twice even at level 150
+There are no gaps. The phase goal is achieved in the codebase:
+- the onion solution builds with zero warnings (forced rebuild)
+- all 526 tests pass against isolated LocalDB `CSPS_Test_` databases, with nothing left behind
+- the platform contract (ProblemDetails, health, logging, security headers, default-deny matrix) and the shared primitives (business calendar, SiteSettings, append-only audit log, SQL fixture) are present, wired and tested
+- the hosting record is honest and owner-accepted
 
-So the onion API, the platform contract and the shared primitives are delivered and wired.
+The WR-04 fix closes the last partially enforced test-tier prohibition that was in scope. The dev seed now refuses every server except `(localdb)\CSPS` or a loopback container, and refuses any Failover Partner. The verifier confirmed this through tests and through the CLI itself.
 
-The phase is not `passed` for three reasons:
-1. **Hosting record:** "a verified record of the SmarterASP.NET hosting facts" is only partly true. 12 of 31 facts are honestly Unverified because the Basic plan allows no probe site. The compatibility level stays at the provisional 160 (D-33), and the re-pin is tracked outside the ROADMAP.
-2. **Backstops:** four non-inferable concurrency truths (FND-01, FND-12, FND-07 multi-process, SEC-04) have no explicit evidence, so the verifier abstained (insufficient_spec). SEC-02's backstop does have a passing parallel test.
-3. **Flagged prohibitions and manual checks:**
-   - the license prohibition conflicts with the owner-approved Microsoft exception
-   - two test-tier prohibitions have confirmed bypasses (WR-02, WR-04)
-   - seven judgment-tier prohibitions carry only LLM verdicts
-   - the Scalar browser check and the local `dotnet run` have not been done
-
-All 18 code-review findings remain `open` and should be dispositioned before shipping.
+These remain, all non-blocking:
+- the owner-deferred WR-02 (it must be fixed before Phase 4 writes audit rows)
+- 7 other open code-review warnings
+- the 6 deferred items above, each tracked in a later phase
 
 ---
 
-_Verified: 2026-10-07T22:02:13Z_
+_Verified: 2026-10-07T23:38:06Z_
 _Verifier: Claude (gsd-verifier)_
