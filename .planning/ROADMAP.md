@@ -21,7 +21,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   - a UI-spec match at 320/768/1280 px
   - CWE rows mitigated and tested
   - production data untouched
-- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow, ORD-08's conflict UX and ORD-22's "Received by" field, against IDs that stay mapped to Phase 7.
+- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow, ORD-08's conflict UX, ORD-22's "Received by" field and ORD-23's "Paid by" field, against IDs that stay mapped to Phase 7.
 - **Pieces that grow.** Each of these is set up once, then extended by every later phase for its own entities and endpoints:
   - the dev seed (FND-04)
   - the audit event catalog (AUDIT-01)
@@ -388,7 +388,7 @@ Plans:
 **Goal**: The order aggregate and its full API enforce every owner-ruled business rule and always return correct, server-computed totals. The API covers create, read, list/search, update, child mutations, status and delete. Fixtures, invariant tests and race tests prove the Core Value before Phase 8 builds on it.
 **Mode:** mvp
 **Depends on**: Phase 6 (the proven slice pattern), Phase 4 (staff policies)
-**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22
+**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22, ORD-23
 **Success Criteria** (what must be TRUE):
   1. **Atomic create and numbering.** One API call creates an order atomically: customer details, dates, status, notes and one or more items, plus optional payments, discounts and expenses.
      - The order gets the next `ORD-{YYYY}-{NNNN}` number, with no duplicates under 20 parallel creates and the correct year across New Year in Manila.
@@ -398,6 +398,7 @@ Plans:
   4. **Status rules.** Status changes follow only the ruled transitions, and each one is recorded: from, to, who and when. Payments on cancelled orders and refunds follow the ruled policy, so collected-cash figures stay correct.
   5. **Legacy import path.** `Order.Import` accepts legacy-shaped data (preserved order numbers, lenient rules) through configurable rule constants. An owner ruling then becomes a constant change rather than a schema change.
   6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
+  7. **Expense payer.** Every order expense names who paid it (ORD-23): a required, server-validated reference to an active Admin or Manager on order-expense create, order-expense edit and full-aggregate create, with a plain-English field error otherwise. A change of payer is audited because it moves money between staff balances (MONEY-01).
 
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
@@ -414,7 +415,8 @@ Plans:
 - **C-42** optional early read-only legacy fit check. If approved, insert it as Phase 7.1, and never derive the schema from it.
 - **C-43** payment methods, e.g. cheque
 - **C-44** fixed `ProductType` enum with no price-item FK
-- **OD-15** (shape only; the final rule is a Phase 15 ruling) how legacy payments get a receiver: `Order.Import` must be able to accept it, e.g. a "Legacy / unassigned" holder that can't sign in
+- **OD-15** (shape only; the final rule is a Phase 15 ruling) how legacy payments get a receiver and legacy order expenses a payer: `Order.Import` must be able to accept both, e.g. a "Legacy / unassigned" holder that can't sign in
+- **OD-21** apply the Phase 6 ruling on company payers to order expenses, or ask now if still open
 
 **Research flag:** Needs research:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
@@ -440,6 +442,7 @@ Plans:
      - After every save, the figures come from the server.
      - A 409 conflict explains itself, keeps the user's input and offers a reload.
      - The payment modal has a required "Received by" picker of active staff (ORD-22, label per OD-20). The UI spec's modal lacks this field, so it is marked SPEC-GAP.
+     - The order-expense modal has a required "Paid by" picker of active staff (ORD-23), and the Expenses tab shows it. The UI spec's modal and tab lack this field, so they are marked SPEC-GAP.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
@@ -695,13 +698,13 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - value shapes, without real customer data
      - data-quality anomalies, with counts
      - image storage and user accounts
-  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress. It includes the rule that gives every migrated payment a Received by (MIG-09, OD-15).
+  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress. It includes the rules that give every migrated payment a Received by (MIG-09, OD-15), and every migrated expense a Paid by and every migrated record its creator attribution (MIG-10, OD-15).
   4. **Approval gate.** The owner has approved `LEGACY-MAPPING.md`, and no ETL code was written before that approval.
 
 **Owner decisions to close at discuss step:**
 - **C-28** final name of the legacy-restore database
 - the rulings real data may break: **C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7**. Examples: multiple discounts, overpayments, more than 5 images, missing due dates, unknown statuses, local-time timestamps.
-- **OD-15** (final) how migrated payments get a Received by, whether they count toward money on hand, and whether staff start with opening balances at go-live
+- **OD-15** (final) how migrated payments get a Received by and migrated company and order expenses a Paid by; whether those payments and expenses count toward money on hand; whether a legacy record that names its creator keeps that creator as a migrated user (a record with an unknown creator gets "Legacy import", owner ruling 2026-10-07); and whether staff start with opening balances at go-live
 
 **Owner prerequisites:** Owner approval of `LEGACY-MAPPING.md`. This is a blocking checkpoint.
 
@@ -714,7 +717,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Goal**: Every legacy order, payment, discount, expense, image and user lands in a fresh EF-migrated database with 100% reconciliation, proven by a timed dress rehearsal on staging.
 **Mode:** mvp
 **Depends on**: Phase 15 (approved mapping)
-**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08, MIG-09
+**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08, MIG-09, MIG-10
 **Success Criteria** (what must be TRUE):
   1. **Legacy columns.** The approved legacy-only columns (`LegacyId`, legacy order number) exist as nullable columns, added through normal migrations. The app still builds, tests and runs on an empty database.
   2. **ETL.** The `tools/Csps.LegacyMigration` ETL:
@@ -733,6 +736,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      It lists every transformed or rejected row with a reason, and blocks cutover unless reconciliation is 100% with zero unexplained differences.
   5. **Dress rehearsal.** A timed dress rehearsal on the staging site, using a fresh `.bak`, runs end to end and passes reconciliation.
   6. **Payment receivers.** Every migrated payment has a Received by under the approved OD-15 rule. None was dropped or changed, and reconciliation covers them all.
+  7. **Expense payers and record attribution.** Every migrated company and order expense has a Paid by, and every migrated record has its creator attribution ("Legacy import" when the creator is unknown), under the approved OD-15 rules. No expense or record was dropped or changed, and reconciliation covers them all.
 
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
@@ -805,7 +809,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 176 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 178 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
@@ -815,7 +819,7 @@ All 176 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
 | 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07 | 14 |
 | 6 | CEXP-01…CEXP-05, PERF-04 | 6 |
-| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22 | 11 |
+| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22, ORD-23 | 12 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
 | 9 | ORD-04, IMG-01…IMG-05, JOB-01, JOB-02 | 8 |
 | 10 | DASH-01…DASH-06, MONEY-01…MONEY-08 | 14 |
@@ -824,9 +828,9 @@ All 176 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 13 | INQ-01…INQ-08 | 8 |
 | 14 | SEC-05, A11Y-05, PERF-06, PERF-07, LEGAL-06 | 5 |
 | 15 | MIG-01, MIG-02 | 2 |
-| 16 | MIG-03…MIG-09 | 7 |
+| 16 | MIG-03…MIG-10 | 8 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **176** |
+| **Total** | | **178** |
 
 ## Progress
 
