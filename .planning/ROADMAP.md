@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T16:38:02-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T18:15:00-05:00*
 
 ## Overview
 
@@ -161,7 +161,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [x] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
-- [x] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
+- [x] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level kept at 160, provisional (D-33; re-pin at Phase 17 cutover) (W7)
 
 ### Phase 2: Web Foundation & Design System
 
@@ -769,6 +769,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - scheduled DB backups, with one restore tested
      - a live TLS certificate, with HSTS enabled after verification
      - SPF/DKIM/DMARC passing on the sender domain
+     - a SQL Server 2025 database created in the control panel (D-33; SmarterASP.NET confirmed 2026-10-07 that there is no in-place upgrade, so the data arrives by `.bak` restore). Its compatibility level is verified, `SqlCompatibility.Level` is re-pinned from the provisional 160 to that level (170 expected), and `MigrationScriptTests` is re-run at the new pin
   2. **Runbook executed.** The cutover runbook is executed with the owner present. The point of no return and the rollback plan are written down beforehand. The steps:
      1. maintenance notice
      2. legacy set read-only
@@ -786,6 +787,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 - Control of the production domain and DNS.
 - The production SQL login and scheduled backups, enabled in the SmarterASP.NET control panel.
 - The production TLS certificate.
+- SmarterASP.NET's answer on whether the Basic plan (1 database) allows a temporary second database, at no extra cost, while the live one still exists (D-33). If not, the runbook takes the live site offline from deleting the old database until the restore finishes.
 
 **Research flag:** Needs research: restoring a `.bak` on the host vs running the ETL locally and then restoring on the host (LOW confidence).
 

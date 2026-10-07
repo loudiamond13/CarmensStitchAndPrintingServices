@@ -2,7 +2,7 @@
 phase: 01-hosting-verification-backend-foundation
 verified: 2026-10-07T22:02:13Z
 created: 2026-10-07T17:02:13-05:00
-updated: 2026-10-07T17:02:13-05:00
+updated: 2026-10-07T18:40:00-05:00
 status: human_needed
 score: 16/23 must-haves verified (4 abstained as insufficient_spec, 3 need a human)
 covered_files:
@@ -223,7 +223,12 @@ covered_files:
 covered_digest: "v2:sha256:30a7b14ff7753c25b81f51b44099ec6e87107c8668359d4c3e42f6bc55890454"
 behavior_unverified: 0
 insufficient_spec: 4
-overrides_applied: 0
+overrides_applied: 1
+overrides:
+  - must_have: "MUST NOT admit any dependency or tool whose license costs money, is proprietary, or is GPL/AGPL/SSPL"
+    reason: "Two free Microsoft runtime parts of Microsoft.Data.SqlClient (SNI.runtime 6.0.2, Identity.Client.NativeInterop 0.20.6) ship unmodified under an exact-version exception (docs/license-exceptions.json); QUAL-06 allows owner-approved exceptions"
+    accepted_by: "owner"
+    accepted_at: "2026-10-07T18:40:00-05:00"
 deferred:
   - truth: "Integration tests run against Testcontainers SQL Server 2025 in CI (CSPS_TEST_SQL=container); the container path exists but has never run (no CI yet, and Docker is never used locally per D-07)"
     addressed_in: "Phase 3"
