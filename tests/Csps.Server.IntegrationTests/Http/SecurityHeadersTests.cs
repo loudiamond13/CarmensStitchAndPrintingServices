@@ -1,5 +1,8 @@
 using System.Net;
 using Csps.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Hosting;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -28,6 +31,64 @@ public sealed class SecurityHeadersTests(CspsDatabase database) : IClassFixture<
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         AssertStrictHeaderSet(response, expectHsts: true);
+    }
+
+    [Fact]
+    public async Task HstsOnlyOverHttps()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var httpClient = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+        using var httpsClient = factory.CreateClient();
+
+        using var overHttp = await httpClient.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var overHttps = await httpsClient.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        overHttp.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertStrictHeaderSet(overHttp, expectHsts: false);
+        overHttps.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertStrictHeaderSet(overHttps, expectHsts: true);
+    }
+
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/api/v1/nope")]
+    public async Task EachHeaderAppearsOnce(string path)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        AssertStrictHeaderSet(response, expectHsts: true);
+        response.Headers.Contains("Server").ShouldBeFalse();
+        response.Headers.Contains("X-Powered-By").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task HeadHealthCarriesHeaders()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Head, new Uri("/health", UriKind.Relative));
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertStrictHeaderSet(response, expectHsts: true);
+    }
+
+    [Fact]
+    public async Task ProductionRedirectsHttpToHttps()
+    {
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Production));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        ((int)response.StatusCode).ShouldBeOneOf(307, 308);
+        response.Headers.Location.ShouldNotBeNull().ToString().ShouldStartWith("https://localhost", Case.Sensitive);
+        response.Headers.Contains("Strict-Transport-Security").ShouldBeFalse();
     }
 
     /// <summary>Asserts every SEC-01 header is present exactly once with its exact value.</summary>
