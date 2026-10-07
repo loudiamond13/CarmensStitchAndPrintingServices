@@ -34,7 +34,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
   2. `/gsd-plan-phase N --tdd`.
   3. Phases with a UI hint run `/gsd-ui-phase N`, with `CSPS-UI-SPEC.md` as the source of truth.
   4. `/gsd-secure-phase N`, `/gsd-ui-review N` and `/gsd-verify-work` all complete before `/gsd-ship N`.
-- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-20 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
+- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-21 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
 - **Shared machine.** CLAUDE.md binds every phase:
   - Run the preflight before any dev server, Playwright run or full test run.
   - Use only ports 5180, 5115, 7028 and 5199.
@@ -361,18 +361,20 @@ Plans:
 **Goal**: Staff can record, find and total the shop's company expenses, with month KPIs that are correct in Manila time. This is the simplest aggregate, so it proves the slice pattern before the order aggregate: rowversion 409s, filters, period totals, query-count guards and ConfirmDialog.
 **Mode:** mvp
 **Depends on**: Phase 5, because "Recorded by" must survive user deletion
-**Requirements**: CEXP-01, CEXP-02, CEXP-03, CEXP-04, PERF-04
+**Requirements**: CEXP-01, CEXP-02, CEXP-03, CEXP-04, CEXP-05, PERF-04
 **Success Criteria** (what must be TRUE):
   1. **List and filter.** Staff can list company expenses (last 30 days by default, newest first), filter by date range and category, search by description or staff name, page through results and see the period total.
   2. **Edit with conflict protection.** Staff can add, edit and delete (after confirmation) an expense with a date, category, description and an amount above zero. Saving over someone else's newer change shows a 409 conflict instead of overwriting it. Deletion follows the OD-5 ruling.
   3. **Month KPIs.** KPI cards show this month, the last full month and this month's top category with its share. Month boundaries are in Asia/Manila, so an expense at 07:00 Manila time on the 1st counts in the new month.
   4. **Attribution.** Each expense shows a read-only "Recorded by", and it still shows the name after that user is deleted.
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
+  6. **Paid by.** Every expense names who paid it (CEXP-05): a required, server-validated reference to an active Admin or Manager on create and edit, chosen from a staff lookup that both roles can use, with a plain-English field error otherwise. The list shows it, the staff-name search matches it, and a change of payer is audited because it moves money between staff balances (MONEY-01).
 
 **Owner decisions to close at discuss step:**
 - **OD-5** hard vs soft delete for company expenses
 - **OD-8** fixed vs Manager-editable categories, for both the company and the order expense lists
 - **C-43** whether the categories fit, e.g. SSS, PhilHealth, Pag-IBIG, BIR
+- **OD-21** whether an expense can be paid by the company (e.g. from the business bank or GCash account) instead of a staff member (default: no, a staff member is required)
 - **OD-14**
 - **Sequencing check:** research recommends this slice before Orders. If the owner prefers Orders first, Phase 7 becomes the slice that sets the pattern.
 
@@ -508,7 +510,7 @@ Plans:
      - "Orders by status" shows the active total.
      - The 6 most recent orders link to their detail pages.
   4. **Card states.** Every card shows a skeleton while loading, an empty state when there's no data and an error state with retry.
-  5. **Money on hand.** Each staff member sees their own server-computed money on hand (payments they received + transfers in − transfers out) and its ledger, plus a dashboard card. An Admin sees only their own figures and transfers and gets 403 for anyone else's. A Manager sees every staff member's balance and all transfers.
+  5. **Money on hand.** Each staff member sees their own server-computed money on hand (payments they received + transfers in − transfers out − expenses they paid) and its ledger, plus a dashboard card. An Admin sees only their own figures and transfers and gets 403 for anyone else's. A Manager sees every staff member's balance and all transfers.
   6. **Coworker transfers.** A staff member can transfer part of their money on hand to another active staff member: above zero, not to themselves, not future-dated in Manila time and, by default, never more than they hold, even under two concurrent attempts. A double-click records one transfer. Transfers can't be edited. Only a Manager can delete one (an Admin gets 403), and every delete lands in the audit log with the full record. Every new endpoint has authorization-matrix rows for anonymous, Admin and Manager.
 
 **Owner decisions to close at discuss step:**
@@ -518,7 +520,7 @@ Plans:
   - whether cancelled orders appear in "Orders by status"
   - whether receivables include overdue orders
 - **C-18** confirm the dashboard scope
-- **OD-16** staff balance rules: transfers above the sender's balance (default: refuse); a payment correction or order deletion that pushes a balance below zero; whether expenses or refunds paid from a staff member's cash count (default: only payments and transfers, as the owner described); how money still held by a deactivated or deleted staff member is handed over (otherwise the sender is always the signed-in user)
+- **OD-16** staff balance rules: transfers above the sender's balance (default: refuse); whether paying an expense may take the payer's balance below zero (default: allow it, because refusing would leave a real expense unrecorded); a payment correction or order deletion that pushes a balance below zero; whether refunds paid from a staff member's cash count (default: no). Expenses a staff member paid always count (owner ruling, 2026-10-07). Also: how money still held by a deactivated or deleted staff member is handed over (otherwise the sender is always the signed-in user)
 - **OD-17** transfer edits (default: none; delete and re-create)
 - **OD-18** soft vs hard delete for transfers (recommended: soft)
 - **OD-19** apply the 2026-10-07 ruling: only Managers delete transfers, an Admin sees only their own money and transfers, and a Manager sees everyone's
@@ -789,7 +791,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 | **Before Phase 3** | C-27 / S-9, C-45 (owner creates the GitHub repo; Web Deploy credentials; secrets) | CI security set, branch protection, staging deploy |
 | **Before Phase 4 starts** (one security batch) | OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33 | Sign-in, 2FA, reset, onboarding and email change. Email is a hard sign-in dependency, so send this batch early |
 | **Phase 5 discuss** | C-41 (+ C-4 and C-9 if still open) | User delete semantics, onboarding, email change |
-| **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43 | Expense schema and categories |
+| **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43, OD-21 | Expense schema and categories, expense payer |
 | **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44, OD-15 (shape only) | The order aggregate, numbering, invariants and schema (Core Value) |
 | **Phase 8 discuss** | C-13 (labels), C-18, OD-20 | Order screens, payment receiver label |
 | **Phase 9 discuss** | OD-9 / C-26, C-2, C-16 (+ Cloudinary account) | Image delivery, per-order limit, accessible reorder |
@@ -803,7 +805,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 
 ## Coverage
 
-All 175 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 176 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
@@ -812,7 +814,7 @@ All 175 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 3 | OPS-01…OPS-05 | 5 |
 | 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
 | 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07 | 14 |
-| 6 | CEXP-01…CEXP-04, PERF-04 | 5 |
+| 6 | CEXP-01…CEXP-05, PERF-04 | 6 |
 | 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22 | 11 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
 | 9 | ORD-04, IMG-01…IMG-05, JOB-01, JOB-02 | 8 |
@@ -824,7 +826,7 @@ All 175 v1 requirements are mapped, each to exactly one phase. There are no orph
 | 15 | MIG-01, MIG-02 | 2 |
 | 16 | MIG-03…MIG-09 | 7 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **175** |
+| **Total** | | **176** |
 
 ## Progress
 

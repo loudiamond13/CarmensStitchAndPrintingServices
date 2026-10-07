@@ -113,6 +113,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
 - [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
 - [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion
+- [ ] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
 
 ### Orders (ORD)
 
@@ -165,7 +166,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 Added by the owner on 2026-10-07: "Every user can have money tied to them and users can transfer their money to basically other user which they are coworker." The owner then ruled the same day that only Managers delete transfers, and that an Admin sees only their own money while a Manager sees everyone's (OD-19, resolved). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover this yet.
 
-- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them. Deleted transfers never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side) ⚑ OD-15, OD-16
+- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23; owner ruling, 2026-10-07). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), so Phase 10 depends on both and no phase moves. An integration test gives one staff member payments received, transfers in and out, and company and order expenses paid, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16
 - [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server
 - [ ] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
 - [ ] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
@@ -393,6 +394,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CEXP-02 | Phase 6 | Pending |
 | CEXP-03 | Phase 6 | Pending |
 | CEXP-04 | Phase 6 | Pending |
+| CEXP-05 | Phase 6 | Pending |
 | ORD-01 | Phase 8 | Pending |
 | ORD-02 | Phase 8 | Pending |
 | ORD-03 | Phase 7 | Pending |
@@ -499,8 +501,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CUT-03 | Phase 17 | Pending |
 
 **Coverage:**
-- v1 requirements: 175 total
-- Mapped to phases: 175
+- v1 requirements: 176 total
+- Mapped to phases: 176
 - Unmapped: 0 ✓
 
 Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where their gate is first built. Every later phase enforces them through the PRD §22 Definition of Done (see ROADMAP.md "Roadmap Conventions").
