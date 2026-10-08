@@ -4,7 +4,7 @@ plan: 07
 subsystem: order-math
 tags: [order-math, golden-vectors, rounding, bigint, decimal, xunit, vitest, d-09, web-07]
 created: "2026-10-08T11:42:00-05:00"
-updated: "2026-10-08T11:42:00-05:00"
+updated: "2026-10-08T11:44:00-05:00"
 
 requires:
   - phase: 02-web-foundation-design-system (plan 02-04)
@@ -268,4 +268,4 @@ None. No external service configuration is required.
 
 - All 12 created files and 4 modified files exist on disk.
 - Commits `732df22`, `55ea013`, `ebdb18b`, `54908a7`, `39e92d3` and `8afda05` are on `gsd/phase-2-web-foundation-design-system`.
-- Acceptance criteria re-run: `MidpointRounding.AwayFromZero` = 1, `const decimal` = 0, `SPEC-DEVIATION: D-09` ≥ 1 (5), node vector-count check exits 0 (220 unique), `--check` exits 0, `eslint-disable` in csps.ts = 0, `npm --prefix web run verify` exits 0, the coverage gate passes (Domain 100%/100%), and `dotnet test --project tests/Csps.Domain.UnitTests` passes (393).
+- Acceptance criteria re-run: `MidpointRounding.AwayFromZero` = 1, `const decimal` = 0, `SPEC-DEVIATION: D-09` ≥ 1 (4), node vector-count check exits 0 (220 unique), `--check` exits 0, `eslint-disable` in csps.ts = 0, `npm --prefix web run verify` exits 0, the coverage gate passes (Domain 100%/100%), and `dotnet test --project tests/Csps.Domain.UnitTests` passes (393).
