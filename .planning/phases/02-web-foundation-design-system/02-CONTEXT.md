@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T06:56:03-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T07:09:18-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -158,6 +158,8 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
 - **D-35 (third-party credits, backlog D-BL-04, research R-6):** the owner chose **"Repo only"**. Vite's `build.license` is **off** (`false`), so no license file is written into the web root. The complete `THIRD-PARTY-NOTICES` stays in the repository, and nothing is published on the site. This narrows D-10's "Vite build.license / THIRD-PARTY-NOTICES" to the repository notices.
 - **D-36 (Tailwind tooling packages, research R-3/R-4):** the owner chose **"Add both plugins"** and approves, at exact versions, **prettier-plugin-tailwindcss 0.8.1** (MIT, 2026-07-15) and **eslint-plugin-better-tailwindcss 4.7.0** (MIT, 2026-07-19). Both are dev-only and past the 14-day cool-down. Any other version needs a fresh check and approval. The in-house class checker from the research may still be planned if it covers something the plugin does not; the planner decides.
 - **D-37 (reuse of the reverted code, research Q-4):** the owner chose **"Yes, as reference"**. Executors may read the style-independent code reverted in `bb6ef76` (available at commit `74621f5`: SPA host, HiddenSegmentFileProvider, HTTP client, order math and golden vectors, URL state, API contract, form logic, e2e host, license gate) for proven designs and pitfalls. Every plan stays TDD (RED first) and is re-verified. Nothing is restored wholesale without its tests.
+
+- **D-38 (UI-SPEC OQ-1, phone list-card title separator):** the owner chose **"A: keep as approved"** (2026-10-08, in chat, during `/gsd-ui-phase 2`). The Tailwind build reproduces the approved computed result: the last phone list card has no separator line under its title. This is not an intentional difference, so the look-equality proof expects it to match the approved CSS.
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.
