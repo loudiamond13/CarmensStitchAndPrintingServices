@@ -4,7 +4,7 @@ plan: 09
 subsystem: ui
 tags: [react, design-system, lucide-react, differential-dom-test, react-compiler, spec-deviation, owner-review, playwright]
 created: "2026-10-08T02:22:00-05:00"
-updated: "2026-10-08T02:22:00-05:00"
+updated: "2026-10-08T05:55:00-05:00"
 
 requires:
   - phase: 02-web-foundation-design-system
@@ -22,13 +22,13 @@ provides:
   - "web/scripts/owner-review-pack.mjs + the local pack in artifacts/owner-review/phase2-rulings/ (git-ignored)"
 affects: [02-11, 02-12, 02-13, 02-14, 02-15, 02-17, 02-18, every feature phase that imports @/ui]
 
-deferred:
-  - "Task 3 (checkpoint:decision, owner rulings O-1..O-8, the 20 changed icons, D-27 look, D-BL-02): DEFERRED, owner away. Parked as D-BL-03 in backlog 999.1. D-31 and D-32 are NOT recorded in 02-CONTEXT.md. Plan 02-11 and everything depending on it must not run until the owner rules."
+resolved:
+  - "Task 3 (checkpoint:decision, owner rulings O-1..O-8, the 20 changed icons, D-27 look, D-BL-02): first DEFERRED as backlog D-BL-03 while the owner was away (2026-10-08T02:22); DONE 2026-10-08, decided by the owner in chat (D-BL-03 Option A: accept all; D-BL-02 Option B: hide the tag). Recorded as D-31 and D-32 in 02-CONTEXT.md. Plan 02-11 applies them."
 
 actuals:
   tokens: 66072       # chars/4 over git diff 248418b..dd07f56 (264288 chars), 22 KB of it the frozen reference copies
-  tasks: 2            # of 3; Task 3 deferred
-  commits: 6
+  tasks: 3            # Tasks 1-2 at dd07f56; Task 3 (owner decision, docs only) closed 2026-10-08
+  commits: 6          # code commits 248418b..dd07f56; the Task 3 record is a separate docs(02-09) commit
 plan_head_before: 248418b3077da39b567fdd413c1880c7ff228c35
 plan_head_after: dd07f563ab500333a03173563450f489cafc06c8
 
@@ -70,13 +70,13 @@ key-decisions:
   - "IconProps omits `color`: lucide-react turns it into the stroke instead of an svg attribute; no App. D.3 call site passes it"
   - "MarkSvg takes only the props Mark passes (class, size, role, aria-label, aria-hidden) so the compiler can memoize it"
   - "D-27 compat rule sets only appearance, border-width, text-align and cursor; background, width, font and colour would beat the layered .csp-nav states because overrides.css is unlayered. Measured identical to the link in 34 values"
-  - "Task 3 owner rulings deferred to backlog D-BL-03 (owner away); nothing was decided or auto-selected"
+  - "Task 3 owner rulings (2026-10-08, by owner): D-BL-03 Option A, accept all (O-1..O-7 yes, O-8 keep the smaller designed controls with the WCAG 2.2 AA 2.5.8 exception recorded, all 20 redrawn icons approved incl. the trash-2->trash and filter->funnel aliases, D-27 Logout confirmed identical); D-BL-02 Option B, hide the Manager tag on the selected row. Recorded as D-31/D-32 in 02-CONTEXT.md"
 
 patterns-established:
   - "A reconciliation change carries // SPEC-DEVIATION: <rule or decision> at the change and a row in web/SPEC-DEVIATIONS.md"
   - "A new DOM difference in differential.test.tsx is a D-08 stop for the owner, never a normalization"
 
-requirements-completed: [WEB-02]
+requirements-completed: [WEB-02, A11Y-04]
 
 coverage:
   - id: D1
@@ -130,14 +130,18 @@ coverage:
       - kind: automated_ui
         ref: "node web/scripts/owner-review-pack.mjs (Chromium: identical in all 34 measured values, Blush/Espresso, expanded/collapsed, rest/hover)"
         status: pass
-    human_judgment: true
-    rationale: "The owner confirms the look from the before/after PNGs in the review pack (part of the deferred Task 3, D-BL-03)."
+      - kind: manual_procedural
+        ref: "Owner reply 2026-10-08 (D-BL-03 Option A: Logout confirmed identical), recorded as D-31 in 02-CONTEXT.md"
+        status: pass
+    human_judgment: false
   - id: D6
     description: "Owner rulings on O-1..O-8, the 20 changed icon drawings and D-BL-02, recorded as D-31/D-32"
     requirement: A11Y-04
-    verification: []
-    human_judgment: true
-    rationale: "Owner decision (checkpoint:decision, Task 3). DEFERRED to backlog D-BL-03 because the owner is away; not decided, not recorded."
+    verification:
+      - kind: manual_procedural
+        ref: "Owner reply 2026-10-08 (verbatim in this SUMMARY, Task 3); 02-CONTEXT.md D-31 (O-1..O-8, D-27, D-BL-02) and D-32 (20 icons)"
+        status: pass
+    human_judgment: false
 
 duration: 43min
 completed: 2026-10-08
@@ -146,16 +150,16 @@ status: complete
 
 # Phase 2 Plan 09: Verbatim Design System, Strict-Gate Reconciliation and Owner Review Pack Summary
 
-*Created: 2026-10-08T02:22:00-05:00 · Updated: 2026-10-08T02:22:00-05:00*
+*Created: 2026-10-08T02:22:00-05:00 · Updated: 2026-10-08T05:55:00-05:00*
 
-**The approved App. D.3-D.5 design-system code is now in `web/src/ui/`, clean under the strict TypeScript 7 and ESLint gates, with lucide-react icons and a JSX mark. A differential test renders all 37 components from the frozen spec copy and from the reconciled module over 245 seed-data cases and finds the same DOM, except the owner-ruled Sidebar Logout button (D-27). A local owner review pack shows the 20 changed icon drawings, O-1..O-8, the D-27 look and D-BL-02. Tasks 1 and 2 are complete. Task 3, the owner's rulings, is DEFERRED to the backlog as D-BL-03 because the owner is away. D-31 and D-32 are not recorded, and plan 02-11 must not run until the owner rules.**
+**The approved App. D.3-D.5 design-system code is now in `web/src/ui/`, clean under the strict TypeScript 7 and ESLint gates, with lucide-react icons and a JSX mark. A differential test renders all 37 components from the frozen spec copy and from the reconciled module over 245 seed-data cases and finds the same DOM, except the owner-ruled Sidebar Logout button (D-27). A local owner review pack shows the 20 changed icon drawings, O-1..O-8, the D-27 look and D-BL-02. Tasks 1 and 2 are complete. Task 3, the owner's rulings, was first deferred to the backlog as D-BL-03 while the owner was away. It is now DONE: on 2026-10-08 the owner accepted every recommendation and chose to hide the "Manager" tag on the selected row. The rulings are recorded as D-31 and D-32 in 02-CONTEXT.md, and plan 02-11 applies them.**
 
 ## Performance
 
 - **Duration:** 43 min
 - **Started:** 2026-10-08T06:37:43Z
 - **Completed:** 2026-10-08T07:20:20Z
-- **Tasks:** 2 of 3 complete. Task 3 (checkpoint:decision) is deferred.
+- **Tasks:** 3 of 3 complete. Task 3 (checkpoint:decision) was deferred at 2026-10-08T02:22, then decided by the owner on 2026-10-08 and recorded at 2026-10-08T05:55-05:00.
 - **Files modified:** 20 (15 created, 5 modified, 1 deleted)
 
 ## Accomplishments
@@ -192,7 +196,7 @@ status: complete
 2. **Task 2: Owner review pack**
    - `900e2a8` fix: the D-27 rule restates only `border-width` (the pack measured a `border-top-style` difference)
    - `dd07f56` feat: `web/scripts/owner-review-pack.mjs`, plus the review-pack section of SPEC-DEVIATIONS.md
-3. **Task 3: Owner rules on O-1..O-8, the changed icons and any new markup-changing fix.** **DEFERRED** (no commit). The owner is away. The orchestrator parks the item as **D-BL-03** in `.planning/phases/999.1-owner-decisions-deferred-during-phase-2-execution/DECISIONS.md`. Nothing was decided or auto-selected. **D-31 and D-32 are NOT written** into 02-CONTEXT.md, and there is no owner reply to repeat here.
+3. **Task 3: Owner rules on O-1..O-8, the changed icons and any new markup-changing fix.** **DONE** (decided by the owner on 2026-10-08 and recorded as D-31/D-32). It was first deferred as **D-BL-03** in `.planning/phases/999.1-owner-decisions-deferred-during-phase-2-execution/DECISIONS.md` while the owner was away, and nothing was decided or auto-selected for the owner then. The owner then answered in chat (verbatim below), and the rulings went into 02-CONTEXT.md as **D-31** and **D-32**. That record is a docs-only `docs(02-09)` commit (see the continuation report). No code changed: plan 02-11 applies the rulings.
 
 **Tracer gate (Task 1):** the run is interactive, the mode is `end-of-phase`, and the `<verify>` is automated-only. Both verify commands were re-run and passed before Task 2 started: 293 tests in the three files, then typecheck and lint with 0 findings. No checkpoint was needed.
 
@@ -227,7 +231,7 @@ In RED, most differential DOM cases already passed. That is expected: the reconc
 
 ## Decisions Made
 
-See the `key-decisions` list in the frontmatter. The owner decision of this plan (Task 3) was **not** made. It is deferred.
+See the `key-decisions` list in the frontmatter. The owner made the decision of this plan (Task 3) on 2026-10-08. The section "Owner Reply (Task 3)" below records it.
 
 ## Deviations from Plan
 
@@ -276,17 +280,25 @@ See the `key-decisions` list in the frontmatter. The owner decision of this plan
 - The first review-pack screenshots clipped the sidebars, because `.s-page` has inline-size containment and the flex panels shrank. A fixed `--sidebar-width` panel fixed it before the final run.
 - jsx-a11y `aria-role` read the literal Sidebar/Topbar `role="manager"` prop (a user role) as an ARIA role. The test passes the role as a typed variable. Later call sites that pass a literal will hit the same rule, so pass a variable there too.
 
-## Deferred Items (Task 3, for backlog D-BL-03)
+## Owner Reply (Task 3, 2026-10-08)
 
-The owner must rule on these. Each recommendation below is only a recommendation:
+**Status: DONE.** Decided by the owner on 2026-10-08 and recorded as D-31 and D-32 in `02-CONTEXT.md`. This section first listed the items deferred to backlog D-BL-03. They are now ruled.
 
-- **O-1..O-8:** see the review pack and `02-UI-SPEC.md` "Owner Confirmations".
-- **The 20 changed icon drawings:** search, trash-2, receipt, users, log-out, menu, phone, message-circle, mail, clock, circle-check, list, filter, calendar, palette, zap, trending-up, trending-down, package, moon.
-- **D-27:** confirm the look. It is measured identical.
-- **D-BL-02:** the earlier open item, the Manager tag on the selected Users row.
-- **New D-08 items:** none.
+The owner answered in chat on 2026-10-08. The selected answers, verbatim:
 
-Resume signal: "option-a", or a per-item list. After the reply, record D-31 and D-32 in 02-CONTEXT.md, update its timestamp, and repeat the reply verbatim in this SUMMARY. Plan 02-11 then applies the rulings.
+- Q "D-BL-03: how do you rule on O-1..O-8, the 20 redrawn Lucide icons and the D-27 Logout look?" → "Option A: accept all (Recommended)"
+  (Option A as presented: "O-1..O-7 yes, O-8 keep the smaller designed controls (they pass WCAG 2.2 AA), approve all 20 redrawn icons, Logout confirmed identical. The only visible changes: the italic current phone-menu link and slightly wider menu-icon bars.")
+- Q "D-BL-02: the 'Manager' tag is invisible on the selected Users menu row (same color as the highlight). What should happen?" → "Option B: hide it"
+  (Option B as presented: "Hide the tag on the selected row; the page title already says where you are.")
+- Q "D-BL-01: approve three free licenses for build/test tools only (never shipped to the website)? MIT-0 (jsdom's CSS helpers), CC-BY-3.0 (the license-check tool's data), Python-2.0 (argparse in the API-types generator)." → "Approve all three (Recommended)"
+  (As presented: "Dev/build-only exceptions on the same terms as D-26. No package changes; the license check turns green.")
+
+The third answer belongs to plan 02-03 (D-BL-01). It is repeated here only because the owner gave all three answers together.
+
+**Where each answer is recorded (02-CONTEXT.md):**
+
+- **D-31:** O-1..O-7 approved as recommended. O-8 keeps the smaller designed controls, with the WCAG 2.2 AA 2.5.8 exception recorded. The D-27 Logout look is confirmed identical. D-BL-02 hides the tag: `/* D-31 D-BL-02 */ .csp-nav.is-on .csp-nav-tag { display: none; }`, which plan 02-11 adds to overrides.css. No new D-08 items.
+- **D-32:** all 20 changed drawings are approved as the new lucide-react 1.52.0 drawings, one line per icon: search, trash-2, receipt, users, log-out, menu, phone, message-circle, mail, clock, circle-check, list, filter, calendar, palette, zap, trending-up, trending-down, package and moon. The aliases trash-2 → trash and filter → funnel are approved, and so are the menu bars at 5/12/19.
 
 ## User Setup Required
 
@@ -294,9 +306,9 @@ None.
 
 ## Next Phase Readiness
 
-- **Blocked:** 02-11 (and everything that depends on it: 02-14, 02-15, 02-16, 02-17 and 02-18) waits on the D-31/D-32 owner rulings (D-BL-03).
+- **Unblocked (2026-10-08):** 02-11, and everything that depends on it (02-14, 02-15, 02-16, 02-17 and 02-18), no longer waits on the owner. D-31 and D-32 are recorded, and 02-11 applies them, including the D-BL-02 hide rule.
 - **Can proceed:** 02-10 (it does not depend on 02-09) and 02-12 (SPEC-GAP primitives, which depend on this plan's reconciled `@/ui` but not on the rulings). The orchestrator decides.
-- The license gate still exits 1 on exactly the 5 D-BL-01 dev-tree packages. No new failures, and no exceptions were added.
+- At 02-09 completion, the license gate exited 1 on exactly the 5 D-BL-01 dev-tree packages. That is resolved separately in plan 02-03 (owner approval of 2026-10-08).
 
 ## Verification
 
@@ -308,15 +320,15 @@ None.
 - `node web/scripts/license-gate.mjs`: exit 1 on exactly the 5 known D-BL-01 packages.
 - Task 2 verify: the review-pack command plus the `index.html` and at-least-3-PNG check both exit 0 (17 PNGs). `git check-ignore -q artifacts/owner-review/phase2-rulings/index.html` exits 0.
 - Acceptance greps: `grep -cE "^export function" web/src/ui/index.tsx` returns 37, `grep -c SPEC-DEVIATION web/src/ui/index.tsx` returns 24, and index.html lists 56 icons with exactly 20 flagged, plus O-1..O-8 and the D-27 section.
-- Plan `<verification>` line 2, "the owner's rulings are recorded as D-31/D-32": **NOT MET**, deferred (D-BL-03).
+- Plan `<verification>` line 2, "the owner's rulings are recorded as D-31/D-32": **MET on 2026-10-08.** `grep -c "D-31\|D-32" 02-CONTEXT.md` finds both. D-31 has one line each for O-1..O-8, D-27 and D-BL-02, D-32 has one line per changed icon (20), and the `Updated` timestamp changed.
 - No dev server or background process was left running (the preflight after the run shows no processes).
 
-## Self-Check: PASSED (Tasks 1-2). Task 3 NOT done (deferred, D-BL-03)
+## Self-Check: PASSED (Tasks 1-3; Task 3 decided by the owner on 2026-10-08)
 
 - All 15 created files and 5 modified files exist on disk. `web/src/ui/mark.ts` was deleted on purpose.
 - Commits 478f76a, 8fdc6d9, 8b95bb5, 928b6c3, 900e2a8 and dd07f56 exist (`git rev-list --count 248418b..dd07f56` = 6).
-- Not claimed: no owner decision was made, and D-31 and D-32 are absent from 02-CONTEXT.md.
+- Task 3: D-31 and D-32 are present in 02-CONTEXT.md, and the owner reply is repeated verbatim above. No ruling was applied to code: plan 02-11 does that.
 
 ---
 *Phase: 02-web-foundation-design-system*
-*Completed: 2026-10-08 (Tasks 1-2; Task 3 deferred)*
+*Completed: 2026-10-08 (Tasks 1-2 at 02:22; Task 3 decided by the owner and recorded at 05:55)*

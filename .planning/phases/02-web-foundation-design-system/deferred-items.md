@@ -1,6 +1,6 @@
 # Phase 2 Deferred Items
 
-*Created: 2026-10-08T00:12:53-05:00 · Updated: 2026-10-08T00:12:53-05:00*
+*Created: 2026-10-08T00:12:53-05:00 · Updated: 2026-10-08T05:57:00-05:00*
 
 Out-of-scope findings logged by executors. Nothing here was changed, because each one needs an owner ruling or belongs to a later plan.
 
@@ -11,6 +11,7 @@ Out-of-scope findings logged by executors. Nothing here was changed, because eac
   **Found by:** plan 02-05 (contrast check while applying D-02).
   **What:** `.csp-nav-tag` is `color: var(--nav-ink)`. When the Users item is current (`.csp-nav.is-on`), the row background is `--primary`, which equals `--nav-ink` in Blush. The tag reads 1.00:1 in Blush and 1.43:1 in Espresso, so it is invisible on the selected row.
   **Why deferred:** a fix (for example `.csp-nav.is-on .csp-nav-tag { color: var(--on-primary); }`) changes the approved visuals and no owner ruling covers it. Per D-08 it goes to the owner with a before/after, best batched with the O-1..O-8 confirmations.
+  **Owner ruling (2026-10-08):** D-BL-02 Option B, "hide it", recorded as D-31 in 02-CONTEXT.md. Plan 02-11 adds `/* D-31 D-BL-02 */ .csp-nav.is-on .csp-nav-tag { display: none; }` to overrides.css. The item stays open until that rule ships.
 - Tailwind `font-sans` / `font-display` utilities bypass the PERF-05 fallback faces
   status: open
   **Found by:** plan 02-05.

@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
 stopped_at: Completed 02-19-PLAN.md
-last_updated: "2026-10-08T09:52:48.480Z"
+last_updated: "2026-10-08T10:51:22.307Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 079ab12a6f5006af697d06f8088abd807b2d1b8c
+state_head: fc99c5d245e8f848a396a8e5aafd6e299c4bd552
 progress:
   total_phases: 17
   completed_phases: 1
@@ -15,7 +15,7 @@ progress:
   completed_plans: 26
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T04:53:04-05:00"
+updated: "2026-10-08T05:56:00-05:00"
 ---
 
 # Project State
@@ -181,6 +181,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-13: user-event never resolves under vitest fake timers; debounce tests fire input events, other tests use real timers, and axe always runs on real timers
 - [Phase 02]: 02-19: G-02-2 closed server-side: HiddenSegmentFileProvider wraps the web root in UseStaticFiles; any segment starting with a dot or containing a tilde (split on / and backslash) reads as missing and gets the anonymous {*path:file} ProblemDetails 404 (Windows backslash and NTFS 8.3 aliases included); D-BL-04 untouched
 - [Phase 02]: 02-19: a future /.well-known/ file (security.txt, Android App Links, ACME) needs an explicit, tested exact-path exception inside HiddenSegmentFileProvider, never a relaxed rule
+- [Phase 02]: 02-09 Task 3 (owner, 2026-10-08, D-BL-03 Option A + D-BL-02 Option B): D-31 O-1..O-7 approved as recommended, O-8 keeps the smaller designed controls (WCAG 2.2 AA 2.5.8 exception recorded), D-27 Logout look confirmed identical, D-BL-02 hides the Manager tag on the selected row (.csp-nav.is-on .csp-nav-tag { display: none; }, applied by 02-11); D-32 all 20 redrawn lucide-react 1.52.0 icons approved incl. trash-2->trash and filter->funnel aliases and menu bars 5/12/19
 
 ### Pending Todos
 
@@ -197,8 +198,6 @@ None yet.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
 - D-BL-01 (backlog 999.1): owner decision pending on MIT-0, CC-BY-3.0, Python-2.0 in the npm dev/build tree; node web/scripts/license-gate.mjs exits 1 until decided; blocks plan 02-16 wiring license:check into verify
-- Owner question (D-08): selected Users sidebar row hides the 'Manager' tag (nav-ink on primary, 1.00:1 Blush / 1.43:1 Espresso) in verbatim App. B; see phase 02 deferred-items.md
-- 02-11 blocked on D-31/D-32 owner rulings, D-BL-03 (02-09 Task 3 deferred: O-1..O-8, 20 changed lucide icons, D-27 look confirmation, D-BL-02; review pack artifacts/owner-review/phase2-rulings/index.html)
 
 ### Quick Tasks Completed
 
