@@ -59,6 +59,13 @@ public class CspsApiFactory : WebApplicationFactory<Program>
     /// </summary>
     public CollectingSink Sink { get; } = new();
 
+    /// <summary>
+    /// Gets the committed stub web root (<c>Fixtures/webroot</c>, copied next to the test assembly) that every test
+    /// host serves static files and the SPA shell from (WEB-01). It is named <c>webroot</c>, not <c>wwwroot</c>,
+    /// because <c>.gitignore</c> ignores build output under <c>wwwroot</c>.
+    /// </summary>
+    public static string FixtureWebRoot { get; } = Path.Combine(AppContext.BaseDirectory, "Fixtures", "webroot");
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -80,6 +87,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");
+
+        // The .NET suite never depends on `npm run build`: every host serves the committed fixture web root (L-06).
+        builder.UseSetting(WebHostDefaults.WebRootKey, FixtureWebRoot);
         builder.ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(Sink));
 
         if (_withoutDatabase)

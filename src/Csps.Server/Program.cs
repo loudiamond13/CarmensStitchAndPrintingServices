@@ -67,6 +67,12 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
 app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.HttpContext, context.HttpContext.Response.StatusCode));
 
+// The built React app's files from the web root, anonymously and before authorization (WEB-01).
+app.UseStaticFiles();
+
+// Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
+app.UseRouting();
+
 // One completion event per request: method, path (no query string), status and elapsed time. It writes through this
 // host's own logger, never the process-wide static one, and never logs headers or bodies (FND-07).
 var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
@@ -80,6 +86,9 @@ app.MapCspsHealth();
 app.MapApiFallback();
 app.MapSiteSettings();
 app.MapCspsApiDocs();
+
+// The SPA host (WEB-01): any other GET or HEAD on a page path gets the shell, anonymously.
+app.MapSpaHost();
 
 app.Run();
 
