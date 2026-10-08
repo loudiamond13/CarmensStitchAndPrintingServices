@@ -9,4 +9,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
+  <!--
+    D-16: the committed OpenAPI snapshot, linked (never copied into the repo twice) so OpenApiSnapshotTests can compare
+    it with the live Development document.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\tools\openapi-gen\openapi.v1.json" Link="Fixtures\openapi.v1.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
