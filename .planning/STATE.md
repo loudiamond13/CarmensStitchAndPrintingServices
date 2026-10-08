@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-13-PLAN.md
-last_updated: "2026-10-08T08:53:08.784Z"
+stopped_at: Completed 02-19-PLAN.md
+last_updated: "2026-10-08T09:52:48.480Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 4dc939dff915a9b5961c971e678baeba67734c83
+state_head: 079ab12a6f5006af697d06f8088abd807b2d1b8c
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 31
-  completed_plans: 25
+  total_plans: 32
+  completed_plans: 26
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T03:53:15-05:00"
+updated: "2026-10-08T04:53:04-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 13 of 18
+Plan: 14 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -83,6 +83,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P10 | 20 min | 3 tasks | 15 files |
 | Phase 02 P12 | 24 min | 2 tasks | 12 files |
 | Phase 02 P13 | 30 min | 3 tasks | 21 files |
+| Phase 02 P19 | 12 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-13: SearchBox keeps the typed text and resyncs only when the outside value differs once trimmed, because the list hook stores the trimmed search; the URL stays the single source
 - [Phase 02]: 02-13: ResponsiveTable owns the list states (first-load SkeletonTable, ErrorState above kept rows, EmptyState first-use / no matches, .is-refetching after 200 ms of placeholder data); feature lists pass status, isPlaceholderData and the list-hook setters
 - [Phase 02]: 02-13: user-event never resolves under vitest fake timers; debounce tests fire input events, other tests use real timers, and axe always runs on real timers
+- [Phase 02]: 02-19: G-02-2 closed server-side: HiddenSegmentFileProvider wraps the web root in UseStaticFiles; any segment starting with a dot or containing a tilde (split on / and backslash) reads as missing and gets the anonymous {*path:file} ProblemDetails 404 (Windows backslash and NTFS 8.3 aliases included); D-BL-04 untouched
+- [Phase 02]: 02-19: a future /.well-known/ file (security.txt, Android App Links, ACME) needs an explicit, tested exact-path exception inside HiddenSegmentFileProvider, never a relaxed rule
 
 ### Pending Todos
 
@@ -217,6 +220,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T08:52:20.587Z
-Stopped at: Completed 02-13-PLAN.md
+Last session: 2026-10-08T09:52:35.709Z
+Stopped at: Completed 02-19-PLAN.md
 Resume file: None
