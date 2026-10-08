@@ -57,26 +57,68 @@ export function formatCalendarDate(ymd: string): string {
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-// Money entry (ORD-09). RED stub: signatures only, every result is inert.
+// Money entry (ORD-09, UI-SPEC MoneyInput row). An amount stays text while it is typed and becomes whole centavos
+// only here, by integer arithmetic on its digit strings, never through a binary float (D-09). The server re-validates
+// every amount (T-02-21); these rules only keep the field honest.
 
-export const MONEY_TEXT = /(?!)/;
+/** MoneyInput text: up to 9 integer digits and 2 decimals, ASCII digits only, never a sign or grouping. No flags. */
+export const MONEY_TEXT = /^\d{0,9}(\.\d{0,2})?$/;
 
+/** 999999999.99, the largest amount MONEY_TEXT can hold. */
+const MAX_CENTAVOS = 99_999_999_999;
+
+/** The integer and fraction digits of money text, or null when the text breaks MONEY_TEXT. */
+function moneyDigits(text: string): { readonly whole: string; readonly fraction: string } | null {
+  if (!MONEY_TEXT.test(text)) return null;
+  const dot = text.indexOf('.');
+  return dot === -1 ? { whole: text, fraction: '' } : { whole: text.slice(0, dot), fraction: text.slice(dot + 1) };
+}
+
+/** True when the text is allowed in a money field, including the partial states "", "." and "5." while typing. */
 export function isMoneyText(text: string): boolean {
-  return text.length < 0;
+  return MONEY_TEXT.test(text);
 }
 
+/**
+ * A pasted amount with grouping commas and whitespace removed (" 12,450.00 " → "12450.00"). Anything that still
+ * breaks MONEY_TEXT, including a minus sign, a third decimal or a peso sign, gives "".
+ */
 export function normalizePastedMoney(text: string): string {
-  return text.slice(0, 0);
+  const compact = text.replace(/[\s,]/g, '');
+  return MONEY_TEXT.test(compact) ? compact : '';
 }
 
+/**
+ * The blur value of a money field: two decimals ("5000" → "5000.00", ".5" → "0.50"). "" and "." stay empty, and text
+ * that is not money text comes back unchanged so the field can show its error.
+ */
 export function padMoneyOnBlur(text: string): string {
-  return text.slice(0, 0);
+  const digits = moneyDigits(text);
+  if (digits === null) return text;
+  if (digits.whole === '' && digits.fraction === '') return '';
+  return `${digits.whole === '' ? '0' : digits.whole}.${digits.fraction.padEnd(2, '0')}`;
 }
 
+/**
+ * Whole centavos of money text ("0.07" → 7, "999999999.99" → 99999999999). At most 11 digits, so the result is an
+ * exact safe integer. Throws a TypeError for "" or "." ("empty amount") and for text that breaks MONEY_TEXT
+ * ("not an amount"): callers validate first.
+ */
 export function moneyTextToCentavos(text: string): number {
-  return text.length * 0;
+  const digits = moneyDigits(text);
+  if (digits === null) throw new TypeError('not an amount');
+  if (digits.whole === '' && digits.fraction === '') throw new TypeError('empty amount');
+  return Number(digits.whole) * 100 + Number(digits.fraction.padEnd(2, '0'));
 }
 
+/**
+ * Money text with two decimals for whole centavos (125050 → "1250.50"), the inverse of moneyTextToCentavos.
+ * Throws a RangeError unless the amount is a whole number of centavos from 0 to 99999999999.
+ */
 export function centavosToMoneyText(centavos: number): string {
-  return String(centavos).slice(0, 0);
+  if (!Number.isSafeInteger(centavos) || centavos < 0 || centavos > MAX_CENTAVOS) {
+    throw new RangeError('centavos must be a whole number from 0 to 99999999999');
+  }
+  const fraction = centavos % 100;
+  return `${String((centavos - fraction) / 100)}.${String(fraction).padStart(2, '0')}`;
 }
