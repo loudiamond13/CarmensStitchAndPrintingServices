@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T22:56:16-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T23:22:00-05:00*
 
 ## Overview
 
@@ -907,6 +907,17 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
 | 17. Production Cutover | 0/TBD | Not started | - |
+
+## Backlog
+
+### Phase 999.1: Owner decisions deferred during Phase 2 execution (BACKLOG)
+
+**Goal:** Collect every owner decision, approval or sign-off that came up while the owner was away during Phase 2 execution, so they can be settled in one sitting. Each item, its options and its impact are listed in `.planning/phases/999.1-owner-decisions-deferred-during-phase-2-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
 *Roadmap created: 2026-10-07*
