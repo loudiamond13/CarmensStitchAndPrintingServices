@@ -75,3 +75,12 @@ export const toastMessageClasses = tw('text-ink-muted');
 export const iconButtonClasses = tw(
   'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink-muted hover:bg-surface-2 hover:text-ink',
 );
+
+/**
+ * App. C `.s-toast-layer`: the toast stack, fixed top-right under the topbar, 380px wide, 12px between toasts. On
+ * phones it spans the width 16px from each side and sits 88px from the bottom, above the tab bar. It is rendered inside
+ * the page root (never a portal), so the `pg` container queries and `data-theme` reach it.
+ */
+export const toastLayerClasses = tw(
+  'fixed top-[calc(var(--topbar-height)+var(--space-4))] right-6 z-(--z-toast) flex w-[380px] max-w-[calc(100%-32px)] flex-col gap-3 pg-phone:top-auto pg-phone:right-4 pg-phone:bottom-[88px] pg-phone:left-4 pg-phone:w-auto',
+);
