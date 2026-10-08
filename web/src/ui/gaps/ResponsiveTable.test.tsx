@@ -422,6 +422,8 @@ describe('ResponsiveTable: refetching keeps the old rows (UI consideration: load
     edit.focus();
     expect(edit).toHaveFocus();
     expect(wrap?.closest('[aria-hidden="true"], [inert]')).toBeNull();
+    // axe schedules its own timers, so it runs on real ones.
+    vi.useRealTimers();
     await expectNoAxeViolations(container);
 
     rerender(usersTable({ rows: USERS.slice(0, 1), isPlaceholderData: false }));

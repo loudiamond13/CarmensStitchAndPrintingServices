@@ -69,4 +69,24 @@
   main[tabindex='-1']:focus {
     outline: none;
   }
+
+  /* SPEC-GAP: ResponsiveTable */
+  /* The list region stacks the ErrorState banner above the rows it still has. */
+  .csp-list-region {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  /* SPEC-GAP: ResponsiveTable refetching */
+  /* Placeholder rows (keepPreviousData) shown for more than 200 ms: every cell, and each phone card, takes the softer
+     --surface-2 background. Colour only, never opacity, so the rows stay readable (D-02 rule; contrast >= 5.05:1). */
+  .s-rt-wrap.is-refetching td {
+    background: var(--surface-2);
+  }
+  @container pg (max-width: 767px) {
+    .s-rt-wrap.is-refetching .s-rt tr {
+      background: var(--surface-2);
+    }
+  }
 }
