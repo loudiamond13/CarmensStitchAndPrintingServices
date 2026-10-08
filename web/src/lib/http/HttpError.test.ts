@@ -96,17 +96,17 @@ describe('parseProblemDetails', () => {
   });
 
   it('drops members with the wrong type', () => {
-    expect(
-      parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7 }),
-    ).toEqual({
-      type: undefined,
-      title: undefined,
-      status: undefined,
-      detail: undefined,
-      instance: undefined,
-      traceId: undefined,
-      errors: {},
-    });
+    expect(parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7 })).toEqual(
+      {
+        type: undefined,
+        title: undefined,
+        status: undefined,
+        detail: undefined,
+        instance: undefined,
+        traceId: undefined,
+        errors: {},
+      },
+    );
   });
 
   it('keeps only string messages in each field-error list', () => {
@@ -117,11 +117,17 @@ describe('parseProblemDetails', () => {
     expect(parsed?.errors).toEqual({ Amount: ['Enter an amount.'], Qty: ['Enter a quantity.'] });
   });
 
-  it.each([['a string'], [null], [['not', 'an', 'object']], [42]])('ignores errors that are not an object (%j)', (errors) => {
-    expect(parseProblemDetails({ errors })?.errors).toEqual({});
-  });
+  it.each([['a string'], [null], [['not', 'an', 'object']], [42]])(
+    'ignores errors that are not an object (%j)',
+    (errors) => {
+      expect(parseProblemDetails({ errors })?.errors).toEqual({});
+    },
+  );
 
-  it.each([[null], [undefined], ['text'], [404], [['a']]])('returns undefined for a body that is not an object (%j)', (body) => {
-    expect(parseProblemDetails(body)).toBeUndefined();
-  });
+  it.each([[null], [undefined], ['text'], [404], [['a']]])(
+    'returns undefined for a body that is not an object (%j)',
+    (body) => {
+      expect(parseProblemDetails(body)).toBeUndefined();
+    },
+  );
 });

@@ -47,7 +47,7 @@ describe('createHttpClient: GET round trip', () => {
     expect(call.method).toBe('GET');
     expect(call.init.credentials).toBe('same-origin');
     expect(call.headers.get('Accept')).toBe('application/json');
-    expect(call.body).toBeUndefined();
+    expect(call.body).toBeNull();
     expect(result).toEqual(settings);
   });
 
