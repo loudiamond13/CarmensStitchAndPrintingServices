@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-08-PLAN.md
-last_updated: "2026-10-08T06:33:29.779Z"
+stopped_at: Completed 02-09-PLAN.md Tasks 1-2 (Task 3 deferred, D-BL-03)
+last_updated: "2026-10-08T07:23:18.273Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: f70a6e3885b9ee382c4ca7b26b8f410a924fd1bd
+state_head: a00489dddc2ac930bbe4b20bb2a01c69904d3761
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 21
+  completed_plans: 22
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T01:33:41-05:00"
+updated: "2026-10-08T02:23:26-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 9 of 18
+Plan: 10 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -79,6 +79,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P06 | 17 min | 2 tasks | 7 files |
 | Phase 02 P07 | 18 min | 3 tasks | 8 files |
 | Phase 02 P08 | 22 min | 3 tasks | 17 files |
+| Phase 02 P09 | 43 min | 2 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-08: prefetchOnIntent uses queryClient.query(options).catch(noop) because TanStack Query 5.103.2 deprecates prefetchQuery (no-deprecated lint); never RR <Link prefetch>
 - [Phase 02]: 02-08: createListParams throws a TypeError for URL keys naming personal data or secrets (email, phone, mobile, name variants, address, token variants, password, secret, otp, code); personal data only in free-text q (CWE-598)
 - [Phase 02]: 02-08: Range presets today/last-7-days/last-30-days/this-month/last-month/this-year resolve against an injected businessToday(now, 'Asia/Manila'); last-N-days includes today; dates stay plain YYYY-MM-DD strings (parseAsBusinessDate)
+- [Phase 02]: 02-09: App. D.3-D.5 reconciled with the strict gates with no DOM change, proven by src/ui/differential.test.tsx (245 seed-data cases, equal-props re-render, handler parity) against frozen src/ui/__reference__ copies; normalizeDom hides only useId, lucide classes, xmlns, attribute order and icon drawings; Sidebar Logout <button> (D-27) is the only listed difference
+- [Phase 02]: 02-09: UiLink renders react-router Link directly (LinkProvider kept, unused); Icon renders ICONS[name] (lucide-react 1.52.0, 56 names, IconProps omits color); MarkSvg JSX replaces the MARK_SVG raw-HTML prop; jsx-a11y handler fixes use React 19 callback-ref listeners
+- [Phase 02]: 02-09: D-27 compat rule button.csp-nav sets only appearance, border-width, text-align, cursor (unlayered overrides may not set properties layered .csp-nav rules set); measured identical to the link in 34 values
 
 ### Pending Todos
 
@@ -177,6 +181,7 @@ None yet.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
 - D-BL-01 (backlog 999.1): owner decision pending on MIT-0, CC-BY-3.0, Python-2.0 in the npm dev/build tree; node web/scripts/license-gate.mjs exits 1 until decided; blocks plan 02-16 wiring license:check into verify
 - Owner question (D-08): selected Users sidebar row hides the 'Manager' tag (nav-ink on primary, 1.00:1 Blush / 1.43:1 Espresso) in verbatim App. B; see phase 02 deferred-items.md
+- 02-11 blocked on D-31/D-32 owner rulings, D-BL-03 (02-09 Task 3 deferred: O-1..O-8, 20 changed lucide icons, D-27 look confirmation, D-BL-02; review pack artifacts/owner-review/phase2-rulings/index.html)
 
 ### Quick Tasks Completed
 
@@ -198,6 +203,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T06:33:03.235Z
-Stopped at: Completed 02-08-PLAN.md
+Last session: 2026-10-08T07:22:41.815Z
+Stopped at: Completed 02-09-PLAN.md Tasks 1-2 (Task 3 deferred, D-BL-03)
 Resume file: None
