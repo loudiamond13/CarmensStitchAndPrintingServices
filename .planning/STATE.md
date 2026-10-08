@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-14-PLAN.md
-last_updated: "2026-10-08T19:27:03.640Z"
+stopped_at: Completed 02-15-PLAN.md
+last_updated: "2026-10-08T19:45:19.509Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 04890c625b897ec23231c0827dccdbcfe9374692
+state_head: 2a8532689b13ccaedc675f04ededc0663fa51325
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 31
+  completed_plans: 32
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-08T13:40:46-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 19 of 40
+Plan: 20 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -89,6 +89,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P40 | 8min | 2 tasks | 7 files |
 | Phase 02 P11 | 14 min | 2 tasks | 9 files |
 | Phase 02 P14 | 36 min | 2 tasks | 27 files |
+| Phase 02 P15 | 15min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -190,6 +191,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Parity harness live (02-14): reference = page, implementation = guarded appPage fixture in the same context; parity.html is a dev-route-only Vite entry (rolldownOptions.input), never in production; pixels compare with maxDiffPixels 0 and threshold 0, updateSnapshots none
 - [Phase 02]: Button (02-14): App. D.3 props API with explicit props plus pending; D.3 loading gets the WEB-09 behaviour (aria-disabled, aria-busy, spinner, swallowed activation); recipe applies labelled padding OR icon-only width, never both. Pending parity scenarios use loading: true (the reference spreads unknown props)
 - [Phase 02]: Visual specs take screenshots only through screenshotLocator/screenshotPage (visual/guard.ts): in WebKit the guard discounts exactly one CSP-blocked Playwright <style>body {}</style> per screenshot; matrix rows only Chromium runs carry @chromium-only (grepInvert in firefox/webkit); suite timeout 120 s
+- [Phase 02]: 02-15: API contract drift chain is live: OpenApiSnapshotTests (CSPS_WRITE_OPENAPI_SNAPSHOT=1 per command to refresh) -> tools/openapi-gen/openapi.v1.json -> npm --prefix tools/openapi-gen run generate/check -> web/src/types/api.generated.ts -> api.ts; commit snapshot and types together
+- [Phase 02]: 02-15: api.ts declares all eight groups as empty PlannedGroup objects (only site.settings has a call); api.test.ts shares api.ts's lib/http ESLint exception; tools/openapi-gen tests run on node:test via npm --prefix tools/openapi-gen test
 
 ### Pending Todos
 
@@ -226,6 +229,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T19:27:03.505Z
-Stopped at: Completed 02-14-PLAN.md
+Last session: 2026-10-08T19:45:19.376Z
+Stopped at: Completed 02-15-PLAN.md
 Resume file: None
