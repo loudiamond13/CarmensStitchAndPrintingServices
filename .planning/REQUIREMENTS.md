@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T06:05:42-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T10:31:30-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -47,7 +47,7 @@ Initial release: everything needed to replace the production system at cutover.
 ### Quality Gates (QUAL)
 
 - [x] **QUAL-01**: .NET builds have `TreatWarningsAsErrors`, nullable, latest-recommended analyzers, code style in build, NuGet audit as errors, central package management with no floating versions, and `dotnet format --verify-no-changes` (PRD §17.1)
-- [ ] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
+- [x] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [x] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `lib/http` 100%, web overall ≥ 90% ⚑ S-4
 - [ ] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
 - [ ] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
@@ -353,7 +353,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-09 | Phase 2 | Pending |
 | WEB-10 | Phase 2 | Pending |
 | QUAL-01 | Phase 1 | Complete |
-| QUAL-02 | Phase 2 | Pending |
+| QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 2 | Pending |
 | QUAL-05 | Phase 4 | Pending |

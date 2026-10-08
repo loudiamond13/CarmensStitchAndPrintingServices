@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-37-PLAN.md
-last_updated: "2026-10-08T15:09:17.453Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-10-08T15:30:58.282Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 3d903a0e40755cdfd80cb9ef4c5815d65a782102
+state_head: 00d04b79a20e29c117fffc9d69a1598c1c0ab80d
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 17
+  completed_plans: 18
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T10:01:21-05:00"
+updated: "2026-10-08T10:31:30-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 5 of 40
+Plan: 6 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -75,6 +75,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P02 | 11 min | 2 tasks | 15 files |
 | Phase 02 P03 | 10 min | 2 tasks | 9 files |
 | Phase 02 P37 | 4 min | 2 tasks | 12 files |
+| Phase 02 P04 | 17 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-37: tsconfig.app/node carry the PRD 17.2 strict set incl. noUnusedLocals/noUnusedParameters; *.node.test.ts files are checked by tsconfig.node.json (glob) and excluded from tsconfig.app.json, so new node tests need no tsconfig edit
 - [Phase 02]: 02-37: tools/openapi-gen installed at openapi-typescript 7.13.0 + typescript 5.9.3 (33 packages, audit 0, min-release-age=14 no exclusions); 02-06 must register both and gate argparse Python-2.0
 - [Phase 02]: 02-37: .gitignore keeps the dotenv wildcard ignored and allow-lists only the e2e and budget dotenv files in web/ (VITE_DEV_ROUTES=true, D-20, T-02-79); a session secret-read hook blocks Bash commands that name dotenv paths, so stage the web folder after checking git status
+- [Phase 02]: 02-04: type-aware lint rules (prefer-nullish-coalescing with ignorePrimitives, no-deprecated) live in their own csps/type-aware block; the exported restrictions block stays type-free so ESLint's Linter proves every ban on virtual files
+- [Phase 02]: 02-04: Prettier owns web/ formatting incl. CSS (CSS keeps double quotes, keyframes expanded); every Vitest test fails on console.error/warn unless it takes the output with collectConsole()
+- [Phase 02]: 02-04: better-tailwindcss lints only className and clsx/tw arguments; module-level recipe maps are not covered unless passed through tw(), so the compile() class-gate decision stays open
 
 ### Pending Todos
 
@@ -175,6 +179,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T15:09:09.422Z
-Stopped at: Completed 02-37-PLAN.md
+Last session: 2026-10-08T15:30:31.527Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
