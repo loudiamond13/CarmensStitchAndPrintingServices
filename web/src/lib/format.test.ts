@@ -1,6 +1,16 @@
-// Business-zone dates (ORD-09, Phase 1 locale decision: Asia/Manila, "Oct 6, 2026").
+// Business-zone dates and exact money entry text (ORD-09, Phase 1 locale decision: Asia/Manila, "Oct 6, 2026").
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BUSINESS_ZONE, formatBusinessDate, formatCalendarDate } from './format';
+import {
+  BUSINESS_ZONE,
+  centavosToMoneyText,
+  formatBusinessDate,
+  formatCalendarDate,
+  isMoneyText,
+  MONEY_TEXT,
+  moneyTextToCentavos,
+  normalizePastedMoney,
+  padMoneyOnBlur,
+} from './format';
 
 const EM_DASH = '—';
 
@@ -101,5 +111,156 @@ describe('formatCalendarDate', () => {
     'not a date',
   ])('shows an em dash for %j', (value) => {
     expect(formatCalendarDate(value)).toBe(EM_DASH);
+  });
+});
+
+describe('MONEY_TEXT', () => {
+  it('is the MoneyInput pattern, with no flags (a g flag would make test() stateful)', () => {
+    expect(MONEY_TEXT.source).toBe(String.raw`^\d{0,9}(\.\d{0,2})?$`);
+    expect(MONEY_TEXT.flags).toBe('');
+  });
+});
+
+describe('isMoneyText', () => {
+  it.for([
+    '1250.50',
+    '1250.5',
+    '0',
+    '0.07',
+    '999999999.99',
+    // Partial states while typing: an empty field, a lone dot, a trailing dot.
+    '',
+    '.',
+    '.5',
+    '5.',
+  ])('accepts %j', (text) => {
+    expect(isMoneyText(text)).toBe(true);
+  });
+
+  it.for([
+    ['a third decimal', '1.234'],
+    ['a tenth integer digit', '1234567890'],
+    ['a minus sign', '-5'],
+    ['a U+2212 minus sign', '−5'],
+    ['a plus sign', '+5'],
+    ['a letter', '12a'],
+    ['an exponent', '5e3'],
+    ['a grouping comma', '1,250'],
+    ['a space', ' 5'],
+    ['two dots', '1.2.3'],
+    ['the peso sign', '₱5'],
+    ['non-ASCII digits', '١٢'],
+  ] as const)('rejects %s', ([, text]) => {
+    expect(isMoneyText(text)).toBe(false);
+  });
+
+  it('gives the same answer when asked twice', () => {
+    expect([isMoneyText('5'), isMoneyText('5')]).toEqual([true, true]);
+  });
+});
+
+describe('normalizePastedMoney', () => {
+  it.for([
+    [' 12,450.00 ', '12450.00'],
+    ['12,450.5', '12450.5'],
+    ['1 250.50', '1250.50'],
+    ['\t5000\n', '5000'],
+    ['5000', '5000'],
+    ['.5', '.5'],
+  ] as const)('turns %j into %j', ([pasted, expected]) => {
+    expect(normalizePastedMoney(pasted)).toBe(expected);
+  });
+
+  it.for(['-5', '−5', '-1,250.00', '1.234', '1,234,567,890', 'abc', '₱1,250.00', '1.2.3'])(
+    'returns an empty string for %j',
+    (pasted) => {
+      expect(normalizePastedMoney(pasted)).toBe('');
+    },
+  );
+});
+
+describe('padMoneyOnBlur', () => {
+  it.for([
+    ['5000', '5000.00'],
+    ['1250.5', '1250.50'],
+    ['1250.50', '1250.50'],
+    ['.5', '0.50'],
+    ['5.', '5.00'],
+    ['0', '0.00'],
+  ] as const)('pads %j to %j', ([text, expected]) => {
+    expect(padMoneyOnBlur(text)).toBe(expected);
+  });
+
+  it.for(['', '.'])('leaves %j empty', (text) => {
+    expect(padMoneyOnBlur(text)).toBe('');
+  });
+
+  it('leaves text that is not an amount unchanged, so the field can show its error', () => {
+    expect(padMoneyOnBlur('12a')).toBe('12a');
+  });
+});
+
+describe('moneyTextToCentavos', () => {
+  it.for([
+    ['0.07', 7],
+    ['999999999.99', 99_999_999_999],
+    ['1250.50', 125_050],
+    ['1250.5', 125_050],
+    ['.5', 50],
+    ['5.', 500],
+    ['5', 500],
+    ['0', 0],
+    ['007', 700],
+    // Float traps: parseFloat(text) * 100 gives 28.999999999999996 and 114.99999999999999.
+    ['0.29', 29],
+    ['1.15', 115],
+  ] as const)('reads %j as %d centavos', ([text, expected]) => {
+    const centavos = moneyTextToCentavos(text);
+    expect(centavos).toBe(expected);
+    expect(Number.isSafeInteger(centavos)).toBe(true);
+  });
+
+  it.for(['', '.'])('throws a TypeError for the empty amount %j, so callers validate first', (text) => {
+    expect(() => moneyTextToCentavos(text)).toThrow(new TypeError('empty amount'));
+  });
+
+  it.for(['-5', '1.234', '1234567890', 'abc'])('throws a TypeError for %j', (text) => {
+    expect(() => moneyTextToCentavos(text)).toThrow(new TypeError('not an amount'));
+  });
+});
+
+describe('centavosToMoneyText', () => {
+  it.for([
+    [125_050, '1250.50'],
+    [7, '0.07'],
+    [0, '0.00'],
+    [-0, '0.00'],
+    [500, '5.00'],
+    [99_999_999_999, '999999999.99'],
+  ] as const)('writes %d centavos as %j', ([centavos, expected]) => {
+    expect(centavosToMoneyText(centavos)).toBe(expected);
+  });
+
+  it.for([
+    ['a negative amount', -5],
+    ['a fraction of a centavo', 0.5],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['more than nine integer digits', 100_000_000_000],
+  ] as const)('throws a RangeError for %s', ([, centavos]) => {
+    expect(() => centavosToMoneyText(centavos)).toThrow(RangeError);
+  });
+
+  it('round-trips every centavo amount up to ₱100.00 and the largest amount', () => {
+    const amounts = [...Array.from({ length: 10_001 }, (_, i) => i), 99_999_999_999, 12_345_678_901];
+    const mismatches = amounts.filter((c) => moneyTextToCentavos(centavosToMoneyText(c)) !== c);
+    expect(mismatches).toEqual([]);
+  });
+
+  it('round-trips typed text after blur padding', () => {
+    for (const typed of ['1250.5', '.07', '5', '999999999.99']) {
+      const padded = padMoneyOnBlur(typed);
+      expect(centavosToMoneyText(moneyTextToCentavos(padded))).toBe(padded);
+    }
   });
 });

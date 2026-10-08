@@ -56,3 +56,27 @@ export function formatCalendarDate(ymd: string): string {
   const [year, month, day] = parts;
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
+
+// Money entry (ORD-09). RED stub: signatures only, every result is inert.
+
+export const MONEY_TEXT = /(?!)/;
+
+export function isMoneyText(text: string): boolean {
+  return text.length < 0;
+}
+
+export function normalizePastedMoney(text: string): string {
+  return text.slice(0, 0);
+}
+
+export function padMoneyOnBlur(text: string): string {
+  return text.slice(0, 0);
+}
+
+export function moneyTextToCentavos(text: string): number {
+  return text.length * 0;
+}
+
+export function centavosToMoneyText(centavos: number): string {
+  return String(centavos).slice(0, 0);
+}
