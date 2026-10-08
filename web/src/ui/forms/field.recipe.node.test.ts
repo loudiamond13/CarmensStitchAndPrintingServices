@@ -94,7 +94,9 @@ describe('field recipe (App. B forms, App. C toolbar and item rows)', () => {
     expectInOrder(
       `${classSelector('focus-within:border-focus')}:focus-within`,
       `${classSelector('hover:not-focus-within:border-ink-muted')}:hover:not(:focus-within)`,
-      `${classSelector('has-aria-invalid:border-danger')}:has([aria-invalid="true"])`,
+      `${classSelector('has-aria-invalid:border-danger!')}:has([aria-invalid="true"])`,
     );
+    // The hover rule is (0,3,0) like the spec's invalid rule, so the invalid border must be important to win.
+    expect(css).toMatch(/:has\(\[aria-invalid="true"\]\) \{\s*border-color: var\(--danger\) !important;/);
   });
 });

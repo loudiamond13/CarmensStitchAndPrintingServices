@@ -22,12 +22,13 @@ const LABEL =
 const REQUIRED = 'text-danger';
 // App. B `.csp-control`, `:hover`, `:focus-within` and `.csp-field.is-invalid .csp-control` (keyed off the box's own
 // aria-invalid). The focus look wins over hover, and the invalid look over both, as the spec cascade has it.
+// `[outline:none]` is App. B's shorthand: it also resets the outline width and colour the global :focus-visible sets.
 const CONTROL =
-  'relative flex items-center rounded-sm border border-line-strong bg-surface-2 transition-[border-color,box-shadow] duration-150 ease-[ease] hover:not-focus-within:border-ink-muted focus-within:border-focus focus-within:[box-shadow:0_0_0_1px_var(--focus)] has-aria-invalid:border-danger has-aria-invalid:focus-within:[box-shadow:0_0_0_1px_var(--danger)]';
+  'relative flex items-center rounded-sm border border-line-strong bg-surface-2 transition-[border-color,box-shadow] duration-150 ease-[ease] hover:not-focus-within:border-ink-muted focus-within:border-focus focus-within:[box-shadow:0_0_0_1px_var(--focus)] has-aria-invalid:border-danger! has-aria-invalid:focus-within:[box-shadow:0_0_0_1px_var(--danger)]';
 // App. B `.csp-input` (16px) and its placeholder at full opacity (D-02 FYI-01), plus App. C `.s-toolbar .csp-input` and
 // `.s-item .csp-input` (14px) with the D-01 phone rule (16px on pages up to 767px wide).
 const INPUT =
-  'w-full min-w-0 flex-1 border-0 bg-transparent text-ink outline-none placeholder:text-ink-muted text-[16px] in-data-[ui=s-toolbar]:text-[14px] in-data-[ui=s-item]:text-[14px] pg-phone:in-data-[ui=s-toolbar]:text-[16px] pg-phone:in-data-[ui=s-item]:text-[16px]';
+  'w-full min-w-0 flex-1 border-0 bg-transparent text-ink [outline:none] placeholder:text-ink-muted text-[16px] in-data-[ui=s-toolbar]:text-[14px] in-data-[ui=s-item]:text-[14px] pg-phone:in-data-[ui=s-toolbar]:text-[16px] pg-phone:in-data-[ui=s-item]:text-[16px]';
 // A one-line box: 44px, 40px in a toolbar or an item row.
 const LINE = 'h-11 in-data-[ui=s-toolbar]:h-10 in-data-[ui=s-item]:h-10';
 // `.csp-control.is-multiline .csp-input` (its auto height beats the region height, as in the spec cascade).
@@ -130,14 +131,15 @@ describe('Field markup and labelling (App. D.3, A11Y-01)', () => {
 
   it('shows nothing invalid until an error is set (no validation before the first submit)', () => {
     const { container, rerender } = render(<Field label="Mobile number" required />);
-    expect(box('Mobile number')).not.toHaveAttribute('aria-invalid');
+    const input = screen.getByRole('textbox', { name: 'Mobile number' });
+    expect(input).not.toHaveAttribute('aria-invalid');
     expect(container.querySelector('p')).toBeNull();
 
     rerender(<Field label="Mobile number" required error="Enter a mobile number." />);
-    expect(box('Mobile number')).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
 
     rerender(<Field label="Mobile number" required error="" />);
-    expect(box('Mobile number')).not.toHaveAttribute('aria-invalid');
+    expect(input).not.toHaveAttribute('aria-invalid');
     expect(container.querySelector('p')).toBeNull();
   });
 
