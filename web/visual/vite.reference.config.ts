@@ -18,6 +18,10 @@ export default defineConfig({
     emptyOutDir: true,
     // Fonts stay files, never data: URLs, because the CSP is font-src 'self' (same as the app build).
     assetsInlineLimit: 0,
+    // The approved CSS stays as written (plan 02-17). Minifying rewrote App. B's `background: transparent` into
+    // `background: 0 0`, which also sets background-position to 0px 0px, a computed value the approved CSS never has.
+    // Tailwind's own optimizer follows this flag, so neither minifier rewrites a declaration.
+    cssMinify: false,
     sourcemap: false,
     license: false,
   },

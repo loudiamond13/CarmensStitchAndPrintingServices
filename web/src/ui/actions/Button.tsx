@@ -9,7 +9,7 @@ import { buttonClasses, buttonSpinnerClasses, type ButtonSize, type ButtonVarian
 
 export type { ButtonSize, ButtonVariant } from './button.recipe';
 
-export interface ButtonProps {
+interface ButtonBaseProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: IconName;
@@ -24,14 +24,11 @@ export interface ButtonProps {
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
   /** Layout glue only (margin, placement, width); never a restyle (spec rule 3). */
   className?: string;
-  children?: ReactNode;
   id?: string;
   title?: string;
   form?: string;
   name?: string;
   value?: string;
-  /** Required for an icon-only button (no children). */
-  'aria-label'?: string;
   'aria-describedby'?: string;
   'aria-controls'?: string;
   'aria-expanded'?: boolean;
@@ -39,6 +36,12 @@ export interface ButtonProps {
   'aria-pressed'?: boolean;
   ref?: Ref<HTMLButtonElement>;
 }
+
+// SPEC-DEVIATION: A11Y-04 App. D.3 accepts an icon-only Button (no children) without a name; here the type requires an
+// aria-label for one, so an unnamed icon button is a compile error instead of an axe finding (button-name).
+/** A labelled button (children), or an icon-only button (no children) that must carry an `aria-label`. */
+export type ButtonProps = ButtonBaseProps &
+  ({ children: ReactNode; 'aria-label'?: string } | { children?: undefined; 'aria-label': string });
 
 /** Icon size by button size, as App. D.3: 16px on sm, 18px otherwise. */
 const ICON_SIZE = { sm: 16, md: 18, lg: 18 } as const satisfies Record<ButtonSize, number>;

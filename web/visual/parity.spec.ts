@@ -65,6 +65,21 @@ const FREEZE = `(() => {
   }
 })()`;
 
+// Repaints the whole page after FREEZE, so the shot never mixes old and new raster (plan 02-17). A state change repaints
+// only the changed area, and Chromium then sometimes kept anti-aliasing from the earlier frame at a clipped edge (a
+// focus ring or a pressed button at the frame's right edge): the reference differed from itself by up to 16 pixels
+// between runs, with the same computed styles and boxes. Toggling the root's opacity through the CSSOM (allowed by the
+// CSP) re-rasters everything for two frames each way. Unlike visibility, it keeps :hover, :active and :focus-visible,
+// and it changes no value the comparison reads; nothing is normalized or tolerated.
+const REPAINT = `(async () => {
+  const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const style = document.documentElement.style;
+  style.setProperty('opacity', '0.99');
+  await frames();
+  style.removeProperty('opacity');
+  await frames();
+})()`;
+
 function caseSelector(id: string): string {
   return `[data-case=${JSON.stringify(id)}]`;
 }
@@ -144,6 +159,8 @@ async function compareCase(
   const selector = caseSelector(scenario.id);
   await reference.evaluate(FREEZE);
   await impl.evaluate(FREEZE);
+  await reference.evaluate(REPAINT);
+  await impl.evaluate(REPAINT);
 
   const differences = diffCases(
     normalizeRecord(await collectCase(reference, selector, { iconViewBox: ICON_VIEWBOX })),
