@@ -36,6 +36,36 @@
       "date": "2026-10-07",
       "by": "owner",
       "scope": "nuqs 2.10.1 (MIT) with its one dependency @standard-schema/spec 1.1.0 (MIT), planned for Phase 2 Web Foundation to keep list-page state in the URL query string (quick task 261007-kz6, requirement WEB-10). Approved after a check for npm security advisories, deprecation and the 14-day cool-down. Not installed yet, so it is recorded under planned. Switching to any other version, for example a stable 2.10.2 at least 14 days old, needs a new owner approval at install."
+    },
+    {
+      "date": "2026-10-07",
+      "by": "owner",
+      "scope": "Transitive cool-down exception for web/: source-map-js 1.2.2 (BSD-3-Clause, build/test only; pulled in by Vite, PostCSS and the coverage tools). Pinned exactly through overrides in web/package.json and excluded from min-release-age in web/.npmrc. Published 2026-09-30, so younger than 14 days at install.",
+      "package": "source-map-js",
+      "version": "1.2.2",
+      "published": "2026-09-30",
+      "adopted": "2026-10-07",
+      "coolDown": "accepted: security fix GHSA-68fv-2mgg-jv7q (high), fixed in 1.2.2; the older versions that pass the cool-down are affected"
+    },
+    {
+      "date": "2026-10-07",
+      "by": "owner",
+      "scope": "Transitive cool-down exception for web/: http-cache-semantics 4.3.0 (BSD-2-Clause, tool only; pulled in only by license-checker-rseidelsohn -> @npmcli/arborist -> make-fetch-happen). Pinned exactly through overrides in web/package.json and excluded from min-release-age in web/.npmrc. Published 2026-10-04, so younger than 14 days at install.",
+      "package": "http-cache-semantics",
+      "version": "4.3.0",
+      "published": "2026-10-04",
+      "adopted": "2026-10-07",
+      "coolDown": "accepted: security fix GHSA-ch52-4w7c-c8xp (high), fixed in 4.3.0; the older versions that pass the cool-down are affected"
+    },
+    {
+      "date": "2026-10-07",
+      "by": "owner",
+      "scope": "Transitive cool-down waiver for web/: rolldown 1.2.11 (MIT, build only), the bundler engine inside vite 8.3.3 (vite asks for ~1.2.11), together with its 15 matching @rolldown/binding-* 1.2.11 platform packages (MIT). Published 2026-09-24T14:30Z, 11.5 hours short of 14 days at install. Pinned exactly to 1.2.11 through overrides in web/package.json and excluded from min-release-age in web/.npmrc; without the pin npm picks 1.2.13 (published 2026-10-07), which is not approved. Any other rolldown version needs a new owner approval.",
+      "package": "rolldown",
+      "version": "1.2.11",
+      "published": "2026-09-24",
+      "adopted": "2026-10-07",
+      "coolDown": "accepted: owner cool-down waiver 2026-10-07 (vite 8.3.3 engine, 11.5 hours short of 14 days)"
     }
   ],
   "packages": [
