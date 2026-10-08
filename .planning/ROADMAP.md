@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T06:05:52-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T08:30:00-05:00*
 
 ## Overview
 
@@ -226,46 +226,68 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 18 plans in 10 waves
+**Plans**: 36 plans in 12 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`)
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Tracer: approved npm packages installed, Vite build into `wwwroot`, anonymous SPA host with file/D-29 404s, compression and caching (W1)
+- [ ] 02-01-PLAN.md — Tracer: anonymous SPA shell (GET/HEAD) from a committed fixture web root, file and D-29 404s, L-03 probe moves, matrix rows
+- [ ] 02-02-PLAN.md — Tracer: owner-approved npm toolchain installed, Vite + Tailwind token theme build the D-21 placeholder into the ignored wwwroot; TS 7 alias pair
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — Strict TS 7 typecheck, ESLint with tested architecture bans, Prettier, Vitest with console guard and in-house axe helper (W2)
+- [ ] 02-03-PLAN.md — HiddenSegmentFileProvider (dot/tilde/backslash/8.3 paths 404), static-text compression and caching, hosting docs
+- [ ] 02-04-PLAN.md — ESLint with every architecture and D-33 ban (one syntaxBans array), Tailwind lint, Prettier class sorting, console guard, axe helper, `verify`
+- [ ] 02-05-PLAN.md — Stylesheet contract and class gate (every token compiles, no colour literals, D-02 opacity allow-list), styling guide
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-03-PLAN.md — npm pins in the dependency registry, npm license gate (D-26), web notices drift check (W3)
-- [ ] 02-04-PLAN.md — Golden vectors (>= 200) passing in xUnit OrderMath and Vitest csps.ts with D-09 rounding; money/date formatters (W3)
-- [ ] 02-05-PLAN.md — Verbatim App. A-C CSS, owner WCAG overrides D-01..D-05, fonts with ₱-safe fallbacks and preload (W3)
-- [ ] 02-06-PLAN.md — Playwright on HTTPS 5199 with console/CSP/axe fixtures and self-tests across five projects (W3)
-- [ ] 02-07-PLAN.md — fetch-based httpClient with single-flight refresh, capped retries and key reuse, 100% coverage (W3)
-- [ ] 02-08-PLAN.md — nuqs list-state hook and parsers (WEB-10), TanStack Query defaults, debounce and intent prefetch (W3)
+- [ ] 02-06-PLAN.md — npm kind in the dependency registry, npm license gate (D-26 + addendum), repository notices (D-35)
+- [ ] 02-07-PLAN.md — Golden vectors (>= 200) in xUnit OrderMath and Vitest csps.ts with D-09 rounding; App. D.1 reconciled
+- [ ] 02-08-PLAN.md — Business-zone date formatting and exact money-text helpers (ORD-09)
+- [ ] 02-09-PLAN.md — Playwright on HTTPS 5199 across five projects with console/CSP/axe guards and self-tests
+- [ ] 02-10-PLAN.md — fetch-based httpClient: single-flight refresh, capped retries, Idempotency-Key reuse, 100% coverage
+- [ ] 02-12-PLAN.md — Self-hosted fonts with one preload and metric-matched fallbacks (₱ never in Barlow or a system font)
+- [ ] 02-13-PLAN.md — Look-equality reference: spec appendices extracted and hash-pinned, owner-rulings layer, route-served under the real CSP
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-09-PLAN.md — Verbatim App. D.3-D.5 reconciled with no DOM change, lucide icon map, owner rulings on O-1..O-8 and icon drift (W4, checkpoint)
-- [ ] 02-10-PLAN.md — OpenAPI snapshot and generated types, api.ts, useSubmission (one Idempotency-Key per submission), error copy (W4)
+- [ ] 02-11-PLAN.md — nuqs URL list state (parsers, push/replace, privacy, UrlStateLayout) and TanStack Query defaults, debounce, prefetch
+- [ ] 02-14-PLAN.md — Look-equality harness live: comparator (styles, boxes, pixels, axe, CSP) with self-test; Icon and Button proven in three engines
+- [ ] 02-15-PLAN.md — OpenAPI snapshot → generated types → api.ts, with the drift chain
+- [ ] 02-16-PLAN.md — useSubmission (one Idempotency-Key per submission), focusFirstInvalid, describeHttpError copy
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-11-PLAN.md — Focus-trapped Modal/ConfirmDialog, Tabs ARIA, pending Button, D-04 toasts, owner rulings applied, axe over every component (W5)
-- [ ] 02-12-PLAN.md — MoneyInput, OtpInput, Checkbox, SkipLink, PasswordField tests (W5)
+- [ ] 02-17-PLAN.md — Button family, pending state (WEB-09), ButtonLink/UiLink proven equal
+- [ ] 02-18-PLAN.md — Mark (JSX), Logo, motifs, MediaPlaceholder and the 56-icon wrapper proven equal
+- [ ] 02-19-PLAN.md — Badges, Avatar (O-1), SegmentedControl, Tabs ARIA with the D-03 cue
+- [ ] 02-20-PLAN.md — Field, PasswordField, Select with D-01 phone 16px
+- [ ] 02-21-PLAN.md — EmptyState, Skeleton, Toast and the D-04/O-5/O-7 toast queue
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-13-PLAN.md — ResponsiveTable with all states, Pagination, SearchBox, FilterBar, ErrorState, skeletons, LazyImage (W6)
-- [ ] 02-14-PLAN.md — React Router 8 data router, public layout and placeholder page, error boundaries, public E2E (W6)
+- [ ] 02-22-PLAN.md — Focus-trapped Modal and ConfirmDialog (cascade, type-to-confirm, stay-open failure)
+- [ ] 02-23-PLAN.md — Money, KpiCard, OrderTotals on the spec seed orders
+- [ ] 02-24-PLAN.md — OrderCard, DataTable, keyboard-accessible IncomeExpenseChart
+- [ ] 02-25-PLAN.md — ImageUploader (D-05) and marketing cards (O-2)
+- [ ] 02-26-PLAN.md — SiteHeader (O-3), Sidebar (D-27, D-BL-02), Topbar
+- [ ] 02-27-PLAN.md — SPEC-GAP MoneyInput, OtpInput, Checkbox (D-03), SkipLink
+- [ ] 02-28-PLAN.md — SPEC-GAP ErrorState, skeleton family, LoadingRegion, LazyImage
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-15-PLAN.md — Dev-only admin shell with theme toggle, mobile drawer, user menu and preview pages; absent from production builds (W7)
+- [ ] 02-29-PLAN.md — React Router 8 data router, public layout and footer, error boundaries, public parity and E2E
+- [ ] 02-30-PLAN.md — ResponsiveTable with every list state, Pagination, SearchBox, FilterBar, URL-state integration
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-16-PLAN.md — Build-enforced bundle budgets, full `verify` gate, component showcase at /dev/components (W8)
+- [ ] 02-31-PLAN.md — Dev-only admin shell: theme toggle (D-13), rail/tab bar, preview pages, absent from production (D-20)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 02-17-PLAN.md — Lighthouse >= 95 on the real host, responsive sweep 320-1920, ₱ font proof, WCAG rulings and keyboard E2E (W9)
+- [ ] 02-32-PLAN.md — SPEC-GAP MobileNavDrawer and UserMenu with keyboard E2E
+- [ ] 02-33-PLAN.md — Build-enforced budgets (150/250/35 KB gz), one-CSS and no-dev-code rules in verify
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 02-18-PLAN.md — Local owner visual review: screenshots, side-by-side with the design exports, Logout before/after (W10, checkpoint)
+- [ ] 02-34-PLAN.md — `@/ui` barrel and the /dev/components showcase in both themes, page-level axe
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 02-35-PLAN.md — Lighthouse >= 95 on the real host, responsive sweep, ₱ proof, WCAG rulings, keyboard journeys, full parity matrix
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 02-36-PLAN.md — Local owner visual review (D-23) and the guarded side-by-side with the design exports (D-24)
 
 **UI hint**: yes
 
@@ -891,7 +913,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 0/18 | Planned | - |
+| 2. Web Foundation & Design System | 0/36 | Planned | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
