@@ -112,3 +112,18 @@ const messageTone = {
 export function messageClasses({ error }: { error: boolean }): string {
   return clsx(messageBase, error ? messageTone.error : messageTone.hint);
 }
+
+// RED stubs (plan 02-20 Task 2): the reveal toggle, select and strength looks are not transcribed yet.
+export const suffixButtonClasses = tw('');
+export const selectChevronClasses = tw('');
+export const selectOptionClasses = tw('');
+export const strengthClasses = tw('');
+export const strengthBarsClasses = tw('');
+
+export function strengthBarClasses(_score: number, _on: boolean): string {
+  return tw('');
+}
+
+export function strengthLabelClasses(_score: number): string {
+  return tw('');
+}
