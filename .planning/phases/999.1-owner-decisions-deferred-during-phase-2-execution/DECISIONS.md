@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T02:24:38-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T04:16:13-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -85,3 +85,20 @@ None.
 **How to answer:** reply "option-a" to accept every recommendation (O-1..O-7 yes, O-8 keep as designed, approve all redrawn icons, D-27 confirmed). Or answer item by item, for example: "O-1 yes, O-2 yes, O-3 no, …, menu: approve, filter: use list-filter".
 
 **To apply after the answer:** record the rulings in `.planning/phases/02-web-foundation-design-system/02-CONTEXT.md` as **D-31** (one dated line per O-1..O-8, plus D-BL-02 if ruled) and **D-32** (one line per redrawn icon), and update its `Updated` timestamp. Repeat the reply verbatim in `02-09-SUMMARY.md`. Then run plan 02-11, followed by 02-14 → 02-18.
+
+## D-BL-04 · Should website visitors be able to read the third-party credits? (D-10, found in UAT)
+
+**Status:** open · **Raised:** 2026-10-08 · **Blocks:** nothing. The security fix (UAT gap G-02-2) goes ahead without this decision.
+
+**What happened.** UAT found that the server publishes a build file, `/.vite/license.md`, which lists the bundled libraries with their exact versions. It was never meant to be public. The fix (block every file inside a dot-folder) needs no decision from you. But it raises a question you ruled on before in **D-10**: your ruling says credit for the free libraries comes "via the license notice pipeline (Vite build.license / THIRD-PARTY-NOTICES)". Today:
+
+- `web/THIRD-PARTY-NOTICES.txt` already lists all 16 libraries that ship to the browser (more complete than Vite's file, which lists 5). It lives in the repository and isn't shown on the website.
+- The shipped JavaScript contains no license text, because the minifier removes it. So once the fix lands, a visitor has no page showing the credits.
+
+**Options**
+
+- **A (recommended): publish the credits on purpose.** Serve the complete notices as a named, deliberate public file or a small "Credits" page linked from the legal pages. Stop Vite writing its own file (`build.license: false`), since THIRD-PARTY-NOTICES covers more.
+- **B: keep the credits in the repository only.** Turn off Vite's file and publish nothing. Most of these licenses (MIT, ISC, OFL) only require keeping the notice with copies of the code, and the repository does that.
+- **C: keep Vite's file but move it out of the web root.** Use it as an internal build record only.
+
+**Recommended answer:** A. It's the clearest way to honour D-10, and it costs one small public file.

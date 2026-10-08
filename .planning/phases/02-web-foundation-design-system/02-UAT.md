@@ -3,7 +3,7 @@ status: partial
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md]
 started: 2026-10-08T04:01:30-05:00
-updated: 2026-10-08T04:03:20-05:00
+updated: 2026-10-08T04:16:00-05:00
 created: 2026-10-08T04:01:30-05:00
 ---
 
@@ -608,8 +608,21 @@ blocked: 6
   reason: "Found by Claude during automated UAT (owner away): GET /.vite/license.md returns 200 text/markdown and lists every bundled dependency with its exact version."
   severity: minor
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Two causes, both required. (1) web/vite.config.ts build.license: true with outDir ../src/Csps.Server/wwwroot makes Vite emit .vite/license.md into the API web root on every production, e2e and budget build. (2) src/Csps.Server/Program.cs:78 UseStaticFiles has no path filter or allow-list: PhysicalFileProvider ExclusionFilters.Sensitive checks only the LAST path name (license.md), never parent dot folders (.vite), and .md maps to text/markdown, so the {*path:file} ProblemDetails 404 never runs. Case and encoded variants (/.VITE/LICENSE.MD, /%2Evite/license.md) and any file in any dot folder with a known extension (.json, .txt) are served the same way. Tests missed it: the fixture webroot has no dot folder and SpaHostTests never asserts that an existing non-app file is refused; build-config.test.ts:18 pins license: true. Nothing consumes the file (third-party-notices.mjs reads the npm tree). dotnet publish happens to drop dot folders, but dotnet run, the e2e host (web/.e2e-dist) and the planned 02-17 Lighthouse host serve it. CWE-200/CWE-538/CWE-497, low impact (anonymous, read-only, no secrets)."
+  artifacts:
+    - path: "src/Csps.Server/Program.cs"
+      issue: "UseStaticFiles (line 78) serves any existing file, including files inside dot-prefixed folders"
+    - path: "web/vite.config.ts"
+      issue: "build.license: true writes .vite/license.md into the served outDir"
+    - path: "tests/Csps.Server.IntegrationTests/Http/SpaHostTests.cs"
+      issue: "no test that an existing file under a dot-prefixed folder is refused"
+    - path: "tests/Csps.Testing/Fixtures/webroot/"
+      issue: "no dot-folder fixture"
+  missing:
+    - "Static files refuse any decoded path segment that starts with a dot (case-insensitive), so the request falls through to the {*path:file} anonymous ProblemDetails 404 (option A; no owner decision needed)"
+    - "Regression fixture Fixtures/webroot/.vite/license.md plus a SpaHostTests theory asserting the 404 ProblemDetails for /.vite/license.md, /.VITE/LICENSE.MD, /%2Evite/license.md and a nested /.x/y.txt"
+    - "Owner ruling on the license file itself and on whether visitors can read third-party credits (D-10) is parked as D-BL-04 in backlog 999.1; the fix must not decide it"
+  debug_session: ".planning/debug/wwwroot-vite-license-served.md"
 
 ## Deferred Follow-Ups
 
