@@ -58,7 +58,9 @@ describe('normalizeDom: differences that must disappear', () => {
 
 describe('normalizeDom: differences that must stay visible', () => {
   it('a different tag name', () => {
-    expect(normalizeDom('<a class="csp-nav">Logout</a>')).not.toBe(normalizeDom('<button class="csp-nav">Logout</button>'));
+    expect(normalizeDom('<a class="csp-nav">Logout</a>')).not.toBe(
+      normalizeDom('<button class="csp-nav">Logout</button>'),
+    );
   });
 
   it('a different class', () => {

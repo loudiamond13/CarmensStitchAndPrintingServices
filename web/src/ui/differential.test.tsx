@@ -4,14 +4,15 @@
 // the svg xmlns attribute, attribute order and icon inner drawings (research Pattern 3). The one listed structural
 // difference is the Sidebar Logout element (D-27). Any other difference is a D-08 stop for an owner ruling, never
 // something to normalize away.
-import { fireEvent, render, within } from '@testing-library/react';
+import { act, fireEvent, render, within } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RouterLink } from '@/app/RouterLink';
-import type { CascadeCounts, Order } from '@/lib/csps';
+import type { CascadeCounts, Order, OrderImage, Role } from '@/lib/csps';
 import { normalizeDom } from '@/test/normalizeDom';
 import { ICONS } from './icons';
+import { MarkSvg } from './mark';
 import indexSource from './index.tsx?raw';
 import * as Reconciled from './index';
 
@@ -38,6 +39,17 @@ const REFERENCE_ICON_NAMES = Object.keys(
 ) as Reconciled.IconName[];
 
 /* ───────────── UI-SPEC section 12 seed data ───────────── */
+
+const IMAGES_0148: OrderImage[] = [
+  { id: 'img-1', name: 'front-mockup.png', number: '23' },
+  { id: 'img-2', name: 'back-mockup.png', number: '7' },
+  { id: 'img-3', name: 'shorts.png' },
+  { id: 'img-4', name: 'reference.jpg' },
+];
+const IMAGES_0151: OrderImage[] = [
+  { id: 'img-5', name: 'tondo-front.png', src: '/media/tondo-front.png' },
+  { id: 'img-6', name: 'tondo-back.png', src: '/media/tondo-back.png' },
+];
 
 const ORDER_0148: Order = {
   number: 'ORD-2026-0148',
@@ -67,12 +79,7 @@ const ORDER_0148: Order = {
     { date: '2026-10-02', category: 'Ink & paper', description: 'Sublimation ink + transfer paper', amount: 1640 },
     { date: '2026-10-04', category: 'Outsourcing', description: 'Embroidery — coach polos', amount: 600 },
   ],
-  images: [
-    { id: 'img-1', name: 'front-mockup.png', number: '23' },
-    { id: 'img-2', name: 'back-mockup.png', number: '7' },
-    { id: 'img-3', name: 'shorts.png' },
-    { id: 'img-4', name: 'reference.jpg' },
-  ],
+  images: IMAGES_0148,
 };
 
 const ORDER_0151: Order = {
@@ -86,10 +93,7 @@ const ORDER_0151: Order = {
   discounts: [{ reason: 'Club discount', type: 'fixed', value: 500 }],
   payments: [{ amount: 12000 }, { amount: 10500 }],
   expenses: [{ amount: 7200 }, { amount: 2100 }],
-  images: [
-    { id: 'img-5', name: 'tondo-front.png', src: '/media/tondo-front.png' },
-    { id: 'img-6', name: 'tondo-back.png', src: '/media/tondo-back.png' },
-  ],
+  images: IMAGES_0151,
 };
 
 const ORDER_0153: Order = {
@@ -147,6 +151,9 @@ const USER_COLUMNS: Reconciled.DataTableColumn<UserRow>[] = [
   { key: 'owed', label: 'Owed', align: 'right', money: true },
 ];
 
+// A user role, not an ARIA role (passed as a variable so jsx-a11y aria-role does not read it as one).
+const MANAGER: Role = 'manager';
+const ADMIN: Role = 'admin';
 const CARMEN = { name: 'Carmen Reyes' };
 const JOMAR = { name: 'Jomar Santos' };
 const noop = (): void => undefined;
@@ -162,7 +169,13 @@ interface Case {
   readonly d27?: boolean;
 }
 
-const LINK_TARGETS = ['/products', 'https://www.facebook.com/csps', 'mailto:hello@cspstailoring.com', 'tel:+639171234567', '#top'];
+const LINK_TARGETS = [
+  '/products',
+  'https://www.facebook.com/csps',
+  'mailto:hello@cspstailoring.com',
+  'tel:+639171234567',
+  '#top',
+];
 
 const iconCases: Case[] = [
   ...REFERENCE_ICON_NAMES.map((name) => ({ name: `Icon ${name}`, render: (ui: Ui) => <ui.Icon name={name} /> })),
@@ -174,7 +187,14 @@ const iconCases: Case[] = [
 ];
 
 const CASES: Case[] = [
-  { name: 'LinkProvider children', render: (ui) => <ui.LinkProvider component={RouterLink}><span>Kids</span></ui.LinkProvider> },
+  {
+    name: 'LinkProvider children',
+    render: (ui) => (
+      <ui.LinkProvider component={RouterLink}>
+        <span>Kids</span>
+      </ui.LinkProvider>
+    ),
+  },
   ...LINK_TARGETS.map((to) => ({
     name: `UiLink ${to}`,
     render: (ui: Ui) => (
@@ -183,7 +203,14 @@ const CASES: Case[] = [
       </ui.UiLink>
     ),
   })),
-  { name: 'UiLink aria-current + title', render: (ui) => <ui.UiLink to="/" aria-current="page" title="Home">Home</ui.UiLink> },
+  {
+    name: 'UiLink aria-current + title',
+    render: (ui) => (
+      <ui.UiLink to="/" aria-current="page" title="Home">
+        Home
+      </ui.UiLink>
+    ),
+  },
   ...iconCases,
   { name: 'Mark default', render: (ui) => <ui.Mark /> },
   { name: 'Mark labelled', render: (ui) => <ui.Mark size={64} label="CSPS" className="x" /> },
@@ -199,10 +226,20 @@ const CASES: Case[] = [
   { name: 'StitchDivider plain', render: (ui) => <ui.StitchDivider /> },
   { name: 'StitchDivider labelled', render: (ui) => <ui.StitchDivider label="Our process" className="x" /> },
   { name: 'SectionCut default', render: (ui) => <ui.SectionCut>Body</ui.SectionCut> },
-  { name: 'SectionCut accent mesh', render: (ui) => <ui.SectionCut tone="accent" mesh top={false} className="x">Body</ui.SectionCut> },
+  {
+    name: 'SectionCut accent mesh',
+    render: (ui) => (
+      <ui.SectionCut tone="accent" mesh top={false} className="x">
+        Body
+      </ui.SectionCut>
+    ),
+  },
   { name: 'SectionCut no bottom', render: (ui) => <ui.SectionCut bottom={false} /> },
   { name: 'MediaPlaceholder empty', render: (ui) => <ui.MediaPlaceholder /> },
-  { name: 'MediaPlaceholder labelled', render: (ui) => <ui.MediaPlaceholder label="Front mockup" number="23" ratio="16 / 10" /> },
+  {
+    name: 'MediaPlaceholder labelled',
+    render: (ui) => <ui.MediaPlaceholder label="Front mockup" number="23" ratio="16 / 10" />,
+  },
   { name: 'MediaPlaceholder number 0', render: (ui) => <ui.MediaPlaceholder number={0} className="x" /> },
   { name: 'MediaPlaceholder empty number', render: (ui) => <ui.MediaPlaceholder number="" label="" /> },
   ...(['primary', 'secondary', 'ghost', 'danger', 'ghost-danger'] as const).map((variant) => ({
@@ -217,19 +254,57 @@ const CASES: Case[] = [
       </ui.Button>
     ),
   })),
-  { name: 'Button loading', render: (ui) => <ui.Button variant="primary" icon="plus" iconRight="arrow-right" loading>Saving</ui.Button> },
-  { name: 'Button icon-only', render: (ui) => <ui.Button variant="ghost-danger" icon="trash-2" aria-label="Delete order" /> },
-  { name: 'Button block submit disabled', render: (ui) => <ui.Button block type="submit" disabled className="x">Sign in</ui.Button> },
+  {
+    name: 'Button loading',
+    render: (ui) => (
+      <ui.Button variant="primary" icon="plus" iconRight="arrow-right" loading>
+        Saving
+      </ui.Button>
+    ),
+  },
+  {
+    name: 'Button icon-only',
+    render: (ui) => <ui.Button variant="ghost-danger" icon="trash-2" aria-label="Delete order" />,
+  },
+  {
+    name: 'Button block submit disabled',
+    render: (ui) => (
+      <ui.Button block type="submit" disabled className="x">
+        Sign in
+      </ui.Button>
+    ),
+  },
   { name: 'Button children 0 and false', render: (ui) => <ui.Button>{0}</ui.Button> },
   { name: 'Button children false', render: (ui) => <ui.Button icon="x">{false}</ui.Button> },
   { name: 'ButtonLink default', render: (ui) => <ui.ButtonLink to="/contact">Get a Quote</ui.ButtonLink> },
-  { name: 'ButtonLink icons', render: (ui) => <ui.ButtonLink to="/products" variant="primary" size="sm" icon="shirt" iconRight="arrow-right" className="x">Shop</ui.ButtonLink> },
-  { name: 'ButtonLink external lg', render: (ui) => <ui.ButtonLink to="https://m.me/csps" size="lg" icon="message-circle">Message us</ui.ButtonLink> },
+  {
+    name: 'ButtonLink icons',
+    render: (ui) => (
+      <ui.ButtonLink to="/products" variant="primary" size="sm" icon="shirt" iconRight="arrow-right" className="x">
+        Shop
+      </ui.ButtonLink>
+    ),
+  },
+  {
+    name: 'ButtonLink external lg',
+    render: (ui) => (
+      <ui.ButtonLink to="https://m.me/csps" size="lg" icon="message-circle">
+        Message us
+      </ui.ButtonLink>
+    ),
+  },
   ...(['neutral', 'accent', 'success', 'warning', 'info', 'mockup', 'danger', 'solid'] as const).map((tone) => ({
     name: `Badge ${tone}`,
     render: (ui: Ui) => <ui.Badge tone={tone}>Label</ui.Badge>,
   })),
-  { name: 'Badge dot icon', render: (ui) => <ui.Badge dot icon="lock" className="x">Manager</ui.Badge> },
+  {
+    name: 'Badge dot icon',
+    render: (ui) => (
+      <ui.Badge dot icon="lock" className="x">
+        Manager
+      </ui.Badge>
+    ),
+  },
   ...(['pending', 'mockup', 'production', 'ready', 'completed', 'cancelled'] as const).map((status) => ({
     name: `StatusBadge ${status}`,
     render: (ui: Ui) => <ui.StatusBadge status={status} />,
@@ -239,42 +314,245 @@ const CASES: Case[] = [
   { name: 'Avatar Jomar 48', render: (ui) => <ui.Avatar name="jomar  santos" size={48} className="x" /> },
   { name: 'Avatar empty', render: (ui) => <ui.Avatar /> },
   { name: 'Avatar three words small', render: (ui) => <ui.Avatar name="Ma. Liza Mercado" size={20} /> },
-  { name: 'Field label hint', render: (ui) => <ui.Field label="Team name" hint="As printed on the jersey" defaultValue="Tondo Riders MC" /> },
-  { name: 'Field error required', render: (ui) => <ui.Field label="Customer" required error="Enter the customer's name." /> },
-  { name: 'Field money prefix', render: (ui) => <ui.Field label="Amount" prefix="₱" inputMode="decimal" placeholder="0.00" /> },
-  { name: 'Field multiline', render: (ui) => <ui.Field multiline label="Notes" rows={3} defaultValue="V-neck, black and volt." /> },
+  {
+    name: 'Field label hint',
+    render: (ui) => <ui.Field label="Team name" hint="As printed on the jersey" defaultValue="Tondo Riders MC" />,
+  },
+  {
+    name: 'Field error required',
+    render: (ui) => <ui.Field label="Customer" required error="Enter the customer's name." />,
+  },
+  {
+    name: 'Field money prefix',
+    render: (ui) => <ui.Field label="Amount" prefix="₱" inputMode="decimal" placeholder="0.00" />,
+  },
+  {
+    name: 'Field multiline',
+    render: (ui) => <ui.Field multiline label="Notes" rows={3} defaultValue="V-neck, black and volt." />,
+  },
   { name: 'Field own id no label', render: (ui) => <ui.Field id="order-search" className="x" aria-label="Search" /> },
-  { name: 'Field typed', render: (ui) => <ui.Field label="Email" type="email" />, interact: (c) => fireEvent.change(within(c).getByLabelText('Email'), { target: { value: 'carmen.reyes.csp@gmail.com' } }) },
+  {
+    name: 'Field typed',
+    render: (ui) => <ui.Field label="Email" type="email" />,
+    interact: (c) =>
+      fireEvent.change(within(c).getByLabelText('Email'), { target: { value: 'carmen.reyes.csp@gmail.com' } }),
+  },
   { name: 'PasswordField default', render: (ui) => <ui.PasswordField /> },
   { name: 'PasswordField strength empty', render: (ui) => <ui.PasswordField showStrength label="New password" /> },
   { name: 'PasswordField strength weak', render: (ui) => <ui.PasswordField showStrength defaultValue="abc" /> },
-  { name: 'PasswordField strength strong controlled', render: (ui) => <ui.PasswordField showStrength value="Str0ng!Passw0rd" onChange={noop} /> },
-  { name: 'PasswordField error hint', render: (ui) => <ui.PasswordField error="Wrong password." hint="At least 8 characters" /> },
-  { name: 'PasswordField shown', render: (ui) => <ui.PasswordField defaultValue="secret-1" />, interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Show password' })) },
-  { name: 'PasswordField typed', render: (ui) => <ui.PasswordField showStrength />, interact: (c) => fireEvent.change(within(c).getByLabelText('Password'), { target: { value: 'Abcdefg1!' } }) },
-  { name: 'Select strings', render: (ui) => <ui.Select label="Method" options={['Cash', 'GCash', 'Maya', 'Bank Transfer']} defaultValue="GCash" /> },
-  { name: 'Select objects placeholder', render: (ui) => <ui.Select label="Status" placeholder="Any status" options={[{ value: 'pending', label: 'Pending' }, { value: 'ready', label: 'Ready' }]} /> },
-  { name: 'Select error', render: (ui) => <ui.Select label="Category" options={['Rent']} error="Pick a category." className="x" /> },
-  { name: 'Select hint no label', render: (ui) => <ui.Select options={['A', 'B']} hint="Optional" aria-label="Pick" /> },
-  { name: 'SegmentedControl icons', render: (ui) => <ui.SegmentedControl label="View" options={[{ value: 'grid', label: 'Grid', icon: 'layout-grid' }, { value: 'list', label: 'List', icon: 'list' }]} /> },
-  { name: 'SegmentedControl labels value', render: (ui) => <ui.SegmentedControl value="b" onChange={noop} options={[{ value: 'a', label: 'Week' }, { value: 'b', label: 'Month' }]} /> },
-  { name: 'SegmentedControl showLabel', render: (ui) => <ui.SegmentedControl options={[{ value: 'grid', label: 'Grid', icon: 'layout-grid', showLabel: true }]} /> },
-  { name: 'SegmentedControl clicked', render: (ui) => <ui.SegmentedControl options={[{ value: 'a', label: 'Week' }, { value: 'b', label: 'Month' }]} />, interact: (c) => fireEvent.click(within(c).getByRole('radio', { name: 'Month' })) },
-  { name: 'Tabs counts', render: (ui) => <ui.Tabs items={[{ id: 'items', label: 'Items', count: 5 }, { id: 'payments', label: 'Payments', count: 2 }, { id: 'images', label: 'Images', count: 0 }]} /> },
-  { name: 'Tabs value', render: (ui) => <ui.Tabs value="payments" onChange={noop} items={[{ id: 'items', label: 'Items' }, { id: 'payments', label: 'Payments' }]} /> },
-  { name: 'Tabs clicked', render: (ui) => <ui.Tabs items={[{ id: 'items', label: 'Items' }, { id: 'payments', label: 'Payments' }]} />, interact: (c) => fireEvent.click(within(c).getByRole('tab', { name: 'Payments' })) },
+  {
+    name: 'PasswordField strength strong controlled',
+    render: (ui) => <ui.PasswordField showStrength value="Str0ng!Passw0rd" onChange={noop} />,
+  },
+  {
+    name: 'PasswordField error hint',
+    render: (ui) => <ui.PasswordField error="Wrong password." hint="At least 8 characters" />,
+  },
+  {
+    name: 'PasswordField shown',
+    render: (ui) => <ui.PasswordField defaultValue="secret-1" />,
+    interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Show password' })),
+  },
+  {
+    name: 'PasswordField typed',
+    render: (ui) => <ui.PasswordField showStrength />,
+    interact: (c) => fireEvent.change(within(c).getByLabelText('Password'), { target: { value: 'Abcdefg1!' } }),
+  },
+  {
+    name: 'Select strings',
+    render: (ui) => (
+      <ui.Select label="Method" options={['Cash', 'GCash', 'Maya', 'Bank Transfer']} defaultValue="GCash" />
+    ),
+  },
+  {
+    name: 'Select objects placeholder',
+    render: (ui) => (
+      <ui.Select
+        label="Status"
+        placeholder="Any status"
+        options={[
+          { value: 'pending', label: 'Pending' },
+          { value: 'ready', label: 'Ready' },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'Select error',
+    render: (ui) => <ui.Select label="Category" options={['Rent']} error="Pick a category." className="x" />,
+  },
+  {
+    name: 'Select hint no label',
+    render: (ui) => <ui.Select options={['A', 'B']} hint="Optional" aria-label="Pick" />,
+  },
+  {
+    name: 'SegmentedControl icons',
+    render: (ui) => (
+      <ui.SegmentedControl
+        label="View"
+        options={[
+          { value: 'grid', label: 'Grid', icon: 'layout-grid' },
+          { value: 'list', label: 'List', icon: 'list' },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'SegmentedControl labels value',
+    render: (ui) => (
+      <ui.SegmentedControl
+        value="b"
+        onChange={noop}
+        options={[
+          { value: 'a', label: 'Week' },
+          { value: 'b', label: 'Month' },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'SegmentedControl showLabel',
+    render: (ui) => (
+      <ui.SegmentedControl options={[{ value: 'grid', label: 'Grid', icon: 'layout-grid', showLabel: true }]} />
+    ),
+  },
+  {
+    name: 'SegmentedControl clicked',
+    render: (ui) => (
+      <ui.SegmentedControl
+        options={[
+          { value: 'a', label: 'Week' },
+          { value: 'b', label: 'Month' },
+        ]}
+      />
+    ),
+    interact: (c) => fireEvent.click(within(c).getByRole('radio', { name: 'Month' })),
+  },
+  {
+    name: 'Tabs counts',
+    render: (ui) => (
+      <ui.Tabs
+        items={[
+          { id: 'items', label: 'Items', count: 5 },
+          { id: 'payments', label: 'Payments', count: 2 },
+          { id: 'images', label: 'Images', count: 0 },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'Tabs value',
+    render: (ui) => (
+      <ui.Tabs
+        value="payments"
+        onChange={noop}
+        items={[
+          { id: 'items', label: 'Items' },
+          { id: 'payments', label: 'Payments' },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'Tabs clicked',
+    render: (ui) => (
+      <ui.Tabs
+        items={[
+          { id: 'items', label: 'Items' },
+          { id: 'payments', label: 'Payments' },
+        ]}
+      />
+    ),
+    interact: (c) => fireEvent.click(within(c).getByRole('tab', { name: 'Payments' })),
+  },
   { name: 'ImageUploader empty', render: (ui) => <ui.ImageUploader /> },
-  { name: 'ImageUploader default images', render: (ui) => <ui.ImageUploader defaultImages={ORDER_0148.images} max={6} /> },
-  { name: 'ImageUploader controlled src', render: (ui) => <ui.ImageUploader images={ORDER_0151.images} onChange={noop} /> },
-  { name: 'ImageUploader make cover', render: (ui) => <ui.ImageUploader defaultImages={ORDER_0148.images} />, interact: (c) => fireEvent.click(within(c).getAllByRole('button', { name: 'Make cover image' })[1] ?? c) },
-  { name: 'ImageUploader remove', render: (ui) => <ui.ImageUploader defaultImages={ORDER_0148.images} />, interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Remove shorts.png' })) },
+  { name: 'ImageUploader default images', render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} max={6} /> },
+  { name: 'ImageUploader controlled src', render: (ui) => <ui.ImageUploader images={IMAGES_0151} onChange={noop} /> },
+  {
+    name: 'ImageUploader make cover',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} />,
+    interact: (c) => fireEvent.click(within(c).getAllByRole('button', { name: 'Make cover image' })[1] ?? c),
+  },
+  {
+    name: 'ImageUploader drag reorder',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} />,
+    interact: (c) => {
+      dragThumb(c, 2, 0);
+    },
+  },
+  {
+    name: 'ImageUploader drag onto itself',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} />,
+    interact: (c) => {
+      dragThumb(c, 1, 1);
+    },
+  },
+  {
+    name: 'ImageUploader drag over zone',
+    render: (ui) => <ui.ImageUploader />,
+    interact: (c) => fireEvent.dragOver(dropZone(c)),
+  },
+  {
+    name: 'ImageUploader drag leave zone',
+    render: (ui) => <ui.ImageUploader />,
+    interact: (c) => {
+      fireEvent.dragOver(dropZone(c));
+      fireEvent.dragLeave(dropZone(c));
+    },
+  },
+  {
+    name: 'ImageUploader drop files',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0151} max={3} />,
+    interact: (c) => fireEvent.drop(dropZone(c), { dataTransfer: { files: [PNG_A, TEXT_FILE, PNG_B] } }),
+  },
+  {
+    name: 'ImageUploader drop nothing',
+    render: (ui) => <ui.ImageUploader />,
+    interact: (c) => fireEvent.drop(dropZone(c), { dataTransfer: { files: [TEXT_FILE] } }),
+  },
+  {
+    name: 'ImageUploader thumb dragged over zone',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} />,
+    interact: (c) => {
+      fireEvent.dragStart(thumb(c, 1));
+      fireEvent.dragOver(dropZone(c));
+      fireEvent.drop(dropZone(c), { dataTransfer: { files: [PNG_A] } });
+    },
+  },
+  {
+    name: 'ImageUploader browse',
+    render: (ui) => <ui.ImageUploader />,
+    interact: (c) => {
+      fireEvent.click(within(c).getByRole('button', { name: 'browse' }));
+      fireEvent.change(fileInput(c), { target: { files: [PNG_A] } });
+    },
+  },
+  {
+    name: 'ImageUploader remove',
+    render: (ui) => <ui.ImageUploader defaultImages={IMAGES_0148} />,
+    interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Remove shorts.png' })),
+  },
   { name: 'Money md', render: (ui) => <ui.Money amount={22450} /> },
   { name: 'Money lg success', render: (ui) => <ui.Money amount={9327.5} size="lg" tone="success" /> },
-  { name: 'Money sm negative danger', render: (ui) => <ui.Money amount={-1122.5} size="sm" tone="danger" className="x" /> },
+  {
+    name: 'Money sm negative danger',
+    render: (ui) => <ui.Money amount={-1122.5} size="sm" tone="danger" className="x" />,
+  },
   { name: 'Money muted zero', render: (ui) => <ui.Money amount={0} tone="muted" /> },
-  { name: 'KpiCard money delta up', render: (ui) => <ui.KpiCard label="Collected Oct" value={126450} icon="wallet" delta={12} deltaLabel="vs Sep" /> },
-  { name: 'KpiCard money delta down', render: (ui) => <ui.KpiCard label="Expenses Oct" value={38226.95} icon="receipt" delta={-4} hint="Company + orders" /> },
-  { name: 'KpiCard count hint', render: (ui) => <ui.KpiCard label="Active orders" value={18} money={false} hint="4 due this week" /> },
+  {
+    name: 'KpiCard money delta up',
+    render: (ui) => <ui.KpiCard label="Collected Oct" value={126450} icon="wallet" delta={12} deltaLabel="vs Sep" />,
+  },
+  {
+    name: 'KpiCard money delta down',
+    render: (ui) => (
+      <ui.KpiCard label="Expenses Oct" value={38226.95} icon="receipt" delta={-4} hint="Company + orders" />
+    ),
+  },
+  {
+    name: 'KpiCard count hint',
+    render: (ui) => <ui.KpiCard label="Active orders" value={18} money={false} hint="4 due this week" />,
+  },
   { name: 'KpiCard text value', render: (ui) => <ui.KpiCard label="Top category" value="Rent" /> },
   { name: 'KpiCard loading', render: (ui) => <ui.KpiCard label="Receivables" value={84260} loading delta={3} /> },
   { name: 'OrderTotals panel 0148', render: (ui) => <ui.OrderTotals order={ORDER_0148} /> },
@@ -283,66 +561,303 @@ const CASES: Case[] = [
   { name: 'OrderTotals card 0151 paid', render: (ui) => <ui.OrderTotals order={ORDER_0151} variant="card" /> },
   { name: 'OrderTotals loss', render: (ui) => <ui.OrderTotals order={ORDER_0142_LOSS} /> },
   { name: 'OrderTotals empty', render: (ui) => <ui.OrderTotals /> },
-  { name: 'OrderCard 0148', render: (ui) => <ui.OrderCard order={ORDER_0148} onView={noop} onEdit={noop} onDelete={noop} /> },
+  {
+    name: 'OrderCard 0148',
+    render: (ui) => <ui.OrderCard order={ORDER_0148} onView={noop} onEdit={noop} onDelete={noop} />,
+  },
   { name: 'OrderCard 0151', render: (ui) => <ui.OrderCard order={ORDER_0151} /> },
   { name: 'OrderCard 0153 overdue', render: (ui) => <ui.OrderCard order={ORDER_0153} /> },
   { name: 'OrderCard 0142 one image', render: (ui) => <ui.OrderCard order={ORDER_0142_LOSS} /> },
-  { name: 'DataTable rows', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={USER_ROWS} rowKey="id" caption="Staff" /> },
+  {
+    name: 'DataTable rows',
+    render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={USER_ROWS} rowKey="id" caption="Staff" />,
+  },
   { name: 'DataTable rows no key', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={USER_ROWS} /> },
   { name: 'DataTable loading', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={[]} loading /> },
-  { name: 'DataTable error', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={USER_ROWS} error="Could not load users." /> },
+  {
+    name: 'DataTable error',
+    render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={USER_ROWS} error="Could not load users." />,
+  },
   { name: 'DataTable empty default', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={[]} /> },
-  { name: 'DataTable empty custom', render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={[]} empty={<em>No staff yet.</em>} /> },
+  {
+    name: 'DataTable empty custom',
+    render: (ui) => <ui.DataTable columns={USER_COLUMNS} rows={[]} empty={<em>No staff yet.</em>} />,
+  },
   { name: 'IncomeExpenseChart six months', render: (ui) => <ui.IncomeExpenseChart data={CHART_DATA} /> },
   { name: 'IncomeExpenseChart empty', render: (ui) => <ui.IncomeExpenseChart data={[]} height={180} /> },
-  { name: 'IncomeExpenseChart small values', render: (ui) => <ui.IncomeExpenseChart data={[{ month: 'Jan', income: 0, expenses: 640 }, { month: 'Feb', income: 999, expenses: 0 }]} /> },
-  { name: 'IncomeExpenseChart hover', render: (ui) => <ui.IncomeExpenseChart data={CHART_DATA} />, interact: (c) => fireEvent.mouseEnter(c.querySelectorAll('svg > g')[4] ?? c) },
-  { name: 'IncomeExpenseChart hover leave', render: (ui) => <ui.IncomeExpenseChart data={CHART_DATA} />, interact: (c) => { fireEvent.mouseEnter(c.querySelectorAll('svg > g')[4] ?? c); fireEvent.mouseLeave(c.querySelector('svg') ?? c); } },
-  { name: 'Modal center', render: (ui) => <ui.Modal title="Add payment" description="Record money received." onClose={noop} footer={<button type="button">Save</button>}><p>Body</p></ui.Modal> },
-  { name: 'Modal slideover', render: (ui) => <ui.Modal title="Add user" variant="slideover" onClose={noop}><p>Body</p></ui.Modal> },
-  { name: 'Modal inline no close', render: (ui) => <ui.Modal title="Delete order" inline><p>Body</p></ui.Modal> },
+  {
+    name: 'IncomeExpenseChart small values',
+    render: (ui) => (
+      <ui.IncomeExpenseChart
+        data={[
+          { month: 'Jan', income: 0, expenses: 640 },
+          { month: 'Feb', income: 999, expenses: 0 },
+        ]}
+      />
+    ),
+  },
+  {
+    name: 'IncomeExpenseChart hover',
+    render: (ui) => <ui.IncomeExpenseChart data={CHART_DATA} />,
+    interact: (c) => fireEvent.mouseEnter(c.querySelectorAll('svg > g')[4] ?? c),
+  },
+  {
+    name: 'IncomeExpenseChart hover leave',
+    render: (ui) => <ui.IncomeExpenseChart data={CHART_DATA} />,
+    interact: (c) => {
+      fireEvent.mouseEnter(c.querySelectorAll('svg > g')[4] ?? c);
+      fireEvent.mouseLeave(c.querySelector('svg') ?? c);
+    },
+  },
+  {
+    name: 'Modal center',
+    render: (ui) => (
+      <ui.Modal
+        title="Add payment"
+        description="Record money received."
+        onClose={noop}
+        footer={<button type="button">Save</button>}
+      >
+        <p>Body</p>
+      </ui.Modal>
+    ),
+  },
+  {
+    name: 'Modal slideover',
+    render: (ui) => (
+      <ui.Modal title="Add user" variant="slideover" onClose={noop}>
+        <p>Body</p>
+      </ui.Modal>
+    ),
+  },
+  {
+    name: 'Modal inline no close',
+    render: (ui) => (
+      <ui.Modal title="Delete order" inline>
+        <p>Body</p>
+      </ui.Modal>
+    ),
+  },
   { name: 'Modal closed', render: (ui) => <ui.Modal open={false} title="Hidden" /> },
   { name: 'ConfirmDialog default', render: (ui) => <ui.ConfirmDialog onCancel={noop} onConfirm={noop} /> },
-  { name: 'ConfirmDialog cascade type-to-confirm', render: (ui) => <ui.ConfirmDialog title="Delete ORD-2026-0148?" message="The order and everything recorded on it will be removed." counts={CASCADE_0148} confirmText="ORD-2026-0148" inline onCancel={noop} /> },
+  {
+    name: 'ConfirmDialog cascade type-to-confirm',
+    render: (ui) => (
+      <ui.ConfirmDialog
+        title="Delete ORD-2026-0148?"
+        message="The order and everything recorded on it will be removed."
+        counts={CASCADE_0148}
+        confirmText="ORD-2026-0148"
+        inline
+        onCancel={noop}
+      />
+    ),
+  },
   { name: 'ConfirmDialog zero counts', render: (ui) => <ui.ConfirmDialog counts={{}} confirmLabel="Remove" /> },
-  { name: 'ConfirmDialog partial counts', render: (ui) => <ui.ConfirmDialog counts={{ items: 1, images: 0, payments: 2 }} /> },
+  {
+    name: 'ConfirmDialog partial counts',
+    render: (ui) => <ui.ConfirmDialog counts={{ items: 1, images: 0, payments: 2 }} />,
+  },
   { name: 'ConfirmDialog loading', render: (ui) => <ui.ConfirmDialog loading onCancel={noop} /> },
-  { name: 'ConfirmDialog typed match', render: (ui) => <ui.ConfirmDialog confirmText="ORD-2026-0151" />, interact: (c) => fireEvent.change(within(c).getByRole('textbox'), { target: { value: ' ORD-2026-0151 ' } }) },
+  {
+    name: 'ConfirmDialog typed match',
+    render: (ui) => <ui.ConfirmDialog confirmText="ORD-2026-0151" />,
+    interact: (c) => fireEvent.change(within(c).getByRole('textbox'), { target: { value: ' ORD-2026-0151 ' } }),
+  },
   ...(['success', 'danger', 'info', 'warning'] as const).map((tone) => ({
     name: `Toast ${tone}`,
-    render: (ui: Ui) => <ui.Toast tone={tone} title="Order saved" message="ORD-2026-0148 was updated." onClose={noop} />,
+    render: (ui: Ui) => (
+      <ui.Toast tone={tone} title="Order saved" message="ORD-2026-0148 was updated." onClose={noop} />
+    ),
   })),
-  { name: 'Toast default action', render: (ui) => <ui.Toast title="Copied" action={<button type="button">Undo</button>} /> },
+  {
+    name: 'Toast default action',
+    render: (ui) => <ui.Toast title="Copied" action={<button type="button">Undo</button>} />,
+  },
   { name: 'SiteHeader default', render: (ui) => <ui.SiteHeader onQuote={noop} /> },
   { name: 'SiteHeader products', render: (ui) => <ui.SiteHeader active="Products" /> },
-  { name: 'SiteHeader custom links', render: (ui) => <ui.SiteHeader links={[{ label: 'Home', to: '/' }, { label: 'FAQ', to: '#faq' }]} active="FAQ" /> },
-  { name: 'SiteHeader drawer open', render: (ui) => <ui.SiteHeader active="Gallery" />, interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Menu' })) },
-  { name: 'SiteHeader drawer link closes', render: (ui) => <ui.SiteHeader />, interact: (c) => { fireEvent.click(within(c).getByRole('button', { name: 'Menu' })); fireEvent.click(within(c).getAllByRole('link', { name: 'Contact' })[1] ?? c); } },
+  {
+    name: 'SiteHeader custom links',
+    render: (ui) => (
+      <ui.SiteHeader
+        links={[
+          { label: 'Home', to: '/' },
+          { label: 'FAQ', to: '#faq' },
+        ]}
+        active="FAQ"
+      />
+    ),
+  },
+  {
+    name: 'SiteHeader drawer open',
+    render: (ui) => <ui.SiteHeader active="Gallery" />,
+    interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Menu' })),
+  },
+  {
+    name: 'SiteHeader drawer link closes',
+    render: (ui) => <ui.SiteHeader />,
+    interact: (c) => {
+      fireEvent.click(within(c).getByRole('button', { name: 'Menu' }));
+      fireEvent.click(within(c).getAllByRole('link', { name: 'Contact' })[1] ?? c);
+    },
+  },
   { name: 'Sidebar default', render: (ui) => <ui.Sidebar />, d27: true },
-  { name: 'Sidebar manager users', render: (ui) => <ui.Sidebar role="manager" active="users" user={CARMEN} onLogout={noop} onNavigate={noop} />, d27: true },
-  { name: 'Sidebar admin orders', render: (ui) => <ui.Sidebar role="admin" active="orders" user={JOMAR} />, d27: true },
-  { name: 'Sidebar collapsed', render: (ui) => <ui.Sidebar role="manager" collapsed active="expenses" user={CARMEN} />, d27: true },
+  {
+    name: 'Sidebar manager users',
+    render: (ui) => <ui.Sidebar role={MANAGER} active="users" user={CARMEN} onLogout={noop} onNavigate={noop} />,
+    d27: true,
+  },
+  { name: 'Sidebar admin orders', render: (ui) => <ui.Sidebar role={ADMIN} active="orders" user={JOMAR} />, d27: true },
+  {
+    name: 'Sidebar collapsed',
+    render: (ui) => <ui.Sidebar role={MANAGER} collapsed active="expenses" user={CARMEN} />,
+    d27: true,
+  },
   { name: 'Sidebar default collapsed', render: (ui) => <ui.Sidebar defaultCollapsed active="profile" />, d27: true },
-  { name: 'Sidebar toggled', render: (ui) => <ui.Sidebar role="manager" user={CARMEN} />, interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Collapse sidebar' })), d27: true },
-  { name: 'Sidebar logout clicked', render: (ui) => <ui.Sidebar onLogout={noop} />, interact: (c) => fireEvent.click(within(c).getByText('Logout')), d27: true },
+  {
+    name: 'Sidebar toggled',
+    render: (ui) => <ui.Sidebar role={MANAGER} user={CARMEN} />,
+    interact: (c) => fireEvent.click(within(c).getByRole('button', { name: 'Collapse sidebar' })),
+    d27: true,
+  },
+  {
+    name: 'Sidebar logout clicked',
+    render: (ui) => <ui.Sidebar onLogout={noop} />,
+    interact: (c) => fireEvent.click(within(c).getByText('Logout')),
+    d27: true,
+  },
   { name: 'Topbar default', render: (ui) => <ui.Topbar /> },
-  { name: 'Topbar admin light toggle', render: (ui) => <ui.Topbar user={JOMAR} role="admin" theme="light" onToggleTheme={noop} onMenu={noop} onSearch={noop} /> },
+  {
+    name: 'Topbar admin light toggle',
+    render: (ui) => (
+      <ui.Topbar user={JOMAR} role={ADMIN} theme="light" onToggleTheme={noop} onMenu={noop} onSearch={noop} />
+    ),
+  },
   { name: 'Topbar dark toggle', render: (ui) => <ui.Topbar theme="dark" onToggleTheme={noop} placeholder="Search…" /> },
-  { name: 'Topbar slash focuses search', render: (ui) => <ui.Topbar />, interact: (c) => { fireEvent.keyDown(c, { key: '/' }); fireEvent.keyDown(within(c).getByRole('searchbox'), { key: 'Enter' }); } },
-  { name: 'CategoryCard placeholder', render: (ui) => <ui.CategoryCard title="Basketball Jerseys" description="Full sublimation, names and numbers." number="23" /> },
-  { name: 'CategoryCard image href', render: (ui) => <ui.CategoryCard title="Moto Jerseys" description="Long sleeves for riding clubs." image="/media/moto.png" href="/products#moto" /> },
-  { name: 'ProcessSteps', render: (ui) => <ui.ProcessSteps steps={[{ title: 'Message us', description: 'Send your design idea.', icon: 'message-circle' }, { title: 'Approve the mockup', description: 'We send a free mockup.', icon: 'palette' }, { title: 'Pick up', description: 'Ready in 7–10 days.' }]} /> },
+  {
+    name: 'Topbar slash focuses search',
+    render: (ui) => <ui.Topbar />,
+    interact: (c) => {
+      fireEvent.keyDown(c, { key: '/' });
+      fireEvent.keyDown(within(c).getByRole('searchbox'), { key: 'Enter' });
+    },
+  },
+  {
+    name: 'CategoryCard placeholder',
+    render: (ui) => (
+      <ui.CategoryCard title="Basketball Jerseys" description="Full sublimation, names and numbers." number="23" />
+    ),
+  },
+  {
+    name: 'CategoryCard image href',
+    render: (ui) => (
+      <ui.CategoryCard
+        title="Moto Jerseys"
+        description="Long sleeves for riding clubs."
+        image="/media/moto.png"
+        href="/products#moto"
+      />
+    ),
+  },
+  {
+    name: 'ProcessSteps',
+    render: (ui) => (
+      <ui.ProcessSteps
+        steps={[
+          { title: 'Message us', description: 'Send your design idea.', icon: 'message-circle' },
+          { title: 'Approve the mockup', description: 'We send a free mockup.', icon: 'palette' },
+          { title: 'Pick up', description: 'Ready in 7–10 days.' },
+        ]}
+      />
+    ),
+  },
   { name: 'ProcessSteps empty', render: (ui) => <ui.ProcessSteps steps={[]} /> },
-  { name: 'TestimonialCard five', render: (ui) => <ui.TestimonialCard quote="Our jerseys came out perfect." name="Mark Villanueva" team="Tondo Riders MC" /> },
-  { name: 'TestimonialCard three', render: (ui) => <ui.TestimonialCard quote="Fast and friendly." name="Kristine Mendoza" team="Lady Spikers QC" rating={3} /> },
+  {
+    name: 'TestimonialCard five',
+    render: (ui) => (
+      <ui.TestimonialCard quote="Our jerseys came out perfect." name="Mark Villanueva" team="Tondo Riders MC" />
+    ),
+  },
+  {
+    name: 'TestimonialCard three',
+    render: (ui) => (
+      <ui.TestimonialCard quote="Fast and friendly." name="Kristine Mendoza" team="Lady Spikers QC" rating={3} />
+    ),
+  },
   { name: 'EmptyState default', render: (ui) => <ui.EmptyState title="No orders yet" /> },
-  { name: 'EmptyState full', render: (ui) => <ui.EmptyState icon="search" title="No matches" message="Try another search." action={<button type="button">Clear filters</button>} /> },
+  {
+    name: 'EmptyState full',
+    render: (ui) => (
+      <ui.EmptyState
+        icon="search"
+        title="No matches"
+        message="Try another search."
+        action={<button type="button">Clear filters</button>}
+      />
+    ),
+  },
   { name: 'Skeleton default', render: (ui) => <ui.Skeleton /> },
   { name: 'Skeleton sized', render: (ui) => <ui.Skeleton width={120} height="2rem" radius={999} className="x" /> },
-  { name: 'ToastProvider empty', render: (ui) => <ui.ToastProvider><p>App</p></ui.ToastProvider> },
-  { name: 'ToastProvider four pushes', render: (ui) => <ui.ToastProvider><ToastPusher ui={ui} /></ui.ToastProvider>, interact: (c) => { for (let i = 0; i < 4; i += 1) fireEvent.click(within(c).getByRole('button', { name: 'Push' })); } },
-  { name: 'ToastProvider push then dismiss', render: (ui) => <ui.ToastProvider><ToastPusher ui={ui} /></ui.ToastProvider>, interact: (c) => { fireEvent.click(within(c).getByRole('button', { name: 'Push' })); fireEvent.click(within(c).getByRole('button', { name: 'Dismiss' })); } },
+  {
+    name: 'ToastProvider empty',
+    render: (ui) => (
+      <ui.ToastProvider>
+        <p>App</p>
+      </ui.ToastProvider>
+    ),
+  },
+  {
+    name: 'ToastProvider four pushes',
+    render: (ui) => (
+      <ui.ToastProvider>
+        <ToastPusher ui={ui} />
+      </ui.ToastProvider>
+    ),
+    interact: (c) => {
+      for (let i = 0; i < 4; i += 1) fireEvent.click(within(c).getByRole('button', { name: 'Push' }));
+    },
+  },
+  {
+    name: 'ToastProvider push then dismiss',
+    render: (ui) => (
+      <ui.ToastProvider>
+        <ToastPusher ui={ui} />
+      </ui.ToastProvider>
+    ),
+    interact: (c) => {
+      fireEvent.click(within(c).getByRole('button', { name: 'Push' }));
+      fireEvent.click(within(c).getByRole('button', { name: 'Dismiss' }));
+    },
+  },
 ];
+
+const PNG_A = new File(['a'], 'front.png', { type: 'image/png' });
+const PNG_B = new File(['b'], 'back.webp', { type: 'image/webp' });
+const TEXT_FILE = new File(['t'], 'notes.txt', { type: 'text/plain' });
+
+function dropZone(container: HTMLElement): HTMLElement {
+  return required(container.querySelector<HTMLElement>('.csp-drop') ?? undefined, 'the drop zone');
+}
+function thumb(container: HTMLElement, index: number): HTMLElement {
+  return required(container.querySelectorAll<HTMLElement>('li.csp-thumb')[index], `thumbnail ${String(index)}`);
+}
+function fileInput(container: HTMLElement): HTMLElement {
+  return required(container.querySelector<HTMLElement>('input[type="file"]') ?? undefined, 'the file input');
+}
+function dragThumb(container: HTMLElement, from: number, to: number): void {
+  fireEvent.dragStart(thumb(container, from));
+  fireEvent.dragOver(thumb(container, to));
+  fireEvent.drop(thumb(container, to));
+  fireEvent.dragEnd(thumb(container, from));
+}
+
+// jsdom has no URL.createObjectURL; the uploader needs it for dropped files. A name-based fake keeps both renders equal.
+beforeAll(() => {
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: (file: File) => `blob:${file.name}` });
+});
+afterAll(() => {
+  Reflect.deleteProperty(URL, 'createObjectURL');
+});
 
 let toastCount = 0;
 function ToastPusher({ ui }: { ui: Ui }) {
@@ -362,16 +877,24 @@ function ToastPusher({ ui }: { ui: Ui }) {
 
 /* ───────────── rendering and the D-27 allowance ───────────── */
 
-function renderReference(element: ReactElement): HTMLElement {
-  return render(
+function referenceTree(element: ReactElement): ReactElement {
+  return (
     <MemoryRouter>
       <Reference.LinkProvider component={RouterLink}>{element}</Reference.LinkProvider>
-    </MemoryRouter>,
-  ).container;
+    </MemoryRouter>
+  );
+}
+
+function reconciledTree(element: ReactElement): ReactElement {
+  return <MemoryRouter>{element}</MemoryRouter>;
+}
+
+function renderReference(element: ReactElement): HTMLElement {
+  return render(referenceTree(element)).container;
 }
 
 function renderReconciled(element: ReactElement): HTMLElement {
-  return render(<MemoryRouter>{element}</MemoryRouter>).container;
+  return render(reconciledTree(element)).container;
 }
 
 /** D-27: the reference Logout `<a href="#" class="csp-nav">` becomes `<button type="button" class="csp-nav">`. */
@@ -402,8 +925,14 @@ function applyD27(container: HTMLElement): void {
 }
 
 function renderPair(testCase: Case): { reference: HTMLElement; reconciled: HTMLElement } {
-  const reference = renderReference(testCase.render(Reference));
-  const reconciled = renderReconciled(testCase.render(Reconciled));
+  const referenceResult = render(referenceTree(testCase.render(Reference)));
+  const reconciledResult = render(reconciledTree(testCase.render(Reconciled)));
+  // A parent re-render with equal props, as an app re-render would do: the React Compiler output then answers from its
+  // memo cache, and that path must render the same DOM too (research Flag 2).
+  referenceResult.rerender(referenceTree(testCase.render(Reference)));
+  reconciledResult.rerender(reconciledTree(testCase.render(Reconciled)));
+  const reference = referenceResult.container;
+  const reconciled = reconciledResult.container;
   if (testCase.interact !== undefined) {
     testCase.interact(reference);
     testCase.interact(reconciled);
@@ -475,6 +1004,126 @@ describe('the one listed structural difference: Sidebar Logout (D-27)', () => {
   );
 });
 
+// The drop-zone, thumbnail and backdrop handlers moved from JSX props to native listeners (jsx-a11y rules). The DOM
+// cases above prove the markup; these prove the callbacks fire the same way in both modules.
+describe('handler parity after the listener moves (D-07 step 3)', () => {
+  const modules = [
+    ['reference', Reference, renderReference],
+    ['reconciled', Reconciled, renderReconciled],
+  ] as const;
+
+  it.each(modules)('%s ImageUploader reports the same onFiles and onChange calls', (_label, ui, renderUi) => {
+    const onFiles = vi.fn();
+    const onChange = vi.fn<(images: OrderImage[]) => void>();
+    const container = renderUi(
+      <ui.ImageUploader defaultImages={IMAGES_0148} onFiles={onFiles} onChange={onChange} max={5} />,
+    );
+    fireEvent.drop(dropZone(container), { dataTransfer: { files: [PNG_A, TEXT_FILE, PNG_B] } });
+    expect(onFiles).toHaveBeenCalledTimes(1);
+    expect(onFiles.mock.calls[0]?.[0]).toEqual([PNG_A]);
+    dragThumb(container, 4, 0);
+    fireEvent.click(within(container).getByRole('button', { name: 'Remove back-mockup.png' }));
+    const lists = onChange.mock.calls.map(([images]) =>
+      images.map((image) => `${image.name ?? ''}|${image.src ?? ''}`).join(','),
+    );
+    expect(lists).toEqual([
+      'front-mockup.png|,back-mockup.png|,shorts.png|,reference.jpg|,front.png|blob:front.png',
+      'front.png|blob:front.png,front-mockup.png|,back-mockup.png|,shorts.png|,reference.jpg|',
+      'front.png|blob:front.png,front-mockup.png|,shorts.png|,reference.jpg|',
+    ]);
+  });
+
+  it.each(modules)(
+    '%s Modal closes on a backdrop mousedown and Escape, not on a mousedown inside',
+    (_label, ui, renderUi) => {
+      const onClose = vi.fn();
+      const container = renderUi(
+        <ui.Modal title="Add payment" onClose={onClose}>
+          <p>Body</p>
+        </ui.Modal>,
+      );
+      fireEvent.mouseDown(within(container).getByText('Body'));
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.mouseDown(required(container.querySelector<HTMLElement>('.csp-overlay') ?? undefined, 'the overlay'));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(modules)('%s Sidebar Logout and nav report onLogout and onNavigate', (_label, ui, renderUi) => {
+    const onLogout = vi.fn();
+    const onNavigate = vi.fn();
+    const container = renderUi(<ui.Sidebar role={MANAGER} onLogout={onLogout} onNavigate={onNavigate} />);
+    fireEvent.click(within(container).getByText('Logout'));
+    fireEvent.click(within(container).getByText('Users'));
+    expect(onLogout).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('users');
+  });
+
+  it.each(modules)(
+    '%s ToastProvider dismisses each toast after 4.5 s (the verbatim timer; D-04 is plan 02-11)',
+    (_label, ui, renderUi) => {
+      vi.useFakeTimers();
+      try {
+        const container = renderUi(
+          <ui.ToastProvider>
+            <ToastPusher ui={ui} />
+          </ui.ToastProvider>,
+        );
+        fireEvent.click(within(container).getByRole('button', { name: 'Push' }));
+        expect(container.querySelectorAll('.csp-toast')).toHaveLength(1);
+        act(() => {
+          vi.advanceTimersByTime(4499);
+        });
+        expect(container.querySelectorAll('.csp-toast')).toHaveLength(1);
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+        expect(container.querySelector('.s-toast-layer')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it.each(modules)('%s useToast outside a ToastProvider is a harmless no-op', (_label, ui, renderUi) => {
+    let pushed: ReturnType<Ui['useToast']> | undefined;
+    function Probe() {
+      pushed = ui.useToast();
+      return null;
+    }
+    renderUi(<Probe />);
+    expect(pushed?.({ title: 'Ignored' })).toBeUndefined();
+  });
+
+  it.each(modules)('%s Topbar and SegmentedControl report their callbacks', (_label, ui, renderUi) => {
+    const onSearch = vi.fn();
+    const onToggleTheme = vi.fn();
+    const onChange = vi.fn();
+    const container = renderUi(
+      <>
+        <ui.Topbar onSearch={onSearch} theme="light" onToggleTheme={onToggleTheme} />
+        <ui.SegmentedControl
+          onChange={onChange}
+          options={[
+            { value: 'a', label: 'Week' },
+            { value: 'b', label: 'Month' },
+          ]}
+        />
+      </>,
+    );
+    const search = within(container).getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'Tondo' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    fireEvent.click(within(container).getByRole('button', { name: 'Switch to dark mode' }));
+    fireEvent.click(within(container).getByRole('radio', { name: 'Month' }));
+    expect(onSearch).toHaveBeenCalledWith('Tondo');
+    expect(onToggleTheme).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('b');
+  });
+});
+
 describe('icons and mark (D-10, D-12, WEB-02)', () => {
   it('the reconciled icon map has the 56 App. D.5 names and nothing else', () => {
     expect(REFERENCE_ICON_NAMES).toHaveLength(56);
@@ -499,6 +1148,26 @@ describe('icons and mark (D-10, D-12, WEB-02)', () => {
     expect(typeof reconciledMarkModules['./mark.tsx']?.MarkSvg).toBe('function');
     expect(indexSource).not.toContain('dangerouslySetInnerHTML');
     expect(indexSource).not.toContain('MARK_SVG');
+  });
+
+  it('MarkSvg renders the same DOM again from the React Compiler memo cache', () => {
+    const element = (label?: string) => (
+      <MarkSvg
+        className="csp-mark"
+        width={40}
+        height={40}
+        role={label === undefined ? undefined : 'img'}
+        aria-label={label}
+        aria-hidden={label === undefined ? true : undefined}
+      />
+    );
+    const { container, rerender } = render(element());
+    const first = container.innerHTML;
+    rerender(element());
+    expect(container.innerHTML).toBe(first);
+    rerender(element('CSPS'));
+    expect(container.querySelector('svg')?.getAttribute('aria-label')).toBe('CSPS');
+    expect(container.querySelector('svg')?.hasAttribute('aria-hidden')).toBe(false);
   });
 
   it('every reconciled change from the verbatim copy is marked SPEC-DEVIATION (at least 10 markers)', () => {

@@ -45,15 +45,18 @@ function readIfPresent(url: URL): string | null {
 }
 
 describe('frozen reference copies (WEB-02, D-07)', () => {
-  it.each(FILES)('__reference__/$file equals App. $appendix ($specPath) after LF normalization', ({ specPath, file }) => {
-    const expected = specBlock(specPath);
-    expect(expected, `spec block for ${specPath}`).not.toBeNull();
-    expect(expected?.length ?? 0, `spec block for ${specPath} is not empty`).toBeGreaterThan(100);
-    const actual = readIfPresent(new URL(file, referenceUrl));
-    expect(actual === null ? null : trimOneTrailingNewline(toLf(actual))).toBe(
-      expected === null ? null : trimOneTrailingNewline(expected),
-    );
-  });
+  it.each(FILES)(
+    '__reference__/$file equals App. $appendix ($specPath) after LF normalization',
+    ({ specPath, file }) => {
+      const expected = specBlock(specPath);
+      expect(expected, `spec block for ${specPath}`).not.toBeNull();
+      expect(expected?.length ?? 0, `spec block for ${specPath} is not empty`).toBeGreaterThan(100);
+      const actual = readIfPresent(new URL(file, referenceUrl));
+      expect(actual === null ? null : trimOneTrailingNewline(toLf(actual))).toBe(
+        expected === null ? null : trimOneTrailingNewline(expected),
+      );
+    },
+  );
 
   it('keeps the reference copies in LF', () => {
     for (const { file } of FILES) {
