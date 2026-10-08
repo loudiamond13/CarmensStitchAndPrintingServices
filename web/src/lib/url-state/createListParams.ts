@@ -23,8 +23,27 @@ export interface ListParamsOptions<P extends ListParserMap> {
   urlKeys?: UrlKeys<P>;
 }
 
+/** The list's setters. Every one but setPage replaces the history entry and resets the page in the same update. */
+export interface ListParamsSetters<P extends ListParserMap> {
+  /** Adds a history entry (push). Anything but an integer of at least 1 means page 1. */
+  setPage: (page: number) => void;
+  setPageSize: (size: Arg<P, 'pageSize'>) => void;
+  setFilter: <K extends FilterKey<P>>(key: K, value: Values<P>[K] | null) => void;
+  /** Trims and caps the text; writes the URL after 300 ms of quiet, or at once with `immediate` (Enter). */
+  setSearch: (value: string, options?: { immediate?: boolean }) => void;
+  setSort: (value: Arg<P, 'sort'>) => void;
+  setTab: (value: Arg<P, 'tab'>) => void;
+  setView: (value: Arg<P, 'view'>) => void;
+  /** Replaces a page past `lastPage` with `lastPage` (no-op when there is no page, `lastPage` < 1). */
+  clampPage: (lastPage: number) => void;
+  /** Clears every key of this list in one replace. */
+  reset: () => void;
+}
+
 type Patch<P extends ListParserMap> = Partial<Nullable<Values<P>>>;
 type RawParserMap = Record<string, typeof parseAsString>;
+type Arg<P extends ListParserMap, K extends string> = K extends keyof P ? Values<P>[K] | null : never;
+type FilterKey<P extends ListParserMap> = Exclude<keyof P & string, 'page'>;
 
 const DEFAULT_URL_KEYS: Readonly<Record<string, string>> = { pageSize: 'size', search: 'q' };
 
@@ -80,6 +99,19 @@ export function createListParams<P extends ListParserMap>(parsers: P, options: L
       }
     }, [raw, setParams]);
 
-    return [values] as const;
+    // RED placeholder (02-08 Task 2): inert setters; replaced in GREEN.
+    const noop = (): void => undefined;
+    const setters: ListParamsSetters<P> = {
+      setPage: noop,
+      setPageSize: noop,
+      setFilter: noop,
+      setSearch: noop,
+      setSort: noop,
+      setTab: noop,
+      setView: noop,
+      clampPage: noop,
+      reset: noop,
+    };
+    return [values, setters] as const;
   };
 }
