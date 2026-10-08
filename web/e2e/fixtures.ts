@@ -28,8 +28,8 @@ export interface GuardRecord {
 
 export interface Guard {
   /**
-   * Declares that a same-origin response whose URL contains `urlPart` may answer `status` (400 or higher) in this test.
-   * Every other failed response is a finding.
+   * Declares that a same-origin response whose URL contains `urlPart` may answer `status` (400 or higher) in this test,
+   * including the browser's own "Failed to load resource" console line for it. Every other failed response is a finding.
    */
   expectStatus(urlPart: string, status: number): void;
   /** Returns the record so far without clearing it. */
@@ -46,6 +46,9 @@ export const CSP_BINDING = '__cspsE2eCspViolation';
 const cspListener = `document.addEventListener('securitypolicyviolation', (event) => {
   window.${CSP_BINDING}({ directive: event.effectiveDirective || event.violatedDirective, blockedURI: event.blockedURI });
 }, true);`;
+
+// The console line Chromium and WebKit write for a failed load (Firefox writes none).
+const LOAD_FAILURE = /^Failed to load resource: the server responded with a status of (\d{3})\b/;
 
 function isCspViolation(value: unknown): value is CspViolation {
   if (typeof value !== 'object' || value === null) {
@@ -84,12 +87,25 @@ export const test = base.extend<{ guard: Guard }>({
       let cspViolations: CspViolation[] = [];
       let failedResponses: string[] = [];
 
+      const isDeclared = (url: string, status: number): boolean =>
+        URL.canParse(url) &&
+        new URL(url).origin === origin &&
+        expected.some((entry) => entry.status === status && url.includes(entry.urlPart));
+
       page.on('console', (message) => {
         const type = message.type();
-        if (type === 'error' || type === 'warning') {
-          const { url, lineNumber } = message.location();
-          consoleMessages.push(`console.${type}: ${message.text()}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
+        if (type !== 'error' && type !== 'warning') {
+          return;
         }
+        const text = message.text();
+        const { url, lineNumber } = message.location();
+        // Chromium and WebKit also log every failed load as a console error located at the resource URL. A status the
+        // test declared with expectStatus is not a finding there either.
+        const loadFailure = LOAD_FAILURE.exec(text);
+        if (loadFailure?.[1] !== undefined && isDeclared(url, Number(loadFailure[1]))) {
+          return;
+        }
+        consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
       });
       page.on('pageerror', (error) => {
         pageErrors.push(error.message);
@@ -97,10 +113,7 @@ export const test = base.extend<{ guard: Guard }>({
       page.on('response', (response) => {
         const status = response.status();
         const url = response.url();
-        if (status < 400 || new URL(url).origin !== origin) {
-          return;
-        }
-        if (expected.some((entry) => entry.status === status && url.includes(entry.urlPart))) {
+        if (status < 400 || new URL(url).origin !== origin || isDeclared(url, status)) {
           return;
         }
         failedResponses.push(`${String(status)} ${response.request().method()} ${url}`);
