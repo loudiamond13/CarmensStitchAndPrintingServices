@@ -4,10 +4,10 @@ current_phase: 2
 current_phase_name: Web Foundation & Design System
 status: planning
 stopped_at: Phase 1 complete, ready to plan Phase 2
-last_updated: "2026-10-07T23:41:14.192Z"
+last_updated: "2026-10-08T00:13:06.875Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 1 complete, transitioned to Phase 2
-state_head: f6a6e29731f68ef393118b0f85b6091c1b898392
+state_head: 8c2d4f928e9ad3a9ee48a17370066494f190cb42
 progress:
   total_phases: 17
   completed_phases: 1
@@ -15,7 +15,7 @@ progress:
   completed_plans: 13
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T20:05:00-05:00"
+updated: "2026-10-07T19:13:13-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 Phase: 2 — Web Foundation & Design System
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-07 — Phase 1 complete, transitioned to Phase 2
+Last activity: 2026-10-07 - Completed quick task 261007-qde: gitignore .planning/design/ and record it as the visual UI reference
 
 Progress: [█░░░░░░░░░] 6%
 
@@ -149,6 +149,7 @@ None yet.
 | 261007-k45 | Add expense Paid by (company and order expenses, deducts from money on hand) and record-level Created by / Updated by on every record | 2026-10-07 | 1bb8dd7 | [261007-k45-add-expense-paid-by-and-record-level-cre](./quick/261007-k45-add-expense-paid-by-and-record-level-cre/) |
 | 261007-kz6 | URL query-string UI state with nuqs 2.10.1 (owner-approved): WEB-10, list requirements, analytics query stripping, planned dependency record | 2026-10-07 | 415c7cb | [261007-kz6-url-query-string-ui-state-with-nuqs](./quick/261007-kz6-url-query-string-ui-state-with-nuqs/) |
 | 261007-p98 | Fix WR-04: dev-seed guard allows only (localdb)\\CSPS or a loopback container (127.0.0.1/localhost,<port>), refuses Failover Partner | 2026-10-07 | 50a0cd3 | [261007-p98-fix-wr-04-dev-seed-guard-server-allow-li](./quick/261007-p98-fix-wr-04-dev-seed-guard-server-allow-li/) |
+| 261007-qde | Gitignore .planning/design/ (local-only Claude Design HTML) and record it as the visual UI reference | 2026-10-08 | 8c2d4f9 | [261007-qde-gitignore-planning-design-local-only-cla](./quick/261007-qde-gitignore-planning-design-local-only-cla/) |
 
 ## Deferred Items
 
