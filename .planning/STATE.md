@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-40-PLAN.md
-last_updated: "2026-10-08T18:22:23.766Z"
+stopped_at: Completed 02-11-PLAN.md
+last_updated: "2026-10-08T18:40:34.201Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 3349481c3b3a8199a38550527daed56232d13d95
+state_head: 713a40f93efd2dd9fd7e094117c15c7611e3bc18
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 29
+  completed_plans: 30
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T13:23:00-05:00"
+updated: "2026-10-08T13:40:46-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 17 of 40
+Plan: 18 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -87,6 +87,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P13 | 15 min | 2 tasks | 23 files |
 | Phase 02 P39 | 8 min | 2 tasks | 9 files |
 | Phase 02 P40 | 8min | 2 tasks | 7 files |
+| Phase 02 P11 | 14 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-39: prefetchOnIntent keeps one 100 ms intent timer per element (module WeakMap keyed by currentTarget), ignores touch pointerenter, and calls queryClient.query(options).catch(() => undefined), never prefetchQuery
 - [Phase 02]: 02-40: Icon keeps the App. D.3 className prop (context colour from a src/ui parent); no other svg props are spread; an empty label hides the icon like no label
 - [Phase 02]: 02-40: src tests that run the class gate are *.node.test.ts (tsconfig.app.json cannot import scripts/*.mjs); recipe tests compare sorted token sets because Prettier reorders tw() literals
+- [Phase 02]: 02-11: list state keys are the URL keys (page, size, q, then the list's own); createListParams(parsers) returns [values, { setPage (push), setPageSize, setSearch, setFilter, setFilters, clampPage, reset (replace + page reset) }]
+- [Phase 02]: 02-11: createListParams throws at definition on key names containing email/phone/mobile/password/passwd/secret/token or equal to otp/code/pin/name/firstname/lastname/fullname/customername/address
+- [Phase 02]: 02-11: date filters use dateRangeParsers + setFilters(dateRangeValues(choice)) + resolveDateRange(values, businessToday(now)); presets stored by name, from/to only for custom; UrlStateLayout mounts via route.lazy with a HydrateFallback on the root route
 
 ### Pending Todos
 
@@ -218,6 +222,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T18:22:23.631Z
-Stopped at: Completed 02-40-PLAN.md
+Last session: 2026-10-08T18:40:34.068Z
+Stopped at: Completed 02-11-PLAN.md
 Resume file: None
