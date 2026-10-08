@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Csps.ArchitectureTests;
 
 /// <summary>
-/// Validates docs/dependencies.json against the pinned packages and tools (QUAL-06, D-00, D-18, D-19).
-/// Pure: takes the registry text and the pins, returns every problem found (empty means valid).
+/// Validates docs/dependencies.json against the pinned packages, tools and npm packages (QUAL-06, D-00, D-18, D-19,
+/// L-08). Pure: takes the registry text and the pins, returns every problem found (empty means valid). An npm entry
+/// names its manifest folder; it matches the pin <c>{manifest}:{id}</c>, and the list is sorted by that key.
 /// </summary>
 internal static class DependencyRegistry
 {
@@ -13,10 +15,17 @@ internal static class DependencyRegistry
 
     private const string DateFormat = "yyyy-MM-dd";
     private const string AcceptedPrefix = "accepted:";
+    private const string NpmKind = "npm";
 
-    private static readonly string[] Kinds = ["nuget", "tool"];
+    private static readonly string[] Kinds = ["nuget", "tool", NpmKind];
     private static readonly string[] Scopes = ["runtime", "build", "test", "tool", "font"];
     private static readonly string[] RequiredText = ["purpose", "license", "publisher", "legitimacy"];
+
+    // One exact semver version: no range operator, wildcard, tag or alias.
+    private static readonly Regex ExactNpmVersion = new(
+        @"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>Returns every rule violation in <paramref name="json"/> given the repository pins.</summary>
     public static List<string> Validate(string? json, IReadOnlyCollection<PackagePin> pins)
@@ -115,13 +124,14 @@ internal static class DependencyRegistry
                 RequiredText.ToDictionary(field => field, field => Text(item, field), StringComparer.Ordinal),
                 Text(item, "published"),
                 Text(item, "adopted"),
-                Text(item, "coolDown")))
+                Text(item, "coolDown"),
+                Text(item, "manifest")))
             .ToList();
     }
 
     private static void ValidateEntry(Entry entry, Policy policy, List<string> problems)
     {
-        var label = entry.Id.Length > 0 ? entry.Id : "(entry without id)";
+        var label = entry.Id.Length > 0 ? entry.Key : "(entry without id)";
         if (entry.Id.Length == 0)
         {
             problems.Add("A registry entry has an empty id.");
@@ -135,6 +145,18 @@ internal static class DependencyRegistry
         if (!Kinds.Contains(entry.Kind, StringComparer.Ordinal))
         {
             problems.Add($"{label}: kind '{entry.Kind}' must be one of {string.Join(", ", Kinds)}.");
+        }
+
+        if (string.Equals(entry.Kind, NpmKind, StringComparison.Ordinal))
+        {
+            if (!PackagePins.NpmManifests.Contains(entry.Manifest, StringComparer.Ordinal))
+            {
+                problems.Add($"{label}: manifest '{entry.Manifest}' must be one of {string.Join(", ", PackagePins.NpmManifests)}.");
+            }
+        }
+        else if (entry.Manifest.Length > 0)
+        {
+            problems.Add($"{label}: only npm entries name a manifest.");
         }
 
         if (!Scopes.Contains(entry.Scope, StringComparer.Ordinal))
@@ -212,14 +234,14 @@ internal static class DependencyRegistry
     {
         for (var index = 1; index < entries.Count; index++)
         {
-            var comparison = string.Compare(entries[index - 1].Id, entries[index].Id, StringComparison.OrdinalIgnoreCase);
+            var comparison = string.Compare(entries[index - 1].Key, entries[index].Key, StringComparison.OrdinalIgnoreCase);
             if (comparison == 0)
             {
-                problems.Add($"{entries[index].Id}: duplicate registry entry.");
+                problems.Add($"{entries[index].Key}: duplicate registry entry.");
             }
             else if (comparison > 0)
             {
-                problems.Add($"{entries[index].Id}: entries must be sorted by id; it comes after {entries[index - 1].Id}.");
+                problems.Add($"{entries[index].Key}: entries must be sorted by id; it comes after {entries[index - 1].Key}.");
             }
         }
     }
@@ -228,7 +250,13 @@ internal static class DependencyRegistry
     {
         foreach (var pin in pins)
         {
-            var matches = entries.Where(entry => string.Equals(entry.Id, pin.Id, StringComparison.OrdinalIgnoreCase)).ToList();
+            var isNpm = string.Equals(pin.Source, PackagePins.NpmSource, StringComparison.Ordinal);
+            if (isNpm && !ExactNpmVersion.IsMatch(pin.Version))
+            {
+                problems.Add($"{pin.Id}: '{pin.Version}' is a range, tag or empty; npm pins must be exact (one version, for example 1.2.3).");
+            }
+
+            var matches = entries.Where(entry => string.Equals(entry.Key, pin.Id, StringComparison.OrdinalIgnoreCase)).ToList();
             if (matches.Count == 0)
             {
                 problems.Add($"{pin.Id} {pin.Version} ({pin.Source}) has no registry entry.");
@@ -241,16 +269,16 @@ internal static class DependencyRegistry
                 problems.Add($"{pin.Id}: pinned at {pin.Version} but the registry records {entry.Version}.");
             }
 
-            var expectedKind = string.Equals(pin.Source, "tool", StringComparison.Ordinal) ? "tool" : "nuget";
+            var expectedKind = isNpm ? NpmKind : string.Equals(pin.Source, "tool", StringComparison.Ordinal) ? "tool" : "nuget";
             if (!string.Equals(entry.Kind, expectedKind, StringComparison.Ordinal))
             {
                 problems.Add($"{pin.Id}: registry kind is '{entry.Kind}' but the pin is a {expectedKind}.");
             }
         }
 
-        foreach (var entry in entries.Where(entry => !pins.Any(pin => string.Equals(pin.Id, entry.Id, StringComparison.OrdinalIgnoreCase))))
+        foreach (var entry in entries.Where(entry => !pins.Any(pin => string.Equals(pin.Id, entry.Key, StringComparison.OrdinalIgnoreCase))))
         {
-            problems.Add($"{entry.Id}: registry entry has no matching pin (stale entry).");
+            problems.Add($"{entry.Key}: registry entry has no matching pin (stale entry).");
         }
     }
 
@@ -274,5 +302,10 @@ internal static class DependencyRegistry
         Dictionary<string, string> Text,
         string Published,
         string Adopted,
-        string CoolDown);
+        string CoolDown,
+        string Manifest)
+    {
+        /// <summary>The id a pin matches: <c>{manifest}:{id}</c> for npm entries, the plain id otherwise.</summary>
+        public string Key => string.Equals(Kind, NpmKind, StringComparison.Ordinal) ? $"{Manifest}:{Id}" : Id;
+    }
 }

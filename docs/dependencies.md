@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-07T15:53:21-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-08T11:10:22-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -55,22 +55,24 @@ We adopt a new version of a package only after it has been public for **at least
 
 ## Owner approval
 
-The owner approved the full Phase 1 list on **2026-10-07**, before anything was downloaded (plan 01-01, package legitimacy gate). The approval is recorded in `docs/dependencies.json` under `approvals`.
+The owner approved the full Phase 1 list on **2026-10-07**, before anything was downloaded (plan 01-01, package legitimacy gate). The Phase 2 web packages were approved on **2026-10-07** (D-25, plus two security overrides) and **2026-10-08** (D-34 lucide-react 1.53.0, D-36 the two Tailwind tooling plugins). Each approval is recorded in `docs/dependencies.json` under `approvals`.
 
-## Planned (not yet installed)
+## The web app's packages (npm)
 
-These are approved for a later phase but not downloaded yet. They sit in a separate `planned` list in `docs/dependencies.json`. The automated check reads only the main list, because nothing here is installed yet. The phase that installs a planned package moves it into the main list and pins its exact version.
+The web app in `web/` and the API type generator in `tools/openapi-gen/` use packages from npm, the JavaScript package registry. They are under the same rules as the .NET packages, and they are free too.
 
-| Package | Version | License | What it does | Approved | Installed in |
-|---------|---------|---------|--------------|----------|--------------|
-| nuqs | 2.10.1 | MIT (free) | Keeps what a list shows (filters, search, sort, page, tab and view) in the web address, so Back, refresh, bookmarks and shared links reopen the same view. It adds about 5.6 KB, compressed, to the pages that use it. Its one helper package, @standard-schema/spec 1.1.0, is MIT too. | Owner, 2026-10-07 | Phase 2 (Web Foundation) |
+- **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`.
+- **Exact versions only.** A range such as `^1.2.0` would let npm pick a newer version on its own, so the automated check fails on any range. An alias such as `"typescript": "npm:@typescript/typescript6@6.0.2"` is checked as the real package it installs (`@typescript/typescript6` 6.0.2).
+- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
+- **Cool-down exceptions are written down.** Four npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), and source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07).
+- **nuqs is installed.** It was approved on 2026-10-07 and installed in Phase 2 at 2.10.1. A newer 2.10.2 came out on 2026-10-08, so it is not 14 days old until 2026-10-22, and switching to it needs the owner's OK.
 
-Before installing, Phase 2 checks again for a newer stable version that is at least 14 days old, for example a 2.10.2, which fixes a known bug. It switches only if the owner approves that exact version. Phase 2 also teaches the automated check to read the web project's pins (`web/package.json`), so the main list and the web pins can never disagree.
+There is no separate `planned` list any more: everything approved so far is installed and in the main list.
 
 ## Adding a dependency
 
-1. Record its purpose, license, maintenance status and a legitimacy check in the phase RESEARCH.md.
-2. Pin an exact version in `Directory.Packages.props` (or `.config/dotnet-tools.json` for a tool) that is at least 14 days old.
-3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id.
+1. Record its purpose, license, maintenance status and a legitimacy check in the phase RESEARCH.md, and get the owner's OK.
+2. Pin an exact version that is at least 14 days old: in `Directory.Packages.props` (or `.config/dotnet-tools.json` for a tool) for .NET, or in `web/package.json` (or `tools/openapi-gen/package.json`) for npm. npm already saves exact versions and refuses too-new ones (`web/.npmrc`).
+3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id. For npm, the id is sorted as `{manifest}:{id}`, for example `web:vite`.
 4. Run `dotnet test --project tests/Csps.ArchitectureTests`. It fails if anything is missing, mismatched, unsorted, duplicated or under a license we do not allow.
 5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/New-ThirdPartyNotices.ps1`. It checks the license of every package the new one pulls in, and regenerates `THIRD-PARTY-NOTICES.md`. Commit the updated notices. If it reports a package it does not allow, ask the owner first. Never widen `docs/allowed-licenses.json` or `docs/license-exceptions.json` to make it pass.
