@@ -61,6 +61,19 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       // D-35: no .vite/license.md in the web root; the third-party notices live in the repository only.
       license: false,
+      // SPEC-DEVIATION: D-20 / CWE-489. Builds with dev routes (development, e2e, budget, and the parity build of
+      // `npm run parity`) add the look-equality page, parity.html (WEB-02, D-33). The production build keeps
+      // index.html as its only entry, so neither the page nor the dev scenario list can reach wwwroot.
+      ...(devRoutes
+        ? {
+            rolldownOptions: {
+              input: {
+                main: fileURLToPath(new URL('./index.html', import.meta.url)),
+                parity: fileURLToPath(new URL('./parity.html', import.meta.url)),
+              },
+            },
+          }
+        : {}),
     },
   };
 });

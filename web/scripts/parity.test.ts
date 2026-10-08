@@ -30,10 +30,10 @@ function fakeSpawner(statuses: readonly (number | null)[]) {
 }
 
 describe('planSteps', () => {
-  it('runs the preflight, the spec extraction, the reference build and Playwright, in that order', () => {
+  it('runs the preflight, the spec extraction, the reference build, the implementation build and Playwright, in that order', () => {
     const steps = planSteps({});
 
-    expect(steps.map((step) => step.name)).toEqual(['preflight', 'extract', 'build', 'playwright']);
+    expect(steps.map((step) => step.name)).toEqual(['preflight', 'extract', 'build', 'build-app', 'playwright']);
   });
 
   it('runs the read-only shared-machine preflight with this project ports from the repository root', () => {
@@ -52,13 +52,13 @@ describe('planSteps', () => {
   it('skips the preflight when the preflight script is not on this machine (CI)', () => {
     const steps = planSteps({ preflightAvailable: false });
 
-    expect(steps.map((step) => step.name)).toEqual(['extract', 'build', 'playwright']);
+    expect(steps.map((step) => step.name)).toEqual(['extract', 'build', 'build-app', 'playwright']);
   });
 
   it('runs every Node tool on this Node binary with its JS entry from the web folder (L-22)', () => {
     const tools = planSteps({}).filter((step) => step.name !== 'preflight');
 
-    expect(tools).toHaveLength(3);
+    expect(tools).toHaveLength(4);
     for (const step of tools) {
       expect(step.command).toBe(process.execPath);
       expect(step.args[0]).toMatch(/\.(?:m?js)$/);
@@ -89,6 +89,28 @@ describe('planSteps', () => {
     ]);
   });
 
+  it('builds the implementation side (the e2e mode, so dev routes and parity.html are in) into its own .parity-dist', () => {
+    const buildApp = planSteps({}).find((step) => step.name === 'build-app');
+
+    expect(buildApp?.args).toEqual([
+      'node_modules/vite/bin/vite.js',
+      'build',
+      '--mode',
+      'e2e',
+      '--outDir',
+      '.parity-dist',
+    ]);
+    // Never the E2E host's folder: a parity run must not overwrite a build an E2E run may be serving.
+    expect(buildApp?.args).not.toContain('.e2e-dist');
+  });
+
+  it('builds the implementation after the extraction and before Playwright, still under the one parity lock', () => {
+    const names = planSteps({}).map((step) => step.name);
+
+    expect(names.indexOf('build-app')).toBeGreaterThan(names.indexOf('extract'));
+    expect(names.indexOf('build-app')).toBeLessThan(names.indexOf('playwright'));
+  });
+
   it('runs the visual Playwright config and passes --grep and --project through unchanged', () => {
     const extraArgs = ['--grep', '@reference', '--project', 'webkit'];
     const playwright = planSteps({ extraArgs }).find((step) => step.name === 'playwright');
@@ -105,12 +127,13 @@ describe('planSteps', () => {
 
 describe('executeSteps', () => {
   it('runs every step in order and returns 0 when all pass', () => {
-    const { calls, spawn } = fakeSpawner([0, 0, 0, 0]);
+    const { calls, spawn } = fakeSpawner([0, 0, 0, 0, 0]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(0);
     expect(calls.map((call) => call.args[0])).toEqual([
       '-NoProfile',
       'visual/reference/extract-spec.mjs',
+      'node_modules/vite/bin/vite.js',
       'node_modules/vite/bin/vite.js',
       'node_modules/@playwright/test/cli.js',
     ]);
@@ -135,10 +158,19 @@ describe('executeSteps', () => {
 
   it('returns the Playwright exit code, so a failing or empty visual run fails npm run parity', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const { spawn } = fakeSpawner([0, 0, 0, 1]);
+    const { spawn } = fakeSpawner([0, 0, 0, 0, 1]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(1);
     expect(stderr).toHaveBeenCalledWith('parity: playwright failed with exit code 1.\n');
+  });
+
+  it('stops at a failing implementation build before Playwright runs', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const { calls, spawn } = fakeSpawner([0, 0, 0, 2]);
+
+    expect(executeSteps(planSteps({}), spawn)).toBe(2);
+    expect(calls).toHaveLength(4);
+    expect(stderr).toHaveBeenCalledWith('parity: build-app failed with exit code 2.\n');
   });
 });
 

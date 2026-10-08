@@ -44,7 +44,8 @@ export function escalate(config) {
 
 const callApiMessage = 'Call an api.ts function instead (WEB-04).';
 const httpClientMessage = 'Only src/lib/api.ts may use the HTTP client (WEB-04).';
-const cssImportMessage = 'D-33: no stylesheet imports; style with utilities. Only main.tsx imports @/styles/app.css.';
+const cssImportMessage =
+  'D-33: no stylesheet imports; style with utilities. Only main.tsx and the dev parity entry import @/styles/app.css.';
 
 // The ban on direct fetch/XMLHttpRequest member access. src/lib/http/** (the HTTP client itself) drops only this
 // entry, so every other ban still fires there.
@@ -212,9 +213,11 @@ export const architectureRules = [
     },
   },
   {
-    // main.tsx imports the single stylesheet entry (D-33).
+    // main.tsx imports the single stylesheet entry (D-33). Recorded exception (plan 02-14): the dev-only parity entry
+    // (src/dev/parity-main.tsx, never in the production build, D-20) imports the same fonts and stylesheet, so the
+    // implementation side of the look-equality proof renders with exactly the app's CSS.
     name: 'csps/restrictions/main',
-    files: ['src/main.tsx'],
+    files: ['src/main.tsx', 'src/dev/parity-main.tsx'],
     rules: {
       'no-restricted-imports': importBans({ http: false, appCss: true }),
       'no-restricted-syntax': ['error', ...syntaxBans],

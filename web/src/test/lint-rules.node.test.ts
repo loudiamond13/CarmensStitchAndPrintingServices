@@ -34,7 +34,8 @@ const featureTsx = 'src/features/x.tsx';
 
 const callApi = 'Call an api.ts function instead (WEB-04).';
 const httpOnlyApi = 'Only src/lib/api.ts may use the HTTP client (WEB-04).';
-const cssImport = 'D-33: no stylesheet imports; style with utilities. Only main.tsx imports @/styles/app.css.';
+const cssImport =
+  'D-33: no stylesheet imports; style with utilities. Only main.tsx and the dev parity entry import @/styles/app.css.';
 const rawHtml = 'Raw HTML injection is forbidden (CWE-79).';
 const styleObject = 'D-33: style may only set CSS custom properties (--*); use a utility for everything else.';
 const styleValue = 'D-33: style must be an inline object of --* custom properties.';
@@ -294,6 +295,16 @@ describe('D-33 stylesheet imports', () => {
     expect(lint("import '@/styles/app.css';\n", 'src/main.tsx')).toEqual([]);
     expect(lint("import '@/styles/base.css';\n", 'src/main.tsx')).toEqual([
       restrictedPattern('@/styles/base.css', cssImport),
+    ]);
+  });
+
+  it("the dev parity entry may import '@/styles/app.css' and nothing else; other dev files may not (recorded 02-14 exception)", () => {
+    expect(lint("import '@/styles/app.css';\n", 'src/dev/parity-main.tsx')).toEqual([]);
+    expect(lint("import '@/styles/base.css';\n", 'src/dev/parity-main.tsx')).toEqual([
+      restrictedPattern('@/styles/base.css', cssImport),
+    ]);
+    expect(lint("import '@/styles/app.css';\n", 'src/dev/kit.ts')).toEqual([
+      restrictedPattern('@/styles/app.css', cssImport),
     ]);
   });
 

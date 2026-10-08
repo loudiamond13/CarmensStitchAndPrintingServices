@@ -21,7 +21,7 @@ export { PREFLIGHT_SCRIPT, REPO_ROOT, WEB_DIRECTORY };
 export const PARITY_LOCK_PATH = path.join(WEB_DIRECTORY, '.locks', 'parity.lock');
 
 /**
- * @typedef {{ readonly name: 'preflight' | 'extract' | 'build' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} Step
+ * @typedef {{ readonly name: 'preflight' | 'extract' | 'build' | 'build-app' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} Step
  * @typedef {(command: string, args: readonly string[], options: { cwd: string, stdio: 'inherit' }) => { status: number | null }} Spawner
  */
 

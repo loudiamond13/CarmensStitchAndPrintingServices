@@ -15,6 +15,9 @@ export default defineConfig({
   outputDir: '../test-results/visual',
   // Plan 02-14 writes the reference shot as the "expected" snapshot at run time; nothing is stored in git.
   snapshotPathTemplate: '{testDir}/../test-results/parity/{projectName}/{arg}{ext}',
+  // The reference screenshot is written as the expected snapshot by the spec itself; an update run would replace it
+  // with the implementation's shot and compare nothing (T-02-39), so nothing is ever updated (the spec checks it too).
+  updateSnapshots: 'none',
   // No CSP bypass anywhere: the pages run under the same strict CSP as production.
   use: { trace: 'retain-on-failure' },
   projects: [

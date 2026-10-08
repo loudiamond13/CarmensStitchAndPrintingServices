@@ -47,6 +47,19 @@ describe('vite.config.ts', () => {
     expect((await load('build', mode)).define?.__DEV_ROUTES__).toBe(devRoutes);
   });
 
+  it.each(buildModes.filter(({ devRoutes }) => devRoutes === 'true'))(
+    'adds the parity page (parity.html) as a second entry in the $mode build, which has dev routes (WEB-02, D-33)',
+    async ({ mode }) => {
+      const input = (await load('build', mode)).build?.rolldownOptions?.input;
+      expect(input).toEqual({ main: join(webDir, 'index.html'), parity: join(webDir, 'parity.html') });
+      expect(existsSync(join(webDir, 'parity.html'))).toBe(true);
+    },
+  );
+
+  it('keeps index.html as the only entry of the production build, so the parity page never ships (D-20, CWE-489)', async () => {
+    expect((await load('build', 'production')).build?.rolldownOptions?.input).toBeUndefined();
+  });
+
   it.each(buildModes)(
     'ships no license file, no source map and no inlined asset in the $mode build',
     async ({ mode }) => {

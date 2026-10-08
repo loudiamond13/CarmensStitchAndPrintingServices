@@ -56,71 +56,93 @@ export function listFindings(record: VisualRecord): string[] {
   ];
 }
 
-export const test = base.extend<{ guard: VisualGuard }>({
-  guard: [
-    // The callback is named `provide`, not `use`, so react-hooks/rules-of-hooks does not misfire (L-23).
-    async ({ page }, provide) => {
-      const consoleMessages: string[] = [];
-      const pageErrors: string[] = [];
-      const cspViolations: CspViolation[] = [];
-      const failedRequests: string[] = [];
+interface PageWatch {
+  /** Delivers pending binding calls, then returns the record so far. */
+  readonly peek: () => Promise<VisualRecord>;
+  /** Throws when the record holds any finding; `label` names the page in the message. */
+  readonly assertClean: (label: string) => Promise<void>;
+}
 
-      page.on('console', (message) => {
-        const type = message.type();
-        if (type !== 'error' && type !== 'warning') {
-          return;
-        }
-        const { url, lineNumber } = message.location();
-        consoleMessages.push(`console.${type}: ${message.text()}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
-      });
-      page.on('pageerror', (error) => {
-        pageErrors.push(error.message);
-      });
-      page.on('response', (response) => {
-        if (response.status() >= 400) {
-          failedRequests.push(`${String(response.status())} ${response.request().method()} ${response.url()}`);
-        }
-      });
-      page.on('requestfailed', (request) => {
-        failedRequests.push(
-          `failed ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`,
-        );
-      });
-      await page.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
-        cspViolations.push(
-          isCspViolation(violation) ? violation : { directive: 'unknown', blockedURI: JSON.stringify(violation) },
-        );
-      });
-      await page.addInitScript({ content: cspListener });
+/** Starts recording console messages, page errors, CSP violations and failed requests for one page. */
+async function watchPage(page: Page): Promise<PageWatch> {
+  const consoleMessages: string[] = [];
+  const pageErrors: string[] = [];
+  const cspViolations: CspViolation[] = [];
+  const failedRequests: string[] = [];
 
-      // A round trip to the page delivers any binding call the page made before it. A closed page has nothing left.
-      const settle = async (): Promise<void> => {
-        if (!page.isClosed()) {
-          await page.evaluate('0').catch(() => undefined);
-        }
-      };
-      const snapshot = (): VisualRecord => ({
-        console: [...consoleMessages],
-        pageErrors: [...pageErrors],
-        cspViolations: [...cspViolations],
-        failedRequests: [...failedRequests],
-      });
+  page.on('console', (message) => {
+    const type = message.type();
+    if (type !== 'error' && type !== 'warning') {
+      return;
+    }
+    const { url, lineNumber } = message.location();
+    consoleMessages.push(`console.${type}: ${message.text()}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
+  });
+  page.on('pageerror', (error) => {
+    pageErrors.push(error.message);
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      failedRequests.push(`${String(response.status())} ${response.request().method()} ${response.url()}`);
+    }
+  });
+  page.on('requestfailed', (request) => {
+    failedRequests.push(`failed ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
+  });
+  await page.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
+    cspViolations.push(
+      isCspViolation(violation) ? violation : { directive: 'unknown', blockedURI: JSON.stringify(violation) },
+    );
+  });
+  await page.addInitScript({ content: cspListener });
 
-      await provide({
-        peek: async () => {
-          await settle();
-          return snapshot();
-        },
-      });
+  // A round trip to the page delivers any binding call the page made before it. A closed page has nothing left.
+  const settle = async (): Promise<void> => {
+    if (!page.isClosed()) {
+      await page.evaluate('0').catch(() => undefined);
+    }
+  };
+  const snapshot = (): VisualRecord => ({
+    console: [...consoleMessages],
+    pageErrors: [...pageErrors],
+    cspViolations: [...cspViolations],
+    failedRequests: [...failedRequests],
+  });
 
+  return {
+    peek: async () => {
+      await settle();
+      return snapshot();
+    },
+    assertClean: async (label) => {
       await settle();
       const findings = listFindings(snapshot());
       if (findings.length > 0) {
-        throw new Error(`The page reported ${String(findings.length)} problem(s):\n${findings.join('\n')}`);
+        throw new Error(`The ${label} reported ${String(findings.length)} problem(s):\n${findings.join('\n')}`);
       }
+    },
+  };
+}
+
+export const test = base.extend<{ guard: VisualGuard; appPage: Page }>({
+  guard: [
+    // The callback is named `provide`, not `use`, so react-hooks/rules-of-hooks does not misfire (L-23).
+    async ({ page }, provide) => {
+      const watch = await watchPage(page);
+      await provide({ peek: watch.peek });
+      await watch.assertClean('page');
     },
     { auto: true },
   ],
+  // A second page in the same browser context (so the same viewport, reduced-motion and touch settings), for the
+  // implementation side of a parity comparison (plan 02-14). It is guarded exactly like `page`.
+  appPage: async ({ context }, provide) => {
+    const appPage = await context.newPage();
+    const watch = await watchPage(appPage);
+    await provide(appPage);
+    await watch.assertClean('implementation page');
+    await appPage.close();
+  },
 });
 
 /** The text expectCases throws for a page whose filter selected nothing. */
