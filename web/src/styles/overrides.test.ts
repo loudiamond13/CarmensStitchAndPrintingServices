@@ -288,7 +288,9 @@ describe('overrides.css owner rulings (A11Y-04)', () => {
 
   it('D-27 (O-9): the Sidebar Logout button keeps the .csp-nav link look (no UA button chrome, pointer cursor)', () => {
     expectRule('button.csp-nav', 'appearance', 'none', 'D-27');
-    expectRule('button.csp-nav', 'border', '0', 'D-27');
+    expectRule('button.csp-nav', 'border-width', '0', 'D-27');
+    // preflight already sets `border: 0 solid`; restating only the width keeps the computed style equal to the link's.
+    expect(overridesFor('button.csp-nav').every((rule) => value(rule, 'border') === undefined)).toBe(true);
     expectRule('button.csp-nav', 'text-align', 'start', 'D-27');
     expectRule('button.csp-nav', 'cursor', 'pointer', 'D-27');
   });
