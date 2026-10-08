@@ -113,6 +113,8 @@ describe('the drift check', () => {
   it('names the first differing line', () => {
     expect(firstDifference('a\nb\nc\n', 'a\nB\nc\n')).toBe('line 2: expected "B" but found "b"');
     expect(firstDifference('a\n', 'a\nb\n')).toBe('line 2: expected "b" but found the end of the file');
+    expect(firstDifference('a\nb\n', 'a\n')).toBe('line 2: expected the end of the file but found "b"');
+    expect(firstDifference('a', 'a\n')).toBe('the final newline differs');
   });
 
   it('--check exits 0 on the committed file and never writes it', () => {
