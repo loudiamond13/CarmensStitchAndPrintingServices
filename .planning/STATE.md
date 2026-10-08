@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-10-08T05:36:14.255Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-10-08T06:03:54.147Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 24f1a98b0492fb42652456e58190d622915738dd
+state_head: 15a03fa7e90a9870326e53838b61c39068d52c99
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 19
+  completed_plans: 20
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T00:15:17-05:00"
+updated: "2026-10-08T01:04:08-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 7 of 18
+Plan: 8 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -77,6 +77,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P04 | 22 min | 3 tasks | 16 files |
 | Phase 02 P05 | 18 min | 3 tasks | 18 files |
 | Phase 02 P06 | 17 min | 2 tasks | 7 files |
+| Phase 02 P07 | 18 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,11 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-05: PERF-05 fallback faces measured against Windows Arial (Arial Narrow absent): Archivo Fallback 101.85/86.21/20.62/0, Barlow Condensed Fallback 68.92/145.1/29.02/0 (size-adjust/ascent/descent/line-gap %); Barlow fallback skips U+20B1
 - [Phase 02]: 02-06: A2 confirmed - `--webroot <abs path>` on dotnet run sets the web root; the E2E host serves web/.e2e-dist directly (never copied into wwwroot). A1 confirmed - addInitScript, exposeBinding, evaluate and AxeBuilder injection work under the strict CSP in Chromium, Firefox and WebKit
 - [Phase 02]: 02-06: E2E specs import test/expect/expectNoAxeViolations from web/e2e/fixtures.ts; the automatic guard fails every test on console error/warning, pageerror, CSP violation (binding-reported, survives navigation) and same-origin response >= 400; self-tests consume provoked findings with guard.take()
+- [Phase 02]: 02-07: createHttpClient owns retries - max 2 (clamped), 250 ms doubling to a 2 s cap, no jitter, only GET/HEAD/PUT/DELETE/OPTIONS or a POST with idempotencyKey, only after kind network or a 503; TanStack Query must keep retry: false
+- [Phase 02]: 02-07: the HTTP client never creates an Idempotency-Key and never sends one on GET/HEAD/OPTIONS; the key comes only from RequestConfig.idempotencyKey, is set before request interceptors, and is resent on every retry and the 401 refresh retry
+- [Phase 02]: 02-07: 401 handling - one refresh cycle per client (single flight), each request retries once; no refresh configured, a failed refresh, or a second 401 calls onUnauthorized at most once per cycle
+- [Phase 02]: 02-07: HttpError kind network|timeout|aborted|http|parse, status 0 without a response, message = ProblemDetails title or a plain-English kind default; secret param names (token, access_token, refresh_token, password, secret, otp) throw a TypeError before fetch
+- [Phase 02]: 02-07: a filtered lib/http coverage run needs --coverage.include=src/lib/http/** (otherwise the global 90% thresholds trip); npm run verify enforces coverage.thresholds['src/lib/http/**'] = 100
 
 ### Pending Todos
 
@@ -185,6 +191,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T05:36:04.910Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-10-08T06:03:33.077Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
