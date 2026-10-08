@@ -47,12 +47,16 @@ const ICON_VIEWBOX = maskedIconViewBox();
 // would then not apply. FREEZE hides the caret of a focused field through the CSSOM instead (allowed by the CSP).
 const SHOT = { animations: 'disabled', caret: 'initial' } as const;
 
-// Settles the page before a measurement: CSS transitions jump to their end state (a hover or press is read as it
-// finally looks), every other animation (the spinner) is paused at its start, so both sides are read at the same frame,
-// and a focused field's caret is made transparent through the CSSOM (allowed by the CSP), so its blink cannot differ.
+// Settles the page before a measurement: CSS transitions and finite animations (the toast and modal entries) jump to
+// their end state, so a hover or press, and an element that rises in, is read as it finally looks; infinite animations
+// (the spinner, the skeleton shimmer) are paused at their start, so both sides are read at the same frame; and a
+// focused field's caret is made transparent through the CSSOM (allowed by the CSP), so its blink cannot differ.
+// Plan 02-21: an entry animation still running at FREEZE used to be paused at its start (opacity 0) on one side only,
+// depending on how long that side's state input took, while the other side had already finished it.
 const FREEZE = `(() => {
   for (const animation of document.getAnimations()) {
-    if (animation instanceof CSSTransition) {
+    const finite = Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Infinity);
+    if (animation instanceof CSSTransition || finite) {
       animation.finish();
     } else {
       animation.pause();
