@@ -106,6 +106,22 @@ function rowsFor(group: string, theme: Theme, cases: readonly Scenario[]): Matri
   return rows;
 }
 
+/** The test timeout of a row with no cases, and the floor of every row (the config's own timeout). */
+export const ROW_TIMEOUT_FLOOR_MS = 120_000;
+/** What one more case may add to a row: state rows load a page pair per case and run axe on both (plan 02-17). */
+export const ROW_TIMEOUT_PER_CASE_MS = 12_000;
+/** Fixed cost of a row: the two page fixtures, the first page loads and the font wait. */
+const ROW_TIMEOUT_BASE_MS = 60_000;
+
+/**
+ * The test timeout of one row. A row's work grows with its case count: with 24 actions cases, Firefox hover rows and
+ * WebKit rows at 1440 px ran past a flat 120 s while every comparison still passed (plan 02-17). This is only the
+ * ceiling a hung page waits for; it never changes what is compared.
+ */
+export function rowTimeout(row: Pick<MatrixRow, 'cases'>): number {
+  return Math.max(ROW_TIMEOUT_FLOOR_MS, ROW_TIMEOUT_BASE_MS + row.cases.length * ROW_TIMEOUT_PER_CASE_MS);
+}
+
 /** Every row of the matrix, grouped by scenario group (in first-appearance order), then by theme. */
 export function planMatrix(scenarios: readonly Scenario[]): MatrixRow[] {
   const groups = [...new Set(scenarios.map((scenario) => scenario.group))];

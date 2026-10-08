@@ -55,6 +55,86 @@ describe('UiLink', () => {
     },
   );
 
+  it('keeps the same external anchor on an equal-props re-render and updates on new props', () => {
+    const { rerender } = render(
+      <UiLink to="https://example.com/" title="Example">
+        Example
+      </UiLink>,
+    );
+    const first = onlyLink();
+    rerender(
+      <UiLink to="https://example.com/" title="Example">
+        Example
+      </UiLink>,
+    );
+    expect(onlyLink()).toBe(first);
+
+    rerender(
+      <UiLink to="mailto:hello@example.com" title="Write to us" className="mt-2">
+        Email
+      </UiLink>,
+    );
+    expect(onlyLink()).toHaveAttribute('href', 'mailto:hello@example.com');
+    expect(onlyLink()).toHaveAttribute('title', 'Write to us');
+    expect(onlyLink()).toHaveClass('mt-2');
+  });
+
+  it('keeps the same router link on an equal-props re-render and updates on new props', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <UiLink to="/products" title="Products">
+          Products
+        </UiLink>
+      </MemoryRouter>,
+    );
+    const first = onlyLink();
+    rerender(
+      <MemoryRouter>
+        <UiLink to="/products" title="Products">
+          Products
+        </UiLink>
+      </MemoryRouter>,
+    );
+    expect(onlyLink()).toBe(first);
+
+    rerender(
+      <MemoryRouter>
+        <UiLink to="/gallery" title="Gallery">
+          Gallery
+        </UiLink>
+      </MemoryRouter>,
+    );
+    expect(onlyLink()).toHaveAttribute('href', '/gallery');
+    expect(onlyLink()).toHaveAttribute('title', 'Gallery');
+  });
+
+  it('passes its explicit props to an external anchor too', () => {
+    const onClick = vi.fn();
+    render(
+      <UiLink
+        to="https://example.com/"
+        id="ext"
+        title="Example site"
+        aria-label="Example site (opens a new tab)"
+        aria-current="page"
+        aria-describedby="hint"
+        target="_blank"
+        rel="noopener"
+        onClick={onClick}
+      >
+        Example
+      </UiLink>,
+    );
+    const link = screen.getByRole('link', { name: 'Example site (opens a new tab)' });
+
+    expect(link).toHaveAttribute('id', 'ext');
+    expect(link).toHaveAttribute('title', 'Example site');
+    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(link).toHaveAttribute('aria-describedby', 'hint');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener');
+  });
+
   it('passes its explicit props to the anchor', () => {
     const onClick = vi.fn();
     inRouter(
@@ -87,14 +167,17 @@ describe('UiLink', () => {
 
 describe('LinkProvider (kept for API compatibility)', () => {
   it('renders its children unchanged', () => {
-    const { container } = inRouter(
-      <LinkProvider>
+    const children = (
+      <>
         <p>Inside</p>
         <UiLink to="/products">Products</UiLink>
-      </LinkProvider>,
+      </>
     );
+    const without = inRouter(children).container.innerHTML;
+    const { container } = inRouter(<LinkProvider>{children}</LinkProvider>);
 
-    expect(container.innerHTML).toBe('<p>Inside</p><a href="/products">Products</a>');
+    expect(container.innerHTML).toBe(without);
+    expect(container.querySelector('p + a[href="/products"]')).toHaveTextContent('Products');
   });
 });
 

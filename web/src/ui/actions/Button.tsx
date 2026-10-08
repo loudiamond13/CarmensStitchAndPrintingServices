@@ -5,7 +5,13 @@
 // are listed in ButtonProps.
 import type { MouseEvent, ReactNode, Ref } from 'react';
 import { Icon, type IconName } from '@/ui/brand';
-import { buttonClasses, buttonSpinnerClasses, type ButtonSize, type ButtonVariant } from './button.recipe';
+import {
+  buttonClasses,
+  buttonIconSize,
+  buttonSpinnerClasses,
+  type ButtonSize,
+  type ButtonVariant,
+} from './button.recipe';
 
 export type { ButtonSize, ButtonVariant } from './button.recipe';
 
@@ -42,9 +48,6 @@ interface ButtonBaseProps {
 /** A labelled button (children), or an icon-only button (no children) that must carry an `aria-label`. */
 export type ButtonProps = ButtonBaseProps &
   ({ children: ReactNode; 'aria-label'?: string } | { children?: undefined; 'aria-label': string });
-
-/** Icon size by button size, as App. D.3: 16px on sm, 18px otherwise. */
-const ICON_SIZE = { sm: 16, md: 18, lg: 18 } as const satisfies Record<ButtonSize, number>;
 
 export function Button({
   variant = 'secondary',
@@ -83,7 +86,7 @@ export function Button({
     }
     onClick?.(event);
   };
-  const iconSize = ICON_SIZE[size];
+  const iconSize = buttonIconSize[size];
   return (
     <button
       ref={ref}

@@ -22,7 +22,10 @@ export default defineConfig({
   // with the implementation's shot and compare nothing (T-02-39), so nothing is ever updated (the spec checks it too).
   updateSnapshots: 'none',
   // No CSP bypass anywhere: the pages run under the same strict CSP as production.
-  use: { trace: 'retain-on-failure' },
+  // The trace keeps the action log of a failed test, without DOM snapshots or screencast frames: those are recorded for
+  // every action even when the test passes, and in WebKit (device scale 2) at 1440 px they made one actions row take
+  // 5.3 min instead of 42 s (plan 02-17). For a full trace, add `--trace on` to the run.
+  use: { trace: { mode: 'retain-on-failure', snapshots: false, screenshots: false, sources: true } },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     // Firefox and WebKit run every parity scenario at 390 and 1440, rest and hover; the Chromium-only rows of the matrix

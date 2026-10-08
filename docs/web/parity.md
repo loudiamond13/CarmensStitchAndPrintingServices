@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T14:23:20-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T15:52:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -140,12 +140,12 @@ Each scenario runs in the themes it lists. How a row runs:
 
 - **Rest rows** load each side once per group (`?group=<g>&theme=<t>`) and compare every parity case on the page. A `frame: 'viewport'` case loads on its own (`?case=<id>`) and is compared as the whole viewport.
 - **State rows** load each case on its own page and drive the state with real input on both sides: the mouse for `hover`, the mouse button held down for `active`, and Tab presses until the target is focused for `focus-visible`. The target is the scenario's `target` selector inside the case, or else the case's first element.
-- Before measuring, transitions jump to their end state and every other animation (the spinner) is paused at its start, on both sides.
+- Before measuring, transitions jump to their end state and every other animation (the spinner) is paused at its start, on both sides. Then each page is repainted in full: the root's opacity is set to 0.99 and back through the CSSOM, two frames each way (plan 02-17). A state change repaints only the changed area, and Chromium sometimes kept anti-aliasing from the earlier frame at a clipped edge, such as a focus ring or a pressed button at the frame's right edge. The reference then differed from itself by up to 16 pixels between runs, with identical computed styles and boxes. The opacity toggle keeps `:hover`, `:active` and `:focus-visible` (hiding the page would drop them), and it changes no value the comparison reads.
 - Every page load also runs axe (`AXE_TAGS`) on both sides, and the guard checks both pages for console errors, page errors, CSP violations and failed requests.
 - SPEC-GAP scenarios (`parity: false`) ride along in the rest rows: axe and the guard check the implementation, and nothing is compared.
 - **The self-test** (`@selftest`) adds 1px of `padding-top` to the implementation's button through the CSSOM and asserts that the comparator reports a `padding-top` difference and that the pixel comparison fails. If it ever passes without finding the drift, the harness is broken.
 
-A WebKit row at 1440 px takes about 12 s on its own (two pages and two axe runs), so the visual suite's test timeout is 120 s.
+A WebKit row at 1440 px takes about 12 s on its own (two pages and two axe runs), so the visual suite's test timeout is 120 s. A row's work grows with its case count, so each row sets its own timeout with `rowTimeout(row)`: 60 s plus 12 s per case, never below 120 s (plan 02-17; with 24 actions cases, Firefox hover rows and WebKit rows at 1440 px ran past a flat 120 s while every comparison passed). It is only the time a hung page is given; it changes nothing that is compared.
 
 ## 8. Rules for conversion plans
 
@@ -159,5 +159,6 @@ A WebKit row at 1440 px takes about 12 s on its own (two pages and two axe runs)
 
 - **The reference never ships.** `web/.reference-dist/` and `web/visual/.reference-src/` are git-ignored, nothing in `web/src` imports the reference, and only `reference.css` imports `rulings.css` (a test checks this).
 - **No weaker CSP.** Both sides are served with the production `StrictCsp`, read from the server source at run time. Nothing bypasses the CSP.
+- **The reference CSS is not minified.** `visual/vite.reference.config.ts` sets `cssMinify: false` (Tailwind's optimizer follows it). The minifier rewrote App. B's `background: transparent` into `background: 0 0`, which also sets `background-position` to `0px 0px`, a computed value the approved CSS never has (plan 02-17). The implementation build stays minified, like production.
 - **No stored baselines.** Both sides render in the same browser in the same run, so font rendering on Windows and on the ubuntu CI runner never has to match.
 - **The frozen code stays frozen.** The spec copy is never edited, linted or type-checked; `kit.ts` loads it at build time. To change the yardstick, the owner edits `CSPS-UI-SPEC.md` and the pin is updated by hand after review.

@@ -70,6 +70,9 @@ const iconOnlyWidth = {
 /** `.csp-btn-block`. `.csp-btn-icon` comes later in App. B, so an icon-only button keeps its own width. */
 const block = tw('w-full');
 
+/** Icon size in px by button size, as App. D.3 (Button and ButtonLink): 16 on sm, 18 otherwise. */
+export const buttonIconSize = { sm: 16, md: 18, lg: 18 } as const satisfies Record<ButtonSize, number>;
+
 /** `.csp-spin` on the pending spinner, with App. B's reduced-motion `animation-duration: 2.4s`. */
 export const buttonSpinnerClasses = tw('animate-csp-spin motion-reduce:[animation-duration:2.4s]');
 

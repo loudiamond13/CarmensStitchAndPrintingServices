@@ -12,7 +12,13 @@ import { Button, buttonClasses, type ButtonSize, type ButtonVariant } from '@/ui
 // these tests pin the markup, the props API, the WEB-09 pending behaviour and the actions scenario set that the parity
 // suite compares.
 
-const VARIANTS = ['primary', 'secondary', 'ghost', 'danger', 'ghost-danger'] as const satisfies readonly ButtonVariant[];
+const VARIANTS = [
+  'primary',
+  'secondary',
+  'ghost',
+  'danger',
+  'ghost-danger',
+] as const satisfies readonly ButtonVariant[];
 const SIZES = ['sm', 'md', 'lg'] as const satisfies readonly ButtonSize[];
 const ALL_STATES = ['rest', 'hover', 'focus-visible', 'active'];
 

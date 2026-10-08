@@ -25,7 +25,7 @@ import {
   maskedIconViewBox,
   maxDiffPixelsFor,
 } from './intentional-differences.ts';
-import { planMatrix, type MatrixRow } from './parity-matrix.ts';
+import { planMatrix, rowTimeout, type MatrixRow } from './parity-matrix.ts';
 import { selectScenarios } from './reference/select.ts';
 import { loadScenarios } from './scenarios.ts';
 import { REFERENCE_DIST, REFERENCE_ORIGIN, routeDist } from './serve.ts';
@@ -244,6 +244,7 @@ for (const row of planMatrix(SCENARIOS)) {
     });
 
     test(row.title, async ({ page, appPage }, testInfo) => {
+      test.setTimeout(rowTimeout(row));
       if (row.state === 'rest') {
         await runRestRow(row, page, appPage, testInfo);
       } else {

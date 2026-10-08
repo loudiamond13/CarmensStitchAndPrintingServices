@@ -5,7 +5,14 @@
 // scenario at 390 and 1440, rest and hover. Admin and showcase scenarios run in both themes, public ones in Blush only.
 import { describe, expect, it } from 'vitest';
 import type { Scenario } from '../src/dev/scenarios/types.ts';
-import { CHROMIUM_ONLY_TAG, planMatrix, type MatrixRow } from './parity-matrix.ts';
+import {
+  CHROMIUM_ONLY_TAG,
+  planMatrix,
+  ROW_TIMEOUT_FLOOR_MS,
+  ROW_TIMEOUT_PER_CASE_MS,
+  rowTimeout,
+  type MatrixRow,
+} from './parity-matrix.ts';
 
 function scenario(overrides: Partial<Scenario> & Pick<Scenario, 'id'>): Scenario {
   return {
@@ -141,5 +148,20 @@ describe('planMatrix', () => {
     expect(new Set(crossEngine.map((row) => row.width))).toEqual(new Set([390, 1440]));
     expect(new Set(crossEngine.map((row) => row.state))).toEqual(new Set(['rest', 'hover']));
     expect(crossEngine.every((row) => row.pass === 'default')).toBe(true);
+  });
+});
+
+describe('rowTimeout', () => {
+  const many = (count: number) =>
+    Array.from({ length: count }, (_, index) => scenario({ id: `case-${String(index)}` }));
+
+  it('never goes below the config timeout for a small row', () => {
+    expect(rowTimeout({ cases: [] })).toBe(ROW_TIMEOUT_FLOOR_MS);
+    expect(rowTimeout({ cases: many(1) })).toBe(ROW_TIMEOUT_FLOOR_MS);
+  });
+
+  it('grows by the per-case allowance once a row holds more cases than the floor covers', () => {
+    expect(rowTimeout({ cases: many(24) }) - rowTimeout({ cases: many(23) })).toBe(ROW_TIMEOUT_PER_CASE_MS);
+    expect(rowTimeout({ cases: many(24) })).toBe(348_000);
   });
 });

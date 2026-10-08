@@ -2,7 +2,8 @@
 // Conversion plans add their cases to this and the other group files; index.ts discovers the files by glob.
 // Plan 02-17: one Button case per variant and size, icon-only sm and md, an icon on each side, block, and the two prop
 // states (disabled, and pending through App. D.3's `loading`, which the reference Button also understands: plan 02-14).
-// Prop states are compared at rest only; every other case at rest, hover, focus-visible and active.
+// Prop states are compared at rest only; every other case at rest, hover, focus-visible and active. ButtonLink cases
+// (an in-app link with the button look) are compared at rest, hover and focus-visible: pressing a link would navigate.
 import type { Scenario, ScenarioProps, ScenarioState } from '../types';
 
 const ALL_STATES: readonly ScenarioState[] = ['rest', 'hover', 'focus-visible', 'active'];
@@ -66,4 +67,30 @@ export const scenarios: readonly Scenario[] = [
     props: { variant: 'primary', size: 'md', loading: true, icon: 'plus', children: 'Saving' },
     states: ['rest'],
   }),
+  {
+    id: 'buttonlink-primary-md',
+    group: 'actions',
+    node: {
+      kind: 'node',
+      component: 'ButtonLink',
+      props: { to: '/products', variant: 'primary', size: 'md', iconRight: 'arrow-right', children: 'View Products' },
+    },
+    themes: ['light', 'dark'],
+    responsive: false,
+    states: ['rest', 'hover', 'focus-visible'],
+    parity: true,
+  },
+  {
+    id: 'buttonlink-ghost-sm',
+    group: 'actions',
+    node: {
+      kind: 'node',
+      component: 'ButtonLink',
+      props: { to: '/gallery', variant: 'ghost', size: 'sm', icon: 'image', children: 'Gallery' },
+    },
+    themes: ['light', 'dark'],
+    responsive: false,
+    states: ['rest', 'hover', 'focus-visible'],
+    parity: true,
+  },
 ];
