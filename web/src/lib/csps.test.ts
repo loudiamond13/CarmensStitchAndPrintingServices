@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   cascadeSentence,
+  centavosToAmount, // SPEC-GAP: MoneyInput conversion (not in App. D.2)
   discountAmount,
   formatDate,
   formatPeso,
   orderNumber,
   orderTotals,
   passwordStrength,
+  toCentavos, // SPEC-GAP: MoneyInput conversion (not in App. D.2)
   type Order,
 } from './csps';
 
@@ -81,5 +83,36 @@ describe('formatting', () => {
   it('scores passwords', () => {
     expect(passwordStrength('').label).toBe('');
     expect(passwordStrength('Csp!Volt26').label).toBe('Strong');
+  });
+});
+
+// SPEC-GAP: MoneyInput conversion (D-09, ORD-09). Not part of App. D.2.
+describe('toCentavos', () => {
+  it.for([
+    ['1250.5', 125050n],
+    ['5', 500n],
+    ['5.', 500n],
+    ['.5', 50n],
+    ['0', 0n],
+    ['999999999.99', 99999999999n],
+  ] as const)('reads %j exactly', ([text, centavos]) => {
+    expect(toCentavos(text)).toBe(centavos);
+  });
+
+  it.for(['', '.', '-5', '1,250', '1.234', '1e3', '1234567890', ' 5', '5 '])('rejects %j', (text) => {
+    expect(toCentavos(text)).toBeNull();
+  });
+});
+
+describe('centavosToAmount', () => {
+  it('writes two decimals with no grouping', () => {
+    expect(centavosToAmount(125050n)).toBe('1250.50');
+    expect(centavosToAmount(5n)).toBe('0.05');
+    expect(centavosToAmount(0n)).toBe('0.00');
+    expect(centavosToAmount(99999999999n)).toBe('999999999.99');
+  });
+
+  it('round-trips with toCentavos', () => {
+    expect(toCentavos(centavosToAmount(123456n))).toBe(123456n);
   });
 });

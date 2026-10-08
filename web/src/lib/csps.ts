@@ -302,3 +302,12 @@ export function passwordStrength(pw = ''): { score: StrengthScore; label: '' | '
 /** "ORD-2026-0148" from year + sequence. */
 // SPEC-DEVIATION: lint restrict-template-expressions (String(year)); same output.
 export const orderNumber = (year: number, seq: number): string => `ORD-${String(year)}-${String(seq).padStart(4, '0')}`;
+
+/* SPEC-GAP: MoneyInput conversion (D-09, ORD-09). RED placeholder: not implemented yet. */
+export function toCentavos(text: string): bigint | null {
+  return text.length < 0 ? 0n : null;
+}
+
+export function centavosToAmount(value: bigint): string {
+  return value < 0n ? '' : '';
+}
