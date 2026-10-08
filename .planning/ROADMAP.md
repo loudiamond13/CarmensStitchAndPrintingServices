@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T13:09:30-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T13:23:00-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 15/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 16/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -251,7 +251,7 @@ Plans:
 - [x] 02-12-PLAN.md — Self-hosted fonts with one preload and metric-matched fallbacks (₱ never in Barlow or a system font)
 - [x] 02-13-PLAN.md — Look-equality reference: frozen spec app with the test-pinned owner-rulings layer, route-served under the real CSP
 - [x] 02-39-PLAN.md — TanStack Query defaults, keep-previous cancellable list query, 300 ms debounced search key, intent prefetch (WEB-08)
-- [ ] 02-40-PLAN.md — `tw` class marker, page-root and visually-hidden recipes, and the spec Icon API over lucide-react 1.53.0
+- [x] 02-40-PLAN.md — `tw` class marker, page-root and visually-hidden recipes, and the spec Icon API over lucide-react 1.53.0
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-11-PLAN.md — nuqs URL list state (parsers, push/replace, privacy, UrlStateLayout) wired to the 02-39 list query; URL-state guide
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 15/40 | In Progress|  |
+| 2. Web Foundation & Design System | 16/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |

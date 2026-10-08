@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-39-PLAN.md
-last_updated: "2026-10-08T18:09:13.596Z"
+stopped_at: Completed 02-40-PLAN.md
+last_updated: "2026-10-08T18:22:23.766Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 699dd1e258521956cdddf8e65fc141792907a2cc
+state_head: 3349481c3b3a8199a38550527daed56232d13d95
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 28
+  completed_plans: 29
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T13:09:30-05:00"
+updated: "2026-10-08T13:23:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 16 of 40
+Plan: 17 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -86,6 +86,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P12 | 10 min | 2 tasks | 8 files |
 | Phase 02 P13 | 15 min | 2 tasks | 23 files |
 | Phase 02 P39 | 8 min | 2 tasks | 9 files |
+| Phase 02 P40 | 8min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-13: parity harness API for 02-14 - routeDist/readStrictCsp/REFERENCE_ORIGIN from visual/serve.ts, test/expect/expectCases from visual/guard.ts, selectScenarios (?theme/?group/?case; typo or empty selects nothing -> data-parity-empty fails) from visual/reference/select.ts; O-6 rulings also stop the .csp-overlay fade
 - [Phase 02]: 02-39: useListQuery({ key, params, fetcher }) - key is the resource; full key is listKey(key, params); fetcher must forward the signal; search reaches params only via useDebouncedValue(q, 300)
 - [Phase 02]: 02-39: prefetchOnIntent keeps one 100 ms intent timer per element (module WeakMap keyed by currentTarget), ignores touch pointerenter, and calls queryClient.query(options).catch(() => undefined), never prefetchQuery
+- [Phase 02]: 02-40: Icon keeps the App. D.3 className prop (context colour from a src/ui parent); no other svg props are spread; an empty label hides the icon like no label
+- [Phase 02]: 02-40: src tests that run the class gate are *.node.test.ts (tsconfig.app.json cannot import scripts/*.mjs); recipe tests compare sorted token sets because Prettier reorders tw() literals
 
 ### Pending Todos
 
@@ -215,6 +218,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T18:09:13.465Z
-Stopped at: Completed 02-39-PLAN.md
+Last session: 2026-10-08T18:22:23.631Z
+Stopped at: Completed 02-40-PLAN.md
 Resume file: None
