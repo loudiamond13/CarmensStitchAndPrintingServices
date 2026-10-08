@@ -133,6 +133,20 @@ describe('Icon (App. D.3 API over lucide-react, D-10)', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('re-renders from the React Compiler memo cache with the same output, and updates on new props (L-13)', () => {
+    const { container, rerender } = render(<Icon name="plus" label="Add" className="text-accent-ink" />);
+    const first = container.innerHTML;
+    rerender(<Icon name="plus" label="Add" className="text-accent-ink" />);
+    expect(container.innerHTML).toBe(first);
+    rerender(<Icon name="x" size={16} strokeWidth={1.5} />);
+    const svg = onlySvg(container);
+    expect(svg.classList).toContain('lucide-x');
+    expect(svg).toHaveAttribute('width', '16');
+    expect(svg).toHaveAttribute('stroke-width', '1.5');
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+    expect(svg.classList).not.toContain('text-accent-ink');
+  });
+
   it('treats an empty label as no label, as App. D.3 does: hidden, never an unnamed image', () => {
     const svg = onlySvg(render(<Icon name="plus" label="" />).container);
     expect(svg).toHaveAttribute('aria-hidden', 'true');
