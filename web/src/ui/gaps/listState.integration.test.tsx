@@ -2,7 +2,7 @@
 // hook from createListParams under the nuqs testing adapter with the app's options. A page change is one push; a
 // page-size change, a chip clear and a search are one replace each, and each resets the page. Search writes the URL
 // after 300 ms of quiet, or at once on Enter.
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withNuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -87,6 +87,21 @@ function updates(onUrlUpdate: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { 
   }));
 }
 
+/** Waits for the first URL update, then long enough for any further queued one (rate limit 0 in the adapter). */
+async function settled(onUrlUpdate: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): Promise<void> {
+  await waitFor(() => {
+    expect(onUrlUpdate).toHaveBeenCalled();
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+}
+
+/** Types one character at a time, as the browser fires input events (user-event's own waits hang on fake timers). */
+function typeInto(input: HTMLElement, text: string): void {
+  for (let length = 1; length <= text.length; length += 1) {
+    fireEvent.change(input, { target: { value: text.slice(0, length) } });
+  }
+}
+
 async function advance(ms: number): Promise<void> {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms);
@@ -99,33 +114,30 @@ describe('list primitives on the shared list hook (WEB-10)', () => {
   });
 
   it('Next records one push with page=2 and moves focus to the results heading', async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const user = userEvent.setup();
     const onUrlUpdate = renderList();
     await user.click(screen.getByRole('button', { name: 'Next page' }));
-    await advance(50);
+    await settled(onUrlUpdate);
     expect(updates(onUrlUpdate)).toEqual([{ history: 'push', query: '?page=2' }]);
-    expect(screen.getByText('Page', { exact: false }).textContent).toBe('Page 2 of 5');
+    expect(document.querySelector('.csp-pagination-status')?.textContent).toBe('Page 2 of 5');
     expect(screen.getByRole('heading', { name: 'Orders' })).toHaveFocus();
   });
 
   it('Rows per page 50 from page 3 records one replace with size=50 and no page', async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const user = userEvent.setup();
     const onUrlUpdate = renderList('?page=3');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
-    await advance(50);
+    await settled(onUrlUpdate);
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?size=50' }]);
     expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('50');
   });
 
   it('clearing the status chip records one replace without status and page', async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const user = userEvent.setup();
     const onUrlUpdate = renderList('?page=3&status=ready');
     expect(screen.getByText('Status: Ready')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear status filter' }));
-    await advance(50);
+    await settled(onUrlUpdate);
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
     expect(screen.queryByText('Status: Ready')).toBeNull();
   });
@@ -137,9 +149,8 @@ describe('list primitives on the shared list hook (WEB-10)', () => {
 
   it('typing "jersey" records one replace only after 300 ms of quiet, resetting the page', async () => {
     vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
     const onUrlUpdate = renderList('?page=2');
-    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'jersey');
+    typeInto(screen.getByRole('searchbox', { name: 'Search' }), 'jersey');
     await advance(250);
     expect(onUrlUpdate).not.toHaveBeenCalled();
     await advance(100);
@@ -149,9 +160,10 @@ describe('list primitives on the shared list hook (WEB-10)', () => {
 
   it('pressing Enter writes the search at once', async () => {
     vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
     const onUrlUpdate = renderList('');
-    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'jersey{Enter}');
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    typeInto(search, 'jersey');
+    fireEvent.keyDown(search, { key: 'Enter' });
     await advance(10);
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=jersey' }]);
     await advance(500);

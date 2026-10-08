@@ -89,4 +89,72 @@
       background: var(--surface-2);
     }
   }
+
+  /* SPEC-GAP: Pagination */
+  /* nav.csp-pagination holds the pager row and, when the list offers it, the "Rows per page" select at the end. The
+     pager spreads Previous, "Page p of n" and Next 12px apart; the status is Body text (.body-sm) in --ink-muted with
+     the numbers in .csp-money (--ink, 600, tabular). */
+  .csp-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+  .csp-pagination-pager {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .csp-pagination-status {
+    margin: 0;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .csp-pagination-status strong {
+    color: var(--ink);
+  }
+  /* Phones: icon-only 44px buttons. The text is hidden with the .csp-sr technique and the aria-label keeps the name. */
+  @container pg (max-width: 767px) {
+    .csp-pagination .csp-btn {
+      width: 44px;
+      padding: 0;
+    }
+    .csp-pagination .csp-btn > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+
+  /* SPEC-GAP: FilterBar chips */
+  /* Owner, UI-consideration probe 2026-10-07: active chips wrap onto new lines 8px apart, a chip is never wider than
+     its row, and a long label ends in an ellipsis while the full text stays in the chip and in its clear button's
+     name. The 22px clear button keeps its size (O-8). */
+  .s-resultbar,
+  .csp-filter-chips {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .csp-filter-chips {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .s-filter-chip {
+    max-width: 100%;
+  }
+  .s-filter-chip > .s-iconbtn {
+    flex: none;
+  }
+  .csp-filter-chip-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
