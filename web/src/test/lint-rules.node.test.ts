@@ -65,7 +65,8 @@ const restrictedName = (importName: string, source: string, message: string): Fi
   `'${importName}' import from '${source}' is restricted. ${message}`,
 ];
 
-const httpImport = "import { createHttpClient } from '@/lib/http/httpClient';\nexport const client = createHttpClient;\n";
+const httpImport =
+  "import { createHttpClient } from '@/lib/http/httpClient';\nexport const client = createHttpClient;\n";
 const rawHtmlJsx = "export const Html = () => <div dangerouslySetInnerHTML={{ __html: '<b>x</b>' }} />;\n";
 const classNameTemplateJsx = 'export const A = (tone: string) => <div className={`bg-${tone}`} />;\n';
 
@@ -160,9 +161,7 @@ describe('forbidden packages and deprecated paths', () => {
 
   it('the nuqs/adapters/react path is an error', () => {
     const code = "import { NuqsAdapter } from 'nuqs/adapters/react';\nexport { NuqsAdapter };\n";
-    expect(lint(code, feature)).toEqual([
-      restrictedPath('nuqs/adapters/react', 'Use nuqs/adapters/react-router/v8.'),
-    ]);
+    expect(lint(code, feature)).toEqual([restrictedPath('nuqs/adapters/react', 'Use nuqs/adapters/react-router/v8.')]);
   });
 
   it('the nuqs React Router v8 adapter is clean', () => {
@@ -221,12 +220,16 @@ describe('CWE-79 and D-33 markup bans', () => {
   });
 
   it('style={styles} is an error', () => {
-    const code = "const styles = { width: 1 };\nexport const A = () => <div style={styles} />;\n";
+    const code = 'const styles = { width: 1 };\nexport const A = () => <div style={styles} />;\n';
     expect(lint(code, featureTsx)).toEqual([syntax(styleValue)]);
   });
 
+  it('a string style attribute is an error', () => {
+    expect(lint('export const A = () => <div style="color: red" />;\n', featureTsx)).toEqual([syntax(styleValue)]);
+  });
+
   it('a spread inside style is an error', () => {
-    const code = "const s = { width: 1 };\nexport const A = () => <div style={{ ...s }} />;\n";
+    const code = 'const s = { width: 1 };\nexport const A = () => <div style={{ ...s }} />;\n';
     expect(lint(code, featureTsx)).toEqual([syntax(styleObject)]);
   });
 
@@ -352,7 +355,12 @@ describe('Pitfall 33: every ban still fires inside each override block', () => {
   });
 
   it('visual/reference keeps the frozen markup but still bans raw HTML', () => {
-    expect(lint("export const A = (w: number) => <div style={{ width: w }} className=\"csp-btn\" />;\n", 'visual/reference/D3.tsx')).toEqual([]);
+    expect(
+      lint(
+        'export const A = (w: number) => <div style={{ width: w }} className="csp-btn" />;\n',
+        'visual/reference/D3.tsx',
+      ),
+    ).toEqual([]);
     expect(lint(rawHtmlJsx, 'visual/reference/D3.tsx')).toEqual([syntax(rawHtml)]);
   });
 
@@ -461,8 +469,8 @@ describe('D-36 Tailwind class rules against the CSPS theme', () => {
   });
 
   it('visual/reference turns the Tailwind rules off', () => {
-    expect(ruleIds('export const A = () => <div className="csp-btn bg-blue-500" />;\n', 'visual/reference/D3.tsx')).toEqual(
-      [],
-    );
+    expect(
+      ruleIds('export const A = () => <div className="csp-btn bg-blue-500" />;\n', 'visual/reference/D3.tsx'),
+    ).toEqual([]);
   });
 });

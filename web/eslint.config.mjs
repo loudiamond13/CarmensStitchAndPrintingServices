@@ -59,8 +59,12 @@ const styleObjectBan = {
     "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > :not(Property[key.value=/^--/])",
   message: 'D-33: style may only set CSS custom properties (--*); use a utility for everything else.',
 };
+// esquery does not apply a child combinator nested inside :matches(), so the two forms (a string value and an
+// expression that is not an inline object) are one selector list on the attribute itself.
 const styleValueBan = {
-  selector: "JSXAttribute[name.name='style'] > :matches(Literal, JSXExpressionContainer > :not(ObjectExpression))",
+  selector:
+    "JSXAttribute[name.name='style'][value.type!='JSXExpressionContainer'], " +
+    "JSXAttribute[name.name='style'][value.expression.type!='ObjectExpression']",
   message: 'D-33: style must be an inline object of --* custom properties.',
 };
 const classNameTemplateBan = {

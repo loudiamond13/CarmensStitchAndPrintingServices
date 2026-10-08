@@ -17,21 +17,18 @@ function severityOf(entry: Linter.RuleEntry | undefined): unknown {
   return Array.isArray(entry) ? entry[0] : entry;
 }
 
-async function resolvedRules(file: string): Promise<Record<string, Linter.RuleEntry>> {
+async function resolvedRules(file: string): Promise<Partial<Linter.RulesRecord>> {
   const eslint = new ESLint({ cwd: webRoot });
   const resolved = (await eslint.calculateConfigForFile(path.join(webRoot, file))) as Linter.Config;
   return resolved.rules ?? {};
 }
 
 describe('eslint.config.mjs', () => {
-  it.each(['src/ui/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])(
-    'resolves no rule at warn level for %s',
-    async (file) => {
-      const rules = Object.entries(await resolvedRules(file));
-      expect(rules.length).toBeGreaterThan(50);
-      expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
-    },
-  );
+  it.each(['src/ui/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])('resolves no rule at warn level for %s', async (file) => {
+    const rules = Object.entries(await resolvedRules(file));
+    expect(rules.length).toBeGreaterThan(50);
+    expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
+  });
 
   it('has no rule at warn level in any entry of the raw config', () => {
     const warnLevel = config.flatMap((entry) =>
@@ -43,7 +40,7 @@ describe('eslint.config.mjs', () => {
   });
 
   it('escalates react-hooks exhaustive-deps (shipped at warn) to error', async () => {
-    expect(severityOf(reactHooks.configs.flat.recommended.rules?.['react-hooks/exhaustive-deps'])).toBe('warn');
+    expect(severityOf(reactHooks.configs.flat.recommended.rules['react-hooks/exhaustive-deps'])).toBe('warn');
     const rules = await resolvedRules('src/ui/x.tsx');
     expect(severityOf(rules['react-hooks/exhaustive-deps'])).toBe(2);
     expect(severityOf(rules['react-hooks/incompatible-library'])).toBe(2);
@@ -52,9 +49,13 @@ describe('eslint.config.mjs', () => {
 
   it('escalate() raises warn to error and keeps the options', () => {
     const options = { additionalHooks: '(useMyEffect)' };
-    expect(
-      escalate({ rules: { a: ['warn', options], b: 1, c: 'error', d: ['off'], e: [1, 'x'] } }).rules,
-    ).toEqual({ a: ['error', options], b: 'error', c: 'error', d: ['off'], e: ['error', 'x'] });
+    expect(escalate({ rules: { a: ['warn', options], b: 1, c: 'error', d: ['off'], e: [1, 'x'] } }).rules).toEqual({
+      a: ['error', options],
+      b: 'error',
+      c: 'error',
+      d: ['off'],
+      e: ['error', 'x'],
+    });
     expect(escalate({ name: 'no-rules' })).toEqual({ name: 'no-rules' });
   });
 
