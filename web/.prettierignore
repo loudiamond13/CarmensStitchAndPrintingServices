@@ -1,0 +1,20 @@
+# Byte-for-byte spec CSS (research Pitfall 5): never reformatted.
+src/styles/tokens.css
+src/styles/globals.css
+src/styles/compat.css
+src/styles/components.css
+src/styles/screens.css
+# Frozen verbatim reference copies (plan 09) and generated API types.
+src/ui/__reference__/
+src/types/api.generated.ts
+# Generated files.
+package-lock.json
+THIRD-PARTY-NOTICES.txt
+# Build and test output.
+dist/
+.vite/
+.e2e-dist/
+.budget-dist/
+coverage/
+test-results/
+playwright-report/

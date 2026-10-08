@@ -7,8 +7,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
 // Flag 2). Babel only ever sees this app's own TypeScript under src/, never node_modules.
-const sourceDirectory = fileURLToPath(new URL('./src/', import.meta.url)).replaceAll('\\', '/').toLowerCase();
-const isAppSource = (filename: string): boolean => {
+const sourceDirectory = fileURLToPath(new URL('./src/', import.meta.url))
+  .replaceAll('\\', '/')
+  .toLowerCase();
+const isAppSource = (filename: string | undefined): boolean => {
+  if (filename === undefined) {
+    return false;
+  }
   const normalized = filename.replaceAll('\\', '/').toLowerCase();
   return normalized.startsWith(sourceDirectory) && /\.tsx?$/.test(normalized);
 };

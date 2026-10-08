@@ -10,6 +10,10 @@ indent_size = 4
 [*.{json,xml,props,targets,csproj,slnx,yml,yaml}]
 indent_size = 2
 
+# The web app and its tooling use 2-space indents (UI spec code, web/.prettierrc.json).
+[web/**]
+indent_size = 2
+
 [*.md]
 trim_trailing_whitespace = false
 
