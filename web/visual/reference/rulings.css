@@ -1,0 +1,80 @@
+/* Owner rulings on the approved look, as a test-only layer on the frozen spec classes (WEB-02, D-33, UI-SPEC
+   "Intentional differences"). The look-equality proof (plan 02-14) holds the Tailwind implementation to the verbatim
+   App. A-C CSS plus exactly these rules, so every intentional difference is written down here and nowhere else.
+   Rules:
+   - Never shipped: only visual/reference/reference.css imports this file.
+   - Unlayered, so each rule wins over the layered spec CSS whatever its specificity.
+   - Every rule group starts with a comment naming its decision ID, and every selector names a spec class (.csp-* or
+     .s-*), except the PERF-05 font faces and font-stack tokens.
+   - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. */
+
+/* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */
+@font-face {
+  font-family: "Archivo Fallback";
+  src: local("Arial");
+  size-adjust: 101.85%;
+  ascent-override: 86.21%;
+  descent-override: 20.62%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 metric-matched fallback for Barlow Condensed (display text), identical to web/src/styles/base.css. It skips
+   U+20B1, so a peso in display text falls through to Archivo Variable (research Pitfall 17). */
+@font-face {
+  font-family: "Barlow Condensed Fallback";
+  src: local("Arial Narrow"), local("Arial");
+  unicode-range: U+0000-20B0, U+20B2-10FFFF;
+  size-adjust: 68.92%;
+  ascent-override: 145.1%;
+  descent-override: 29.02%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 font stacks: the App. A token names with each fallback face right after its brand family, identical to
+   web/src/styles/base.css. */
+:root {
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-sans: "Archivo Variable", "Archivo Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */
+.csp-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* WEB-09 a disabled button never gets the App. B press nudge, so a pending one does not either. */
+.csp-btn[aria-disabled="true"]:active {
+  transform: none;
+}
+
+/* WEB-09 pending buttons keep their resting look on hover (App. B hover rules are :not(:disabled)); each value is the
+   variant's own resting value from App. B. */
+.csp-btn-primary[aria-disabled="true"]:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+/* WEB-09 secondary variant at rest. */
+.csp-btn-secondary[aria-disabled="true"]:hover {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+/* WEB-09 ghost variant at rest. */
+.csp-btn-ghost[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+/* WEB-09 danger variant at rest. */
+.csp-btn-danger[aria-disabled="true"]:hover {
+  filter: none;
+}
+
+/* WEB-09 ghost-danger variant at rest. */
+.csp-btn-ghost-danger[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}

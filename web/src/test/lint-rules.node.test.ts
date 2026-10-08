@@ -296,6 +296,19 @@ describe('D-33 stylesheet imports', () => {
       restrictedPattern('@/styles/base.css', cssImport),
     ]);
   });
+
+  it("only the parity reference entry may import './reference.css', and nothing else (recorded 02-13 exception)", () => {
+    expect(lint("import './reference.css';\n", 'visual/reference/main.tsx')).toEqual([]);
+    expect(lint("import './rulings.css';\n", 'visual/reference/main.tsx')).toEqual([
+      restrictedPattern('./rulings.css', cssImport),
+    ]);
+    expect(lint("import './reference.css';\n", 'visual/reference/kit.ts')).toEqual([
+      restrictedPattern('./reference.css', cssImport),
+    ]);
+    expect(lint("import './reference.css';\n", 'src/main.tsx')).toEqual([
+      restrictedPattern('./reference.css', cssImport),
+    ]);
+  });
 });
 
 describe('QUAL-02 language bans', () => {

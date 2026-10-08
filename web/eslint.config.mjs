@@ -144,14 +144,18 @@ const restrictedImportPaths = [
 
 /**
  * The no-restricted-imports entry. `http` keeps the lib/http ban (off only in api.ts and lib/http itself); `appCss`
- * lets the one stylesheet entry through (main.tsx only). Fontsource weight files are always allowed (PERF-05).
- * @param {{ http: boolean, appCss: boolean }} allow
+ * lets the one stylesheet entry through (main.tsx only); `referenceCss` lets the parity reference entry import its
+ * test-only stylesheet (visual/reference/main.tsx only). Fontsource weight files are always allowed (PERF-05).
+ * @param {{ http: boolean, appCss: boolean, referenceCss?: boolean }} allow
  * @returns {import('eslint').Linter.RuleEntry}
  */
 function importBans(allow) {
   const cssGroup = ['*.css', '!@fontsource/**', '!@fontsource-variable/**'];
   if (allow.appCss) {
     cssGroup.push('!@/styles/app.css');
+  }
+  if (allow.referenceCss === true) {
+    cssGroup.push('!./reference.css');
   }
   const patterns = [{ group: cssGroup, message: cssImportMessage }];
   if (!allow.http) {
@@ -221,6 +225,15 @@ export const architectureRules = [
     name: 'csps/restrictions/console-guard',
     files: ['src/test/consoleGuard.ts', 'src/test/consoleGuard.test.ts'],
     rules: { 'no-console': 'off' },
+  },
+  {
+    // Recorded D-33 exception (plan 02-13): the parity reference entry imports its stylesheet, which is the verbatim
+    // approved App. A.2 CSS chain plus the test-only rulings layer. It is never shipped, and nothing else may import it.
+    name: 'csps/restrictions/visual-reference-entry',
+    files: ['visual/reference/main.tsx'],
+    rules: {
+      'no-restricted-imports': importBans({ http: false, appCss: false, referenceCss: true }),
+    },
   },
   {
     // Test-only frozen spec fragments (the parity reference) keep the approved design's markup verbatim.
