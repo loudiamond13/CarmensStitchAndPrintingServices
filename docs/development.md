@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-07T18:29:59-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-07T22:31:43-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -12,6 +12,7 @@ This page takes a new developer from `git clone` to a running, tested CSPS API o
 |------|---------|-------|
 | .NET SDK | 10.0.401 | Pinned in `global.json` with `rollForward: latestPatch`, so any later 10.0.4xx patch works. Tests run on Microsoft.Testing.Platform (`dotnet test --project ...`). |
 | SQL Server 2025 Express LocalDB | 2025 | Provides `sqllocaldb`. CSPS uses its own instance, `(localdb)\CSPS`. |
+| Node.js / npm | 24.15+ / 11.19+ | For the web app in `web/` and the OpenAPI generator in `tools/openapi-gen/`. `engine-strict` refuses older versions. |
 | Windows PowerShell | 5.1 | Every script in `tools/scripts` runs on 5.1 (and on PowerShell 7). |
 | Git | any recent | |
 
@@ -87,9 +88,50 @@ Run these once, in this order.
 
 3. Check it:
    - <http://localhost:5115/health> is public and returns a minimal body.
-   - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only** and are never mapped in production.
+   - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only**. Outside Development both prefixes answer a plain 404 and never show the web app (D-29).
 
 The launch profile sets `ASPNETCORE_ENVIRONMENT=Development` for that process only. Never set it, or any other variable, at User or Machine level.
+
+## Web app (web/)
+
+The public site and the admin portal are one React app in `web/`, built with Vite. The API serves the built app from its web root, so production needs no separate web server.
+
+1. **Install the exact locked packages** (once, and after every `package-lock.json` change). `web/.npmrc` pins exact versions and the 14-day release cool-down. Never add a package with a plain `npm install <name>`: every new package or version needs the owner's approval first (see [Dependencies](dependencies.md)).
+
+   ```powershell
+   npm --prefix web ci
+   ```
+
+2. **Day-to-day development: two terminals.** Run the preflight check first (see [Running the API](#running-the-api)). Then start the API in one terminal and the Vite dev server in the other:
+
+   ```powershell
+   dotnet run --project src/Csps.Server --launch-profile http
+   ```
+
+   ```powershell
+   npm --prefix web run dev
+   ```
+
+   Open <http://localhost:5180>. The dev server uses port **5180** with `strictPort`: if the port is taken it stops with an error instead of moving to another port, so it never collides with TheBETSLLC. It forwards every `/api` request to the API on <http://localhost:5115>.
+
+3. **Production build.** This empties and rewrites `src/Csps.Server/wwwroot`, which the API then serves at <http://localhost:5115/>:
+
+   ```powershell
+   npm --prefix web run build
+   ```
+
+   `src/Csps.Server/wwwroot` is build output. It is git-ignored and never edited by hand. Hand-written static files (`mark.svg`, `robots.txt`) live in `web/public/`. The .NET tests never need this build: they serve a small stub web root from `tests/Csps.Testing/Fixtures/webroot`.
+
+4. **OpenAPI type generator.** `tools/openapi-gen/` is a separate npm folder with its own TypeScript 5.9, which the generator needs. Install it with `npm --prefix tools/openapi-gen ci`.
+
+How the API serves the app:
+
+- Any page path, such as `/products` or `/admin/orders`, gets the app's `index.html`, which the browser revalidates on every visit.
+- Files under `/assets/` are cached for a year, because their names change with every build.
+- A missing file, such as `/missing.js`, is a plain 404. Unknown `/api` paths stay API errors.
+- Static text (html, css, JavaScript, SVG) is compressed. JSON never is.
+
+Set environment variables only inside one terminal or process, never at User or Machine level.
 
 ## Testing
 
