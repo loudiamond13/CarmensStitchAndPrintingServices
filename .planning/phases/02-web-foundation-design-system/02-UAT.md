@@ -3,7 +3,7 @@ status: partial
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md]
 started: 2026-10-08T04:01:30-05:00
-updated: 2026-10-08T04:16:00-05:00
+updated: 2026-10-08T04:56:57-05:00
 created: 2026-10-08T04:01:30-05:00
 ---
 
@@ -31,10 +31,11 @@ evidence: "Preflight clean; wwwroot deleted and rebuilt with npm --prefix web ru
 
 ### 2. Production web root serves only the app's own files
 expected: After a production build, the API serves only the app's files from wwwroot (index.html, hashed assets, mark.svg, robots.txt). Build internals are never served; a request for one gets the anonymous 404.
-result: issue
+result: pass
 source: claude
-reported: "Found by Claude during automated UAT (owner away): GET http://localhost:5115/.vite/license.md returns 200 text/markdown (14,203 bytes). It lists every bundled dependency with its exact version (react 19.3.0 and so on). Vite's build.license writes it into wwwroot/.vite/, and UseStaticFiles serves dot-folders. The 02-01 SUMMARY guessed the dot-folder filter blocked it, but nobody had checked."
-severity: minor
+retested_after_fix: "Gap G-02-2 fixed by plan 02-19 (HiddenSegmentFileProvider). Re-tested live on a fresh production build: /.vite/license.md, /.VITE/LICENSE.MD, /%2Evite/license.md, /assets%5C..%5C.vite%5Clicense.md, /VITE~1/license.md and /INDEX~1.HTM all 404 application/problem+json (HEAD has no ETag or Last-Modified). /, /.vite/ (non-file path) and /robots.txt, /mark.svg and /health are unchanged; /assets/*.js still 200, immutable, br."
+originally_reported: "Found by Claude during automated UAT (owner away): GET http://localhost:5115/.vite/license.md returns 200 text/markdown (14,203 bytes). It lists every bundled dependency with its exact version (react 19.3.0 and so on). Vite's build.license writes it into wwwroot/.vite/, and UseStaticFiles serves dot-folders. The 02-01 SUMMARY guessed the dot-folder filter blocked it, but nobody had checked."
+original_severity: minor
 
 ### 3. [02-01 D6] Developer guide explains the web workflow
 expected: docs/development.md explains npm ci, the two-terminal dev setup, building into wwwroot, the preflight and never setting machine-level variables, and every command in it works as written.
@@ -594,8 +595,8 @@ verified_by: web/src/ui/gaps/Skeletons.test.tsx, LoadingRegion.test.tsx, ErrorSt
 ## Summary
 
 total: 83
-passed: 74
-issues: 1
+passed: 75
+issues: 0
 pending: 0
 skipped: 2
 blocked: 6
@@ -604,7 +605,9 @@ blocked: 6
 
 - gap_id: G-02-2
   truth: "After a production build, the API serves only the app's files from wwwroot; build internals such as .vite/license.md are never served."
-  status: failed
+  status: resolved
+  resolved_by: 02-19-PLAN.md
+  resolved_at: 2026-10-08
   reason: "Found by Claude during automated UAT (owner away): GET /.vite/license.md returns 200 text/markdown and lists every bundled dependency with its exact version."
   severity: minor
   test: 2
