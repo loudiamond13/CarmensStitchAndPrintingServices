@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-10-08T15:01:02.538Z"
+stopped_at: Completed 02-37-PLAN.md
+last_updated: "2026-10-08T15:09:17.453Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 680d02738854ef41c58e95adb090ca583f71f722
+state_head: 3d903a0e40755cdfd80cb9ef4c5815d65a782102
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 16
+  completed_plans: 17
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-08T10:01:21-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 4 of 40
+Plan: 5 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -74,6 +74,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P01 | 13 min | 2 tasks | 13 files |
 | Phase 02 P02 | 11 min | 2 tasks | 15 files |
 | Phase 02 P03 | 10 min | 2 tasks | 9 files |
+| Phase 02 P37 | 4 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-03: The web-root 404 for files (and the reserved /openapi, /scalar 404s) answers HEAD with 404 + application/problem+json and no content (RFC 9110); Kestrel drops HEAD bodies, the test host does not
 - [Phase 02]: 02-03: HiddenSegmentFileProvider refuses any segment starting with '.' or containing '~' (split on / and \); a future /.well-known/ file needs an explicit, tested exact-path exception (AR-02-02). Listing tests must use an inner PhysicalFileProvider with ExclusionFilters.None
 - [Phase 02]: 02-03: Response compression MIME list is html/css/text+application javascript/svg only (replaces defaults, never JSON); /assets/* immutable for a year, every other static file no-cache
+- [Phase 02]: 02-37: tsconfig.app/node carry the PRD 17.2 strict set incl. noUnusedLocals/noUnusedParameters; *.node.test.ts files are checked by tsconfig.node.json (glob) and excluded from tsconfig.app.json, so new node tests need no tsconfig edit
+- [Phase 02]: 02-37: tools/openapi-gen installed at openapi-typescript 7.13.0 + typescript 5.9.3 (33 packages, audit 0, min-release-age=14 no exclusions); 02-06 must register both and gate argparse Python-2.0
+- [Phase 02]: 02-37: .gitignore keeps the dotenv wildcard ignored and allow-lists only the e2e and budget dotenv files in web/ (VITE_DEV_ROUTES=true, D-20, T-02-79); a session secret-read hook blocks Bash commands that name dotenv paths, so stage the web folder after checking git status
 
 ### Pending Todos
 
@@ -171,6 +175,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T15:00:51.012Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-10-08T15:09:09.422Z
+Stopped at: Completed 02-37-PLAN.md
 Resume file: None
