@@ -61,6 +61,12 @@ async function wait(ms: number): Promise<void> {
   });
 }
 
+/** Lets the settled search start its query, then lets the query's own 0 ms notify timer deliver the rows. */
+async function settleSearch(): Promise<void> {
+  await wait(SEARCH_DELAY_MS);
+  await wait(0);
+}
+
 /** Types `text` after what the box already holds, one input event per character, `gapMs` apart. */
 async function typeEach(text: string, gapMs: number): Promise<void> {
   const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'Search' });
@@ -132,7 +138,7 @@ describe('useDebouncedValue', () => {
     await wait(0);
 
     await typeEach('jersey', 50);
-    await wait(SEARCH_DELAY_MS);
+    await settleSearch();
 
     expect(fetcher.mock.calls.map(([params]) => params.q)).toEqual(['', 'jersey']);
     expect(screen.getByRole('status', { name: 'Rows' })).toHaveTextContent('rows for "jersey"');
@@ -149,11 +155,11 @@ describe('useDebouncedValue', () => {
     await wait(0);
 
     await typeEach('jer', 100);
-    await wait(SEARCH_DELAY_MS);
+    await settleSearch();
     expect(signals.get('jer')?.aborted).toBe(false);
 
     await typeEach('sey', 100);
-    await wait(SEARCH_DELAY_MS);
+    await settleSearch();
 
     expect(fetcher.mock.calls.map(([params]) => params.q)).toEqual(['', 'jer', 'jersey']);
     expect(signals.get('jer')?.aborted).toBe(true);
