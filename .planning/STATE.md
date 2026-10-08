@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Phase 2 UI-SPEC approved (D-33 revision); planning in progress
-last_updated: "2026-10-08T14:16:56.042Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-08T14:33:03.636Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 51deccb3c4be844a2a5667ebb63706131779022d
+state_head: be38b8517ab94107b6df4d06cdf8011f2a26c017
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 13
+  completed_plans: 14
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T06:06:27-05:00"
+updated: "2026-10-08T09:33:17-05:00"
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 1 of 40
-Status: Executing Phase 02
+Plan: 2 of 40
+Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
 Progress: [█░░░░░░░░░] 6%
@@ -71,6 +71,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 01 P10 | 23min | 3 tasks | 15 files |
 | Phase 01 P11 | 29min | 3 tasks | 13 files |
 | Phase 01 P13 | 4 min | 2 tasks | 2 files |
+| Phase 02 P01 | 13 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: D-33 (owner, 2026-10-07): target production DB is SQL Server 2025 (host is 2022 today); the 2025 move happens at cutover after a fresh backup; SqlCompatibility.Level stays 160 provisional, re-pin to 170 after the 2025 DB exists and is verified
 - [Phase 01]: 01-13: Host facts (2026-10-07): .NET Basic, 1/1 DB, 1000 MB, SQL Server 2022 16.0.x Web, app login db_owner; probe impossible (no extra site) so runtime/in-process/proxy/tz/PFX facts are verified on the Phase 3 first deploy
 - [Phase 01]: 01-13: cspstailoring.com SPF ends -all and DMARC is p=reject; Phase 4 mail must use SmarterASP.NET mail servers (include:_spf.site4now.net) with aligned DKIM; Gmail D2 check still due
+- [Phase 02]: 02-01: test hosts turn static web assets off (StaticWebAssetsKey points at a manifest that does not exist); the build-time manifest always names src/Csps.Server/wwwroot and the Development loader throws without it, so WebRootKey alone did not close L-06
+- [Phase 02]: 02-01: auth and 500 probes target GET /api/v1/site-settings with an in-memory ISiteSettingsReader, never an unmatched page path, because the SPA shell now matches every GET/HEAD page path (L-03)
 
 ### Pending Todos
 
@@ -161,6 +164,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T12:10:34.484Z
-Stopped at: Phase 2 UI-SPEC approved (D-33 revision); planning in progress
-Resume file: .planning/phases/02-web-foundation-design-system/02-UI-SPEC.md
+Last session: 2026-10-08T14:32:54.237Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

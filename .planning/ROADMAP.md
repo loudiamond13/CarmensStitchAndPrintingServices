@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T08:59:08-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T09:33:17-05:00*
 
 ## Overview
 
@@ -226,11 +226,11 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 40 plans in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 1/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Tracer: anonymous SPA shell (GET/HEAD) from a committed fixture web root, file and D-29 404s, L-03 probe moves, matrix rows
+- [x] 02-01-PLAN.md — Tracer: anonymous SPA shell (GET/HEAD) from a committed fixture web root, file and D-29 404s, L-03 probe moves, matrix rows
 - [ ] 02-02-PLAN.md — Tracer: owner-approved npm toolchain installed, Vite + Tailwind token theme build the D-21 placeholder into the ignored wwwroot; LF and editor rules (conditional package-drift stop)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 0/40 | Planned | - |
+| 2. Web Foundation & Design System | 1/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
@@ -962,7 +962,6 @@ Plans:
 **Deferred at:** 2026-10-08 during /gsd-verify-work 2 session completion
 **Follow-ups:**
 - [ ] Test 8: Review the shared list-query defaults (staleTime 30 s, gcTime 5 min, refetchOnWindowFocus true, retry false) per list screen as later phases build them, and override per query where needed (02-08 D10). (deferred 2026-10-08)
-
 
 ---
 *Roadmap created: 2026-10-07*
