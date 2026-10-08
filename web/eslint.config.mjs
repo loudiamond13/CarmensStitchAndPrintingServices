@@ -163,6 +163,12 @@ export default [
   },
   ...architectureRules,
   {
+    // The console guard (PRD 17.2) is the one test helper that must replace and call console methods.
+    name: 'csps/console-guard',
+    files: ['src/test/consoleGuard.ts', 'src/test/consoleGuard.test.ts'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     // A `||` fallback on a string, number or boolean must stay `||`: `??` keeps '' and 0 and changes what renders
     // (research Pitfall 6).
     name: 'csps/nullish-coalescing',

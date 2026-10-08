@@ -9,6 +9,7 @@ describe('expectNoAxeViolations', () => {
   });
 
   it('rejects an image without alt text', async () => {
+    // eslint-disable-next-line jsx-a11y-x/alt-text -- a deliberate violation the helper must report
     const { container } = render(<img src="a.png" />);
     await expect(expectNoAxeViolations(container)).rejects.toThrow('image-alt');
   });
@@ -19,16 +20,16 @@ describe('expectNoAxeViolations', () => {
   });
 
   it('rejects an empty container, so an empty render never counts as a pass', async () => {
-    await expect(expectNoAxeViolations(document.createElement('div'))).rejects.toThrow(
-      'axe ran on an empty container',
-    );
+    await expect(expectNoAxeViolations(document.createElement('div'))).rejects.toThrow('axe ran on an empty container');
   });
 
   it('lists violations sorted by rule id and then by target', async () => {
     const { container } = render(
       <div>
+        {/* eslint-disable-next-line jsx-a11y-x/alt-text -- deliberate violation */}
         <img id="b" src="b.png" />
         <button id="c" type="button" />
+        {/* eslint-disable-next-line jsx-a11y-x/alt-text -- deliberate violation */}
         <img id="a" src="a.png" />
       </div>,
     );
@@ -42,6 +43,7 @@ describe('expectNoAxeViolations', () => {
   });
 
   it('can switch off a named rule for one call', async () => {
+    // eslint-disable-next-line jsx-a11y-x/alt-text -- a deliberate violation the helper must report
     const { container } = render(<img src="a.png" />);
     await expect(expectNoAxeViolations(container, { disableRules: ['image-alt'] })).resolves.toBeUndefined();
   });

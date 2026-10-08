@@ -1,7 +1,8 @@
 // Vitest setup for every test file (vitest.config.ts setupFiles).
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
+import { assertNoConsoleOutput, installConsoleGuard, resetConsoleGuard } from './consoleGuard';
 
 // jsdom has no matchMedia (research Pitfall 20). The mock reports "no match" and its listeners do nothing.
 if (typeof window !== 'undefined') {
@@ -21,6 +22,16 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Any console.error or console.warn during a test fails it, React act and key warnings included (PRD 17.2).
+beforeEach(() => {
+  installConsoleGuard();
+});
+
 afterEach(() => {
-  cleanup();
+  try {
+    cleanup();
+    assertNoConsoleOutput();
+  } finally {
+    resetConsoleGuard();
+  }
 });
