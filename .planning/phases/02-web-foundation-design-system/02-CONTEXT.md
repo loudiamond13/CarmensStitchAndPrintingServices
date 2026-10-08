@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T05:52:00-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T06:00:00-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -102,6 +102,7 @@ All reconciliations live in one owner-approved `overrides.css`, loaded after the
   - 0BSD (`tslib`)
 
   The production (shipped) tree stays strictly MIT/ISC/Apache-2.0/BSD plus the OFL fonts.
+  - **D-26 addendum (2026-10-08, by owner, decision D-BL-01, "Approve all three (Recommended)"):** three more dev/build-only, license-level exceptions on the same terms (never in the production tree), recorded in `docs/license-exceptions.json`. **MIT-0**, test scope (`@csstools/color-helpers`, `@csstools/css-syntax-patches-for-csstree` via jsdom). **CC-BY-3.0**, tool scope (`spdx-exceptions`, `spdx-ranges` via license-checker-rseidelsohn). **Python-2.0**, tool scope (`argparse` via openapi-typescript → @redocly/openapi-core → js-yaml, tools/openapi-gen). No package changed, and `node web/scripts/license-gate.mjs` now passes with 16 production packages, 522 dev/build packages and no stale exceptions.
 - **D-27 (O-9):** The Sidebar "Logout" `<a href="#">` becomes a **`<button>`**, recorded as a `// SPEC-DEVIATION`. It needs `compat` styling so it looks identical, and before/after screenshots go to the owner.
 - **D-28 (O-10):** The owner **accepts** the `lucide lucide-<name>` classes that lucide-react 1.52.0 adds to every icon `<svg>`. The DOM-equality test normalizes those classes away, and the difference is recorded as a `// SPEC-DEVIATION`.
 - **D-29 (Pitfall 12):** In production, `/scalar` and `/openapi` (and their sub-paths) answer **404**. They do not fall through to the SPA shell. `ProductionHasNoApiDocs` keeps asserting 404.

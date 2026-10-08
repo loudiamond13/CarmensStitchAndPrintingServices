@@ -107,6 +107,47 @@
       "reason": "Free and permissive, with no conditions. Used only by the performance test tool; never shipped to the browser.",
       "approved": "2026-10-07",
       "approvedBy": "owner"
+    },
+    {
+      "license": "MIT-0",
+      "scopes": [
+        "test"
+      ],
+      "examplePackages": [
+        "@csstools/color-helpers",
+        "@csstools/css-syntax-patches-for-csstree"
+      ],
+      "pulledInBy": "jsdom (the test DOM; its CSS helpers).",
+      "reason": "Free: the MIT license without even the keep-the-notice condition. Used only by the tests; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC-BY-3.0",
+      "scopes": [
+        "tool"
+      ],
+      "examplePackages": [
+        "spdx-exceptions",
+        "spdx-ranges"
+      ],
+      "pulledInBy": "license-checker-rseidelsohn (the license gate tool itself; its SPDX data).",
+      "reason": "Free data license; it asks us to credit the authors (an older version of the approved CC-BY-4.0). Used only by the license tool; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "Python-2.0",
+      "scopes": [
+        "tool"
+      ],
+      "examplePackages": [
+        "argparse"
+      ],
+      "pulledInBy": "openapi-typescript -> @redocly/openapi-core -> js-yaml (tools/openapi-gen, the API type generator).",
+      "reason": "Free and permissive like BSD (the Python Software Foundation license); keep the notice. Used only by the API type generator; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
     }
   ]
 }

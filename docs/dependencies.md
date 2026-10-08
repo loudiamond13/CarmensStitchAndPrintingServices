@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-07T23:08:15-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-08T06:00:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -34,6 +34,14 @@ The web build and test tools also pull in, deep inside their own dependencies, f
 | CC0-1.0 | Public domain; no conditions | language-subtag-registry | the accessibility lint plugin |
 | BlueOak-1.0.0 | Permissive, like MIT | minimatch | the accessibility lint plugin |
 | 0BSD | Permissive, no conditions | tslib | lighthouse |
+
+On **2026-10-08** the owner approved three more on the same terms (D-26 addendum, decision D-BL-01), again for the developer and build tree only:
+
+| License | What it means | Example package | Brought in by |
+|---------|---------------|-----------------|---------------|
+| MIT-0 | MIT without even the keep-the-notice condition | @csstools/color-helpers, @csstools/css-syntax-patches-for-csstree | jsdom (the test DOM) |
+| CC-BY-3.0 | Free data license; credit the authors (older CC-BY-4.0) | spdx-exceptions, spdx-ranges | license-checker-rseidelsohn (the license gate tool) |
+| Python-2.0 | Permissive like BSD; keep the notice | argparse | openapi-typescript, through @redocly/openapi-core and js-yaml (tools/openapi-gen) |
 
 What ships to the visitor's browser stays strictly MIT, ISC, Apache-2.0 or BSD, plus the OFL fonts. The gate `node web/scripts/license-gate.mjs` checks the shipped web packages with no exceptions at all, and the developer and build tree only with the exceptions listed in `npmLicenseExceptions` in `docs/license-exceptions.json`.
 
