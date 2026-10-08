@@ -60,7 +60,12 @@ public sealed class HiddenSegmentFileProviderTests
         body.ShouldNotContain(FixtureHiddenMarker, Case.Insensitive, label);
         if (method == "HEAD")
         {
+            // RFC 9110: HEAD gets the GET headers and no content, exactly like HEAD on a file that does not exist.
             body.ShouldBeEmpty(label);
+            using var missingHead = ApiRequests.Create(HttpMethod.Head, "/missing.js");
+            using var missingHeadResponse = await client.SendAsync(missingHead, TestContext.Current.CancellationToken);
+            missingHeadResponse.StatusCode.ShouldBe(response.StatusCode, label);
+            missingHeadResponse.Content.Headers.ContentType.ShouldBe(response.Content.Headers.ContentType, label);
             return;
         }
 

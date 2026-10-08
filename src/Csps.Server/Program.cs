@@ -67,8 +67,12 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
 app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.HttpContext, context.HttpContext.Response.StatusCode));
 
-// The built React app's files from the web root, anonymously and before authorization (WEB-01).
-app.UseStaticFiles();
+// The built React app's files from the web root, anonymously and before authorization (WEB-01). Paths with a dot or
+// tilde segment (build internals such as .vite/license.md, 8.3 aliases) read as missing and get the file 404 (L-04).
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new HiddenSegmentFileProvider(app.Environment.WebRootFileProvider),
+});
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();

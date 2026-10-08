@@ -1,5 +1,5 @@
+using System.Net.Mime;
 using Csps.Server.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Net.Http.Headers;
 
@@ -71,8 +71,21 @@ public static class SpaHosting
         return app;
     }
 
-    private static ProblemHttpResult NotFound(HttpContext context) =>
-        TypedResults.Problem(CspsProblemDetails.Build(context, StatusCodes.Status404NotFound));
+    /// <summary>
+    /// The anonymous ProblemDetails 404. HEAD gets the same status and media type with no content (RFC 9110 section
+    /// 9.3.2): Kestrel drops a HEAD body anyway, and writing none keeps every host, the test host included, identical.
+    /// </summary>
+    private static Task NotFound(HttpContext context)
+    {
+        if (HttpMethods.IsHead(context.Request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            context.Response.ContentType = MediaTypeNames.Application.ProblemJson;
+            return Task.CompletedTask;
+        }
+
+        return CspsProblemDetails.WriteAsync(context, StatusCodes.Status404NotFound);
+    }
 
     private static void NoCache(StaticFileResponseContext context) =>
         context.Context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
