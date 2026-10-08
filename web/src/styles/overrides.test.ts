@@ -445,11 +445,26 @@ function specGapsFor(selector: string, context: string[] = []): CssRule[] {
   );
 }
 
+/** The rules between the block's own SPEC-GAP comment and the next one (or the end of the layer). */
+function specGapBlockRules(block: string): CssRule[] {
+  const source = readStyle('spec-gaps.css');
+  const start = source.indexOf(`/* SPEC-GAP: ${block} */`);
+  if (start < 0) {
+    return [];
+  }
+  const next = source.indexOf('/* SPEC-GAP:', start + 1);
+  return parseCss(source.slice(start, next < 0 ? source.lastIndexOf('}') : next));
+}
+
 /** Exactly one spec-gaps.css rule sets the declaration, and it sits in the named SPEC-GAP block. */
 function expectGapRule(selector: string, property: string, expected: string, block: string, context: string[] = []) {
-  const matching = specGapsFor(selector, context).filter((rule) => sameValue(value(rule, property), expected));
+  const declares = (rule: CssRule) => sameValue(value(rule, property), expected);
+  const matching = specGapsFor(selector, context).filter(declares);
   expect(matching.length, `${selector} { ${property}: ${expected} } in ${[LAYER, ...context].join(' ')}`).toBe(1);
-  expect(matching[0]?.comment ?? '', `${selector} sits in the ${block} block`).toContain(`SPEC-GAP: ${block}`);
+  const inBlock = specGapBlockRules(block).filter(
+    (rule) => rule.selectors.includes(normalizeSelector(selector)) && rule.context.join(' | ') === context.join(' | '),
+  );
+  expect(inBlock.filter(declares), `${selector} sits in the ${block} block`).toHaveLength(1);
 }
 
 describe('spec-gaps.css SPEC-GAP primitives (plan 12; WEB-06, PERF-03)', () => {

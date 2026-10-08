@@ -85,4 +85,13 @@ describe('SkipLink (A11Y-02)', () => {
     expect(window.location.hash).toBe('');
     expect(link).toHaveFocus();
   });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const { container, rerender } = render(<SkipLink />);
+    const before = container.innerHTML;
+    rerender(<SkipLink />);
+    expect(container.innerHTML).toBe(before);
+    rerender(<SkipLink targetId="content" />);
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#content');
+  });
 });

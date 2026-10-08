@@ -342,6 +342,18 @@ describe('OtpInput without a controlled value', () => {
   });
 });
 
+describe('OtpInput re-render', () => {
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <OtpInput value="12" onChange={onChange} required error="Enter all 6 digits." />,
+    );
+    const before = container.innerHTML;
+    rerender(<OtpInput value="12" onChange={onChange} required error="Enter all 6 digits." />);
+    expect(container.innerHTML).toBe(before);
+  });
+});
+
 describe('validateOtp (UI-SPEC copy)', () => {
   it.each(['', '1', '12345', '12 456', '12345a', '1234567'])('asks for all 6 digits for %j', (code) => {
     expect(validateOtp(code)).toBe('Enter all 6 digits.');

@@ -92,4 +92,14 @@ describe('Checkbox (WEB-06, D-03)', () => {
     await user.click(screen.getByText('Keep me signed in'));
     expect(screen.getByRole('checkbox', { name: 'Keep me signed in' })).not.toBeChecked();
   });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <Checkbox label="I agree" checked onChange={onChange} required hint="Read it." />,
+    );
+    const before = container.innerHTML;
+    rerender(<Checkbox label="I agree" checked onChange={onChange} required hint="Read it." />);
+    expect(container.innerHTML).toBe(before);
+  });
 });

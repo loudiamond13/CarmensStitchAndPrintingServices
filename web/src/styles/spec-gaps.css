@@ -13,4 +13,60 @@
   .csp-field.text-right .csp-input {
     text-align: right;
   }
+
+  /* SPEC-GAP: OtpInput */
+  /* A borderless fieldset (it also carries .csp-field, so .csp-field.is-invalid colours every box). The legend is
+     .csp-label and each box a .csp-control > input.csp-input, so type and height come from App. B. Six boxes fit
+     320px: 6 x 44px plus 5 x 4px. */
+  .csp-otp {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .csp-otp > legend {
+    padding: 0 0 var(--space-2);
+  }
+  .csp-otp-boxes {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .csp-otp-boxes > .csp-control {
+    flex: 1 1 0;
+    min-width: 44px;
+    max-width: 56px;
+  }
+  .csp-otp-boxes .csp-input {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  @container pg (max-width: 420px) {
+    .csp-otp-boxes {
+      gap: var(--space-1);
+    }
+  }
+
+  /* SPEC-GAP: SkipLink */
+  /* The look is .csp-btn.csp-btn-primary.csp-btn-md. Hidden with the .csp-sr technique (the button padding and border
+     are dropped so the box really is 1px) until keyboard focus, then fixed at the top left above everything. */
+  .csp-skip-link:not(:focus-visible) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border-width: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .csp-skip-link:focus-visible {
+    position: fixed;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: var(--z-toast);
+  }
+  /* The skip target takes focus without a ring: the page itself is not a control. */
+  main[tabindex='-1']:focus {
+    outline: none;
+  }
 }
