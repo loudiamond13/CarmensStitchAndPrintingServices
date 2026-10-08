@@ -13,6 +13,7 @@ namespace Csps.Server.IntegrationTests.Http;
 public sealed class SpaHostTests
 {
     private const string FixtureShellMarker = "CSPS fixture shell";
+    private const string AcceptEncoding = "br, gzip";
 
     [Theory]
     [InlineData("/")]
@@ -97,4 +98,68 @@ public sealed class SpaHostTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldNotContain(FixtureShellMarker, Case.Sensitive, path);
     }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/assets/app-fixture.js")]
+    public async Task CompressesStaticText(string path)
+    {
+        // PERF-02: html, css, js and svg go out compressed when the browser accepts it (research Pitfall 3).
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", AcceptEncoding);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, path);
+        response.Content.Headers.ContentEncoding.ShouldHaveSingleItem(path).ShouldBeOneOf("br", "gzip");
+    }
+
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/api/v1/does-not-exist")]
+    public async Task NeverCompressesJson(string path)
+    {
+        // BREACH (research Pitfall 3): JSON and ProblemDetails are never compressed, even when the client asks.
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", AcceptEncoding);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.Content.Headers.ContentEncoding.ShouldBeEmpty(path);
+    }
+
+    [Fact]
+    public async Task AssetsAreImmutable()
+    {
+        // Vite gives every file under /assets a content hash, so a year-long immutable cache is safe (T-02-05).
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/assets/app-fixture.js", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        RawCacheControl(response).ShouldBe("public, max-age=31536000, immutable");
+    }
+
+    [Theory]
+    [InlineData("/robots.txt")]
+    [InlineData("/")]
+    public async Task OtherStaticFilesRevalidate(string path)
+    {
+        // Files without a content hash (the shell, robots.txt, mark.svg) are revalidated on every use (T-02-05).
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, path);
+        RawCacheControl(response).ShouldBe("no-cache", path);
+    }
+
+    private static string RawCacheControl(HttpResponseMessage response) =>
+        response.Headers.NonValidated.TryGetValues("Cache-Control", out var values) ? values.ToString() : string.Empty;
 }
