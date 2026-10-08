@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-38-PLAN.md
-last_updated: "2026-10-08T15:59:56.045Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-10-08T16:25:25.612Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: de1d400c2fc62b45922c7f7e27cd0ac037150671
+state_head: b11ea78eaa815fe549d65c7c9834e46ed83bfa24
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 20
+  completed_plans: 21
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T11:00:30-05:00"
+updated: "2026-10-08T11:26:30-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 8 of 40
+Plan: 9 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -78,6 +78,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P04 | 17 min | 3 tasks | 21 files |
 | Phase 02 P05 | 12 min | 2 tasks | 5 files |
 | Phase 02 P38 | 8 min | 2 tasks | 9 files |
+| Phase 02 P06 | 22 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-05: Every string literal in a *.recipe.ts file is read as class tokens - recipe files hold no other strings; a new D-02 opacity allow-list entry needs a decision ID (test-enforced)
 - [Phase 02]: 02-38: Scenario nodes are { kind: 'node', component, props }; handlers inject no-op functions on every node; index.ts rejects wrong group, duplicate ids and non-plain data at load
 - [Phase 02]: 02-38: extract-spec.mjs writes the nine appendix files only when the SHA-256 pin matches (exit 1, nothing written otherwise); --repin is manual only
+- [Phase 02]: 02-06: npm registry entries are kind npm with a manifest field and match pins as {manifest}:{id}; every npm pin (deps, devDeps, overrides) of web/ and tools/openapi-gen/ must be registered
+- [Phase 02]: 02-06: npm license exceptions count for a package when at least one of its installed-for scopes (from package-lock.json + registry scopes of direct deps) is listed; unused exceptions and unused scopes fail as stale
+- [Phase 02]: 02-06: exception scopes recorded from the installed tree where the owner gave none: CC-BY-4.0 build+tool, CC0-1.0 test+tool, BlueOak-1.0.0 test+tool, 0BSD tool; owner scopes kept for MPL-2.0, MIT-0, CC-BY-3.0, Python-2.0
+- [Phase 02]: 02-06: verify now ends with license:check and notices:check; any production dependency change needs npm run notices and a commit of web/THIRD-PARTY-NOTICES.txt
 
 ### Pending Todos
 
@@ -186,6 +191,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T15:59:34.429Z
-Stopped at: Completed 02-38-PLAN.md
+Last session: 2026-10-08T16:25:25.485Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None

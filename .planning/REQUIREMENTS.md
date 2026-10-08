@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T10:31:30-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T11:26:30-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -33,7 +33,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Web Foundation (WEB)
 
-- [ ] **WEB-01**: React 19 + TypeScript strict + Vite app in `web/` builds into `src/Csps.Server/wwwroot`. The dev server runs on 5180 (`strictPort`) and proxies `/api` to the API with hard-coded ports (no machine-level env vars) ⚑ S-1 (TS alias pair), S-11
+- [x] **WEB-01**: React 19 + TypeScript strict + Vite app in `web/` builds into `src/Csps.Server/wwwroot`. The dev server runs on 5180 (`strictPort`) and proxies `/api` to the API with hard-coded ports (no machine-level env vars) ⚑ S-1 (TS alias pair), S-11
 - [ ] **WEB-02**: The UI-spec design system (Appendices A–D: tokens, components, screens; `src/ui`, `src/lib/csps.ts`, icons, mark) is implemented with **Tailwind v4 utilities for all UI styling** (owner ruling D-33, 2026-10-08, amends the earlier "imported verbatim" wording): CSPS tokens via `@theme`, only theme/`@font-face`/`@keyframes`/base CSS left in stylesheets, and the rendered look proven equal to the approved design (Blush and Espresso, 320/390/820/1440 px) instead of a verbatim-CSS/DOM-equality check. The approved component code is reconciled with PRD gates via `// SPEC-DEVIATION` markers. Fixes include the focus-trapping Modal, Tabs ARIA, `Mark` without `dangerouslySetInnerHTML`, no non-null assertions, and the stricter tsconfig ⚑ C-22, C-10, C-34, C-35
 - [ ] **WEB-03**: `web/src/lib/http/httpClient.ts` is a fetch-based, axios-like client (instances, interceptors, timeout/abort, params, JSON/FormData, upload progress via XHR only when requested, single-flight 401 refresh with one retry, capped retries for idempotent calls, normalized `HttpError`) with 100% unit coverage (PRD §9.3)
 - [ ] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
@@ -342,7 +342,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-11 | Phase 1 | Complete |
 | FND-12 | Phase 1 | Complete |
 | FND-13 | Phase 1 | Complete |
-| WEB-01 | Phase 2 | Pending |
+| WEB-01 | Phase 2 | Complete |
 | WEB-02 | Phase 2 | Pending |
 | WEB-03 | Phase 2 | Pending |
 | WEB-04 | Phase 2 | Pending |
