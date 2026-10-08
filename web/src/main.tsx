@@ -18,7 +18,10 @@ createRoot(rootElement, {
   onUncaughtError: import.meta.env.PROD ? silent : undefined,
 }).render(
   <StrictMode>
-    <div data-theme="light" className="@container/pg relative min-h-full bg-bg font-sans text-[16px] leading-6 text-ink">
+    <div
+      data-theme="light"
+      className="@container/pg relative min-h-full bg-bg font-sans text-[16px] leading-6 text-ink"
+    >
       <main id="main" tabIndex={-1}>
         <PublicPlaceholderPage />
       </main>

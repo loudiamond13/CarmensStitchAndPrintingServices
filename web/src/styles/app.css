@@ -41,18 +41,43 @@
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-pill: 999px;
-  --animate-csp-spin: csp-spin .8s linear infinite;
-  --animate-csp-fade: csp-fade .15s ease;
-  --animate-csp-rise: csp-rise .2s ease;
-  --animate-csp-slide: csp-slide .2s ease;
+  --animate-csp-spin: csp-spin 0.8s linear infinite;
+  --animate-csp-fade: csp-fade 0.15s ease;
+  --animate-csp-rise: csp-rise 0.2s ease;
+  --animate-csp-slide: csp-slide 0.2s ease;
   --animate-csp-shimmer: csp-shimmer 1.4s ease-in-out infinite;
 
   /* Copied from App. B unchanged. */
-  @keyframes csp-spin { to { transform: rotate(360deg); } }
-  @keyframes csp-fade { from { opacity: 0; } }
-  @keyframes csp-rise { from { opacity: 0; transform: translateY(8px) scale(.98); } }
-  @keyframes csp-slide { from { transform: translateX(24px); opacity: 0; } }
-  @keyframes csp-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  @keyframes csp-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes csp-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes csp-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes csp-slide {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+  @keyframes csp-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
 }
 
 /* Utilities read the live token, so they switch with data-theme. The colour names are the App. A.2 names. */

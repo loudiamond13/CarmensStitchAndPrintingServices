@@ -2,7 +2,8 @@
    Source: CSPS-UI-SPEC.md App. A token blocks, values unchanged (the App. A type utility classes are retired), the
    dark Mark tokens from the App. B `.csp-mark` dark rule (moved into the dark block), and the global element rules
    from App. B lines 1-8. No class selectors live here: every visual decision is a utility in markup. */
-:root, [data-theme="light"] {
+:root,
+[data-theme="light"] {
   --bg: #f6dfd1;
   --surface: #fbebe2;
   --surface-2: #f1e1d7;
@@ -139,7 +140,24 @@
 }
 
 /* Global element rules (App. B lines 1-8). Box sizing is already Tailwind preflight. */
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 24px; -webkit-font-smoothing: antialiased; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; } }
-main[tabindex="-1"]:focus { outline: none; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 24px;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0s !important;
+  }
+}
+main[tabindex="-1"]:focus {
+  outline: none;
+}

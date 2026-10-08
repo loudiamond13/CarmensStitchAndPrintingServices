@@ -34,7 +34,7 @@ describe('vite.config.ts', () => {
   });
 
   it('turns the dev-only routes on in development', async () => {
-    expect((await load('serve', 'development')).define?.['__DEV_ROUTES__']).toBe('true');
+    expect((await load('serve', 'development')).define?.__DEV_ROUTES__).toBe('true');
   });
 
   it.each(buildModes)('builds the $mode mode into $outDir', async ({ mode, outDir }) => {
@@ -44,7 +44,7 @@ describe('vite.config.ts', () => {
   });
 
   it.each(buildModes)('sets __DEV_ROUTES__ to $devRoutes in the $mode build', async ({ mode, devRoutes }) => {
-    expect((await load('build', mode)).define?.['__DEV_ROUTES__']).toBe(devRoutes);
+    expect((await load('build', mode)).define?.__DEV_ROUTES__).toBe(devRoutes);
   });
 
   it.each(buildModes)(

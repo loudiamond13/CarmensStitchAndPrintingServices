@@ -1,0 +1,16 @@
+# Generated or tool-owned files Prettier must not rewrite (plan 02-04).
+package-lock.json
+node_modules/
+coverage/
+.e2e-dist/
+.budget-dist/
+.reference-dist/
+visual/.reference-src/
+.vitest/
+.parity/
+.parity-dist/
+.locks/
+test-results/
+playwright-report/
+src/types/api.generated.ts
+THIRD-PARTY-NOTICES.txt

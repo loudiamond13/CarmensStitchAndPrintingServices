@@ -15,7 +15,8 @@ function fakeSpawner(statuses: readonly (number | null)[]) {
   const calls: SpawnCall[] = [];
   const spawn = (command: string, args: readonly string[], options: { stdio?: unknown }) => {
     calls.push({ command, args, stdio: options.stdio });
-    return { status: statuses[calls.length - 1] ?? 0 };
+    const status = statuses[calls.length - 1];
+    return { status: status === undefined ? 0 : status };
   };
   return { calls, spawn };
 }

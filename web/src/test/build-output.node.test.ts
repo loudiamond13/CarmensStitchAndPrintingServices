@@ -20,7 +20,10 @@ const listAll = (dir: string): string[] =>
 
 const indexHtml = (): string => readText(join(webRoot, 'index.html'));
 const cssFiles = (): string[] => list(assetsDir).filter((name) => name.endsWith('.css'));
-const builtCss = (): string => cssFiles().map((name) => readText(join(assetsDir, name))).join('\n');
+const builtCss = (): string =>
+  cssFiles()
+    .map((name) => readText(join(assetsDir, name)))
+    .join('\n');
 
 describe('production build output in src/Csps.Server/wwwroot', () => {
   it('writes index.html', () => {

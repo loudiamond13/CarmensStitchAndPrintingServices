@@ -6,7 +6,7 @@ export function PublicPlaceholderPage() {
   return (
     <section className="relative overflow-hidden bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] pt-16 pb-[calc(var(--space-12)+var(--cut-angle))] pg-phone:pt-8 pg-phone:pb-[calc(var(--space-8)+var(--cut-angle))]">
       <div className="mx-auto flex max-w-(--container-max) flex-col gap-[20px] px-6 pg-phone:px-4">
-        <span className="inline-flex items-center gap-2 font-display text-[14px] leading-[1.15] font-bold tracking-[.16em] text-accent-ink uppercase before:h-[3px] before:w-[24px] before:bg-accent-line before:[transform:skewX(-18deg)]">
+        <span className="inline-flex items-center gap-2 font-display text-[14px] leading-[1.15] font-bold tracking-[.16em] text-accent-ink uppercase before:h-[3px] before:w-[24px] before:[transform:skewX(-18deg)] before:bg-accent-line">
           Custom sublimation · Philippines
         </span>
         <h1 className="font-display text-[80px] leading-[.88] font-heavy tracking-[-.01em] uppercase italic pg-phone:text-[52px]">
