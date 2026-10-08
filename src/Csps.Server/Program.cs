@@ -75,7 +75,12 @@ app.UseResponseCompression();
 
 // The built React app's files from the web root, anonymously and before authorization (WEB-01): hashed /assets/* are
 // immutable for a year, everything else is revalidated (SpaCaching).
-app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply });
+// Files in dot folders and Windows aliases of them are never served and fall through to the {*path:file} 404 (G-02-2).
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new HiddenSegmentFileProvider(app.Environment.WebRootFileProvider),
+    OnPrepareResponse = SpaCaching.Apply,
+});
 
 // Explicit, so static files run before endpoint matching: StaticFileMiddleware skips a request that already has a
 // matched endpoint, and the SPA fallbacks below would otherwise match every file path first (WEB-01).
