@@ -23,7 +23,12 @@ export interface RequestConfig {
   readonly body?: unknown;
   readonly headers?: Readonly<Record<string, string>> | undefined;
   readonly signal?: AbortSignal | undefined;
+  /** Per-attempt time limit; overrides the client's. */
   readonly timeoutMs?: number | undefined;
+  /**
+   * Sent as the Idempotency-Key header on unsafe methods, and makes a POST retryable (WEB-09). It comes from the
+   * caller, one per user submission; the client never creates one.
+   */
   readonly idempotencyKey?: string | undefined;
   readonly onUploadProgress?: ((progress: UploadProgress) => void) | undefined;
 }
@@ -63,6 +68,19 @@ export interface HttpClient {
 
 export type FetchFunction = (input: string, init: RequestInit) => Promise<Response>;
 
+/** Waits `ms` milliseconds. Must reject when `signal` aborts. */
+export type Sleep = (ms: number, signal: AbortSignal | undefined) => Promise<void>;
+
+export interface RetryPolicy {
+  /** Retries after the first attempt. Clamped to 0..2; 0 turns retries off. */
+  readonly max: number;
+  /** The first backoff delay; each later one doubles, up to maxDelayMs. */
+  readonly baseDelayMs: number;
+  readonly maxDelayMs: number;
+  /** Injected in tests; defaults to a setTimeout-based wait. */
+  readonly sleep: Sleep;
+}
+
 export interface HttpClientConfig {
   /** Prefix for every request path, for example '/api/v1'. */
   readonly baseURL?: string | undefined;
@@ -70,6 +88,53 @@ export interface HttpClientConfig {
   readonly fetch?: FetchFunction | undefined;
   /** Headers sent with every request. Request headers override them. */
   readonly headers?: Readonly<Record<string, string>> | undefined;
+  /** Per-attempt time limit. Defaults to 30 seconds. */
+  readonly timeoutMs?: number | undefined;
+  readonly retry?: Partial<RetryPolicy> | undefined;
+  /**
+   * Renews the session after a 401. Concurrent 401s share one call (single flight), and each request then retries
+   * once. A rejection means the session is over.
+   */
+  readonly refresh?: (() => Promise<void>) | undefined;
+  /** Called when a 401 cannot be recovered: no refresh, a failed refresh, or a 401 again after a refresh. */
+  readonly onUnauthorized?: (() => void) | undefined;
+}
+
+const defaultTimeoutMs = 30_000;
+const maxRetries = 2;
+const defaultBaseDelayMs = 250;
+const defaultMaxDelayMs = 2_000;
+
+/** Methods retried after a network error or 503. A POST joins them only when it carries an Idempotency-Key (WEB-09). */
+const retryableMethods: ReadonlySet<HttpMethod> = new Set<HttpMethod>(['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS']);
+/** Safe methods never carry an Idempotency-Key header. */
+const safeMethods: ReadonlySet<HttpMethod> = new Set<HttpMethod>(['GET', 'HEAD', 'OPTIONS']);
+/** Parameter names that would put a secret in a URL, where logs, history and Referer headers keep it (CWE-598). */
+const secretParams: ReadonlySet<string> = new Set([
+  'token',
+  'access_token',
+  'refresh_token',
+  'password',
+  'secret',
+  'otp',
+]);
+
+const defaultSleep: Sleep = (ms, signal) =>
+  new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('The wait was cancelled.', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+
+interface RefreshCycle {
+  done: Promise<void>;
+  unauthorizedNotified: boolean;
 }
 
 interface Registry<T> {
@@ -110,6 +175,14 @@ function serializeParams(params: Params | undefined): string {
   return search.toString();
 }
 
+function assertNoSecretParams(params: Params | undefined): void {
+  for (const name of Object.keys(params ?? {})) {
+    if (secretParams.has(name.toLowerCase())) {
+      throw new TypeError(`The "${name}" parameter is not allowed: secrets never go in a URL. Send them in a header.`);
+    }
+  }
+}
+
 function buildUrl(baseURL: string, request: HttpRequest): string {
   const url = joinUrl(baseURL, request.url);
   const query = serializeParams(request.params);
@@ -123,6 +196,24 @@ const jsonContentType = /^application\/(?:problem\+)?json\s*(?:;|$)/i;
 
 function isJson(headers: Headers): boolean {
   return jsonContentType.test(headers.get('Content-Type') ?? '');
+}
+
+function isUnauthorized(error: unknown): error is HttpError {
+  return isHttpError(error) && error.status === 401;
+}
+
+/** Maps a transport failure to its kind by which signal fired: the caller's (aborted) or the time limit (timeout). */
+function toTransportError(error: unknown, caller: AbortSignal | undefined, timeout: AbortSignal): HttpError {
+  if (isHttpError(error)) {
+    return error;
+  }
+  if (caller?.aborted === true) {
+    return new HttpError({ kind: 'aborted', cause: error });
+  }
+  if (timeout.aborted) {
+    return new HttpError({ kind: 'timeout', cause: error });
+  }
+  return new HttpError({ kind: 'network', cause: error });
 }
 
 /** Turns a received status, headers and body text into the response data, or throws an HttpError. */
@@ -156,21 +247,25 @@ function toHttpResponse(status: number, headers: Headers, text: string): HttpRes
 export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
   const baseURL = config.baseURL ?? '';
   const fetchImpl: FetchFunction = config.fetch ?? ((input, init) => globalThis.fetch(input, init));
+  const timeoutMs = config.timeoutMs ?? defaultTimeoutMs;
+  const retryMax = Math.min(maxRetries, Math.max(0, config.retry?.max ?? maxRetries));
+  const baseDelayMs = config.retry?.baseDelayMs ?? defaultBaseDelayMs;
+  const maxDelayMs = config.retry?.maxDelayMs ?? defaultMaxDelayMs;
+  const sleep = config.retry?.sleep ?? defaultSleep;
   const requestInterceptors = createRegistry<RequestInterceptor>();
+  let refreshCycle: RefreshCycle | undefined;
 
-  function initialRequest(request: RequestConfig): HttpRequest {
+  function initialRequest(request: RequestConfig, method: HttpMethod): HttpRequest {
     const headers = new Headers(config.headers);
     headers.set('Accept', 'application/json');
     for (const [name, value] of Object.entries(request.headers ?? {})) {
       headers.set(name, value);
     }
-    return {
-      method: request.method ?? 'GET',
-      url: request.url,
-      params: request.params,
-      headers,
-      body: request.body,
-    };
+    // Set before the interceptors run, from the caller's key only, so every attempt sends the same key (WEB-09).
+    if (request.idempotencyKey !== undefined && !safeMethods.has(method)) {
+      headers.set('Idempotency-Key', request.idempotencyKey);
+    }
+    return { method, url: request.url, params: request.params, headers, body: request.body };
   }
 
   async function intercept(request: HttpRequest): Promise<HttpRequest> {
@@ -191,29 +286,122 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     return JSON.stringify(request.body);
   }
 
-  async function send(requestConfig: RequestConfig): Promise<HttpResponse> {
-    const prepared = await intercept(initialRequest(requestConfig));
+  /** One attempt. Request interceptors run on every attempt, so a refreshed token applies to the retry. */
+  async function attempt(requestConfig: RequestConfig, method: HttpMethod): Promise<HttpResponse> {
+    const prepared = await intercept(initialRequest(requestConfig, method));
+    assertNoSecretParams(prepared.params);
     const url = buildUrl(baseURL, prepared);
     const body = encodeBody(prepared);
+    const caller = requestConfig.signal;
+    const timeout = new AbortController();
+    const timer = setTimeout(() => {
+      timeout.abort();
+    }, requestConfig.timeoutMs ?? timeoutMs);
+    const signal = AbortSignal.any(caller === undefined ? [timeout.signal] : [caller, timeout.signal]);
     try {
       const response = await fetchImpl(url, {
         method: prepared.method,
         headers: prepared.headers,
         body: body ?? null,
+        signal,
         credentials: 'same-origin',
       });
       const text = await response.text();
       return toHttpResponse(response.status, response.headers, text);
     } catch (error) {
-      if (isHttpError(error)) {
+      throw toTransportError(error, caller, timeout.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function canRetry(requestConfig: RequestConfig, method: HttpMethod, error: unknown): boolean {
+    if (!isHttpError(error) || !(error.kind === 'network' || error.status === 503)) {
+      return false;
+    }
+    return retryableMethods.has(method) || (method === 'POST' && requestConfig.idempotencyKey !== undefined);
+  }
+
+  /** At most `retryMax` retries with capped exponential backoff (PRD 9.3). TanStack Query does not retry on top. */
+  async function sendWithRetries(requestConfig: RequestConfig, method: HttpMethod): Promise<HttpResponse> {
+    for (let retry = 0; ; retry++) {
+      try {
+        return await attempt(requestConfig, method);
+      } catch (error) {
+        if (retry >= retryMax || !canRetry(requestConfig, method, error)) {
+          throw error;
+        }
+        try {
+          await sleep(Math.min(maxDelayMs, baseDelayMs * 2 ** retry), requestConfig.signal);
+        } catch (cause) {
+          throw new HttpError({ kind: 'aborted', cause });
+        }
+      }
+    }
+  }
+
+  function notifyUnauthorized(cycle: RefreshCycle): void {
+    if (!cycle.unauthorizedNotified) {
+      cycle.unauthorizedNotified = true;
+      config.onUnauthorized?.();
+    }
+  }
+
+  /**
+   * Joins the refresh in flight, or starts one. The cycle is published before refresh() runs, so even a refresh that
+   * throws synchronously is shared and then cleared.
+   */
+  function joinRefresh(refresh: () => Promise<void>): RefreshCycle {
+    if (refreshCycle !== undefined) {
+      return refreshCycle;
+    }
+    const cycle: RefreshCycle = { done: Promise.resolve(), unauthorizedNotified: false };
+    refreshCycle = cycle;
+    cycle.done = (async () => {
+      try {
+        await refresh();
+      } catch (error) {
+        notifyUnauthorized(cycle);
+        throw error;
+      } finally {
+        refreshCycle = undefined;
+      }
+    })();
+    return cycle;
+  }
+
+  async function execute(requestConfig: RequestConfig, method: HttpMethod): Promise<HttpResponse> {
+    try {
+      return await sendWithRetries(requestConfig, method);
+    } catch (error) {
+      if (!isUnauthorized(error)) {
         throw error;
       }
-      throw new HttpError({ kind: 'network', cause: error });
+      const { refresh } = config;
+      if (refresh === undefined) {
+        config.onUnauthorized?.();
+        throw error;
+      }
+      const cycle = joinRefresh(refresh);
+      try {
+        await cycle.done;
+      } catch {
+        throw error;
+      }
+      // Retry once with the same config, so a POST resends its own Idempotency-Key (WEB-09).
+      try {
+        return await sendWithRetries(requestConfig, method);
+      } catch (retryError) {
+        if (isUnauthorized(retryError)) {
+          notifyUnauthorized(cycle);
+        }
+        throw retryError;
+      }
     }
   }
 
   async function request<T>(requestConfig: RequestConfig): Promise<T> {
-    const response = await send(requestConfig);
+    const response = await execute(requestConfig, requestConfig.method ?? 'GET');
     return response.data as T;
   }
 
