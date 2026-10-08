@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T02:41:11-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T04:46:33-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -129,6 +129,7 @@ How the API serves the app:
 - Any page path, such as `/products` or `/admin/orders`, gets the app's `index.html`, which the browser revalidates on every visit.
 - Files under `/assets/` are cached for a year, because their names change with every build.
 - A missing file, such as `/missing.js`, is a plain 404. Unknown `/api` paths stay API errors.
+- Files inside a dot folder (such as Vite's `.vite/`), and Windows short-name or backslash aliases of them, are never served. They get the same 404 as a missing file. A deliberate `/.well-known/` file (security.txt, Android App Links, a certificate challenge) needs an explicit, tested exception in `HiddenSegmentFileProvider`.
 - Static text (html, css, JavaScript, SVG) is compressed. JSON never is.
 
 Set environment variables only inside one terminal or process, never at User or Machine level.

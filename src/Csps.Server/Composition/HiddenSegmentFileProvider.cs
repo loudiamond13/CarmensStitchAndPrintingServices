@@ -66,13 +66,39 @@ public sealed class HiddenSegmentFileProvider : IFileProvider
     public IFileInfo GetFileInfo(string subpath) =>
         IsHidden(subpath) ? new NotFoundFileInfo(subpath) : _inner.GetFileInfo(subpath);
 
-    /// <summary>Returns the inner provider's directory contents unchanged.</summary>
+    /// <summary>
+    /// Returns a missing directory for a hidden subpath without asking the inner provider. A visible directory lists
+    /// only the inner entries whose names are not hidden by the same rule, so a listing never shows a dot folder.
+    /// </summary>
     /// <param name="subpath">The requested directory relative to the web root.</param>
     /// <returns>The directory contents.</returns>
-    public IDirectoryContents GetDirectoryContents(string subpath) => _inner.GetDirectoryContents(subpath);
+    public IDirectoryContents GetDirectoryContents(string subpath)
+    {
+        if (IsHidden(subpath))
+        {
+            return NotFoundDirectoryContents.Singleton;
+        }
 
-    /// <summary>Returns the inner provider's change token unchanged.</summary>
+        var contents = _inner.GetDirectoryContents(subpath);
+        return contents.Exists ? new VisibleDirectoryContents(contents) : contents;
+    }
+
+    /// <summary>
+    /// Returns the inner provider's change token unchanged: a token only signals that something changed and discloses
+    /// no file content, so it needs no filtering.
+    /// </summary>
     /// <param name="filter">The file or folder filter.</param>
     /// <returns>The change token.</returns>
     public IChangeToken Watch(string filter) => _inner.Watch(filter);
+
+    /// <summary>An existing directory listing without the entries <see cref="IsHidden"/> refuses.</summary>
+    private sealed class VisibleDirectoryContents(IDirectoryContents inner) : IDirectoryContents
+    {
+        public bool Exists => true;
+
+        public IEnumerator<IFileInfo> GetEnumerator() =>
+            inner.Where(static entry => !IsHidden(entry.Name)).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }
