@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T00:16:00-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T02:24:38-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -43,3 +43,45 @@ Full finding: `.planning/phases/02-web-foundation-design-system/deferred-items.m
 ## FYI-01 · Five faded texts made slightly darker for readability (plan 02-05, no action needed)
 
 Under your existing ruling **D-02** (no text below 4.5:1 contrast), plan 02-05 set five spec texts back to full opacity: the input placeholder, the "Manager" tag, the call-to-action lead text, the filter-pill count and the big-button caption. Four of them failed when faded; the worst was the pill count, at 3.32:1 in Blush. The visible effect is that these five texts look a little darker than in the design file. Entry animations and two decorative elements keep their fade. You'll see this in the D-23 screenshot review (plan 02-18). Say so if you'd rather handle any of them differently.
+
+## D-BL-03 · Design rulings O-1..O-8, 20 redrawn icons and the Logout look (plan 02-09, Task 3)
+
+**Status:** open · **Raised:** 2026-10-08 · **Blocks:** plan **02-11** and everything after it (02-14, 02-15, 02-16, 02-17, 02-18). Plans 02-10, 02-12 and 02-13 do not need these rulings and continue.
+
+**Review pack (open it in a browser, local only):** `artifacts/owner-review/phase2-rulings/index.html`, with 17 before/after pictures. Rebuild it with `node web/scripts/owner-review-pack.mjs`. The pack also shows **D-BL-02** (the Manager tag), so you can rule on both in one pass.
+
+### 1. Owner Confirmations O-1..O-8 (UI spec "Owner Confirmations", rule D-08)
+
+| Item | What changes | Visible? | Recommended |
+|---|---|---|---|
+| O-1 | The initials badge (Avatar) is announced as a picture (`role="img"`). Needed for zero axe errors. | No (spoken label only) | Yes |
+| O-2 | Testimonial stars are announced as a picture (`role="img"`). Same axe rule. | No (spoken label only) | Yes |
+| O-3 | On phones, the current link in the public menu is marked as the current page and turns **italic**, as a second cue next to the orange. | **Yes, the only visible one** | Yes |
+| O-4 | Fix the footer's spoken labels "CSPS onFacebook / onInstagram / onTikTok" → "CSPS on Facebook …". | No (spoken label only) | Yes |
+| O-5 | The toast area is always present (empty when there are no toasts), so screen readers announce new ones reliably. | No (behaviour only) | Yes |
+| O-6 | For people who set "reduce motion" on their device: stop the loading shimmer and the pop-up and toast entry animations. | Only for those people | Yes |
+| O-7 | Warning toasts stay until closed; success and info toasts pause their timer while the pointer or keyboard focus is on them. | No (behaviour only) | Yes |
+| O-8 | Keep the smaller designed controls (36 px small buttons and icon buttons, 38×32 segment buttons, 22×22 filter-chip clear, 20×20 login checkbox) and record the exception. They pass WCAG 2.2 AA (24 px minimum); the project's own target is 44 px. | No, if kept | Keep as designed |
+
+Rejecting O-1 or O-2 leaves an accessibility error that the zero-violation gate will report, and plan 02-11 would then stop for re-planning.
+
+### 2. Redrawn icons (rule D-12, recorded as D-32)
+
+Lucide redrew 20 of the 56 icons between version 0.460 (in the design) and 1.52.0 (installed); the other 36 are identical. Approve each new drawing, or name a replacement Lucide icon. Only **menu** looks noticeably different.
+
+- **menu**: the three bars moved slightly further apart (heights 6/12/18 → 5/12/19). *The one you'll notice.*
+- Look the same (shapes only rebuilt): search, log-out, clock, circle-check, list, calendar, trending-up, trending-down.
+- Look very similar (small curve changes): receipt, users, phone, message-circle, mail, palette, zap, package, moon.
+- Renamed by Lucide, same meaning: trash-2 → "trash" (lid and handle redrawn, about the same); filter → "funnel" (rounded joins, very similar).
+
+### 3. D-27 Logout (already ruled; please confirm the look)
+
+The sidebar Logout is now a real button instead of a link. Chromium measured it identical to the old link in all 34 checks (both themes, sidebar expanded and collapsed, at rest and on hover). Before/after pictures are in the pack. One small deviation is recorded in `web/SPEC-DEVIATIONS.md`: the style rule leaves out three properties the plan listed, because they would have overridden the sidebar's own hover and selected styles.
+
+### 4. New look-changing items found in plan 02-09
+
+None.
+
+**How to answer:** reply "option-a" to accept every recommendation (O-1..O-7 yes, O-8 keep as designed, approve all redrawn icons, D-27 confirmed). Or answer item by item, for example: "O-1 yes, O-2 yes, O-3 no, …, menu: approve, filter: use list-filter".
+
+**To apply after the answer:** record the rulings in `.planning/phases/02-web-foundation-design-system/02-CONTEXT.md` as **D-31** (one dated line per O-1..O-8, plus D-BL-02 if ruled) and **D-32** (one line per redrawn icon), and update its `Updated` timestamp. Repeat the reply verbatim in `02-09-SUMMARY.md`. Then run plan 02-11, followed by 02-14 → 02-18.
