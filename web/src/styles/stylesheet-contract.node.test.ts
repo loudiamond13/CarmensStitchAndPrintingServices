@@ -24,14 +24,183 @@ interface CssBlock {
 
 /** Splits a stylesheet into at-rules and selector blocks (comments stripped, braces walked). */
 export function parseCssBlocks(text: string): CssBlock[] {
-  // RED stub: finds nothing yet.
-  return text.length < 0 ? [] : [];
+  // Comments become spaces of the same length (newlines kept), so line numbers stay true.
+  const source = text.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
+  const blocks: CssBlock[] = [];
+  const stack: string[] = [];
+  let buffer = '';
+  let bufferStart = -1;
+  let quote = '';
+  let parenDepth = 0;
+  let line = 1;
+  let bufferLine = 1;
+
+  const collapse = (value: string): string => value.replace(/\s+/g, ' ').trim();
+  const push = (prelude: string): void => {
+    if (prelude.startsWith('@')) {
+      const name = /^@([\w-]+)/.exec(prelude)?.[1] ?? prelude;
+      blocks.push({ type: 'at-rule', name, prelude, parents: [...stack], line: bufferLine });
+    } else {
+      blocks.push({ type: 'rule', name: prelude, prelude, parents: [...stack], line: bufferLine });
+    }
+  };
+  const reset = (): void => {
+    buffer = '';
+    bufferStart = -1;
+  };
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source.charAt(index);
+    if (char === '\n') {
+      line += 1;
+    }
+    if (bufferStart === -1 && !/\s/.test(char)) {
+      bufferStart = index;
+      bufferLine = line;
+    }
+    if (quote !== '') {
+      buffer += char;
+      if (char === '\\') {
+        index += 1;
+        buffer += source.charAt(index);
+      } else if (char === quote) {
+        quote = '';
+      }
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      buffer += char;
+      continue;
+    }
+    if (char === '(' || char === ')') {
+      parenDepth += char === '(' ? 1 : -1;
+      buffer += char;
+      continue;
+    }
+    if (parenDepth > 0) {
+      buffer += char;
+      continue;
+    }
+    if (char === '{') {
+      const prelude = collapse(buffer);
+      push(prelude);
+      stack.push(prelude);
+      reset();
+    } else if (char === ';' || char === '}') {
+      // A statement: a block-less at-rule is kept; a declaration (`color: red`) is not a block.
+      const statement = collapse(buffer);
+      if (statement.startsWith('@')) {
+        push(statement);
+      }
+      reset();
+      if (char === '}') {
+        stack.pop();
+      }
+    } else {
+      buffer += char;
+    }
+  }
+  return blocks;
+}
+
+/** A selector with whitespace collapsed and attribute quotes dropped, so `[data-theme="dark"]` = `[data-theme=dark]`. */
+const normalizeSelector = (selector: string): string =>
+  selector
+    .replace(/["']/g, '')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** base.css selectors outside @media (UI-SPEC Tailwind Contract, "What stays in CSS"). */
+const baseSelectors = new Set(
+  [
+    ':root',
+    '[data-theme="light"]',
+    '[data-theme="dark"]',
+    ':root, [data-theme="light"]',
+    'body',
+    ':focus-visible',
+    'main[tabindex="-1"]:focus',
+  ].map(normalizeSelector),
+);
+const reducedMotion = '@media (prefers-reduced-motion: reduce)';
+const keyframeStep = /^(?:from|to|\d+(?:\.\d+)?%)(?:, (?:from|to|\d+(?:\.\d+)?%))*$/;
+const tailwindEntry = /^@import "tailwindcss" source\("(?:\.\.\/){1,2}src"\)$/;
+const baseImport = '@import "./base.css" layer(base)';
+
+/** The reason an at-rule is not allowed in this file, or undefined when it is. */
+function atRuleError(file: StylesheetName, block: CssBlock): string | undefined {
+  const parent = block.parents.at(-1);
+  const topLevel = block.parents.length === 0;
+  if (file === 'app.css') {
+    switch (block.name) {
+      case 'import':
+        return topLevel && (tailwindEntry.test(block.prelude) || block.prelude === baseImport)
+          ? undefined
+          : 'only the Tailwind entry and the base.css layer import are allowed';
+      case 'source':
+        return topLevel && /^@source not "[^"]+"$/.test(block.prelude)
+          ? undefined
+          : 'only `@source not "…"` is allowed';
+      case 'custom-variant':
+        return topLevel ? undefined : '@custom-variant must be top level';
+      case 'theme':
+        return topLevel && (block.prelude === '@theme' || block.prelude === '@theme inline')
+          ? undefined
+          : 'only top-level @theme and @theme inline are allowed';
+      case 'keyframes':
+        return parent === '@theme' ? undefined : '@keyframes must sit inside @theme';
+      default:
+        return 'not an allowed at-rule (D-33)';
+    }
+  }
+  if (block.name === 'font-face') {
+    return topLevel ? undefined : '@font-face must be top level';
+  }
+  if (block.name === 'media') {
+    return topLevel && block.prelude === reducedMotion ? undefined : 'the only allowed @media is reduced motion';
+  }
+  return 'not an allowed at-rule (D-33)';
+}
+
+/** The reason a selector block is not allowed in this file, or undefined when it is. */
+function ruleError(file: StylesheetName, block: CssBlock): string | undefined {
+  const parent = block.parents.at(-1);
+  if (parent?.startsWith('@keyframes ') === true) {
+    return keyframeStep.test(normalizeSelector(block.name)) ? undefined : 'only keyframe steps may sit in @keyframes';
+  }
+  if (file === 'app.css') {
+    return 'app.css holds only at-rules, never a selector block (D-33: no class selectors)';
+  }
+  if (block.parents.length === 1 && parent === reducedMotion) {
+    return block.name === '*' ? undefined : 'only `*` may sit in the reduced-motion @media';
+  }
+  if (block.parents.length === 0 && baseSelectors.has(normalizeSelector(block.name))) {
+    return undefined;
+  }
+  return 'not an allowed base.css selector (D-33: no class selectors)';
 }
 
 /** Every contract violation in one stylesheet, each naming the offending at-rule or selector. */
 function contractErrors(file: StylesheetName, text: string): string[] {
-  // RED stub: reports nothing yet.
-  return parseCssBlocks(text).map((block) => `${file}: ${block.prelude}`);
+  const errors: string[] = [];
+  // Blocks come in document order, so everything deeper than a rejected block until the next block at its depth or
+  // shallower is inside it; it is reported once, not once per child.
+  let rejectedDepth = Number.POSITIVE_INFINITY;
+  for (const block of parseCssBlocks(text)) {
+    const depth = block.parents.length;
+    if (depth > rejectedDepth) {
+      continue;
+    }
+    rejectedDepth = Number.POSITIVE_INFINITY;
+    const reason = block.type === 'at-rule' ? atRuleError(file, block) : ruleError(file, block);
+    if (reason !== undefined) {
+      errors.push(`${file}:${String(block.line)} \`${block.prelude}\`: ${reason}`);
+      rejectedDepth = depth;
+    }
+  }
+  return errors;
 }
 
 describe('web/src/styles', () => {
