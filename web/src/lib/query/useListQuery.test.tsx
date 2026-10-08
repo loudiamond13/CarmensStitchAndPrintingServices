@@ -80,7 +80,11 @@ describe('useListQuery', () => {
     );
     const { result, rerender } = renderHook(
       ({ page }: { page: number }) =>
-        useListQuery({ key: 'orders', params: { page, pageSize: 20, status: 'all' } satisfies OrderListParams, fetcher }),
+        useListQuery({
+          key: 'orders',
+          params: { page, pageSize: 20, status: 'all' } satisfies OrderListParams,
+          fetcher,
+        }),
       { wrapper: wrapperFor(client), initialProps: { page: 1 } },
     );
     await waitFor(() => {
