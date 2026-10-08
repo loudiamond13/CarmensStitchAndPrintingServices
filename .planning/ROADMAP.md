@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T23:26:18-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-07T23:52:48-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 3/18 plans executed in 10 waves
+**Plans**: 4/18 plans executed in 10 waves
 
 Plans:
 **Wave 1**
@@ -237,7 +237,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 02-03-PLAN.md — npm pins in the dependency registry, npm license gate (D-26), web notices drift check (W3)
-- [ ] 02-04-PLAN.md — Golden vectors (>= 200) passing in xUnit OrderMath and Vitest csps.ts with D-09 rounding; money/date formatters (W3)
+- [x] 02-04-PLAN.md — Golden vectors (>= 200) passing in xUnit OrderMath and Vitest csps.ts with D-09 rounding; money/date formatters (W3)
 - [ ] 02-05-PLAN.md — Verbatim App. A-C CSS, owner WCAG overrides D-01..D-05, fonts with ₱-safe fallbacks and preload (W3)
 - [ ] 02-06-PLAN.md — Playwright on HTTPS 5199 with console/CSP/axe fixtures and self-tests across five projects (W3)
 - [ ] 02-07-PLAN.md — fetch-based httpClient with single-flight refresh, capped retries and key reuse, 100% coverage (W3)
@@ -891,7 +891,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 3/18 | In Progress|  |
+| 2. Web Foundation & Design System | 4/18 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |

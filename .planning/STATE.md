@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: "Completed 02-03-PLAN.md (license-gate check deferred: D-BL-01)"
-last_updated: "2026-10-08T04:26:05.386Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-10-08T04:53:04.742Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 185214736cfc01598553d7541e706bd127fd20f7
+state_head: 2fd8a22b451f72cbe1ad3d582cf26e685ec45e92
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 16
+  completed_plans: 17
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T23:26:18-05:00"
+updated: "2026-10-07T23:52:48-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 4 of 18
+Plan: 5 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -74,6 +74,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P01 | 37 min | 3 tasks | 30 files |
 | Phase 02 P02 | 15 min | 3 tasks | 21 files |
 | Phase 02 P03 | 24min | 2 tasks | 12 files |
+| Phase 02 P04 | 22 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Prettier pins tabWidth 2 and .editorconfig has a web/** indent_size = 2 section (the repo default is 4)
 - [Phase 02]: no-console is off only for src/test/consoleGuard.ts and its test; deliberate a11y violations in tests use per-line eslint-disable with a reason
 - [Phase 02]: 02-03: npm pins (incl. exact overrides) registered with folder-qualified ids; license exceptions match license AND scope
+- [Phase 02]: 02-04: Pinned D-09 order-math operation order (golden-vector operationOrder): round the items total; round each discount (a percentage applies to the ROUNDED items total); sum the discounts and round the sum; subtract. Server Csps.Domain.Orders.OrderMath (decimal, AwayFromZero) and client csps.ts (exact BigInt centavos) both pass 220 shared vectors in tests/fixtures/order-math-golden-vectors.json; regenerate only with node web/scripts/gen-golden-vectors.mjs (--check for drift)
+- [Phase 02]: 02-04: Client previews read numbers through String(n) into BigInt centavos and back through the decimal text; NaN and +/-Infinity count as 0 (SPEC-DEVIATION D-09); toCentavos/centavosToAmount are the MoneyInput string<->centavo conversion
+- [Phase 02]: 02-04: A const decimal in Csps.Domain compiles to a static field whose initializer never runs (one uncovered line); use the literal instead
 
 ### Pending Todos
 
@@ -173,6 +177,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T04:26:05.269Z
-Stopped at: Completed 02-03-PLAN.md (license-gate check deferred: D-BL-01)
+Last session: 2026-10-08T04:52:23.389Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
