@@ -92,6 +92,15 @@ describe('MoneyInput keystrokes and paste (ORD-09 boundary edge)', () => {
     expect(onValue).not.toHaveBeenCalled();
   });
 
+  it.each([',', ' '])('ignores a typed grouping character %j and emits nothing', async (key) => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<Harness initial="12" onValue={onValue} />);
+    await user.type(amountBox(), key);
+    expect(amountBox()).toHaveValue('12');
+    expect(onValue).not.toHaveBeenCalled();
+  });
+
   it('never formats with grouping while editing', async () => {
     const user = userEvent.setup();
     render(<Harness />);
@@ -158,6 +167,18 @@ describe('MoneyInput blur padding (ORD-09 boundary edge)', () => {
     expect(amountBox()).toHaveValue('5000.00');
     expect(onValue).toHaveBeenLastCalledWith('5000.00');
     expect(onBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('pads on blur without a caller onBlur, and keeps the markup when re-rendered with equal props', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container, rerender } = render(<MoneyInput label="Amount" value="5" onChange={onChange} />);
+    const before = container.innerHTML;
+    rerender(<MoneyInput label="Amount" value="5" onChange={onChange} />);
+    expect(container.innerHTML).toBe(before);
+    await user.click(amountBox());
+    await user.tab();
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('5.00');
   });
 
   it('keeps an empty box empty on blur and emits nothing', async () => {

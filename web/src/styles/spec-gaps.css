@@ -7,4 +7,10 @@
    - Every block starts with a comment of the form SPEC-GAP: <primitive>.
    Plans 12, 13 and 15 add the blocks. */
 @layer components {
+  /* SPEC-GAP: MoneyInput */
+  /* Left-aligned in forms. An item row passes className="text-right" on the field and the amount follows it (the UA
+     stylesheet gives inputs their own text-align, so the input does not inherit it from the wrapper). */
+  .csp-field.text-right .csp-input {
+    text-align: right;
+  }
 }
