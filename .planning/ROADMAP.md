@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 21/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 22/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -261,7 +261,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [x] 02-17-PLAN.md — Button family, pending state (WEB-09), ButtonLink/UiLink proven equal
-- [ ] 02-18-PLAN.md — Mark (JSX), Logo, motifs, MediaPlaceholder and the 56-icon wrapper proven equal
+- [x] 02-18-PLAN.md — Mark (JSX), Logo, motifs, MediaPlaceholder and the 56-icon wrapper proven equal
 - [ ] 02-19-PLAN.md — Badges, Avatar (O-1), SegmentedControl, Tabs ARIA with the D-03 cue
 - [ ] 02-20-PLAN.md — Field, PasswordField, Select with D-01 phone 16px
 - [ ] 02-21-PLAN.md — EmptyState, Skeleton, Toast and the D-04/O-5/O-7 toast queue
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 21/40 | In Progress|  |
+| 2. Web Foundation & Design System | 22/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
