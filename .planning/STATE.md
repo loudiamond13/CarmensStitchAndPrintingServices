@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-10-08T03:56:07.427Z"
+stopped_at: "Completed 02-03-PLAN.md (license-gate check deferred: D-BL-01)"
+last_updated: "2026-10-08T04:26:05.386Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: "0b04bc25252d3d6ba1b4039007dcf3fb0754240a"
+state_head: 185214736cfc01598553d7541e706bd127fd20f7
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 15
+  completed_plans: 16
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T22:56:16-05:00"
+updated: "2026-10-07T23:26:18-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 3 of 18
+Plan: 4 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -73,6 +73,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 01 P13 | 4 min | 2 tasks | 2 files |
 | Phase 02 P01 | 37 min | 3 tasks | 30 files |
 | Phase 02 P02 | 15 min | 3 tasks | 21 files |
+| Phase 02 P03 | 24min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Node-side config tests (lint-rules, eslint-config, build-config) are typed by tsconfig.node.json and excluded from tsconfig.app.json, so app code never sees Node types
 - [Phase 02]: Prettier pins tabWidth 2 and .editorconfig has a web/** indent_size = 2 section (the repo default is 4)
 - [Phase 02]: no-console is off only for src/test/consoleGuard.ts and its test; deliberate a11y violations in tests use per-line eslint-disable with a reason
+- [Phase 02]: 02-03: npm pins (incl. exact overrides) registered with folder-qualified ids; license exceptions match license AND scope
 
 ### Pending Todos
 
@@ -149,6 +151,7 @@ None yet.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- D-BL-01 (backlog 999.1): owner decision pending on MIT-0, CC-BY-3.0, Python-2.0 in the npm dev/build tree; node web/scripts/license-gate.mjs exits 1 until decided; blocks plan 02-16 wiring license:check into verify
 
 ### Quick Tasks Completed
 
@@ -170,6 +173,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T03:55:35.014Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-10-08T04:26:05.269Z
+Stopped at: Completed 02-03-PLAN.md (license-gate check deferred: D-BL-01)
 Resume file: None
