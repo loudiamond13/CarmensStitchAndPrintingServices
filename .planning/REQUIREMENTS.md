@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T01:04:08-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T02:46:54-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -36,7 +36,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **WEB-01**: React 19 + TypeScript strict + Vite app in `web/` builds into `src/Csps.Server/wwwroot`. The dev server runs on 5180 (`strictPort`) and proxies `/api` to the API with hard-coded ports (no machine-level env vars) ⚑ S-1 (TS alias pair), S-11
 - [ ] **WEB-02**: The UI-spec design system (Appendices A–D: tokens, globals, compat, components, screens CSS; `src/ui`, `src/lib/csps.ts`, icons, mark) is imported verbatim, then reconciled with PRD gates via `// SPEC-DEVIATION` markers with no DOM/markup change. Fixes include the focus-trapping Modal, Tabs ARIA, `Mark` without `dangerouslySetInnerHTML`, no non-null assertions, and the stricter tsconfig ⚑ C-22, C-10, C-34, C-35
 - [x] **WEB-03**: `web/src/lib/http/httpClient.ts` is a fetch-based, axios-like client (instances, interceptors, timeout/abort, params, JSON/FormData, upload progress via XHR only when requested, single-flight 401 refresh with one retry, capped retries for idempotent calls, normalized `HttpError`) with 100% unit coverage (PRD §9.3)
-- [ ] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
+- [x] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
 - [ ] **WEB-05**: Public and Admin layouts per UI-SPEC §2.2/§8.1 (`.s-page[data-theme]`, sidebar/rail/tab bar, mobile nav drawer marked SPEC-GAP) with route-level code splitting and a global error boundary
 - [ ] **WEB-06**: Shared primitives exist with unit + axe tests: Skeleton family with `aria-busy` + polite live region, EmptyState, ErrorState with retry, ConfirmDialog, Toast, DataTable (`.s-rt` → cards on phones), Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput. No primitive is re-implemented in feature code (PRD §9.2)
 - [x] **WEB-07**: The money/date formatters and order math (`formatPeso`, `formatDate`, `orderTotals`) agree with the server on a shared golden-vector file (≥ 200 cases including half-centavo values) consumed by both xUnit and Vitest ⚑ C-25 (client rounding change)
@@ -345,7 +345,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-01 | Phase 2 | Complete |
 | WEB-02 | Phase 2 | Pending |
 | WEB-03 | Phase 2 | Complete |
-| WEB-04 | Phase 2 | Pending |
+| WEB-04 | Phase 2 | Complete |
 | WEB-05 | Phase 2 | Pending |
 | WEB-06 | Phase 2 | Pending |
 | WEB-07 | Phase 2 | Complete |

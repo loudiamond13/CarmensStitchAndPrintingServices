@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-09-PLAN.md Tasks 1-2 (Task 3 deferred, D-BL-03)
-last_updated: "2026-10-08T07:23:18.273Z"
+stopped_at: Completed 02-10-PLAN.md
+last_updated: "2026-10-08T07:47:32.282Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: a00489dddc2ac930bbe4b20bb2a01c69904d3761
+state_head: 538c8819dc11c79979560df76e97fc741a931045
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 22
+  completed_plans: 23
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T02:23:26-05:00"
+updated: "2026-10-08T02:46:54-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 10 of 18
+Plan: 11 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -80,6 +80,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P07 | 18 min | 3 tasks | 8 files |
 | Phase 02 P08 | 22 min | 3 tasks | 17 files |
 | Phase 02 P09 | 43 min | 2 tasks | 20 files |
+| Phase 02 P10 | 20 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-09: App. D.3-D.5 reconciled with the strict gates with no DOM change, proven by src/ui/differential.test.tsx (245 seed-data cases, equal-props re-render, handler parity) against frozen src/ui/__reference__ copies; normalizeDom hides only useId, lucide classes, xmlns, attribute order and icon drawings; Sidebar Logout <button> (D-27) is the only listed difference
 - [Phase 02]: 02-09: UiLink renders react-router Link directly (LinkProvider kept, unused); Icon renders ICONS[name] (lucide-react 1.52.0, 56 names, IconProps omits color); MarkSvg JSX replaces the MARK_SVG raw-HTML prop; jsx-a11y handler fixes use React 19 callback-ref listeners
 - [Phase 02]: 02-09: D-27 compat rule button.csp-nav sets only appearance, border-width, text-align, cursor (unlayered overrides may not set properties layered .csp-nav rules set); measured identical to the link in 34 values
+- [Phase 02]: 02-10: API contract pipeline: OpenApiSnapshotTests compares the canonical (ordinal key sort, 2-space, LF) Development /openapi/v1.json with tools/openapi-gen/openapi.v1.json; CSPS_WRITE_OPENAPI_SNAPSHOT=1 (per process) writes it and still fails; npm --prefix tools/openapi-gen run generate/check keep web/src/types/api.generated.ts in step; api.ts types come from components['schemas']
+- [Phase 02]: 02-10: useSubmission(submit).run resolves to { ok, value } | { ok, error } and never rejects; one Idempotency-Key per submission, reused only for a JSON-equal (or no-data) retry of a failed submission; success, reset() or changed data mints a new key; a second trigger while pending gets the same promise; signal aborts on unmount; newIdempotencyKey falls back to getRandomValues, never Math.random
+- [Phase 02]: 02-10: describeHttpError is the only error-copy module: 400 with field errors -> 'Check the highlighted fields.' with empty body and fieldErrors; 403/404/409/429 UI-SPEC copy; 5xx, unmapped statuses, parse and non-HttpError -> 'Something went wrong' / 'Please try again.' (+ ' Reference: {traceId}'); 401 and aborted -> null
 
 ### Pending Todos
 
@@ -203,6 +207,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T07:22:41.815Z
-Stopped at: Completed 02-09-PLAN.md Tasks 1-2 (Task 3 deferred, D-BL-03)
+Last session: 2026-10-08T07:46:29.941Z
+Stopped at: Completed 02-10-PLAN.md
 Resume file: None
