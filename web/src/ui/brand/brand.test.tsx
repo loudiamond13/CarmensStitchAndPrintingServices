@@ -14,6 +14,7 @@ const LOGO_NAME = "CSPS — Carmen's Stitch & Printing Services";
 const RING = 'var(--csp-mark-ring, #572e2b)';
 const STITCH = 'var(--csp-mark-stitch, #f6dfd1)';
 const MARK_SIZE = { sm: 36, md: 56, lg: 104 } as const;
+// The mark keeps App. D.4's whitespace text nodes between its shapes, so text checks on a lockup trim them.
 
 function onlySvg(container: HTMLElement): SVGSVGElement {
   const svgs = container.querySelectorAll('svg');
@@ -139,7 +140,7 @@ describe('Logo ([C]SPS lockup, App. D.3)', () => {
     expect(word).toHaveAttribute('aria-hidden', 'true');
     expect(word?.querySelector('svg')).toHaveAttribute('width', String(MARK_SIZE[size]));
     expect(word?.querySelector('svg')).toHaveAttribute('viewBox', '0 0 512 512');
-    expect(word?.textContent).toBe('SPS');
+    expect(word?.textContent.trim()).toBe('SPS');
     expect(tag).toHaveAttribute('aria-hidden', 'true');
     expect(tag?.textContent).toBe("Carmen's Stitch& Printing Services");
     expect(tag?.querySelectorAll('br')).toHaveLength(1);
@@ -157,7 +158,7 @@ describe('Logo ([C]SPS lockup, App. D.3)', () => {
     const logo = screen.getByRole('img', { name: LOGO_NAME });
 
     expect(logo.children).toHaveLength(1);
-    expect(logo.textContent).toBe('SPS');
+    expect(logo.textContent.trim()).toBe('SPS');
   });
 
   it('renders only the mark, at the mark size, for variant="mark"', () => {
@@ -165,7 +166,7 @@ describe('Logo ([C]SPS lockup, App. D.3)', () => {
     const logo = screen.getByRole('img', { name: LOGO_NAME });
 
     expect(logo.children).toHaveLength(1);
-    expect(logo.textContent).toBe('');
+    expect(logo.textContent.trim()).toBe('');
     expect(container.querySelector('svg')).toHaveAttribute('width', '36');
   });
 

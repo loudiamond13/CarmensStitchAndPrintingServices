@@ -1,11 +1,64 @@
-// RED stub (plan 02-18): replaced by the converted lockup in the GREEN commit.
+// The [C]SPS lockup (CSPS-UI-SPEC.md §4.2, App. D.3 Logo, App. B `/* ── Logo ── */`): the mark stands in for the C,
+// then "SPS" with the skewed orange slash, then the two-line tagline. App. D.3's markup, props and copy are kept; the
+// `.csp-logo*` looks are utilities from brand.recipe.ts (D-33). The App. D.3 `csp-logo-v-<variant>` hook classes have
+// no rules in App. B, so they are dropped (class names only, D-33).
+import clsx from 'clsx';
+import {
+  logoClasses,
+  logoGapClasses,
+  logoLetterClasses,
+  logoLetterMarkClasses,
+  logoLettersClasses,
+  logoSlashClasses,
+  logoTaglineClasses,
+  logoTaglineSizeClasses,
+  logoWordClasses,
+  type LogoSize,
+} from './brand.recipe';
+import { Mark } from './Mark';
+
+/** The mark's own width and height attributes per lockup size (App. D.3 MARK_SIZE; spec §4.2 "Mark px"). */
+const MARK_SIZE = { sm: 36, md: 56, lg: 104 } as const satisfies Record<LogoSize, number>;
+
 export interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: LogoSize;
   variant?: 'full' | 'wordmark' | 'mark';
   tagline?: boolean;
+  /** Layout glue only. */
   className?: string;
 }
 
-export function Logo(_props: LogoProps) {
-  return <span role="img" aria-label="CSPS — Carmen's Stitch & Printing Services" />;
+/** [C]SPS — the mark stands in for the C. One image named for the business; its parts are hidden. */
+export function Logo({ size = 'md', tagline = true, variant = 'full', className }: LogoProps) {
+  return (
+    <span
+      className={clsx(logoClasses, logoGapClasses[size], className)}
+      role="img"
+      aria-label="CSPS — Carmen's Stitch & Printing Services"
+    >
+      {variant === 'mark' && <Mark size={MARK_SIZE[size]} />}
+      {variant === 'full' && (
+        <span className={clsx(logoWordClasses, logoLetterClasses[size])} aria-hidden="true">
+          <Mark size={MARK_SIZE[size]} className={logoLetterMarkClasses} />
+          <span className={clsx(logoLettersClasses, logoLetterClasses[size])}>
+            SPS
+            <span className={logoSlashClasses} />
+          </span>
+        </span>
+      )}
+      {variant === 'wordmark' && (
+        <span className={clsx(logoLettersClasses, logoLetterClasses[size])} aria-hidden="true">
+          CSPS
+          <span className={logoSlashClasses} />
+        </span>
+      )}
+      {variant !== 'mark' && tagline && (
+        <span className={clsx(logoTaglineClasses, logoTaglineSizeClasses[size])} aria-hidden="true">
+          {"Carmen's Stitch"}
+          <br />
+          {'& Printing Services'}
+        </span>
+      )}
+    </span>
+  );
 }
