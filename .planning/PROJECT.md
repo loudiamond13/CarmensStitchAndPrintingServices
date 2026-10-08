@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T20:00:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T19:05:08-05:00*
 
 ## What This Is
 
@@ -28,6 +28,7 @@ All existing production data is migrated in without loss. The API is client-agno
 |---|---|---|
 | `CSPS-PRD.md` | Product requirements & engineering contract | MUST/MUST NOT are non-negotiable; §0 Prime Directives override everything; §21 lists `[OWNER DECISION]` items that MUST be asked, never assumed. |
 | `CSPS-UI-SPEC.md` | Strict UI implementation spec | Prose is lines 1–1578. Appendices A–E (lines 1579+) hold verbatim CSS, TS components (`src/ui/index.tsx`), order math (`src/lib/csps.ts` + tests), and reference markup for every screen. Precedence: Appendix › tables › prose. Gaps are marked `// SPEC-GAP:`. |
+| `.planning/design/` (local-only, git-ignored) | Visual UI reference: the owner's Claude Design exports `CSPS Website Public Face.html` and `CSPS Website Admin and Manager.html`, from which `CSPS-UI-SPEC.md` was derived | Never commit, upload or deploy (owner, 2026-10-07). The UI researcher, planner, executors and UI auditor open it next to `CSPS-UI-SPEC.md` for look and feel and to resolve `// SPEC-GAP:` items. `CSPS-UI-SPEC.md` stays the source of truth (Appendix › tables › prose); where the two disagree the spec wins unless the owner rules otherwise. Missing on fresh clones and in CI: ask the owner, never recreate it. The files are large (4.2 MB and 1.5 MB), so search them rather than reading them whole. |
 | `CLAUDE.md` (repo root) | Shared-machine rules | Ports, DB prefixes, preflight script, no machine-level env vars. Binding on every session. |
 
 ## Requirements
