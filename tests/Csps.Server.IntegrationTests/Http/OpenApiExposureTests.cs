@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Csps.Server.Endpoints;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -62,12 +63,30 @@ public sealed partial class OpenApiExposureTests(CspsDatabase database) : IClass
         using var client = factory.CreateClient();
 
         DocsRoutes(factory.Services).ShouldBeEmpty();
-        foreach (var path in new[] { "/openapi/v1.json", "/scalar", "/scalar/" })
+        foreach (var path in new[] { "/openapi/v1.json", "/openapi/", "/scalar", "/scalar/", "/scalar/x" })
         {
+            // A 404 exactly, from the reserved-prefix fallback, never the SPA shell's 200 (D-29, research Pitfall 12).
             using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
-            response.IsSuccessStatusCode.ShouldBeFalse(path);
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound, path);
             response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldBe(ProblemJson.MediaType);
         }
+    }
+
+    [Fact]
+    public async Task ProductionMapsOnlyTheReservedDocsFallbacks()
+    {
+        // Guards the DocsRoutes filter: in Production the only docs-prefixed endpoints are the two reservations.
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Production));
+
+        var reserved = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ReservedPathMetadata>() is not null)
+            .Select(endpoint => endpoint.RoutePattern.RawText)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        reserved.ShouldBe(["/openapi/{**path}", "/scalar/{**path}"]);
     }
 
     [Theory]
@@ -89,9 +108,11 @@ public sealed partial class OpenApiExposureTests(CspsDatabase database) : IClass
         csp.ShouldNotContain("unsafe-eval", Case.Sensitive);
     }
 
+    // Real docs routes only: the reserved-prefix 404 fallbacks (ReservedPathMetadata, D-29) are not API docs.
     private static List<string> DocsRoutes(IServiceProvider services) =>
         [.. services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ReservedPathMetadata>() is null)
             .Select(endpoint => endpoint.RoutePattern.RawText?.TrimStart('/') ?? string.Empty)
             .Where(route => DocsPrefixes.Any(prefix => route.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))];
 
