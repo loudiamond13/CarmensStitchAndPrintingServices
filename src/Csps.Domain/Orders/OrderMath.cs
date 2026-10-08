@@ -13,7 +13,6 @@ namespace Csps.Domain.Orders;
 public static class OrderMath
 {
     private const int Centavos = 2;
-    private const decimal Hundred = 100m;
 
     /// <summary>Computes the order figures in the pinned operation order.</summary>
     /// <param name="items">The order lines.</param>
@@ -53,7 +52,7 @@ public static class OrderMath
     }
 
     private static decimal DiscountAmount(OrderMathDiscount discount, decimal itemsTotal) =>
-        Round(discount.Kind == DiscountKind.Percentage ? itemsTotal * discount.Value / Hundred : discount.Value);
+        Round(discount.Kind == DiscountKind.Percentage ? itemsTotal * discount.Value / 100m : discount.Value);
 
     private static decimal Round(decimal amount) => Math.Round(amount, Centavos, MidpointRounding.AwayFromZero);
 }
