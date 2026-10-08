@@ -1,6 +1,7 @@
 // @vitest-environment node
-// Pins the order of the one static gate (QUAL-02): typecheck, lint, format, tests with coverage, then the build. The
-// pipeline stops at the first failing step and returns that step's exit code.
+// Pins the order of the one static gate (QUAL-02): typecheck, lint, format, tests with coverage, the build, then the two
+// npm supply-chain gates (license gate, notices drift check; plan 02-06). The pipeline stops at the first failing step and
+// returns that step's exit code.
 import { describe, expect, it, vi } from 'vitest';
 import { run, STEPS } from './verify.mjs';
 
@@ -24,12 +25,20 @@ function fakeSpawner(statuses: readonly (number | null)[]) {
 const npmCli = 'C:/tools/npm/bin/npm-cli.js';
 
 describe('verify pipeline', () => {
-  it('runs typecheck, lint, format:check, test:coverage and build in that order', () => {
-    expect(STEPS).toEqual(['typecheck', 'lint', 'format:check', 'test:coverage', 'build']);
+  it('runs typecheck, lint, format:check, test:coverage, build, license:check and notices:check in that order', () => {
+    expect(STEPS).toEqual([
+      'typecheck',
+      'lint',
+      'format:check',
+      'test:coverage',
+      'build',
+      'license:check',
+      'notices:check',
+    ]);
   });
 
   it('runs every step through node and npm-cli.js with inherited output, and returns 0 when all pass', () => {
-    const { calls, spawn } = fakeSpawner([0, 0, 0, 0, 0]);
+    const { calls, spawn } = fakeSpawner(STEPS.map(() => 0));
 
     expect(run(spawn, { npm_execpath: npmCli })).toBe(0);
 
