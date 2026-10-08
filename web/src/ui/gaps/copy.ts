@@ -24,3 +24,51 @@ export const SKIP_LINK_COPY = {
 
 // Checkbox (SPEC-GAP) has no copy of its own: the caller passes the label text (for example the spec's
 // "Keep me signed in", App. E), so there is nothing to keep here.
+
+/** "users" -> "Users", for the sentence-initial "{Things} loaded." */
+export function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** The singular noun for exactly one, the plural for anything else (zero-one-many: "1 order", "12 orders"). */
+export function nounFor(count: number, thing: string, things: string): string {
+  return count === 1 ? thing : things;
+}
+
+/** List regions (ResponsiveTable, LoadingRegion; WEB-06, SPEC-GAP). `things` is the plural noun, like "orders". */
+export const LIST_COPY = {
+  /** A missing cell value (spec section 9.4). */
+  missing: '—',
+  /** A missing team (spec section 8.3, App. E.7). */
+  walkIn: 'Walk-in customer',
+  /** The visually hidden action column header (App. E.7). */
+  actions: 'Actions',
+  emptyTitle: (things: string): string => `No ${things} yet`,
+  noMatchesTitle: 'No matches',
+  /**
+   * "No orders match “Ballers” with status Ready. Try another search or clear the filters." (App. E.8). With filters
+   * but no search text: "No orders with status Ready. …", or "No orders match the filters. …" with no summary.
+   */
+  noMatchesBody: (things: string, search?: string | null, filterSummary?: string): string => {
+    const q = search?.trim() ?? '';
+    const lead =
+      q !== ''
+        ? `No ${things} match “${q}”${filterSummary ? ` with ${filterSummary}` : ''}.`
+        : filterSummary
+          ? `No ${things} with ${filterSummary}.`
+          : `No ${things} match the filters.`;
+    return `${lead} Try another search or clear the filters.`;
+  },
+  clearFilters: 'Clear Filters',
+  /** LoadingRegion announcements (UI-SPEC Copywriting "Loading announcement"). */
+  loading: (things: string): string => `Loading ${things}…`,
+  loaded: (things: string): string => `${capitalize(things)} loaded.`,
+} as const;
+
+/** ErrorState (App. E.8 "Couldn't load", SPEC-GAP primitive). */
+export const ERROR_STATE_COPY = {
+  loadFailedTitle: (things: string): string => `Couldn't load ${things}.`,
+  loadFailedBody: 'Check your internet connection. Your data is safe — nothing was changed.',
+  reference: (traceId: string): string => `Reference: ${traceId}`,
+  retry: 'Try Again',
+} as const;

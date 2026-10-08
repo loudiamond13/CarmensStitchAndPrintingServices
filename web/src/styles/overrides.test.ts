@@ -517,6 +517,29 @@ describe('spec-gaps.css SPEC-GAP primitives (plan 12; WEB-06, PERF-03)', () => {
   });
 });
 
+describe('spec-gaps.css SPEC-GAP data primitives (plan 13; WEB-06, WEB-08, PERF-03)', () => {
+  it('ResponsiveTable refetching: every td and each phone card turn --surface-2, by colour only (D-02)', () => {
+    expectGapRule('.s-rt-wrap.is-refetching td', 'background', 'var(--surface-2)', 'ResponsiveTable refetching');
+    expectGapRule(
+      '.s-rt-wrap.is-refetching .s-rt tr',
+      'background',
+      'var(--surface-2)',
+      'ResponsiveTable refetching',
+      PHONE,
+    );
+    for (const rule of specGapBlockRules('ResponsiveTable refetching')) {
+      expect(value(rule, 'opacity'), rule.selectors.join(', ')).toBeUndefined();
+      expect(value(rule, 'filter'), rule.selectors.join(', ')).toBeUndefined();
+    }
+  });
+
+  it('ResponsiveTable region: the error banner sits above the kept rows with the token gap', () => {
+    expectGapRule('.csp-list-region', 'display', 'flex', 'ResponsiveTable');
+    expectGapRule('.csp-list-region', 'flex-direction', 'column', 'ResponsiveTable');
+    expectGapRule('.csp-list-region', 'gap', 'var(--space-3)', 'ResponsiveTable');
+  });
+});
+
 function unquote(text: string): string {
   return text.replace(/["']/g, '').trim();
 }
