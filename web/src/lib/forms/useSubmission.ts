@@ -8,6 +8,7 @@
 // - a success, reset() or changed data starts a new submission with a new key.
 import { useRef, useState } from 'react';
 import { isHttpError } from '@/lib/api';
+import { describeHttpError, type ErrorCopy } from '@/lib/errors/describeHttpError';
 import { newIdempotencyKey } from './idempotencyKey';
 
 /** The server's validation messages per field, keyed in the server's casing (for example `Amount`). */
@@ -20,8 +21,12 @@ export type SubmissionOutcome<TResult> =
 export interface SubmissionOptions<TData, TResult> {
   /** Runs once per successful submission, after `pending` clears. */
   readonly onSuccess?: (result: TResult, data: TData) => void;
-  /** Runs once per failed submission, after `pending` clears. */
-  readonly onFailure?: (error: unknown) => void;
+  /**
+   * Runs once per failed submission without field errors, after `pending` clears, with the describeHttpError copy for
+   * the danger toast that stays until closed (D-04). Not called for a 400 with field errors (the messages go under the
+   * fields: focus the first one with focusFirstInvalid) or when there is nothing to show (a 401, a cancelled request).
+   */
+  readonly onFailure?: (copy: ErrorCopy, error: unknown) => void;
 }
 
 /** `submit()` may leave the data out when the submission carries none (a confirm button such as Delete Order). */
@@ -111,9 +116,13 @@ export function useSubmission<TData, TResult>(
       options?.onSuccess?.(outcome.value, data);
     } else {
       failedRef.current = serialized === undefined ? undefined : { key, serialized };
+      const failedFields = fieldErrorsOf(outcome.error);
       setError(outcome.error);
-      setFieldErrors(fieldErrorsOf(outcome.error));
-      options?.onFailure?.(outcome.error);
+      setFieldErrors(failedFields);
+      const copy = failedFields === noFieldErrors ? describeHttpError(outcome.error) : null;
+      if (copy !== null) {
+        options?.onFailure?.(copy, outcome.error);
+      }
     }
     return outcome;
   };
