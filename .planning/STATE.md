@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-10-08T15:47:07.728Z"
+stopped_at: Completed 02-38-PLAN.md
+last_updated: "2026-10-08T15:59:56.045Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 599c4db1d0d91a887ba0b9a232df1cb3554c54a7
+state_head: de1d400c2fc62b45922c7f7e27cd0ac037150671
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 19
+  completed_plans: 20
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T10:47:30-05:00"
+updated: "2026-10-08T11:00:30-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 7 of 40
+Plan: 8 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -77,6 +77,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P37 | 4 min | 2 tasks | 12 files |
 | Phase 02 P04 | 17 min | 3 tasks | 21 files |
 | Phase 02 P05 | 12 min | 2 tasks | 5 files |
+| Phase 02 P38 | 8 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-05: Stylesheet contract is per file - app.css holds only at-rules (Tailwind entry, @source not, base.css layer import, @custom-variant, @theme/@theme inline, @keyframes inside @theme); base.css only the allowed selector blocks, @font-face and the reduced-motion @media
 - [Phase 02]: 02-05: Class gate (scripts/class-gate.mjs) compiles every src class token with tailwindcss compile() over the real app.css; group/peer marker classes are accepted; one finding per token (colour-literal, then opacity, then unknown)
 - [Phase 02]: 02-05: Every string literal in a *.recipe.ts file is read as class tokens - recipe files hold no other strings; a new D-02 opacity allow-list entry needs a decision ID (test-enforced)
+- [Phase 02]: 02-38: Scenario nodes are { kind: 'node', component, props }; handlers inject no-op functions on every node; index.ts rejects wrong group, duplicate ids and non-plain data at load
+- [Phase 02]: 02-38: extract-spec.mjs writes the nine appendix files only when the SHA-256 pin matches (exit 1, nothing written otherwise); --repin is manual only
 
 ### Pending Todos
 
@@ -183,6 +186,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T15:46:47.368Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-10-08T15:59:34.429Z
+Stopped at: Completed 02-38-PLAN.md
 Resume file: None
