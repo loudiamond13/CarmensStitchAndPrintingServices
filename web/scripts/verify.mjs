@@ -1,12 +1,21 @@
 // @ts-check
 // The one static gate (QUAL-02): `npm run verify` runs each step below in order and stops at the first failure with
-// that step's exit code. Plans 02-06 and 02-33 append their steps to STEPS.
+// that step's exit code. Plans 02-06 and 02-33 append their steps to STEPS: plan 02-06 added the npm license gate and
+// the third-party notices drift check after the build.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** npm script names, run in this order. */
-export const STEPS = Object.freeze(['typecheck', 'lint', 'format:check', 'test:coverage', 'build']);
+export const STEPS = Object.freeze([
+  'typecheck',
+  'lint',
+  'format:check',
+  'test:coverage',
+  'build',
+  'license:check',
+  'notices:check',
+]);
 
 /**
  * @typedef {(command: string, args: readonly string[], options: { stdio: 'inherit' }) => { status: number | null }} Spawner

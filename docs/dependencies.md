@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-08T11:10:22-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-08T11:19:31-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -69,10 +69,24 @@ The web app in `web/` and the API type generator in `tools/openapi-gen/` use pac
 
 There is no separate `planned` list any more: everything approved so far is installed and in the main list.
 
+## Extra licenses for the web tools only (D-26)
+
+The tools that build, test and check the web app pull in a few packages under licenses outside the five above. They are all free, and none of them reaches the visitor's browser. The owner approved them on 2026-10-07 (D-26) and 2026-10-08 (D-26 addendum). They are listed in `docs/license-exceptions.json` under `npmLicenseExceptions`, each with the kinds of tool it may be used for (`build`, `test` or `tool`).
+
+| License | In plain words | Used by |
+|---------|----------------|---------|
+| MPL-2.0 | Free; changes to those files stay open | The CSS engine (lightningcss) and the accessibility checker (axe-core) |
+| CC-BY-4.0, CC-BY-3.0 | Free data; credit the authors | Browser-support tables (caniuse-lite) and the license list of the license checker |
+| CC0-1.0 | Public domain, no conditions | Language and CSS data, the license list |
+| BlueOak-1.0.0, 0BSD, MIT-0 | Free and permissive, like MIT | File-matching and test helpers, a Lighthouse helper (tslib) |
+| Python-2.0 | Free and permissive, like BSD | A command-line helper (argparse) of the API type generator |
+
+`node web/scripts/license-gate.mjs` (also part of `npm run verify`) checks this on every run. The shipped web packages may use only the five licenses above plus OFL-1.1 for the two fonts. The tool packages may also use the licenses in this table, each only for the kinds of tool it lists. The gate fails if anything else appears, and also if an entry here is no longer needed, so the list stays honest. `web/THIRD-PARTY-NOTICES.txt` lists every shipped web package with its full license text; it stays in the repository and is not published on the site (D-35).
+
 ## Adding a dependency
 
 1. Record its purpose, license, maintenance status and a legitimacy check in the phase RESEARCH.md, and get the owner's OK.
 2. Pin an exact version that is at least 14 days old: in `Directory.Packages.props` (or `.config/dotnet-tools.json` for a tool) for .NET, or in `web/package.json` (or `tools/openapi-gen/package.json`) for npm. npm already saves exact versions and refuses too-new ones (`web/.npmrc`).
 3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id. For npm, the id is sorted as `{manifest}:{id}`, for example `web:vite`.
 4. Run `dotnet test --project tests/Csps.ArchitectureTests`. It fails if anything is missing, mismatched, unsorted, duplicated or under a license we do not allow.
-5. Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/New-ThirdPartyNotices.ps1`. It checks the license of every package the new one pulls in, and regenerates `THIRD-PARTY-NOTICES.md`. Commit the updated notices. If it reports a package it does not allow, ask the owner first. Never widen `docs/allowed-licenses.json` or `docs/license-exceptions.json` to make it pass.
+5. For npm, run `npm --prefix web run license:check` and `npm --prefix web run notices`, and commit the updated `web/THIRD-PARTY-NOTICES.txt`. For .NET, run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/New-ThirdPartyNotices.ps1`. It checks the license of every package the new one pulls in, and regenerates `THIRD-PARTY-NOTICES.md`. Commit the updated notices. If it reports a package it does not allow, ask the owner first. Never widen `docs/allowed-licenses.json` or `docs/license-exceptions.json` to make it pass.
