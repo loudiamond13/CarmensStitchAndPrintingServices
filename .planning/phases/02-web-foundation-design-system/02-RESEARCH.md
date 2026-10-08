@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Research
 
-*Created: 2026-10-07T20:29:34-05:00 · Updated: 2026-10-08T06:51:22-05:00*
+*Created: 2026-10-07T20:29:34-05:00 · Updated: 2026-10-08T08:41:33-05:00*
 
 **Researched:** 2026-10-07 (first pass) · **Refreshed:** 2026-10-08 for owner ruling **D-33** (full Tailwind conversion) and the from-scratch replan
 **Domain:** React 19 + strict TypeScript SPA (Vite 8 / Rolldown, **Tailwind v4 utilities for all UI styling**, React Router 8, TanStack Query 5, nuqs) served from ASP.NET Core 10 `wwwroot`, with the approved CSPS design system re-expressed in utilities, a visual-parity proof against the approved CSS, and the quality gates (ESLint, axe, budgets, Lighthouse, Playwright)
@@ -1451,15 +1451,17 @@ const inputCls = 'h-11 text-[16px] in-data-[ui=s-toolbar]:h-10 in-data-[ui=s-too
 
 Resolved since the first pass: **A1** (axe/listeners under CSP: works, superseded 02-06), **A2** (`--webroot` works, superseded 02-06), **A8** (startTransition selector: no false positives, superseded 02-02), **A9** (compiler on nuqs hooks: clean, superseded 02-08).
 
-## Open Questions (owner / planner decisions)
+## Open Questions (owner / planner decisions) (RESOLVED)
 
-1. **Q-1 (owner, R-1):** lucide-react 1.52.0 (approved, D-32 reviewed) or 1.53.0 (D-11 "newest", drawings identical for all 56 icons)? Recommendation: 1.52.0.
-2. **Q-2 (owner, R-6 = D-BL-04):** publish third-party credits (A), keep them repo-only (B), or keep Vite's file out of the web root (C)? Recommendation: A. The plan sets `build.license: false` until ruled.
-3. **Q-3 (owner, R-3/R-4):** adopt the optional `eslint-plugin-better-tailwindcss` 4.7.0 and/or `prettier-plugin-tailwindcss` 0.8.1? Recommendation: neither (the in-house class gate covers correctness); R-3 only if editor feedback is wanted.
-4. **Q-4 (owner/planner):** may plans use the superseded, style-independent code at `74621f5` as a reference implementation (SPA host, HiddenSegmentFileProvider, OrderMath + vectors, httpClient, nuqs/Query, api.ts, license gate, Playwright fixtures)? It saves substantial time, and RED evidence is still written first. The owner's "from scratch" instruction makes this the owner's call.
-5. **Q-5 (planner):** refresh `02-UI-SPEC.md` for D-33 before planning (its CSS file contract, Styling row and the SPEC-GAP "spec-gaps.css" wording). Run `/gsd-ui-phase 2` again or have the planner patch those sections. Without it, the plan-checker will see contradictions.
-6. **Q-6 (planner, discretion):** class hooks. Recommendation: no `.csp-*`/`.s-*` classes; `data-ui` markers only where a context variant needs one.
-7. **Q-7 (planner, discretion):** spacing in px (`--spacing: 4px`, identical to the spec at any browser font-size setting) vs Tailwind's rem default (identical only at a 16px root). Recommendation: px, because "today's rendering" is px.
+All seven questions are closed (2026-10-08). Each line keeps the original question and names the decision that closed it; plans cite the decision, not this list.
+
+1. **Q-1 (owner, R-1) (RESOLVED: D-34):** lucide-react 1.52.0 (approved, D-32 reviewed) or 1.53.0 (D-11 "newest", drawings identical for all 56 icons)? Recommendation: 1.52.0. **Resolution:** the owner chose "Move to 1.53.0" (02-CONTEXT.md D-34); the pin is lucide-react 1.53.0 under the D-11 cool-down waiver, and the D-32 drawing rulings carry over.
+2. **Q-2 (owner, R-6 = D-BL-04) (RESOLVED: D-35):** publish third-party credits (A), keep them repo-only (B), or keep Vite's file out of the web root (C)? Recommendation: A. The plan sets `build.license: false` until ruled. **Resolution:** the owner chose "Repo only" (02-CONTEXT.md D-35); `build.license` stays `false`, the full `THIRD-PARTY-NOTICES` lives in the repository, and nothing is published on the site.
+3. **Q-3 (owner, R-3/R-4) (RESOLVED: D-36):** adopt the optional `eslint-plugin-better-tailwindcss` 4.7.0 and/or `prettier-plugin-tailwindcss` 0.8.1? Recommendation: neither (the in-house class gate covers correctness); R-3 only if editor feedback is wanted. **Resolution:** the owner chose "Add both plugins" (02-CONTEXT.md D-36); both are approved at those exact versions, dev only, alongside the in-house class gate.
+4. **Q-4 (owner/planner) (RESOLVED: D-37):** may plans use the superseded, style-independent code at `74621f5` as a reference implementation (SPA host, HiddenSegmentFileProvider, OrderMath + vectors, httpClient, nuqs/Query, api.ts, license gate, Playwright fixtures)? It saves substantial time, and RED evidence is still written first. The owner's "from scratch" instruction makes this the owner's call. **Resolution:** the owner chose "Yes, as reference" (02-CONTEXT.md D-37); executors may read that code, never its `csp-*` class strings, and still write RED evidence first.
+5. **Q-5 (planner) (RESOLVED: UI-SPEC D-33 refresh):** refresh `02-UI-SPEC.md` for D-33 before planning (its CSS file contract, Styling row and the SPEC-GAP "spec-gaps.css" wording). Run `/gsd-ui-phase 2` again or have the planner patch those sections. Without it, the plan-checker will see contradictions. **Resolution:** `/gsd-ui-phase 2` re-ran for D-33 and the owner approved the refreshed contract on 2026-10-08 (commit `8bad2e1`); 02-UI-SPEC.md "What changed in this revision (2026-10-08)" replaces the CSS file contract with § Tailwind Contract (D-33) and retires `overrides.css` and `spec-gaps.css`.
+6. **Q-6 (planner, discretion) (RESOLVED: approved UI-SPEC, Tailwind Contract → "Class-name hooks policy"):** class hooks. Recommendation: no `.csp-*`/`.s-*` classes; `data-ui` markers only where a context variant needs one. **Resolution:** the recommendation is binding as approved in 02-UI-SPEC.md § Tailwind Contract (D-33) → "Class-name hooks policy": no `.csp-*` or `.s-*` class names in markup; `data-ui="<spec class name>"` only where a context variant needs a region marker (`s-toolbar`, `s-item`, `s-admin-side`, `s-overlay`); tests find elements by role, label or text.
+7. **Q-7 (planner, discretion) (RESOLVED: approved UI-SPEC, Tailwind Contract → "Token theme (binding values)" and § Spacing Scale):** spacing in px (`--spacing: 4px`, identical to the spec at any browser font-size setting) vs Tailwind's rem default (identical only at a 16px root). Recommendation: px, because "today's rendering" is px. **Resolution:** px, as approved in 02-UI-SPEC.md § Tailwind Contract (D-33) → "Token theme (binding values)" (`--spacing: 4px`, and the "Px spacing" note naming research Q-7) and § Spacing Scale (`p-4` = 16px = `--space-4`).
 
 ## Environment Availability
 
