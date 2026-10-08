@@ -9,6 +9,13 @@ public sealed class DependencyRegistryTests
     private static readonly PackagePin BetaPin = new("beta-tool", "4.5.6", "tool");
     private static readonly PackagePin[] SamplePins = [AlphaPin, BetaPin];
 
+    private static readonly PackagePin[] NpmPins =
+    [
+        new("tools/openapi-gen:typescript", "5.9.3", "npm"),
+        new("web:typescript", "7.0.2", "npm"),
+        new("web:vite", "8.3.3", "npm"),
+    ];
+
     [Fact]
     public void RepositoryRegistryCoversEveryPinWithACompleteEntry()
     {
@@ -201,6 +208,162 @@ public sealed class DependencyRegistryTests
 
         DependencyRegistry.Validate(registry.ToJsonString(), SamplePins)
             .ShouldContain(problem => problem.Contains("allowed only for scope 'test'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReadAllIncludesThePinsOfBothNpmManifests()
+    {
+        var pins = PackagePins.ReadAll();
+
+        pins.ShouldContain(pin => pin.Id == "web:vite" && pin.Source == PackagePins.NpmSource);
+        pins.ShouldContain(pin => pin.Id == "tools/openapi-gen:openapi-typescript" && pin.Source == PackagePins.NpmSource);
+    }
+
+    [Fact]
+    public void ReadNpmManifestReadsDependenciesAndDevDependenciesAsExactPins()
+    {
+        const string json = """{ "dependencies": { "react": "19.3.0" }, "devDependencies": { "vite": "8.3.3" } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe(
+            [new PackagePin("web:react", "19.3.0", "npm"), new PackagePin("web:vite", "8.3.3", "npm")],
+            ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData("typescript", "npm:@typescript/typescript6@6.0.2", "web:@typescript/typescript6", "6.0.2")]
+    [InlineData("@typescript/native", "npm:typescript@7.0.2", "web:typescript", "7.0.2")]
+    public void ReadNpmManifestResolvesAnAliasToTheRealPackageAndVersion(string name, string spec, string id, string version)
+    {
+        var json = $$"""{ "devDependencies": { "{{name}}": "{{spec}}" } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe([new PackagePin(id, version, "npm")]);
+    }
+
+    [Fact]
+    public void ReadNpmManifestReadsOverridesAsPins()
+    {
+        const string json = """{ "overrides": { "source-map-js": "1.2.2", "http-cache-semantics": "4.3.0" } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe(
+            [new PackagePin("web:source-map-js", "1.2.2", "npm"), new PackagePin("web:http-cache-semantics", "4.3.0", "npm")],
+            ignoreOrder: true);
+    }
+
+    [Fact]
+    public void ReadNpmManifestKeepsOneCopyOfAPinThatIsAlsoAnOverride()
+    {
+        const string json = """{ "devDependencies": { "axe-core": "4.13.0" }, "overrides": { "axe-core": "4.13.0" } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe([new PackagePin("web:axe-core", "4.13.0", "npm")]);
+    }
+
+    [Fact]
+    public void ReadNpmManifestQualifiesIdsByManifestSoTheTwoTypescriptPinsNeverCollide()
+    {
+        const string web = """{ "devDependencies": { "@typescript/native": "npm:typescript@7.0.2" } }""";
+        const string tool = """{ "devDependencies": { "typescript": "5.9.3" } }""";
+
+        PackagePin[] pins = [.. PackagePins.ReadNpmManifest(web, "web"), .. PackagePins.ReadNpmManifest(tool, "tools/openapi-gen")];
+
+        pins.ShouldBe(
+            [new PackagePin("web:typescript", "7.0.2", "npm"), new PackagePin("tools/openapi-gen:typescript", "5.9.3", "npm")],
+            ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData("^1.0.0")]
+    [InlineData("~1.0.0")]
+    [InlineData("1.x")]
+    [InlineData(">=1.0.0")]
+    [InlineData("latest")]
+    [InlineData("npm:left-pad@^1.0.0")]
+    public void AnNpmRangeFailsBecauseNpmPinsMustBeExact(string spec)
+    {
+        var json = $$"""{ "dependencies": { "left-pad": "{{spec}}" } }""";
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("left-pad", "1.0.0", "web"));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. PackagePins.ReadNpmManifest(json, "web")])
+            .ShouldContain(problem => problem.Contains("npm pins must be exact", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RegistryWithNpmEntriesIsValid()
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("typescript", "5.9.3", "tools/openapi-gen"));
+        Entries(registry).Add(NpmEntry("typescript", "7.0.2", "web"));
+        Entries(registry).Add(NpmEntry("vite", "8.3.3", "web"));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. NpmPins]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void NpmPinWithoutAnEntryFailsNamingIt()
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("typescript", "5.9.3", "tools/openapi-gen"));
+        Entries(registry).Add(NpmEntry("typescript", "7.0.2", "web"));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. NpmPins])
+            .ShouldContain(problem => problem.Contains("web:vite 8.3.3 (npm) has no registry entry", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NpmEntryOfAnUnknownKindFails()
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("typescript", "5.9.3", "tools/openapi-gen"));
+        Entries(registry).Add(NpmEntry("typescript", "7.0.2", "web"));
+        var vite = NpmEntry("vite", "8.3.3", "web");
+        vite["kind"] = "yarn";
+        Entries(registry).Add(vite);
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. NpmPins])
+            .ShouldContain(problem => problem.Contains("kind 'yarn' must be one of nuget, tool, npm", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("app")]
+    public void NpmEntryWithoutAKnownManifestFails(string manifest)
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("vite", "8.3.3", manifest));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins)
+            .ShouldContain(problem => problem.Contains("manifest", StringComparison.Ordinal) && problem.Contains("web, tools/openapi-gen", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NpmPinWhoseVersionDiffersFromTheRegistryFails()
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("typescript", "5.9.3", "tools/openapi-gen"));
+        Entries(registry).Add(NpmEntry("typescript", "7.0.2", "web"));
+        Entries(registry).Add(NpmEntry("vite", "8.3.2", "web"));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. NpmPins])
+            .ShouldContain(problem => problem.Contains("web:vite: pinned at 8.3.3 but the registry records 8.3.2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NpmEntriesAreSortedByManifestQualifiedId()
+    {
+        var registry = Registry();
+        Entries(registry).Add(NpmEntry("typescript", "7.0.2", "web"));
+        Entries(registry).Add(NpmEntry("typescript", "5.9.3", "tools/openapi-gen"));
+        Entries(registry).Add(NpmEntry("vite", "8.3.3", "web"));
+
+        DependencyRegistry.Validate(registry.ToJsonString(), [.. SamplePins, .. NpmPins])
+            .ShouldContain(problem => problem.Contains("tools/openapi-gen:typescript: entries must be sorted", StringComparison.Ordinal));
+    }
+
+    private static JsonObject NpmEntry(string id, string version, string manifest)
+    {
+        var entry = Entry(id, version, "npm", "build");
+        entry["manifest"] = manifest;
+        return entry;
     }
 
     private static JsonArray Entries(JsonObject registry) => registry["packages"]!.AsArray();
