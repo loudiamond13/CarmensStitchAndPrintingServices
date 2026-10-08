@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T02:46:54-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T03:18:19-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 10/18 plans executed in 10 waves
+**Plans**: 11/18 plans executed in 10 waves
 
 Plans:
 **Wave 1**
@@ -249,7 +249,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-11-PLAN.md — Focus-trapped Modal/ConfirmDialog, Tabs ARIA, pending Button, D-04 toasts, owner rulings applied, axe over every component (W5)
-- [ ] 02-12-PLAN.md — MoneyInput, OtpInput, Checkbox, SkipLink, PasswordField tests (W5)
+- [x] 02-12-PLAN.md — MoneyInput, OtpInput, Checkbox, SkipLink, PasswordField tests (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 02-13-PLAN.md — ResponsiveTable with all states, Pagination, SearchBox, FilterBar, ErrorState, skeletons, LazyImage (W6)
@@ -891,7 +891,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 10/18 | In Progress|  |
+| 2. Web Foundation & Design System | 11/18 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
