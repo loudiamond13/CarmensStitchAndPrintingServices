@@ -13,6 +13,15 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
+# Web app and OpenAPI generator: 2-space indent and LF, matching Prettier and .gitattributes (L-18, Pitfall 4).
+[web/**]
+indent_size = 2
+end_of_line = lf
+
+[tools/openapi-gen/**]
+indent_size = 2
+end_of_line = lf
+
 [*.cs]
 # Namespaces and usings
 csharp_style_namespace_declarations = file_scoped:warning
