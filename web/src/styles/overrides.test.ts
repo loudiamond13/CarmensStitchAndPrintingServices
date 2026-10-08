@@ -285,6 +285,30 @@ describe('overrides.css owner rulings (A11Y-04)', () => {
       }
     }
   });
+
+  it('D-27 (O-9): the Sidebar Logout button keeps the .csp-nav link look (no UA button chrome, pointer cursor)', () => {
+    expectRule('button.csp-nav', 'appearance', 'none', 'D-27');
+    expectRule('button.csp-nav', 'border', '0', 'D-27');
+    expectRule('button.csp-nav', 'text-align', 'start', 'D-27');
+    expectRule('button.csp-nav', 'cursor', 'pointer', 'D-27');
+  });
+
+  it('D-27: button.csp-nav sets no property a layered .csp-nav rule sets, so hover, current and collapsed still win', () => {
+    // overrides.css is unlayered and beats every layered rule, so a colour, background, width or font here would
+    // override the .csp-nav hover, .is-on, collapsed and tablet rules in components.css and screens.css.
+    const layered = [...parseCss(readStyle('components.css')), ...parseCss(readStyle('screens.css'))].filter((rule) =>
+      rule.selectors.some((selector) => /(^|[\s>+~])\.csp-nav(?![\w-])/.test(selector)),
+    );
+    const layeredProperties = new Set(layered.flatMap((rule) => rule.declarations.map(([property]) => property)));
+    expect(layeredProperties.has('background')).toBe(true);
+    expect(layeredProperties.has('width')).toBe(true);
+    const compat = overridesFor('button.csp-nav');
+    expect(compat).toHaveLength(1);
+    const clashes = (compat[0]?.declarations ?? [])
+      .map(([property]) => property)
+      .filter((property) => layeredProperties.has(property) || property === 'font' || property === 'color');
+    expect(clashes).toEqual([]);
+  });
 });
 
 /**
