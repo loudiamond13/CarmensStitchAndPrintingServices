@@ -176,3 +176,15 @@
   background: transparent;
   color: var(--ink-muted);
 }
+
+/* D-27 (O-9) the Sidebar Logout is a <button class="csp-nav"> instead of <a href="#"> (SPEC-DEVIATION in
+   ui/index.tsx). Tailwind's preflight already gives a button an inherited font and colour, a transparent background,
+   no padding and no margin, and .csp-nav sets the rest. This rule removes what is left of the browser's button look
+   and restores the link's start-aligned text and pointer cursor. It sets only properties no .csp-nav rule sets: this
+   file is unlayered, so a colour, background, font or width here would beat the hover, current and collapsed states. */
+button.csp-nav {
+  appearance: none;
+  border: 0;
+  text-align: start;
+  cursor: pointer;
+}
