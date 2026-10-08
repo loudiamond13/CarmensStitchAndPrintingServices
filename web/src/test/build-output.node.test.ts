@@ -73,6 +73,31 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     expect(css).not.toContain('--shadow-lg');
   });
 
+  it('preloads exactly one font: the hashed Archivo Variable latin woff2 under /assets (PERF-05)', () => {
+    const links = indexHtml().match(/<link\b[^>]*rel="preload"[^>]*>/g) ?? [];
+    expect(links).toHaveLength(1);
+    const link = links[0] ?? '';
+    expect(link).toMatch(/\sas="font"/);
+    expect(link).toMatch(/\stype="font\/woff2"/);
+    expect(link).toMatch(/\scrossorigin(?:[\s>=]|$)/);
+    const href = /\shref="\/assets\/([^"]+)"/.exec(link)?.[1] ?? '';
+    expect(href).toMatch(/^archivo-latin-wght-normal-[\w-]{8,}\.woff2$/);
+    expect(existsSync(join(assetsDir, href))).toBe(true);
+  });
+
+  it('ships the self-hosted brand fonts as woff2 files only (PERF-05)', () => {
+    const fonts = list(assetsDir).filter((name) => /\.(?:woff2?|ttf|otf|eot)$/i.test(name));
+    expect(fonts.some((name) => name.startsWith('archivo-latin-wght-normal-'))).toBe(true);
+    expect(fonts.some((name) => name.startsWith('barlow-condensed-latin-800-italic-'))).toBe(true);
+    expect(fonts.filter((name) => !name.endsWith('.woff2'))).toEqual([]);
+  });
+
+  it("inlines no font as a data: URL, which font-src 'self' would block (T-02-33)", () => {
+    const css = builtCss();
+    expect(css).not.toBe('');
+    expect(css).not.toMatch(/data:(?:font|application\/(?:x-)?font)/i);
+  });
+
   it('ships no source map and no .vite folder (D-35)', () => {
     const files = listAll(webRoot);
     expect(files.length).toBeGreaterThan(0);
