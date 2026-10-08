@@ -29,6 +29,7 @@
     "src/test/build-config.test.ts",
     "src/lib/csps.golden.test.ts",
     "src/styles/verbatim.test.ts",
-    "src/styles/overrides.test.ts"
+    "src/styles/overrides.test.ts",
+    "src/ui/reference-verbatim.test.ts"
   ]
 }
