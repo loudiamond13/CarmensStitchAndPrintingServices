@@ -32,6 +32,7 @@
     "scripts/**/*",
     "visual/**/*",
     "e2e/**/*",
-    "src/**/*.node.test.ts"
+    "src/**/*.node.test.ts",
+    "src/**/*.golden.test.ts"
   ]
 }

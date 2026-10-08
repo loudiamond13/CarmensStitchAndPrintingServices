@@ -323,7 +323,8 @@ export default [
     languageOptions: {
       parserOptions: {
         // web/tsconfig.json references tsconfig.app.json (src) and tsconfig.node.json (configs, scripts, e2e,
-        // visual, src/**/*.node.test.ts); the project service picks the program that owns each file.
+        // visual, src/**/*.node.test.ts, src/**/*.golden.test.ts); the project service picks the program that owns each
+        // file.
         projectService: true,
         tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
       },
