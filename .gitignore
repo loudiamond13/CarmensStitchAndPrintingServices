@@ -29,6 +29,18 @@ coverage*/
 node_modules/
 dist/
 **/wwwroot/assets/
+# The web build writes the whole API web root, so the folder is ignored as a whole (research Pitfall 1). Hand-written
+# public files belong in web/public/.
+src/Csps.Server/wwwroot/
+# Dev-route builds and the visual-parity / budget / test tooling output (WEB-01 concurrency edge, L-28).
+web/.e2e-dist/
+web/.budget-dist/
+web/.reference-dist/
+web/visual/.reference-src/
+web/.vitest/
+web/.parity/
+web/.parity-dist/
+web/.locks/
 
 # Playwright
 playwright-report/
