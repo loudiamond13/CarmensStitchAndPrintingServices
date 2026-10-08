@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "operationOrder": "round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)",
+  "cases": [
+    {
+      "id": "midpoint-001",
+      "category": "midpoint",
+      "note": "7.5% of 3 x 17.00 = 3.825 rounds away from zero to 3.83",
+      "items": [
+        {
+          "quantity": "3",
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "total": "51.00",
+        "discount": "3.83",
+        "paid": "0.00",
+        "balance": "47.17",
+        "expenses": "0.00",
+        "profit": "47.17",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-002",
+      "category": "midpoint",
+      "note": "7.5% of 17.00 = 1.275 rounds away from zero to 1.28 (D-09 example)",
+      "items": [
+        {
+          "quantity": "1",
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "total": "17.00",
+        "discount": "1.28",
+        "paid": "0.00",
+        "balance": "15.72",
+        "expenses": "0.00",
+        "profit": "15.72",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-003",
+      "category": "midpoint",
+      "note": "2.5% of 23.00 = 0.575 rounds away from zero to 0.58",
+      "items": [
+        {
+          "quantity": "1",
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "total": "23.00",
+        "discount": "0.58",
+        "paid": "0.00",
+        "balance": "22.42",
+        "expenses": "0.00",
+        "profit": "22.42",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-004",
+      "category": "midpoint",
+      "note": "12.5% of 1.16 = 0.145 rounds away from zero to 0.15",
+      "items": [
+        {
+          "quantity": "1",
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "total": "1.16",
+        "discount": "0.15",
+        "paid": "0.00",
+        "balance": "1.01",
+        "expenses": "0.00",
+        "profit": "1.01",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-005",
+      "category": "midpoint",
+      "note": "fixed 1.005 rounds away from zero to 1.01",
+      "items": [
+        {
+          "quantity": "1",
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "total": "100.00",
+        "discount": "1.01",
+        "paid": "0.00",
+        "balance": "98.99",
+        "expenses": "0.00",
+        "profit": "98.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-fixture-001",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0151 (spec seed): 23,000 - 500 - 22,500 = 0, fully paid",
+      "items": [
+        {
+          "quantity": "20",
+          "unitPrice": "1150.00"
+        }
+      ],
+      "discounts": [
+        {
+          "type": "fixed",
+          "value": "500.00"
+        }
+      ],
+      "payments": [
+        "12000.00",
+        "10500.00"
+      ],
+      "expenses": [
+        "7200.00",
+        "2100.00"
+      ],
+      "expected": {
+        "total": "23000.00",
+        "discount": "500.00",
+        "paid": "22500.00",
+        "balance": "0.00",
+        "expenses": "9300.00",
+        "profit": "13200.00",
+        "fullyPaid": true
+      }
+    }
+  ]
+}

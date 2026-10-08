@@ -26,6 +26,7 @@
     "src/ui/__reference__",
     "src/test/lint-rules.test.ts",
     "src/test/eslint-config.test.ts",
-    "src/test/build-config.test.ts"
+    "src/test/build-config.test.ts",
+    "src/lib/csps.golden.test.ts"
   ]
 }
