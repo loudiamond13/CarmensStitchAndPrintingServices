@@ -150,6 +150,17 @@ describe('evaluateTree: the dev/build/tool trees with the owner-approved excepti
     expect(evaluateTree([pkg('spdx-ranges', '(MIT AND CC-BY-3.0)', ['tool'])], policy).problems).toEqual([]);
   });
 
+  it('rejects a package whose OR alternatives are all exception licenses outside their scopes', () => {
+    const policy = {
+      allowed: ALLOWED,
+      exceptions: [exception('CC0-1.0', ['test']), exception('CC-BY-4.0', ['build'])],
+    };
+
+    expect(evaluateTree([pkg('data', '(CC0-1.0 OR CC-BY-4.0)', ['tool'])], policy).problems).toEqual([
+      "data@1.0.0: license '(CC0-1.0 OR CC-BY-4.0)' needs an exception that is not approved for tool.",
+    ]);
+  });
+
   it('still rejects a license that no exception covers', () => {
     const policy = { allowed: ALLOWED, exceptions: [exception('CC0-1.0', ['tool'])] };
 
