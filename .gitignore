@@ -9,6 +9,10 @@ _local/
 # Secrets and local configuration
 appsettings.*.local.json
 .env*
+# D-20: the e2e and budget builds read their non-secret dev-route switch from these committed files. No other .env
+# file is ever committed (no .env, .env.local or .env.production; T-02-79).
+!web/.env.e2e
+!web/.env.budget
 secrets.json
 
 # IDE / tooling
