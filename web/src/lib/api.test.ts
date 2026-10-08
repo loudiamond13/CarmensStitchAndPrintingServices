@@ -1,6 +1,6 @@
 // api.ts is the single endpoint module (WEB-04): typed calls over the one HTTP client, generated types (D-16).
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFakeFetch, type Plan } from '@/test/fakeFetch';
+import { createDeferred, createFakeFetch, type Plan } from '@/test/fakeFetch';
 import { createHttpClient } from '@/lib/http/httpClient';
 import { api, createApi, HttpError, isHttpError, type Api, type SiteSettings } from './api';
 
@@ -20,6 +20,12 @@ const notFound: Plan = {
   status: 404,
   headers: { 'Content-Type': 'application/problem+json' },
   body: { title: 'Not found', status: 404, traceId: '00-abc-01' },
+};
+
+const unauthorized: Plan = {
+  status: 401,
+  headers: { 'Content-Type': 'application/problem+json' },
+  body: { title: 'Sign in again', status: 401 },
 };
 
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
@@ -81,6 +87,59 @@ describe('api.site.settings (WEB-04)', () => {
 
     expect(fake.calls.map((call) => call.url)).toEqual(['/api/v1/site-settings']);
     expect(fake.calls[0]?.init.credentials).toBe('same-origin');
+  });
+});
+
+describe('one shared client (WEB-04 concurrency edge)', () => {
+  it('three concurrent 401s through createApi cause one refresh and three retries', async () => {
+    const gate = createDeferred<undefined>();
+    const refresh = vi.fn(async () => {
+      await gate.promise;
+    });
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([
+      unauthorized,
+      unauthorized,
+      unauthorized,
+      { body: settings },
+      { body: settings },
+      { body: settings },
+    ]);
+    const built = createApi(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch, refresh, onUnauthorized }));
+
+    const results = Promise.all([built.site.settings(), built.site.settings(), built.site.settings()]);
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(fake.calls).toHaveLength(3);
+    gate.resolve(undefined);
+
+    await expect(results).resolves.toEqual([settings, settings, settings]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(fake.calls).toHaveLength(6);
+    expect(fake.calls.map((call) => call.url)).toEqual(Array<string>(6).fill('/api/v1/site-settings'));
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('a failed refresh rejects all three calls with a 401 and signs out once', async () => {
+    const refresh = vi.fn(() => Promise.reject(new Error('session over')));
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([unauthorized, unauthorized, unauthorized]);
+    const built = createApi(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch, refresh, onUnauthorized }));
+
+    const errors = await Promise.all([
+      rejection(built.site.settings()),
+      rejection(built.site.settings()),
+      rejection(built.site.settings()),
+    ]);
+
+    for (const error of errors) {
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ status: 401 });
+    }
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(fake.calls).toHaveLength(3);
   });
 });
 
