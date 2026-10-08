@@ -486,6 +486,19 @@ describe('single-flight 401 refresh', () => {
     expect(fake.calls).toHaveLength(4);
   });
 
+  it('a non-401 failure on the refresh retry rejects with that error and does not sign out', async () => {
+    const refresh = vi.fn(() => Promise.resolve());
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([unauthorized, { status: 500, body: { title: 'Something went wrong', status: 500 } }]);
+    const client = createHttpClient({ fetch: fake.fetch, refresh, onUnauthorized });
+
+    const error = await rejection(client.get('/a'));
+
+    expect(error.status).toBe(500);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it('a 401 after the refresh cycle has finished starts a new refresh', async () => {
     const refresh = vi.fn(() => Promise.resolve());
     const fake = createFakeFetch([unauthorized, ok, unauthorized, ok]);

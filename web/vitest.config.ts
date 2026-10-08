@@ -24,7 +24,14 @@ export default defineConfig((env) =>
             'src/main.tsx',
             'src/vite-env.d.ts',
           ],
-          thresholds: { lines: 90, branches: 90, functions: 90, statements: 90 },
+          thresholds: {
+            lines: 90,
+            branches: 90,
+            functions: 90,
+            statements: 90,
+            // The HTTP client is held to 100% by tests, never by ignore comments (WEB-03, CLAUDE.md coverage rule).
+            'src/lib/http/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+          },
           reporter: ['text', 'json-summary'],
         },
       },

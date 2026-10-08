@@ -51,6 +51,10 @@ export interface HttpResponse {
 }
 
 export type RequestInterceptor = (request: HttpRequest) => HttpRequest | Promise<HttpRequest>;
+/** Runs on every successful response; may return a changed copy (for example, transformed data). */
+export type ResponseInterceptor = (response: HttpResponse) => HttpResponse | Promise<HttpResponse>;
+/** Sees every HttpError; the error it returns is the one the request rejects with. */
+export type ErrorInterceptor = (error: HttpError) => HttpError | Promise<HttpError>;
 /** Removes the interceptor it was returned for. Calling it again does nothing. */
 export type Eject = () => void;
 
@@ -63,11 +67,12 @@ export interface HttpClient {
   patch<T>(url: string, body?: unknown, options?: RequestOptions): Promise<T>;
   readonly interceptors: {
     readonly request: { use(interceptor: RequestInterceptor): Eject };
-    readonly response: { use(onFulfilled?: unknown, onRejected?: unknown): Eject };
+    readonly response: { use(onFulfilled?: ResponseInterceptor, onRejected?: ErrorInterceptor): Eject };
   };
 }
 
 export type FetchFunction = (input: string, init: RequestInit) => Promise<Response>;
+export type XhrFactory = () => XMLHttpRequest;
 
 /** Waits `ms` milliseconds. Must reject when `signal` aborts. */
 export type Sleep = (ms: number, signal: AbortSignal | undefined) => Promise<void>;
@@ -87,6 +92,8 @@ export interface HttpClientConfig {
   readonly baseURL?: string | undefined;
   /** Injected in tests; defaults to the global fetch. */
   readonly fetch?: FetchFunction | undefined;
+  /** Used only for requests with onUploadProgress. Injected in tests; defaults to `new XMLHttpRequest()`. */
+  readonly xhrFactory?: XhrFactory | undefined;
   /** Headers sent with every request. Request headers override them. */
   readonly headers?: Readonly<Record<string, string>> | undefined;
   /** Per-attempt time limit. Defaults to 30 seconds. */
@@ -217,6 +224,97 @@ function toTransportError(error: unknown, caller: AbortSignal | undefined, timeo
   return new HttpError({ kind: 'network', cause: error });
 }
 
+interface RawResponse {
+  readonly status: number;
+  readonly headers: Headers;
+  readonly text: string;
+}
+
+interface Outgoing {
+  readonly url: string;
+  readonly method: HttpMethod;
+  readonly headers: Headers;
+  readonly body: string | FormData | undefined;
+  readonly signal: AbortSignal;
+}
+
+function abortError(): DOMException {
+  return new DOMException('The request was cancelled.', 'AbortError');
+}
+
+/** Parses getAllResponseHeaders(). A malformed line is skipped rather than failing the whole response. */
+function parseResponseHeaders(raw: string): Headers {
+  const headers = new Headers();
+  for (const line of raw.split(/\r?\n/)) {
+    const separator = line.indexOf(':');
+    if (separator > 0) {
+      try {
+        headers.append(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+      } catch {
+        // An invalid header name; ignore it.
+      }
+    }
+  }
+  return headers;
+}
+
+async function sendWithFetch(fetchImpl: FetchFunction, outgoing: Outgoing): Promise<RawResponse> {
+  const response = await fetchImpl(outgoing.url, {
+    method: outgoing.method,
+    headers: outgoing.headers,
+    body: outgoing.body ?? null,
+    signal: outgoing.signal,
+    credentials: 'same-origin',
+  });
+  return { status: response.status, headers: response.headers, text: await response.text() };
+}
+
+/**
+ * The XMLHttpRequest transport, used only when the caller asks for upload progress (fetch cannot report it). XHR sends
+ * cookies only to its own origin by default (withCredentials stays false), matching the fetch transport.
+ */
+function sendWithXhr(
+  createXhr: XhrFactory,
+  outgoing: Outgoing,
+  onUploadProgress: (progress: UploadProgress) => void,
+): Promise<RawResponse> {
+  return new Promise<RawResponse>((resolve, reject) => {
+    if (outgoing.signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const xhr = createXhr();
+    xhr.open(outgoing.method, outgoing.url);
+    outgoing.headers.forEach((value, name) => {
+      xhr.setRequestHeader(name, value);
+    });
+    xhr.upload.onprogress = (event) => {
+      onUploadProgress({ loaded: event.loaded, total: event.lengthComputable ? event.total : undefined });
+    };
+    xhr.onload = () => {
+      resolve({
+        status: xhr.status,
+        headers: parseResponseHeaders(xhr.getAllResponseHeaders()),
+        text: xhr.responseText,
+      });
+    };
+    xhr.onerror = () => {
+      reject(new TypeError('The upload failed before the server answered.'));
+    };
+    xhr.onabort = () => {
+      reject(abortError());
+    };
+    outgoing.signal.addEventListener(
+      'abort',
+      () => {
+        xhr.abort();
+      },
+      { once: true },
+    );
+    xhr.send(outgoing.body ?? null);
+  });
+}
+
 /** Turns a received status, headers and body text into the response data, or throws an HttpError. */
 function toHttpResponse(status: number, headers: Headers, text: string): HttpResponse {
   const json = isJson(headers);
@@ -248,12 +346,17 @@ function toHttpResponse(status: number, headers: Headers, text: string): HttpRes
 export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
   const baseURL = config.baseURL ?? '';
   const fetchImpl: FetchFunction = config.fetch ?? ((input, init) => globalThis.fetch(input, init));
+  const createXhr: XhrFactory = config.xhrFactory ?? (() => new XMLHttpRequest());
   const timeoutMs = config.timeoutMs ?? defaultTimeoutMs;
   const retryMax = Math.min(maxRetries, Math.max(0, config.retry?.max ?? maxRetries));
   const baseDelayMs = config.retry?.baseDelayMs ?? defaultBaseDelayMs;
   const maxDelayMs = config.retry?.maxDelayMs ?? defaultMaxDelayMs;
   const sleep = config.retry?.sleep ?? defaultSleep;
   const requestInterceptors = createRegistry<RequestInterceptor>();
+  const responseInterceptors = createRegistry<{
+    readonly onFulfilled: ResponseInterceptor | undefined;
+    readonly onRejected: ErrorInterceptor | undefined;
+  }>();
   let refreshCycle: RefreshCycle | undefined;
 
   function initialRequest(request: RequestConfig, method: HttpMethod): HttpRequest {
@@ -277,7 +380,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     return current;
   }
 
-  function encodeBody(request: HttpRequest): BodyInit | undefined {
+  function encodeBody(request: HttpRequest): string | FormData | undefined {
     if (request.body === undefined || request.body instanceof FormData) {
       return request.body;
     }
@@ -299,16 +402,14 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
       timeout.abort();
     }, requestConfig.timeoutMs ?? timeoutMs);
     const signal = AbortSignal.any(caller === undefined ? [timeout.signal] : [caller, timeout.signal]);
+    const outgoing: Outgoing = { url, method: prepared.method, headers: prepared.headers, body, signal };
+    const { onUploadProgress } = requestConfig;
     try {
-      const response = await fetchImpl(url, {
-        method: prepared.method,
-        headers: prepared.headers,
-        body: body ?? null,
-        signal,
-        credentials: 'same-origin',
-      });
-      const text = await response.text();
-      return toHttpResponse(response.status, response.headers, text);
+      const raw =
+        onUploadProgress === undefined
+          ? await sendWithFetch(fetchImpl, outgoing)
+          : await sendWithXhr(createXhr, outgoing, onUploadProgress);
+      return toHttpResponse(raw.status, raw.headers, raw.text);
     } catch (error) {
       throw toTransportError(error, caller, timeout.signal);
     } finally {
@@ -401,8 +502,32 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     }
   }
 
+  /** Passes an HttpError through every onRejected interceptor. Anything else (a programming error) passes as is. */
+  async function rejectThroughInterceptors(error: unknown): Promise<unknown> {
+    if (!isHttpError(error)) {
+      return error;
+    }
+    let current = error;
+    for (const { onRejected } of responseInterceptors.entries()) {
+      if (onRejected !== undefined) {
+        current = await onRejected(current);
+      }
+    }
+    return current;
+  }
+
   async function request<T>(requestConfig: RequestConfig): Promise<T> {
-    const response = await execute(requestConfig, requestConfig.method ?? 'GET');
+    let response: HttpResponse;
+    try {
+      response = await execute(requestConfig, requestConfig.method ?? 'GET');
+    } catch (error) {
+      throw await rejectThroughInterceptors(error);
+    }
+    for (const { onFulfilled } of responseInterceptors.entries()) {
+      if (onFulfilled !== undefined) {
+        response = await onFulfilled(response);
+      }
+    }
     return response.data as T;
   }
 
@@ -413,6 +538,9 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     post: (url, body, options) => request({ ...options, method: 'POST', url, body }),
     put: (url, body, options) => request({ ...options, method: 'PUT', url, body }),
     patch: (url, body, options) => request({ ...options, method: 'PATCH', url, body }),
-    interceptors: { request: { use: requestInterceptors.use }, response: { use: () => () => undefined } },
+    interceptors: {
+      request: { use: requestInterceptors.use },
+      response: { use: (onFulfilled, onRejected) => responseInterceptors.use({ onFulfilled, onRejected }) },
+    },
   };
 }

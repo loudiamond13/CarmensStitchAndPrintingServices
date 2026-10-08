@@ -51,7 +51,11 @@ describe('request bodies', () => {
     const fake = createFakeFetch([{ status: 204 }]);
     const client = createHttpClient({ fetch: fake.fetch });
 
-    await client.patch('/orders/1', { status: 'ready' }, { headers: { 'Content-Type': 'application/merge-patch+json' } });
+    await client.patch(
+      '/orders/1',
+      { status: 'ready' },
+      { headers: { 'Content-Type': 'application/merge-patch+json' } },
+    );
 
     expect(fake.calls[0]?.headers.get('Content-Type')).toBe('application/merge-patch+json');
   });
@@ -185,7 +189,12 @@ describe('XMLHttpRequest upload transport', () => {
       {
         status: 413,
         headers: 'content-type: application/problem+json\r\n',
-        body: JSON.stringify({ title: 'File too large', status: 413, traceId: 'up-9', errors: { File: ['Max 10 MB.'] } }),
+        body: JSON.stringify({
+          title: 'File too large',
+          status: 413,
+          traceId: 'up-9',
+          errors: { File: ['Max 10 MB.'] },
+        }),
       },
     ]);
     const client = createHttpClient({ xhrFactory: xhr.factory });
@@ -207,9 +216,7 @@ describe('XMLHttpRequest upload transport', () => {
     ]);
     const client = createHttpClient({ xhrFactory: xhr.factory });
 
-    await expect(client.post('/images', new FormData(), { onUploadProgress: () => undefined })).resolves.toBe(
-      'stored',
-    );
+    await expect(client.post('/images', new FormData(), { onUploadProgress: () => undefined })).resolves.toBe('stored');
   });
 
   it('onerror gives kind network', async () => {
