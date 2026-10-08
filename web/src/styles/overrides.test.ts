@@ -408,3 +408,65 @@ describe('page zoom and tokens', () => {
     }
   });
 });
+
+function unquote(text: string): string {
+  return text.replace(/["']/g, '').trim();
+}
+
+function fontFace(family: string): CssRule | undefined {
+  return overrideRules().find(
+    (rule) => rule.selectors.includes('@font-face') && unquote(value(rule, 'font-family') ?? '') === family,
+  );
+}
+
+function fontStack(rule: CssRule | undefined, property: string): string[] {
+  return splitTopLevel((rule === undefined ? undefined : value(rule, property)) ?? '', ',').map(unquote);
+}
+
+describe('PERF-05 metric-matched fallback fonts', () => {
+  it.each([
+    ['Archivo Fallback', ['local(Arial)']],
+    ['Barlow Condensed Fallback', ['local(Arial Narrow)', 'local(Arial)']],
+  ])('declares the %s face with computed size-adjust, ascent, descent and line-gap overrides', (family, sources) => {
+    const face = fontFace(family);
+    expect(face, family).toBeDefined();
+    expect(face?.comment ?? '').toContain('PERF-05');
+    expect(fontStack(face, 'src')).toEqual(sources);
+    for (const descriptor of ['size-adjust', 'ascent-override', 'descent-override', 'line-gap-override']) {
+      expect(face === undefined ? undefined : value(face, descriptor), `${family} ${descriptor}`).toMatch(
+        /^\d+(\.\d+)?%$/,
+      );
+    }
+  });
+
+  it('keeps ₱ (U+20B1) out of the Barlow fallback, so it falls through to Archivo Variable (Pitfall 17)', () => {
+    const face = fontFace('Barlow Condensed Fallback');
+    expect(face === undefined ? undefined : value(face, 'unicode-range')).toBe('U+0000-20B0, U+20B2-10FFFF');
+    expect(overridesSource().split('U+0000-20B0, U+20B2-10FFFF')).toHaveLength(2);
+  });
+
+  it('inserts each fallback right after its brand family, on the selector tokens.css uses, keeping the rest', () => {
+    const tokens = parseCss(readStyle('tokens.css')).filter((rule) =>
+      rule.declarations.some(([name]) => name === '--font-sans'),
+    );
+    expect(tokens).toHaveLength(1);
+    const verbatim = tokens[0];
+    const selector = verbatim?.selectors.join(', ') ?? '';
+    const override = overrideRules().find(
+      (rule) => rule.context.length === 0 && rule.selectors.join(', ') === selector && value(rule, '--font-sans'),
+    );
+    expect(override?.comment ?? '').toContain('PERF-05');
+    const [sansBrand, ...sansRest] = fontStack(verbatim, '--font-sans');
+    const [displayBrand, ...displayRest] = fontStack(verbatim, '--font-display');
+    expect(sansBrand).toBe('Archivo Variable');
+    expect(displayBrand).toBe('Barlow Condensed');
+    expect(fontStack(override, '--font-sans')).toEqual(['Archivo Variable', 'Archivo Fallback', ...sansRest]);
+    expect(fontStack(override, '--font-display')).toEqual([
+      'Barlow Condensed',
+      'Barlow Condensed Fallback',
+      'Archivo Variable',
+      ...displayRest.filter((family) => family !== 'Archivo Variable'),
+    ]);
+    expect(displayRest[0]).toBe('Archivo Variable');
+  });
+});
