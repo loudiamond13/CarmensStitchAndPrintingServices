@@ -63,6 +63,10 @@ describe('createApi: site.settings (GET /api/v1/site-settings)', () => {
 
     const aborted = client.site.settings(first.signal);
     const resolved = client.site.settings(second.signal);
+    // Both requests are in flight (the first one hangs) before the first is aborted.
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(2);
+    });
     first.abort();
 
     const [abortedOutcome, resolvedOutcome] = await Promise.allSettled([aborted, resolved]);
