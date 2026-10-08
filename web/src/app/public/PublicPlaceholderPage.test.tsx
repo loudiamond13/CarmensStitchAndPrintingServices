@@ -16,6 +16,14 @@ describe('PublicPlaceholderPage (D-21)', () => {
     expect(screen.getByText(/To order now, message us on Messenger or call the shop/)).toBeInTheDocument();
   });
 
+  it('re-renders from the React Compiler memo cache with the same output (L-13)', () => {
+    const { container, rerender } = render(<PublicPlaceholderPage />);
+    const first = container.innerHTML;
+    rerender(<PublicPlaceholderPage />);
+    expect(container.innerHTML).toBe(first);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<PublicPlaceholderPage />);
     await expectNoAxeViolations(container);

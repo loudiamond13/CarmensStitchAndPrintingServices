@@ -13,13 +13,24 @@ export default defineConfig((env) =>
         include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts', 'visual/**/*.test.ts'],
         exclude: ['e2e/**', 'node_modules/**'],
         restoreMocks: true,
+        // jest-dom matchers, the matchMedia mock, RTL cleanup and the fail-on-console guard (plan 02-04). Timers stay
+        // real by default: axe and user-event never resolve on fake timers (L-24), so only debounce tests opt in.
+        setupFiles: ['src/test/setup.ts'],
         // JUnit output feeds the TDD RED-evidence records (L-26); web/.vitest/ is git-ignored (L-28).
         reporters: ['default', 'junit'],
         outputFile: { junit: '.vitest/junit/output.xml' },
         coverage: {
           provider: 'v8',
           include: ['src/**/*.{ts,tsx}'],
-          exclude: ['src/types/**', 'src/test/**', '**/*.test.{ts,tsx}', 'src/main.tsx', 'src/vite-env.d.ts'],
+          // src/dev/** is dev-only and never shipped (D-20); the parity and E2E suites cover it.
+          exclude: [
+            'src/**/*.test.{ts,tsx}',
+            'src/test/**',
+            'src/dev/**',
+            'src/main.tsx',
+            'src/types/**',
+            'src/**/*.d.ts',
+          ],
           thresholds: {
             lines: 90,
             branches: 90,
