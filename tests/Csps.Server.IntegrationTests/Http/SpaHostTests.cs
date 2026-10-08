@@ -9,10 +9,12 @@ namespace Csps.Server.IntegrationTests.Http;
 /// WEB-01, FND-05: the API host serves the built React shell anonymously from its web root at any non-file path,
 /// under the strict CSP, while unknown <c>/api</c> paths keep answering a ProblemDetails 404. The suite runs against
 /// the committed fixture web root (<see cref="CspsApiFactory.FixtureWebRoot"/>), never a local <c>npm run build</c>.
+/// Build internals in dot folders, such as Vite's <c>.vite/license.md</c>, are never served (G-02-2).
 /// </summary>
 public sealed class SpaHostTests
 {
     private const string FixtureShellMarker = "CSPS fixture shell";
+    private const string FixtureHiddenMarker = "CSPS fixture build internal";
     private const string AcceptEncoding = "br, gzip";
 
     [Theory]
@@ -64,6 +66,57 @@ public sealed class SpaHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound, $"{method} {path}");
         response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldBe(ProblemJson.MediaType, path);
+    }
+
+    [Theory]
+    // G-02-2: a typed file inside a dot folder (Vite's build.license output), in any case. System.Uri decodes %2E
+    // before sending, so the encoded row equals the plain one in memory; the real-host check covers Kestrel's decoding.
+    [InlineData("/.vite/license.md", ".vite/license.md")]
+    [InlineData("/.VITE/LICENSE.MD", ".vite/license.md")]
+    [InlineData("/%2Evite/license.md", ".vite/license.md")]
+    // A file nested in any generic dot folder, not only .vite.
+    [InlineData("/.x/y.txt", ".x/y.txt")]
+    // Windows path equivalences (CWE-41, CWE-58): a backslash is a separator, and NTFS 8.3 short names alias .vite as
+    // VITE~1. Both pass trivially on Linux, where the HiddenSegmentFileProviderTests truth table pins the rule.
+    [InlineData("/assets%5C..%5C.vite%5Clicense.md", ".vite/license.md")]
+    [InlineData("/VITE~1/license.md", ".vite/license.md")]
+    public async Task HiddenFilesAreProblem404(string path, string fixtureFile)
+    {
+        // Non-vacuous guard: the fixture's dot folder really is in the served web root.
+        File.Exists(Path.Combine(CspsApiFactory.FixtureWebRoot, fixtureFile)).ShouldBeTrue($"fixture {fixtureFile} missing from the test output");
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+        using var missing = await client.GetAsync(new Uri("/missing.js", UriKind.Relative), TestContext.Current.CancellationToken);
+        var missingProblem = await ProblemJson.ReadAsync(missing, TestContext.Current.CancellationToken);
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound, path);
+        response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldBe(ProblemJson.MediaType, path);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldNotContain(FixtureHiddenMarker, Case.Sensitive, path);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        // A hidden file is indistinguishable from a missing one (CWE-204), and no file metadata leaks.
+        problem.GetProperty("title").GetString().ShouldBe(missingProblem.GetProperty("title").GetString(), path);
+        response.Headers.ETag.ShouldBeNull(path);
+        response.Content.Headers.LastModified.ShouldBeNull(path);
+    }
+
+    [Fact]
+    public async Task HeadOnAHiddenFileIs404WithoutFileMetadata()
+    {
+        // G-02-2: HEAD must not reveal a hidden file's size or date either.
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Head, "/.vite/license.md");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.ETag.ShouldBeNull();
+        response.Content.Headers.LastModified.ShouldBeNull();
+        response.Headers.AcceptRanges.ShouldBeEmpty();
     }
 
     [Fact]
