@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T16:56:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T17:40:23-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -15,7 +15,7 @@ Both sides render the **same scenario list** (`web/src/dev/scenarios/`) through 
 
 For each case, in chromium, firefox and webkit:
 
-1. **Computed styles**: about 80 visual properties per element, walked in DOM order (including `::before`/`::after`), and each element's box relative to the case, exact to 0.01 px.
+1. **Computed styles**: about 80 visual properties per element, walked in DOM order (including `::before`/`::after`), and each element's box relative to the case, exact to 0.01 px. They include `scrollbar-width` (plan 02-19): headless Chromium never paints scrollbars, so a scroll strip's hidden scrollbar is checked through its computed value.
 2. **Pixels**: a screenshot of each case, with no pixel allowed to differ.
 3. **Zero axe violations and zero Content-Security-Policy violations** on both sides.
 
@@ -103,6 +103,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    A case may also need a wrapper that App. D.3 doesn't have. Add it on **both** sides under one name: `web/src/dev/previews/<Name>.tsx` (the implementation kit) and `web/visual/reference/fragments/<Name>.tsx` (the reference kit). Plan 02-18 added two:
    - `IconSet`: a plain `<div>` with no look of its own, holding the `icons-all` case's 60 icons.
    - `MediaPlaceholderNoChip`: the chip-less placeholder. The implementation renders `MediaPlaceholder label={false}`. The reference renders App. D.3's MediaPlaceholder markup without the chip, which the approved design hides only through parent rules (`.csp-thumb`, `.s-tile`).
+   Plan 02-19 added a third:
+   - `TabsWithPanel`: the Tabs node (its `children`) followed by the selected tab's panel, a plain `<div>` with text. The implementation's panel takes its id, role and `aria-labelledby` from `getTabPanelProps`, so the selected tab's `aria-controls` points at a real tabpanel and axe checks the pair. The reference's panel is the same block without those attributes; attributes are not compared.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)

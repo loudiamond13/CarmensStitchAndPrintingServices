@@ -113,6 +113,8 @@ export const VISUAL_PROPERTIES = Object.freeze([
   // Overflow, interaction, containers
   'overflow-x',
   'overflow-y',
+  // A hidden scrollbar (the tab strip) never shows in a screenshot: headless Chromium hides scrollbars. Plan 02-19.
+  'scrollbar-width',
   'cursor',
   'pointer-events',
   'appearance',

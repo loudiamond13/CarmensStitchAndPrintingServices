@@ -74,6 +74,10 @@ describe('VISUAL_PROPERTIES', () => {
       expect(VISUAL_PROPERTIES).toContain(property);
     }
   });
+
+  it('reads scrollbar-width, which no screenshot shows (headless Chromium hides scrollbars; plan 02-19 tab strip)', () => {
+    expect(VISUAL_PROPERTIES).toContain('scrollbar-width');
+  });
 });
 
 describe('normalization: repeated transition-list entries collapse to one', () => {
