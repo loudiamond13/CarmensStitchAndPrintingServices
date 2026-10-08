@@ -5,3 +5,142 @@
    - This file is unlayered, so each rule wins over the layered verbatim CSS whatever its specificity.
    - Every rule carries a comment naming its decision ID.
    - Tokens only: var(--...) values, no hex colours. */
+
+/* D-01 (C-34) iOS input zoom: on phones only, text inside search boxes, toolbar filters and item-row inputs is 16px,
+   so iOS Safari does not zoom on focus. .csp-input is already 16px; desktop and tablet keep the designed 14px.
+   index.html never uses maximum-scale or user-scalable. */
+@container pg (max-width: 767px) {
+  .csp-search input,
+  .s-search-box input,
+  .s-toolbar .csp-input,
+  .s-item .csp-input {
+    font-size: 16px;
+  }
+}
+
+/* D-02 (C-35) inactive rows: muted but readable, no opacity. A softer row background plus the existing neutral
+   Inactive badge; all text keeps its normal tokens (>= 4.5:1 on --surface-2). Replaces App. E.12 opacity .72. */
+.s-rt tbody tr.is-inactive > td {
+  background: var(--surface-2);
+}
+
+/* D-02 (C-35) inactive rows on phones: the stacked card itself takes the softer background. */
+@container pg (max-width: 767px) {
+  .s-rt tbody tr.is-inactive {
+    background: var(--surface-2);
+  }
+}
+
+/* D-02 (C-35) no faded text: no text-bearing element has opacity below 1. These verbatim App. B/C rules faded text to
+   3.32-4.71:1 in Blush (placeholder 4.18, Manager tag 4.17, filter-pill count 3.32), so they render at full opacity in
+   their own token colours instead. */
+.csp-input::placeholder,
+.csp-nav-tag,
+.s-cut-accent .s-lead,
+.s-pill-count,
+.s-bigbtn span {
+  opacity: 1;
+}
+
+/* D-03 (C-35) orange is never the only state cue: the selected tab, the current site link, the current sidebar item
+   and the current tab-bar item are bold (700, siblings stay 600), in both themes. */
+.csp-tab.is-on,
+.csp-site-link.is-on,
+.csp-nav.is-on,
+.s-tab-i.is-on {
+  font-weight: 700;
+}
+
+/* D-03 (C-35) checkbox second cue: a 2px --ink border at rest, and an --on-accent tick on the orange fill when
+   checked (a pseudo-element, no image URL). */
+.s-check input[type='checkbox'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+/* D-03 (C-35) checked checkbox: orange fill, dark border kept. */
+.s-check input[type='checkbox']:checked {
+  background: var(--accent);
+}
+
+/* D-03 (C-35) checked checkbox tick, drawn in --on-accent (6.32:1 Blush / 6.51:1 Espresso on the orange). */
+.s-check input[type='checkbox']:checked::before {
+  content: '';
+  width: 10px;
+  height: 5px;
+  margin-top: -3px;
+  border-bottom: 2px solid var(--on-accent);
+  border-left: 2px solid var(--on-accent);
+  transform: rotate(-45deg);
+}
+
+/* D-03 (C-35) the checkbox keeps the 2px focus-visible ring. */
+.s-check input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* D-05 (C-35) hover-hidden thumb actions: no focusable element is ever invisible. App. B already shows the actions on
+   :focus-within; the drag grip follows them. */
+.csp-thumb:focus-within .csp-thumb-grip {
+  opacity: 1;
+}
+
+/* D-05 (C-35) touch devices have no hover, so the grip and the actions are always visible. */
+@media (hover: none) {
+  .csp-thumb-actions,
+  .csp-thumb-grip {
+    opacity: 1;
+  }
+}
+
+/* WEB-09 pending button: aria-disabled keeps keyboard focus, and it looks exactly like App. B .csp-btn:disabled. */
+.csp-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* WEB-09 a disabled button never gets the App. B press nudge, so a pending one does not either. */
+.csp-btn[aria-disabled='true']:active {
+  transform: none;
+}
+
+/* WEB-09 pending buttons keep their resting look on hover, like .csp-btn:disabled (App. B hover rules are
+   :not(:disabled)). Each value is the variant's own resting value from App. B. */
+.csp-btn-primary[aria-disabled='true']:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+/* WEB-09 secondary variant at rest. */
+.csp-btn-secondary[aria-disabled='true']:hover {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+/* WEB-09 ghost variant at rest. */
+.csp-btn-ghost[aria-disabled='true']:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+/* WEB-09 danger variant at rest. */
+.csp-btn-danger[aria-disabled='true']:hover {
+  filter: none;
+}
+
+/* WEB-09 ghost-danger variant at rest. */
+.csp-btn-ghost-danger[aria-disabled='true']:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}

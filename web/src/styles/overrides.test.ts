@@ -267,6 +267,24 @@ describe('overrides.css owner rulings (A11Y-04)', () => {
     expectRule('.csp-btn[aria-disabled="true"]', 'opacity', '.45', 'WEB-09');
     expectRule('.csp-btn[aria-disabled="true"]', 'cursor', 'not-allowed', 'WEB-09');
   });
+
+  it('WEB-09: a pending button ignores the hover and press styles a disabled one never gets', () => {
+    const components = parseCss(readStyle('components.css'));
+    const interactive = components.flatMap((rule) =>
+      rule.selectors.flatMap((selector) => {
+        const match = /^(\.csp-btn(?:-[\w-]+)?):(hover|active):not\(:disabled\)$/.exec(selector);
+        return match === null ? [] : [{ base: match[1] ?? '', state: match[2] ?? '', rule }];
+      }),
+    );
+    expect(interactive.length).toBeGreaterThanOrEqual(6);
+    for (const { base, state, rule } of interactive) {
+      const baseRule = components.find((candidate) => candidate.selectors.includes(base));
+      for (const [property] of rule.declarations) {
+        const resting = (baseRule === undefined ? undefined : value(baseRule, property)) ?? 'none';
+        expectRule(`${base}[aria-disabled="true"]:${state}`, property, resting, 'WEB-09');
+      }
+    }
+  });
 });
 
 /**
