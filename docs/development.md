@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-07T22:31:43-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T00:32:10-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -153,6 +153,48 @@ Run the preflight check (above) before a full test run.
   ```
 
   It drops only names matching `^CSPS_Test_[0-9a-f-]{36}$` that are older than two hours, and only on `(localdb)\CSPS`.
+
+## End-to-end tests (Playwright)
+
+The end-to-end tests drive the real API host in Chromium, Firefox and WebKit, plus two phone profiles (Pixel 7 and iPhone 15). Every test fails on any browser console error or warning, any uncaught page error, any Content-Security-Policy violation, any failed request to the site (status 400 or higher), and any accessibility (axe) violation.
+
+**Prerequisites** (once): the CSPS LocalDB instance and your development secrets, from [First-time setup](#first-time-setup):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-LocalDb.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1
+```
+
+**Run the suite:**
+
+```powershell
+npm --prefix web run e2e
+```
+
+That one command does everything, in order:
+
+1. It runs the shared-machine preflight (`C:\Work\dev-tools\preflight.ps1`) and prints the report. If another project holds one of our ports or TheBETSLLC's tests are running, stop and try again later.
+2. It refuses to start if port **5199** is already in use. It never stops or kills any process.
+3. It applies the migrations to `CSPS_E2E` on `(localdb)\CSPS` through the guarded dev-seed tool, which refuses any other database or server.
+4. It builds the app in `e2e` mode into `web/.e2e-dist`. That bundle is never copied into the API's `wwwroot`, so its development-only pages can never be deployed.
+5. It starts the API on **https://localhost:5199** in Development, serving `web/.e2e-dist` as its web root (D-30). The host reads the JWT signing key and the Data Protection certificate from your user-secrets. The environment name and the `CSPS_E2E` connection string are set on that one process only, and no secret is passed on a command line. Playwright stops the host when the run ends.
+6. It runs the tests and exits with Playwright's exit code.
+
+**Run only some tests:** anything after `--` goes to Playwright, for example the smoke test or the guard self-tests:
+
+```powershell
+npm --prefix web run e2e -- --grep @smoke
+npm --prefix web run e2e -- --grep @fixture
+```
+
+**Reports:** the HTML report is in `web/playwright-report` and failure traces are in `web/test-results`. Both are git-ignored and never committed.
+
+Why it works this way:
+
+- **HTTPS is required.** The site's Content-Security-Policy ends with `upgrade-insecure-requests`. WebKit applies that to `http://localhost` too, so over plain http the WebKit and iPhone tests would load a blank page (research Pitfall 2). The host uses the ASP.NET development certificate, and the tests accept it.
+- **The CSP is never relaxed or bypassed in tests.** The browsers enforce exactly the policy production sends, and the smoke test checks the exact header text.
+- **New E2E tests** import `test`, `expect` and `expectNoAxeViolations` from `web/e2e/fixtures.ts`, never straight from `@playwright/test`, so every test gets the same checks. Page-level axe uses the same rule tags as the component tests (`web/src/test/axeTags.ts`).
+- **CI** (Phase 3) supplies its own secrets to the host process. It never uses your user-secrets.
 
 ## Quality gates
 
