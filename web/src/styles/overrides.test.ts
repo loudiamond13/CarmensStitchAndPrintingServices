@@ -435,6 +435,44 @@ describe('page zoom and tokens', () => {
   });
 });
 
+const LAYER = '@layer components';
+
+/** Rules in spec-gaps.css whose selector list contains the selector, inside the given at-rules under the layer. */
+function specGapsFor(selector: string, context: string[] = []): CssRule[] {
+  const wanted = normalizeSelector(selector);
+  return parseCss(readStyle('spec-gaps.css')).filter(
+    (rule) => rule.selectors.includes(wanted) && rule.context.join(' | ') === [LAYER, ...context].join(' | '),
+  );
+}
+
+/** Exactly one spec-gaps.css rule sets the declaration, and it sits in the named SPEC-GAP block. */
+function expectGapRule(selector: string, property: string, expected: string, block: string, context: string[] = []) {
+  const matching = specGapsFor(selector, context).filter((rule) => sameValue(value(rule, property), expected));
+  expect(matching.length, `${selector} { ${property}: ${expected} } in ${[LAYER, ...context].join(' ')}`).toBe(1);
+  expect(matching[0]?.comment ?? '', `${selector} sits in the ${block} block`).toContain(`SPEC-GAP: ${block}`);
+}
+
+describe('spec-gaps.css SPEC-GAP primitives (plan 12; WEB-06, PERF-03)', () => {
+  it('sets no font size, weight or line height: SPEC-GAP type comes from the reused spec classes', () => {
+    for (const rule of parseCss(readStyle('spec-gaps.css'))) {
+      for (const property of ['font', 'font-size', 'font-weight', 'line-height']) {
+        expect(value(rule, property), `${rule.selectors.join(', ')} ${property}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('keeps every text-entry box at 16px or more on phones: .csp-input is 16px and only D-01 touches the size', () => {
+    const input = parseCss(readStyle('components.css')).filter((rule) => rule.selectors.includes('.csp-input'));
+    expect(input.map((rule) => value(rule, 'font-size'))).toContain('16px');
+    expect(overridesFor('.csp-input')).toHaveLength(0);
+    expect(overridesFor('.s-item .csp-input', PHONE).map((rule) => value(rule, 'font-size'))).toEqual(['16px']);
+  });
+
+  it('MoneyInput: a caller text-right right-aligns the amount (item rows, App. E.9)', () => {
+    expectGapRule('.csp-field.text-right .csp-input', 'text-align', 'right', 'MoneyInput');
+  });
+});
+
 function unquote(text: string): string {
   return text.replace(/["']/g, '').trim();
 }
