@@ -11,6 +11,14 @@ internal static class PackagePins
 {
     public const string PackagesPropsPath = "Directory.Packages.props";
     public const string ToolManifestPath = ".config/dotnet-tools.json";
+    public const string WebManifestPath = "web/package.json";
+    public const string OpenApiGenManifestPath = "tools/openapi-gen/package.json";
+
+    /// <summary>Parses the npm pins of one package.json. Not implemented yet (RED placeholder).</summary>
+    public static List<PackagePin> ReadNpmManifest(string json, string manifestFolder) => [];
+
+    /// <summary>True when an npm pin is one exact x.y.z version. Not implemented yet (RED placeholder).</summary>
+    public static bool IsExactNpmVersion(string version) => false;
 
     /// <summary>Reads all PackageVersion, GlobalPackageReference and tool pins from the repository.</summary>
     public static List<PackagePin> ReadAll() =>
