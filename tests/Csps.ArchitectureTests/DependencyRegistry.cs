@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Csps.ArchitectureTests;
 
 /// <summary>
-/// Validates docs/dependencies.json against the pinned packages and tools (QUAL-06, D-00, D-18, D-19).
+/// Validates docs/dependencies.json against the pinned packages, tools and npm packages (QUAL-06, D-00, D-18, D-19, D-25, D-26).
 /// Pure: takes the registry text and the pins, returns every problem found (empty means valid).
 /// </summary>
 internal static class DependencyRegistry
@@ -14,7 +14,7 @@ internal static class DependencyRegistry
     private const string DateFormat = "yyyy-MM-dd";
     private const string AcceptedPrefix = "accepted:";
 
-    private static readonly string[] Kinds = ["nuget", "tool"];
+    private static readonly string[] Kinds = ["nuget", "tool", "npm"];
     private static readonly string[] Scopes = ["runtime", "build", "test", "tool", "font"];
     private static readonly string[] RequiredText = ["purpose", "license", "publisher", "legitimacy"];
 
@@ -162,14 +162,19 @@ internal static class DependencyRegistry
             return;
         }
 
-        var exception = policy.Exceptions.FirstOrDefault(item => string.Equals(item.License, license, StringComparison.Ordinal));
-        if (exception is null)
+        // A license exception is (license, scope); the same license may be excepted for several scopes (D-26).
+        var scopes = policy.Exceptions
+            .Where(item => string.Equals(item.License, license, StringComparison.Ordinal))
+            .Select(item => item.Scope)
+            .ToList();
+        if (scopes.Count == 0)
         {
             problems.Add($"{label}: license '{license}' is not allowed.");
         }
-        else if (!string.Equals(exception.Scope, entry.Scope, StringComparison.Ordinal))
+        else if (!scopes.Contains(entry.Scope, StringComparer.Ordinal))
         {
-            problems.Add($"{label}: license '{license}' is allowed only for scope '{exception.Scope}', not '{entry.Scope}'.");
+            problems.Add(
+                $"{label}: license '{license}' is allowed only for scope(s) {string.Join(", ", scopes.Select(scope => $"'{scope}'"))}, not '{entry.Scope}'.");
         }
     }
 
@@ -241,7 +246,12 @@ internal static class DependencyRegistry
                 problems.Add($"{pin.Id}: pinned at {pin.Version} but the registry records {entry.Version}.");
             }
 
-            var expectedKind = string.Equals(pin.Source, "tool", StringComparison.Ordinal) ? "tool" : "nuget";
+            var expectedKind = pin.Source switch
+            {
+                "tool" => "tool",
+                "npm" => "npm",
+                _ => "nuget",
+            };
             if (!string.Equals(entry.Kind, expectedKind, StringComparison.Ordinal))
             {
                 problems.Add($"{pin.Id}: registry kind is '{entry.Kind}' but the pin is a {expectedKind}.");
