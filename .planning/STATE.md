@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
 stopped_at: Completed 02-12-PLAN.md
-last_updated: "2026-10-08T08:17:38.020Z"
+last_updated: "2026-10-08T08:18:44.051Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 73eeaf624334cdbb701e79e4e6a21c5c63b049bd
+state_head: 5826245b0f8af125443cc1af8cb801cf7865a7f2
 progress:
   total_phases: 17
   completed_phases: 1
@@ -15,7 +15,7 @@ progress:
   completed_plans: 24
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T03:18:19-05:00"
+updated: "2026-10-08T03:18:51-05:00"
 ---
 
 # Project State
@@ -169,6 +169,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-10: API contract pipeline: OpenApiSnapshotTests compares the canonical (ordinal key sort, 2-space, LF) Development /openapi/v1.json with tools/openapi-gen/openapi.v1.json; CSPS_WRITE_OPENAPI_SNAPSHOT=1 (per process) writes it and still fails; npm --prefix tools/openapi-gen run generate/check keep web/src/types/api.generated.ts in step; api.ts types come from components['schemas']
 - [Phase 02]: 02-10: useSubmission(submit).run resolves to { ok, value } | { ok, error } and never rejects; one Idempotency-Key per submission, reused only for a JSON-equal (or no-data) retry of a failed submission; success, reset() or changed data mints a new key; a second trigger while pending gets the same promise; signal aborts on unmount; newIdempotencyKey falls back to getRandomValues, never Math.random
 - [Phase 02]: 02-10: describeHttpError is the only error-copy module: 400 with field errors -> 'Check the highlighted fields.' with empty body and fieldErrors; 403/404/409/429 UI-SPEC copy; 5xx, unmapped statuses, parse and non-HttpError -> 'Something went wrong' / 'Please try again.' (+ ' Reference: {traceId}'); 401 and aborted -> null
+- [Phase 02]: 02-12: SPEC-GAP form primitives live in web/src/ui/gaps/ (MoneyInput, OtpInput, Checkbox, SkipLink), strings in gaps/copy.ts, CSS in one /* SPEC-GAP: <name> */ block of spec-gaps.css each; SPEC-GAP CSS assertions go in src/styles/overrides.test.ts because Vitest stubs CSS imports even with ?raw
+- [Phase 02]: 02-12: MoneyInput strips commas and spaces from every change and keeps it only if it matches ^\d{0,9}(\.\d{0,2})?$; normalizeMoneyOnBlur pads to 2 decimals; className text-right on the field right-aligns item-row amounts (SPEC-GAP rule .csp-field.text-right .csp-input)
+- [Phase 02]: 02-12: OtpInput value is one character per box with a space for an empty box (trailing spaces dropped); onComplete fires whenever an edit leaves all six filled; Backspace in an empty box moves back and clears that box; direct value writes (Android Unidentified keys, one-time-code autofill) use the same fill as paste
+- [Phase 02]: 02-12: SkipLink always prevents the default (focuses the target, no #main in the URL); Checkbox takes explicit props (no rest spread) with onChange(checked), required, hint and error
 
 ### Pending Todos
 
