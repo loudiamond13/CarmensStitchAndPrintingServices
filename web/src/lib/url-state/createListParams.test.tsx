@@ -8,7 +8,17 @@ import { createQueryClient } from '../query/queryClient';
 import { useDebouncedValue } from '../query/useDebouncedValue';
 import { useListQuery } from '../query/useListQuery';
 import { createListParams } from './createListParams';
-import { literalParser, pageParser, pageSizeParser, parseAsBusinessDate, searchParser } from './parsers';
+import { orderSearchParams, URL_STATE_DEFAULTS } from './defaultOptions';
+import {
+  dateRangeParsers,
+  dateRangeValues,
+  literalParser,
+  pageParser,
+  pageSizeParser,
+  parseAsBusinessDate,
+  resolveDateRange,
+  searchParser,
+} from './parsers';
 
 /** A list with every kind of key a later list screen uses; `view` has no default on purpose (ORD-10). */
 const useOrdersParams = createListParams({
@@ -348,6 +358,85 @@ describe('createListParams: search', () => {
     expect(result.current[0].q).toBeNull();
     await advance(350);
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+  });
+});
+
+describe('createListParams: date ranges and key order (app adapter options)', () => {
+  const useExpensesParams = createListParams({
+    page: pageParser,
+    q: searchParser,
+    category: literalParser(['any', 'fabric', 'ink'], 'any'),
+    ...dateRangeParsers(['last-30-days', 'this-month'], 'last-30-days'),
+  });
+
+  function renderExpenses(searchParams: string) {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const view = renderHook(() => useExpensesParams(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <NuqsTestingAdapter
+          searchParams={searchParams}
+          onUrlUpdate={onUrlUpdate}
+          hasMemory
+          defaultOptions={URL_STATE_DEFAULTS}
+          processUrlSearchParams={orderSearchParams}
+        >
+          {children}
+        </NuqsTestingAdapter>
+      ),
+    });
+    return { ...view, onUrlUpdate };
+  }
+
+  it('keeps the default preset out of the URL and resolves it against the business today', async () => {
+    const { result, onUrlUpdate } = renderExpenses('');
+    expect(result.current[0]).toMatchObject({ range: 'last-30-days', from: null, to: null });
+    expect(resolveDateRange(result.current[0], '2026-10-07')).toEqual({ from: '2026-09-08', to: '2026-10-07' });
+    await settle();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+
+  it('stores from and to only for a custom range, in one replace with the page reset', async () => {
+    const { result, onUrlUpdate } = renderExpenses('?page=2&category=ink');
+    act(() => {
+      result.current[1].setFilters(dateRangeValues({ range: 'custom', from: '2026-09-01', to: '2026-09-30' }));
+    });
+    await expectSingleUpdate(onUrlUpdate, {
+      history: 'replace',
+      query: '?category=ink&from=2026-09-01&range=custom&to=2026-09-30',
+    });
+  });
+
+  it('switching to a preset stores its name and removes from and to', async () => {
+    const { result, onUrlUpdate } = renderExpenses('?range=custom&from=2026-09-01&to=2026-09-30');
+    act(() => {
+      result.current[1].setFilters(dateRangeValues({ range: 'this-month' }));
+    });
+    await expectSingleUpdate(onUrlUpdate, { history: 'replace', query: '?range=this-month' });
+  });
+
+  it('writes page, then q, then the rest by name, whatever order the link arrived in', async () => {
+    const { result, onUrlUpdate } = renderExpenses('?category=ink&range=this-month&q=thread');
+    act(() => {
+      result.current[1].setPage(2);
+    });
+    await expectSingleUpdate(onUrlUpdate, { history: 'push', query: '?page=2&q=thread&category=ink&range=this-month' });
+  });
+});
+
+describe('createListParams: a list without paging', () => {
+  const useMonthsParams = createListParams({ months: literalParser(['6', '12'], '6') });
+
+  it('writes its own key without a page and ignores clampPage', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const { result } = renderHook(() => useMonthsParams(), { wrapper: adapter('', onUrlUpdate) });
+    act(() => {
+      result.current[1].clampPage(3);
+    });
+    act(() => {
+      result.current[1].setFilter('months', '12');
+    });
+    expect(result.current[0]).toEqual({ months: '12' });
+    await expectSingleUpdate(onUrlUpdate, { history: 'replace', query: '?months=12' });
   });
 });
 
