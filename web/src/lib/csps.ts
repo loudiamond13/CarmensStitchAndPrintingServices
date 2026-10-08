@@ -9,7 +9,8 @@
 /* ───────────── domain types ───────────── */
 
 export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'completed' | 'cancelled';
-export type ProductType = 'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
+export type ProductType =
+  'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank Transfer';
 export type ExpenseCategory = 'Rent' | 'Utilities' | 'Salaries' | 'Supplies' | 'Equipment' | 'Maintenance' | 'Others';
 export type OrderExpenseCategory = 'Fabric' | 'Ink & paper' | 'Outsourcing' | 'Labor' | 'Delivery' | 'Others';
@@ -41,7 +42,9 @@ export interface Discount {
 export interface OrderExpense {
   id?: string;
   date?: string;
-  category?: OrderExpenseCategory | string;
+  // SPEC-DEVIATION: lint no-redundant-type-constituents. `OrderExpenseCategory | string` is just `string`; the
+  // ORDER_EXPENSE_CATEGORIES values are the suggested ones and any other text is still allowed. Same type.
+  category?: string;
   description?: string;
   amount: number;
 }
@@ -108,10 +111,32 @@ export interface CascadeCounts {
 
 /* ───────────── option lists ───────────── */
 
-export const PRODUCT_TYPES: ProductType[] = ['Basketball Jersey', 'Volleyball Jersey', 'Moto Riding Jersey', 'Long Sleeves', 'Polo Shirt', 'Custom Design'];
+export const PRODUCT_TYPES: ProductType[] = [
+  'Basketball Jersey',
+  'Volleyball Jersey',
+  'Moto Riding Jersey',
+  'Long Sleeves',
+  'Polo Shirt',
+  'Custom Design',
+];
 export const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = ['Rent', 'Utilities', 'Salaries', 'Supplies', 'Equipment', 'Maintenance', 'Others'];
-export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = ['Fabric', 'Ink & paper', 'Outsourcing', 'Labor', 'Delivery', 'Others'];
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Rent',
+  'Utilities',
+  'Salaries',
+  'Supplies',
+  'Equipment',
+  'Maintenance',
+  'Others',
+];
+export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = [
+  'Fabric',
+  'Ink & paper',
+  'Outsourcing',
+  'Labor',
+  'Delivery',
+  'Others',
+];
 export const ORDER_STATUSES: Record<OrderStatus, string> = {
   pending: 'Pending',
   mockup: 'Mockup',
@@ -124,12 +149,19 @@ export const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'mockup', 'production'
 
 /* ───────────── formatting ───────────── */
 
-const pesoFmt = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// SPEC-DEVIATION: D-09 (see formatPeso). D.1's 2-decimal formatter read a binary float; this one groups the whole
+// pesos (a bigint) and formatPeso appends the two centavo digits, so no float is ever formatted. Same text.
+const pesoWholeFmt = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 });
 
 /** "₱12,450.00"; negatives "−₱732.50" (U+2212 minus). */
 export function formatPeso(n: number | string | null | undefined): string {
-  const v = Number(n) || 0;
-  return (v < 0 ? '−₱' : '₱') + pesoFmt.format(Math.abs(v));
+  // SPEC-DEVIATION: D-09 integer-centavo, half-away-from-zero rounding to match the server. The amount is rounded to
+  // whole centavos first and formatted from the exact integer, never from a binary float. NaN and ±Infinity read
+  // as 0 (D.1 showed "₱∞"), and an amount that rounds to 0 centavos has no minus (D.1 showed "−₱0.00" for -0.001).
+  const centavos = toCentavos(n);
+  const magnitude = centavos < 0n ? -centavos : centavos;
+  const cents = (magnitude % 100n).toString().padStart(2, '0');
+  return `${centavos < 0n ? '−₱' : '₱'}${pesoWholeFmt.format(magnitude / 100n)}.${cents}`;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -137,9 +169,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** "Oct 6, 2026". Accepts ISO "2026-10-06" (treated as a local date) or a Date. Empty → "—". */
 export function formatDate(d: string | Date | null | undefined): string {
   if (!d) return '—';
-  const x = d instanceof Date ? d : new Date(String(d).length === 10 ? d + 'T00:00:00' : d);
+  // SPEC-DEVIATION: lint no-unnecessary-type-conversion and restrict-plus-operands (d is already a string; the parts
+  // are joined in a template with String()). Same output.
+  const x = d instanceof Date ? d : new Date(d.length === 10 ? `${d}T00:00:00` : d);
   if (Number.isNaN(x.getTime())) return String(d);
-  return MONTHS[x.getMonth()] + ' ' + x.getDate() + ', ' + x.getFullYear();
+  return `${MONTHS[x.getMonth()] ?? ''} ${String(x.getDate())}, ${String(x.getFullYear())}`;
 }
 
 /* ───────────── order math ───────────── */
@@ -190,10 +224,15 @@ function toCentavos(value: number | string | null | undefined): bigint {
   return roundToCentavos(exactOf(value));
 }
 
-/** Whole centavos as the nearest number, through the exact decimal text ("-732.50"), never centavos / 100 (L-12). */
-function fromCentavos(centavos: bigint): number {
+/** Whole centavos as exact decimal text: two decimals, no grouping, ASCII minus ("-732.50"). */
+function centavosText(centavos: bigint): string {
   const digits = (centavos < 0n ? -centavos : centavos).toString().padStart(3, '0');
-  return Number(`${centavos < 0n ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`);
+  return `${centavos < 0n ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}
+
+/** Whole centavos as the nearest number, through the exact decimal text, never centavos / 100 (L-12). */
+function fromCentavos(centavos: bigint): number {
+  return Number(centavosText(centavos));
 }
 
 const pesosOf = (centavos: bigint): Exact => ({ num: centavos, den: 100n });
@@ -248,7 +287,8 @@ export function orderTotals(order: Partial<Order> | null | undefined): Totals {
   };
 }
 
-export const CASCADE_LABELS: ReadonlyArray<readonly [keyof CascadeCounts, string]> = [
+// SPEC-DEVIATION: lint array-type (readonly T[] instead of ReadonlyArray<T>). Same type.
+export const CASCADE_LABELS: readonly (readonly [keyof CascadeCounts, string])[] = [
   ['items', 'item'],
   ['payments', 'payment'],
   ['discounts', 'discount'],
@@ -260,9 +300,12 @@ export const CASCADE_LABELS: ReadonlyArray<readonly [keyof CascadeCounts, string
 export function cascadeSentence(counts: CascadeCounts = {}): string {
   const parts = CASCADE_LABELS.map(([k, one]) => [counts[k] ?? 0, one] as const)
     .filter(([n]) => n > 0)
-    .map(([n, one]) => n + ' ' + (n === 1 ? one : one + 's'));
-  if (!parts.length) return '';
-  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts[0];
+    // SPEC-DEVIATION: lint restrict-plus-operands (String(n) in a template; the last part is popped instead of
+    // indexed, so it is never undefined). Same sentence.
+    .map(([n, one]) => `${String(n)} ${n === 1 ? one : one + 's'}`);
+  const last = parts.pop();
+  if (last === undefined) return '';
+  const list = parts.length > 0 ? parts.join(', ') + ', and ' + last : last;
   return 'This will also delete ' + list + '.';
 }
 
@@ -279,4 +322,5 @@ export function passwordStrength(pw = ''): { score: StrengthScore; label: '' | '
 }
 
 /** "ORD-2026-0148" from year + sequence. */
-export const orderNumber = (year: number, seq: number): string => `ORD-${year}-${String(seq).padStart(4, '0')}`;
+// SPEC-DEVIATION: lint restrict-template-expressions (String(year)). Same output.
+export const orderNumber = (year: number, seq: number): string => `ORD-${String(year)}-${String(seq).padStart(4, '0')}`;
