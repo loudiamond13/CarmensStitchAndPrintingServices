@@ -66,6 +66,10 @@ public class CspsApiFactory : WebApplicationFactory<Program>
     /// </summary>
     public static string FixtureWebRoot { get; } = Path.Combine(AppContext.BaseDirectory, "Fixtures", "webroot");
 
+    // Deliberately never created: pointing the static web assets manifest here turns the feature off for test hosts.
+    private static string NoStaticWebAssetsManifest { get; } =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "no-static-web-assets.runtime.json");
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -90,6 +94,11 @@ public class CspsApiFactory : WebApplicationFactory<Program>
 
         // The .NET suite never depends on `npm run build`: every host serves the committed fixture web root (L-06).
         builder.UseSetting(WebHostDefaults.WebRootKey, FixtureWebRoot);
+
+        // Static web assets off: the build-time manifest always names src/Csps.Server/wwwroot, and in Development the
+        // loader throws when that folder is missing, as on a fresh clone. A manifest path that does not exist is
+        // ASP.NET Core's "feature not enabled", so hosts serve the fixture web root and nothing else.
+        builder.UseSetting(WebHostDefaults.StaticWebAssetsKey, NoStaticWebAssetsManifest);
         builder.ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(Sink));
 
         if (_withoutDatabase)

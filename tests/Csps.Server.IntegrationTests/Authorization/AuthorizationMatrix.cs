@@ -59,6 +59,12 @@ public static class AuthorizationMatrix
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
+
+        // A missing file is a 404 for everyone (research Pitfall 11). The matrix host runs in the Testing environment,
+        // not Development, so the two reserved API-doc prefixes are mapped as 404 fallbacks too (D-29).
+        new("*", "{*path:file}", "/missing.js", Anonymous: 404, Admin: 404, Manager: 404),
+        new("*", "/openapi/{**path}", "/openapi/v1.json", Anonymous: 404, Admin: 404, Manager: 404),
+        new("*", "/scalar/{**path}", "/scalar", Anonymous: 404, Admin: 404, Manager: 404),
     ];
 
     /// <summary>The only endpoints allowed to be anonymous, by key.</summary>
@@ -69,6 +75,9 @@ public static class AuthorizationMatrix
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
+            "* {*path:file}",
+            "* /openapi/{**path}",
+            "* /scalar/{**path}",
         }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Returns the row with the given key.</summary>

@@ -87,7 +87,8 @@ app.MapApiFallback();
 app.MapSiteSettings();
 app.MapCspsApiDocs();
 
-// The SPA host (WEB-01): any other GET or HEAD on a page path gets the shell, anonymously.
+// The SPA host (WEB-01): a missing file is a 404, never a 401 (research Pitfall 11); outside Development /openapi and
+// /scalar stay reserved 404s (D-29); any other GET or HEAD on a page path gets the shell, anonymously.
 app.MapSpaHost();
 
 app.Run();

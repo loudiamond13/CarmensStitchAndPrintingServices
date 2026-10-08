@@ -108,9 +108,11 @@ public sealed partial class OpenApiExposureTests(CspsDatabase database) : IClass
         csp.ShouldNotContain("unsafe-eval", Case.Sensitive);
     }
 
+    // Real docs routes only: the reserved-prefix 404 fallbacks (ReservedPathMetadata, D-29) are not API docs.
     private static List<string> DocsRoutes(IServiceProvider services) =>
         [.. services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ReservedPathMetadata>() is null)
             .Select(endpoint => endpoint.RoutePattern.RawText?.TrimStart('/') ?? string.Empty)
             .Where(route => DocsPrefixes.Any(prefix => route.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))];
 
