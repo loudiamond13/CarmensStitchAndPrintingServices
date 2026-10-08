@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T03:53:15-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-08T06:05:42-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -33,21 +33,21 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Web Foundation (WEB)
 
-- [x] **WEB-01**: React 19 + TypeScript strict + Vite app in `web/` builds into `src/Csps.Server/wwwroot`. The dev server runs on 5180 (`strictPort`) and proxies `/api` to the API with hard-coded ports (no machine-level env vars) ⚑ S-1 (TS alias pair), S-11
-- [ ] **WEB-02**: The UI-spec design system (Appendices A–D: tokens, globals, compat, components, screens CSS; `src/ui`, `src/lib/csps.ts`, icons, mark) is imported verbatim, then reconciled with PRD gates via `// SPEC-DEVIATION` markers with no DOM/markup change. Fixes include the focus-trapping Modal, Tabs ARIA, `Mark` without `dangerouslySetInnerHTML`, no non-null assertions, and the stricter tsconfig ⚑ C-22, C-10, C-34, C-35
-- [x] **WEB-03**: `web/src/lib/http/httpClient.ts` is a fetch-based, axios-like client (instances, interceptors, timeout/abort, params, JSON/FormData, upload progress via XHR only when requested, single-flight 401 refresh with one retry, capped retries for idempotent calls, normalized `HttpError`) with 100% unit coverage (PRD §9.3)
-- [x] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
+- [ ] **WEB-01**: React 19 + TypeScript strict + Vite app in `web/` builds into `src/Csps.Server/wwwroot`. The dev server runs on 5180 (`strictPort`) and proxies `/api` to the API with hard-coded ports (no machine-level env vars) ⚑ S-1 (TS alias pair), S-11
+- [ ] **WEB-02**: The UI-spec design system (Appendices A–D: tokens, components, screens; `src/ui`, `src/lib/csps.ts`, icons, mark) is implemented with **Tailwind v4 utilities for all UI styling** (owner ruling D-33, 2026-10-08, amends the earlier "imported verbatim" wording): CSPS tokens via `@theme`, only theme/`@font-face`/`@keyframes`/base CSS left in stylesheets, and the rendered look proven equal to the approved design (Blush and Espresso, 320/390/820/1440 px) instead of a verbatim-CSS/DOM-equality check. The approved component code is reconciled with PRD gates via `// SPEC-DEVIATION` markers. Fixes include the focus-trapping Modal, Tabs ARIA, `Mark` without `dangerouslySetInnerHTML`, no non-null assertions, and the stricter tsconfig ⚑ C-22, C-10, C-34, C-35
+- [ ] **WEB-03**: `web/src/lib/http/httpClient.ts` is a fetch-based, axios-like client (instances, interceptors, timeout/abort, params, JSON/FormData, upload progress via XHR only when requested, single-flight 401 refresh with one retry, capped retries for idempotent calls, normalized `HttpError`) with 100% unit coverage (PRD §9.3)
+- [ ] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
 - [ ] **WEB-05**: Public and Admin layouts per UI-SPEC §2.2/§8.1 (`.s-page[data-theme]`, sidebar/rail/tab bar, mobile nav drawer marked SPEC-GAP) with route-level code splitting and a global error boundary
 - [ ] **WEB-06**: Shared primitives exist with unit + axe tests: Skeleton family with `aria-busy` + polite live region, EmptyState, ErrorState with retry, ConfirmDialog, Toast, DataTable (`.s-rt` → cards on phones), Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput. No primitive is re-implemented in feature code (PRD §9.2)
-- [x] **WEB-07**: The money/date formatters and order math (`formatPeso`, `formatDate`, `orderTotals`) agree with the server on a shared golden-vector file (≥ 200 cases including half-centavo values) consumed by both xUnit and Vitest ⚑ C-25 (client rounding change)
-- [x] **WEB-08**: TanStack Query provider and query-key conventions: `staleTime` defaults, keep-previous-data pagination, 300 ms debounced search with `AbortSignal` cancellation, intent prefetch
+- [ ] **WEB-07**: The money/date formatters and order math (`formatPeso`, `formatDate`, `orderTotals`) agree with the server on a shared golden-vector file (≥ 200 cases including half-centavo values) consumed by both xUnit and Vitest ⚑ C-25 (client rounding change)
+- [ ] **WEB-08**: TanStack Query provider and query-key conventions: `staleTime` defaults, keep-previous-data pagination, 300 ms debounced search with `AbortSignal` cancellation, intent prefetch
 - [ ] **WEB-09**: The `lib/http` client (WEB-03) sends an `Idempotency-Key` (a UUID from `crypto.randomUUID()`) with every POST (SEC-06). It creates one key per form submission and reuses it on every retry of that submission, including the single-flight 401 refresh retry; a POST carrying a key counts as idempotent for WEB-03's capped retries. Submit buttons are disabled (`aria-disabled`, keeping keyboard focus) and show a pending state while the request is in flight, so a double-click sends one request. `lib/http`'s 100% coverage includes key reuse on retry, and component tests cover the pending button (owner, 2026-10-07)
 - [ ] **WEB-10**: List and page view state lives in the URL query string through **nuqs** (owner, 2026-10-07), so refresh, Back/Forward, a bookmark or a shared link reopens the same view: filters, free-text search, sort, page, page size, the active tab and the view mode. **Setup:** nuqs 2.10.1 (MIT; owner-approved 2026-10-07 after an advisory, deprecation and cool-down check). At install, if a stable 2.10.2 or later is at least 14 days old, ask the owner before switching to it; never take a beta. `NuqsAdapter` comes from `nuqs/adapters/react-router/v8` (never the deprecated `nuqs/adapters/react-router` or the `/v6` and `/v7` paths) and renders inside the router around `<Outlet/>`, never around `RouterProvider`. One shared, lazily loaded layout component (`NuqsAdapter` around `<Outlet/>`, one set of `defaultOptions`) is used as a pathless layout route above the admin routes and above every public route that keeps URL state (today the Gallery, GAL-01), so the other public pages don't load it (about 5.6 KB gz). If that nesting fails, the root route's `<Outlet/>` is the fallback, which still fits the 150 KB public budget (PERF-01). **One hook per list:** each list reads and writes its state only through one typed `useXxxListParams()` hook built on `useQueryStates`, and never copies it into `useState` or form state. **Untrusted input (CWE-20):** every param has an allow-list or validating parser: `parseAsStringLiteral` for status, sort, tab and view; `parseAsNumberLiteral([10, 20, 50, 100])` for page size where a list offers it (default 20; the server still caps it, SEC-03); a page parser that rejects values below 1; search trimmed and capped at 100 characters. Defaults stay out of the URL (`clearOnDefault`). An invalid or out-of-range value falls back to its default and the URL is rewritten once with `replace`; a page past the last page is replaced by the last page, and an empty result shows EmptyState. A param never reaches an `href`, `navigate()` or a redirect without validation (CWE-601). **History:** a page change adds a history entry (`push`); a filter, search, sort, page-size, tab or view change replaces the current entry and resets the page to 1 in the same update. **Data fetching (WEB-08):** TanStack Query keys hold the parsed, defaulted values, never raw strings or `location.search`, and `api.ts` serializes them (WEB-04). The search box writes the URL with `limitUrlUpdates: debounce(300)`, and the query key uses an in-house `useDebouncedValue(q, 300)`, never the immediate value. **Dates:** date filters stay plain `YYYY-MM-DD` strings in business time (Asia/Manila) through a shared `parseAsBusinessDate`, never `parseAsIsoDate`, which round-trips through UTC and shifts the day. A preset range (such as Last 30 days or This month) is stored by its name and resolved against the business "today" on every visit; only a custom range stores `from` and `to`; no default is computed from `new Date()`. **Known nuqs bugs, avoided by rule:** never use the nuqs `startTransition` option (#1567: the value flip-flops; fixed only in 2.10.2-beta.1); keep `shallow: true`, the default, and never set `shallow: false` (#1563, open); never render `<Navigate>` to set or change query params, and redirect from a route `loader` with `redirect()` instead (#1245, open). ESLint rejects the deprecated adapter paths, the `startTransition` option and `shallow: false`. **Privacy (the owner chose search in the URL over keeping it out):** tokens, codes and secrets never go in a URL (PRD §8.2, §9.3); personal data appears only inside the free-text `q`, never as its own param such as `email=` or `phone=`; analytics, Core Web Vitals and any client error report send the path without its query string (ANL-05); the server's request log already records the path without the query string (FND-07); `Referrer-Policy: strict-origin-when-cross-origin` keeps the query from other sites (SEC-01); the server rejects search text over 100 characters (SEC-03). **Tests:** parser unit tests (`size=9999`, `page=0`, `status=bogus`, `from=2026-02-30`); hook component tests through `nuqs/adapters/testing` that assert push vs replace, the page reset and dropped defaults; React Compiler lint is clean on the hooks. Every list screen adds a Playwright test where list → detail → Back restores its filters and rows. Phase 2 builds the adapter, the conventions, the shared hook and parsers and their tests; the list screens in Phases 5, 6, 8, 10, 11, 12 and 13 use them
 
 ### Quality Gates (QUAL)
 
 - [x] **QUAL-01**: .NET builds have `TreatWarningsAsErrors`, nullable, latest-recommended analyzers, code style in build, NuGet audit as errors, central package management with no floating versions, and `dotnet format --verify-no-changes` (PRD §17.1)
-- [x] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
+- [ ] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [x] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `lib/http` 100%, web overall ≥ 90% ⚑ S-4
 - [ ] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
 - [ ] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
@@ -129,7 +129,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **ORD-06**: Staff can delete an order through a cascade confirmation that shows child counts and requires typing the order number. Deletion removes all children in one transaction and schedules its images for storage cleanup ⚑ OD-5, OD-6
 - [ ] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card. The active tab lives in the URL (WEB-10), so Back and a shared link reopen the same tab
 - [ ] **ORD-08**: Concurrent edits to the same order, including child-only edits, return 409. The UI explains the conflict, preserves the user's input and offers reload
-- [x] **ORD-09**: Money displays as `₱12,450.00` (en-PH, U+2212 minus) and dates as `Oct 6, 2026`. Money inputs accept only valid 2-decimal amounts with the numeric keypad ⚑ OD-1
+- [ ] **ORD-09**: Money displays as `₱12,450.00` (en-PH, U+2212 minus) and dates as `Oct 6, 2026`. Money inputs accept only valid 2-decimal amounts with the numeric keypad ⚑ OD-1
 - [ ] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`. With URL state (WEB-10, owner 2026-10-07), the view shown is the URL's `view` when it is valid (`grid` or `table`), otherwise the saved `localStorage['csps-orders-view']` when it is valid, otherwise Grid, the UI spec's default. Only the explicit toggle writes both the URL (`replace`) and localStorage, so a shared or bookmarked link with `?view=table` applies to that visit only and never overwrites the viewer's saved choice. The `view` parser has no `withDefault`, so a missing value falls through to localStorage, and no localStorage-derived default is ever handed to nuqs (that would break `clearOnDefault`). A component test covers the URL × localStorage matrix
 - [ ] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
 - [ ] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
@@ -342,18 +342,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-11 | Phase 1 | Complete |
 | FND-12 | Phase 1 | Complete |
 | FND-13 | Phase 1 | Complete |
-| WEB-01 | Phase 2 | Complete |
+| WEB-01 | Phase 2 | Pending |
 | WEB-02 | Phase 2 | Pending |
-| WEB-03 | Phase 2 | Complete |
-| WEB-04 | Phase 2 | Complete |
+| WEB-03 | Phase 2 | Pending |
+| WEB-04 | Phase 2 | Pending |
 | WEB-05 | Phase 2 | Pending |
 | WEB-06 | Phase 2 | Pending |
-| WEB-07 | Phase 2 | Complete |
-| WEB-08 | Phase 2 | Complete |
+| WEB-07 | Phase 2 | Pending |
+| WEB-08 | Phase 2 | Pending |
 | WEB-09 | Phase 2 | Pending |
 | WEB-10 | Phase 2 | Pending |
 | QUAL-01 | Phase 1 | Complete |
-| QUAL-02 | Phase 2 | Complete |
+| QUAL-02 | Phase 2 | Pending |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 2 | Pending |
 | QUAL-05 | Phase 4 | Pending |
@@ -411,7 +411,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-06 | Phase 8 | Pending |
 | ORD-07 | Phase 8 | Pending |
 | ORD-08 | Phase 7 | Pending |
-| ORD-09 | Phase 2 | Complete |
+| ORD-09 | Phase 2 | Pending |
 | ORD-10 | Phase 8 | Pending |
 | ORD-11 | Phase 8 | Pending |
 | ORD-12 | Phase 8 | Pending |

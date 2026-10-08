@@ -29,9 +29,6 @@ coverage*/
 node_modules/
 dist/
 **/wwwroot/assets/
-# `npm --prefix web run build` empties and rewrites the whole API web root; it is build output, never edited by hand
-# (research Pitfall 1). Hand-written static files live in web/public/.
-src/Csps.Server/wwwroot/
 
 # Playwright
 playwright-report/

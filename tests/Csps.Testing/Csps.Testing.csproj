@@ -17,9 +17,4 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
-  <!-- The stub web root every test host serves (CspsApiFactory.FixtureWebRoot), so tests never need `npm run build`. -->
-  <ItemGroup>
-    <None Include="Fixtures\webroot\**" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

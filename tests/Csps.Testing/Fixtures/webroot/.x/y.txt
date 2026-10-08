@@ -1,1 +1,0 @@
-CSPS fixture build internal: a typed file nested in a dot folder (G-02-2).

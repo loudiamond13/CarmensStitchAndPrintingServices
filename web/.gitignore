@@ -1,7 +1,0 @@
-# Build and test output inside web/ (Tailwind's source detection honours .gitignore, research Pitfall 19).
-.e2e-dist/
-.budget-dist/
-.vite/
-coverage/
-test-results/
-playwright-report/

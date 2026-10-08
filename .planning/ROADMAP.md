@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T04:53:04-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T06:05:52-05:00*
 
 ## Overview
 
@@ -176,7 +176,7 @@ Plans:
      - Typecheck, ESLint and Prettier pass at `--max-warnings 0`.
      - The build fails if public initial JS exceeds 150 KB gz, admin initial JS 250 KB gz or total CSS 35 KB gz.
      - The self-hosted fonts render the ₱ glyph in the brand font.
-  2. **Layouts.** Public and admin layouts render the verbatim Appendix D markup (DOM-snapshot equal), with every reconciliation marked `// SPEC-DEVIATION`. They work from 320 to 1920 px with no horizontal scroll and have:
+  2. **Layouts.** Public and admin layouts render the approved Appendix D design styled with Tailwind utilities (D-33, 2026-10-08: replaces "verbatim markup, DOM-snapshot equal"), proven visually equal to the approved design in both themes, with every reconciliation marked `// SPEC-DEVIATION`. They work from 320 to 1920 px with no horizontal scroll and have:
      - a skip link
      - labelled landmarks
      - focus-trapped dialogs
@@ -226,34 +226,33 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 13/19 plans executed in 10 waves
+**Plans**: 18 plans in 10 waves
 
 Plans:
 **Wave 1**
-- [x] 02-01-PLAN.md — Tracer: approved npm packages installed, Vite build into `wwwroot`, anonymous SPA host with file/D-29 404s, compression and caching (W1)
+- [ ] 02-01-PLAN.md — Tracer: approved npm packages installed, Vite build into `wwwroot`, anonymous SPA host with file/D-29 404s, compression and caching (W1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [x] 02-02-PLAN.md — Strict TS 7 typecheck, ESLint with tested architecture bans, Prettier, Vitest with console guard and in-house axe helper (W2)
-- [x] 02-19-PLAN.md — Gap G-02-2 (UAT): static files refuse dot-folder paths and their Windows aliases (`\`, 8.3 names), so `/.vite/license.md` gets the anonymous ProblemDetails 404; D-BL-04 untouched (W2, gap closure)
+- [ ] 02-02-PLAN.md — Strict TS 7 typecheck, ESLint with tested architecture bans, Prettier, Vitest with console guard and in-house axe helper (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [x] 02-03-PLAN.md — npm pins in the dependency registry, npm license gate (D-26), web notices drift check (W3)
-- [x] 02-04-PLAN.md — Golden vectors (>= 200) passing in xUnit OrderMath and Vitest csps.ts with D-09 rounding; money/date formatters (W3)
-- [x] 02-05-PLAN.md — Verbatim App. A-C CSS, owner WCAG overrides D-01..D-05, fonts with ₱-safe fallbacks and preload (W3)
-- [x] 02-06-PLAN.md — Playwright on HTTPS 5199 with console/CSP/axe fixtures and self-tests across five projects (W3)
-- [x] 02-07-PLAN.md — fetch-based httpClient with single-flight refresh, capped retries and key reuse, 100% coverage (W3)
-- [x] 02-08-PLAN.md — nuqs list-state hook and parsers (WEB-10), TanStack Query defaults, debounce and intent prefetch (W3)
+- [ ] 02-03-PLAN.md — npm pins in the dependency registry, npm license gate (D-26), web notices drift check (W3)
+- [ ] 02-04-PLAN.md — Golden vectors (>= 200) passing in xUnit OrderMath and Vitest csps.ts with D-09 rounding; money/date formatters (W3)
+- [ ] 02-05-PLAN.md — Verbatim App. A-C CSS, owner WCAG overrides D-01..D-05, fonts with ₱-safe fallbacks and preload (W3)
+- [ ] 02-06-PLAN.md — Playwright on HTTPS 5199 with console/CSP/axe fixtures and self-tests across five projects (W3)
+- [ ] 02-07-PLAN.md — fetch-based httpClient with single-flight refresh, capped retries and key reuse, 100% coverage (W3)
+- [ ] 02-08-PLAN.md — nuqs list-state hook and parsers (WEB-10), TanStack Query defaults, debounce and intent prefetch (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [x] 02-09-PLAN.md — Verbatim App. D.3-D.5 reconciled with no DOM change, lucide icon map, owner rulings on O-1..O-8 and icon drift (W4, checkpoint)
-- [x] 02-10-PLAN.md — OpenAPI snapshot and generated types, api.ts, useSubmission (one Idempotency-Key per submission), error copy (W4)
+- [ ] 02-09-PLAN.md — Verbatim App. D.3-D.5 reconciled with no DOM change, lucide icon map, owner rulings on O-1..O-8 and icon drift (W4, checkpoint)
+- [ ] 02-10-PLAN.md — OpenAPI snapshot and generated types, api.ts, useSubmission (one Idempotency-Key per submission), error copy (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-11-PLAN.md — Focus-trapped Modal/ConfirmDialog, Tabs ARIA, pending Button, D-04 toasts, owner rulings applied, axe over every component (W5)
-- [x] 02-12-PLAN.md — MoneyInput, OtpInput, Checkbox, SkipLink, PasswordField tests (W5)
+- [ ] 02-12-PLAN.md — MoneyInput, OtpInput, Checkbox, SkipLink, PasswordField tests (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [x] 02-13-PLAN.md — ResponsiveTable with all states, Pagination, SearchBox, FilterBar, ErrorState, skeletons, LazyImage (W6)
+- [ ] 02-13-PLAN.md — ResponsiveTable with all states, Pagination, SearchBox, FilterBar, ErrorState, skeletons, LazyImage (W6)
 - [ ] 02-14-PLAN.md — React Router 8 data router, public layout and placeholder page, error boundaries, public E2E (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
@@ -892,7 +891,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 13/19 | In Progress|  |
+| 2. Web Foundation & Design System | 0/18 | Planned | - |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
@@ -935,6 +934,7 @@ Plans:
 **Deferred at:** 2026-10-08 during /gsd-verify-work 2 session completion
 **Follow-ups:**
 - [ ] Test 8: Review the shared list-query defaults (staleTime 30 s, gcTime 5 min, refetchOnWindowFocus true, retry false) per list screen as later phases build them, and override per query where needed (02-08 D10). (deferred 2026-10-08)
+
 
 ---
 *Roadmap created: 2026-10-07*

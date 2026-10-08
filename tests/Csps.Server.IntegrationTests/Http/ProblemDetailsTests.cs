@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Csps.Application.Content;
-using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Testing;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -17,7 +17,6 @@ namespace Csps.Server.IntegrationTests.Http;
 public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string NotFoundTitle = "We couldn't find that.";
-    private const string SiteSettingsRoute = "/api/v1/site-settings";
 
     [Theory]
     [InlineData("GET", "/api")]
@@ -90,22 +89,17 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
     {
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         await using var factory = baseFactory.WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<ISiteSettingsReader>();
-                services.AddScoped<ISiteSettingsReader, ThrowingSiteSettingsReader>();
-            }));
+            builder.ConfigureTestServices(services => services.AddTransient<IStartupFilter, ThrowingEndpointFilter>()));
         using var client = factory.CreateClient();
 
-        // A real Staff endpoint whose reader throws. (Phase 1 threw from a terminal middleware on an unmatched path;
-        // since Phase 2 every path matches an endpoint, such as the SPA shell, so nothing falls through to it, WEB-01.)
-        using var request = ApiRequests.Get(SiteSettingsRoute, TestTokens.For(Roles.Manager, TimeProvider.System));
+        // The test-only path is no endpoint, so the fallback policy (plan 01-08) requires a signed-in caller.
+        using var request = ApiRequests.Get(ThrowingEndpointFilter.Path, TestTokens.For(Roles.Manager, TimeProvider.System));
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldNotContain("Exception", Case.Insensitive);
-        body.ShouldNotContain(ThrowingSiteSettingsReader.SecretText);
+        body.ShouldNotContain(ThrowingEndpointFilter.SecretText);
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         var traceId = ProblemJson.TraceId(problem);
         problem.GetProperty("title").GetString().ShouldBe("Something went wrong.");
@@ -114,12 +108,18 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
         response.Headers.GetValues(SecurityHeadersTests.CspHeader).ShouldHaveSingleItem().ShouldBe(SecurityHeadersTests.StrictCsp);
     }
 
-    /// <summary>A reader whose failure message is SQL with a secret, to prove a 500 never shows it.</summary>
-    private sealed class ThrowingSiteSettingsReader : ISiteSettingsReader
+    /// <summary>Appends a terminal middleware that throws on one test-only path, after the real pipeline.</summary>
+    private sealed class ThrowingEndpointFilter : IStartupFilter
     {
+        public const string Path = "/test-only/throws";
         public const string SecretText = "SELECT secret FROM Users";
 
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            throw new InvalidOperationException(SecretText);
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            next(app);
+            app.Run(context => context.Request.Path.StartsWithSegments(Path, StringComparison.Ordinal)
+                ? throw new InvalidOperationException(SecretText)
+                : Task.CompletedTask);
+        };
     }
 }

@@ -1,9 +1,0 @@
-# Line endings (research Pitfall 4). core.autocrlf=true checks text out as CRLF on Windows, but Prettier and the
-# web tooling expect LF, so the web app, the OpenAPI generator and the shared test fixtures are always LF.
-web/** text eol=lf
-tools/openapi-gen/** text eol=lf
-tests/fixtures/** text eol=lf
-
-# Binary assets: never normalized.
-*.woff2 binary
-*.png binary

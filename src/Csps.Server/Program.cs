@@ -48,9 +48,6 @@ builder.Services.AddCspsApplication();
 // OpenAPI is registered in Development only (D-14).
 builder.Services.AddCspsOpenApi(builder.Environment);
 
-// Brotli/gzip for the SPA's static html, css, js and svg only; JSON is never compressed (PERF-02, BREACH).
-builder.Services.AddCspsSpaHosting();
-
 var app = builder.Build();
 
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
@@ -70,22 +67,6 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
 app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.HttpContext, context.HttpContext.Response.StatusCode));
 
-// Compresses static text and the shell, never JSON (PERF-02). Before static files so their responses are compressed.
-app.UseResponseCompression();
-
-// The built React app's files from the web root, anonymously and before authorization (WEB-01): hashed /assets/* are
-// immutable for a year, everything else is revalidated (SpaCaching).
-// Files in dot folders and Windows aliases of them are never served and fall through to the {*path:file} 404 (G-02-2).
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new HiddenSegmentFileProvider(app.Environment.WebRootFileProvider),
-    OnPrepareResponse = SpaCaching.Apply,
-});
-
-// Explicit, so static files run before endpoint matching: StaticFileMiddleware skips a request that already has a
-// matched endpoint, and the SPA fallbacks below would otherwise match every file path first (WEB-01).
-app.UseRouting();
-
 // One completion event per request: method, path (no query string), status and elapsed time. It writes through this
 // host's own logger, never the process-wide static one, and never logs headers or bodies (FND-07).
 var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
@@ -99,10 +80,6 @@ app.MapCspsHealth();
 app.MapApiFallback();
 app.MapSiteSettings();
 app.MapCspsApiDocs();
-
-// The SPA host (WEB-01): a missing file is a 404, never a 401 (research Pitfall 11); outside Development /openapi and
-// /scalar stay reserved 404s (D-29); any other non-file path gets the shell, anonymously.
-app.MapSpaHost();
 
 app.Run();
 

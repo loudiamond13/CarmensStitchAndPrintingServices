@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T04:46:33-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-07T18:29:59-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -12,7 +12,6 @@ This page takes a new developer from `git clone` to a running, tested CSPS API o
 |------|---------|-------|
 | .NET SDK | 10.0.401 | Pinned in `global.json` with `rollForward: latestPatch`, so any later 10.0.4xx patch works. Tests run on Microsoft.Testing.Platform (`dotnet test --project ...`). |
 | SQL Server 2025 Express LocalDB | 2025 | Provides `sqllocaldb`. CSPS uses its own instance, `(localdb)\CSPS`. |
-| Node.js / npm | 24.15+ / 11.19+ | For the web app in `web/` and the OpenAPI generator in `tools/openapi-gen/`. `engine-strict` refuses older versions. |
 | Windows PowerShell | 5.1 | Every script in `tools/scripts` runs on 5.1 (and on PowerShell 7). |
 | Git | any recent | |
 
@@ -88,82 +87,9 @@ Run these once, in this order.
 
 3. Check it:
    - <http://localhost:5115/health> is public and returns a minimal body.
-   - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only**. Outside Development both prefixes answer a plain 404 and never show the web app (D-29).
+   - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only** and are never mapped in production.
 
 The launch profile sets `ASPNETCORE_ENVIRONMENT=Development` for that process only. Never set it, or any other variable, at User or Machine level.
-
-## Web app (web/)
-
-The public site and the admin portal are one React app in `web/`, built with Vite. The API serves the built app from its web root, so production needs no separate web server.
-
-1. **Install the exact locked packages** (once, and after every `package-lock.json` change). `web/.npmrc` pins exact versions and the 14-day release cool-down. Never add a package with a plain `npm install <name>`: every new package or version needs the owner's approval first (see [Dependencies](dependencies.md)).
-
-   ```powershell
-   npm --prefix web ci
-   ```
-
-2. **Day-to-day development: two terminals.** Run the preflight check first (see [Running the API](#running-the-api)). Then start the API in one terminal and the Vite dev server in the other:
-
-   ```powershell
-   dotnet run --project src/Csps.Server --launch-profile http
-   ```
-
-   ```powershell
-   npm --prefix web run dev
-   ```
-
-   Open <http://localhost:5180>. The dev server uses port **5180** with `strictPort`: if the port is taken it stops with an error instead of moving to another port, so it never collides with TheBETSLLC. It forwards every `/api` request to the API on <http://localhost:5115>.
-
-3. **Production build.** This empties and rewrites `src/Csps.Server/wwwroot`, which the API then serves at <http://localhost:5115/>:
-
-   ```powershell
-   npm --prefix web run build
-   ```
-
-   `src/Csps.Server/wwwroot` is build output. It is git-ignored and never edited by hand. Hand-written static files (`mark.svg`, `robots.txt`) live in `web/public/`. The .NET tests never need this build: they serve a small stub web root from `tests/Csps.Testing/Fixtures/webroot`.
-
-4. **OpenAPI type generator.** `tools/openapi-gen/` is a separate npm folder with its own TypeScript 5.9, which the generator needs. Install it with `npm --prefix tools/openapi-gen ci`.
-
-How the API serves the app:
-
-- Any page path, such as `/products` or `/admin/orders`, gets the app's `index.html`, which the browser revalidates on every visit.
-- Files under `/assets/` are cached for a year, because their names change with every build.
-- A missing file, such as `/missing.js`, is a plain 404. Unknown `/api` paths stay API errors.
-- Files inside a dot folder (such as Vite's `.vite/`), and Windows short-name or backslash aliases of them, are never served. They get the same 404 as a missing file. A deliberate `/.well-known/` file (security.txt, Android App Links, a certificate challenge) needs an explicit, tested exception in `HiddenSegmentFileProvider`.
-- Static text (html, css, JavaScript, SVG) is compressed. JSON never is.
-
-Set environment variables only inside one terminal or process, never at User or Machine level.
-
-## API types
-
-The web app calls the API only through `web/src/lib/api.ts` (WEB-04). ESLint rejects `fetch`, `XMLHttpRequest`, `axios` and any import of `src/lib/http` everywhere else. Add a new endpoint as a function in the matching `api.<area>` group, typed from `web/src/types/api.generated.ts`, and give every POST function an `{ idempotencyKey }` option that the form fills from `useSubmission` (WEB-09).
-
-`web/src/types/api.generated.ts` is generated, committed, and never edited by hand. It comes from `tools/openapi-gen/openapi.v1.json`, a committed copy of the API's Development OpenAPI document (`/openapi/v1.json`) with its keys sorted. Two checks keep the three in step:
-
-- **`OpenApiSnapshotTests`** (part of `dotnet test`) fails when the live document differs from the committed snapshot.
-- **`npm --prefix tools/openapi-gen run check`** regenerates the types in memory and fails with "Generated API types are out of date" when the committed file differs.
-
-After you change an endpoint or a DTO, refresh both in one terminal (install the generator once with `npm --prefix tools/openapi-gen ci`):
-
-1. Rewrite the snapshot. The switch is set for this one command only, never at User or Machine level. The run writes the file and then fails on purpose with "Snapshot written; run again without CSPS_WRITE_OPENAPI_SNAPSHOT", so a run with the switch never passes.
-
-   ```bash
-   CSPS_WRITE_OPENAPI_SNAPSHOT=1 dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OpenApiSnapshotTests"
-   ```
-
-   In PowerShell: `$env:CSPS_WRITE_OPENAPI_SNAPSHOT = '1'; dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OpenApiSnapshotTests"; Remove-Item Env:CSPS_WRITE_OPENAPI_SNAPSHOT`.
-
-2. Run the same `dotnet test` command again without the switch. It must pass.
-3. Regenerate the types, then confirm there is no drift:
-
-   ```powershell
-   npm --prefix tools/openapi-gen run generate
-   npm --prefix tools/openapi-gen run check
-   ```
-
-4. Commit `tools/openapi-gen/openapi.v1.json` and `web/src/types/api.generated.ts` together with the API change.
-
-The snapshot's `servers` entry is the test host's address (`https://localhost/`), not a real server.
 
 ## Testing
 
@@ -185,48 +111,6 @@ Run the preflight check (above) before a full test run.
   ```
 
   It drops only names matching `^CSPS_Test_[0-9a-f-]{36}$` that are older than two hours, and only on `(localdb)\CSPS`.
-
-## End-to-end tests (Playwright)
-
-The end-to-end tests drive the real API host in Chromium, Firefox and WebKit, plus two phone profiles (Pixel 7 and iPhone 15). Every test fails on any browser console error or warning, any uncaught page error, any Content-Security-Policy violation, any failed request to the site (status 400 or higher), and any accessibility (axe) violation.
-
-**Prerequisites** (once): the CSPS LocalDB instance and your development secrets, from [First-time setup](#first-time-setup):
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-LocalDb.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1
-```
-
-**Run the suite:**
-
-```powershell
-npm --prefix web run e2e
-```
-
-That one command does everything, in order:
-
-1. It runs the shared-machine preflight (`C:\Work\dev-tools\preflight.ps1`) and prints the report. If another project holds one of our ports or TheBETSLLC's tests are running, stop and try again later.
-2. It refuses to start if port **5199** is already in use. It never stops or kills any process.
-3. It applies the migrations to `CSPS_E2E` on `(localdb)\CSPS` through the guarded dev-seed tool, which refuses any other database or server.
-4. It builds the app in `e2e` mode into `web/.e2e-dist`. That bundle is never copied into the API's `wwwroot`, so its development-only pages can never be deployed.
-5. It starts the API on **https://localhost:5199** in Development, serving `web/.e2e-dist` as its web root (D-30). The host reads the JWT signing key and the Data Protection certificate from your user-secrets. The environment name and the `CSPS_E2E` connection string are set on that one process only, and no secret is passed on a command line. Playwright stops the host when the run ends.
-6. It runs the tests and exits with Playwright's exit code.
-
-**Run only some tests:** anything after `--` goes to Playwright, for example the smoke test or the guard self-tests:
-
-```powershell
-npm --prefix web run e2e -- --grep @smoke
-npm --prefix web run e2e -- --grep @fixture
-```
-
-**Reports:** the HTML report is in `web/playwright-report` and failure traces are in `web/test-results`. Both are git-ignored and never committed.
-
-Why it works this way:
-
-- **HTTPS is required.** The site's Content-Security-Policy ends with `upgrade-insecure-requests`. WebKit applies that to `http://localhost` too, so over plain http the WebKit and iPhone tests would load a blank page (research Pitfall 2). The host uses the ASP.NET development certificate, and the tests accept it.
-- **The CSP is never relaxed or bypassed in tests.** The browsers enforce exactly the policy production sends, and the smoke test checks the exact header text.
-- **New E2E tests** import `test`, `expect` and `expectNoAxeViolations` from `web/e2e/fixtures.ts`, never straight from `@playwright/test`, so every test gets the same checks. Page-level axe uses the same rule tags as the component tests (`web/src/test/axeTags.ts`).
-- **CI** (Phase 3) supplies its own secrets to the host process. It never uses your user-secrets.
 
 ## Quality gates
 

@@ -73,19 +73,16 @@ public sealed class AuthorizationFailureTests
     }
 
     [Theory]
-    [InlineData(10, HttpStatusCode.OK)]
+    [InlineData(10, HttpStatusCode.NotFound)]
     [InlineData(60, HttpStatusCode.Unauthorized)]
     public async Task ClockSkewIsThirtySeconds(int expiredSecondsAgo, HttpStatusCode expected)
     {
-        // A token that expired within the 30-second skew is still signed in, so the Staff-only route answers 200. The
-        // reader is an in-memory stub, so no database is needed. (Phase 1 probed an unknown page path, which Phase 2
-        // now serves to everyone as the SPA shell, WEB-01.)
+        // A token that expired within the 30-second skew is still signed in: the unknown path then answers 404.
         var issuedAt = new FakeTimeProvider(TimeProvider.System.GetUtcNow().AddMinutes(-5));
         var token = TestTokens.For(Roles.Manager, issuedAt, lifetime: TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(expiredSecondsAgo));
-        await using var baseFactory = new CspsApiFactory();
-        await using var factory = WithFixedReader(baseFactory);
+        await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();
-        using var request = ApiRequests.Get(SiteSettingsRoute, token);
+        using var request = ApiRequests.Get("/nope", token);
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -160,13 +157,12 @@ public sealed class AuthorizationFailureTests
     }
 
     [Fact]
-    public async Task UnservedMethodOnAPagePathIsChallenged()
+    public async Task UnknownNonApiPathIsChallenged()
     {
-        // The SPA shell answers GET and HEAD on page paths only (WEB-01). Any other request that no endpoint serves
-        // still meets the default-deny fallback policy (assumption A3).
+        // No endpoint matches, so the fallback policy applies (assumption A3). Phase 2 maps the SPA host anonymously.
         await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();
-        using var request = ApiRequests.Create(HttpMethod.Post, "/nope");
+        using var request = ApiRequests.Get("/nope");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -229,21 +225,6 @@ public sealed class AuthorizationFailureTests
                 services.AddScoped<ISiteSettingsReader, ThrowingSiteSettingsReader>();
             });
         });
-
-    private static Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> WithFixedReader(CspsApiFactory baseFactory) =>
-        baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<ISiteSettingsReader>();
-            services.AddScoped<ISiteSettingsReader, FixedSiteSettingsReader>();
-        }));
-
-    /// <summary>A reader that answers from memory, so a signed-in request succeeds without a database.</summary>
-    private sealed class FixedSiteSettingsReader : ISiteSettingsReader
-    {
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SiteSettingsSnapshot(
-                "Carmen's Stitch & Printing Services", "Asia/Manila", "PHP", "en-PH", string.Empty, string.Empty, string.Empty, string.Empty, "AAAAAAAAB9E="));
-    }
 
     /// <summary>A reader whose failure message contains a secret, to prove a 500 never shows it.</summary>
     private sealed class ThrowingSiteSettingsReader : ISiteSettingsReader

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
-status: executing
-stopped_at: Completed 02-19-PLAN.md
-last_updated: "2026-10-08T10:57:42.890Z"
-last_activity: 2026-10-07
-last_activity_desc: Phase 02 execution started
-state_head: 354d03a772c8424f2cb38483f4d1a13b4a33b330
+status: planning
+stopped_at: Phase 2 re-planning from scratch (owner ruling D-33, full Tailwind conversion); Phase 2 code reverted to 880713c
+last_updated: "2026-10-08T02:49:18.263Z"
+last_activity: 2026-10-08
+last_activity_desc: Phase 2 execution reverted; replanning under D-33
+state_head: af511ee1b02e5d7b1bba58222643e5f5d97c38af
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 32
-  completed_plans: 26
+  total_plans: 31
+  completed_plans: 13
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T06:06:00-05:00"
+updated: "2026-10-08T06:06:27-05:00"
 ---
 
 # Project State
@@ -25,14 +25,14 @@ updated: "2026-10-08T06:06:00-05:00"
 See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 02 — Web Foundation & Design System
+**Current focus:** Phase 2 — Web Foundation & Design System
 
 ## Current Position
 
-Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 14 of 18
+Phase: 02 (Web Foundation & Design System) — READY TO EXECUTE
+Plan: Not started
 Status: Ready to execute
-Last activity: 2026-10-07 — Phase 02 execution started
+Last activity: 2026-10-07 - Completed quick task 261007-qde: gitignore .planning/design/ and record it as the visual UI reference
 
 Progress: [█░░░░░░░░░] 6%
 
@@ -71,19 +71,6 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 01 P10 | 23min | 3 tasks | 15 files |
 | Phase 01 P11 | 29min | 3 tasks | 13 files |
 | Phase 01 P13 | 4 min | 2 tasks | 2 files |
-| Phase 02 P01 | 37 min | 3 tasks | 30 files |
-| Phase 02 P02 | 15 min | 3 tasks | 21 files |
-| Phase 02 P03 | 24min | 2 tasks | 12 files |
-| Phase 02 P04 | 22 min | 3 tasks | 16 files |
-| Phase 02 P05 | 18 min | 3 tasks | 18 files |
-| Phase 02 P06 | 17 min | 2 tasks | 7 files |
-| Phase 02 P07 | 18 min | 3 tasks | 8 files |
-| Phase 02 P08 | 22 min | 3 tasks | 17 files |
-| Phase 02 P09 | 43 min | 2 tasks | 20 files |
-| Phase 02 P10 | 20 min | 3 tasks | 15 files |
-| Phase 02 P12 | 24 min | 2 tasks | 12 files |
-| Phase 02 P13 | 30 min | 3 tasks | 21 files |
-| Phase 02 P19 | 12 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -138,51 +125,6 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 01]: D-33 (owner, 2026-10-07): target production DB is SQL Server 2025 (host is 2022 today); the 2025 move happens at cutover after a fresh backup; SqlCompatibility.Level stays 160 provisional, re-pin to 170 after the 2025 DB exists and is verified
 - [Phase 01]: 01-13: Host facts (2026-10-07): .NET Basic, 1/1 DB, 1000 MB, SQL Server 2022 16.0.x Web, app login db_owner; probe impossible (no extra site) so runtime/in-process/proxy/tz/PFX facts are verified on the Phase 3 first deploy
 - [Phase 01]: 01-13: cspstailoring.com SPF ends -all and DMARC is p=reject; Phase 4 mail must use SmarterASP.NET mail servers (include:_spf.site4now.net) with aligned DKIM; Gmail D2 check still due
-- [Phase 02]: Owner cool-down exceptions (2026-10-07): source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes) and rolldown + @rolldown/binding-* 1.2.11 (vite 8.3.3 engine waiver), pinned via web/package.json overrides
-- [Phase 02]: SPA shell keeps GET/HEAD-only registration: matrix keys GET and HEAD {*path:nonfile}; other methods on page paths stay default-deny
-- [Phase 02]: D-29 via ReservedPathMetadata: outside Development /openapi/{**path} and /scalar/{**path} are anonymous ProblemDetails 404 fallbacks
-- [Phase 02]: Shared ESLint configs pass through escalate(): warn-level rules (react-hooks exhaustive-deps, incompatible-library, unsupported-syntax) become error, never off
-- [Phase 02]: Node-side config tests (lint-rules, eslint-config, build-config) are typed by tsconfig.node.json and excluded from tsconfig.app.json, so app code never sees Node types
-- [Phase 02]: Prettier pins tabWidth 2 and .editorconfig has a web/** indent_size = 2 section (the repo default is 4)
-- [Phase 02]: no-console is off only for src/test/consoleGuard.ts and its test; deliberate a11y violations in tests use per-line eslint-disable with a reason
-- [Phase 02]: 02-03: npm pins (incl. exact overrides) registered with folder-qualified ids; license exceptions match license AND scope
-- [Phase 02]: 02-04: Pinned D-09 order-math operation order (golden-vector operationOrder): round the items total; round each discount (a percentage applies to the ROUNDED items total); sum the discounts and round the sum; subtract. Server Csps.Domain.Orders.OrderMath (decimal, AwayFromZero) and client csps.ts (exact BigInt centavos) both pass 220 shared vectors in tests/fixtures/order-math-golden-vectors.json; regenerate only with node web/scripts/gen-golden-vectors.mjs (--check for drift)
-- [Phase 02]: 02-04: Client previews read numbers through String(n) into BigInt centavos and back through the decimal text; NaN and +/-Infinity count as 0 (SPEC-DEVIATION D-09); toCentavos/centavosToAmount are the MoneyInput string<->centavo conversion
-- [Phase 02]: 02-04: A const decimal in Csps.Domain compiles to a static field whose initializer never runs (one uncovered line); use the literal instead
-- [Phase 02]: 02-05: D-02 rule applied to five verbatim faded-text selectors (placeholder, Manager tag, CTA lead, pill count, big-button caption), reset to opacity 1 in overrides.css; the opacity scan allows only reasoned exceptions (inactive buttons, D-05 thumb actions, skeleton, entry-animation first frames, two decorations)
-- [Phase 02]: 02-05: WEB-09 pending (aria-disabled) buttons also reset every App. B hover/press style, so they look exactly like :disabled
-- [Phase 02]: 02-05: PERF-05 fallback faces measured against Windows Arial (Arial Narrow absent): Archivo Fallback 101.85/86.21/20.62/0, Barlow Condensed Fallback 68.92/145.1/29.02/0 (size-adjust/ascent/descent/line-gap %); Barlow fallback skips U+20B1
-- [Phase 02]: 02-06: A2 confirmed - `--webroot <abs path>` on dotnet run sets the web root; the E2E host serves web/.e2e-dist directly (never copied into wwwroot). A1 confirmed - addInitScript, exposeBinding, evaluate and AxeBuilder injection work under the strict CSP in Chromium, Firefox and WebKit
-- [Phase 02]: 02-06: E2E specs import test/expect/expectNoAxeViolations from web/e2e/fixtures.ts; the automatic guard fails every test on console error/warning, pageerror, CSP violation (binding-reported, survives navigation) and same-origin response >= 400; self-tests consume provoked findings with guard.take()
-- [Phase 02]: 02-07: createHttpClient owns retries - max 2 (clamped), 250 ms doubling to a 2 s cap, no jitter, only GET/HEAD/PUT/DELETE/OPTIONS or a POST with idempotencyKey, only after kind network or a 503; TanStack Query must keep retry: false
-- [Phase 02]: 02-07: the HTTP client never creates an Idempotency-Key and never sends one on GET/HEAD/OPTIONS; the key comes only from RequestConfig.idempotencyKey, is set before request interceptors, and is resent on every retry and the 401 refresh retry
-- [Phase 02]: 02-07: 401 handling - one refresh cycle per client (single flight), each request retries once; no refresh configured, a failed refresh, or a second 401 calls onUnauthorized at most once per cycle
-- [Phase 02]: 02-07: HttpError kind network|timeout|aborted|http|parse, status 0 without a response, message = ProblemDetails title or a plain-English kind default; secret param names (token, access_token, refresh_token, password, secret, otp) throw a TypeError before fetch
-- [Phase 02]: 02-07: a filtered lib/http coverage run needs --coverage.include=src/lib/http/** (otherwise the global 90% thresholds trip); npm run verify enforces coverage.thresholds['src/lib/http/**'] = 100
-- [Phase 02]: 02-08: createListParams(parsers, { urlKeys }) is the one list-state hook: typed + raw nuqs useQueryStates reads; one replace removes invalid, default or non-canonical keys (at most once); setPage pushes, every other setter replaces and writes page: null in the same update; setSearch debounces 300 ms (immediate on Enter); default urlKeys pageSize->size, search->q
-- [Phase 02]: 02-08: nuqs shallow writes update window.history only; React Router's useLocation().search stays stale after a list-state change, so list screens read list state only through their list hook (UrlStateLayout tests assert window.location in a browser router)
-- [Phase 02]: 02-08: URL key order is page, size, q, then the other keys by name (orderSearchParams as NuqsAdapter processUrlSearchParams); equal values always give one query string
-- [Phase 02]: 02-08: prefetchOnIntent uses queryClient.query(options).catch(noop) because TanStack Query 5.103.2 deprecates prefetchQuery (no-deprecated lint); never RR <Link prefetch>
-- [Phase 02]: 02-08: createListParams throws a TypeError for URL keys naming personal data or secrets (email, phone, mobile, name variants, address, token variants, password, secret, otp, code); personal data only in free-text q (CWE-598)
-- [Phase 02]: 02-08: Range presets today/last-7-days/last-30-days/this-month/last-month/this-year resolve against an injected businessToday(now, 'Asia/Manila'); last-N-days includes today; dates stay plain YYYY-MM-DD strings (parseAsBusinessDate)
-- [Phase 02]: 02-09: App. D.3-D.5 reconciled with the strict gates with no DOM change, proven by src/ui/differential.test.tsx (245 seed-data cases, equal-props re-render, handler parity) against frozen src/ui/__reference__ copies; normalizeDom hides only useId, lucide classes, xmlns, attribute order and icon drawings; Sidebar Logout <button> (D-27) is the only listed difference
-- [Phase 02]: 02-09: UiLink renders react-router Link directly (LinkProvider kept, unused); Icon renders ICONS[name] (lucide-react 1.52.0, 56 names, IconProps omits color); MarkSvg JSX replaces the MARK_SVG raw-HTML prop; jsx-a11y handler fixes use React 19 callback-ref listeners
-- [Phase 02]: 02-09: D-27 compat rule button.csp-nav sets only appearance, border-width, text-align, cursor (unlayered overrides may not set properties layered .csp-nav rules set); measured identical to the link in 34 values
-- [Phase 02]: 02-10: API contract pipeline: OpenApiSnapshotTests compares the canonical (ordinal key sort, 2-space, LF) Development /openapi/v1.json with tools/openapi-gen/openapi.v1.json; CSPS_WRITE_OPENAPI_SNAPSHOT=1 (per process) writes it and still fails; npm --prefix tools/openapi-gen run generate/check keep web/src/types/api.generated.ts in step; api.ts types come from components['schemas']
-- [Phase 02]: 02-10: useSubmission(submit).run resolves to { ok, value } | { ok, error } and never rejects; one Idempotency-Key per submission, reused only for a JSON-equal (or no-data) retry of a failed submission; success, reset() or changed data mints a new key; a second trigger while pending gets the same promise; signal aborts on unmount; newIdempotencyKey falls back to getRandomValues, never Math.random
-- [Phase 02]: 02-10: describeHttpError is the only error-copy module: 400 with field errors -> 'Check the highlighted fields.' with empty body and fieldErrors; 403/404/409/429 UI-SPEC copy; 5xx, unmapped statuses, parse and non-HttpError -> 'Something went wrong' / 'Please try again.' (+ ' Reference: {traceId}'); 401 and aborted -> null
-- [Phase 02]: 02-12: SPEC-GAP form primitives live in web/src/ui/gaps/ (MoneyInput, OtpInput, Checkbox, SkipLink), strings in gaps/copy.ts, CSS in one /* SPEC-GAP: <name> */ block of spec-gaps.css each; SPEC-GAP CSS assertions go in src/styles/overrides.test.ts because Vitest stubs CSS imports even with ?raw
-- [Phase 02]: 02-12: MoneyInput strips commas and spaces from every change and keeps it only if it matches ^\d{0,9}(\.\d{0,2})?$; normalizeMoneyOnBlur pads to 2 decimals; className text-right on the field right-aligns item-row amounts (SPEC-GAP rule .csp-field.text-right .csp-input)
-- [Phase 02]: 02-12: OtpInput value is one character per box with a space for an empty box (trailing spaces dropped); onComplete fires whenever an edit leaves all six filled; Backspace in an empty box moves back and clears that box; direct value writes (Android Unidentified keys, one-time-code autofill) use the same fill as paste
-- [Phase 02]: 02-12: SkipLink always prevents the default (focuses the target, no #main in the URL); Checkbox takes explicit props (no rest spread) with onChange(checked), required, hint and error
-- [Phase 02]: 02-13: LoadingRegion's single polite status node sits beside the aria-busy region (not inside it) and stays silent after a failed load; the ErrorState alert announces failures
-- [Phase 02]: 02-13: SearchBox keeps the typed text and resyncs only when the outside value differs once trimmed, because the list hook stores the trimmed search; the URL stays the single source
-- [Phase 02]: 02-13: ResponsiveTable owns the list states (first-load SkeletonTable, ErrorState above kept rows, EmptyState first-use / no matches, .is-refetching after 200 ms of placeholder data); feature lists pass status, isPlaceholderData and the list-hook setters
-- [Phase 02]: 02-13: user-event never resolves under vitest fake timers; debounce tests fire input events, other tests use real timers, and axe always runs on real timers
-- [Phase 02]: 02-19: G-02-2 closed server-side: HiddenSegmentFileProvider wraps the web root in UseStaticFiles; any segment starting with a dot or containing a tilde (split on / and backslash) reads as missing and gets the anonymous {*path:file} ProblemDetails 404 (Windows backslash and NTFS 8.3 aliases included); D-BL-04 untouched
-- [Phase 02]: 02-19: a future /.well-known/ file (security.txt, Android App Links, ACME) needs an explicit, tested exact-path exception inside HiddenSegmentFileProvider, never a relaxed rule
-- [Phase 02]: 02-09 Task 3 (owner, 2026-10-08, D-BL-03 Option A + D-BL-02 Option B): D-31 O-1..O-7 approved as recommended, O-8 keeps the smaller designed controls (WCAG 2.2 AA 2.5.8 exception recorded), D-27 Logout look confirmed identical, D-BL-02 hides the Manager tag on the selected row (.csp-nav.is-on .csp-nav-tag { display: none; }, applied by 02-11); D-32 all 20 redrawn lucide-react 1.52.0 icons approved incl. trash-2->trash and filter->funnel aliases and menu bars 5/12/19
-- [Phase 02]: 02-03 D-BL-01 (owner, 2026-10-08, 'Approve all three'): D-26 addendum adds dev/build-only, license-level npmLicenseExceptions MIT-0 (test: @csstools/* via jsdom), CC-BY-3.0 (tool: spdx-exceptions, spdx-ranges via license-checker-rseidelsohn), Python-2.0 (tool: argparse via openapi-typescript); no package changed; node web/scripts/license-gate.mjs exits 0 (16 production, 522 dev/build, no stale); 02-16 may wire license:check into verify
 
 ### Pending Todos
 
@@ -219,6 +161,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T09:52:35.709Z
-Stopped at: Completed 02-19-PLAN.md
-Resume file: None
+Last session: 2026-10-08T00:56:47.861Z
+Stopped at: Phase 2 UI-SPEC approved
+Resume file: .planning/phases/02-web-foundation-design-system/02-UI-SPEC.md
