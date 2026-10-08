@@ -129,7 +129,11 @@ describe('feedback scenarios (the feedback parity group)', () => {
         icon: 'clipboard-list',
         title: 'No orders yet',
         message: 'Create your first order to start tracking items, payments and balances.',
-        action: { kind: 'node', component: 'Button', props: { variant: 'primary', icon: 'plus', children: 'New Order' } },
+        action: {
+          kind: 'node',
+          component: 'Button',
+          props: { variant: 'primary', icon: 'plus', children: 'New Order' },
+        },
         level: 3,
       },
     });
