@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-18-PLAN.md
-last_updated: "2026-10-08T22:04:54.243Z"
+stopped_at: Completed 02-19-PLAN.md
+last_updated: "2026-10-08T22:44:10.700Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 64459750eece402767664aa707da569e2758184f
+state_head: bd37533f328e8c81ccb554d4a7b5a5fdd5fbdaaf
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 35
+  completed_plans: 36
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T16:33:47-05:00"
+updated: "2026-10-08T17:44:40-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 23 of 40
+Plan: 24 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -93,6 +93,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P16 | 11 min | 2 tasks | 8 files |
 | Phase 02 P17 | 1h 27m | 2 tasks | 14 files |
 | Phase 02 P18 | 28 min | 2 tasks | 16 files |
+| Phase 02 P19 | 36 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -204,6 +205,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-17: UiLink renders react-router Link for in-app paths and a plain anchor for https/mailto/tel/# targets; LinkProvider is a pass-through (SPEC-DEVIATION Flag 2); icon-only Button requires aria-label by type (SPEC-DEVIATION A11Y-04); ButtonLink shares buttonClasses and buttonIconSize
 - [Phase 02]: 02-18: Mark renders App. D.4 MARK_SVG as JSX children (no dangerouslySetInnerHTML, WEB-02); MediaPlaceholder label={false} hides the chip (research row 21) and --ratio is read by aspect-(--ratio) in the same component
 - [Phase 02]: 02-18: parity cases needing a wrapper App. D.3 lacks use a same-named dev-only pair (src/dev/previews + visual/reference/fragments): IconSet and MediaPlaceholderNoChip; React CSSProperties is augmented with --* keys (src/types/react-css-custom-properties.d.ts)
+- [Phase 02]: 02-19: Tabs take a required idBase; tab ids are {idBase}-tab-{id}; screens render the selected panel as <div {...getTabPanelProps(idBase, id)}> right after the Tabs (axe fails a selected tab whose aria-controls names a missing panel)
+- [Phase 02]: 02-19: SegmentedControl and Tabs use a roving tabIndex with automatic activation through rovingItem (web/src/ui/choice/roving.ts): radios Right/Down and Left/Up, tabs Right/Left plus Home/End, all wrapping; the first item is the Tab stop when the value matches none
+- [Phase 02]: 02-19: PAYMENT_TONE/EXPENSE_TONE are keyed by the PaymentMethod/ExpenseCategory unions; use isOrderStatus before indexing STATUS_TONE with an API string (unknown status = raw text, neutral)
+- [Phase 02]: 02-19: the parity comparator reads scrollbar-width (headless Chromium never paints scrollbars); parity cases that need a tabpanel use the TabsWithPanel wrapper pair; focus-visible cases target the selected item of a roving group, hover on an unselected item is a separate -other case
 
 ### Pending Todos
 
@@ -240,6 +245,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T22:04:54.108Z
-Stopped at: Completed 02-18-PLAN.md
+Last session: 2026-10-08T22:44:10.562Z
+Stopped at: Completed 02-19-PLAN.md
 Resume file: None
