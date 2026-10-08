@@ -1,0 +1,145 @@
+/* CSPS base layer (D-33), imported by app.css into layer(base).
+   Source: CSPS-UI-SPEC.md App. A token blocks, values unchanged (the App. A type utility classes are retired), the
+   dark Mark tokens from the App. B `.csp-mark` dark rule (moved into the dark block), and the global element rules
+   from App. B lines 1-8. No class selectors live here: every visual decision is a utility in markup. */
+:root, [data-theme="light"] {
+  --bg: #f6dfd1;
+  --surface: #fbebe2;
+  --surface-2: #f1e1d7;
+  --surface-3: #fff6f0;
+  --nav-bg: #d4bbab;
+  --nav-ink: #572e2b;
+  --sand: #e9b88f;
+  --line: #e3c6b7;
+  --line-strong: #9a6c60;
+  --ink: #3b1f1c;
+  --ink-muted: #6b443c;
+  --ink-subtle: #7a5248;
+  --primary: #572e2b;
+  --primary-hover: #6f3b37;
+  --on-primary: #f6dfd1;
+  --accent: #ff6600;
+  --accent-hover: #ff7a24;
+  --on-accent: #1f0f0d;
+  --accent-ink: #a33f00;
+  --accent-soft: #fcd9c2;
+  --accent-line: #c24e00;
+  --focus: #572e2b;
+  --danger: #b3261e;
+  --danger-soft: #f9d6cf;
+  --on-danger: #fff6f0;
+  --success: #1b6a51;
+  --success-soft: #d3eadf;
+  --warning: #855400;
+  --warning-soft: #f6e2b8;
+  --info: #285787;
+  --info-soft: #dbe5f0;
+  --mockup: #6a3780;
+  --mockup-soft: #eedcf0;
+  --neutral-soft: #ead1c4;
+  --chart-income: #d45500;
+  --chart-expense: #572e2b;
+  --scrim: #3b1f1ccc;
+  --status-pending: var(--ink-muted);
+  --status-mockup: var(--mockup);
+  --status-production: var(--warning);
+  --status-ready: var(--info);
+  --status-completed: var(--success);
+  --status-cancelled: var(--danger);
+  --link: var(--accent-ink);
+  --shadow-1: 0 1px 2px 0 #3b1f1c14, 0 1px 3px 0 #3b1f1c0d;
+  --shadow-2: 0 12px 28px -10px #3b1f1c33;
+  --shadow-3: 0 24px 56px -16px #3b1f1c4d;
+}
+[data-theme="dark"] {
+  --bg: #1a100f;
+  --surface: #241614;
+  --surface-2: #2f1e1b;
+  --surface-3: #382623;
+  --nav-bg: #130b0a;
+  --nav-ink: #d4bbab;
+  --sand: #5a3a2c;
+  --line: #3f2b28;
+  --line-strong: #8f6c62;
+  --ink: #f6dfd1;
+  --ink-muted: #d0b2a4;
+  --ink-subtle: #b39385;
+  --primary: #f6dfd1;
+  --primary-hover: #ffeee4;
+  --on-primary: #572e2b;
+  --accent: #ff6a1a;
+  --accent-hover: #ff8340;
+  --on-accent: #1a100f;
+  --accent-ink: #ff8a4c;
+  --accent-soft: #3d2014;
+  --accent-line: #ff6a1a;
+  --focus: #ff8a4c;
+  --danger: #ff7b6b;
+  --danger-soft: #3a1714;
+  --on-danger: #1a100f;
+  --success: #6fd1ad;
+  --success-soft: #12302a;
+  --warning: #f2b65c;
+  --warning-soft: #3a2a10;
+  --info: #8ab9ea;
+  --info-soft: #142838;
+  --mockup: #d3a8e6;
+  --mockup-soft: #2e1d38;
+  --neutral-soft: #34221f;
+  --chart-income: #ff6a1a;
+  --chart-expense: #d4bbab;
+  --scrim: #000000b8;
+  --status-pending: var(--ink-muted);
+  --status-mockup: var(--mockup);
+  --status-production: var(--warning);
+  --status-ready: var(--info);
+  --status-completed: var(--success);
+  --status-cancelled: var(--danger);
+  --link: var(--accent-ink);
+  --shadow-1: 0 1px 0 0 #ffffff0a inset, 0 1px 2px 0 #00000066;
+  --shadow-2: 0 12px 32px -8px #000000b3;
+  --shadow-3: 0 24px 64px -12px #000000cc;
+  /* Dark Mark colours (App. B `[data-theme="dark"] .csp-mark`); they inherit into the Mark SVG. The light values
+     are the SVG's own var() fallbacks. */
+  --csp-mark-ring: #1a100f;
+  --csp-mark-stitch: #ff6a1a;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --container-max: 1200px;
+  --header-height: 64px;
+  --sidebar-width: 248px;
+  --sidebar-collapsed: 72px;
+  --topbar-height: 64px;
+  --slideover-width: 480px;
+  --cut-angle: 48px;
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --z-header: 40;
+  --z-overlay: 80;
+  --z-toast: 100;
+  --font-display: "Barlow Condensed", "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-sans: "Archivo Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Global element rules (App. B lines 1-8). Box sizing is already Tailwind preflight. */
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 24px; -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; } }
+main[tabindex="-1"]:focus { outline: none; }
