@@ -6,7 +6,11 @@
    - Unlayered, so each rule wins over the layered spec CSS whatever its specificity.
    - Every rule group starts with a comment naming its decision ID, and every selector names a spec class (.csp-* or
      .s-*), except the PERF-05 font faces and font-stack tokens.
-   - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. */
+   - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. The rulings
+     made after it (D-31 O-3, O-6 and D-31 D-BL-02, 2026-10-08) follow UI-SPEC "Owner-ruled colour and state rulings".
+   - The phone list-card title separator has no rule here on purpose: the owner kept it exactly as the approved CSS
+     renders it (the last card has none), so the proof expects the implementation to match the spec there.
+   - visual/reference/rulings.test.ts pins all of the above. */
 
 /* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */
 @font-face {
@@ -35,6 +39,135 @@
 :root {
   --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Archivo Variable", "Arial Narrow", sans-serif;
   --font-sans: "Archivo Variable", "Archivo Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* D-01 (C-34) iOS input zoom: on phones only, text inside search boxes, toolbar filters and item-row inputs is 16px, so
+   iOS Safari does not zoom on focus. .csp-input is already 16px; desktop and tablet keep the designed 14px. */
+@container pg (max-width: 767px) {
+  .csp-search input,
+  .s-search-box input,
+  .s-toolbar .csp-input,
+  .s-item .csp-input {
+    font-size: 16px;
+  }
+}
+
+/* D-02 (C-35) inactive rows: muted but readable, no opacity. A softer row background plus the existing neutral
+   Inactive badge; all text keeps its normal tokens (>= 4.5:1 on --surface-2). Replaces App. E.12 opacity .72. */
+.s-rt tbody tr.is-inactive > td {
+  background: var(--surface-2);
+}
+
+/* D-02 (C-35) inactive rows on phones: the stacked card itself takes the softer background. */
+@container pg (max-width: 767px) {
+  .s-rt tbody tr.is-inactive {
+    background: var(--surface-2);
+  }
+}
+
+/* D-02 FYI-01 no faded text: the five spec texts that faded below 4.5:1 (input placeholder, Manager tag, CTA lead,
+   filter-pill count, big-button caption) render at full opacity in their own token colours. */
+.csp-input::placeholder,
+.csp-nav-tag,
+.s-cut-accent .s-lead,
+.s-pill-count,
+.s-bigbtn span {
+  opacity: 1;
+}
+
+/* D-03 (C-35) orange is never the only state cue: the selected tab, the current site link, the current sidebar item
+   and the current tab-bar item are bold (700; siblings stay 600), in both themes. */
+.csp-tab.is-on,
+.csp-site-link.is-on,
+.csp-nav.is-on,
+.s-tab-i.is-on {
+  font-weight: 700;
+}
+
+/* D-03 (C-35) checkbox second cue: a 2px --ink border at rest. */
+.s-check input[type="checkbox"] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+/* D-03 (C-35) checked checkbox: orange fill, dark border kept. */
+.s-check input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+/* D-03 (C-35) checked checkbox tick, drawn in --on-accent (6.32:1 Blush / 6.51:1 Espresso on the orange). */
+.s-check input[type="checkbox"]:checked::before {
+  content: "";
+  width: 10px;
+  height: 5px;
+  margin-top: -3px;
+  border-bottom: 2px solid var(--on-accent);
+  border-left: 2px solid var(--on-accent);
+  transform: rotate(-45deg);
+}
+
+/* D-03 (C-35) the checkbox keeps the 2px focus-visible ring. */
+.s-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* D-05 (C-35) hover-hidden thumb actions: no focusable element is ever invisible. App. B already shows the actions on
+   :focus-within; the drag grip follows them. */
+.csp-thumb:focus-within .csp-thumb-grip {
+  opacity: 1;
+}
+
+/* D-05 (C-35) touch devices have no hover, so the grip and the actions are always visible. */
+@media (hover: none) {
+  .csp-thumb-actions,
+  .csp-thumb-grip {
+    opacity: 1;
+  }
+}
+
+/* D-27 (O-9) the Sidebar Logout is a <button class="csp-nav"> instead of <a href="#">, with the same look (confirmed by
+   the owner, D-31). Preflight already gives the button an inherited font and colour, a transparent background and no
+   padding or margin; this removes what is left of the button look and restores the link's start-aligned text and
+   pointer cursor. It sets only properties no .csp-nav rule sets, so the hover, current and collapsed states still
+   apply. */
+button.csp-nav {
+  appearance: none;
+  border-width: 0;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* D-31 O-3 the current public drawer link (already 800 in --accent-ink) turns italic as its second cue; the
+   800-italic face is already loaded. */
+.csp-site-dlink.is-on {
+  font-style: italic;
+}
+
+/* D-31 D-BL-02 the "Manager" tag is hidden on the current sidebar row: the page title already says where you are.
+   Unselected rows keep the tag at full opacity (FYI-01). */
+.csp-nav.is-on .csp-nav-tag {
+  display: none;
+}
+
+/* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
+   part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
+@media (prefers-reduced-motion: reduce) {
+  .csp-skel,
+  .csp-overlay,
+  .csp-modal,
+  .csp-toast {
+    animation: none;
+  }
 }
 
 /* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */
