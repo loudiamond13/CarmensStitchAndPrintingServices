@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-10-PLAN.md
-last_updated: "2026-10-08T17:20:49.936Z"
+stopped_at: Completed 02-12-PLAN.md
+last_updated: "2026-10-08T17:34:49.454Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 9daeaf972bdc5e063feffbb58e5e4593b5d70e7f
+state_head: 0601adff5c2b6387da4855e9ded9ef91a5c705b9
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 25
+  completed_plans: 26
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T12:21:30-05:00"
+updated: "2026-10-08T12:35:30-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 13 of 40
+Plan: 14 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -83,6 +83,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P08 | 6 min | 2 tasks | 2 files |
 | Phase 02 P09 | 11 min | 2 tasks | 7 files |
 | Phase 02 P10 | 9 min | 3 tasks | 7 files |
+| Phase 02 P12 | 10 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-10: createHttpClient takes sleep as a top-level option; retry holds only optional max/baseDelayMs/maxDelayMs
 - [Phase 02]: 02-10: secret query params rejected before sending include code (case-insensitive); a non-secret code param must be renamed (e.g. orderCode)
 - [Phase 02]: 02-10: Idempotency-Key comes only from config.idempotencyKey, set before interceptors, so retries and the 401 replay resend the same key; api.ts (02-15) must pass one per POST submission and set Query retry false
+- [Phase 02]: 02-12: woff2OnlyPlugin (enforce pre) strips the Fontsource .woff fallback so the web root ships woff2 only; preloadFontPlugin injects one Archivo latin woff2 preload and fails the build via this.error on zero or two matches
+- [Phase 02]: 02-12: Arial metrics are recorded constants in web/scripts/font-metrics.mjs (Arial 7.06, 2048 upm); font-metrics.test.ts recomputes the base.css fallback faces from the installed woff2 files within 0.01 points and never reads a system font
 
 ### Pending Todos
 
@@ -204,6 +207,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T17:20:49.806Z
-Stopped at: Completed 02-10-PLAN.md
+Last session: 2026-10-08T17:34:49.326Z
+Stopped at: Completed 02-12-PLAN.md
 Resume file: None
