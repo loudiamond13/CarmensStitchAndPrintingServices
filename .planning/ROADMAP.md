@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T04:03:43-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T04:29:11-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 12/18 plans executed in 10 waves
+**Plans**: 12/19 plans executed in 10 waves
 
 Plans:
 **Wave 1**
@@ -234,6 +234,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 02-02-PLAN.md — Strict TS 7 typecheck, ESLint with tested architecture bans, Prettier, Vitest with console guard and in-house axe helper (W2)
+- [ ] 02-19-PLAN.md — Gap G-02-2 (UAT): static files refuse dot-folder paths and their Windows aliases (`\`, 8.3 names), so `/.vite/license.md` gets the anonymous ProblemDetails 404; D-BL-04 untouched (W2, gap closure)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 02-03-PLAN.md — npm pins in the dependency registry, npm license gate (D-26), web notices drift check (W3)
