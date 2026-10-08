@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T10:31:30-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T10:47:30-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 5/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 6/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -239,7 +239,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 02-04-PLAN.md — ESLint with every architecture and D-33 ban (one syntaxBans array), Tailwind lint, Prettier class sorting, console guard, axe helper, `verify`
-- [ ] 02-05-PLAN.md — Stylesheet contract and class gate (every token compiles, no colour literals, D-02 opacity allow-list), styling guide
+- [x] 02-05-PLAN.md — Stylesheet contract and class gate (every token compiles, no colour literals, D-02 opacity allow-list), styling guide
 - [ ] 02-38-PLAN.md — Parity inputs: shared data-only scenario list and renderNode; spec appendices extracted byte-exact and hash-pinned
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 5/40 | In Progress|  |
+| 2. Web Foundation & Design System | 6/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
