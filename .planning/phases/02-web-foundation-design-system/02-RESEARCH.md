@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Research
 
-*Created: 2026-10-07T20:29:34-05:00 · Updated: 2026-10-07T20:29:34-05:00*
+*Created: 2026-10-07T20:29:34-05:00 · Updated: 2026-10-07T21:47:36-05:00*
 
 **Researched:** 2026-10-07
 **Domain:** React 19 + strict TypeScript SPA (Vite 8 / Rolldown, Tailwind 4, React Router 8, TanStack Query 5, nuqs) served from ASP.NET Core 10 `wwwroot`, with an imported design system and its quality gates (ESLint, axe, bundle budgets, Lighthouse, Playwright)
@@ -913,23 +913,25 @@ const [theme, setTheme] = useState(readTheme); // lazy initializer: no effect, n
 | A8 | `Property[key.name='startTransition']` lint selector won't false-positive on legitimate code | Pattern 6 | Narrow selector to nuqs call sites |
 | A9 | React Compiler raises no diagnostics on the in-house nuqs hooks (not probed with compiler on hooks) | Pattern 10 | Opt the hook module out with `'use no memo'` + recorded deviation |
 
-## Open Questions (owner / planner decisions)
+## Open Questions (owner / planner decisions) (RESOLVED)
 
-1. **O-9 (new D-08 item): Sidebar "Logout" is `<a href="#" onClick>`.** jsx-a11y-x `anchor-is-valid` fails it (strict).
+> All nine items were settled on 2026-10-07. Items 1, 2 and 4–9 were settled by the owner rulings D-25..D-30 in `02-CONTEXT.md`. Item 3 is settled by process: D-12 requires the owner to review every changed icon, and plan 02-09 Task 3 (`checkpoint:decision`) records that review as D-32 before plan 02-11 starts.
+
+1. **O-9 (new D-08 item): Sidebar "Logout" is `<a href="#" onClick>`.** jsx-a11y-x `anchor-is-valid` fails it (strict). **RESOLVED → D-27.**
    - Options: (a) `<button class="csp-nav">`, a DOM change that may need `compat` styling; (b) keep the anchor with one scoped, justified `eslint-disable-next-line` and an issue link (PRD §17.1 allows justified suppressions).
    - Recommendation: (a) with before/after screenshots, batched into the UI-SPEC § Owner Confirmations checkpoint.
-2. **O-10 (new D-08 item): lucide-react classes.** lucide-react 1.52.0's React `Icon` always prepends `lucide lucide-<name>` (plus alias classes). React has no `includeDefaultClasses` switch (`Icon.mjs` never passes it). `[VERIFIED: tarball read]` The `<svg>` wrapper's `class` therefore differs from App. D.3's `csp-icon …`. It is invisible, because no CSS targets `.lucide`.
+2. **O-10 (new D-08 item): lucide-react classes.** lucide-react 1.52.0's React `Icon` always prepends `lucide lucide-<name>` (plus alias classes). React has no `includeDefaultClasses` switch (`Icon.mjs` never passes it). `[VERIFIED: tarball read]` The `<svg>` wrapper's `class` therefore differs from App. D.3's `csp-icon …`. It is invisible, because no CSS targets `.lucide`. **RESOLVED → D-28.**
    - Recommendation: accept, and normalize those classes in the differential test. Rendering our own `<svg>` from lucide's internal `__iconData` would need un-typed deep imports.
-3. **Icon drift for D-12.** 20 of 56 icons have different node data in 1.52.0:
+3. **Icon drift for D-12.** 20 of 56 icons have different node data in 1.52.0: **RESOLVED → D-12 → 02-09 Task 3 → D-32.**
    - search, trash-2 (now an alias of `trash`), receipt, users, log-out, menu, phone, message-circle, mail, clock, circle-check, list, filter (now an alias of `funnel`), calendar, palette, zap, trending-up, trending-down, package, moon
    
    Several are element-type rewrites that look identical (polyline/line → path). Some are visibly different: **menu's bars moved from y=6/12/18 to 5/12/19**. `[VERIFIED: script comparing App. D.5 to lucide-react 1.52.0 icon data]` The owner reviews these renders.
-4. **Lighthouse tool.** Replace `@lhci/cli` (named in CLAUDE.md; 11 high audit findings) with `lighthouse` 13.5.0 + an in-house assert script? Recommendation: yes.
-5. **License exceptions for the dev/build tree.** These are free licenses: MPL-2.0 widened to **build** scope (lightningcss, required by Vite 8/Tailwind 4), CC-BY-4.0 (caniuse-lite data), CC0-1.0, BlueOak-1.0.0 and 0BSD. The owner must approve before the npm license gate can pass. The production tree stays strict.
-6. **Vite 8.3.3 security-fix cool-down exception.** It is one day old and fixes three advisories. Approve as `accepted: security fix …`?
-7. **MSW deferral.** D-19 named MSW v3, but no v3 release is 14 days old until 2026-10-12. Recommendation: Phase 2 does without MSW (fake `fetch`), and the first phase with real endpoints adds it.
-8. **Reserved server prefixes vs the SPA fallback** (Pitfall 12). Should `/scalar` and `/openapi` answer 404 in production (recommended) or fall to the SPA shell?
-9. **E2E environment.** Phase 2 runs the E2E host in `Development` (user-secrets supply the JWT key and Data Protection certificate) on HTTPS 5199. Phase 3 CI must provide per-process secrets. Confirm that this split is acceptable.
+4. **Lighthouse tool.** Replace `@lhci/cli` (named in CLAUDE.md; 11 high audit findings) with `lighthouse` 13.5.0 + an in-house assert script? Recommendation: yes. **RESOLVED → D-25.**
+5. **License exceptions for the dev/build tree.** These are free licenses: MPL-2.0 widened to **build** scope (lightningcss, required by Vite 8/Tailwind 4), CC-BY-4.0 (caniuse-lite data), CC0-1.0, BlueOak-1.0.0 and 0BSD. The owner must approve before the npm license gate can pass. The production tree stays strict. **RESOLVED → D-26.**
+6. **Vite 8.3.3 security-fix cool-down exception.** It is one day old and fixes three advisories. Approve as `accepted: security fix …`? **RESOLVED → D-25.**
+7. **MSW deferral.** D-19 named MSW v3, but no v3 release is 14 days old until 2026-10-12. Recommendation: Phase 2 does without MSW (fake `fetch`), and the first phase with real endpoints adds it. **RESOLVED → D-25.**
+8. **Reserved server prefixes vs the SPA fallback** (Pitfall 12). Should `/scalar` and `/openapi` answer 404 in production (recommended) or fall to the SPA shell? **RESOLVED → D-29.**
+9. **E2E environment.** Phase 2 runs the E2E host in `Development` (user-secrets supply the JWT key and Data Protection certificate) on HTTPS 5199. Phase 3 CI must provide per-process secrets. Confirm that this split is acceptable. **RESOLVED → D-30.**
 
 ## Environment Availability
 
