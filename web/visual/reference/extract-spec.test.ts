@@ -87,6 +87,11 @@ describe('extractAppendices', () => {
     expect(() => extractAppendices(without)).toThrow(/Appendix D\.4 — src\/ui\/mark\.ts/);
   });
 
+  it('names a heading that appears twice', () => {
+    const twice = `${lfSpec}\n## Appendix D.5 — src/ui/icons.ts\n\n${FENCE}ts\nexport {};\n${FENCE}\n`;
+    expect(() => extractAppendices(twice)).toThrow(/Appendix D\.5 — src\/ui\/icons\.ts.*more than once/);
+  });
+
   it('names a heading whose section has no fenced block before the next heading', () => {
     const spec = '## Appendix A — src/styles/tokens.css\n\nNo code here.\n\n## Next\n\n```css\na {}\n```\n';
     expect(() => extractAppendices(spec)).toThrow(/Appendix A — src\/styles\/tokens\.css/);
