@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { executeSteps, PARITY_LOCK_PATH, planSteps, PREFLIGHT_SCRIPT, REPO_ROOT, WEB_DIRECTORY } from './parity.mjs';
 
 const webDirectory = fileURLToPath(new URL('..', import.meta.url));
@@ -117,13 +117,16 @@ describe('executeSteps', () => {
   });
 
   it('stops at a failing extraction (a pin mismatch) before anything is built, with its exit code', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { calls, spawn } = fakeSpawner([0, 1]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(1);
     expect(calls.map((call) => call.args[0])).toEqual(['-NoProfile', 'visual/reference/extract-spec.mjs']);
+    expect(stderr).toHaveBeenCalledWith('parity: extract failed with exit code 1.\n');
   });
 
   it('returns 1 when a step ends on a signal (no exit status)', () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { calls, spawn } = fakeSpawner([null]);
 
     expect(executeSteps(planSteps({ preflightAvailable: false }), spawn)).toBe(1);
@@ -131,9 +134,11 @@ describe('executeSteps', () => {
   });
 
   it('returns the Playwright exit code, so a failing or empty visual run fails npm run parity', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { spawn } = fakeSpawner([0, 0, 0, 1]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(1);
+    expect(stderr).toHaveBeenCalledWith('parity: playwright failed with exit code 1.\n');
   });
 });
 
