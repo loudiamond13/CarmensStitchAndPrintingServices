@@ -11,6 +11,7 @@ export interface LoadingRegionProps {
   busy: boolean;
   /** The plural noun the announcements use, like "orders". */
   things: string;
+  failed?: boolean;
   children?: ReactNode;
   /** On the busy region. */
   className?: string;

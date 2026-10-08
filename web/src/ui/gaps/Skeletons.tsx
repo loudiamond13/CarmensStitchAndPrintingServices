@@ -54,3 +54,16 @@ export function SkeletonTable({ columns, rows = 4 }: SkeletonTableProps) {
     </div>
   );
 }
+
+// RED placeholders (plan 13 Task 3): replaced by the implementation in the GREEN commit.
+export function SkeletonText() {
+  return <Skeleton />;
+}
+
+export function SkeletonCard() {
+  return <Skeleton />;
+}
+
+export function SkeletonImage({ ratio = '4 / 3' }: { ratio?: string }) {
+  return <Skeleton className={ratio} />;
+}

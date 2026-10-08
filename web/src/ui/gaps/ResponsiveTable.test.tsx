@@ -377,6 +377,13 @@ describe('ResponsiveTable: error (UI consideration: error, list load)', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('announces nothing in the status node when the first load fails (the alert does)', () => {
+    const { rerender } = render(usersTable({ status: 'loading', rows: [] }));
+    rerender(usersTable({ status: 'error', rows: [], error: traceError('abc123') }));
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
   it('keeps the rows it already has below the banner', () => {
     render(usersTable({ status: 'error', error: traceError('abc123') }));
     const alert = screen.getByRole('alert');

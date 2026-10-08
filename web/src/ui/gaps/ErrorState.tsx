@@ -8,7 +8,9 @@ import { ERROR_STATE_COPY } from './copy';
 
 export interface ErrorStateProps {
   /** The plural noun of the list that failed to load, like "orders". */
-  things: string;
+  things?: string;
+  title?: string;
+  message?: string;
   /** The query error. An HttpError with a traceId adds "Reference: {traceId}" to the second line. */
   error?: unknown;
   /** The query's refetch. */
@@ -24,7 +26,7 @@ export function ErrorState({ things, error, onRetry }: ErrorStateProps) {
     <div className="s-banner is-danger" role="alert" style={{ alignItems: 'center' }}>
       <Icon name="triangle-alert" size={20} />
       <div style={{ flex: 1 }}>
-        <strong>{ERROR_STATE_COPY.loadFailedTitle(things)}</strong>
+        <strong>{ERROR_STATE_COPY.loadFailedTitle(things ?? '')}</strong>
         <span>{body}</span>
       </div>
       {onRetry && (

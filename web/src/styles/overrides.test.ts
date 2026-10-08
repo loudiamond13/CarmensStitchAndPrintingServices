@@ -560,6 +560,19 @@ describe('spec-gaps.css SPEC-GAP data primitives (plan 13; WEB-06, WEB-08, PERF-
     }
   });
 
+  it('LazyImage: the reserved box clips a cover image, the skeleton fills it, and the fallback shows no label chip', () => {
+    expectGapRule('.csp-lazy', 'position', 'relative', 'LazyImage');
+    expectGapRule('.csp-lazy', 'overflow', 'hidden', 'LazyImage');
+    expectGapRule('.csp-lazy > img', 'display', 'block', 'LazyImage');
+    expectGapRule('.csp-lazy > img', 'width', '100%', 'LazyImage');
+    expectGapRule('.csp-lazy > img', 'height', '100%', 'LazyImage');
+    expectGapRule('.csp-lazy > img', 'object-fit', 'cover', 'LazyImage');
+    expectGapRule('.csp-lazy > .csp-skel', 'position', 'absolute', 'LazyImage');
+    expectGapRule('.csp-lazy > .csp-skel', 'inset', '0', 'LazyImage');
+    expectGapRule('.csp-lazy .csp-media-ph', 'height', '100%', 'LazyImage');
+    expectGapRule('.csp-lazy .csp-media-ph-label', 'display', 'none', 'LazyImage');
+  });
+
   it('FilterBar chips: the result bar and the chip group wrap 8px apart, and a long chip label ends in an ellipsis', () => {
     expectGapRule('.s-resultbar', 'flex-wrap', 'wrap', 'FilterBar chips');
     expectGapRule('.s-resultbar', 'gap', 'var(--space-2)', 'FilterBar chips');
