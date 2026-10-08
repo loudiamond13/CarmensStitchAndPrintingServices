@@ -1,5 +1,7 @@
 using System.Net;
 using Csps.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -73,5 +75,47 @@ public sealed class SpaHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/javascript");
+    }
+
+    [Theory]
+    [InlineData("GET", "/missing.js")]
+    [InlineData("GET", "/assets/missing.js")]
+    [InlineData("GET", "/favicon.ico")]
+    [InlineData("POST", "/missing.js")]
+    [InlineData("POST", "/assets/missing.js")]
+    [InlineData("POST", "/favicon.ico")]
+    public async Task MissingFileIsProblem404(string method, string path)
+    {
+        // Pitfall 11: a file-like path is never the shell, and a missing file is a plain 404 for everyone, never 401.
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+        using var request = ApiRequests.Create(new HttpMethod(method), path);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound, $"{method} {path}");
+        response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldBe(ProblemJson.MediaType, path);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ProblemJson.TraceId(problem);
+    }
+
+    [Theory]
+    [InlineData("/openapi/v1.json")]
+    [InlineData("/scalar")]
+    [InlineData("/scalar/")]
+    [InlineData("/scalar/foo")]
+    public async Task ReservedDocsPathsAre404OutsideDevelopment(string path)
+    {
+        // D-29: outside Development the API-doc prefixes stay reserved for the server; they never show the shell.
+        await using var baseFactory = new CspsApiFactory();
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Production));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound, path);
+        response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldBe(ProblemJson.MediaType, path);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldNotContain(FixtureShellMarker, Case.Sensitive, path);
     }
 }
