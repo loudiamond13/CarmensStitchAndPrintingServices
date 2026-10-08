@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-13-PLAN.md
-last_updated: "2026-10-08T17:57:25.215Z"
+stopped_at: Completed 02-39-PLAN.md
+last_updated: "2026-10-08T18:09:13.596Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 653f989ddafe7726b41ef9c8906daa4988101fe6
+state_head: 699dd1e258521956cdddf8e65fc141792907a2cc
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 27
+  completed_plans: 28
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T12:57:38-05:00"
+updated: "2026-10-08T13:09:30-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 15 of 40
+Plan: 16 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -85,6 +85,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P10 | 9 min | 3 tasks | 7 files |
 | Phase 02 P12 | 10 min | 2 tasks | 8 files |
 | Phase 02 P13 | 15 min | 2 tasks | 23 files |
+| Phase 02 P39 | 8 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-13: kit.ts loads the frozen App. D.3 namespace via import.meta.glob, so the verbatim spec code is never type-checked or linted and CI does not need the extraction; layout fragments go in web/visual/reference/fragments/<Name>.tsx
 - [Phase 02]: 02-13: recorded D-33 ESLint exception - only visual/reference/main.tsx may import ./reference.css (csps/restrictions/visual-reference-entry); no dangerouslySetInnerHTML override needed since D.4 stays in ignored .reference-src
 - [Phase 02]: 02-13: parity harness API for 02-14 - routeDist/readStrictCsp/REFERENCE_ORIGIN from visual/serve.ts, test/expect/expectCases from visual/guard.ts, selectScenarios (?theme/?group/?case; typo or empty selects nothing -> data-parity-empty fails) from visual/reference/select.ts; O-6 rulings also stop the .csp-overlay fade
+- [Phase 02]: 02-39: useListQuery({ key, params, fetcher }) - key is the resource; full key is listKey(key, params); fetcher must forward the signal; search reaches params only via useDebouncedValue(q, 300)
+- [Phase 02]: 02-39: prefetchOnIntent keeps one 100 ms intent timer per element (module WeakMap keyed by currentTarget), ignores touch pointerenter, and calls queryClient.query(options).catch(() => undefined), never prefetchQuery
 
 ### Pending Todos
 
@@ -212,6 +215,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T17:57:25.084Z
-Stopped at: Completed 02-13-PLAN.md
+Last session: 2026-10-08T18:09:13.465Z
+Stopped at: Completed 02-39-PLAN.md
 Resume file: None
