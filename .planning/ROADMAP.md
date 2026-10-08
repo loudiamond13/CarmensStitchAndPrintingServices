@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T09:48:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T10:01:21-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 2/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 3/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -234,7 +234,7 @@ Plans:
 - [x] 02-02-PLAN.md — Tracer: owner-approved npm toolchain installed, Vite + Tailwind token theme build the D-21 placeholder into the ignored wwwroot; LF and editor rules (conditional package-drift stop)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-03-PLAN.md — HiddenSegmentFileProvider (dot/tilde/backslash/8.3 paths 404), static-text compression and caching, hosting docs
+- [x] 02-03-PLAN.md — HiddenSegmentFileProvider (dot/tilde/backslash/8.3 paths 404), static-text compression and caching, hosting docs
 - [ ] 02-37-PLAN.md — Tracer: strict TS 7 / TS 6 alias pair, per-mode Vite config test, dev-route env files, robots.txt; isolated tools/openapi-gen install (conditional package-drift stop)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 2/40 | In Progress|  |
+| 2. Web Foundation & Design System | 3/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |

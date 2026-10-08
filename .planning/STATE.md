@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-10-08T14:46:26.607Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-10-08T15:01:02.538Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 2f69e579cf96324e7a0f9d7290559c1e80bae86b
+state_head: 680d02738854ef41c58e95adb090ca583f71f722
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 15
+  completed_plans: 16
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T09:48:00-05:00"
+updated: "2026-10-08T10:01:21-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 3 of 40
+Plan: 4 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -73,6 +73,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 01 P13 | 4 min | 2 tasks | 2 files |
 | Phase 02 P01 | 13 min | 2 tasks | 13 files |
 | Phase 02 P02 | 11 min | 2 tasks | 15 files |
+| Phase 02 P03 | 10 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-01: auth and 500 probes target GET /api/v1/site-settings with an in-memory ISiteSettingsReader, never an unmatched page path, because the SPA shell now matches every GET/HEAD page path (L-03)
 - [Phase 02]: 02-02: Tailwind scan root is source("../../src") relative to web/src/styles/app.css (the research skeleton's ../src assumed a higher stylesheet); plan 02-05's stylesheet-contract test must accept it
 - [Phase 02]: 02-02: vitest 5.0.1 installed (before the 5.0.2 cut-off); no rolldown exclusion (R-2); nuqs stays 2.10.1 (2.10.2 published 2026-10-08, eligible 2026-10-22, owner OK still required)
+- [Phase 02]: 02-03: The web-root 404 for files (and the reserved /openapi, /scalar 404s) answers HEAD with 404 + application/problem+json and no content (RFC 9110); Kestrel drops HEAD bodies, the test host does not
+- [Phase 02]: 02-03: HiddenSegmentFileProvider refuses any segment starting with '.' or containing '~' (split on / and \); a future /.well-known/ file needs an explicit, tested exact-path exception (AR-02-02). Listing tests must use an inner PhysicalFileProvider with ExclusionFilters.None
+- [Phase 02]: 02-03: Response compression MIME list is html/css/text+application javascript/svg only (replaces defaults, never JSON); /assets/* immutable for a year, every other static file no-cache
 
 ### Pending Todos
 
@@ -167,6 +171,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T14:46:26.480Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-10-08T15:00:51.012Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
