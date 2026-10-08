@@ -112,3 +112,44 @@ export function clampPage(page: number, totalPages: number): number {
   const lastPage = Math.max(1, totalPages);
   return Math.max(1, Math.min(page, lastPage));
 }
+
+// RED placeholder (plan 02-11 Task 2): inert date-range helpers so the tests compile and fail on assertions.
+export const RANGE_PRESETS = ['today', 'last-7-days', 'last-30-days', 'this-month', 'last-month', 'this-year'] as const;
+export type RangePreset = (typeof RANGE_PRESETS)[number];
+export const CUSTOM_RANGE = 'custom';
+
+export interface DateRange {
+  from: string | null;
+  to: string | null;
+}
+
+export type DateRangeChoice<N extends RangePreset = RangePreset> =
+  | { range: N }
+  | { range: typeof CUSTOM_RANGE; from: string | null; to: string | null };
+
+export function dateRangeParsers<const N extends RangePreset>(presets: readonly N[], defaultRange: NoInfer<N>) {
+  return {
+    range: parseAsStringLiteral([...presets, CUSTOM_RANGE]).withDefault(defaultRange),
+    from: parseAsBusinessDate,
+    to: parseAsBusinessDate,
+  };
+}
+
+export function dateRangeValues<N extends RangePreset>(choice: DateRangeChoice<N>) {
+  return { range: choice.range, from: null as string | null, to: null as string | null };
+}
+
+export function resolveRangePreset(name: RangePreset, today: string): { from: string; to: string } {
+  return { from: name, to: today };
+}
+
+export function resolveDateRange(
+  state: { range: RangePreset | typeof CUSTOM_RANGE; from: string | null; to: string | null },
+  today: string,
+): DateRange {
+  return { from: state.range, to: today };
+}
+
+export function businessToday(now: Date, zone = 'UTC'): string {
+  return `${String(now.getTime())}${zone}`;
+}

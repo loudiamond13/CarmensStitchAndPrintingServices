@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  businessToday,
   clampPage,
+  dateRangeParsers,
+  dateRangeValues,
   literalParser,
   normalizeSearch,
   PAGE_SIZES,
   pageParser,
   pageSizeParser,
   parseAsBusinessDate,
+  resolveDateRange,
+  resolveRangePreset,
   SEARCH_MAX_LENGTH,
   searchParser,
 } from './parsers';
@@ -146,5 +151,103 @@ describe('clampPage', () => {
     [3, -1, 1],
   ])('clampPage(%i, %i) is %i', (page, totalPages, expected) => {
     expect(clampPage(page, totalPages)).toBe(expected);
+  });
+});
+
+describe('dateRangeParsers', () => {
+  const parsers = dateRangeParsers(['last-30-days', 'this-month'], 'last-30-days');
+
+  it('accepts the listed preset names and custom, and defaults to the given preset', () => {
+    expect(parsers.range.parse('last-30-days')).toBe('last-30-days');
+    expect(parsers.range.parse('this-month')).toBe('this-month');
+    expect(parsers.range.parse('custom')).toBe('custom');
+    expect(parsers.range.parse('this-year')).toBeNull();
+    expect(parsers.range.parse('bogus')).toBeNull();
+    expect(parsers.range.defaultValue).toBe('last-30-days');
+  });
+
+  it('stores a preset by its name, so range=last-30-days keeps no dates in the URL', () => {
+    expect(parsers.range.serialize('last-30-days')).toBe('last-30-days');
+    expect(dateRangeValues({ range: 'last-30-days' })).toEqual({ range: 'last-30-days', from: null, to: null });
+  });
+
+  it('stores from and to only for range=custom', () => {
+    expect(dateRangeValues({ range: 'custom', from: '2026-09-01', to: '2026-09-30' })).toEqual({
+      range: 'custom',
+      from: '2026-09-01',
+      to: '2026-09-30',
+    });
+    expect(parsers.from.parse('2026-02-30')).toBeNull();
+    expect(parsers.to.parse('2026-09-30')).toBe('2026-09-30');
+  });
+});
+
+describe('resolveDateRange', () => {
+  it('resolves range=last-30-days against the injected business today on every visit', () => {
+    expect(resolveDateRange({ range: 'last-30-days', from: null, to: null }, '2026-10-07')).toEqual({
+      from: '2026-09-08',
+      to: '2026-10-07',
+    });
+    expect(resolveDateRange({ range: 'last-30-days', from: null, to: null }, '2026-10-08')).toEqual({
+      from: '2026-09-09',
+      to: '2026-10-08',
+    });
+  });
+
+  it('ignores stray from and to for a preset', () => {
+    expect(resolveDateRange({ range: 'this-month', from: '2020-01-01', to: '2020-01-31' }, '2026-10-07')).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-07',
+    });
+  });
+
+  it('returns a custom range as stored, open-ended where a bound is missing', () => {
+    expect(resolveDateRange({ range: 'custom', from: '2026-09-01', to: '2026-09-30' }, '2026-10-07')).toEqual({
+      from: '2026-09-01',
+      to: '2026-09-30',
+    });
+    expect(resolveDateRange({ range: 'custom', from: '2026-09-01', to: null }, '2026-10-07')).toEqual({
+      from: '2026-09-01',
+      to: null,
+    });
+  });
+
+  it('swaps a custom range whose from is after its to', () => {
+    expect(resolveDateRange({ range: 'custom', from: '2026-09-30', to: '2026-09-01' }, '2026-10-07')).toEqual({
+      from: '2026-09-01',
+      to: '2026-09-30',
+    });
+  });
+});
+
+describe('resolveRangePreset', () => {
+  it.each([
+    ['today', '2026-10-07', '2026-10-07', '2026-10-07'],
+    ['last-7-days', '2026-10-07', '2026-10-01', '2026-10-07'],
+    ['last-30-days', '2026-10-07', '2026-09-08', '2026-10-07'],
+    ['last-30-days', '2026-03-01', '2026-01-31', '2026-03-01'],
+    ['last-30-days', '2025-01-15', '2024-12-17', '2025-01-15'],
+    ['this-month', '2026-10-07', '2026-10-01', '2026-10-07'],
+    ['last-month', '2026-10-07', '2026-09-01', '2026-09-30'],
+    ['last-month', '2026-01-15', '2025-12-01', '2025-12-31'],
+    ['last-month', '2024-03-31', '2024-02-01', '2024-02-29'],
+    ['this-year', '2026-10-07', '2026-01-01', '2026-10-07'],
+  ] as const)('resolves %s against business today %s to %s..%s', (name, today, from, to) => {
+    expect(resolveRangePreset(name, today)).toEqual({ from, to });
+  });
+
+  it('refuses a business today that is not a calendar date', () => {
+    expect(() => resolveRangePreset('today', '2026-02-30')).toThrow(RangeError);
+  });
+});
+
+describe('businessToday', () => {
+  it('gives the Asia/Manila calendar date of the injected instant', () => {
+    expect(businessToday(new Date('2026-10-05T16:30:00Z'))).toBe('2026-10-06');
+    expect(businessToday(new Date('2026-10-05T15:59:59Z'))).toBe('2026-10-05');
+  });
+
+  it('uses the given zone', () => {
+    expect(businessToday(new Date('2026-10-05T16:30:00Z'), 'UTC')).toBe('2026-10-05');
   });
 });
