@@ -1,0 +1,10 @@
+/* SPEC-GAP primitive styles (02-UI-SPEC "CSS file contract", order 2).
+   Styles for the primitives CSPS-UI-SPEC.md does not draw (skip link, Pagination, OtpInput, LazyImage, ...).
+   Rules:
+   - Everything sits inside @layer components, after the verbatim components.css and screens.css rules and before
+     the Tailwind utilities, so layout glue still wins.
+   - Tokens only: var(--...) values, no hex colours, no new font sizes or weights.
+   - Every block starts with a comment of the form SPEC-GAP: <primitive>.
+   Plans 12, 13 and 15 add the blocks. */
+@layer components {
+}

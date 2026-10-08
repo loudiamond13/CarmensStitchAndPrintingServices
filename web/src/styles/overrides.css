@@ -1,0 +1,7 @@
+/* Owner-approved reconciliations (02-UI-SPEC "CSS file contract", order 3; 02-CONTEXT D-01..D-05, PERF-05).
+   The verbatim spec stylesheets (tokens, globals, compat, components, screens) are never edited (D-07). Every change
+   the owner ruled on lives here instead, so it can be reviewed in one place.
+   Rules:
+   - This file is unlayered, so each rule wins over the layered verbatim CSS whatever its specificity.
+   - Every rule carries a comment naming its decision ID.
+   - Tokens only: var(--...) values, no hex colours. */

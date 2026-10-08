@@ -1,0 +1,4 @@
+/* Browser defaults the approved mockups relied on that Tailwind's preflight removes.
+   Verified by diffing computed styles of every screen with and without preflight. */
+.s-hours, .s-meta { margin-block: 1em; }
+.csp-search input, .s-search-box input { padding: 1px 2px; }
