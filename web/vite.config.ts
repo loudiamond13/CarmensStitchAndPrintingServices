@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
+import { preloadFontPlugin } from './scripts/vite-preload-font-plugin.ts';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
 // Flag 2). Babel only ever sees this app's own TypeScript under src/, never node_modules.
@@ -20,7 +21,14 @@ const isAppSource = (filename: string | undefined): boolean => {
 
 // SPEC-DEVIATION: a function config, so the build output folder and the dev-route switch follow the mode (D-20).
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()], include: [isAppSource] }), tailwindcss()],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()], include: [isAppSource] }),
+    tailwindcss(),
+    // SPEC-DEVIATION: PERF-05 font preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2,
+    // and the build fails if that file is missing (research Pattern 14).
+    preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
+  ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in the development, e2e and budget modes and
   // never in production (D-20). A define, not a .env file, because .env* is git-ignored.

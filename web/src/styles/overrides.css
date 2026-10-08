@@ -6,6 +6,38 @@
    - Every rule carries a comment naming its decision ID.
    - Tokens only: var(--...) values, no hex colours. */
 
+/* PERF-05 metric-matched fallback for Archivo Variable (body text), so the swap from the local font to the brand font
+   does not shift the layout. PERF-05 values from scripts/font-metrics.mjs (Archivo latin woff2 vs Windows Arial). */
+@font-face {
+  font-family: 'Archivo Fallback';
+  src: local('Arial');
+  size-adjust: 101.85%;
+  ascent-override: 86.21%;
+  descent-override: 20.62%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 metric-matched fallback for Barlow Condensed (display text). PERF-05 values from scripts/font-metrics.mjs
+   (Barlow Condensed 700 latin woff2 vs Windows Arial; Arial Narrow was not installed on the measuring machine).
+   Barlow has no peso sign in any subset, so this face skips U+20B1: a peso in display text falls through to
+   Archivo Variable, the next brand family, never to a system font (research Pitfall 17). */
+@font-face {
+  font-family: 'Barlow Condensed Fallback';
+  src: local('Arial Narrow'), local('Arial');
+  unicode-range: U+0000-20B0, U+20B2-10FFFF;
+  size-adjust: 68.92%;
+  ascent-override: 145.1%;
+  descent-override: 29.02%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 font stacks: the same selector and families as tokens.css, with each fallback face right after its brand
+   family. */
+:root {
+  --font-display: 'Barlow Condensed', 'Barlow Condensed Fallback', 'Archivo Variable', 'Arial Narrow', sans-serif;
+  --font-sans: 'Archivo Variable', 'Archivo Fallback', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 /* D-01 (C-34) iOS input zoom: on phones only, text inside search boxes, toolbar filters and item-row inputs is 16px,
    so iOS Safari does not zoom on focus. .csp-input is already 16px; desktop and tablet keep the designed 14px.
    index.html never uses maximum-scale or user-scalable. */

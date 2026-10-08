@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Pins the Vite config values the API host, the shared machine and the CSP depend on (WEB-01, D-20).
 import { describe, expect, it } from 'vitest';
-import type { ConfigEnv, UserConfig } from 'vite';
+import type { ConfigEnv, Plugin, UserConfig } from 'vite';
 import viteConfig from '../../vite.config.ts';
 
 function resolve(env: ConfigEnv): UserConfig {
@@ -39,5 +39,18 @@ describe('vite.config.ts', () => {
 
   it('builds the budget mode into its own folder', () => {
     expect(resolve({ command: 'build', mode: 'budget' }).build?.outDir).toBe('.budget-dist');
+  });
+
+  it('registers the build-only Archivo latin font preload (PERF-05)', () => {
+    const flatten = (option: unknown): Plugin[] =>
+      Array.isArray(option)
+        ? option.flatMap(flatten)
+        : typeof option === 'object' && option !== null && 'name' in option
+          ? [option as Plugin]
+          : [];
+    const found = flatten(resolve({ command: 'build', mode: 'production' }).plugins).find(
+      (plugin) => plugin.name === 'csps-preload-font',
+    );
+    expect(found?.apply).toBe('build');
   });
 });
