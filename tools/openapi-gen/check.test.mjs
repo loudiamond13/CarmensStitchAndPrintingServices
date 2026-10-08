@@ -37,6 +37,15 @@ describe('firstDifference', () => {
     assert.deepEqual(firstDifference('a\n', 'a\nb\n'), { line: 2, committed: '(end of file)', generated: 'b' });
     assert.deepEqual(firstDifference('a\nb', 'a'), { line: 2, committed: 'b', generated: '(end of file)' });
   });
+
+  it('reports a difference in the final newline alone', () => {
+    assert.deepEqual(firstDifference('a\nb\n', 'a\nb'), {
+      line: 2,
+      committed: '(final newline)',
+      generated: '(no final newline)',
+    });
+    assert.equal(firstDifference('', ''), null);
+  });
 });
 
 describe('check.mjs (the D-16 drift check)', () => {
