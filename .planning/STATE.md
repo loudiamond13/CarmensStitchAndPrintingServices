@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-10-08T16:43:39.372Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-10-08T16:53:34.057Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 3a4a3a14a663547023027925e99eb064f2946dcf
+state_head: 62dd3308b407c39545d83d52a7eda524810907f3
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 22
+  completed_plans: 23
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T11:44:00-05:00"
+updated: "2026-10-08T11:55:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 10 of 40
+Plan: 11 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -80,6 +80,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P38 | 8 min | 2 tasks | 9 files |
 | Phase 02 P06 | 22 min | 3 tasks | 15 files |
 | Phase 02 P07 | 14 min | 3 tasks | 16 files |
+| Phase 02 P08 | 6 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-06: verify now ends with license:check and notices:check; any production dependency change needs npm run notices and a commit of web/THIRD-PARTY-NOTICES.txt
 - [Phase 02]: Order math golden vectors: one shared 220-case file (tests/fixtures/order-math-golden-vectors.json, schema version/kind, quantity integer, amounts strings) read by xUnit OrderMath and Vitest orderTotals; only gen-golden-vectors.mjs --write changes it, --check runs in verify
 - [Phase 02]: csps.ts money preview is exact BigInt centavos, half away from zero (D-09); formatPeso formats bigint pesos + 2 centavo digits; NaN/Infinity read as 0; *.golden.test.ts files in src belong to tsconfig.node.json
+- [Phase 02]: 02-08: formatBusinessDate accepts only RFC 3339 instants with Z or an offset and real date/clock parts (zone-less, bare dates, Feb 30, 24:00 -> em dash); calendar dates go through formatCalendarDate (UTC round-trip)
+- [Phase 02]: 02-08: Money entry stays text; '' and '.' are valid partial input but empty amounts (moneyTextToCentavos throws TypeError 'empty amount'); centavos come from digit strings, centavosToMoneyText throws RangeError outside 0..99999999999
 
 ### Pending Todos
 
@@ -194,6 +197,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T16:43:39.246Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-10-08T16:53:24.282Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None
