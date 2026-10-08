@@ -1,11 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { isValidElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { kit } from '@/dev/kit';
+import { renderNode } from '@/dev/renderScenario';
+import { scenarios as actionScenarios } from '@/dev/scenarios/groups/actions';
 import { expectNoAxeViolations } from '@/test/axe';
-import { Button, buttonClasses } from '@/ui/actions';
+import { Button, buttonClasses, type ButtonSize, type ButtonVariant } from '@/ui/actions';
 
-// The converted App. D.3 Button (plan 02-14). The look itself is proven by the parity suite (web/visual); these tests
-// pin the markup, the props API and the WEB-09 pending behaviour. Plan 02-17 extends them for every variant and size.
+// The converted App. D.3 Button (plans 02-14 and 02-17). The look itself is proven by the parity suite (web/visual);
+// these tests pin the markup, the props API, the WEB-09 pending behaviour and the actions scenario set that the parity
+// suite compares.
+
+const VARIANTS = ['primary', 'secondary', 'ghost', 'danger', 'ghost-danger'] as const satisfies readonly ButtonVariant[];
+const SIZES = ['sm', 'md', 'lg'] as const satisfies readonly ButtonSize[];
+const ALL_STATES = ['rest', 'hover', 'focus-visible', 'active'];
 
 function onlyButton(): HTMLButtonElement {
   return screen.getByRole<HTMLButtonElement>('button');
@@ -220,5 +229,131 @@ describe('Button accessibility and rendering', () => {
     expect(onlyButton()).toBeDisabled();
     expect(onlyButton().className).toBe(buttonClasses({ variant: 'ghost-danger', size: 'sm' }));
     expect(svgs(onlyButton())).toHaveLength(0);
+  });
+
+  it('keeps the same DOM node when re-rendered with equal props', () => {
+    const { rerender } = render(
+      <Button variant="primary" icon="plus">
+        New Order
+      </Button>,
+    );
+    const first = onlyButton();
+    rerender(
+      <Button variant="primary" icon="plus">
+        New Order
+      </Button>,
+    );
+
+    expect(onlyButton()).toBe(first);
+  });
+});
+
+describe('Button variants and sizes (App. D.3)', () => {
+  const combinations = VARIANTS.flatMap((variant) => SIZES.map((size) => ({ variant, size })));
+
+  it.each(combinations)('renders $variant at $size with its own recipe look', ({ variant, size }) => {
+    render(
+      <Button variant={variant} size={size} icon="plus">
+        Add
+      </Button>,
+    );
+    const button = onlyButton();
+
+    expect(button.className).toBe(buttonClasses({ variant, size }));
+    expect(svgs(button)[0]).toHaveAttribute('width', size === 'sm' ? '16' : '18');
+  });
+
+  it('gives each of the fifteen combinations a different look', () => {
+    const looks = new Set(combinations.map((options) => buttonClasses(options)));
+
+    expect(looks.size).toBe(combinations.length);
+  });
+
+  it('applies either the labelled padding or the icon-only width, never both', () => {
+    for (const size of SIZES) {
+      const labelled = buttonClasses({ variant: 'ghost', size }).split(' ');
+      const iconOnly = buttonClasses({ variant: 'ghost', size, iconOnly: true }).split(' ');
+
+      expect(labelled.some((token) => token.startsWith('px-'))).toBe(true);
+      expect(labelled.some((token) => token.startsWith('w-'))).toBe(false);
+      expect(iconOnly.some((token) => token.startsWith('px-'))).toBe(false);
+      expect(iconOnly.some((token) => token.startsWith('w-'))).toBe(true);
+    }
+  });
+
+  it('requires an aria-label on an icon-only button (a type error without one)', () => {
+    // @ts-expect-error an icon-only Button (no children) must be given an aria-label
+    const nameless = <Button icon="x" />;
+    const named = <Button icon="x" aria-label="Close" />;
+
+    expect(isValidElement(nameless)).toBe(true);
+    render(named);
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+});
+
+describe('Button scenarios (the actions parity group)', () => {
+  const buttonScenarios = actionScenarios.filter((scenario) => scenario.node.component === 'Button');
+  const byId = new Map(buttonScenarios.map((scenario) => [scenario.id, scenario]));
+  const variantSizeIds = VARIANTS.flatMap((variant) => SIZES.map((size) => `button-${variant}-${size}`));
+  const propStateIds = ['button-disabled', 'button-pending'];
+  const expectedIds = [
+    ...variantSizeIds,
+    'button-icon-only-sm',
+    'button-icon-only-md',
+    'button-icon-left',
+    'button-icon-right',
+    'button-block',
+    ...propStateIds,
+  ];
+
+  it('declares one scenario per variant and size, icon-only sm and md, both icon sides, block, disabled and pending', () => {
+    expect(buttonScenarios.map((scenario) => scenario.id).sort()).toEqual([...expectedIds].sort());
+  });
+
+  it('compares every Button scenario in both themes; prop states at rest only, the others in all four states', () => {
+    for (const scenario of buttonScenarios) {
+      expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
+      expect(scenario.parity, scenario.id).toBe(true);
+      expect(scenario.responsive, scenario.id).toBe(false);
+      expect(scenario.states, scenario.id).toEqual(propStateIds.includes(scenario.id) ? ['rest'] : ALL_STATES);
+    }
+  });
+
+  it('sets each variant and size scenario to its own variant and size', () => {
+    for (const variant of VARIANTS) {
+      for (const size of SIZES) {
+        expect(byId.get(`button-${variant}-${size}`)?.node.props, `${variant}-${size}`).toMatchObject({
+          variant,
+          size,
+        });
+      }
+    }
+  });
+
+  it('uses App. D.3 `loading` for the pending scenario, so the reference renders it too', () => {
+    expect(byId.get('button-pending')?.node.props).toMatchObject({ loading: true });
+    expect(byId.get('button-pending')?.node.props).not.toHaveProperty('pending');
+    expect(byId.get('button-disabled')?.node.props).toMatchObject({ disabled: true });
+  });
+
+  it('renders every Button scenario through the implementation kit as one named button with no axe violations', async () => {
+    const { container } = render(
+      <div>
+        {buttonScenarios.map((scenario) => (
+          <div key={scenario.id} data-case={scenario.id}>
+            {renderNode(kit, scenario.node, scenario.handlers ?? [])}
+          </div>
+        ))}
+      </div>,
+    );
+
+    for (const scenario of buttonScenarios) {
+      const frame = container.querySelector(`[data-case="${scenario.id}"]`);
+      expect(frame?.querySelectorAll('button'), scenario.id).toHaveLength(1);
+    }
+    expect(container.querySelector('[data-case="button-pending"] button')).toHaveAttribute('aria-busy', 'true');
+    expect(container.querySelector('[data-case="button-icon-only-sm"] button')).toHaveAccessibleName();
+    await expectNoAxeViolations(container);
   });
 });
