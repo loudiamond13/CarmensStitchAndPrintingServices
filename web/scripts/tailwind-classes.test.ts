@@ -121,6 +121,22 @@ describe('checkClassTokens', () => {
     );
   });
 
+  it('passes the group and peer marker classes, which emit no CSS by design, and their variants', async () => {
+    const markers = 'group group/nav peer peer/check group-aria-[current=page]/nav:hidden peer-checked:underline';
+    expect(await findingsOf('src/ui/A.tsx', jsx(markers))).toEqual([]);
+    expect(await findingsOf('src/ui/A.tsx', jsx('group/ peergroup'))).toEqual([
+      ['group/', 'unknown'],
+      ['peergroup', 'unknown'],
+    ]);
+  });
+
+  it('reports a repeated unknown token every time, and a repeated known token never', async () => {
+    expect(await findingsOf('src/ui/A.tsx', jsx('p-4 bg-blue-500 p-4 bg-blue-500'))).toEqual([
+      ['bg-blue-500', 'unknown'],
+      ['bg-blue-500', 'unknown'],
+    ]);
+  });
+
   it('reports a hex colour literal even though it compiles', async () => {
     expect(await findingsOf('src/ui/a.ts', "export const a = tw('bg-[#ff6600]');")).toEqual([
       ['bg-[#ff6600]', 'colour-literal'],
