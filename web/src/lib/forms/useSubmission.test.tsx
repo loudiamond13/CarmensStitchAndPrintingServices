@@ -28,7 +28,7 @@ function recordingSubmit(outcomes: readonly boolean[]) {
 describe('useSubmission', () => {
   it('calls submit once with a fresh v4 key and a signal, and is pending until it settles', async () => {
     const deferred = createDeferred<string>();
-    const submit = vi.fn((_args: Payment, _context: SubmitContext) => deferred.promise);
+    const submit = vi.fn<(args: Payment, context: SubmitContext) => Promise<string>>(() => deferred.promise);
     const { result } = renderHook(() => useSubmission(submit));
     expect(result.current.pending).toBe(false);
 
@@ -54,7 +54,7 @@ describe('useSubmission', () => {
 
   it('returns the same in-flight promise to a second trigger and sends one request (double-click, Enter repeat)', async () => {
     const deferred = createDeferred<string>();
-    const submit = vi.fn((_args: Payment, _context: SubmitContext) => deferred.promise);
+    const submit = vi.fn<(args: Payment, context: SubmitContext) => Promise<string>>(() => deferred.promise);
     const { result } = renderHook(() => useSubmission(submit));
 
     let first: Promise<unknown> = Promise.resolve();
@@ -191,6 +191,44 @@ describe('useSubmission', () => {
     expect(calls[1]).not.toBe(calls[0]);
   });
 
+  it('reuses the key when a failed run without data is retried (a confirm button such as Delete Order)', async () => {
+    const keys: string[] = [];
+    const submit = (_args: undefined, context: SubmitContext) => {
+      keys.push(context.idempotencyKey);
+      return keys.length === 1 ? Promise.reject(new Error('down')) : Promise.resolve('deleted');
+    };
+    const { result } = renderHook(() => useSubmission(submit));
+
+    await act(async () => {
+      await result.current.run(undefined);
+    });
+    await act(async () => {
+      await result.current.run(undefined);
+    });
+
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it('never reuses a key for data JSON cannot represent (a function)', async () => {
+    const keys: string[] = [];
+    const submit = (_args: () => void, context: SubmitContext) => {
+      keys.push(context.idempotencyKey);
+      return Promise.reject(new Error('down'));
+    };
+    const { result } = renderHook(() => useSubmission(submit));
+    const callback = (): void => undefined;
+
+    await act(async () => {
+      await result.current.run(callback);
+    });
+    await act(async () => {
+      await result.current.run(callback);
+    });
+
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
   it('aborts the in-flight request through the submit signal when the component unmounts', async () => {
     let seen: AbortSignal | undefined;
     const submit = (_args: Payment, context: SubmitContext) => {
@@ -230,7 +268,7 @@ describe('newIdempotencyKey', () => {
 
   it('builds a v4 UUID from crypto.getRandomValues when randomUUID is unavailable (plain-HTTP LAN, Pitfall 15)', () => {
     const real = globalThis.crypto;
-    const getRandomValues = vi.fn(<T extends ArrayBufferView>(array: T): T => real.getRandomValues(array));
+    const getRandomValues = vi.fn((array: Uint8Array<ArrayBuffer>) => real.getRandomValues(array));
     vi.stubGlobal('crypto', { getRandomValues });
     const random = vi.spyOn(Math, 'random');
 
