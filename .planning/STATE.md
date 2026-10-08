@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-19-PLAN.md
-last_updated: "2026-10-08T22:44:10.700Z"
+stopped_at: Completed 02-20-PLAN.md
+last_updated: "2026-10-08T23:17:34.772Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: bd37533f328e8c81ccb554d4a7b5a5fdd5fbdaaf
+state_head: 42602c7ab83c06f213006dfd120b6faf8386c191
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 36
+  completed_plans: 37
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-08T17:44:40-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 24 of 40
+Plan: 25 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -94,6 +94,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P17 | 1h 27m | 2 tasks | 14 files |
 | Phase 02 P18 | 28 min | 2 tasks | 16 files |
 | Phase 02 P19 | 36 min | 3 tasks | 21 files |
+| Phase 02 P20 | 30 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-19: SegmentedControl and Tabs use a roving tabIndex with automatic activation through rovingItem (web/src/ui/choice/roving.ts): radios Right/Down and Left/Up, tabs Right/Left plus Home/End, all wrapping; the first item is the Tab stop when the value matches none
 - [Phase 02]: 02-19: PAYMENT_TONE/EXPENSE_TONE are keyed by the PaymentMethod/ExpenseCategory unions; use isOrderStatus before indexing STATUS_TONE with an API string (unknown status = raw text, neutral)
 - [Phase 02]: 02-19: the parity comparator reads scrollbar-width (headless Chromium never paints scrollbars); parity cases that need a tabpanel use the TabsWithPanel wrapper pair; focus-visible cases target the selected item of a roving group, hover on an unselected item is a separate -other case
+- [Phase 02]: 02-20: Form controls take region looks from data-ui markers (in-data-[ui=s-toolbar|s-item]:) with D-01 as pg-phone:in-data-[ui=…]:text-[16px]; FilterBar/order form only add the marker
+- [Phase 02]: 02-20: App. B outline:none is [outline:none] (resets focus-visible width/colour); invalid control border is has-aria-invalid:border-danger! because hover:not-focus-within is (0,3,0)
+- [Phase 02]: 02-20: Field/Select/PasswordField keep the native-attribute passthrough (UI-SPEC); the React Compiler cache-hit branches on the rest object are unreachable (ui/forms 93.7/89.4 coverage, global thresholds pass)
 
 ### Pending Todos
 
@@ -245,6 +249,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T22:44:10.562Z
-Stopped at: Completed 02-19-PLAN.md
+Last session: 2026-10-08T23:17:34.634Z
+Stopped at: Completed 02-20-PLAN.md
 Resume file: None
