@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T00:32:10-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T02:41:11-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -132,6 +132,37 @@ How the API serves the app:
 - Static text (html, css, JavaScript, SVG) is compressed. JSON never is.
 
 Set environment variables only inside one terminal or process, never at User or Machine level.
+
+## API types
+
+The web app calls the API only through `web/src/lib/api.ts` (WEB-04). ESLint rejects `fetch`, `XMLHttpRequest`, `axios` and any import of `src/lib/http` everywhere else. Add a new endpoint as a function in the matching `api.<area>` group, typed from `web/src/types/api.generated.ts`, and give every POST function an `{ idempotencyKey }` option that the form fills from `useSubmission` (WEB-09).
+
+`web/src/types/api.generated.ts` is generated, committed, and never edited by hand. It comes from `tools/openapi-gen/openapi.v1.json`, a committed copy of the API's Development OpenAPI document (`/openapi/v1.json`) with its keys sorted. Two checks keep the three in step:
+
+- **`OpenApiSnapshotTests`** (part of `dotnet test`) fails when the live document differs from the committed snapshot.
+- **`npm --prefix tools/openapi-gen run check`** regenerates the types in memory and fails with "Generated API types are out of date" when the committed file differs.
+
+After you change an endpoint or a DTO, refresh both in one terminal (install the generator once with `npm --prefix tools/openapi-gen ci`):
+
+1. Rewrite the snapshot. The switch is set for this one command only, never at User or Machine level. The run writes the file and then fails on purpose with "Snapshot written; run again without CSPS_WRITE_OPENAPI_SNAPSHOT", so a run with the switch never passes.
+
+   ```bash
+   CSPS_WRITE_OPENAPI_SNAPSHOT=1 dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OpenApiSnapshotTests"
+   ```
+
+   In PowerShell: `$env:CSPS_WRITE_OPENAPI_SNAPSHOT = '1'; dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OpenApiSnapshotTests"; Remove-Item Env:CSPS_WRITE_OPENAPI_SNAPSHOT`.
+
+2. Run the same `dotnet test` command again without the switch. It must pass.
+3. Regenerate the types, then confirm there is no drift:
+
+   ```powershell
+   npm --prefix tools/openapi-gen run generate
+   npm --prefix tools/openapi-gen run check
+   ```
+
+4. Commit `tools/openapi-gen/openapi.v1.json` and `web/src/types/api.generated.ts` together with the API change.
+
+The snapshot's `servers` entry is the test host's address (`https://localhost/`), not a real server.
 
 ## Testing
 
