@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-10-08T05:15:03.689Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-10-08T05:36:14.255Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 57040c5c167f7adbb192fc44214fef8de5dcdf49
+state_head: 24f1a98b0492fb42652456e58190d622915738dd
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 18
+  completed_plans: 19
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-08T00:15:17-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 6 of 18
+Plan: 7 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -76,6 +76,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P03 | 24min | 2 tasks | 12 files |
 | Phase 02 P04 | 22 min | 3 tasks | 16 files |
 | Phase 02 P05 | 18 min | 3 tasks | 18 files |
+| Phase 02 P06 | 17 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-05: D-02 rule applied to five verbatim faded-text selectors (placeholder, Manager tag, CTA lead, pill count, big-button caption), reset to opacity 1 in overrides.css; the opacity scan allows only reasoned exceptions (inactive buttons, D-05 thumb actions, skeleton, entry-animation first frames, two decorations)
 - [Phase 02]: 02-05: WEB-09 pending (aria-disabled) buttons also reset every App. B hover/press style, so they look exactly like :disabled
 - [Phase 02]: 02-05: PERF-05 fallback faces measured against Windows Arial (Arial Narrow absent): Archivo Fallback 101.85/86.21/20.62/0, Barlow Condensed Fallback 68.92/145.1/29.02/0 (size-adjust/ascent/descent/line-gap %); Barlow fallback skips U+20B1
+- [Phase 02]: 02-06: A2 confirmed - `--webroot <abs path>` on dotnet run sets the web root; the E2E host serves web/.e2e-dist directly (never copied into wwwroot). A1 confirmed - addInitScript, exposeBinding, evaluate and AxeBuilder injection work under the strict CSP in Chromium, Firefox and WebKit
+- [Phase 02]: 02-06: E2E specs import test/expect/expectNoAxeViolations from web/e2e/fixtures.ts; the automatic guard fails every test on console error/warning, pageerror, CSP violation (binding-reported, survives navigation) and same-origin response >= 400; self-tests consume provoked findings with guard.take()
 
 ### Pending Todos
 
@@ -182,6 +185,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T05:14:53.261Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-10-08T05:36:04.910Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
