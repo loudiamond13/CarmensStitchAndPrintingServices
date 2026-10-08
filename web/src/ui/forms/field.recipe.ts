@@ -11,6 +11,7 @@
 //   exactly when App. D.3 set `.is-invalid`.
 // - Axes set disjoint properties (start padding, end padding, height), so no utility fights another for one property.
 import clsx from 'clsx';
+import type { StrengthScore } from '@/lib/csps';
 import { tw } from '@/ui/tw';
 
 /** `.csp-field`, and `.s-toolbar .csp-field` (flex 0 1 180px; phones 1 1 140px; tablets 1 1 150px). */
@@ -102,6 +103,17 @@ export function fieldInputClasses({
 /** `.csp-prefix`: the ₱ or % before the box. */
 export const prefixClasses = tw('pl-3 font-semibold text-ink-muted');
 
+/** `.csp-suffix-btn`: the 36px button at the end of the box (the password reveal toggle). */
+export const suffixButtonClasses = tw(
+  'absolute right-1 grid size-9 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ink-muted hover:bg-surface-3 hover:text-ink',
+);
+
+/** `.csp-select-chev`: the chevron over the select's end. */
+export const selectChevronClasses = tw('pointer-events-none absolute right-3 text-ink-muted');
+
+/** `.csp-select select option`. */
+export const selectOptionClasses = tw('bg-surface-3 text-ink');
+
 const messageBase = tw('m-0 flex items-center gap-1.5 text-[12px] leading-4');
 const messageTone = {
   hint: tw('text-ink-muted'),
@@ -113,17 +125,38 @@ export function messageClasses({ error }: { error: boolean }): string {
   return clsx(messageBase, error ? messageTone.error : messageTone.hint);
 }
 
-// RED stubs (plan 02-20 Task 2): the reveal toggle, select and strength looks are not transcribed yet.
-export const suffixButtonClasses = tw('');
-export const selectChevronClasses = tw('');
-export const selectOptionClasses = tw('');
-export const strengthClasses = tw('');
-export const strengthBarsClasses = tw('');
+/** `.csp-strength`: the meter row. */
+export const strengthClasses = tw('flex items-center gap-3');
 
-export function strengthBarClasses(_score: number, _on: boolean): string {
-  return tw('');
+/** `.csp-strength-bars`: four equal tracks, at most 180px. */
+export const strengthBarsClasses = tw('grid max-w-[180px] flex-1 grid-cols-[repeat(4,1fr)] gap-1');
+
+const strengthBarBase = tw('h-1 rounded-[2px]');
+/** `.csp-strength-bars span` (--line), and `.csp-strength.is-N .on` in the score's tone. */
+const strengthBarTone = {
+  0: tw('bg-line'),
+  1: tw('bg-danger'),
+  2: tw('bg-warning'),
+  3: tw('bg-info'),
+  4: tw('bg-success'),
+} as const satisfies Record<StrengthScore, string>;
+
+/** One meter bar: lit bars take the score's tone, the rest stay --line. */
+export function strengthBarClasses(score: StrengthScore, on: boolean): string {
+  return clsx(strengthBarBase, strengthBarTone[on ? score : 0]);
 }
 
-export function strengthLabelClasses(_score: number): string {
-  return tw('');
+const strengthLabelBase = tw('text-[12px] leading-4 font-semibold');
+/** `.csp-strength-label` (--ink-muted), and `.csp-strength.is-N .csp-strength-label` in the score's tone. */
+const strengthLabelTone = {
+  0: tw('text-ink-muted'),
+  1: tw('text-danger'),
+  2: tw('text-warning'),
+  3: tw('text-info'),
+  4: tw('text-success'),
+} as const satisfies Record<StrengthScore, string>;
+
+/** The meter label ("Weak" … "Strong", or the empty hint) in the score's tone. */
+export function strengthLabelClasses(score: StrengthScore): string {
+  return clsx(strengthLabelBase, strengthLabelTone[score]);
 }

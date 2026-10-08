@@ -271,6 +271,25 @@ describe('Field markup and labelling (App. D.3, A11Y-01)', () => {
   });
 });
 
+describe('Field equal-props re-render (React Compiler, L-13)', () => {
+  // The native attributes pass through as a fresh rest object on every render, so the compiler can never reuse the
+  // parts that hold the box; the output must still be identical for equal props and follow a passthrough change.
+  it.each([
+    ['label, required mark, prefix and hint', { label: 'Unit price', required: true, prefix: '₱', hint: 'Per piece.' }],
+    ['error', { label: 'Unit price', error: 'Enter an amount.' }],
+    ['multiline', { label: 'Notes', multiline: true as const, hint: 'Optional.' }],
+  ])('keeps the same output with a %s, and follows a passthrough attribute change', (_name, props) => {
+    const { container, rerender } = render(<Field {...props} />);
+    const first = container.innerHTML;
+
+    rerender(<Field {...props} />);
+    expect(container.innerHTML).toBe(first);
+
+    rerender(<Field {...props} placeholder="Changed" />);
+    expect(container.querySelector('[placeholder="Changed"]')).not.toBeNull();
+  });
+});
+
 describe('field scenarios (the forms parity group)', () => {
   const fieldScenarios = formScenarios.filter((scenario) => scenario.node.component === 'Field');
 

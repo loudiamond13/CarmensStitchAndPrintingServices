@@ -115,7 +115,7 @@ describe('Select markup and options (App. D.3)', () => {
     expect(select('Payment method')).toBeDisabled();
   });
 
-  it('reports a keyboard choice through onChange (native select keyboard)', async () => {
+  it('is reached with Tab and reports a choice through onChange (the browser runs the native select keyboard)', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Select label="Payment method" options={METHODS} onChange={onChange} />);
@@ -123,7 +123,7 @@ describe('Select markup and options (App. D.3)', () => {
 
     await user.tab();
     expect(element).toHaveFocus();
-    await user.keyboard('{ArrowDown}');
+    await user.selectOptions(element, 'GCash');
     expect(element).toHaveValue('GCash');
     expect(onChange).toHaveBeenCalledTimes(1);
   });

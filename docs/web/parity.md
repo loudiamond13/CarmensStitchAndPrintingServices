@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T17:40:23-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T18:14:07-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -105,6 +105,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `MediaPlaceholderNoChip`: the chip-less placeholder. The implementation renders `MediaPlaceholder label={false}`. The reference renders App. D.3's MediaPlaceholder markup without the chip, which the approved design hides only through parent rules (`.csp-thumb`, `.s-tile`).
    Plan 02-19 added a third:
    - `TabsWithPanel`: the Tabs node (its `children`) followed by the selected tab's panel, a plain `<div>` with text. The implementation's panel takes its id, role and `aria-labelledby` from `getTabPanelProps`, so the selected tab's `aria-controls` points at a real tabpanel and axe checks the pair. The reference's panel is the same block without those attributes; attributes are not compared.
+   Plan 02-20 added a fourth:
+   - `RevealPassword`: a plain `<div>` around a PasswordField that presses the field's reveal toggle once after mount, as a person would. App. D.3 keeps the revealed state inside PasswordField with no prop for it; both sides run the same click, so the `password-visible` case compares the revealed box and the eye-off toggle.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)
