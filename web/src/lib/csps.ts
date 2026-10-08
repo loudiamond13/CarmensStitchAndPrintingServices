@@ -217,7 +217,8 @@ function centavosOf(value: Exact): bigint {
 }
 
 const pesosOf = (centavos: bigint): Exact => ({ num: centavos, den: 100n });
-const toPesos = (centavos: bigint): number => Number(centavos) / 100;
+/** The nearest number to the exact peso amount (read from its decimal text, so even huge values stay exact-nearest). */
+const toPesos = (centavos: bigint): number => Number(centavosToAmount(centavos));
 
 function sumToCentavos(values: readonly (number | string | null | undefined)[]): bigint {
   return centavosOf(values.map(exactNumber).reduce(add, ZERO));
@@ -303,11 +304,19 @@ export function passwordStrength(pw = ''): { score: StrengthScore; label: '' | '
 // SPEC-DEVIATION: lint restrict-template-expressions (String(year)); same output.
 export const orderNumber = (year: number, seq: number): string => `ORD-${String(year)}-${String(seq).padStart(4, '0')}`;
 
-/* SPEC-GAP: MoneyInput conversion (D-09, ORD-09). RED placeholder: not implemented yet. */
+/* SPEC-GAP: MoneyInput conversion (D-09, ORD-09). MoneyInput emits the typed text; these turn it into exact integer
+   centavos and back, with no binary float in between. A money string has at most 9 integer digits and 2 decimals, no
+   sign and no grouping (^\d{0,9}(\.\d{0,2})?$ with at least one digit); anything else is null. */
+const MONEY_TEXT = /^\d{0,9}(?:\.\d{0,2})?$/;
+
+/** "1250.5" → 125050n, "5." → 500n, ".5" → 50n; "", ".", "-5", "1,250", "1.234", "1e3" → null. */
 export function toCentavos(text: string): bigint | null {
-  return text.length < 0 ? 0n : null;
+  const exact = MONEY_TEXT.test(text) ? parseExactDecimal(text) : null;
+  return exact === null ? null : centavosOf(exact);
 }
 
+/** 125050n → "1250.50": two decimals, no grouping, ASCII minus for a negative value. */
 export function centavosToAmount(value: bigint): string {
-  return value < 0n ? '' : '';
+  const digits = (value < 0n ? -value : value).toString().padStart(3, '0');
+  return `${value < 0n ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`;
 }

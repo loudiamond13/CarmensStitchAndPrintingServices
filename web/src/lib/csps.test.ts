@@ -8,6 +8,7 @@ import {
   orderNumber,
   orderTotals,
   passwordStrength,
+  round2, // SPEC-DEVIATION: D-09 rounding tests (not in App. D.2)
   toCentavos, // SPEC-GAP: MoneyInput conversion (not in App. D.2)
   type Order,
 } from './csps';
@@ -112,7 +113,73 @@ describe('centavosToAmount', () => {
     expect(centavosToAmount(99999999999n)).toBe('999999999.99');
   });
 
+  it('writes a negative value with an ASCII minus', () => {
+    expect(centavosToAmount(-73250n)).toBe('-732.50');
+    expect(centavosToAmount(-5n)).toBe('-0.05');
+  });
+
   it('round-trips with toCentavos', () => {
     expect(toCentavos(centavosToAmount(123456n))).toBe(123456n);
+  });
+});
+
+// SPEC-DEVIATION: D-09 (C-25) rounding. Not part of App. D.2; the golden vectors cover orderTotals as a whole.
+describe('round2', () => {
+  it.for([
+    [1.005, 1.01],
+    [10.075, 10.08],
+    [-1.005, -1.01],
+    ['2.675', 2.68],
+    [0.125, 0.13],
+    [1e21, 1e21],
+    [1.5e-7, 0],
+  ] as const)('rounds %s half away from zero at the centavo', ([value, expected]) => {
+    expect(round2(value)).toBe(expected);
+  });
+
+  it.for([NaN, Infinity, -Infinity, null, undefined, 'abc'])('reads %s as 0', (value) => {
+    expect(round2(value)).toBe(0);
+  });
+});
+
+describe('discountAmount (D-09)', () => {
+  it('is 0 without a discount', () => {
+    expect(discountAmount(null, 100)).toBe(0);
+    expect(discountAmount(undefined, 100)).toBe(0);
+  });
+
+  it('rounds a percentage of the items total half away from zero', () => {
+    expect(discountAmount({ type: 'percentage', value: 7.5 }, 17)).toBe(1.28);
+    expect(discountAmount({ type: 'percentage', value: 2.5 }, 23)).toBe(0.58);
+  });
+});
+
+// App. D.1 behavior beyond the 7 App. D.2 tests (characterization, so the lint-only SPEC-DEVIATION edits stay honest).
+describe('App. D.1 characterization', () => {
+  it('formats a Date, a local date-time and keeps unparseable text', () => {
+    expect(formatDate(new Date(2026, 9, 6))).toBe('Oct 6, 2026');
+    expect(formatDate('2026-10-06T08:00:00')).toBe('Oct 6, 2026');
+    expect(formatDate('garbage')).toBe('garbage');
+  });
+
+  it('treats a missing order as empty', () => {
+    expect(orderTotals(null)).toEqual({
+      total: 0,
+      discount: 0,
+      paid: 0,
+      balance: 0,
+      expenses: 0,
+      profit: 0,
+      fullyPaid: false,
+    });
+  });
+
+  it.for([
+    ['abc', 'Weak'],
+    ['abcdefgh', 'Weak'],
+    ['abcdefghijkl', 'Fair'],
+    ['Abcdefgh1', 'Good'],
+  ] as const)('scores %j as %s', ([password, label]) => {
+    expect(passwordStrength(password).label).toBe(label);
   });
 });
