@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
+import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
 // Flag 2). Babel only ever sees this app's own TypeScript under src/, never node_modules (L-27: the filter
@@ -27,7 +28,17 @@ export default defineConfig(({ mode }) => {
   const devRoutes = mode === 'development' || env.VITE_DEV_ROUTES === 'true';
 
   return {
-    plugins: [react(), babel({ presets: [reactCompilerPreset()], include: [isAppSource] }), tailwindcss()],
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()], include: [isAppSource] }),
+      tailwindcss(),
+      // SPEC-DEVIATION: PERF-05 woff2 only. The Fontsource weight files list a .woff fallback after each woff2; it
+      // is dropped before the CSS pipeline, so the web root ships woff2 files only (research Pattern 14).
+      woff2OnlyPlugin(),
+      // SPEC-DEVIATION: PERF-05 preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2 (the
+      // LCP font), and the build fails if that file is missing or matched twice (research Pattern 14).
+      preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
+    ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget
     // builds, and never in production (D-20). A literal false lets Rolldown drop the unreachable imports.
