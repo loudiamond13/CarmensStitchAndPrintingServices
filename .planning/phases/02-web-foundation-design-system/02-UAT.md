@@ -3,7 +3,7 @@ status: partial
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md]
 started: 2026-10-08T04:01:30-05:00
-updated: 2026-10-08T04:56:57-05:00
+updated: 2026-10-08T06:01:16-05:00
 created: 2026-10-08T04:01:30-05:00
 ---
 
@@ -19,7 +19,7 @@ created: 2026-10-08T04:01:30-05:00
 ## Current Test
 <!-- OVERWRITE each test - shows where we are -->
 
-[testing paused — 6 items outstanding (owner decisions D-BL-01/D-BL-03 and the showcase plans that wait on them)]
+[testing paused — 3 items outstanding (look checks 7, 11, 12 wait on the showcase screens; Phase 2 styles are being re-planned to Tailwind per D-33)]
 
 ## Tests
 
@@ -51,9 +51,9 @@ evidence: "Ran the documented flow. The CSPS_WRITE_OPENAPI_SNAPSHOT=1 run wrote 
 
 ### 5. [02-03 D4] npm license gate: dev/build tree within D-26
 expected: node web/scripts/license-gate.mjs exits 0 (production tree strict; dev/build tree only within the owner-approved licenses).
-result: blocked
-blocked_by: other
-reason: "Owner decision D-BL-01 (backlog 999.1): three free dev-only licenses (MIT-0, CC-BY-3.0, Python-2.0) need the owner's approval. The production tree passes (16 packages); the gate fails only on those 5 dev packages."
+result: pass
+source: claude
+evidence: "Owner approved the three dev-only licenses on 2026-10-08 (D-BL-01: \"Approve all three (Recommended)\"). node web/scripts/license-gate.mjs now exits 0: production tree 16 packages, dev/build tree 522 packages, no stale exceptions."
 
 ### 6. [02-04 D7] The client preview is never shown as the final figure
 expected: Once the server returns order totals, screens show the server figures, never the browser preview.
@@ -73,15 +73,15 @@ reason: "Deferred follow-up: a flagged planning assumption that can only be judg
 
 ### 9. [02-09 D5] The Logout button looks identical to the old link (D-27)
 expected: The owner confirms from the before/after pictures that the sidebar Logout looks the same.
-result: blocked
-blocked_by: other
-reason: "Owner sign-off, parked as part of D-BL-03 (backlog 999.1). Chromium measured all 34 values identical; the pictures are in artifacts/owner-review/phase2-rulings/index.html."
+result: pass
+source: owner
+evidence: "Owner confirmed in chat on 2026-10-08 (D-BL-03: \"Option A: accept all (Recommended)\", which includes the Logout look confirmed identical), recorded in D-31."
 
 ### 10. [02-09 D6] Owner rulings O-1..O-8, the 20 redrawn icons and D-BL-02
 expected: The owner's rulings are recorded as D-31/D-32 in 02-CONTEXT.md.
-result: blocked
-blocked_by: other
-reason: "Owner decision D-BL-03 (backlog 999.1); not decided and not recorded while the owner is away."
+result: pass
+source: owner
+evidence: "Owner ruled in chat on 2026-10-08: D-BL-03 \"Option A: accept all (Recommended)\" and D-BL-02 \"Option B: hide it\"; recorded as D-31/D-32 in 02-CONTEXT.md (commit fe6180f)."
 
 ### 11. [02-12 D7] How the form primitives look in a browser
 expected: OtpInput box row and legend spacing at 320/390 px, the skip link on focus, the checkbox and MoneyInput in item rows look right in Blush and Espresso.
@@ -595,11 +595,11 @@ verified_by: web/src/ui/gaps/Skeletons.test.tsx, LoadingRegion.test.tsx, ErrorSt
 ## Summary
 
 total: 83
-passed: 75
+passed: 78
 issues: 0
 pending: 0
 skipped: 2
-blocked: 6
+blocked: 3
 
 ## Gaps
 

@@ -1,12 +1,12 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T05:15:55-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T06:00:46-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
 ## D-BL-01 · Three more free licenses for the dev/build tool tree (plan 02-03)
 
-**Status:** open · **Raised:** 2026-10-07 · **Blocks:** plan 02-03's check "`node web/scripts/license-gate.mjs` exits 0", and plan 02-16, which wires the license gate into `verify`.
+**Status:** resolved 2026-10-08 · **Owner answer:** "Approve all three (Recommended)" → applied (commits 354d03a, 4951249; license gate exits 0) · *(was: open)* · **Raised:** 2026-10-07 · **Blocks:** plan 02-03's check "`node web/scripts/license-gate.mjs` exits 0", and plan 02-16, which wires the license gate into `verify`.
 
 **What happened.** The new npm license gate passes for everything that ships to the browser (16 packages: MIT, ISC and the OFL fonts). The dev/build tree has 522 packages, and five of them use a license that is not in the owner's D-26 list. None of them ships to the browser, and none costs anything.
 
@@ -28,7 +28,7 @@ The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-
 
 ## D-BL-02 · The "Manager" tag disappears on the selected Users menu row (plan 02-05)
 
-**Status:** open · **Raised:** 2026-10-08 · **Blocks:** nothing yet (no admin screen uses it until plan 02-15). Best settled together with the O-1..O-8 owner confirmations and the D-23 screenshot review.
+**Status:** resolved 2026-10-08 · **Owner answer:** "Option B: hide it" → recorded in D-31 (fe6180f); implemented by the re-planned 02-11 work · *(was: open)* · **Raised:** 2026-10-08 · **Blocks:** nothing yet (no admin screen uses it until plan 02-15). Best settled together with the O-1..O-8 owner confirmations and the D-23 screenshot review.
 
 **What happened.** In the approved design CSS (UI spec Appendix B), the small "Manager" tag in the admin sidebar uses the same color as the highlight of the selected row. When **Users** is the current page, the tag text matches its background, so it can't be read: 1.00:1 contrast in Blush and 1.43:1 in Espresso, against the 4.5:1 minimum (WCAG 1.4.3). The executor did not change it, because any fix changes the approved look (rule D-08: visual changes go to the owner with a before/after).
 
@@ -46,7 +46,7 @@ Under your existing ruling **D-02** (no text below 4.5:1 contrast), plan 02-05 s
 
 ## D-BL-03 · Design rulings O-1..O-8, 20 redrawn icons and the Logout look (plan 02-09, Task 3)
 
-**Status:** open · **Raised:** 2026-10-08 · **Blocks:** plan **02-11** and everything after it (02-14, 02-15, 02-16, 02-17, 02-18). Plans 02-10, 02-12 and 02-13 do not need these rulings and continue.
+**Status:** resolved 2026-10-08 · **Owner answer:** "Option A: accept all (Recommended)" → recorded as D-31/D-32 in 02-CONTEXT.md (fe6180f) · *(was: open)* · **Raised:** 2026-10-08 · **Blocks:** plan **02-11** and everything after it (02-14, 02-15, 02-16, 02-17, 02-18). Plans 02-10, 02-12 and 02-13 do not need these rulings and continue.
 
 **Review pack (open it in a browser, local only):** `artifacts/owner-review/phase2-rulings/index.html`, with 17 before/after pictures. Rebuild it with `node web/scripts/owner-review-pack.mjs`. The pack also shows **D-BL-02** (the Manager tag), so you can rule on both in one pass.
 

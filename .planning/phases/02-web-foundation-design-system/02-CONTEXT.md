@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T06:00:00-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T06:00:37-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -144,6 +144,14 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
   - **trending-down**: approved as the new 1.52.0 drawing (shape rebuilt, looks the same).
   - **package**: approved as the new 1.52.0 drawing (small curve changes).
   - **moon**: approved as the new 1.52.0 drawing (small curve changes).
+
+### Owner ruling: UI styles in Tailwind (2026-10-08, in chat, during `/gsd-execute-phase 2`)
+- **D-33 (UI styles are Tailwind utilities; supersedes the verbatim-CSS rule):** The owner asked to convert the stylesheets in `web/src/styles` "into tailwind css? Strictly tailwind for ui styles", and then chose **"Full conversion to Tailwind"** from these options: keep the spec CSS / hybrid / full conversion. This ruling:
+  - **Supersedes** the "Appendix A–C CSS stays byte-for-byte" rule (Accessibility section above), the CSS part of D-07, and UI-SPEC §0 rule 2 and §2.3 ("utilities are layout glue only"), for UI styles. The owner rules that the UI spec yields here (CLAUDE.md: "the UI spec wins … unless the owner rules otherwise").
+  - **Keeps the approved look.** The spec stays the visual source of truth: every token value, size, spacing, radius, shadow, breakpoint, state and theme (Blush and Espresso) must render the same as it does today, plus the owner rulings D-01..D-05, D-27, D-31 (including the D-BL-02 "hide the Manager tag on the selected row") and D-32. Rule 1 still applies: no invented values and no Tailwind default palette, radii or shadows, only CSPS tokens through `@theme`.
+  - **"Strictly Tailwind" in practice:** UI styling moves into Tailwind utility classes in the markup. Only what Tailwind v4 itself needs stays in CSS: the token `@theme`/custom properties, `@font-face`, `@keyframes`, the theme switch, and the minimal base/compat layer. Hand-written component or screen selectors (`.csp-*`/`.s-*` rule bodies, `overrides.css`, `spec-gaps.css`) are retired. Whether `.csp-*` / `.s-*` names survive as hooks is left to planning.
+  - **Proof replaces "verbatim":** the 245-case DOM-differential test against the frozen App. D markup no longer fits (markup classes change by design). A rendered-look comparison takes its place: screenshots or computed styles against today's rendering in both themes and at 320/390/820/1440 px. Zero axe violations, the strict CSP (no inline styles) and the CSS budget (≤ 35 KB gz) stay.
+  - **Reversibility:** costly but reversible. Rationale: owner preference for one styling approach across the UI. Plans 02-05, 02-09 and 02-11..02-18 are re-planned; recorded rulings D-31/D-32 still apply.
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.

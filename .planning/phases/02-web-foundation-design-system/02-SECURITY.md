@@ -8,7 +8,7 @@ asvs_level: 1
 block_on: high
 scope: "executed plans 02-01..02-10, 02-12, 02-13, 02-19 (02-11 and 02-14..02-18 not run; they wait on owner rulings D-BL-03)"
 created: "2026-10-08T05:15:00-05:00"
-updated: "2026-10-08T05:15:00-05:00"
+updated: "2026-10-08T06:01:16-05:00"
 ---
 
 # Phase 02 — Security
@@ -79,8 +79,8 @@ updated: "2026-10-08T05:15:00-05:00"
 | T-02-24 | 02-08 | Information disclosure | Personal data in URLs (CWE-598) | medium | mitigate | Only free-text `q` may hold personal data; no dedicated PII params; secrets rejected by httpClient; Referrer-Policy strict-origin-when-cross-origin (Phase 1) | closed |
 | T-02-SC | 02-08 | Tampering | npm installs | high | mitigate | No packages added; nuqs version fixed by plan 01 with owner approval rules | closed |
 | T-02-25 | 02-09 | Tampering | Mark raw-HTML injection (CWE-79) | high | mitigate | Mark rendered as JSX; lint bans the raw-HTML attribute; strict CSP as second layer | closed |
-| T-02-26 | 02-09 | Tampering | lucide-react with the cool-down waived (D-11) | medium | mitigate | Exact pin 1.52.0, advisory/deprecation check at install (plan 01), owner review of every changed drawing (D-12) | open — below high threshold (non-blocking); owner review deferred (D-BL-03) |
-| T-02-27 | 02-09 | Repudiation | Undocumented design drift | medium | mitigate | SPEC-DEVIATION markers, SPEC-DEVIATIONS.md register, differential DOM test with listed exceptions only, owner checkpoint | open — below high threshold (non-blocking); owner review deferred (D-BL-03) |
+| T-02-26 | 02-09 | Tampering | lucide-react with the cool-down waived (D-11) | medium | mitigate | Exact pin 1.52.0, advisory/deprecation check at install (plan 01), owner review of every changed drawing (D-12) | closed (owner review done 2026-10-08: D-31/D-32) |
+| T-02-27 | 02-09 | Repudiation | Undocumented design drift | medium | mitigate | SPEC-DEVIATION markers, SPEC-DEVIATIONS.md register, differential DOM test with listed exceptions only, owner checkpoint | closed (owner review done 2026-10-08: D-31/D-32) |
 | T-02-SC | 02-09 | Tampering | npm installs | high | mitigate | No packages added | closed |
 | T-02-28 | 02-10 | Tampering | OpenAPI contract drift | medium | mitigate | OpenApiSnapshotTests (live vs committed) and `tools/openapi-gen` check (snapshot vs generated types) | closed |
 | T-02-29 | 02-10 | Spoofing | Predictable Idempotency-Keys | medium | mitigate | `crypto.randomUUID` / `crypto.getRandomValues` only; test asserts Math.random is never used | closed |
@@ -167,6 +167,7 @@ The auditor ran read-only checks: Server integration tests 258/258, Domain 390/3
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-10-08 | 55 in scope (+20 not yet implemented) | 53 (51 mitigate, 2 accept) | 2 non-blocking (T-02-26, T-02-27, medium; owner review deferred to D-BL-03); 0 blocking | gsd-security-auditor via /gsd-secure-phase 2 (owner away) |
+| 2026-10-08 | 55 in scope (+20 not yet implemented) | 55 (53 mitigate, 2 accept) | 0 — T-02-26/T-02-27 closed by the owner rulings D-31/D-32 (D-BL-03) | orchestrator update after owner answers |
 
 ---
 
