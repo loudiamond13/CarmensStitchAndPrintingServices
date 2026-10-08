@@ -69,4 +69,11 @@ describe('LoadingRegion', () => {
     rerender(region(false));
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
   });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const { container, rerender } = render(region(false));
+    const before = container.innerHTML;
+    rerender(region(false));
+    expect(container.innerHTML).toBe(before);
+  });
 });

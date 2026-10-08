@@ -205,4 +205,24 @@ describe('ResultBar and FilterChip (UI considerations zero-one-many and chip ove
     expect(screen.getByRole('button', { name: 'Clear product type filter' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const onClear = vi.fn();
+    const onChange = vi.fn();
+    const onSubmit = vi.fn();
+    const tree = () => (
+      <>
+        <FilterBar label="Filter orders" end="View">
+          <SearchBox value="jersey" placeholder="Order no." onChange={onChange} onSubmit={onSubmit} id="q" />
+        </FilterBar>
+        <ResultBar count={2} thing="order" things="orders" sortLabel="due date">
+          <FilterChip label="Status" value="Ready" onClear={onClear} />
+        </ResultBar>
+      </>
+    );
+    const { container, rerender } = render(tree());
+    const before = container.innerHTML;
+    rerender(tree());
+    expect(container.innerHTML).toBe(before);
+  });
 });

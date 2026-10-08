@@ -113,4 +113,24 @@ describe('Pagination (WEB-06)', () => {
     render(<Pagination page={1} pageCount={2} onPageChange={vi.fn()} pageSize={20} />);
     expect(screen.queryByRole('combobox')).toBeNull();
   });
+
+  it('moves no focus without a focus target id', async () => {
+    const user = userEvent.setup();
+    const onPageChange = vi.fn();
+    render(<Pagination page={2} pageCount={5} onPageChange={onPageChange} />);
+    const next = screen.getByRole('button', { name: 'Next page' });
+    await user.click(next);
+    expect(onPageChange).toHaveBeenCalledWith(3);
+    expect(next).toHaveFocus();
+  });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const onPageChange = vi.fn();
+    const onPageSizeChange = vi.fn();
+    const props = { page: 2, pageCount: 5, onPageChange, pageSize: 20, onPageSizeChange, focusTargetId: 'x' };
+    const { container, rerender } = render(<Pagination {...props} />);
+    const before = container.innerHTML;
+    rerender(<Pagination {...props} />);
+    expect(container.innerHTML).toBe(before);
+  });
 });

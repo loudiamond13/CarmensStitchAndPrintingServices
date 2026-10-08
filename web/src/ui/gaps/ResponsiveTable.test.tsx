@@ -453,3 +453,37 @@ describe('CustomerCell (App. E.7 .s-who)', () => {
     );
   });
 });
+
+describe('ResponsiveTable: copy variants and re-renders', () => {
+  it('uses the list icon for the first-use empty state', () => {
+    const { container } = render(usersTable({ status: 'empty', rows: [], emptyIcon: 'users' }));
+    expect(container.querySelector('.csp-empty-icon svg')).toHaveClass('lucide-users');
+  });
+
+  it('words a no-match with filters but no search text', () => {
+    const { container, rerender } = render(
+      usersTable({ status: 'empty', rows: [], hasActiveFilters: true, filterSummary: 'role Admin' }),
+    );
+    expect(container.querySelector('.csp-empty-msg')?.textContent).toBe(
+      'No users with role Admin. Try another search or clear the filters.',
+    );
+    rerender(usersTable({ status: 'empty', rows: [], hasActiveFilters: true, searchText: '   ' }));
+    expect(container.querySelector('.csp-empty-msg')?.textContent).toBe(
+      'No users match the filters. Try another search or clear the filters.',
+    );
+  });
+
+  it.each<[string, Partial<ResponsiveTableProps<User>>]>([
+    ['populated', {}],
+    ['loading', { status: 'loading', rows: [] }],
+    ['empty', { status: 'empty', rows: [] }],
+    ['no matches', { status: 'empty', rows: [], hasActiveFilters: true, searchText: 'x' }],
+    ['error', { status: 'error', rows: [], error: traceError('abc123') }],
+  ])('keeps its %s markup when re-rendered with equal props (compiler cache path)', (_, props) => {
+    const onRetry = vi.fn();
+    const { container, rerender } = render(usersTable({ onRetry, ...props }));
+    const before = container.innerHTML;
+    rerender(usersTable({ onRetry, ...props }));
+    expect(container.innerHTML).toBe(before);
+  });
+});

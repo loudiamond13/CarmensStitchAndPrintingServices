@@ -88,3 +88,22 @@ describe('SkeletonTable', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
   });
 });
+
+describe('Skeleton family re-renders', () => {
+  it('keeps every skeleton unchanged when re-rendered with equal props (compiler cache path)', () => {
+    const columns = [{ key: 'user', header: 'User', label: 'Name' }];
+    const tree = () => (
+      <>
+        <SkeletonText />
+        <SkeletonCard />
+        <SkeletonImage ratio="16 / 9" className="x" />
+        <SkeletonTable columns={columns} />
+      </>
+    );
+    const { container, rerender } = render(tree());
+    const before = container.innerHTML;
+    rerender(tree());
+    expect(container.innerHTML).toBe(before);
+    expect(container.querySelector('td')).toHaveAttribute('data-label', 'Name');
+  });
+});

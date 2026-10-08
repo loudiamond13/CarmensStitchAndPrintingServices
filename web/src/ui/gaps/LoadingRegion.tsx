@@ -11,21 +11,25 @@ export interface LoadingRegionProps {
   busy: boolean;
   /** The plural noun the announcements use, like "orders". */
   things: string;
+  /**
+   * The load that just ended failed. The status then says nothing, because the ErrorState banner (role="alert")
+   * announces the failure itself.
+   */
   failed?: boolean;
   children?: ReactNode;
   /** On the busy region. */
   className?: string;
 }
 
-type Phase = 'idle' | 'loading' | 'loaded';
+type Phase = 'idle' | 'loading' | 'loaded' | 'failed';
 
-export function LoadingRegion({ busy, things, children, className }: LoadingRegionProps) {
+export function LoadingRegion({ busy, things, failed = false, children, className }: LoadingRegionProps) {
   const [phase, setPhase] = useState<Phase>(busy ? 'loading' : 'idle');
   const [wasBusy, setWasBusy] = useState(busy);
   // Track the busy edges during render, so the announcement changes in the same render as aria-busy.
   if (busy !== wasBusy) {
     setWasBusy(busy);
-    setPhase(busy ? 'loading' : 'loaded');
+    setPhase(busy ? 'loading' : failed ? 'failed' : 'loaded');
   }
   const message = phase === 'loading' ? LIST_COPY.loading(things) : phase === 'loaded' ? LIST_COPY.loaded(things) : '';
   return (

@@ -109,4 +109,17 @@ describe('LazyImage', () => {
     const { container } = render(image({ className: 'csp-order-media' }));
     expect(box(container)).toHaveClass('csp-lazy', 'csp-order-media');
   });
+
+  it('keeps its markup when re-rendered with equal props, loaded or failed (compiler cache path)', () => {
+    const { container, rerender } = render(image());
+    fireEvent.load(imgOf(container));
+    const loaded = container.innerHTML;
+    rerender(image());
+    expect(container.innerHTML).toBe(loaded);
+    rerender(image({ src: `${SRC}?v=3` }));
+    fireEvent.error(imgOf(container));
+    const failed = container.innerHTML;
+    rerender(image({ src: `${SRC}?v=3` }));
+    expect(container.innerHTML).toBe(failed);
+  });
 });

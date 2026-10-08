@@ -117,4 +117,19 @@ describe('ErrorState (App. E.8)', () => {
     render(<ErrorState title={copy?.title ?? ''} message={copy?.body ?? ''} error={error} />);
     expect(screen.getByRole('alert').querySelector('span')?.textContent).toBe('Please try again. Reference: tr-500');
   });
+
+  it('keeps its markup when re-rendered with equal props (compiler cache path)', () => {
+    const onRetry = vi.fn();
+    const error = httpError(500, 'abc123');
+    const { container, rerender } = render(<ErrorState things="orders" error={error} onRetry={onRetry} />);
+    const before = container.innerHTML;
+    rerender(<ErrorState things="orders" error={error} onRetry={onRetry} />);
+    expect(container.innerHTML).toBe(before);
+    rerender(<ErrorState title="Not found" message="It may have been deleted." error={error} />);
+    const custom = container.innerHTML;
+    rerender(<ErrorState title="Not found" message="It may have been deleted." error={error} />);
+    expect(container.innerHTML).toBe(custom);
+    rerender(<ErrorState title="Not found" />);
+    expect(screen.getByRole('alert').querySelector('div > span')).toBeNull();
+  });
 });

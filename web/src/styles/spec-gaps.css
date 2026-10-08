@@ -157,4 +157,28 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* SPEC-GAP: LazyImage */
+  /* The box reserves the aspect ratio (inline style) and clips a cover-fit image. While the image loads, the Skeleton
+     covers the whole box; after an error MediaPlaceholder fills it with no label chip (02-UI-SPEC). */
+  .csp-lazy {
+    position: relative;
+    overflow: hidden;
+  }
+  .csp-lazy > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .csp-lazy > .csp-skel {
+    position: absolute;
+    inset: 0;
+  }
+  .csp-lazy .csp-media-ph {
+    height: 100%;
+  }
+  .csp-lazy .csp-media-ph-label {
+    display: none;
+  }
 }

@@ -55,15 +55,43 @@ export function SkeletonTable({ columns, rows = 4 }: SkeletonTableProps) {
   );
 }
 
-// RED placeholders (plan 13 Task 3): replaced by the implementation in the GREEN commit.
+/** Three text lines, 14px high at 100%, 90% and 60%, 8px apart. */
 export function SkeletonText() {
-  return <Skeleton />;
+  return (
+    <div aria-hidden="true" style={{ display: 'grid', gap: 8 }}>
+      <Skeleton width="100%" height={14} />
+      <Skeleton width="90%" height={14} />
+      <Skeleton width="60%" height={14} />
+    </div>
+  );
 }
 
+/** The App. E.8 order-card skeleton, verbatim: the media block, then the number, team, customer and totals lines. */
 export function SkeletonCard() {
-  return <Skeleton />;
+  return (
+    <div className="csp-card" style={{ overflow: 'hidden' }} aria-hidden="true">
+      <Skeleton height={180} radius={0} />
+      <div style={{ padding: 16, display: 'grid', gap: 10 }}>
+        <Skeleton width="40%" height={14} />
+        <Skeleton width="75%" height={22} />
+        <Skeleton width="55%" height={14} />
+        <Skeleton height={56} />
+      </div>
+    </div>
+  );
 }
 
-export function SkeletonImage({ ratio = '4 / 3' }: { ratio?: string }) {
-  return <Skeleton className={ratio} />;
+export interface SkeletonImageProps {
+  /** The image's aspect ratio, reserved so the real image lands without a shift; 4 / 3 like MediaPlaceholder. */
+  ratio?: string;
+  className?: string;
+}
+
+/** A full-box, radius-0 Skeleton in a box with the image's aspect ratio. */
+export function SkeletonImage({ ratio = '4 / 3', className }: SkeletonImageProps) {
+  return (
+    <div className={className} style={{ aspectRatio: ratio }} aria-hidden="true">
+      <Skeleton width="100%" height="100%" radius={0} />
+    </div>
+  );
 }

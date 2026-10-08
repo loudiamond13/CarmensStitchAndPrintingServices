@@ -169,7 +169,12 @@ export function ResponsiveTable<T>({
   }
 
   return (
-    <LoadingRegion busy={firstLoad || refetching} things={things} className="csp-list-region">
+    <LoadingRegion
+      busy={firstLoad || refetching}
+      things={things}
+      failed={status === 'error'}
+      className="csp-list-region"
+    >
       {status === 'error' && <ErrorState things={things} error={error} onRetry={onRetry} />}
       {body}
     </LoadingRegion>
