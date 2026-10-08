@@ -38,6 +38,28 @@ public sealed class OrderMathGoldenVectorTests
         Vectors.Value.OperationOrder.ShouldBe(OperationOrder);
     }
 
+    [Fact]
+    public void HasAtLeast200CasesWithUniqueIds()
+    {
+        Vectors.Value.Cases.Count.ShouldBeGreaterThanOrEqualTo(200);
+        Vectors.Value.Cases.Select(c => c.Id).Distinct(StringComparer.Ordinal).Count().ShouldBe(Vectors.Value.Cases.Count);
+    }
+
+    // Every category the generator must cover (WEB-07); the Vitest suite asserts the same list.
+    [Theory]
+    [InlineData("midpoint")]
+    [InlineData("ord-fixture")]
+    [InlineData("percent-100")]
+    [InlineData("zero-items")]
+    [InlineData("multi-discount")]
+    [InlineData("negative-balance")]
+    [InlineData("large-value")]
+    [InlineData("seeded-random")]
+    public void CoversTheCategory(string category)
+    {
+        Vectors.Value.Cases.ShouldContain(c => c.Category == category);
+    }
+
     [Theory]
     [MemberData(nameof(CaseIds))]
     public void MatchesEveryVector(string caseId)

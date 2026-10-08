@@ -45,12 +45,33 @@ function toOrder(c: VectorCase): Partial<Order> {
   };
 }
 
+/** Every category the generator must cover (WEB-07); the xUnit suite asserts the same list. */
+const CATEGORIES = [
+  'midpoint',
+  'ord-fixture',
+  'percent-100',
+  'zero-items',
+  'multi-discount',
+  'negative-balance',
+  'large-value',
+  'seeded-random',
+];
+
 describe('order-math golden vectors', () => {
   it('pins the operation order in the shared file (D-09)', () => {
     expect(vectors.schemaVersion).toBe(1);
     expect(vectors.operationOrder).toBe(
       'round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)',
     );
+  });
+
+  it('has at least 200 cases with unique ids', () => {
+    expect(vectors.cases.length).toBeGreaterThanOrEqual(200);
+    expect(new Set(vectors.cases.map((c) => c.id)).size).toBe(vectors.cases.length);
+  });
+
+  it.for(CATEGORIES)('covers the %s category', (category) => {
+    expect(vectors.cases.filter((c) => c.category === category).length).toBeGreaterThan(0);
   });
 
   it.for(vectors.cases)('$id: $note', (c) => {
