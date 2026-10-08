@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as brandScenarios } from '@/dev/scenarios/groups/brand';
 import { expectNoAxeViolations } from '@/test/axe';
-import { Logo, Mark } from '@/ui/brand';
+import * as brand from '@/ui/brand';
+import { Logo, Mark, type IconName } from '@/ui/brand';
+import type { ScenarioNode, ScenarioValue } from '@/dev/scenarios/types';
+import { ICONS } from './icons';
 
 // The converted App. D.3 Mark and Logo (plan 02-18). The look itself is proven by the parity suite (web/visual,
 // `--grep @brand`); these tests pin the markup, the JSX drawing (no raw HTML string, WEB-02), the theme colour hooks,
@@ -24,6 +27,15 @@ function onlySvg(container: HTMLElement): SVGSVGElement {
     throw new Error('no svg');
   }
   return svg;
+}
+
+/** The element nodes of a scenario `children` array (an icons-all child is always an Icon node). */
+function iconNodes(value: ScenarioValue | undefined): ScenarioNode[] {
+  const items: readonly ScenarioValue[] = Array.isArray(value) ? (value as readonly ScenarioValue[]) : [];
+  return items.filter(
+    (item): item is ScenarioNode =>
+      typeof item === 'object' && item !== null && !Array.isArray(item) && 'kind' in item && item.kind === 'node',
+  );
 }
 
 function classTokens(element: Element | null | undefined): string[] {
@@ -269,6 +281,60 @@ describe('Brand scenarios (the brand parity group)', () => {
       );
     }
     expect(container.querySelector('[data-case="mark-48"] svg')).toHaveAttribute('width', '48');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the brand barrel', () => {
+  it('exports Icon next to the brand and motif components', () => {
+    expect(Object.keys(brand).sort()).toEqual([
+      'Icon',
+      'Logo',
+      'Mark',
+      'MediaPlaceholder',
+      'SectionCut',
+      'StitchDivider',
+    ]);
+    expectTypeOf<IconName>().toEqualTypeOf<keyof typeof ICONS>();
+  });
+});
+
+describe('the icon grid scenario (icons-all)', () => {
+  const iconsAll = brandScenarios.find((scenario) => scenario.id === 'icons-all');
+  const icons = iconNodes(iconsAll?.node.props?.children);
+
+  it('renders all 56 spec icons, by name in ICONS order, at the default size, then the size, stroke and label variants', () => {
+    const names = icons.map((icon) => icon.props?.name);
+    expect(names.slice(0, 56)).toEqual(Object.keys(ICONS));
+    expect(new Set(names.slice(0, 56)).size).toBe(56);
+    expect(icons.slice(56)).toEqual([
+      { kind: 'node', component: 'Icon', props: { name: 'search', size: 16 } },
+      { kind: 'node', component: 'Icon', props: { name: 'search', size: 24 } },
+      { kind: 'node', component: 'Icon', props: { name: 'search', strokeWidth: 1.5 } },
+      { kind: 'node', component: 'Icon', props: { name: 'search', label: 'Search' } },
+    ]);
+  });
+
+  it('is compared at rest in both themes at the shared widths', () => {
+    expect(iconsAll).toMatchObject({
+      group: 'brand',
+      node: { kind: 'node', component: 'IconSet' },
+      themes: ['light', 'dark'],
+      states: ['rest'],
+      responsive: false,
+      parity: true,
+    });
+  });
+
+  it('renders through the implementation kit as 60 icon wrappers with no axe violations', async () => {
+    if (iconsAll === undefined) {
+      throw new Error('icons-all is missing');
+    }
+    const { container } = render(<div data-case="icons-all">{renderNode(kit, iconsAll.node, [])}</div>);
+
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelectorAll('svg[viewBox="0 0 24 24"]')).toHaveLength(60);
+    expect(screen.getByRole('img', { name: 'Search' })).toHaveAttribute('width', '20');
     await expectNoAxeViolations(container);
   });
 });
