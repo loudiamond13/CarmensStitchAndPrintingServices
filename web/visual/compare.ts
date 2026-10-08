@@ -322,22 +322,73 @@ function collapseRepeats(value: string): string {
   return first !== undefined && items.every((item) => item === first) ? first : value;
 }
 
+/**
+ * The value a normalization puts in place of a property it ignores (a 0-width side's border style and colour, a
+ * 0-width outline's style and colour). diffCases never reports a property that is IGNORED on either side; the width
+ * itself is still compared, so a side that is visible on one page only is always reported.
+ */
+export const IGNORED = '(ignored)';
+
+const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+
 function normalizeStyles(styles: Readonly<Record<string, string>>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [property, value] of Object.entries(styles)) {
+    // Transforms are compared by their effect (the box and the pixels), never by their text.
     if (TRANSFORM_PROPERTIES.includes(property)) {
       continue;
     }
+    // The spec's transition shorthand repeats each value per property; one utility value says the same.
     result[property] = property.startsWith('transition-') ? collapseRepeats(value) : value;
+  }
+  // Preflight's `border: 0 solid` vs the spec's `border: 0`, and side-only borders: invisible at 0 width.
+  for (const side of SIDES) {
+    if (result[`border-${side}-width`] === '0px') {
+      result[`border-${side}-style`] = IGNORED;
+      result[`border-${side}-color`] = IGNORED;
+    }
+  }
+  if (result['outline-width'] === '0px') {
+    result['outline-style'] = IGNORED;
+    result['outline-color'] = IGNORED;
   }
   return result;
 }
 
-/** Applies the allowed normalizations (and nothing else) to one side's record. */
+/** True when `path` lies strictly inside the subtree rooted at `ancestor` (both child-index paths). */
+function isInside(path: string, ancestor: string): boolean {
+  return path.startsWith(`${ancestor}/`);
+}
+
+/**
+ * Applies the allowed normalizations (and nothing else) to one side's record:
+ * - a `display: none` element is dropped with its subtree (the walker already skips them; this keeps any record
+ *   honest);
+ * - everything inside an icon wrapper is dropped, while the wrapper itself and its own pseudo-elements stay (D-32);
+ * - transition lists collapse, transforms are dropped, and 0-width border and outline style and colour are IGNORED.
+ */
 export function normalizeRecord(record: CaseRecord): CaseRecord {
-  return {
-    elements: record.elements.map((element) => ({ ...element, styles: normalizeStyles(element.styles) })),
-  };
+  const hidden: string[] = [];
+  const icons: string[] = [];
+  const elements: ElementRecord[] = [];
+  for (const element of record.elements) {
+    const { path } = element;
+    if (hidden.some((root) => path === root || isInside(path, root)) || icons.some((root) => isInside(path, root))) {
+      continue;
+    }
+    if (element.styles.display === 'none') {
+      // A hidden element takes its subtree and pseudo-elements with it; a hidden pseudo-element only itself.
+      if (element.pseudo === '') {
+        hidden.push(path);
+      }
+      continue;
+    }
+    if (element.pseudo === '' && element.icon) {
+      icons.push(path);
+    }
+    elements.push({ ...element, styles: normalizeStyles(element.styles) });
+  }
+  return { elements };
 }
 
 function label(element: ElementRecord): string {
@@ -360,26 +411,38 @@ function compareBoxes(path: string, reference: Box, impl: Box): Difference[] {
   return differences;
 }
 
+/** A tag mismatch at this path is the registry's intentional exception (a decision ID is required there). */
+export interface TagException {
+  readonly path: string;
+  readonly reference: string;
+  readonly impl: string;
+}
+
 /**
  * Pairs the two normalized records element by element in DOM order and returns every difference: a different shape
- * (a missing, extra or reordered element stops the pairing there), a different tag, any differing property, and any box
- * edge more than BOX_TOLERANCE apart.
+ * (a missing, extra or reordered element stops the pairing there), a different tag unless `exceptions` lists that
+ * path and tag pair (the scenario's entries in visual/intentional-differences.ts), any differing property that is not
+ * IGNORED on either side, and any box edge more than BOX_TOLERANCE apart. Attributes are never compared.
  */
-export function diffCases(reference: CaseRecord, impl: CaseRecord): Difference[] {
+export function diffCases(
+  reference: CaseRecord,
+  impl: CaseRecord,
+  exceptions: readonly TagException[] = [],
+): Difference[] {
   const differences: Difference[] = [];
   const count = Math.max(reference.elements.length, impl.elements.length);
   for (let index = 0; index < count; index += 1) {
     const left = reference.elements[index];
     const right = impl.elements[index];
     if (left === undefined || right === undefined) {
-      const reference = left === undefined ? '(none)' : label(left);
-      const implementation = right === undefined ? '(none)' : label(right);
+      const referenceLabel = left === undefined ? '(none)' : label(left);
+      const implLabel = right === undefined ? '(none)' : label(right);
       differences.push({
-        path: left === undefined ? implementation : reference,
+        path: left === undefined ? implLabel : referenceLabel,
         kind: 'structure',
         property: 'element',
-        reference,
-        impl: implementation,
+        reference: referenceLabel,
+        impl: implLabel,
       });
       break;
     }
@@ -394,14 +457,17 @@ export function diffCases(reference: CaseRecord, impl: CaseRecord): Difference[]
       break;
     }
     const path = label(left);
-    if (left.tag !== right.tag) {
+    const allowed = exceptions.some(
+      (entry) => entry.path === left.path && entry.reference === left.tag && entry.impl === right.tag,
+    );
+    if (left.tag !== right.tag && !allowed) {
       differences.push({ path, kind: 'structure', property: 'tag', reference: left.tag, impl: right.tag });
     }
     const properties = new Set([...Object.keys(left.styles), ...Object.keys(right.styles)]);
     for (const property of properties) {
       const a = left.styles[property] ?? '(unset)';
       const b = right.styles[property] ?? '(unset)';
-      if (a !== b) {
+      if (a !== b && a !== IGNORED && b !== IGNORED) {
         differences.push({ path, kind: 'style', property, reference: a, impl: b });
       }
     }

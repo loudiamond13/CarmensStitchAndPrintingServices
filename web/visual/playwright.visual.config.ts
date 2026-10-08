@@ -10,6 +10,9 @@ export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
   forbidOnly: true,
+  // A parity row loads two pages per case and runs axe on both; WebKit at 1440 px takes about 12 s for one row alone and
+  // close to 30 s with the other workers busy, so the default 30 s test timeout is too tight (plan 02-14).
+  timeout: 120_000,
   retries: 0,
   reporter: [['list']],
   outputDir: '../test-results/visual',
@@ -22,7 +25,9 @@ export default defineConfig({
   use: { trace: 'retain-on-failure' },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    // Firefox and WebKit run every parity scenario at 390 and 1440, rest and hover; the Chromium-only rows of the matrix
+    // (320/820, focus-visible, active, the reduced-motion and touch passes; visual/parity-matrix.ts) are skipped here.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grepInvert: /@chromium-only/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, grepInvert: /@chromium-only/ },
   ],
 });

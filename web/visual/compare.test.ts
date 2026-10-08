@@ -232,6 +232,16 @@ describe('normalization: display: none subtrees are skipped', () => {
 
     expect(compare(reference, impl)).toEqual([]);
   });
+
+  it('drops a hidden pseudo-element on its own, and keeps its element', () => {
+    const reference = record(
+      element({ path: '0', styles: { color: 'red' } }),
+      element({ path: '0', pseudo: '::after', box: null, styles: { display: 'none', content: '""' } }),
+    );
+    const impl = record(element({ path: '0', styles: { color: 'blue' } }));
+
+    expect(compare(reference, impl)).toEqual([expect.objectContaining({ kind: 'style', property: 'color' })]);
+  });
 });
 
 describe('what is never normalized', () => {
@@ -310,7 +320,7 @@ describe('structural exceptions: a tag mismatch is reported unless the registry 
 
     expect(compare(reference, impl, elementExceptionsFor('button-primary-md'))).toHaveLength(1);
 
-    const div = record(element({ path: logoutPath, tag: 'div' }));
+    const div = record(element({ path: logoutPath, tag: 'div', styles: { cursor: 'pointer' } }));
     expect(compare(reference, div, elementExceptionsFor('sidebar-collapsed'))).toHaveLength(1);
   });
 });

@@ -91,28 +91,68 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
 /** Empty on purpose: every case must be pixel-identical. An entry needs an owner decision (D-08) and a reason. */
 export const TOLERANCE_OVERRIDES: readonly ToleranceOverride[] = Object.freeze([]);
 
-// RED stubs (plan 02-14 Task 2): the checks and lookups arrive with the GREEN step.
+/** A decision ID as the planning documents write them: D-27, D-31, D-BL-02, O-6, WEB-09, PERF-05, A11Y-04. */
+const DECISION_ID = /^(?:D-(?:BL-)?\d+|O-\d+|[A-Z][A-Z0-9]*-\d+)$/;
+
+/**
+ * Throws a plain Error naming the first entry that has no decision ID, no reason, a duplicate key, a negative or
+ * non-integer pixel count, or (for element exceptions) equal tags. The parity suite runs it at load.
+ */
 export function assertRegistry(
-  _structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS,
-  _tolerances: readonly ToleranceOverride[] = TOLERANCE_OVERRIDES,
+  structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS,
+  tolerances: readonly ToleranceOverride[] = TOLERANCE_OVERRIDES,
 ): void {
-  return undefined;
+  const seen = new Set<string>();
+  const check = (key: string, decision: string, reason: string): void => {
+    if (!DECISION_ID.test(decision)) {
+      throw new Error(`Intentional difference ${key} needs an owner decision ID (got "${decision}").`);
+    }
+    if (reason.trim() === '') {
+      throw new Error(`Intentional difference ${key} needs a reason the owner can read.`);
+    }
+    if (seen.has(key)) {
+      throw new Error(`Intentional difference ${key} is listed more than once.`);
+    }
+    seen.add(key);
+  };
+  for (const entry of structural) {
+    if (entry.kind === 'element') {
+      if (entry.reference === entry.impl) {
+        throw new Error(`Element exception ${entry.scenario} ${entry.path} lists the same tag on both sides.`);
+      }
+      check(`element ${entry.scenario} ${entry.path}`, entry.decision, entry.reason);
+    } else {
+      check(`icon-drawing ${entry.viewBox}`, entry.decision, entry.reason);
+    }
+  }
+  for (const entry of tolerances) {
+    if (!Number.isInteger(entry.maxDiffPixels) || entry.maxDiffPixels < 0) {
+      throw new Error(`Tolerance override ${entry.scenario} needs a whole, non-negative pixel count.`);
+    }
+    check(`tolerance ${entry.scenario}`, entry.decision, entry.reason);
+  }
 }
 
+/** The element exceptions of one scenario. */
 export function elementExceptionsFor(
-  _scenario: string,
-  _structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS,
+  scenario: string,
+  structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS,
 ): ElementException[] {
-  return [];
+  return structural.filter(
+    (entry): entry is ElementException => entry.kind === 'element' && entry.scenario === scenario,
+  );
 }
 
-export function maskedIconViewBox(_structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS): string | null {
-  return null;
+/** The icon wrapper viewBox whose drawing is masked (D-32), or null when the registry masks no drawing. */
+export function maskedIconViewBox(structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS): string | null {
+  const mask = structural.find((entry): entry is DrawingMask => entry.kind === 'icon-drawing');
+  return mask?.viewBox ?? null;
 }
 
+/** The pixel tolerance for one scenario: 0 unless an override with an owner decision says otherwise. */
 export function maxDiffPixelsFor(
-  _scenario: string,
-  _tolerances: readonly ToleranceOverride[] = TOLERANCE_OVERRIDES,
+  scenario: string,
+  tolerances: readonly ToleranceOverride[] = TOLERANCE_OVERRIDES,
 ): number {
-  return 0;
+  return tolerances.find((entry) => entry.scenario === scenario)?.maxDiffPixels ?? 0;
 }

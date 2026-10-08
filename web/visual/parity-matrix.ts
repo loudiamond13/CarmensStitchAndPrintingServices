@@ -1,5 +1,12 @@
 // The parity matrix (WEB-02, D-33, UI-SPEC "Look-Equality Proof" → Matrix): which pages each engine loads, at which
-// width, theme, interaction state and pass. RED stub (plan 02-14 Task 2).
+// width, theme, interaction state and pass. One row is one Playwright test; parity.spec.ts turns every row into a test.
+//   - Every engine: every scenario at 390 and 1440 px, rest and hover (hover only where the scenario lists it).
+//   - Chromium only: rest at 320 and 820 for responsive scenarios; focus-visible and active at 390 and 1440; one
+//     reduced-motion pass (O-6) and one touch / no-hover pass (D-05) at 390 for the scenarios tagged with them.
+//   - Themes: each scenario in the themes it lists (admin and showcase: Blush and Espresso; public: Blush only, D-14).
+//   - SPEC-GAP scenarios (`parity: false`) have no reference: they ride along in the rest rows, where the implementation
+//     page still runs axe and the guard, and their states are never driven.
+// Prop states (disabled, selected, current, invalid, collapsed) are separate scenarios, so they are rows like any other.
 import type { Scenario, ScenarioState, Theme } from '../src/dev/scenarios/types.ts';
 
 /** `default`, or one of the two extra passes: reduced motion (O-6) and touch / no hover (D-05). */
@@ -7,6 +14,15 @@ export type MatrixPass = 'default' | 'motion' | 'touch';
 
 /** Rows only Chromium runs carry this tag; the Firefox and WebKit projects skip them (grepInvert). */
 export const CHROMIUM_ONLY_TAG = '@chromium-only';
+
+/** Widths every engine runs. */
+export const SHARED_WIDTHS = Object.freeze([390, 1440]);
+/** Extra widths Chromium runs for responsive scenarios (rest only). */
+export const RESPONSIVE_WIDTHS = Object.freeze([320, 820]);
+/** The width of the reduced-motion and touch passes. */
+export const PASS_WIDTH = 390;
+
+const THEMES: readonly Theme[] = ['light', 'dark'];
 
 export interface MatrixRow {
   /** The test title: `@parity @<group> <theme> <width>px <state>`, plus the pass tag and `@chromium-only`. */
@@ -23,6 +39,84 @@ export interface MatrixRow {
   readonly cases: readonly Scenario[];
 }
 
-export function planMatrix(_scenarios: readonly Scenario[]): MatrixRow[] {
-  return [];
+function row(
+  group: string,
+  theme: Theme,
+  width: number,
+  state: ScenarioState,
+  pass: MatrixPass,
+  chromiumOnly: boolean,
+  cases: readonly Scenario[],
+): MatrixRow {
+  const passTag = pass === 'default' ? '' : ` @${pass}`;
+  const engineTag = chromiumOnly ? ` ${CHROMIUM_ONLY_TAG}` : '';
+  return {
+    title: `@parity @${group} ${theme} ${String(width)}px ${state}${passTag}${engineTag}`,
+    slug: `${theme}-${String(width)}-${state}-${pass}`,
+    group,
+    theme,
+    width,
+    state,
+    pass,
+    chromiumOnly,
+    cases,
+  };
+}
+
+/** The rows for one group and theme, in a fixed order: rest, the states, then the passes. */
+function rowsFor(group: string, theme: Theme, cases: readonly Scenario[]): MatrixRow[] {
+  const rows: MatrixRow[] = [];
+  const add = (width: number, state: ScenarioState, pass: MatrixPass, chromiumOnly: boolean, list: Scenario[]) => {
+    if (list.length > 0) {
+      rows.push(row(group, theme, width, state, pass, chromiumOnly, list));
+    }
+  };
+  const parity = cases.filter((scenario) => scenario.parity);
+  const withState = (state: ScenarioState) => parity.filter((scenario) => scenario.states.includes(state));
+
+  for (const width of SHARED_WIDTHS) {
+    add(width, 'rest', 'default', false, [...cases]);
+  }
+  for (const width of RESPONSIVE_WIDTHS) {
+    add(
+      width,
+      'rest',
+      'default',
+      true,
+      cases.filter((scenario) => scenario.responsive),
+    );
+  }
+  for (const width of SHARED_WIDTHS) {
+    add(width, 'hover', 'default', false, withState('hover'));
+  }
+  for (const state of ['focus-visible', 'active'] as const) {
+    for (const width of SHARED_WIDTHS) {
+      add(width, state, 'default', true, withState(state));
+    }
+  }
+  for (const pass of ['motion', 'touch'] as const) {
+    add(
+      PASS_WIDTH,
+      'rest',
+      pass,
+      true,
+      cases.filter((scenario) => scenario.passes?.includes(pass) === true),
+    );
+  }
+  return rows;
+}
+
+/** Every row of the matrix, grouped by scenario group (in first-appearance order), then by theme. */
+export function planMatrix(scenarios: readonly Scenario[]): MatrixRow[] {
+  const groups = [...new Set(scenarios.map((scenario) => scenario.group))];
+  return groups.flatMap((group) => {
+    const inGroup = scenarios.filter((scenario) => scenario.group === group);
+    return THEMES.flatMap((theme) =>
+      rowsFor(
+        group,
+        theme,
+        inGroup.filter((scenario) => scenario.themes.includes(theme)),
+      ),
+    );
+  });
 }
