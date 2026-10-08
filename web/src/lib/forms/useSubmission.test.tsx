@@ -375,17 +375,24 @@ describe('useSubmission: results and errors', () => {
     });
   });
 
-  it('treats a send that throws before returning a promise as a failed submission', async () => {
+  it('treats a send that throws before returning a promise as a failed submission, and can submit again', async () => {
     const user = userEvent.setup();
-    const send = vi.fn<Send<Payment>>(() => {
-      throw new Error('Bad request shape');
-    });
+    const send = vi
+      .fn<Send<Payment>>(() => Promise.resolve('saved'))
+      .mockImplementationOnce(() => {
+        throw new Error('Bad request shape');
+      });
     render(<PaymentForm send={send} data={payment} />);
 
     await user.click(save());
     await settled();
-
     expect(screen.getByRole('status', { name: 'Error' })).toHaveTextContent('Bad request shape');
+
+    await user.click(save());
+    await settled();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1]?.[0]).toBe(send.mock.calls[0]?.[0]);
+    expect(screen.getByRole('status', { name: 'Error' })).toHaveTextContent('');
   });
 
   it('keeps working across re-renders with the same props and with new props', async () => {
