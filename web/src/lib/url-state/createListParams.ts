@@ -1,8 +1,18 @@
 // The one way a list keeps its view in the URL (WEB-10): createListParams(parsers) returns a typed hook built on
 // nuqs useQueryStates. Lists read and write their state only through that hook and never copy it into useState or
 // form state.
-import { parseAsString, useQueryStates, type Nullable, type ParserMap, type UrlKeys, type Values } from 'nuqs';
+import {
+  debounce,
+  parseAsString,
+  useQueryStates,
+  type Nullable,
+  type Options,
+  type ParserMap,
+  type UrlKeys,
+  type Values,
+} from 'nuqs';
 import { useEffect } from 'react';
+import { normalizeSearch } from './parsers';
 
 /**
  * What normalization needs from a parser. Every nuqs single-value parser builder (createParser, parseAsStringLiteral,
@@ -47,6 +57,41 @@ type FilterKey<P extends ListParserMap> = Exclude<keyof P & string, 'page'>;
 
 const DEFAULT_URL_KEYS: Readonly<Record<string, string>> = { pageSize: 'size', search: 'q' };
 
+/** Quiet time before a search is written to the URL (WEB-08, WEB-10). */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * URL parameter names that would hold personal data or a secret (WEB-10 privacy rules, CWE-598). Personal data may
+ * appear only inside the free-text `q`; tokens, codes and secrets never appear in a URL. Compared lower-case with
+ * everything but letters removed, so `Email`, `customer_name` and `access-token` are caught too.
+ */
+const FORBIDDEN_URL_KEYS: ReadonlySet<string> = new Set([
+  'email',
+  'phone',
+  'mobile',
+  'name',
+  'firstname',
+  'lastname',
+  'fullname',
+  'customername',
+  'address',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'password',
+  'secret',
+  'otp',
+  'code',
+]);
+
+function assertAllowedUrlKey(urlKey: string): void {
+  if (FORBIDDEN_URL_KEYS.has(urlKey.toLowerCase().replace(/[^a-z]/g, ''))) {
+    throw new TypeError(
+      `"${urlKey}" must not be a URL parameter: personal data goes only in the free-text search and secrets never go in a URL (WEB-10).`,
+    );
+  }
+}
+
 function parseOrNull(parser: ListParser, query: string): unknown {
   try {
     return parser.parse(query) ?? null;
@@ -80,7 +125,10 @@ function normalizationPatch(
 }
 
 export function createListParams<P extends ListParserMap>(parsers: P, options: ListParamsOptions<P> = {}) {
-  const urlKeys = { ...DEFAULT_URL_KEYS, ...options.urlKeys };
+  const urlKeys: Record<string, string | undefined> = { ...DEFAULT_URL_KEYS, ...options.urlKeys };
+  for (const key of Object.keys(parsers)) {
+    assertAllowedUrlKey(urlKeys[key] ?? key);
+  }
   const hookOptions = { urlKeys: urlKeys as UrlKeys<P> };
   const rawParsers: RawParserMap = Object.fromEntries(Object.keys(parsers).map((key) => [key, parseAsString]));
   const rawOptions = { urlKeys: urlKeys as UrlKeys<RawParserMap> };
@@ -99,18 +147,47 @@ export function createListParams<P extends ListParserMap>(parsers: P, options: L
       }
     }, [raw, setParams]);
 
-    // RED placeholder (02-08 Task 2): inert setters; replaced in GREEN.
-    const noop = (): void => undefined;
+    const write = (patch: Record<string, unknown>, writeOptions: Options): void => {
+      void setParams(patch as Patch<P>, writeOptions);
+    };
+    // Every change but a page change replaces the history entry and resets the page in the same single URL update.
+    const replaceAndResetPage = (patch: Record<string, unknown>, extra: Options = {}): void => {
+      write({ ...patch, page: null }, { history: 'replace', ...extra });
+    };
+
     const setters: ListParamsSetters<P> = {
-      setPage: noop,
-      setPageSize: noop,
-      setFilter: noop,
-      setSearch: noop,
-      setSort: noop,
-      setTab: noop,
-      setView: noop,
-      clampPage: noop,
-      reset: noop,
+      setPage: (page) => {
+        write({ page: Number.isSafeInteger(page) && page >= 1 ? page : null }, { history: 'push' });
+      },
+      setPageSize: (size) => {
+        replaceAndResetPage({ pageSize: size });
+      },
+      setFilter: (key, value) => {
+        replaceAndResetPage({ [key]: value });
+      },
+      setSearch: (value, searchOptions) => {
+        const limit: Options =
+          searchOptions?.immediate === true ? {} : { limitUrlUpdates: debounce(SEARCH_DEBOUNCE_MS) };
+        replaceAndResetPage({ search: normalizeSearch(value) }, limit);
+      },
+      setSort: (value) => {
+        replaceAndResetPage({ sort: value });
+      },
+      setTab: (value) => {
+        replaceAndResetPage({ tab: value });
+      },
+      setView: (value) => {
+        replaceAndResetPage({ view: value });
+      },
+      clampPage: (lastPage) => {
+        const page = (values as Record<string, unknown>).page;
+        if (typeof page === 'number' && lastPage >= 1 && page > lastPage) {
+          write({ page: lastPage }, { history: 'replace' });
+        }
+      },
+      reset: () => {
+        void setParams(null, { history: 'replace' });
+      },
     };
     return [values, setters] as const;
   };

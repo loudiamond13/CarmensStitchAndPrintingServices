@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, MemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createListParams } from './createListParams';
@@ -101,6 +101,30 @@ describe('UrlStateLayout', () => {
     await waitFor(() => {
       expect(window.location.search).toBe('?status=done');
     });
+  });
+
+  it('adds no markup of its own, on first render or re-render', () => {
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <UrlStateLayout />
+      </MemoryRouter>,
+    );
+    expect(container).toBeEmptyDOMElement();
+    rerender(
+      <MemoryRouter>
+        <UrlStateLayout />
+      </MemoryRouter>,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('reads list params from a React Router navigation (a link from another screen)', async () => {
+    const router = renderApp();
+    await act(async () => {
+      await router.navigate('/orders?page=5&status=done');
+    });
+    expect(screen.getByText('Page 5, status done')).toBeInTheDocument();
+    expect(window.location.search).toBe('?page=5&status=done');
   });
 
   it('normalizes an invalid shared link once on arrival', async () => {
