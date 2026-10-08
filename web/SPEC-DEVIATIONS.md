@@ -1,7 +1,7 @@
 # Design-system spec deviations (WEB-02, D-07)
 
 <!-- prettier-ignore -->
-*Created: 2026-10-08T02:06:00-05:00 · Updated: 2026-10-08T02:06:00-05:00*
+*Created: 2026-10-08T02:06:00-05:00 · Updated: 2026-10-08T02:18:00-05:00*
 
 This file records how the approved design-system code in `CSPS-UI-SPEC.md` (App. D.3 `src/ui/index.tsx`, D.4
 `src/ui/mark.ts`, D.5 `src/ui/icons.ts`, D.6b `src/app/RouterLink.tsx`) was brought in under the strict type and lint
@@ -131,3 +131,31 @@ DOM change, apart from D-27, which the owner already ruled. The owner review pac
 the changed icon drawings and the UI-SPEC "Owner Confirmations" O-1..O-8. It also repeats one earlier D-08 question
 from plan 02-05 (backlog D-BL-02): the "Manager" tag on the selected Users sidebar row is unreadable in the verbatim
 App. B colours.
+
+## 6. Review pack (plan 02-09 Task 2)
+
+`node web/scripts/owner-review-pack.mjs` (local only; it refuses to run in CI and to write outside
+`artifacts/owner-review/`) builds the owner's plain-words review into `artifacts/owner-review/phase2-rulings/`
+(git-ignored): `index.html` plus 17 PNGs. Last run 2026-10-08:
+
+- **Icons (D-12):** 56 icons, **20 changed** drawings between Lucide 0.460 and lucide-react 1.52.0 (search, trash-2,
+  receipt, users, log-out, menu, phone, message-circle, mail, clock, circle-check, list, filter, calendar, palette,
+  zap, trending-up, trending-down, package, moon), **2 renamed** by lucide (trash-2 → trash, filter → funnel; both
+  also in the changed list), 36 the same. Shown at 24 and 48 px.
+- **O-1..O-8:** 8 open items. Only O-3 is visible (the phone drawer's current link turns italic, picture included);
+  O-6 affects only people who ask for reduced motion; O-8 lists the measured small controls (sm button 36 px high,
+  `.csp-iconbtn` and `.s-iconbtn` 36 × 36, `.csp-seg-btn` 32 px high, filter-chip clear 22 × 22, login checkbox
+  20 × 20).
+- **D-27:** the approved link and the new button side by side in Blush and Espresso, expanded and collapsed, at rest
+  and on hover. Measured in Chromium: **identical** in all 34 measured values (size, padding, border, colours, font,
+  cursor, alignment, icon and label position). The first run found one difference, `border-top-style` none vs
+  solid (0 width, invisible), fixed by restating only `border-width: 0` in the compat rule (`900e2a8`).
+- **D-BL-02** (earlier open D-08 item from plan 02-05): the selected Users row's "Manager" tag today and with the
+  recommended option A, both themes.
+- **New D-08 items from this reconciliation:** none.
+
+The D-27 compat rule deliberately sets only `appearance`, `border-width`, `text-align` and `cursor`. The plan also
+listed a transparent background, full width and an inherited font and colour, but `overrides.css` is unlayered, so
+those would beat the layered `.csp-nav` hover, current-item, collapsed and tablet-width rules. Tailwind's preflight
+already gives buttons a transparent background and an inherited font and colour, and the flex column stretches the
+button to full width; the measurements above confirm the result.
