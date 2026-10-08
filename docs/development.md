@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-07T18:29:59-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T09:57:52-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -90,6 +90,19 @@ Run these once, in this order.
    - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only** and are never mapped in production.
 
 The launch profile sets `ASPNETCORE_ENVIRONMENT=Development` for that process only. Never set it, or any other variable, at User or Machine level.
+
+## How the API serves the web app
+
+The API also hosts the React app, so the site and the API share one origin and one strict CSP.
+
+- **Build output.** `npm --prefix web run build` writes the production app into `src/Csps.Server/wwwroot` (`index.html` plus content-hashed files under `assets/`). That folder is build output: it is git-ignored and never committed, not even a `.gitkeep`, because each build empties it first. Hand-written public files belong in `web/public/`.
+- **Tests never need a build.** Every .NET test host serves the committed fixture web root `tests/Csps.Testing/Fixtures/webroot` (`CspsApiFactory.FixtureWebRoot`) and turns static web assets off, so a fresh clone passes without `npm run build`. The fixture also holds `.vite/license.md` and `.x/y.txt`, which model build internals that must never be served.
+- **The shell.** A GET or HEAD on any page path (no dot in the last segment, for example `/products` or `/admin/orders`) that no other endpoint matches gets `index.html`, anonymously, with `Cache-Control: no-cache`. Any other method on a page path still meets the default-deny policy (401).
+- **Missing files.** A file-like path (a dot in the last segment) that no static file answers gets an anonymous ProblemDetails 404, never the shell and never a 401. Unknown `/api/...` paths keep their own ProblemDetails 404. Outside Development, `/openapi/...` and `/scalar/...` are reserved 404s too.
+- **Hidden segments.** Static files are served through `HiddenSegmentFileProvider`. Any path with a segment that starts with `.` or contains `~`, split on both `/` and `\`, reads as missing, so `/.vite/license.md`, `/.VITE/LICENSE.MD`, `/%2Evite/license.md`, `/assets%5C..%5C.vite%5Clicense.md` and the Windows 8.3 alias `/VITE~1/license.md` all get exactly the missing-file 404, with no `ETag`, `Last-Modified` or `Accept-Ranges`. Directory listings hide those entries as well. Do not rely on `dotnet publish` dropping dot folders, because `dotnet run`, the E2E host and the Lighthouse host serve the raw build folder.
+- **`/.well-known/` exception policy.** Nothing under `/.well-known/` is served today. If a real file is ever needed there (for example `security.txt`), add an explicit exact-path exception in `HiddenSegmentFileProvider` with its own test. Never relax the rule as a whole (accepted risk AR-02-02).
+- **Compression.** Responses of type `text/html`, `text/css`, `text/javascript`, `application/javascript` and `image/svg+xml` are Brotli- or gzip-compressed when the browser accepts it, over HTTPS too. JSON and ProblemDetails are never compressed, because compressed secrets next to attacker-chosen text leak through response length (BREACH). The list lives in `SpaCaching.CompressibleTypes`.
+- **Caching.** Files under `/assets/` carry `Cache-Control: public, max-age=31536000, immutable`, because Vite puts a content hash in every name there. `index.html`, the shell and every other static file carry `no-cache`, so the browser revalidates them and picks up a new deploy at once.
 
 ## Testing
 
