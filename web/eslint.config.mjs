@@ -204,9 +204,10 @@ export const architectureRules = [
     },
   },
   {
-    // api.ts is the only consumer of the HTTP client (WEB-04).
+    // api.ts is the only consumer of the HTTP client (WEB-04). Its test builds the client over a fake fetch to drive
+    // createApi (plan 02-15), so it shares the exception.
     name: 'csps/restrictions/api',
-    files: ['src/lib/api.ts'],
+    files: ['src/lib/api.ts', 'src/lib/api.test.ts'],
     rules: {
       'no-restricted-imports': importBans({ http: true, appCss: false }),
       'no-restricted-syntax': ['error', ...syntaxBans],
