@@ -96,6 +96,46 @@ test.beforeEach(async ({ page, appPage }, testInfo) => {
   await routeDist(appPage, { origin: APP_ORIGIN, distDir: PARITY_DIST });
 });
 
+test.describe('self-test', () => {
+  test.use({ viewport: { width: 390, height: 900 } });
+
+  test('@parity @selftest a 1px padding change on the implementation is reported as a style and a pixel difference', async ({
+    page,
+    appPage,
+  }, testInfo) => {
+    const id = 'button-primary-md';
+    const selector = caseSelector(id);
+    await openBoth(page, appPage, `?case=${id}&theme=light`);
+    // A deliberate drift, written through the CSSOM (allowed by the CSP, unlike a style attribute): the button's
+    // padding-top grows by 1px on the implementation side only.
+    await appPage.evaluate(`(() => {
+      const button = document.querySelector(${JSON.stringify(`${selector} > *`)});
+      const current = Number.parseFloat(getComputedStyle(button).paddingTop);
+      button.style.setProperty('padding-top', String(current + 1) + 'px');
+    })()`);
+    await page.evaluate(FREEZE_ANIMATIONS);
+    await appPage.evaluate(FREEZE_ANIMATIONS);
+
+    const differences = diffCases(
+      normalizeRecord(await collectCase(page, selector)),
+      normalizeRecord(await collectCase(appPage, selector)),
+    );
+    expect(differences.length, 'the comparator reports the drift').toBeGreaterThan(0);
+    expect(differences).toContainEqual(
+      expect.objectContaining({ kind: 'style', property: 'padding-top', reference: '0px', impl: '1px' }),
+    );
+
+    const name = 'selftest-button-primary-md.png';
+    const expectedPath = testInfo.snapshotPath(name);
+    mkdirSync(path.dirname(expectedPath), { recursive: true });
+    writeFileSync(expectedPath, await page.locator(selector).screenshot(SHOT));
+    const drifted = await appPage.locator(selector).screenshot(SHOT);
+    expect(() => {
+      expect(drifted).toMatchSnapshot(name, { maxDiffPixels: 0, threshold: 0 });
+    }, 'the pixel comparison rejects the drift').toThrow(/different/);
+  });
+});
+
 test.describe('390px', () => {
   test.use({ viewport: { width: 390, height: 900 } });
 
