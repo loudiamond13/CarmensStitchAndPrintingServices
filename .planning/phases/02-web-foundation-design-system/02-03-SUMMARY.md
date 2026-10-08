@@ -4,7 +4,7 @@ plan: 03
 subsystem: supply-chain
 tags: [npm, licenses, dependency-registry, third-party-notices, license-checker-rseidelsohn, archunit-tests, vitest]
 created: "2026-10-07T23:24:34-05:00"
-updated: "2026-10-07T23:24:34-05:00"
+updated: "2026-10-08T06:05:00-05:00"
 
 # Dependency graph
 requires:
@@ -56,7 +56,7 @@ key-files:
 
 key-decisions:
   - "package.json `overrides` (the owner-approved exact transitive pins) are registered like direct pins, so the registry has 62 npm entries rather than the 44 direct pins"
-  - "D-BL-01 (MIT-0, CC-BY-3.0, Python-2.0 in the dev/build tree) deferred to the owner (backlog 999.1); no license exception added and no package changed"
+  - "D-BL-01 (MIT-0, CC-BY-3.0, Python-2.0 in the dev/build tree): first deferred to the owner (backlog 999.1); RESOLVED 2026-10-08, owner approved all three as dev/build-only, license-level exceptions (D-26 addendum), added to npmLicenseExceptions in commit 354d03a; no package changed"
 
 patterns-established:
   - "Registry id scheme: `<manifest folder>/<package name>` for npm, so the two typescript pins never collide"
@@ -94,10 +94,12 @@ coverage:
     requirement: WEB-01
     verification:
       - kind: other
-        ref: "node web/scripts/license-gate.mjs - exit 1, only the five D-BL-01 packages fail; no production-tree problem"
-        status: fail
-    human_judgment: true
-    rationale: "Owner decision D-BL-01 (backlog 999.1) is open: three free licenses (MIT-0, CC-BY-3.0, Python-2.0) in the dev/build tree are outside D-26. Only the owner can approve or reject them."
+        ref: "node web/scripts/license-gate.mjs - exit 0 (2026-10-08, after the owner-approved D-BL-01 exceptions): production 16 packages, dev/build 522 packages, no stale exceptions"
+        status: pass
+      - kind: manual_procedural
+        ref: "Owner reply 2026-10-08 (D-BL-01 'Approve all three (Recommended)'), recorded as the D-26 addendum in 02-CONTEXT.md"
+        status: pass
+    human_judgment: false
   - id: D5
     description: "web/THIRD-PARTY-NOTICES.txt generated, committed and drift-checked"
     requirement: WEB-01
@@ -114,7 +116,7 @@ status: complete
 
 # Phase 2 Plan 03: npm Supply-Chain Controls Summary
 
-**Every npm pin (both manifests, plus exact overrides) is in the dependency registry with folder-qualified ids and scope-aware license exceptions. A license-checker-rseidelsohn gate checks the production web tree strictly and the dev/build tree against the D-26 exceptions, and a committed, drift-checked THIRD-PARTY-NOTICES.txt covers the shipped npm packages. The gate's dev/build check stays red until the owner decides D-BL-01.**
+**Every npm pin (both manifests, plus exact overrides) is in the dependency registry with folder-qualified ids and scope-aware license exceptions. A license-checker-rseidelsohn gate checks the production web tree strictly and the dev/build tree against the D-26 exceptions, and a committed, drift-checked THIRD-PARTY-NOTICES.txt covers the shipped npm packages. The owner approved the three remaining dev/build licenses on 2026-10-08 (D-BL-01), and the gate now passes.**
 
 ## Performance
 
@@ -163,7 +165,7 @@ The orchestrator made `ecfbe48` (docs: backlog item 999.1, owner decisions defer
 
 | Command | Result |
 |---|---|
-| `node web/scripts/license-gate.mjs` | **exit 1**. Only the 5 D-BL-01 packages fail (see below), and the production tree has no problems |
+| `node web/scripts/license-gate.mjs` | **exit 1**. Only the 5 D-BL-01 packages fail (see below), and the production tree has no problems. **Re-run 2026-10-08 after the owner's D-BL-01 approval: exit 0** (16 production packages, 522 dev/build packages, no stale exceptions) |
 | `node web/scripts/third-party-notices.mjs --check` | exit 0 ("up to date (16 packages)") |
 | `npm --prefix web run verify` | exit 0 (eslint max-warnings 0, typecheck, 82/82 vitest, build) |
 | `dotnet test --project tests/Csps.ArchitectureTests` | 102/102 |
@@ -171,11 +173,24 @@ The orchestrator made `ecfbe48` (docs: backlog item 999.1, owner decisions defer
 
 Acceptance greps: `"kind": "npm"` = 62 (at least 45 required). `"id": "web/nuqs"`, `"id": "web/typescript"` and `"id": "tools/openapi-gen/typescript"` each = 1. THIRD-PARTY-NOTICES.txt has 2 react 19.3.0 lines and 1 lucide-react line. `"npmLicenseExceptions"` = 2, not the expected 1: the key appears once, and the file's `description` text names it a second time (see deviations).
 
-## Open Item: Deferred Owner Decision D-BL-01
+## Open Item: Deferred Owner Decision D-BL-01: RESOLVED (2026-10-08)
 
-**The plan check "`node web/scripts/license-gate.mjs` exits 0" is NOT MET.** It waits on owner decision **D-BL-01**, parked in backlog phase 999.1 at `.planning/phases/999.1-owner-decisions-deferred-during-phase-2-execution/DECISIONS.md` (commit `ecfbe48`). The owner was away. Nobody decided for the owner, no license exception was added, and no package was changed.
+**Resolution (2026-10-08).** The owner answered in chat. The selected answer, verbatim:
 
-The gate fails on exactly five dev/build packages. None of them ships to the browser, and all are free:
+- Q "D-BL-01: approve three free licenses for build/test tools only (never shipped to the website)? MIT-0 (jsdom's CSS helpers), CC-BY-3.0 (the license-check tool's data), Python-2.0 (argparse in the API-types generator)." → "Approve all three (Recommended)"
+  (As presented: "Dev/build-only exceptions on the same terms as D-26. No package changes; the license check turns green.")
+
+Option A was applied in commit `354d03a` (`chore(02-03)`):
+
+- Three `npmLicenseExceptions` entries were added to `docs/license-exceptions.json`, each approved 2026-10-08 by the owner and citing the D-26 addendum and decision D-BL-01. MIT-0 has scope test, CC-BY-3.0 scope tool and Python-2.0 scope tool.
+- A dated D-26 addendum line went into 02-CONTEXT.md, and an addendum table into `docs/dependencies.md`.
+- No package was added or changed.
+
+The plan check "`node web/scripts/license-gate.mjs` exits 0" is now **MET**. The gate reports "License gate passed: production web tree 16 packages (allow-list and OFL fonts only); dev/build tree 522 packages", with the exceptions MPL-2.0, CC-BY-4.0, CC0-1.0, BlueOak-1.0.0, 0BSD, MIT-0, CC-BY-3.0 and Python-2.0, and no stale exception. The same run before the change exited 1 on exactly the 5 packages below, which was the RED check.
+
+The record below is kept as it was written at 2026-10-07, while the item was open (commit `ecfbe48` parked it in backlog 999.1).
+
+Before the approval, the gate failed on exactly five dev/build packages. None of them ships to the browser, and all are free:
 
 | License | Package | Pulled in by |
 |---|---|---|
@@ -185,7 +200,7 @@ The gate fails on exactly five dev/build packages. None of them ships to the bro
 | MIT AND CC-BY-3.0 | spdx-ranges 2.1.1 | license-checker-rseidelsohn 5.0.1 (tool) |
 | Python-2.0 | argparse 2.0.1 | openapi-typescript 7.13.0 → @redocly/openapi-core → js-yaml (tools/openapi-gen) |
 
-**Downstream dependency:** plan **02-16** wires `license:check` (and `notices:check`) into `npm run verify`. Until D-BL-01 is decided, wiring the gate makes `verify` fail. Plan 02-16 depends on this decision.
+**Downstream dependency:** plan **02-16** wires `license:check` (and `notices:check`) into `npm run verify`. That dependency is now cleared (2026-10-08): with the gate at exit 0, wiring it does not break `verify`.
 
 **Exact steps for option A (owner approves all three as dev/build-only exceptions):**
 1. In `docs/license-exceptions.json`, add three objects to `npmLicenseExceptions`, in the same shape as the D-26 entries (`license`, `scopes`, `examplePackages`, `pulledInBy`, `reason`, `approved`, `approvedBy: "owner"`) and citing decision ID D-BL-01:
@@ -221,7 +236,7 @@ Option B (reject some or all) means replacing jsdom, license-checker-rseidelsohn
 ## Decisions Made
 
 - Exact `overrides` in package.json are registered as pins: rolldown 1.2.11, 15 `@rolldown/binding-*` packages, source-map-js 1.2.2 and http-cache-semantics 4.3.0. They are owner-approved exact versions in the shipped graph, and the registry should account for every pinned version.
-- D-BL-01 deferred (option C). The owner was away, and nothing was decided for them.
+- D-BL-01 was first deferred (option C) while the owner was away, and nothing was decided for them. On 2026-10-08 the owner chose option A: approve all three licenses as dev/build-only exceptions (D-26 addendum).
 
 ## Deviations from Plan
 
@@ -267,21 +282,28 @@ Option B (reject some or all) means replacing jsdom, license-checker-rseidelsohn
 
 ## User Setup Required
 
-None. The owner still needs to decide D-BL-01 (see above).
+None. D-BL-01 was decided by the owner on 2026-10-08 (see above).
 
 ## Next Phase Readiness
 
 - Plans that add npm packages must add registry entries. DependencyRegistryTests fails otherwise.
-- **Blocker for 02-16:** D-BL-01 must be decided before `license:check` joins `verify`, or 02-16 must wire it in a way the owner accepts.
+- **02-16 unblocked (2026-10-08):** D-BL-01 is approved and the gate exits 0, so `license:check` can join `verify`.
 - Phase 3: CI calls the same gate and notices commands. The `.vite/license.md` wwwroot placement needs checking at deploy.
 
-## Self-Check: PASSED (with one documented deferred check)
+## Self-Check: PASSED (the deferred D-BL-01 check passed on 2026-10-08)
 
 - FOUND: all 12 created or modified files listed above.
 - FOUND: commits a6a9e87, c7923eb, 155fe48, a6ab200 (and the orchestrator's ecfbe48).
 - PASSED: ArchitectureTests 102/102, full solution 590/590, web verify exit 0, notices --check exit 0, build 0 warnings.
-- **NOT PASSED (deferred, D-BL-01):** `node web/scripts/license-gate.mjs` exits 1, failing only on the five D-BL-01 dev/build packages. This SUMMARY does not claim the gate passes.
+- **Was NOT PASSED at 2026-10-07 (deferred, D-BL-01):** `node web/scripts/license-gate.mjs` exited 1, failing only on the five D-BL-01 dev/build packages.
+- **PASSED 2026-10-08 (after the owner's approval, commit `354d03a`):**
+  - `node web/scripts/license-gate.mjs` exits 0: 16 production packages, 522 dev/build packages, no stale exceptions.
+  - `node web/scripts/third-party-notices.mjs --check` exits 0 (16 packages).
+  - `npm --prefix web run verify` exits 0: 1242/1242 vitest, coverage 97.77% statements, 95.42% branches, 100% functions and 99.81% lines, with a warning-free build.
+  - `dotnet test --project tests/Csps.ArchitectureTests` passes 102/102.
+  - The NuGet gate `tools/scripts/New-ThirdPartyNotices.ps1` passes with no content change.
+  - `CSPS_TEST_SQL=localdb dotnet test --solution Csps.slnx` passes 878/878, and `dotnet build Csps.slnx --no-incremental` reports 0 warnings.
 
 ---
 *Phase: 02-web-foundation-design-system*
-*Completed: 2026-10-07*
+*Completed: 2026-10-07 (D-BL-01 resolved 2026-10-08)*

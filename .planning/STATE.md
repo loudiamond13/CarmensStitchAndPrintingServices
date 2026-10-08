@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
 stopped_at: Completed 02-19-PLAN.md
-last_updated: "2026-10-08T10:51:22.307Z"
+last_updated: "2026-10-08T10:57:42.890Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: fc99c5d245e8f848a396a8e5aafd6e299c4bd552
+state_head: 354d03a772c8424f2cb38483f4d1a13b4a33b330
 progress:
   total_phases: 17
   completed_phases: 1
@@ -15,7 +15,7 @@ progress:
   completed_plans: 26
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T05:56:00-05:00"
+updated: "2026-10-08T06:06:00-05:00"
 ---
 
 # Project State
@@ -182,6 +182,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-19: G-02-2 closed server-side: HiddenSegmentFileProvider wraps the web root in UseStaticFiles; any segment starting with a dot or containing a tilde (split on / and backslash) reads as missing and gets the anonymous {*path:file} ProblemDetails 404 (Windows backslash and NTFS 8.3 aliases included); D-BL-04 untouched
 - [Phase 02]: 02-19: a future /.well-known/ file (security.txt, Android App Links, ACME) needs an explicit, tested exact-path exception inside HiddenSegmentFileProvider, never a relaxed rule
 - [Phase 02]: 02-09 Task 3 (owner, 2026-10-08, D-BL-03 Option A + D-BL-02 Option B): D-31 O-1..O-7 approved as recommended, O-8 keeps the smaller designed controls (WCAG 2.2 AA 2.5.8 exception recorded), D-27 Logout look confirmed identical, D-BL-02 hides the Manager tag on the selected row (.csp-nav.is-on .csp-nav-tag { display: none; }, applied by 02-11); D-32 all 20 redrawn lucide-react 1.52.0 icons approved incl. trash-2->trash and filter->funnel aliases and menu bars 5/12/19
+- [Phase 02]: 02-03 D-BL-01 (owner, 2026-10-08, 'Approve all three'): D-26 addendum adds dev/build-only, license-level npmLicenseExceptions MIT-0 (test: @csstools/* via jsdom), CC-BY-3.0 (tool: spdx-exceptions, spdx-ranges via license-checker-rseidelsohn), Python-2.0 (tool: argparse via openapi-typescript); no package changed; node web/scripts/license-gate.mjs exits 0 (16 production, 522 dev/build, no stale); 02-16 may wire license:check into verify
 
 ### Pending Todos
 
@@ -197,7 +198,6 @@ None yet.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
-- D-BL-01 (backlog 999.1): owner decision pending on MIT-0, CC-BY-3.0, Python-2.0 in the npm dev/build tree; node web/scripts/license-gate.mjs exits 1 until decided; blocks plan 02-16 wiring license:check into verify
 
 ### Quick Tasks Completed
 
