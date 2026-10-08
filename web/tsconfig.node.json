@@ -34,5 +34,6 @@
     "e2e/**/*",
     "src/**/*.node.test.ts",
     "src/**/*.golden.test.ts"
-  ]
+  ],
+  "exclude": ["visual/reference/main.tsx", "visual/reference/kit.ts", "visual/reference/fragments/**/*"]
 }
