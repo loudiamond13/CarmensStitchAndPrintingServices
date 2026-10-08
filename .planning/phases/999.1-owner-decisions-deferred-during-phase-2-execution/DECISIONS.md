@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T06:00:46-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T06:56:03-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -88,7 +88,7 @@ None.
 
 ## D-BL-04 · Should website visitors be able to read the third-party credits? (D-10, found in UAT)
 
-**Status:** open · **Raised:** 2026-10-08 · **Blocks:** nothing. The security fix (UAT gap G-02-2) goes ahead without this decision.
+**Status:** resolved 2026-10-08 · **Owner answer:** "Repo only" → recorded as D-35 in 02-CONTEXT.md (Vite build.license off; notices stay in the repository) · *(was: open)* · **Raised:** 2026-10-08 · **Blocks:** nothing. The security fix (UAT gap G-02-2) goes ahead without this decision.
 
 **What happened.** UAT found that the server publishes a build file, `/.vite/license.md`, which lists the bundled libraries with their exact versions. It was never meant to be public. The fix (block every file inside a dot-folder) needs no decision from you. But it raises a question you ruled on before in **D-10**: your ruling says credit for the free libraries comes "via the license notice pipeline (Vite build.license / THIRD-PARTY-NOTICES)". Today:
 
