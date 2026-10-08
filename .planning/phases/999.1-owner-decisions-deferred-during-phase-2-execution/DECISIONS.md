@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T04:16:13-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T05:15:55-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -102,3 +102,12 @@ None.
 - **C: keep Vite's file but move it out of the web root.** Use it as an internal build record only.
 
 **Recommended answer:** A. It's the clearest way to honour D-10, and it costs one small public file.
+
+## FYI-02 · Two low risks accepted at plan time (security review, no action unless you disagree)
+
+`/gsd-secure-phase 2` recorded two **low** risks as accepted in `02-SECURITY.md`, as the plans proposed. You haven't ratified them yet, so say so if you disagree:
+
+- **AR-02-01 (T-02-35):** the password field has a Show/Hide toggle. The password stays hidden until the user taps Show, and it shows only on their own screen (the approved design's behaviour).
+- **AR-02-02 (T-02-56):** the new rule that blocks files inside dot folders would also block a future deliberate `/.well-known/` file (for example `security.txt` or the Android app link file). Nothing like that exists today. When one is needed, it gets an explicit, tested exception.
+
+The security review also left two **medium** items open, but not blocking: T-02-26 (your review of the 20 redrawn icons) and T-02-27 (your design checkpoint). Both close when you answer **D-BL-03**.
