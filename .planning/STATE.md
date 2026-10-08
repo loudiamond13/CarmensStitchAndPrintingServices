@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-16-PLAN.md
-last_updated: "2026-10-08T19:59:49.576Z"
+stopped_at: Completed 02-17-PLAN.md
+last_updated: "2026-10-08T21:32:53.962Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: d17d0b753e64208ae8191968b8c6725688ae2a1b
+state_head: ac74befa0819da47dbd81e8c428bd6dc1ac31614
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 33
+  completed_plans: 34
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T15:00:30-05:00"
+updated: "2026-10-08T16:33:47-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 21 of 40
+Plan: 22 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -91,6 +91,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P14 | 36 min | 2 tasks | 27 files |
 | Phase 02 P15 | 15min | 2 tasks | 10 files |
 | Phase 02 P16 | 11 min | 2 tasks | 8 files |
+| Phase 02 P17 | 1h 27m | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -197,6 +198,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-16: useSubmission(send(key, data), { onSuccess, onFailure }) is the one form submission path: one in-flight promise per form, the key is reused only for a JSON-equal retry of a failed submission (submit() with no data uses a sentinel), and send gets no AbortSignal
 - [Phase 02]: 02-16: onFailure(copy, error) runs only for failures without field errors whose describeHttpError copy is not null; a 400 with field errors fills fieldErrors (server casing) and the caller calls focusFirstInvalid(form); a 401 or aborted request calls nothing
 - [Phase 02]: 02-16: describeHttpError ends the body with 'Reference: {traceId}' for every HttpError copy that carries a traceId (UI-SPEC ErrorState), not only 5xx; the 400 field-errors banner is { title: 'Check the highlighted fields.', body: '' }
+- [Phase 02]: 02-17: parity reference CSS is built unminified (cssMinify false) because the minifier rewrote background: transparent into background: 0 0; parity repaints each page (root opacity 0.99 and back) after FREEZE because the reference raster was nondeterministic at clipped edges
+- [Phase 02]: 02-17: visual suite trace keeps the action log only (full snapshots made one WebKit 1440 row 5.3 min instead of 42 s; use --trace on to debug); each parity row timeout is rowTimeout(row) = max(120 s, 60 s + 12 s per case)
+- [Phase 02]: 02-17: UiLink renders react-router Link for in-app paths and a plain anchor for https/mailto/tel/# targets; LinkProvider is a pass-through (SPEC-DEVIATION Flag 2); icon-only Button requires aria-label by type (SPEC-DEVIATION A11Y-04); ButtonLink shares buttonClasses and buttonIconSize
 
 ### Pending Todos
 
@@ -233,6 +237,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T19:59:49.442Z
-Stopped at: Completed 02-16-PLAN.md
+Last session: 2026-10-08T21:32:53.825Z
+Stopped at: Completed 02-17-PLAN.md
 Resume file: None
