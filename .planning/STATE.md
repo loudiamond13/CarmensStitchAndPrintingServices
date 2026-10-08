@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-08T03:35:46.248Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-08T03:56:07.427Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 968c81a0f7d08d773450276a1791d2302c6dec56
+state_head: "0b04bc25252d3d6ba1b4039007dcf3fb0754240a"
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 14
+  completed_plans: 15
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-07T19:13:13-05:00"
+updated: "2026-10-07T22:56:16-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 2 of 18
+Plan: 3 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -72,6 +72,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 01 P11 | 29min | 3 tasks | 13 files |
 | Phase 01 P13 | 4 min | 2 tasks | 2 files |
 | Phase 02 P01 | 37 min | 3 tasks | 30 files |
+| Phase 02 P02 | 15 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Owner cool-down exceptions (2026-10-07): source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes) and rolldown + @rolldown/binding-* 1.2.11 (vite 8.3.3 engine waiver), pinned via web/package.json overrides
 - [Phase 02]: SPA shell keeps GET/HEAD-only registration: matrix keys GET and HEAD {*path:nonfile}; other methods on page paths stay default-deny
 - [Phase 02]: D-29 via ReservedPathMetadata: outside Development /openapi/{**path} and /scalar/{**path} are anonymous ProblemDetails 404 fallbacks
+- [Phase 02]: Shared ESLint configs pass through escalate(): warn-level rules (react-hooks exhaustive-deps, incompatible-library, unsupported-syntax) become error, never off
+- [Phase 02]: Node-side config tests (lint-rules, eslint-config, build-config) are typed by tsconfig.node.json and excluded from tsconfig.app.json, so app code never sees Node types
+- [Phase 02]: Prettier pins tabWidth 2 and .editorconfig has a web/** indent_size = 2 section (the repo default is 4)
+- [Phase 02]: no-console is off only for src/test/consoleGuard.ts and its test; deliberate a11y violations in tests use per-line eslint-disable with a reason
 
 ### Pending Todos
 
@@ -165,6 +170,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T03:35:46.135Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-08T03:55:35.014Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
