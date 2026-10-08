@@ -63,6 +63,7 @@ export interface HttpClient {
   patch<T>(url: string, body?: unknown, options?: RequestOptions): Promise<T>;
   readonly interceptors: {
     readonly request: { use(interceptor: RequestInterceptor): Eject };
+    readonly response: { use(onFulfilled?: unknown, onRejected?: unknown): Eject };
   };
 }
 
@@ -412,6 +413,6 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     post: (url, body, options) => request({ ...options, method: 'POST', url, body }),
     put: (url, body, options) => request({ ...options, method: 'PUT', url, body }),
     patch: (url, body, options) => request({ ...options, method: 'PATCH', url, body }),
-    interceptors: { request: { use: requestInterceptors.use } },
+    interceptors: { request: { use: requestInterceptors.use }, response: { use: () => () => undefined } },
   };
 }

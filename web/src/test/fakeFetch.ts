@@ -89,6 +89,131 @@ export function createFakeFetch(plans: readonly Plan[]): FakeFetch {
   return { fetch, calls };
 }
 
+/** One planned answer from a fake XMLHttpRequest. */
+export interface PlannedXhr {
+  /** The response status for a 'load' outcome. Defaults to 200. */
+  readonly status?: number;
+  /** The raw header block getAllResponseHeaders() returns, lines separated by CRLF. */
+  readonly headers?: string;
+  readonly body?: string;
+  /** Upload progress events fired before the outcome. Leave total out for a size the browser cannot compute. */
+  readonly progress?: readonly { readonly loaded: number; readonly total?: number }[];
+  /** 'load' (default) fires onload, 'error' fires onerror, 'hang' fires nothing until abort(). */
+  readonly outcome?: 'load' | 'error' | 'hang';
+}
+
+interface FakeProgressEvent {
+  readonly loaded: number;
+  readonly total: number;
+  readonly lengthComputable: boolean;
+}
+
+/** The parts of XMLHttpRequest the HTTP client uses, with what it was given recorded for assertions. */
+export class FakeXhr {
+  method = '';
+  url = '';
+  readonly requestHeaders: Record<string, string> = {};
+  body: unknown = undefined;
+  sent = false;
+  aborted = false;
+  status = 0;
+  responseText = '';
+  readonly upload: { onprogress: ((event: FakeProgressEvent) => void) | null } = { onprogress: null };
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  readonly #plan: PlannedXhr;
+  #done = false;
+
+  constructor(plan: PlannedXhr) {
+    this.#plan = plan;
+  }
+
+  open(method: string, url: string): void {
+    this.method = method;
+    this.url = url;
+  }
+
+  setRequestHeader(name: string, value: string): void {
+    this.requestHeaders[name.toLowerCase()] = value;
+  }
+
+  getAllResponseHeaders(): string {
+    return this.#plan.headers ?? '';
+  }
+
+  send(body: unknown): void {
+    this.body = body;
+    this.sent = true;
+    void Promise.resolve().then(() => {
+      this.#run();
+    });
+  }
+
+  /** Like the real one: aborting a finished request fires nothing. */
+  abort(): void {
+    if (this.#done) {
+      return;
+    }
+    this.#done = true;
+    this.aborted = true;
+    this.onabort?.();
+  }
+
+  #run(): void {
+    if (this.#done) {
+      return;
+    }
+    for (const step of this.#plan.progress ?? []) {
+      this.upload.onprogress?.({
+        loaded: step.loaded,
+        total: step.total ?? 0,
+        lengthComputable: step.total !== undefined,
+      });
+    }
+    const outcome = this.#plan.outcome ?? 'load';
+    if (outcome === 'hang') {
+      return;
+    }
+    this.#done = true;
+    if (outcome === 'error') {
+      this.onerror?.();
+      return;
+    }
+    this.status = this.#plan.status ?? 200;
+    this.responseText = this.#plan.body ?? '';
+    this.onload?.();
+  }
+}
+
+export interface FakeXhrFactory {
+  readonly factory: () => XMLHttpRequest;
+  /** A constructor for stubbing the global XMLHttpRequest. Shares the plans and instances with `factory`. */
+  readonly XhrClass: new () => FakeXhr;
+  readonly instances: FakeXhr[];
+}
+
+/** Builds fake XMLHttpRequests that answer from `plans` in order. Creating one after the plans run out throws. */
+export function createFakeXhrFactory(plans: readonly PlannedXhr[]): FakeXhrFactory {
+  const queue = [...plans];
+  const instances: FakeXhr[] = [];
+  class QueuedXhr extends FakeXhr {
+    constructor() {
+      const plan = queue.shift();
+      if (plan === undefined) {
+        throw new Error(`fake XMLHttpRequest: no planned response for request ${String(instances.length + 1)}`);
+      }
+      super(plan);
+      instances.push(this);
+    }
+  }
+  return {
+    factory: () => new QueuedXhr() as unknown as XMLHttpRequest,
+    XhrClass: QueuedXhr,
+    instances,
+  };
+}
+
 /** A promise with its resolve and reject exposed, for ordering concurrent calls in a test. */
 export interface Deferred<T> {
   readonly promise: Promise<T>;
