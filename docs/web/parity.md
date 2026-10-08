@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T15:52:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T16:56:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -100,6 +100,9 @@ A scenario renders only in the themes it lists (public scenarios are light only,
 3. Prop states (disabled, selected, current, invalid, collapsed) are separate scenarios. `states` lists only the interaction states the harness drives: `rest`, `hover`, `focus-visible`, `active`.
 4. Set `parity: false` for SPEC-GAP primitives that have no reference (Pagination, OtpInput, MoneyInput, Checkbox, SkipLink, the ResponsiveTable loading/error/empty/refetching states, LazyImage, ErrorState, the Skeleton family, MobileNavDrawer, UserMenu). They still run axe and the CSP check, and the owner reviews them in the screenshots (D-23).
 5. If the component is a layout that the frozen components don't cover, add its App. E fragment as a component in `web/visual/reference/fragments/<Name>.tsx`. The kit picks it up by its export name.
+   A case may also need a wrapper that App. D.3 doesn't have. Add it on **both** sides under one name: `web/src/dev/previews/<Name>.tsx` (the implementation kit) and `web/visual/reference/fragments/<Name>.tsx` (the reference kit). Plan 02-18 added two:
+   - `IconSet`: a plain `<div>` with no look of its own, holding the `icons-all` case's 60 icons.
+   - `MediaPlaceholderNoChip`: the chip-less placeholder. The implementation renders `MediaPlaceholder label={false}`. The reference renders App. D.3's MediaPlaceholder markup without the chip, which the approved design hides only through parent rules (`.csp-thumb`, `.s-tile`).
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)
