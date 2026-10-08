@@ -206,6 +206,14 @@ describe('SegmentedControl selection and keyboard (UI-SPEC Interaction Contract)
     expect(tabIndexes()).toEqual([-1, -1, 0]);
   });
 
+  it('keeps the first radio in the Tab order when the value matches no option', () => {
+    const unknown = 'quarter' as Range;
+    render(<SegmentedControl label="Range" options={RANGES} value={unknown} />);
+
+    expect(checkedStates()).toEqual(['false', 'false', 'false']);
+    expect(tabIndexes()).toEqual([0, -1, -1]);
+  });
+
   it('renders an empty group for no options', () => {
     render(<SegmentedControl label="Range" options={[]} />);
 

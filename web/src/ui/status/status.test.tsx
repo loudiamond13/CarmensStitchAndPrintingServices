@@ -220,6 +220,14 @@ describe('Avatar (App. D.3, D-31 O-1)', () => {
     expect(classTokens(avatar)).toContain('ml-2');
   });
 
+  it('renders an empty 36px circle without a name (App. D.3 defaults)', () => {
+    const { container } = render(<Avatar />);
+    const avatar = container.firstElementChild;
+
+    expect(avatar?.textContent).toBe('');
+    expect(avatar).toHaveAttribute('aria-label', '');
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<Avatar name="Carmen Reyes" size={32} />);
 
