@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-07T19:31:36-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-07T20:42:24-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -86,6 +86,26 @@ All reconciliations live in one owner-approved `overrides.css`, loaded after the
 - **D-22:** A **dev-only component showcase** at `/dev/components` lists every primitive in Blush and Espresso: buttons, badges, fields, PasswordInput, OtpInput, money input, Select, SegmentedControl, Tabs, DataTable (with card view on phones), Pagination, FilterBar/SearchBox, Modal, ConfirmDialog, Toast, Skeletons, EmptyState, error states, LazyImage and the icons. It is excluded from production builds, and it uses **no Storybook** or other extra tools. It doubles as the page-level axe and Playwright target.
 - **D-23:** Owner review is by **screenshots**. Capture the showcase and both layouts at **390, 820 and 1440 px**, in light and dark (admin only for dark), and send them to the owner.
 - **D-24:** **Local-only side-by-side visual report.** A local script screenshots our layouts and components next to the matching screens rendered from `.planning/design/*.html`, at 390/820/1440 px in light and dark, into one report for the owner. Differences the owner flags become fixes. The script and its output must **never** commit, upload or deploy the design files or their renders. Output goes to a gitignored folder. The script does not run in CI, because the design files are not in git.
+
+### Owner rulings on research open questions (2026-10-07, at plan-phase)
+- **D-25 (packages):** The owner **approved the full "Packages Requiring Owner Approval" table in `02-RESEARCH.md` as recommended**, at the exact versions listed there. The ruling includes:
+  - **Vite 8.3.3** is accepted as a security-fix cool-down exception. It fixes 3 advisories in 8.3.0–8.3.2. Record it as `accepted: security fix` in `docs/dependencies.json`.
+  - **`lighthouse` 13.5.0 plus an in-house assert script replaces `@lhci/cli`**, which brings 11 high-severity audit findings. This supersedes the `@lhci/cli` named in CLAUDE.md.
+  - **MSW is deferred** to the first phase with real endpoints. Phase 2 HTTP tests use a fake `fetch`.
+  - The optional `@tanstack/eslint-plugin-query` and `rollup-plugin-visualizer` are **not** adopted.
+  - Installs need no further approval checkpoint, but the executor must stop and ask if an install would resolve a different exact version than the table, or if `npm audit` shows a new advisory.
+- **D-26 (licenses):** The owner **approved these dev/build-only license exceptions**, recorded in `docs/license-exceptions.json`:
+  - MPL-2.0 widened from test to **build** scope (`lightningcss`, needed by Vite 8 and Tailwind 4)
+  - CC-BY-4.0 (`caniuse-lite`)
+  - CC0-1.0 (`language-subtag-registry`)
+  - BlueOak-1.0.0 (`minimatch`)
+  - 0BSD (`tslib`)
+
+  The production (shipped) tree stays strictly MIT/ISC/Apache-2.0/BSD plus the OFL fonts.
+- **D-27 (O-9):** The Sidebar "Logout" `<a href="#">` becomes a **`<button>`**, recorded as a `// SPEC-DEVIATION`. It needs `compat` styling so it looks identical, and before/after screenshots go to the owner.
+- **D-28 (O-10):** The owner **accepts** the `lucide lucide-<name>` classes that lucide-react 1.52.0 adds to every icon `<svg>`. The DOM-equality test normalizes those classes away, and the difference is recorded as a `// SPEC-DEVIATION`.
+- **D-29 (Pitfall 12):** In production, `/scalar` and `/openapi` (and their sub-paths) answer **404**. They do not fall through to the SPA shell. `ProductionHasNoApiDocs` keeps asserting 404.
+- **D-30 (E2E environment):** Local E2E runs the host in **Development over HTTPS on 5199**, with secrets from user-secrets. HTTPS is needed because WebKit upgrades `http://localhost` under `upgrade-insecure-requests`. Phase 3 CI supplies its own per-process secrets.
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.
