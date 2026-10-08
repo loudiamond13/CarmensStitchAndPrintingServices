@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-20-PLAN.md
-last_updated: "2026-10-08T23:17:34.772Z"
+stopped_at: Completed 02-21-PLAN.md
+last_updated: "2026-10-08T23:49:27.280Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 42602c7ab83c06f213006dfd120b6faf8386c191
+state_head: 66aa8c59abe55e04430cbb3173caa69194c5dd7b
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 37
+  completed_plans: 38
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T17:44:40-05:00"
+updated: "2026-10-08T18:49:27-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 25 of 40
+Plan: 26 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -95,6 +95,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P18 | 28 min | 2 tasks | 16 files |
 | Phase 02 P19 | 36 min | 3 tasks | 21 files |
 | Phase 02 P20 | 30 min | 2 tasks | 13 files |
+| Phase 02 P21 | 25 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -213,6 +214,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-20: Form controls take region looks from data-ui markers (in-data-[ui=s-toolbar|s-item]:) with D-01 as pg-phone:in-data-[ui=…]:text-[16px]; FilterBar/order form only add the marker
 - [Phase 02]: 02-20: App. B outline:none is [outline:none] (resets focus-visible width/colour); invalid control border is has-aria-invalid:border-danger! because hover:not-focus-within is (0,3,0)
 - [Phase 02]: 02-20: Field/Select/PasswordField keep the native-attribute passthrough (UI-SPEC); the React Compiler cache-hit branches on the rest object are unreachable (ui/forms 93.7/89.4 coverage, global thresholds pass)
+- [Phase 02]: 02-21: useToast returns { show, dismiss } (SPEC-DEVIATION D-04); ToastProvider always renders the toast layer (aria-live polite, data-ui s-toast-layer) inside the page root; the pure queue (createToastQueue({ now, schedule })) owns max 3, 4.5 s success/info clocks that pause on hover/focus, persistent danger/warning and the trim order (oldest non-persistent first)
+- [Phase 02]: 02-21: EmptyState takes level (2|3|4, default h2, SPEC-DEVIATION A11Y-02); its message margin is 0 because App. C .s-page p beats .csp-empty-msg; Skeleton sizes only via --sk-w/--sk-h/--sk-r (numbers to px, radius default 6px); iconButtonClasses (.csp-iconbtn) is exported from @/ui/feedback
+- [Phase 02]: 02-21: parity FREEZE now finishes finite animations (toast/modal entries) and pauses only infinite ones (spinner, shimmer), so a side whose state input took longer no longer reads a half-run entry
 
 ### Pending Todos
 
@@ -249,6 +253,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T23:17:34.634Z
-Stopped at: Completed 02-20-PLAN.md
+Last session: 2026-10-08T23:49:27.144Z
+Stopped at: Completed 02-21-PLAN.md
 Resume file: None
