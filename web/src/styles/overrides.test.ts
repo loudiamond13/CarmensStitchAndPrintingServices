@@ -471,6 +471,35 @@ describe('spec-gaps.css SPEC-GAP primitives (plan 12; WEB-06, PERF-03)', () => {
   it('MoneyInput: a caller text-right right-aligns the amount (item rows, App. E.9)', () => {
     expectGapRule('.csp-field.text-right .csp-input', 'text-align', 'right', 'MoneyInput');
   });
+
+  it('OtpInput: a borderless fieldset with six 44-56px centred tabular boxes, 8px apart and 4px at 420px or less', () => {
+    expectGapRule('.csp-otp', 'border', '0', 'OtpInput');
+    expectGapRule('.csp-otp', 'min-inline-size', '0', 'OtpInput');
+    expectGapRule('.csp-otp-boxes', 'display', 'flex', 'OtpInput');
+    expectGapRule('.csp-otp-boxes', 'gap', 'var(--space-2)', 'OtpInput');
+    expectGapRule('.csp-otp-boxes', 'gap', 'var(--space-1)', 'OtpInput', ['@container pg (max-width: 420px)']);
+    expectGapRule('.csp-otp-boxes > .csp-control', 'flex', '1 1 0', 'OtpInput');
+    expectGapRule('.csp-otp-boxes > .csp-control', 'min-width', '44px', 'OtpInput');
+    expectGapRule('.csp-otp-boxes > .csp-control', 'max-width', '56px', 'OtpInput');
+    expectGapRule('.csp-otp-boxes .csp-input', 'text-align', 'center', 'OtpInput');
+    expectGapRule('.csp-otp-boxes .csp-input', 'font-variant-numeric', 'tabular-nums', 'OtpInput');
+  });
+
+  it('SkipLink: hidden with the .csp-sr technique until :focus-visible, then fixed top-left above the page', () => {
+    const hidden = '.csp-skip-link:not(:focus-visible)';
+    const sr = parseCss(readStyle('components.css')).find((rule) => rule.selectors.includes('.csp-sr'));
+    for (const [property, expected] of sr?.declarations ?? []) {
+      expectGapRule(hidden, property, expected, 'SkipLink');
+    }
+    expect(sr?.declarations.length).toBeGreaterThan(0);
+    expectGapRule(hidden, 'padding', '0', 'SkipLink');
+    expectGapRule(hidden, 'border-width', '0', 'SkipLink');
+    expectGapRule('.csp-skip-link:focus-visible', 'position', 'fixed', 'SkipLink');
+    expectGapRule('.csp-skip-link:focus-visible', 'top', 'var(--space-2)', 'SkipLink');
+    expectGapRule('.csp-skip-link:focus-visible', 'left', 'var(--space-2)', 'SkipLink');
+    expectGapRule('.csp-skip-link:focus-visible', 'z-index', 'var(--z-toast)', 'SkipLink');
+    expectGapRule('main[tabindex="-1"]:focus', 'outline', 'none', 'SkipLink');
+  });
 });
 
 function unquote(text: string): string {
