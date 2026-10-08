@@ -6,6 +6,7 @@ import { scenarios as statusScenarios } from '@/dev/scenarios/groups/status';
 import { ORDER_STATUSES, type ExpenseCategory, type OrderStatus, type PaymentMethod } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
+  Avatar,
   Badge,
   EXPENSE_TONE,
   isOrderStatus,
@@ -14,7 +15,7 @@ import {
   StatusBadge,
   type BadgeTone,
 } from '@/ui/status';
-import { badgeClasses, badgeDotClasses, badgeToneClasses } from './status.recipe';
+import { avatarClasses, badgeClasses, badgeDotClasses, badgeToneClasses } from './status.recipe';
 
 // The converted App. D.3 status components (plan 02-19, CSPS-UI-SPEC.md §6.2). The look is proven by the parity suite
 // (`--grep @status`); these tests pin the markup, the tone tables, the recipe each tone uses and the status scenario
@@ -171,6 +172,74 @@ describe('StatusBadge (App. D.3)', () => {
   });
 });
 
+describe('Avatar (App. D.3, D-31 O-1)', () => {
+  it('shows the initials of the first two words as one image named for the person', () => {
+    render(<Avatar name="Carmen Reyes" size={40} />);
+    const avatar = screen.getByRole('img', { name: 'Carmen Reyes' });
+
+    expect(avatar.localName).toBe('span');
+    expect(avatar.textContent).toBe('CR');
+    expect(avatar.children).toHaveLength(0);
+  });
+
+  it('uses only the first two words, upper-cased, and ignores extra spaces', () => {
+    render(<Avatar name="  jomar   dela santos " />);
+
+    expect(screen.getByRole('img').textContent).toBe('JD');
+  });
+
+  it('sets only --avatar-size and --avatar-fs in style, read by the size and font-size utilities', () => {
+    render(<Avatar name="Carmen Reyes" size={40} />);
+    const avatar = screen.getByRole('img');
+
+    expect([...avatar.style].sort()).toEqual(['--avatar-fs', '--avatar-size']);
+    expect(avatar.style.getPropertyValue('--avatar-size')).toBe('40px');
+    expect(avatar.style.getPropertyValue('--avatar-fs')).toBe('15px');
+    expect(classTokens(avatar)).toEqual(tokens(`${avatarClasses} size-(--avatar-size) text-(length:--avatar-fs)`));
+  });
+
+  it.each([
+    [24, '10px'],
+    [32, '12px'],
+    [36, '14px'],
+    [56, '21px'],
+    [72, '27px'],
+  ])('sizes a %ipx avatar with max(10, round(size x .38)) = %s text (App. D.3)', (size, fontSize) => {
+    render(<Avatar name="Carmen Reyes" size={size} />);
+    const avatar = screen.getByRole('img');
+
+    expect(avatar.style.getPropertyValue('--avatar-size')).toBe(`${String(size)}px`);
+    expect(avatar.style.getPropertyValue('--avatar-fs')).toBe(fontSize);
+  });
+
+  it('defaults to 36px, as App. D.3 does, and adds a caller layout class after the look', () => {
+    render(<Avatar name="Carmen Reyes" className="ml-2" />);
+    const avatar = screen.getByRole('img');
+
+    expect(avatar.style.getPropertyValue('--avatar-size')).toBe('36px');
+    expect(classTokens(avatar)).toContain('ml-2');
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<Avatar name="Carmen Reyes" size={32} />);
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('re-renders from the React Compiler memo cache with the same output, and updates on new props', () => {
+    const { container, rerender } = render(<Avatar name="Carmen Reyes" size={40} />);
+    const first = container.innerHTML;
+
+    rerender(<Avatar name="Carmen Reyes" size={40} />);
+    expect(container.innerHTML).toBe(first);
+
+    rerender(<Avatar name="Jomar Santos" size={24} />);
+    const avatar = screen.getByRole('img', { name: 'Jomar Santos' });
+    expect(avatar.textContent).toBe('JS');
+    expect(avatar.style.getPropertyValue('--avatar-fs')).toBe('10px');
+  });
+});
+
 describe('the §6.2 tone tables', () => {
   it('gives each order status its spec tone', () => {
     expect(STATUS_TONE).toEqual({
@@ -249,6 +318,18 @@ describe('status scenarios (the status parity group)', () => {
     }
   });
 
+  it('declares Avatar at 24, 32, 40 and 56 px, at rest in both themes', () => {
+    const avatars = statusScenarios.filter((scenario) => scenario.node.component === 'Avatar');
+
+    expect(avatars.map((scenario) => scenario.id)).toEqual(['avatar-24', 'avatar-32', 'avatar-40', 'avatar-56']);
+    for (const scenario of avatars) {
+      expect(scenario.node.props, scenario.id).toEqual({ name: 'Carmen Reyes', size: Number(scenario.id.slice(7)) });
+      expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
+      expect(scenario.states, scenario.id).toEqual(['rest']);
+      expect(scenario.parity, scenario.id).toBe(true);
+    }
+  });
+
   it('renders every status scenario through the implementation kit with no axe violations', async () => {
     const { container } = render(
       <div>
@@ -261,6 +342,7 @@ describe('status scenarios (the status parity group)', () => {
     );
 
     expect(container.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(screen.getAllByRole('img', { name: 'Carmen Reyes' })).toHaveLength(4);
     for (const status of STATUSES) {
       expect(container.querySelector(`[data-case="status-badge-${status}"]`)?.textContent).toBe(ORDER_STATUSES[status]);
     }

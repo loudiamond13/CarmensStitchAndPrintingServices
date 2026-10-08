@@ -23,3 +23,11 @@ export const badgeToneClasses = {
 
 /** `.csp-badge-dot`: a 7px dot in the badge's own ink. */
 export const badgeDotClasses = tw('size-[7px] rounded-pill bg-current');
+
+/**
+ * `.csp-avatar`: a circle of initials in the display face. Its size and font size are per instance (a number prop), so
+ * Avatar reads them from custom properties next to its style (UI-SPEC "Inline style rule").
+ */
+export const avatarClasses = tw(
+  'inline-grid flex-none place-items-center rounded-pill bg-surface-2 font-display font-bold tracking-[.02em] text-ink [box-shadow:inset_0_0_0_1px_var(--line-strong)]',
+);

@@ -30,6 +30,11 @@ function statusBadge(status: string): ScenarioNode {
   return { kind: 'node', component: 'StatusBadge', props: { status } };
 }
 
+/** Carmen Reyes, the spec §12 seed Manager, at one size. */
+function avatar(size: number): ScenarioNode {
+  return { kind: 'node', component: 'Avatar', props: { name: 'Carmen Reyes', size } };
+}
+
 export const scenarios: readonly Scenario[] = [
   statusCase('badge-neutral', badge({ tone: 'neutral', children: 'Inactive' })),
   statusCase('badge-accent', badge({ tone: 'accent', children: 'Manager' })),
@@ -58,4 +63,10 @@ export const scenarios: readonly Scenario[] = [
   statusCase('expense-badge-equipment', badge({ tone: 'success', children: 'Equipment' })),
   statusCase('expense-badge-maintenance', badge({ tone: 'neutral', children: 'Maintenance' })),
   statusCase('expense-badge-others', badge({ tone: 'neutral', children: 'Others' })),
+  // Avatar at the sizes the shell and the screens use (24, 32, 40) and a larger one (56) that exercises the
+  // font-size formula above its 10px floor; 24 sits on the floor (round(24 x .38) = 9 -> 10px).
+  statusCase('avatar-24', avatar(24)),
+  statusCase('avatar-32', avatar(32)),
+  statusCase('avatar-40', avatar(40)),
+  statusCase('avatar-56', avatar(56)),
 ];
