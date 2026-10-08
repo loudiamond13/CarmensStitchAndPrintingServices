@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertSerializable, scenarioById, scenarios } from './index';
+import { assertSerializable, collectScenarios, scenarioById, scenarios } from './index';
 import type { Scenario } from './types';
 
 // Read the group files independently of index.ts, so the group-name rule is checked against the files themselves.
@@ -65,6 +65,36 @@ describe('the scenario list', () => {
         assertSerializable(scenario);
       }, scenario.id).not.toThrow();
     }
+  });
+});
+
+describe('collectScenarios', () => {
+  it('orders by file name, then declaration order', () => {
+    const second = { ...button, id: 'second' };
+    const tab = { ...button, id: 'tab', group: 'navigation' };
+    const list = collectScenarios({
+      './groups/navigation.ts': { scenarios: [tab] },
+      './groups/actions.ts': { scenarios: [button, second] },
+    });
+    expect(list.map((scenario) => scenario.id)).toEqual(['test-button', 'second', 'tab']);
+  });
+
+  it('rejects a scenario whose group is not its file name', () => {
+    expect(() => collectScenarios({ './groups/feedback.ts': { scenarios: [button] } })).toThrow(
+      /test-button.*feedback/,
+    );
+  });
+
+  it('rejects a duplicate id', () => {
+    expect(() => collectScenarios({ './groups/actions.ts': { scenarios: [button, button] } })).toThrow(
+      /test-button.*more than once/,
+    );
+  });
+
+  it('rejects a scenario that is not plain data', () => {
+    expect(() => collectScenarios({ './groups/actions.ts': { scenarios: [withProps({ onClick: () => 1 })] } })).toThrow(
+      /bad-case.*onClick/,
+    );
   });
 });
 
