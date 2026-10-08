@@ -1,5 +1,5 @@
 {
-  "description": "Owner-approved, version-pinned license exceptions for the license gate in tools/scripts/New-ThirdPartyNotices.ps1. A package is exempt only when BOTH its id and its exact version match an entry. Any other version of these packages, and any other package outside docs/allowed-licenses.json, still fails the gate. A new version needs a new owner approval (D-00, D-18). An entry that no longer matches a package in the build also fails the gate, so the list cannot go stale.",
+  "description": "Owner-approved license exceptions. `exceptions` is for the NuGet license gate in tools/scripts/New-ThirdPartyNotices.ps1: a package is exempt only when BOTH its id and its exact version match an entry. Any other version of these packages, and any other package outside docs/allowed-licenses.json, still fails the gate. A new version needs a new owner approval (D-00, D-18). `npmLicenseExceptions` is for the npm license gate in web/scripts/license-gate.mjs: those exceptions are license-level (any package under that license) and apply to the dev/build tree of web/ and tools/openapi-gen/ only, never to the production tree that ships to the browser, which allows only docs/allowed-licenses.json plus OFL-1.1 for the @fontsource fonts (D-26). In both gates, an entry that no longer matches a package also fails, so the lists cannot go stale.",
   "exceptions": [
     {
       "packageId": "Microsoft.Data.SqlClient.SNI.runtime",
@@ -18,6 +18,93 @@
       "licenseUrl": "https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license",
       "pulledInBy": "Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
       "reason": "Native sign-in helper that the SQL Server driver always brings along. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    }
+  ],
+  "npmLicenseExceptions": [
+    {
+      "license": "MPL-2.0",
+      "scopes": [
+        "build",
+        "test"
+      ],
+      "examplePackages": [
+        "lightningcss",
+        "lightningcss-win32-x64-msvc",
+        "axe-core",
+        "@axe-core/playwright"
+      ],
+      "pulledInBy": "lightningcss: Vite 8 and Tailwind 4 (the CSS engine). axe-core: eslint-plugin-jsx-a11y-x, @axe-core/playwright and lighthouse.",
+      "reason": "Free. It only asks that changes to those files stay open. Used to build and test the site; never shipped to the browser.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC-BY-4.0",
+      "scopes": [
+        "build"
+      ],
+      "examplePackages": [
+        "caniuse-lite"
+      ],
+      "pulledInBy": "Babel -> browserslist",
+      "reason": "Free data license (browser support tables); it asks us to credit the authors. Used only while building; never shipped to the browser.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC0-1.0",
+      "scopes": [
+        "build",
+        "test",
+        "tool"
+      ],
+      "examplePackages": [
+        "language-subtag-registry",
+        "mdn-data",
+        "spdx-license-ids"
+      ],
+      "pulledInBy": "language-subtag-registry: eslint-plugin-jsx-a11y-x -> language-tags. mdn-data: jsdom (CSS data). spdx-license-ids: license-checker-rseidelsohn (the license list itself).",
+      "reason": "Public domain: no conditions at all. Used only by the lint, test and license tools; never shipped to the browser.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "BlueOak-1.0.0",
+      "scopes": [
+        "build",
+        "test",
+        "tool"
+      ],
+      "examplePackages": [
+        "minimatch",
+        "glob",
+        "lru-cache",
+        "isexe",
+        "yallist",
+        "path-scurry",
+        "minipass",
+        "minipass-flush",
+        "tar",
+        "chownr",
+        "common-ancestor-path"
+      ],
+      "pulledInBy": "The ESLint stack (minimatch, isexe), Babel and jsdom (lru-cache, yallist), and license-checker-rseidelsohn through @npmcli/arborist (glob, tar and the rest). All written by the same npm maintainers.",
+      "reason": "Free and permissive, like MIT. Used only by the build, lint, test and license tools; never shipped to the browser.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "0BSD",
+      "scopes": [
+        "test"
+      ],
+      "examplePackages": [
+        "tslib"
+      ],
+      "pulledInBy": "lighthouse",
+      "reason": "Free and permissive, with no conditions. Used only by the performance test tool; never shipped to the browser.",
       "approved": "2026-10-07",
       "approvedBy": "owner"
     }

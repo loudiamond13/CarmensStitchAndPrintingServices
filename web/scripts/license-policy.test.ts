@@ -95,10 +95,13 @@ describe('evaluateTree', () => {
   });
 
   it('reports an exception no package needs as stale', () => {
-    const result = evaluateTree([pkg('lightningcss', '1.32.0', 'MPL-2.0'), pkg('type-fest', '4.41.0', '(MIT OR CC0-1.0)')], {
-      allowed: ALLOWED,
-      exceptions: [{ license: 'MPL-2.0' }, { license: '0BSD' }, { license: 'CC0-1.0' }],
-    });
+    const result = evaluateTree(
+      [pkg('lightningcss', '1.32.0', 'MPL-2.0'), pkg('type-fest', '4.41.0', '(MIT OR CC0-1.0)')],
+      {
+        allowed: ALLOWED,
+        exceptions: [{ license: 'MPL-2.0' }, { license: '0BSD' }, { license: 'CC0-1.0' }],
+      },
+    );
 
     expect(result.problems).toEqual([
       "stale exception: no package needs '0BSD'; remove it from npmLicenseExceptions (owner approval is per license).",
@@ -180,7 +183,9 @@ describe('validateNpmExceptions', () => {
 
   it('names every missing or invalid field', () => {
     expect(
-      validateNpmExceptions([{ ...valid, scopes: ['runtime'], approved: '07/10/2026', approvedBy: '', examplePackages: [] }]),
+      validateNpmExceptions([
+        { ...valid, scopes: ['runtime'], approved: '07/10/2026', approvedBy: '', examplePackages: [] },
+      ]),
     ).toEqual([
       "npmLicenseExceptions 'MPL-2.0': scopes must list only build, test or tool (the production tree has no exceptions).",
       "npmLicenseExceptions 'MPL-2.0': examplePackages must list at least one package.",
