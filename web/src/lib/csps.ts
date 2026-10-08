@@ -1,6 +1,11 @@
 /* CSPS — domain types, formatting and the order math (core data rule).
    Every figure shown wherever an order appears comes from orderTotals(). */
 
+/* D-09 (Core Value: server-computed totals): the browser's orderTotals(), discountAmount() and round2() figures are
+   PREVIEWS. The server (Csps.Domain.Orders.OrderMath) is authoritative: once a save returns an order's totals, screens
+   show the server's figures and never present a preview as the saved figure. The shared golden vectors
+   (tests/fixtures/order-math-golden-vectors.json) prove both sides agree to the centavo. */
+
 /* ───────────── domain types ───────────── */
 
 export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'completed' | 'cancelled';
@@ -139,12 +144,78 @@ export function formatDate(d: string | Date | null | undefined): string {
 
 /* ───────────── order math ───────────── */
 
-export const round2 = (n: number | string | null | undefined): number => Math.round((Number(n) || 0) * 100) / 100;
+/* SPEC-DEVIATION: D-09 integer-centavo, half-away-from-zero rounding to match the server
+   (MidpointRounding.AwayFromZero). App. D.1 rounded with Math.round(n * 100) / 100 in binary floating point, which
+   previews 7.5% of ₱17.00 as ₱1.27 while the server saves ₱1.28. round2, discountAmount and orderTotals keep D.1's
+   names, signatures and return shapes, but work in exact integer centavos (BigInt): a number is read through its
+   shortest decimal text (String(n)), never n * 100, and turned back into a number through its exact decimal text
+   (L-12). NaN and ±Infinity count as 0, as D.1's `Number(n) || 0` did for NaN.
+   Pinned operation order, quoted from the vector file's `operationOrder`:
+     "round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)" */
+
+/** An exact fraction num / den, with den > 0. */
+interface Exact {
+  readonly num: bigint;
+  readonly den: bigint;
+}
+
+const ZERO: Exact = { num: 0n, den: 1n };
+
+/** A form value as an exact fraction, read through the number's shortest round-trip decimal text. */
+function exactOf(value: number | string | null | undefined): Exact {
+  const n = Number(value) || 0;
+  if (!Number.isFinite(n)) return ZERO;
+  // String(n) of a finite number is "123", "1.5", "1e+21" or "1.5e-7" (the sign is handled separately).
+  const [mantissa = '0', exponent = '0'] = String(Math.abs(n)).split('e');
+  const [whole = '0', fraction = ''] = mantissa.split('.');
+  const shift = Number(exponent) - fraction.length;
+  const digits = BigInt(whole + fraction);
+  const magnitude = shift > 0 ? digits * 10n ** BigInt(shift) : digits;
+  return { num: n < 0 ? -magnitude : magnitude, den: shift < 0 ? 10n ** BigInt(-shift) : 1n };
+}
+
+const add = (a: Exact, b: Exact): Exact => ({ num: a.num * b.den + b.num * a.den, den: a.den * b.den });
+const multiply = (a: Exact, b: Exact): Exact => ({ num: a.num * b.num, den: a.den * b.den });
+
+/** Rounds an exact peso amount to whole centavos, half away from zero (the server's MidpointRounding.AwayFromZero). */
+function roundToCentavos(value: Exact): bigint {
+  const negative = value.num < 0n;
+  const scaled = (negative ? -value.num : value.num) * 100n;
+  const centavos = scaled / value.den + ((scaled % value.den) * 2n >= value.den ? 1n : 0n);
+  return negative ? -centavos : centavos;
+}
+
+/** A form value in whole centavos, half away from zero. */
+function toCentavos(value: number | string | null | undefined): bigint {
+  return roundToCentavos(exactOf(value));
+}
+
+/** Whole centavos as the nearest number, through the exact decimal text ("-732.50"), never centavos / 100 (L-12). */
+function fromCentavos(centavos: bigint): number {
+  const digits = (centavos < 0n ? -centavos : centavos).toString().padStart(3, '0');
+  return Number(`${centavos < 0n ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`);
+}
+
+const pesosOf = (centavos: bigint): Exact => ({ num: centavos, den: 100n });
+
+function sumToCentavos(values: readonly (number | string | null | undefined)[]): bigint {
+  return roundToCentavos(values.map(exactOf).reduce(add, ZERO));
+}
+
+/** Half away from zero at the centavo: round2(1.005) = 1.01, round2(10.075) = 10.08, round2(-1.005) = -1.01. */
+export const round2 = (n: number | string | null | undefined): number => fromCentavos(toCentavos(n));
+
+function discountCentavos(discount: Discount, itemsTotal: Exact): bigint {
+  const value = exactOf(discount.value);
+  return roundToCentavos(
+    discount.type === 'percentage' ? multiply(multiply(itemsTotal, value), { num: 1n, den: 100n }) : value,
+  );
+}
 
 /** fixed → value; percentage → value % of the items total. */
 export function discountAmount(discount: Discount | null | undefined, itemsTotal: number): number {
   if (!discount) return 0;
-  return round2(discount.type === 'percentage' ? (itemsTotal * (Number(discount.value) || 0)) / 100 : discount.value);
+  return fromCentavos(discountCentavos(discount, exactOf(itemsTotal)));
 }
 
 /**
@@ -154,12 +225,27 @@ export function discountAmount(discount: Discount | null | undefined, itemsTotal
  */
 export function orderTotals(order: Partial<Order> | null | undefined): Totals {
   const o = order ?? {};
-  const total = round2((o.items ?? []).reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0));
-  const discount = round2((o.discounts ?? []).reduce((s, d) => s + discountAmount(d, total), 0));
-  const paid = round2((o.payments ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0));
-  const expenses = round2((o.expenses ?? []).reduce((s, e) => s + (Number(e.amount) || 0), 0));
-  const balance = round2(total - discount - paid);
-  return { total, discount, paid, balance, expenses, profit: round2(total - discount - expenses), fullyPaid: total > 0 && balance <= 0 };
+  // SPEC-DEVIATION: D-09 integer-centavo, half-away-from-zero rounding to match the server (see round2 above).
+  // 1. Round the items total.
+  const total = roundToCentavos(
+    (o.items ?? []).map((i) => multiply(exactOf(i.quantity), exactOf(i.unitPrice))).reduce(add, ZERO),
+  );
+  // 2. Round each discount (a percentage applies to the rounded items total). 3. Sum the discounts and round the
+  // sum: each discount is already whole centavos, so the rounding of the sum is exact.
+  const discount = (o.discounts ?? []).reduce((sum, d) => sum + discountCentavos(d, pesosOf(total)), 0n);
+  const paid = sumToCentavos((o.payments ?? []).map((p) => p.amount));
+  const expenses = sumToCentavos((o.expenses ?? []).map((e) => e.amount));
+  // 4. Subtract.
+  const balance = total - discount - paid;
+  return {
+    total: fromCentavos(total),
+    discount: fromCentavos(discount),
+    paid: fromCentavos(paid),
+    balance: fromCentavos(balance),
+    expenses: fromCentavos(expenses),
+    profit: fromCentavos(total - discount - expenses),
+    fullyPaid: total > 0n && balance <= 0n,
+  };
 }
 
 export const CASCADE_LABELS: ReadonlyArray<readonly [keyof CascadeCounts, string]> = [
