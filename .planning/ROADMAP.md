@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T01:04:08-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T01:33:41-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 7/18 plans executed in 10 waves
+**Plans**: 8/18 plans executed in 10 waves
 
 Plans:
 **Wave 1**
@@ -241,7 +241,7 @@ Plans:
 - [x] 02-05-PLAN.md — Verbatim App. A-C CSS, owner WCAG overrides D-01..D-05, fonts with ₱-safe fallbacks and preload (W3)
 - [x] 02-06-PLAN.md — Playwright on HTTPS 5199 with console/CSP/axe fixtures and self-tests across five projects (W3)
 - [x] 02-07-PLAN.md — fetch-based httpClient with single-flight refresh, capped retries and key reuse, 100% coverage (W3)
-- [ ] 02-08-PLAN.md — nuqs list-state hook and parsers (WEB-10), TanStack Query defaults, debounce and intent prefetch (W3)
+- [x] 02-08-PLAN.md — nuqs list-state hook and parsers (WEB-10), TanStack Query defaults, debounce and intent prefetch (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 02-09-PLAN.md — Verbatim App. D.3-D.5 reconciled with no DOM change, lucide icon map, owner rulings on O-1..O-8 and icon drift (W4, checkpoint)
@@ -891,7 +891,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 7/18 | In Progress|  |
+| 2. Web Foundation & Design System | 8/18 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |

@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-10-08T06:03:54.147Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-10-08T06:33:29.779Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 02 execution started
-state_head: 15a03fa7e90a9870326e53838b61c39068d52c99
+state_head: f70a6e3885b9ee382c4ca7b26b8f410a924fd1bd
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 31
-  completed_plans: 20
+  completed_plans: 21
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T01:04:08-05:00"
+updated: "2026-10-08T01:33:41-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 8 of 18
+Plan: 9 of 18
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 02 execution started
 
@@ -78,6 +78,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P05 | 18 min | 3 tasks | 18 files |
 | Phase 02 P06 | 17 min | 2 tasks | 7 files |
 | Phase 02 P07 | 18 min | 3 tasks | 8 files |
+| Phase 02 P08 | 22 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,12 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-07: 401 handling - one refresh cycle per client (single flight), each request retries once; no refresh configured, a failed refresh, or a second 401 calls onUnauthorized at most once per cycle
 - [Phase 02]: 02-07: HttpError kind network|timeout|aborted|http|parse, status 0 without a response, message = ProblemDetails title or a plain-English kind default; secret param names (token, access_token, refresh_token, password, secret, otp) throw a TypeError before fetch
 - [Phase 02]: 02-07: a filtered lib/http coverage run needs --coverage.include=src/lib/http/** (otherwise the global 90% thresholds trip); npm run verify enforces coverage.thresholds['src/lib/http/**'] = 100
+- [Phase 02]: 02-08: createListParams(parsers, { urlKeys }) is the one list-state hook: typed + raw nuqs useQueryStates reads; one replace removes invalid, default or non-canonical keys (at most once); setPage pushes, every other setter replaces and writes page: null in the same update; setSearch debounces 300 ms (immediate on Enter); default urlKeys pageSize->size, search->q
+- [Phase 02]: 02-08: nuqs shallow writes update window.history only; React Router's useLocation().search stays stale after a list-state change, so list screens read list state only through their list hook (UrlStateLayout tests assert window.location in a browser router)
+- [Phase 02]: 02-08: URL key order is page, size, q, then the other keys by name (orderSearchParams as NuqsAdapter processUrlSearchParams); equal values always give one query string
+- [Phase 02]: 02-08: prefetchOnIntent uses queryClient.query(options).catch(noop) because TanStack Query 5.103.2 deprecates prefetchQuery (no-deprecated lint); never RR <Link prefetch>
+- [Phase 02]: 02-08: createListParams throws a TypeError for URL keys naming personal data or secrets (email, phone, mobile, name variants, address, token variants, password, secret, otp, code); personal data only in free-text q (CWE-598)
+- [Phase 02]: 02-08: Range presets today/last-7-days/last-30-days/this-month/last-month/this-year resolve against an injected businessToday(now, 'Asia/Manila'); last-N-days includes today; dates stay plain YYYY-MM-DD strings (parseAsBusinessDate)
 
 ### Pending Todos
 
@@ -191,6 +198,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T06:03:33.077Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-10-08T06:33:03.235Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None
