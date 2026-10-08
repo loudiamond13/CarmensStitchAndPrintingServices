@@ -356,7 +356,7 @@ describe('useSubmission: results and errors', () => {
     });
   });
 
-  it('calls onFailure with the error, and resolves (never rejects) submit with the failure', async () => {
+  it('calls onFailure with the approved copy and the error, and resolves (never rejects) submit', async () => {
     const user = userEvent.setup();
     const failure = new Error('Server unavailable');
     const spy = recordingSend([failure]);
@@ -368,11 +368,44 @@ describe('useSubmission: results and errors', () => {
     await user.click(save());
     await settled();
 
-    expect(onFailure).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith(
+      { title: 'Something went wrong', body: 'Please try again.' },
+      failure,
+    );
     expect(onSuccess).not.toHaveBeenCalled();
     await vi.waitFor(() => {
       expect(onOutcome).toHaveBeenCalledExactlyOnceWith({ ok: false, error: failure });
     });
+  });
+
+  it('hands onFailure the 5xx copy with the trace reference, for the danger toast (D-04)', async () => {
+    const user = userEvent.setup();
+    const failure = validationError(503, {});
+    const onFailure = vi.fn();
+    render(<PaymentForm send={recordingSend([failure]).send} data={payment} options={{ onFailure }} />);
+
+    await user.click(save());
+    await settled();
+
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith(
+      { title: 'Something went wrong', body: 'Please try again. Reference: 00-4bf92f3577b34da6-01' },
+      failure,
+    );
+  });
+
+  it.each([
+    ['a 400 with field errors (they go under the fields)', validationError(400, { Amount: ['Enter an amount.'] })],
+    ['a 401 after the failed refresh (sign-in takes over)', validationError(401, {})],
+  ])('does not call onFailure for %s', async (_case, failure) => {
+    const user = userEvent.setup();
+    const onFailure = vi.fn();
+    render(<PaymentForm send={recordingSend([failure]).send} data={payment} options={{ onFailure }} />);
+
+    await user.click(save());
+    await settled();
+
+    expect(screen.getByRole('status', { name: 'Error' })).toHaveTextContent('One or more fields are invalid.');
+    expect(onFailure).not.toHaveBeenCalled();
   });
 
   it('treats a send that throws before returning a promise as a failed submission, and can submit again', async () => {
