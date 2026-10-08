@@ -1,8 +1,11 @@
-// Button (App. D.3 "Actions"). Stub for the RED step of plan 02-14: the App. D.3 markup without the look or the
-// WEB-09 pending behaviour.
-import type { MouseEvent, ReactNode } from 'react';
-import type { IconName } from '@/ui/brand';
-import { buttonClasses, type ButtonSize, type ButtonVariant } from './button.recipe';
+// Button (App. D.3 "Actions"), converted to utilities (D-33) with the same props API and markup: an optional left icon,
+// the label in a <span>, an optional right icon; no children makes it icon-only.
+// SPEC-DEVIATION: L-13 the props are explicit (no {...rest} spread onto the button), so callers cannot restyle the
+// primitive or pass unvetted attributes; the ones App. D/E callers use, plus the ARIA a menu or toggle trigger needs,
+// are listed in ButtonProps.
+import type { MouseEvent, ReactNode, Ref } from 'react';
+import { Icon, type IconName } from '@/ui/brand';
+import { buttonClasses, buttonSpinnerClasses, type ButtonSize, type ButtonVariant } from './button.recipe';
 
 export type { ButtonSize, ButtonVariant } from './button.recipe';
 
@@ -11,21 +14,101 @@ export interface ButtonProps {
   size?: ButtonSize;
   icon?: IconName;
   iconRight?: IconName;
+  /** App. D.3's busy flag. Same behaviour as `pending` (WEB-09). */
   loading?: boolean;
+  /** A request is in flight (WEB-09): spinner, aria-busy, aria-disabled; focus stays, activation is ignored. */
   pending?: boolean;
   block?: boolean;
   disabled?: boolean;
   type?: 'button' | 'submit' | 'reset';
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  /** Layout glue only (margin, placement, width); never a restyle (spec rule 3). */
   className?: string;
   children?: ReactNode;
+  id?: string;
+  title?: string;
+  form?: string;
+  name?: string;
+  value?: string;
+  /** Required for an icon-only button (no children). */
   'aria-label'?: string;
+  'aria-describedby'?: string;
+  'aria-controls'?: string;
+  'aria-expanded'?: boolean;
+  'aria-haspopup'?: 'menu' | 'dialog' | 'listbox' | true;
+  'aria-pressed'?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
-export function Button({ variant = 'secondary', size = 'md', type = 'button', className, children }: ButtonProps) {
+/** Icon size by button size, as App. D.3: 16px on sm, 18px otherwise. */
+const ICON_SIZE = { sm: 16, md: 18, lg: 18 } as const satisfies Record<ButtonSize, number>;
+
+export function Button({
+  variant = 'secondary',
+  size = 'md',
+  icon,
+  iconRight,
+  loading = false,
+  pending = false,
+  block = false,
+  disabled,
+  type = 'button',
+  onClick,
+  className,
+  children,
+  id,
+  title,
+  form,
+  name,
+  value,
+  'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
+  'aria-controls': ariaControls,
+  'aria-expanded': ariaExpanded,
+  'aria-haspopup': ariaHasPopup,
+  'aria-pressed': ariaPressed,
+  ref,
+}: ButtonProps) {
+  // SPEC-DEVIATION: WEB-09 a busy button (pending, or App. D.3's loading) is aria-disabled instead of natively
+  // disabled, so keyboard focus stays on it; activation is swallowed here instead (a click, Enter or Space, and so the
+  // form submission a submit button would start). It looks exactly like the disabled button (owner, 2026-10-07).
+  const busy = pending || loading;
+  const handleClick = (event: MouseEvent<HTMLButtonElement>): void => {
+    if (busy) {
+      event.preventDefault();
+      return;
+    }
+    onClick?.(event);
+  };
+  const iconSize = ICON_SIZE[size];
   return (
-    <button type={type} className={buttonClasses({ variant, size, className })}>
-      <span>{children}</span>
+    <button
+      ref={ref}
+      type={type}
+      id={id}
+      title={title}
+      form={form}
+      name={name}
+      value={value}
+      disabled={disabled}
+      aria-disabled={busy || undefined}
+      aria-busy={busy || undefined}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-controls={ariaControls}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-pressed={ariaPressed}
+      onClick={handleClick}
+      className={buttonClasses({ variant, size, block, iconOnly: !children, className })}
+    >
+      {busy ? (
+        <Icon name="loader-circle" size={18} className={buttonSpinnerClasses} />
+      ) : (
+        icon !== undefined && <Icon name={icon} size={iconSize} />
+      )}
+      {children != null && children !== false && <span>{children}</span>}
+      {iconRight !== undefined && !busy && <Icon name={iconRight} size={iconSize} />}
     </button>
   );
 }
