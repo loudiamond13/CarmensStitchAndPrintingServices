@@ -1,6 +1,6 @@
 // SPEC-GAP copy (02-UI-SPEC "Copywriting Contract"): the plain-English strings of the primitives the spec does not
-// draw, in one module so the owner can change them in one place and no JSX carries its own wording. Plan 13 adds the
-// data-primitive strings (Pagination, FilterBar, loading and error states).
+// draw, in one module so the owner can change them in one place and no JSX carries its own wording. Plan 12 added the
+// form strings; plan 13 the data-primitive strings (lists, loading, errors, Pagination, FilterBar).
 
 /** MoneyInput (ORD-09, SPEC-GAP). */
 export const MONEY_INPUT_COPY = {
@@ -71,4 +71,28 @@ export const ERROR_STATE_COPY = {
   loadFailedBody: 'Check your internet connection. Your data is safe — nothing was changed.',
   reference: (traceId: string): string => `Reference: ${traceId}`,
   retry: 'Try Again',
+} as const;
+
+/** Pagination (WEB-06, SPEC-GAP). "Page {p} of {n}" is built from `page` and `of` around the two numbers. */
+export const PAGINATION_COPY = {
+  label: 'Pagination',
+  previous: 'Previous',
+  next: 'Next',
+  /** The accessible names, kept when the phone layout shows the icons only. */
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
+  page: 'Page',
+  of: 'of',
+  rowsPerPage: 'Rows per page',
+} as const;
+
+/** FilterBar, SearchBox, ResultBar and FilterChip (App. E.7). */
+export const FILTER_BAR_COPY = {
+  search: 'Search',
+  showing: 'Showing',
+  sortedBy: (sort: string): string => ` · sorted by ${sort}`,
+  /** "Status: Active + recent". */
+  chip: (filter: string, value: string): string => `${filter}: ${value}`,
+  /** "Clear status filter". */
+  clearFilter: (filter: string): string => `Clear ${filter.toLowerCase()} filter`,
 } as const;

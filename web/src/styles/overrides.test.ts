@@ -538,6 +538,42 @@ describe('spec-gaps.css SPEC-GAP data primitives (plan 13; WEB-06, WEB-08, PERF-
     expectGapRule('.csp-list-region', 'flex-direction', 'column', 'ResponsiveTable');
     expectGapRule('.csp-list-region', 'gap', 'var(--space-3)', 'ResponsiveTable');
   });
+
+  it('Pagination: the pager row spreads Previous, the status and Next 12px apart; the size select sits at the end', () => {
+    expectGapRule('.csp-pagination', 'display', 'flex', 'Pagination');
+    expectGapRule('.csp-pagination', 'flex-wrap', 'wrap', 'Pagination');
+    expectGapRule('.csp-pagination', 'gap', 'var(--space-3)', 'Pagination');
+    expectGapRule('.csp-pagination-pager', 'display', 'flex', 'Pagination');
+    expectGapRule('.csp-pagination-pager', 'justify-content', 'space-between', 'Pagination');
+    expectGapRule('.csp-pagination-pager', 'gap', 'var(--space-3)', 'Pagination');
+    expectGapRule('.csp-pagination-status', 'color', 'var(--ink-muted)', 'Pagination');
+    expectGapRule('.csp-pagination-status strong', 'color', 'var(--ink)', 'Pagination');
+  });
+
+  it('Pagination: on phones the buttons are 44px icon-only, the text hidden with the .csp-sr technique', () => {
+    expectGapRule('.csp-pagination .csp-btn', 'width', '44px', 'Pagination', PHONE);
+    expectGapRule('.csp-pagination .csp-btn', 'padding', '0', 'Pagination', PHONE);
+    const sr = parseCss(readStyle('components.css')).find((rule) => rule.selectors.includes('.csp-sr'));
+    expect(sr?.declarations.length).toBeGreaterThan(0);
+    for (const [property, expected] of sr?.declarations ?? []) {
+      expectGapRule('.csp-pagination .csp-btn > span', property, expected, 'Pagination', PHONE);
+    }
+  });
+
+  it('FilterBar chips: the result bar and the chip group wrap 8px apart, and a long chip label ends in an ellipsis', () => {
+    expectGapRule('.s-resultbar', 'flex-wrap', 'wrap', 'FilterBar chips');
+    expectGapRule('.s-resultbar', 'gap', 'var(--space-2)', 'FilterBar chips');
+    expectGapRule('.csp-filter-chips', 'display', 'flex', 'FilterBar chips');
+    expectGapRule('.csp-filter-chips', 'flex-wrap', 'wrap', 'FilterBar chips');
+    expectGapRule('.csp-filter-chips', 'gap', 'var(--space-2)', 'FilterBar chips');
+    expectGapRule('.csp-filter-chips', 'min-width', '0', 'FilterBar chips');
+    expectGapRule('.s-filter-chip', 'max-width', '100%', 'FilterBar chips');
+    expectGapRule('.s-filter-chip > .s-iconbtn', 'flex', 'none', 'FilterBar chips');
+    expectGapRule('.csp-filter-chip-label', 'min-width', '0', 'FilterBar chips');
+    expectGapRule('.csp-filter-chip-label', 'overflow', 'hidden', 'FilterBar chips');
+    expectGapRule('.csp-filter-chip-label', 'text-overflow', 'ellipsis', 'FilterBar chips');
+    expectGapRule('.csp-filter-chip-label', 'white-space', 'nowrap', 'FilterBar chips');
+  });
 });
 
 function unquote(text: string): string {
