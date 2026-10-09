@@ -234,6 +234,25 @@ describe('OrderCard (App. D.3)', () => {
     expect(screen.getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
   });
 
+  it('counts a missing or non-numeric quantity as 0, as App. D.3 does', () => {
+    const order: Order = {
+      ...order0148,
+      items: [
+        { quantity: 3, unitPrice: 100 },
+        { quantity: Number.NaN, unitPrice: 100 },
+      ],
+    };
+    render(<OrderCard order={order} />);
+
+    expect(screen.getByText('3 pcs')).toBeTruthy();
+  });
+
+  it('names a cover placeholder without a file name "No image yet"', () => {
+    render(<OrderCard order={{ ...order0148, images: [{ id: 'cover' }] }} />);
+
+    expect(screen.getByRole('img', { name: 'No image yet' })).toBeTruthy();
+  });
+
   it('has no axe violations on the three seed cards', async () => {
     for (const id of ['order-card-0148', 'order-card-0151', 'order-card-walk-in']) {
       const { container, unmount } = renderCase(id);

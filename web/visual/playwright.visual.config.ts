@@ -27,7 +27,15 @@ export default defineConfig({
   // 5.3 min instead of 42 s (plan 02-17). For a full trace, add `--trace on` to the run.
   use: { trace: { mode: 'retain-on-failure', snapshots: false, screenshots: false, sources: true } },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Chromium raster without partial raster (plan 02-24): with it, a re-raster redraws only the changed part of a tile,
+    // and a rounded corner on the viewport's right edge sometimes kept anti-aliasing from an earlier frame, on either
+    // side and from run to run (2 to 21 pixels, x 388–389 at 390 px; computed styles, boxes and layers equal). Under
+    // the suite's parallel load 3 of 20 reproductions differed; with the flag 25 of 25 were equal. Both sides run in the
+    // same browser, so it changes nothing that is compared.
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--disable-partial-raster'] } },
+    },
     // Firefox and WebKit run every parity scenario at 390 and 1440, rest and hover; the Chromium-only rows of the matrix
     // (320/820, focus-visible, active, the reduced-motion and touch passes; visual/parity-matrix.ts) are skipped here.
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grepInvert: /@chromium-only/ },

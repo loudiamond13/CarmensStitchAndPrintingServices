@@ -50,6 +50,13 @@ function months(): HTMLElement[] {
   return within(drawing()).getAllByRole('img');
 }
 
+/** The open tooltip card for a month; throws when it is not shown. */
+function openTip(month: string): HTMLElement {
+  const tip = tooltip(month);
+  if (tip === null) throw new Error(`No tooltip for ${month}.`);
+  return tip;
+}
+
 /** The tooltip card, found by its month heading. */
 function tooltip(month: string): HTMLElement | null {
   return screen.queryByText(month, { selector: 'strong' })?.parentElement ?? null;
@@ -142,7 +149,7 @@ describe('IncomeExpenseChart (App. D.3)', () => {
 
     expect(classTokens(container.firstElementChild)).toEqual(tokens(chartClasses));
     expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
-    expect(within(legend as HTMLElement).getByText('Expenses (company + orders)')).toBeTruthy();
+    expect(within(legend ?? document.body).getByText('Expenses (company + orders)')).toBeTruthy();
     const swatches = [...(legend?.querySelectorAll('i') ?? [])];
     expect(swatches.map((swatch) => classTokens(swatch))).toEqual([
       tokens(chartSwatchClasses.income),
@@ -168,11 +175,11 @@ describe('IncomeExpenseChart (App. D.3)', () => {
 
     expect(tip).not.toBeNull();
     expect(classTokens(tip)).toEqual(tokens(chartTipClasses));
-    expect(within(tip as HTMLElement).getByText('Income ₱126,450.00')).toBeTruthy();
-    expect(within(tip as HTMLElement).getByText('Expenses ₱58,320.00')).toBeTruthy();
-    const net = within(tip as HTMLElement).getByText('Net ₱68,130.00');
+    expect(within(openTip('Oct')).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(openTip('Oct')).getByText('Expenses ₱58,320.00')).toBeTruthy();
+    const net = within(openTip('Oct')).getByText('Net ₱68,130.00');
     expect(classTokens(net)).toEqual(tokens(chartNetClasses));
-    const style = (tip as HTMLElement).style;
+    const style = openTip('Oct').style;
     expect(Array.from({ length: style.length }, (_, index) => style.item(index))).toEqual(['--tip-x']);
     // Oct is the sixth column: (52 + 98 × 5 + 49) / 640 = 92.34375%.
     expect(style.getPropertyValue('--tip-x')).toBe('92.34375%');
@@ -208,7 +215,7 @@ describe('IncomeExpenseChart (App. D.3)', () => {
     const may = screen.getByRole('img', { name: /^May 2026/ });
 
     fireEvent.mouseEnter(may);
-    expect(within(tooltip('May') as HTMLElement).getByText('Net ₱37,200.00')).toBeTruthy();
+    expect(within(openTip('May')).getByText('Net ₱37,200.00')).toBeTruthy();
 
     fireEvent.mouseLeave(drawing());
     expect(tooltip('May')).toBeNull();
@@ -245,6 +252,9 @@ describe('IncomeExpenseChart (App. D.3)', () => {
 
     rerender(<IncomeExpenseChart data={TWELVE} />);
     expect(months()).toHaveLength(12);
+
+    rerender(<IncomeExpenseChart data={TWELVE} height={300} />);
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 640 300');
   });
 });
 
