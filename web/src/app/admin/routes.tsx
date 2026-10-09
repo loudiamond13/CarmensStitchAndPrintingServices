@@ -6,6 +6,8 @@
 //     admin lists of later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen
 //     inside the shell's `main` when a page crashes or a page chunk fails to load.
 //   - The five sections (ADMIN_NAV) each render the AdminPreviewPage for their path.
+//   - `/dev/components` is the D-22 Component Showcase (src/dev, plan 02-34) inside the same AdminLayout, so the theme
+//     toggle applies; no sidebar item is current there. It has the same two error boundaries.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import type { RouteObject } from 'react-router';
@@ -16,11 +18,13 @@ const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('./AdminPreviewPage')).AdminPreviewRoute,
 }));
 
+const adminLayout = /* @__PURE__ */ lazyRoute(async () => ({ Component: (await import('./AdminLayout')).default }));
+
 export const adminRoutes: RouteObject[] = [
   {
     path: 'admin',
     ErrorBoundary: AdminRootErrorBoundary,
-    lazy: /* @__PURE__ */ lazyRoute(async () => ({ Component: (await import('./AdminLayout')).default })),
+    lazy: adminLayout,
     children: [
       {
         ErrorBoundary: AdminRouteErrorBoundary,
@@ -34,6 +38,20 @@ export const adminRoutes: RouteObject[] = [
           { path: 'users', lazy: previewPage },
           { path: 'profile', lazy: previewPage },
         ],
+      },
+    ],
+  },
+  {
+    path: 'dev',
+    ErrorBoundary: AdminRootErrorBoundary,
+    lazy: adminLayout,
+    children: [
+      {
+        path: 'components',
+        ErrorBoundary: AdminRouteErrorBoundary,
+        lazy: /* @__PURE__ */ lazyRoute(async () => ({
+          Component: (await import('@/dev/ComponentShowcase')).default,
+        })),
       },
     ],
   },

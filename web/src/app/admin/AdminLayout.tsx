@@ -66,7 +66,7 @@ export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = 
     <>
       <div className={adminClasses} inert={navOpen}>
         <div data-ui="s-admin-side" className={adminSideClasses}>
-          <Sidebar active={section} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
+          <Sidebar active={section ?? null} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
         </div>
         <div data-ui="s-admin-main" className={adminMainClasses}>
           <Topbar
@@ -94,7 +94,7 @@ export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = 
           setNavOpen(false);
         }}
       >
-        <Sidebar active={section} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
+        <Sidebar active={section ?? null} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
       </MobileNavDrawer>
     </>
   );

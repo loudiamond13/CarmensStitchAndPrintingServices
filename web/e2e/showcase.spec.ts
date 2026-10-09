@@ -1,0 +1,130 @@
+// Component Showcase E2E (D-22, WEB-06, A11Y-01; plan 02-34): /dev/components on the real host (the e2e bundle has the
+// dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
+// run checks one h1, the nine sections, no "Missing component" alert, a page-level axe pass over every case, and the
+// guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
+// (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, and an open Delete Order dialog
+// is axe-clean too.
+import type { Page } from '@playwright/test';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+
+const SECTIONS = [
+  'Brand & icons',
+  'Buttons',
+  'Status',
+  'Forms',
+  'Data',
+  'Feedback',
+  'Media',
+  'Navigation',
+  'Marketing',
+];
+
+/** Opens the showcase and waits for its page head. */
+async function openShowcase(page: Page): Promise<void> {
+  const response = await page.goto('/dev/components');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Component Showcase');
+}
+
+const THEMES = [
+  { name: 'Blush', theme: 'light' },
+  { name: 'Espresso', theme: 'dark' },
+] as const;
+
+for (const { name, theme } of THEMES) {
+  test(`@showcase /dev/components in ${name}: every section, one h1, no axe findings`, async ({ page }) => {
+    await openShowcase(page);
+    const root = page.locator('[data-theme]').first();
+    if (theme === 'dark') {
+      // The shell's Topbar comes first; the Topbar cases inside main carry toggles of their own.
+      await page.getByRole('button', { name: 'Switch to dark mode' }).first().click();
+    }
+    await expect(root).toHaveAttribute('data-theme', theme);
+
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page).toHaveTitle('Component Showcase · CSPS (dev)');
+    await expect(page.getByRole('main')).toHaveCount(1);
+    await expect(page.locator('main > section > div > h2')).toHaveText(SECTIONS);
+    await expect(page.locator('[data-case]')).not.toHaveCount(0);
+    await expect(page.getByText(/^Missing component/)).toHaveCount(0);
+    // No sidebar item claims the showcase page.
+    await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);
+
+    await expectNoAxeViolations(page);
+  });
+}
+
+test('@showcase nothing in the showcase widens the page at 320px, and the 4-chip FilterBar fixture wraps', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  // The admin shell alone: below 398px its approved Topbar scrolls sideways (owner item in the phase's
+  // deferred-items.md), so the page width the showcase must not add to is measured on a plain admin page first.
+  await page.goto('/admin');
+  await expect(page.locator('h1')).toHaveText('Dashboard');
+  const shellWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+  await openShowcase(page);
+
+  const chips = page.locator('[data-case="filterbar-chips-4"]');
+  await expect(chips).toBeVisible();
+  const sizes = await page.evaluate<{
+    readonly page: number;
+    readonly main: number;
+    readonly mainClient: number;
+    readonly chips: number;
+    readonly chipsClient: number;
+    readonly chipRows: number;
+  }>(`(() => {
+    const main = document.querySelector('main');
+    const chips = document.querySelector('[data-case="filterbar-chips-4"]');
+    const tops = new Set([...chips.querySelectorAll('button')].map((button) => Math.round(button.getBoundingClientRect().top)));
+    return {
+      page: document.documentElement.scrollWidth,
+      main: main.scrollWidth,
+      mainClient: main.clientWidth,
+      chips: chips.scrollWidth,
+      chipsClient: chips.clientWidth,
+      chipRows: tops.size,
+    };
+  })()`);
+  // The showcase content stays inside main (every case frame keeps a wide case inside its own scrollport), so the
+  // page is no wider than the admin shell alone; once the Topbar ruling lands, both are 320px.
+  expect(sizes.main).toBeLessThanOrEqual(sizes.mainClient);
+  expect(sizes.page).toBeLessThanOrEqual(shellWidth);
+  // The chips wrap onto new rows instead of scrolling sideways (UI-SPEC UI Considerations: overflow, FilterBar).
+  expect(sizes.chips).toBeLessThanOrEqual(sizes.chipsClient);
+  expect(sizes.chipRows).toBeGreaterThan(1);
+});
+
+test('@showcase the toast triggers raise a toast in each tone', async ({ page }) => {
+  await openShowcase(page);
+  const layer = page.locator('[data-ui="s-toast-layer"]');
+
+  for (const [trigger, title] of [
+    ['Show success toast', 'Payment added'],
+    ['Show info toast', 'Not available yet'],
+    ['Show warning toast', 'Someone else changed this'],
+    ['Show danger toast', "Couldn't save order"],
+  ] as const) {
+    await page.getByRole('button', { name: trigger }).click();
+    await expect(layer.getByText(title)).toBeVisible();
+    // On phones the stack sits over the page bottom: close each toast so it never covers the next trigger.
+    await layer.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(layer.getByText(title)).toHaveCount(0);
+  }
+});
+
+test('@showcase the Delete Order demo opens an axe-clean dialog and deletes nothing', async ({ page }) => {
+  await openShowcase(page);
+  const trigger = page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' });
+
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Delete order ORD-2026-0148?' });
+  await expect(dialog).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await dialog.getByRole('textbox').fill('ORD-2026-0148');
+  await dialog.getByRole('button', { name: 'Delete Order' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('[data-ui="s-toast-layer"]').getByText('Order ORD-2026-0148 deleted')).toBeVisible();
+});

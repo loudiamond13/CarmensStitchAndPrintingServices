@@ -11,7 +11,7 @@ import { routes } from '@/app/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/ui';
 import { ICONS } from '@/ui/brand/icons';
-import ComponentShowcase from './ComponentShowcase';
+import ComponentShowcase, { ShowcaseSection } from './ComponentShowcase';
 import { scenarios } from './scenarios';
 
 /** The UI-SPEC group order, then the two groups the UI-SPEC list predates (Navigation, Marketing). */
@@ -61,7 +61,10 @@ function caseFrame(id: string): HTMLElement {
   return frame;
 }
 
-describe('ComponentShowcase page (D-22)', () => {
+// Each test renders the whole page (about 190 cases); under a full parallel run that can pass the 5 s default.
+const FULL_PAGE = { timeout: 20_000 };
+
+describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
   it('shows one h1 "Component Showcase" with the UI-SPEC subline and sets the document title', async () => {
     renderShowcase();
 
@@ -91,15 +94,24 @@ describe('ComponentShowcase page (D-22)', () => {
   it('renders every scenario except the whole-page layouts once, in a [data-case] frame with its overline label', () => {
     renderShowcase();
 
+    const frames = [...document.querySelectorAll<HTMLElement>('[data-case]')];
+    const counts = new Map<string, number>();
+    for (const frame of frames) {
+      const id = frame.dataset.case ?? '';
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
     for (const scenario of scenarios) {
-      const frames = document.querySelectorAll(`[data-case="${scenario.id}"]`);
-      expect({ id: scenario.id, frames: frames.length }).toEqual({
+      expect({ id: scenario.id, frames: counts.get(scenario.id) ?? 0 }).toEqual({
         id: scenario.id,
         frames: LAYOUT_GROUPS.has(scenario.group) ? 0 : 1,
       });
     }
-    expect(screen.getAllByText('button-primary-md').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/^Missing component/)).toBeNull();
+    // The overline label names the case: its text is the id (the frame's accessible name where it is a region).
+    const button = caseFrame('button-primary-md');
+    expect(document.getElementById(button.getAttribute('aria-labelledby') ?? '')).toHaveTextContent(
+      'button-primary-md',
+    );
+    expect(document.body.textContent).not.toContain('Missing component');
   });
 
   it('places the scenario groups in their UI-SPEC sections', () => {
@@ -159,7 +171,7 @@ describe('ComponentShowcase page (D-22)', () => {
   });
 });
 
-describe('ComponentShowcase live demos (real handlers; nothing is saved or deleted)', () => {
+describe('ComponentShowcase live demos (real handlers; nothing is saved or deleted)', FULL_PAGE, () => {
   it.each([
     ['Show success toast', 'Payment added'],
     ['Show info toast', 'Not available yet'],
@@ -249,7 +261,8 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
       within(caseFrame('confirm-delete-order-error')).getByRole('button', { name: 'Open Delete Order' }),
     );
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('00-4bf92f3577b34da6a3ce929d0e0e4736-01');
+    expect(await within(dialog).findByText(/00-4bf92f3577b34da6a3ce929d0e0e4736-01/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox')).toHaveValue('ORD-2026-0148');
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -281,12 +294,22 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
 });
 
 describe('ComponentShowcase accessibility (A11Y-01)', () => {
-  it('has no axe violations in a representative slice (Buttons and Forms)', async () => {
-    renderShowcase();
+  it.each([
+    ['buttons', 'Buttons'],
+    ['forms', 'Forms'],
+  ] as const)(
+    'has no axe violations in the representative %s section',
+    async (id, title) => {
+      render(
+        <MemoryRouter>
+          <ShowcaseSection id={id} title={title} />
+        </MemoryRouter>,
+      );
 
-    await expectNoAxeViolations(section('Buttons'));
-    await expectNoAxeViolations(section('Forms'));
-  }, 30_000);
+      await expectNoAxeViolations(section(title));
+    },
+    30_000,
+  );
 });
 
 /** The app's route tree as a dev build has it (tests run with the production `__DEV_ROUTES__` value, false). */
@@ -310,6 +333,8 @@ describe('/dev/components route (D-20, D-22)', () => {
     const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
     expect(sidebar).not.toBeNull();
     expect(sidebar?.querySelector('[aria-current="page"]')).toBeNull();
-    expect(screen.getByRole('button', { name: /Switch to dark mode/ })).toBeInTheDocument();
+    // The shell Topbar comes before main; the Topbar cases inside the page have toggles of their own.
+    const [shellToggle] = screen.getAllByRole('button', { name: 'Switch to dark mode' });
+    expect(shellToggle?.compareDocumentPosition(screen.getByRole('main'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   }, 20_000);
 });

@@ -61,8 +61,11 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
 ];
 
 export interface SidebarProps {
-  /** The current section (`aria-current="page"`). */
-  active?: AdminSection | undefined;
+  /**
+   * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
+   * marks no item current, for a page that is no section (the dev Component Showcase), so no link claims the page.
+   */
+  active?: AdminSection | null | undefined;
   /** The signed-in user's role: a manager also sees Users. Display only; the server enforces roles (SEC-02). */
   role?: Role | undefined;
   /** Controlled collapsed state; when given, the toggle no longer changes the layout. */
