@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-23-PLAN.md
-last_updated: "2026-10-09T01:04:24.609Z"
+stopped_at: Completed 02-24-PLAN.md
+last_updated: "2026-10-09T01:56:59.733Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: abe097711477b8b308d7e1a224d028c5da31c2d9
+state_head: 56c807ca0721cf87217c11edb4f73743b16b2af1
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 40
+  completed_plans: 41
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T20:05:00-05:00"
+updated: "2026-10-08T20:57:08-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 28 of 40
+Plan: 29 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -98,6 +98,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P21 | 25 min | 3 tasks | 13 files |
 | Phase 02 P22 | 30min | 2 tasks | 18 files |
 | Phase 02 P23 | 30min | 2 tasks | 11 files |
+| Phase 02 P24 | 49min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-23: the OrderTotals panel note keeps its p inside the dl with role=definition (A11Y-01 axe definition-list); the DefinedTotalsNote wrapper pair adds the same attribute to the frozen reference note
 - [Phase 02]: 02-23: KpiCard delta icon named Up/Down (A11Y-01); a zero KPI keeps the normal approved look (no KpiCard zero state in App. D.3; D-02 is-zero is the cascade tiles)
 - [Phase 02]: 02-23: cardClasses and overlineClasses are exported from @/ui/money for OrderCard (02-24); the .s-kpis dashboard context looks stay with the layout plans
+- [Phase 02]: 02-24: OrderCard keeps the approved no-team look (customer as title, empty customer line); the plan's 'Walk-in customer' on the card would change approved text (D-08), so it is not added; owner may rule
+- [Phase 02]: 02-24: OrderCard takes optional server totals (D-09); DataTable frame is a focusable region named by its caption (A11Y-01, scrollable-region-focusable) with the KeyboardScrollTable wrapper pair on the reference side
+- [Phase 02]: 02-24: IncomeExpenseChart drawing is a named role=group; each month is a focusable role=img named '{label}: income ₱…, expenses ₱…' (ChartDatum.label added); focus shows the --tip-x tooltip, blur/Escape hide it
+- [Phase 02]: 02-24: parity harness determinism: rest cases scroll into view before FREEZE/REPAINT and Chromium runs with --disable-partial-raster (fixes right-edge corner AA race; no tolerance)
 
 ### Pending Todos
 
@@ -262,6 +267,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T01:04:24.322Z
-Stopped at: Completed 02-23-PLAN.md
+Last session: 2026-10-09T01:56:59.481Z
+Stopped at: Completed 02-24-PLAN.md
 Resume file: None
