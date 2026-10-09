@@ -7,7 +7,7 @@ import { ORDER_0148, ORDER_0151 } from '@/dev/scenarios/groups/money';
 import type { ScenarioNode } from '@/dev/scenarios/types';
 import { formatPeso, orderTotals, type Order, type Totals } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { DataTable, OrderCard, type DataTableColumn } from '@/ui/data';
+import { DataTable, OrderCard, WALK_IN_CUSTOMER, type DataTableColumn } from '@/ui/data';
 import { skeletonClasses } from '@/ui/feedback/feedback.recipe';
 import { srOnlyClasses } from '@/ui/layout/layout.recipe';
 import {
@@ -163,7 +163,11 @@ describe('OrderCard (App. D.3)', () => {
     expect([...container.querySelectorAll('span')].some((span) => hasClasses(span, orderCountClasses))).toBe(false);
   });
 
-  it('shows the customer as the title of a no-team order and leaves the customer line empty, as the approved design', () => {
+  it('pins the walk-in wording to the spec §8.3 table rows: "Walk-in customer"', () => {
+    expect(WALK_IN_CUSTOMER).toBe('Walk-in customer');
+  });
+
+  it('shows the customer as the title of a no-team order and "Walk-in customer" on the customer line (D-40)', () => {
     render(<OrderCard order={order0153} />);
     const card = screen.getByRole('article');
     const title = within(card).getByRole('heading', { level: 3 });
@@ -171,10 +175,30 @@ describe('OrderCard (App. D.3)', () => {
     expect(title.textContent).toBe('Angelica Santos');
     const customerLine = title.nextElementSibling;
     expect(customerLine?.localName).toBe('p');
-    expect(customerLine?.textContent).toBe('');
+    expect(customerLine?.textContent).toBe('Walk-in customer');
+    expect(customerLine?.childNodes).toHaveLength(1);
+    expect(customerLine?.firstChild?.nodeType).toBe(Node.TEXT_NODE);
     expect(classTokens(customerLine)).toEqual(tokens(orderCustomerClasses));
     expect(within(card).getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
     expect(within(card).getByText('12 pcs')).toBeTruthy();
+  });
+
+  it('reads an empty team as no team: the customer is the title and the line says "Walk-in customer" (D-40)', () => {
+    render(<OrderCard order={{ ...order0148, team: '' }} />);
+    const title = screen.getByRole('heading', { level: 3 });
+
+    expect(title.textContent).toBe('Juan Dela Cruz');
+    expect(title.nextElementSibling?.textContent).toBe('Walk-in customer');
+  });
+
+  it('keeps a team order unchanged: the team is the title and the customer is on the customer line (D-40)', () => {
+    render(<OrderCard order={order0148} />);
+    const title = screen.getByRole('heading', { level: 3 });
+
+    expect(title.textContent).toBe('Brgy. San Roque Ballers');
+    expect(title.nextElementSibling?.textContent).toBe('Juan Dela Cruz');
+    expect(classTokens(title.nextElementSibling)).toEqual(tokens(orderCustomerClasses));
+    expect(screen.queryByText('Walk-in customer')).toBeNull();
   });
 
   it('marks an overdue due date in the danger colour, and only the due date', () => {
@@ -270,6 +294,24 @@ describe('OrderCard (App. D.3)', () => {
 
     rerender(<OrderCard order={order0151} />);
     expect(screen.getByText('Fully Paid')).toBeTruthy();
+  });
+
+  it('re-renders between a walk-in order and a team order, switching the customer line (D-40)', () => {
+    const { container, rerender } = render(<OrderCard order={order0153} />);
+    const first = container.innerHTML;
+    const line = (): string | null | undefined =>
+      screen.getByRole('heading', { level: 3 }).nextElementSibling?.textContent;
+
+    rerender(<OrderCard order={order0153} />);
+    expect(container.innerHTML).toBe(first);
+    expect(line()).toBe('Walk-in customer');
+
+    rerender(<OrderCard order={order0151} />);
+    expect(line()).toBe(order0151.customer);
+    expect(screen.queryByText('Walk-in customer')).toBeNull();
+
+    rerender(<OrderCard order={order0153} />);
+    expect(line()).toBe('Walk-in customer');
   });
 });
 
@@ -441,7 +483,9 @@ describe('DataTable (App. D.3)', () => {
 
 describe('data scenarios (the data parity group, OrderCard and DataTable)', () => {
   it('declares OrderCard on the spec seed orders: ORD-2026-0148, ORD-2026-0151 and the no-team ORD-2026-0153', () => {
-    const cards = dataScenarios.filter((scenario) => scenario.node.component === 'OrderCard');
+    const cards = dataScenarios.filter(
+      (scenario) => scenario.node.component === 'OrderCard' || scenario.node.component === 'WalkInOrderCard',
+    );
 
     expect(cards.map((scenario) => scenario.id)).toEqual(['order-card-0148', 'order-card-0151', 'order-card-walk-in']);
     for (const card of cards) {
@@ -449,6 +493,25 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
     }
     expect(byId.get('order-card-0148')?.states).toEqual(['rest', 'hover']);
     expect(ORDER_0153.team).toBeUndefined();
+  });
+
+  it('wraps the no-team card, and only it, in the WalkInOrderCard pair: one plain block, "Walk-in customer" shown (D-40)', () => {
+    const wrapped = dataScenarios.filter((scenario) => scenario.node.component === 'WalkInOrderCard');
+
+    expect(wrapped.map((scenario) => scenario.id)).toEqual(['order-card-walk-in']);
+    const inner = wrapped[0]?.node.props?.children as ScenarioNode | undefined;
+    expect(inner?.component).toBe('OrderCard');
+    expect(inner?.props?.order).toBe(ORDER_0153);
+
+    const { container } = renderCase('order-card-walk-in');
+    const block = container.firstElementChild;
+    expect(block?.localName).toBe('div');
+    expect(block?.attributes).toHaveLength(0);
+    expect(block?.children).toHaveLength(1);
+    expect(block?.firstElementChild?.localName).toBe('article');
+    expect(within(container).getByRole('heading', { level: 3 }).nextElementSibling?.textContent).toBe(
+      'Walk-in customer',
+    );
   });
 
   it('declares DataTable with the orders (hovering the first row), loading, empty and error', () => {

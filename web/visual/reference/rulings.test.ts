@@ -112,6 +112,15 @@ describe('rulings.css: one commented rule group per owner ruling', () => {
   it('has nothing for D-38: the phone list-card separator stays as the approved CSS renders it', () => {
     expect(rulingsCss).not.toContain('D-38');
   });
+
+  it('has no rule group for D-40 (text only): the header says the WalkInOrderCard pair writes "Walk-in customer"', () => {
+    const header = rulingsCss.slice(0, rulingsCss.indexOf('*/'));
+
+    expect(groups.filter((group) => group.comment?.startsWith('D-40') === true)).toEqual([]);
+    expect(normalize(header)).toContain('D-40');
+    expect(normalize(header)).toContain('WalkInOrderCard');
+    expect(normalize(header)).toContain('"Walk-in customer"');
+  });
 });
 
 describe('rulings.css: the layer can only restyle the frozen reference', () => {
