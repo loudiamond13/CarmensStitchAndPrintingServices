@@ -6,7 +6,8 @@
 //   - `process-steps`: the spec §8.1 "How ordering works" four steps, also at 320 and 820 px (`responsive`), because
 //     the list is 1 column, 2 from 640 px and 4 from 1024 px;
 //   - `testimonial-card`: the spec §8.1 Juan Dela Cruz testimonial with five stars, and `testimonial-card-rating-4`
-//     (four filled stars and one empty, `--line-strong`), so both star looks are compared.
+//     (four filled stars and one empty, `--line-strong`), so both star looks are compared. Both sit in the
+//     RatedTestimonial wrapper pair (D-31 O-2: the reference side gives the frozen rating its role="img").
 import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
 
 function node(component: string, props: ScenarioProps): ScenarioNode {
@@ -52,6 +53,14 @@ export const TESTIMONIAL_JUAN: ScenarioProps = {
   team: 'Captain, Brgy. San Roque Ballers',
 };
 
+/**
+ * A TestimonialCard inside the RatedTestimonial wrapper pair: the frozen App. D.3 rating lacks the O-2 role, so the
+ * reference side adds it after mount (axe would report the bare aria-label); the implementation renders it itself.
+ */
+function rated(props: ScenarioProps): ScenarioNode {
+  return node('RatedTestimonial', { children: node('TestimonialCard', props) });
+}
+
 /** A public (Blush only, D-14) marketing case at 390 and 1440 px; `responsive` adds 320 and 820 px. */
 function marketingCase(
   id: string,
@@ -65,10 +74,10 @@ function marketingCase(
 export const scenarios: readonly Scenario[] = [
   marketingCase('category-card', node('CategoryCard', CATEGORY_BASKETBALL), ['rest', 'hover']),
   marketingCase('process-steps', node('ProcessSteps', { steps: ORDERING_STEPS }), ['rest'], true),
-  marketingCase('testimonial-card', node('TestimonialCard', TESTIMONIAL_JUAN)),
+  marketingCase('testimonial-card', rated(TESTIMONIAL_JUAN)),
   marketingCase(
     'testimonial-card-rating-4',
-    node('TestimonialCard', {
+    rated({
       quote:
         "Sizes ran true for the whole team and the names didn't fade after a full season of washing. Sulit na sulit.",
       name: 'Kristine Mendoza',
