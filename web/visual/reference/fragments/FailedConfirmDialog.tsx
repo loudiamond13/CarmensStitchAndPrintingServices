@@ -14,7 +14,8 @@ export interface FailedConfirmDialogProps {
   [prop: string]: unknown;
 }
 
-export function FailedConfirmDialog({ traceId: _traceId, ...props }: FailedConfirmDialogProps) {
+// The frozen ConfirmDialog reads only its own props, so `traceId` passes through unused.
+export function FailedConfirmDialog(props: FailedConfirmDialogProps) {
   const Frozen = specModules['../../.reference-src/ui/index.tsx']?.ConfirmDialog as
     ComponentType<Record<string, unknown>> | undefined;
   if (Frozen === undefined) {

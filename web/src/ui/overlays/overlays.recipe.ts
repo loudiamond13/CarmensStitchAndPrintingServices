@@ -31,7 +31,7 @@ export const overlayRegionClasses = tw(
 
 /** `.csp-overlay` and `.csp-overlay.is-inline`: how the overlay is placed. */
 const overlayPlacement = {
-  fixed: tw('fixed inset-0 z-(--z-overlay) animate-csp-fade motion-reduce:animate-none'),
+  fixed: tw('fixed inset-0 animate-csp-fade motion-reduce:animate-none'),
   inline: tw(
     'relative inset-auto min-h-full animate-none in-data-[ui=s-overlay]:min-h-0 in-data-[ui=s-overlay]:w-full in-data-[ui=s-overlay]:bg-transparent in-data-[ui=s-overlay]:p-0',
   ),
@@ -46,9 +46,12 @@ const overlayLayout = {
   slideover: tw('flex items-stretch justify-end bg-scrim p-0'),
 } as const;
 
+/** `.csp-overlay` z-index, which `.is-inline` keeps (a relative overlay still stacks at `--z-overlay`). */
+const overlayStack = tw('z-(--z-overlay)');
+
 /** The overlay root (the scrim). */
 export function overlayClasses({ variant, inline }: LayerOptions): string {
-  return clsx(overlayLayout[variant], inline ? overlayPlacement.inline : overlayPlacement.fixed);
+  return clsx(overlayStack, overlayLayout[variant], inline ? overlayPlacement.inline : overlayPlacement.fixed);
 }
 
 /**

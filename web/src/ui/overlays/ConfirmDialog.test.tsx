@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { scenarios as overlayScenarios } from '@/dev/scenarios/groups/overlays';
 import { HttpError } from '@/lib/api';
 import type { CascadeCounts } from '@/lib/csps';
-import type { ProblemDetails } from '@/lib/http/HttpError';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/ui/feedback';
 import { messageClasses } from '@/ui/forms';
@@ -38,6 +37,8 @@ function tokens(classes: string): string[] {
 function classTokens(element: Element | null | undefined): string[] {
   return [...(element?.classList ?? [])].sort();
 }
+
+type ProblemDetails = NonNullable<HttpError['problem']>;
 
 function problem(traceId: string): ProblemDetails {
   return {
@@ -327,7 +328,10 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
   it('clears the error when the next attempt starts', async () => {
     const user = userEvent.setup();
     const second = deferred();
-    const onConfirm = vi.fn().mockReturnValueOnce(Promise.reject(serverError())).mockReturnValueOnce(second.promise);
+    const onConfirm = vi
+      .fn()
+      .mockImplementationOnce(() => Promise.reject(serverError()))
+      .mockImplementationOnce(() => second.promise);
     render(<DeleteOrder onConfirm={onConfirm} />);
     await user.type(confirmField(), ORDER);
     await user.click(deleteButton());
