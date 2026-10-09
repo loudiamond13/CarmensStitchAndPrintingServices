@@ -57,3 +57,14 @@ export const sidebarUserNameClasses = tw('block text-[14px] leading-[18px]');
 
 /** `.csp-sidebar-user span`. */
 export const sidebarUserRoleClasses = tw('text-[12px] leading-4 text-nav-ink');
+
+// RED stub (plan 02-26 Task 2): the SiteHeader looks arrive in GREEN.
+export const siteHeaderClasses = tw('');
+export const siteHeaderInnerClasses = tw('');
+export const siteNavClasses = tw('');
+export const siteLinkClasses = tw('');
+export const siteCtaClasses = tw('');
+export const siteBurgerClasses = tw('');
+export const siteDrawerClasses = tw('');
+export const siteDrawerLinkClasses = tw('');
+export const siteDrawerCtaClasses = tw('');
