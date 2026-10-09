@@ -2,6 +2,8 @@
 // `.csp-overline` looks that other data-display components (OrderCard, plan 02-24) share.
 export { cardClasses, overlineClasses } from './money.recipe';
 export type { MoneySize, MoneyTone, TotalsVariant } from './money.recipe';
+export { KpiCard } from './KpiCard';
+export type { KpiCardProps } from './KpiCard';
 export { Money } from './Money';
 export type { MoneyProps } from './Money';
 export { OrderTotals } from './OrderTotals';

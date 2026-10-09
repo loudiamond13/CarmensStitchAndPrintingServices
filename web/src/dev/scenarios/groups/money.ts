@@ -3,12 +3,16 @@
 //   - Money in the default look ("₱12,450.00"), negative in the danger tone ("−₱732.50", U+2212), and the other sizes
 //     and tones (lg success, sm muted, md warning);
 //   - OrderTotals on the spec §12.2 seed orders: ORD-2026-0148 (balance due ₱9,327.50, the Order Detail panel and the
-//     OrderCard block) and ORD-2026-0151 (fully paid: 23,000 − 500 − 22,500 = 0), at every width.
+//     OrderCard block) and ORD-2026-0151 (fully paid: 23,000 − 500 − 22,500 = 0), at every width;
+//   - KpiCard with the spec §8.3 / §12.4 dashboard values at 390 and 1440: Collected · Oct (₱126,450.00, +12%),
+//     Company expenses · Oct (₱38,226.95, down 47% against September's ₱71,904.20, spec §12.3), Active orders (a
+//     count, not money), a zero receivables card (₱0.00, the normal look: App. D.3 has no zero state) and the loading
+//     card (a 70% × 36 skeleton, also in the reduced-motion pass where the shimmer stops, D-31 O-6).
 // The figures are never typed here: both sides compute them from the seed order with orderTotals (the reference with
 // App. D.1, the implementation with the D-09 centavo math), and spec §12.2 lists the expected results, which
 // money.test.tsx asserts. Each case is compared in both themes at rest. The panels sit in the DefinedTotalsNote wrapper
 // pair (see totalsPanel); the card variant has no note and needs none.
-import type { Scenario, ScenarioNode, ScenarioProps } from '../types';
+import type { Scenario, ScenarioNode, ScenarioPass, ScenarioProps } from '../types';
 
 function node(component: string, props: ScenarioProps): ScenarioNode {
   return { kind: 'node', component, props };
@@ -16,12 +20,22 @@ function node(component: string, props: ScenarioProps): ScenarioNode {
 
 interface CaseOptions {
   readonly responsive?: boolean;
+  readonly passes?: readonly ScenarioPass[];
 }
 
 /** A money case compared in both themes at rest. */
 function moneyCase(id: string, node: ScenarioNode, options: CaseOptions = {}): Scenario {
-  const { responsive = false } = options;
-  return { id, group: 'money', node, themes: ['light', 'dark'], responsive, states: ['rest'], parity: true };
+  const { responsive = false, passes } = options;
+  return {
+    id,
+    group: 'money',
+    node,
+    themes: ['light', 'dark'],
+    responsive,
+    states: ['rest'],
+    parity: true,
+    ...(passes === undefined ? {} : { passes }),
+  };
 }
 
 /**
@@ -93,4 +107,55 @@ export const scenarios: readonly Scenario[] = [
   moneyCase('order-totals-card-0148', node('OrderTotals', { order: ORDER_0148, variant: 'card' }), {
     responsive: true,
   }),
+  moneyCase(
+    'kpi-income',
+    node('KpiCard', {
+      label: 'Collected · Oct',
+      value: 126450,
+      icon: 'trending-up',
+      delta: 12,
+      deltaLabel: 'vs Sep, same day',
+    }),
+  ),
+  moneyCase(
+    'kpi-expenses-delta-down',
+    node('KpiCard', {
+      label: 'Company expenses · Oct',
+      value: 38226.95,
+      icon: 'receipt',
+      delta: -47,
+      deltaLabel: 'vs Sep, same day',
+    }),
+  ),
+  moneyCase(
+    'kpi-active-orders',
+    node('KpiCard', {
+      label: 'Active orders',
+      value: 18,
+      money: false,
+      icon: 'clipboard-list',
+      hint: '4 due this week',
+    }),
+  ),
+  moneyCase(
+    'kpi-zero',
+    node('KpiCard', {
+      label: 'Total receivables',
+      value: 0,
+      icon: 'wallet',
+      hint: 'Unpaid balances, all active orders',
+    }),
+  ),
+  moneyCase(
+    'kpi-loading',
+    node('KpiCard', {
+      label: 'Active orders',
+      value: 18,
+      money: false,
+      icon: 'clipboard-list',
+      hint: '4 due this week',
+      loading: true,
+    }),
+    { passes: ['motion'] },
+  ),
 ];

@@ -6,14 +6,23 @@ import { scenarios as moneyScenarios } from '@/dev/scenarios/groups/money';
 import type { ScenarioNode } from '@/dev/scenarios/types';
 import type { Order, Totals } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { Money, OrderTotals } from '@/ui/money';
+import { skeletonClasses } from '@/ui/feedback/feedback.recipe';
+import { KpiCard, Money, OrderTotals } from '@/ui/money';
 import {
   balanceClasses,
   balanceOverlineClasses,
   balancePaidClasses,
   balanceToneClasses,
   balanceValueClasses,
+  deltaClasses,
+  deltaToneClasses,
+  kpiClasses,
+  kpiFootClasses,
+  kpiHeadClasses,
+  kpiIconClasses,
+  kpiValueClasses,
   moneyClasses,
+  overlineClasses,
   moneySizeClasses,
   moneyToneClasses,
   totalsClasses,
@@ -329,6 +338,168 @@ describe('OrderTotals (App. D.3)', () => {
   });
 });
 
+describe('KpiCard (App. D.3)', () => {
+  function renderCollected() {
+    return render(
+      <KpiCard label="Collected · Oct" value={126450} icon="trending-up" delta={12} deltaLabel="vs Sep, same day" />,
+    );
+  }
+
+  it('renders the card: head (overline label, icon tile), the peso value, then the foot, in the App. D.3 looks', () => {
+    const { container } = renderCollected();
+    const card = container.firstElementChild;
+    const [head, value, foot] = [...(card?.children ?? [])];
+    const [label, tile] = [...(head?.children ?? [])];
+
+    expect(card?.localName).toBe('div');
+    expect(classTokens(card)).toEqual(tokens(kpiClasses));
+    expect(card?.hasAttribute('aria-busy')).toBe(false);
+    expect(card?.children).toHaveLength(3);
+    expect(classTokens(head)).toEqual(tokens(kpiHeadClasses));
+    expect(label?.localName).toBe('span');
+    expect(label?.textContent).toBe('Collected · Oct');
+    expect(classTokens(label)).toEqual(tokens(overlineClasses));
+    expect(tile?.localName).toBe('span');
+    expect(classTokens(tile)).toEqual(tokens(kpiIconClasses));
+    expect(value?.localName).toBe('div');
+    expect(value?.textContent).toBe('₱126,450.00');
+    expect(classTokens(value)).toEqual(tokens(kpiValueClasses));
+    expect(classTokens(foot)).toEqual(tokens(kpiFootClasses));
+    expect(foot?.lastElementChild?.textContent).toBe('vs Sep, same day');
+  });
+
+  it('draws the 18px icon in the tile, hidden from assistive technology', () => {
+    const { container } = renderCollected();
+    const icon = container.querySelector('svg');
+
+    expect(icon?.getAttribute('width')).toBe('18');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.getAttribute('class')).toContain('lucide-trending-up');
+  });
+
+  it('shows a rise as a green trending-up chip with the percentage, its direction named "Up"', () => {
+    const { container } = renderCollected();
+    const chip = container.querySelector('svg[role="img"]')?.parentElement;
+
+    expect(classTokens(chip)).toEqual(tokens(`${deltaClasses} ${deltaToneClasses.up}`));
+    expect(chip?.textContent).toBe('12%');
+    expect(screen.getByRole('img', { name: 'Up' }).getAttribute('class')).toContain('lucide-trending-up');
+    expect(screen.getByRole('img', { name: 'Up' }).getAttribute('width')).toBe('14');
+  });
+
+  it('shows a fall as a red trending-down chip with the size of the fall, its direction named "Down"', () => {
+    const { container } = render(
+      <KpiCard
+        label="Company expenses · Oct"
+        value={38226.95}
+        icon="receipt"
+        delta={-47}
+        deltaLabel="vs Sep, same day"
+      />,
+    );
+    const chip = screen.getByRole('img', { name: 'Down' }).parentElement;
+
+    expect(classTokens(chip)).toEqual(tokens(`${deltaClasses} ${deltaToneClasses.down}`));
+    expect(chip?.textContent).toBe('47%');
+    expect(screen.getByRole('img', { name: 'Down' }).getAttribute('class')).toContain('lucide-trending-down');
+    expect(container.textContent).toContain('₱38,226.95');
+    expect(container.textContent).not.toContain(MINUS);
+  });
+
+  it('counts no change as a rise, as App. D.3 does (delta 0 is up 0%)', () => {
+    render(<KpiCard label="Collected · Oct" value={1} delta={0} />);
+
+    expect(screen.getByRole('img', { name: 'Up' }).parentElement?.textContent).toBe('0%');
+  });
+
+  it('shows a count as it is when money is false, and a string value unformatted', () => {
+    const { container, rerender } = render(
+      <KpiCard label="Active orders" value={18} money={false} icon="clipboard-list" hint="4 due this week" />,
+    );
+    const [, value, foot] = [...(container.firstElementChild?.children ?? [])];
+
+    expect(value?.textContent).toBe('18');
+    expect(foot?.textContent).toBe('4 due this week');
+    expect(foot?.children).toHaveLength(1);
+
+    rerender(<KpiCard label="Top category" value="Rent" />);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('Rent');
+  });
+
+  it('uses the hint when there is no delta label, and leaves the foot out when there is neither delta nor hint', () => {
+    const { container, rerender } = render(<KpiCard label="Collected · Oct" value={1} delta={5} hint="This month" />);
+
+    expect(container.firstElementChild?.children[2]?.lastElementChild?.textContent).toBe('This month');
+
+    rerender(<KpiCard label="Collected · Oct" value={1} delta={5} deltaLabel="" hint="This month" />);
+    expect(container.firstElementChild?.children[2]?.lastElementChild?.textContent).toBe('This month');
+
+    rerender(<KpiCard label="Collected · Oct" value={1} hint="" />);
+    expect(container.firstElementChild?.children).toHaveLength(2);
+  });
+
+  it('leaves the icon tile out when no icon is given', () => {
+    const { container } = render(<KpiCard label="Receivables" value={84260} />);
+
+    expect(container.firstElementChild?.firstElementChild?.children).toHaveLength(1);
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('while loading: busy, a 70% by 36px skeleton instead of the value, and no foot', () => {
+    const { container } = render(
+      <KpiCard label="Active orders" value={18} money={false} icon="clipboard-list" hint="4 due this week" loading />,
+    );
+    const card = container.firstElementChild;
+    const skeleton = card?.children[1];
+
+    expect(card?.getAttribute('aria-busy')).toBe('true');
+    expect(card?.children).toHaveLength(2);
+    expect(skeleton?.localName).toBe('span');
+    expect(skeleton?.getAttribute('aria-hidden')).toBe('true');
+    expect(classTokens(skeleton)).toEqual(tokens(skeletonClasses));
+    expect((skeleton as HTMLElement | undefined)?.style.getPropertyValue('--sk-w')).toBe('70%');
+    expect((skeleton as HTMLElement | undefined)?.style.getPropertyValue('--sk-h')).toBe('36px');
+    expect(card?.textContent).toBe('Active orders');
+  });
+
+  it('shows a zero figure in the normal value look, with no opacity anywhere (D-02)', () => {
+    const { container } = render(
+      <KpiCard label="Total receivables" value={0} icon="wallet" hint="Unpaid balances, all active orders" />,
+    );
+    const value = container.firstElementChild?.children[1];
+    const allClasses = [...container.querySelectorAll('*')].flatMap((element) => [...element.classList]);
+
+    expect(value?.textContent).toBe('₱0.00');
+    expect(classTokens(value)).toEqual(tokens(kpiValueClasses));
+    expect(allClasses.filter((token) => token.includes('opacity'))).toEqual([]);
+    expect(allClasses.length).toBeGreaterThan(0);
+  });
+
+  it('has no axe violations, with a delta, with a hint and while loading', async () => {
+    for (const element of [
+      <KpiCard key="a" label="Collected · Oct" value={126450} icon="trending-up" delta={12} deltaLabel="vs Sep" />,
+      <KpiCard key="b" label="Company expenses · Oct" value={38226.95} icon="receipt" delta={-47} />,
+      <KpiCard key="c" label="Active orders" value={18} money={false} hint="4 due this week" loading />,
+    ]) {
+      const { container, unmount } = render(element);
+      await expectNoAxeViolations(container);
+      unmount();
+    }
+  });
+
+  it('re-renders from the React Compiler memo cache with the same output, and updates on new props', () => {
+    const { container, rerender } = render(<KpiCard label="Collected · Oct" value={126450} delta={12} />);
+    const first = container.innerHTML;
+
+    rerender(<KpiCard label="Collected · Oct" value={126450} delta={12} />);
+    expect(container.innerHTML).toBe(first);
+
+    rerender(<KpiCard label="Collected · Oct" value={126450} delta={-3} loading />);
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByRole('img', { name: 'Down' })).toBeNull();
+  });
+});
+
 const ZERO_TOTALS: Totals = {
   total: 0,
   discount: 0,
@@ -379,6 +550,31 @@ describe('money scenarios (the money parity group)', () => {
     expect(wrapper?.localName).toBe('div');
     expect(wrapper?.attributes).toHaveLength(0);
     expect(wrapper?.children).toHaveLength(1);
+  });
+
+  it('declares KpiCard with the spec dashboard values: rise, fall, a count, zero and loading', () => {
+    expect(byId.get('kpi-income')?.node).toEqual({
+      kind: 'node',
+      component: 'KpiCard',
+      props: {
+        label: 'Collected · Oct',
+        value: 126450,
+        icon: 'trending-up',
+        delta: 12,
+        deltaLabel: 'vs Sep, same day',
+      },
+    });
+    expect(byId.get('kpi-expenses-delta-down')?.node.props).toMatchObject({ value: 38226.95, delta: -47 });
+    expect(byId.get('kpi-active-orders')?.node.props).toMatchObject({ value: 18, money: false });
+    expect(byId.get('kpi-zero')?.node.props).toMatchObject({ label: 'Total receivables', value: 0 });
+    expect(byId.get('kpi-loading')?.node.props).toMatchObject({ loading: true });
+  });
+
+  it('runs the loading card, and only it, in the reduced-motion pass (the shimmer stops, D-31 O-6)', () => {
+    const withPasses = moneyScenarios.filter((scenario) => scenario.passes !== undefined);
+
+    expect(withPasses.map((scenario) => scenario.id)).toEqual(['kpi-loading']);
+    expect(byId.get('kpi-loading')?.passes).toEqual(['motion']);
   });
 
   it('compares every case in both themes at rest; the totals at every width, Money at 390 and 1440', () => {
