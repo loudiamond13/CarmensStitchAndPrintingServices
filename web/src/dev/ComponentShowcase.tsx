@@ -143,8 +143,8 @@ export function ShowcaseSection({ id, title }: { id: ShowcaseSectionId; title: s
         {(BY_SECTION.get(id) ?? []).map((scenario) => (
           <ScenarioCase key={scenario.id} scenario={scenario} />
         ))}
-        {(EXTRA_CASES[id] ?? []).map(({ id: caseId, Component }) => (
-          <CaseFrame key={caseId} id={caseId}>
+        {(EXTRA_CASES[id] ?? []).map(({ id: caseId, Component, demo }) => (
+          <CaseFrame key={caseId} id={caseId} demo={demo === true}>
             <Component />
           </CaseFrame>
         ))}

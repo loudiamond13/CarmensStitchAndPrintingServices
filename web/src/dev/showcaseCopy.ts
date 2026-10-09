@@ -10,6 +10,8 @@ export const SHOWCASE_COPY = {
   openAddPayment: 'Open Add Payment',
   openAddUser: 'Open Add User',
   openDeleteOrder: 'Open Delete Order',
+  /** SPEC-GAP trigger for the child-row delete (CSPS-UI-SPEC "Deleting a child row"), the ConfirmDialog with no field. */
+  openDeletePayment: 'Open Delete Payment',
   openDrawer: 'Open navigation drawer',
   /** Toast trigger label → the toast scenario whose tone, title and message it shows. */
   toastTriggers: [

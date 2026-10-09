@@ -53,6 +53,13 @@ const DELETE_ORDER = {
   confirmLabel: 'Delete Order',
 } as const;
 
+/** The child-row delete (spec "Deleting a child row": title, message and confirm label for a ₱2,000.00 payment). */
+const DELETE_PAYMENT = {
+  title: 'Delete payment of ₱2,000.00?',
+  message: `This removes it from ${ORDER} and updates the totals right away.`,
+  confirmLabel: 'Delete Payment',
+} as const;
+
 /** The reference the failed-delete demo's error carries (as in the confirm-delete-order-error scenario). */
 const FAILED_TRACE_ID = '00-4bf92f3577b34da6a3ce929d0e0e4736-01';
 
@@ -161,6 +168,27 @@ function DeleteOrderDemo({ mode }: { mode: DeleteOrderMode }) {
         {SHOWCASE_COPY.openDeleteOrder}
       </Button>
       {dialog}
+    </>
+  );
+}
+
+/**
+ * The child-row delete (CSPS-UI-SPEC "Deleting a child row", the payment example): a ConfirmDialog with no
+ * type-to-confirm field, so Cancel takes the focus when it opens (A11Y-02). Delete Payment only closes it; nothing is
+ * deleted. Plan 02-35 added it for the keyboard journey, because every other confirm demo has the field.
+ */
+function DeletePaymentDemo() {
+  const [open, show, close] = useOpen();
+  return (
+    <>
+      <Button variant="danger" icon="trash-2" onClick={show}>
+        {SHOWCASE_COPY.openDeletePayment}
+      </Button>
+      {open && (
+        <Overlay>
+          <ConfirmDialog {...DELETE_PAYMENT} inline onConfirm={close} onCancel={close} />
+        </Overlay>
+      )}
     </>
   );
 }
@@ -282,12 +310,17 @@ function LoadedLazyImage() {
 export interface ExtraCase {
   readonly id: string;
   readonly Component: ComponentType;
+  /** A live demo that opens a fixed layer: its frame is no page root, so the layer covers the page. */
+  readonly demo?: boolean;
 }
 
 /** Cases no scenario has, shown at the end of their section. */
 export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly ExtraCase[]>>> = {
   brand: [{ id: 'showcase-icon-names', Component: IconNames }],
   data: [{ id: 'showcase-dates', Component: Dates }],
-  feedback: [{ id: 'showcase-toast-triggers', Component: ToastTriggers }],
+  feedback: [
+    { id: 'showcase-toast-triggers', Component: ToastTriggers },
+    { id: 'showcase-confirm-delete-payment', Component: DeletePaymentDemo, demo: true },
+  ],
   media: [{ id: 'showcase-lazy-image-loaded', Component: LoadedLazyImage }],
 };
