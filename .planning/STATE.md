@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
 stopped_at: Completed 02-24-PLAN.md
-last_updated: "2026-10-09T02:11:20.495Z"
+last_updated: "2026-10-09T02:25:01.576Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: ca9c377ef4f889f348ce4c962042502f5c3685b9
+state_head: 7da21eb9937e0f86faed5d5fed04efe9ca7bf23a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -232,6 +232,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-24: IncomeExpenseChart drawing is a named role=group; each month is a focusable role=img named '{label}: income ₱…, expenses ₱…' (ChartDatum.label added); focus shows the --tip-x tooltip, blur/Escape hide it
 - [Phase 02]: 02-24: parity harness determinism: rest cases scroll into view before FREEZE/REPAINT and Chromium runs with --disable-partial-raster (fixes right-edge corner AA race; no tolerance)
 - [Phase 02]: D-39 (owner, 2026-10-08): a KpiCard whose figure reads as zero (money rounding to 0 centavos, or a count of 0) dims its value by colour only (text-ink-subtle, no opacity), as D-02 .is-zero tiles; reference side via rulings.css .csp-kpi-value[data-zero] plus the DimmedZeroKpi wrapper pair
+- [Phase 02]: D-40 (owner, 2026-10-08): a no-team OrderCard shows the customer as title and 'Walk-in customer' (WALK_IN_CUSTOMER from @/ui/data, spec 8.3 table wording) on the customer line; 02-30's table customer cell must import the same constant. Reference side: WalkInOrderCard wrapper pair writes the text into the frozen .csp-order-cust line (no rulings.css rule, text only)
 
 ### Pending Todos
 
