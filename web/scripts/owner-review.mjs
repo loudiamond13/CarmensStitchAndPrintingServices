@@ -341,7 +341,7 @@ const REPORT_CSS = `
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] } }} input
  * @returns {string}
  */
 export function renderIndex({ generatedAt, shots, problems }) {
@@ -401,6 +401,40 @@ ${sections.join('\n')}
 </body>
 </html>
 `;
+}
+
+/**
+ * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
+ * @typedef {{ readonly engine: string, readonly group: string, readonly passed: number, readonly failed: number, readonly flaky: number, readonly skipped: number }} ParityRow
+ * @typedef {{ readonly available: false } | { readonly available: true, readonly startTime: string, readonly durationMinutes: number, readonly filters: string, readonly totals: { readonly passed: number, readonly failed: number, readonly flaky: number, readonly skipped: number }, readonly rows: readonly ParityRow[], readonly failures: readonly string[] }} ParitySummary
+ * @typedef {{ readonly difference: string, readonly decision: string, readonly treatment: string }} DifferenceRow
+ */
+
+/** RED stub. */
+export const SPEC_GAP_CASES = Object.freeze(/** @type {SpecGapCase[]} */ ([]));
+
+/** @returns {SpecGapShot[]} RED stub. */
+export function planSpecGapShots() {
+  return [];
+}
+
+/**
+ * RED stub.
+ * @param {unknown} report
+ * @returns {ParitySummary}
+ */
+export function summarizeParity(report) {
+  return report === undefined ? { available: false } : { available: false };
+}
+
+/**
+ * RED stub.
+ * @param {string} markdown
+ * @returns {DifferenceRow[]}
+ */
+export function parseDifferencesTable(markdown) {
+  return markdown === '' ? [] : [];
 }
 
 /**

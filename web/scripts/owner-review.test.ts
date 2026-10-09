@@ -4,6 +4,7 @@
 // the preflight, the guarded CSPS_E2E seed and a rebuild of the e2e bundle whenever a source is newer than it (L-29),
 // starts the real host for its own run only, captures every page at 390, 820 and 1440 px (the admin pages in both
 // themes) and writes one index.html. It writes nowhere but artifacts/owner-review/.
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -14,11 +15,15 @@ import {
   executeReview,
   OUTPUT_DIR,
   OUTPUT_NOT_IGNORED_MESSAGE,
+  parseDifferencesTable,
   planReview,
   planShots,
+  planSpecGapShots,
   renderIndex,
   REVIEW_TARGETS,
   REVIEW_WIDTHS,
+  SPEC_GAP_CASES,
+  summarizeParity,
 } from './owner-review.mjs';
 
 const webDirectory = fileURLToPath(new URL('..', import.meta.url));
@@ -211,8 +216,20 @@ describe('planReview: the run', () => {
     const capture = steps.find((step) => step.name === 'capture');
     const report = steps.find((step) => step.name === 'report');
 
-    expect(capture).toEqual({ kind: 'capture', name: 'capture', origin: 'https://localhost:5199', shots: planShots() });
-    expect(report).toEqual({ kind: 'report', name: 'report', file: path.join(OUTPUT_DIR, 'index.html') });
+    expect(capture).toEqual({
+      kind: 'capture',
+      name: 'capture',
+      origin: 'https://localhost:5199',
+      shots: planShots(),
+      specGap: planSpecGapShots(),
+    });
+    expect(report).toEqual({
+      kind: 'report',
+      name: 'report',
+      file: path.join(OUTPUT_DIR, 'index.html'),
+      parityResults: path.join(webDirectory, 'test-results', 'parity-results.json'),
+      differencesGuide: path.join(repoRoot, 'docs', 'web', 'parity.md'),
+    });
     expect(OUTPUT_DIR).toBe(path.join(repoRoot, 'artifacts', 'owner-review'));
   });
 });
@@ -367,5 +384,242 @@ describe('renderIndex', () => {
     expect(html).toContain('&lt;b&gt;&amp;');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toMatch(/<script/i);
+  });
+});
+
+describe('SPEC_GAP_CASES (primitives the approved design never drew)', () => {
+  const ids = SPEC_GAP_CASES.map((entry) => entry.id);
+
+  it('covers every SPEC-GAP primitive the owner checks: Pagination, OtpInput, MoneyInput, Checkbox, SkipLink, list states, LazyImage, ErrorState, skeletons, the drawer and the user menu', () => {
+    for (const prefix of [
+      'pagination-',
+      'otp-',
+      'money-input-',
+      'checkbox-',
+      'skip-link-',
+      'rt-loading',
+      'rt-error',
+      'rt-empty',
+      'rt-no-matches',
+      'lazy-image-',
+      'error-state-',
+      'skeleton-',
+      'drawer-open',
+      'user-menu-open',
+    ]) {
+      expect(
+        ids.some((id) => id.startsWith(prefix)),
+        prefix,
+      ).toBe(true);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words', () => {
+    for (const entry of SPEC_GAP_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.label, entry.id).not.toMatch(/^[a-z0-9-]+$/);
+    }
+  });
+
+  it('plans one picture per case in Blush and in Espresso, under spec-gap/', () => {
+    const shots = planSpecGapShots();
+
+    expect(shots).toHaveLength(SPEC_GAP_CASES.length * 2);
+    for (const shot of shots) {
+      expect(shot.file).toBe(`spec-gap/${shot.id}-${shot.theme}.png`);
+    }
+  });
+
+  it('shows the phone drawer at phone width and every other case at laptop width', () => {
+    for (const shot of planSpecGapShots()) {
+      expect(shot.width, shot.id).toBe(shot.id === 'drawer-open' ? 390 : 1440);
+    }
+  });
+});
+
+/** A Playwright JSON report shaped like the real one (suites nest; one test per project). */
+function jsonReport(specs: readonly { title: string; tests: readonly { projectName: string; status: string }[] }[]) {
+  return {
+    config: {
+      argv: ['node', 'cli.js', 'test', '--config', 'visual/playwright.visual.config.ts', '--grep', '@actions'],
+    },
+    stats: { startTime: '2026-10-09T12:41:03.225Z', duration: 1_800_000, expected: 0, unexpected: 0 },
+    suites: [
+      {
+        title: 'parity.spec.ts',
+        specs: [],
+        suites: [{ title: '', specs: specs.map((spec) => ({ title: spec.title, tests: spec.tests })) }],
+      },
+    ],
+  };
+}
+
+describe('summarizeParity', () => {
+  it('says plainly that no results exist when the parity run has never written its report', () => {
+    expect(summarizeParity(null)).toEqual({ available: false });
+  });
+
+  it('counts passed, failed, flaky and skipped rows per engine and per group', () => {
+    const summary = summarizeParity(
+      jsonReport([
+        {
+          title: '@parity @actions light 390px rest',
+          tests: [
+            { projectName: 'chromium', status: 'expected' },
+            { projectName: 'firefox', status: 'expected' },
+            { projectName: 'webkit', status: 'unexpected' },
+          ],
+        },
+        {
+          title: '@parity @actions light 820px rest @chromium-only',
+          tests: [
+            { projectName: 'chromium', status: 'flaky' },
+            { projectName: 'firefox', status: 'skipped' },
+          ],
+        },
+        {
+          title: '@parity @selftest a 1px padding change on the implementation is reported',
+          tests: [{ projectName: 'chromium', status: 'expected' }],
+        },
+      ]),
+    );
+
+    expect(summary).toEqual({
+      available: true,
+      startTime: '2026-10-09T12:41:03.225Z',
+      durationMinutes: 30,
+      filters: '--grep @actions',
+      totals: { passed: 3, failed: 1, flaky: 1, skipped: 1 },
+      rows: [
+        { engine: 'chromium', group: 'actions', passed: 1, failed: 0, flaky: 1, skipped: 0 },
+        { engine: 'chromium', group: 'selftest', passed: 1, failed: 0, flaky: 0, skipped: 0 },
+        { engine: 'firefox', group: 'actions', passed: 1, failed: 0, flaky: 0, skipped: 1 },
+        { engine: 'webkit', group: 'actions', passed: 0, failed: 1, flaky: 0, skipped: 0 },
+      ],
+      failures: ['webkit: @parity @actions light 390px rest'],
+    });
+  });
+
+  it('reports a run with no filter as the whole matrix', () => {
+    const report = jsonReport([]);
+    report.config.argv = ['node', 'cli.js', 'test', '--config', 'visual/playwright.visual.config.ts'];
+
+    const summary = summarizeParity(report);
+
+    expect(summary.available && summary.filters).toBe('');
+  });
+});
+
+describe('parseDifferencesTable (docs/web/parity.md section 6)', () => {
+  const sample = [
+    '## 5. Something else',
+    '| a | b | c |',
+    '## 6. The intentional differences (the complete list)',
+    '',
+    'Everything not in this table must be equal.',
+    '',
+    '| Difference | Decision | How the proof treats it |',
+    '|---|---|---|',
+    '| Inactive rows sit on `--surface-2` | D-02 | Rulings layer, so equal |',
+    '| Sidebar Logout is a `<button>` | D-27 | Structural exception |',
+    '',
+    '## 7. The matrix',
+    '| x | y | z |',
+  ].join('\n');
+
+  it('reads only the section 6 table rows, without the header and separator', () => {
+    expect(parseDifferencesTable(sample)).toEqual([
+      { difference: 'Inactive rows sit on `--surface-2`', decision: 'D-02', treatment: 'Rulings layer, so equal' },
+      { difference: 'Sidebar Logout is a `<button>`', decision: 'D-27', treatment: 'Structural exception' },
+    ]);
+  });
+
+  it('throws when the section is gone, so the report never silently drops the list', () => {
+    expect(() => parseDifferencesTable('## 1. Nothing here')).toThrow(/intentional differences/);
+  });
+
+  it('reads the real guide: every row has a decision ID, including D-27, D-32, D-39 and D-40', () => {
+    const rows = parseDifferencesTable(readFileSync(path.join(repoRoot, 'docs', 'web', 'parity.md'), 'utf8'));
+    const decisions = rows.map((row) => row.decision).join(' ');
+
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+    for (const row of rows) {
+      expect(row.decision, row.difference).toMatch(/(?:D-(?:BL-)?\d+|O-\d+|[A-Z]+-\d+)/);
+    }
+    for (const id of ['D-27', 'D-32', 'D-39', 'D-40']) {
+      expect(decisions).toContain(id);
+    }
+  });
+});
+
+describe('renderIndex: SPEC-GAP section and parity summary (D-23)', () => {
+  const differences = [
+    { difference: 'Sidebar Logout is a `<button>`', decision: 'D-27', treatment: 'Structural exception' },
+    { difference: 'A zero KpiCard is dimmed', decision: 'D-39', treatment: 'Rulings layer, so equal' },
+  ];
+
+  it('shows every SPEC-GAP picture with its plain label and both themes', () => {
+    const html = renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      specGap: planSpecGapShots(),
+      parity: { summary: { available: false }, differences },
+    });
+
+    expect(html).toContain('Parts the approved design never drew');
+    for (const shot of planSpecGapShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of SPEC_GAP_CASES) {
+      expect(html).toContain(entry.label);
+    }
+  });
+
+  it('lists every intentional difference with its decision ID', () => {
+    const html = renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      parity: { summary: { available: false }, differences },
+    });
+
+    expect(html).toContain('<td>D-27</td>');
+    expect(html).toContain('<td>D-39</td>');
+    expect(html).toContain('Sidebar Logout is a <code>&lt;button&gt;</code>');
+  });
+
+  it('says plainly when there are no parity results yet', () => {
+    const html = renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      parity: { summary: { available: false }, differences },
+    });
+
+    expect(html).toContain('No look-check results were found');
+  });
+
+  it('shows the counts per engine and group, the run time and any failure', () => {
+    const summary = summarizeParity(
+      jsonReport([
+        {
+          title: '@parity @actions light 390px rest',
+          tests: [
+            { projectName: 'chromium', status: 'expected' },
+            { projectName: 'webkit', status: 'unexpected' },
+          ],
+        },
+      ]),
+    );
+
+    const html = renderIndex({ generatedAt: 'now', shots: [], problems: [], parity: { summary, differences } });
+
+    expect(html).toContain('Chrome engine (Chromium)');
+    expect(html).toContain('Safari engine (WebKit)');
+    expect(html).toContain('<td>actions</td>');
+    expect(html).toContain('webkit: @parity @actions light 390px rest');
+    expect(html).toContain('--grep @actions');
   });
 });
