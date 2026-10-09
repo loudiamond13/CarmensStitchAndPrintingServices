@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-34-PLAN.md
-last_updated: "2026-10-09T09:09:51.844Z"
+stopped_at: Completed 02-35-PLAN.md
+last_updated: "2026-10-09T12:25:48.372Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 8388c9908c382c05ae876c12d5f690e492971711
+state_head: ebb1ccd6dad77edd785dcc0c710f00f0aeef611c
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 51
+  completed_plans: 52
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-09T04:10:00-05:00"
+updated: "2026-10-09T07:35:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 39 of 40
+Plan: 40 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -109,6 +109,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P32 | 32 min | 2 tasks | 19 files |
 | Phase 02 P33 | 19 min | 2 tasks | 9 files |
 | Phase 02 P34 | 39 min | 2 tasks | 15 files |
+| Phase 02 P35 | 3h 11m | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -270,6 +271,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-33: dev-route public JS is 149.34 KB of 150 KB (parity entry sharing; 137.96 KB without it); 135 KB Phase 4 barrel-split note fires; never raise the limit - split barrels or change the budget-mode topology by decision (deferred-items.md)
 - [Phase 02]: 02-34: @/ui barrel re-exports all 15 area barrels + @/lib/csps; showcase at /dev/components (UI-SPEC sections, then Navigation and Marketing; layouts excluded); viewport scenarios become trigger demos; case frames are named focusable scroll regions; Sidebar active={null} = no current item (used on non-section admin paths)
 - [Phase 02]: 02-34: dev-route public JS 149.47 KB of 150 KB (0.53 KB headroom) - next dev-route addition likely needs the approved remedy (build budget/e2e without the parity entry, or split barrels); never raise the limit
+- [Phase 02]: 02-35: Lighthouse LCP brought under 2000 ms with no look change (modulepreload for the lazy public route chunks + Brotli/gzip at CompressionLevel.Optimal): 2407 -> ~1962 ms; only ~40 ms headroom, follow-up options in deferred-items
+- [Phase 02]: 02-35: the admin Topbar minimum page width is per engine (398 Chromium, 406 WebKit incl. iPhone 15, 418 Firefox); @responsive asserts it as today until the owner rules
+- [Phase 02]: 02-35: parity harness waits for document.fonts to settle (ready + 2 frames, up to 10 rounds) before reading a case; full matrix 452/452 in three engines
 
 ### Pending Todos
 
@@ -306,6 +310,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T09:09:51.622Z
-Stopped at: Completed 02-34-PLAN.md
+Last session: 2026-10-09T12:25:48.158Z
+Stopped at: Completed 02-35-PLAN.md
 Resume file: None

@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T04:10:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T07:35:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -49,7 +49,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **QUAL-01**: .NET builds have `TreatWarningsAsErrors`, nullable, latest-recommended analyzers, code style in build, NuGet audit as errors, central package management with no floating versions, and `dotnet format --verify-no-changes` (PRD §17.1)
 - [x] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [x] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `lib/http` 100%, web overall ≥ 90% ⚑ S-4
-- [ ] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
+- [x] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
 - [ ] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
 - [x] **QUAL-06**: Dependency hygiene: every package has a recorded purpose, license (MIT/Apache-2.0/BSD/ISC, or an owner-approved exception) and legitimacy check. A `THIRD-PARTY-NOTICES` file is generated in CI. A release cool-down policy is recorded ⚑ S-5, S-10
 
@@ -237,8 +237,8 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Accessibility (A11Y)
 
-- [ ] **A11Y-01**: Every page passes axe with zero violations for `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa` (vitest-axe per component, `@axe-core/playwright` per page)
-- [ ] **A11Y-02**: All functionality is keyboard-operable with visible focus, a skip-to-content link, focus trapping and return in dialogs, landmarks with labels, and one `h1` per page
+- [x] **A11Y-01**: Every page passes axe with zero violations for `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa` (vitest-axe per component, `@axe-core/playwright` per page)
+- [x] **A11Y-02**: All functionality is keyboard-operable with visible focus, a skip-to-content link, focus trapping and return in dialogs, landmarks with labels, and one `h1` per page
 - [ ] **A11Y-03**: Accessible authentication: paste allowed in password and OTP fields, `autocomplete` attributes set, no cognitive puzzles
 - [ ] **A11Y-04**: UI-spec items that conflict with WCAG 2.2 AA (contrast, target size, drag-only, hover-only, auto-dismissing danger toasts) are flagged to the owner and resolved before release ⚑ OD-14, C-35
 - [ ] **A11Y-05**: Manual keyboard-only and screen-reader (NVDA + VoiceOver) passes are recorded for critical flows before release
@@ -246,10 +246,10 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 ### Performance & Responsive (PERF)
 
 - [x] **PERF-01**: Bundle budgets are enforced in CI from the first build: public route initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, total CSS ≤ 35 KB gz
-- [ ] **PERF-02**: Public pages score ≥ 95 in every Lighthouse category on the mobile profile, with LCP < 2.0 s, CLS < 0.05 and INP < 200 ms (Lighthouse CI)
-- [ ] **PERF-03**: Every screen works from 320 px to 1920 px in portrait and landscape (verified at 320/375/414/768/1024/1280/1536/1920) with no horizontal scrolling, touch targets ≥ 44 px, ≥ 16 px inputs and correct `inputmode`/`type`
+- [x] **PERF-02**: Public pages score ≥ 95 in every Lighthouse category on the mobile profile, with LCP < 2.0 s, CLS < 0.05 and INP < 200 ms (Lighthouse CI)
+- [x] **PERF-03**: Every screen works from 320 px to 1920 px in portrait and landscape (verified at 320/375/414/768/1024/1280/1536/1920) with no horizontal scrolling, touch targets ≥ 44 px, ≥ 16 px inputs and correct `inputmode`/`type`
 - [ ] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
-- [ ] **PERF-05**: Fonts are self-hosted woff2, subset, `font-display: swap`, with the primary font preloaded and metric-matched fallbacks. The ₱ glyph renders in the brand font
+- [x] **PERF-05**: Fonts are self-hosted woff2, subset, `font-display: swap`, with the primary font preloaded and metric-matched fallbacks. The ₱ glyph renders in the brand font
 - [ ] **PERF-06**: Staff can install the admin portal as a PWA (manifest + icons). The service worker caches only static assets and the app shell, never API or authenticated responses, and shows a "new version available — reload" prompt
 - [ ] **PERF-07**: Route transitions use the View Transitions API as a progressive enhancement, and all motion is disabled under `prefers-reduced-motion`
 
@@ -355,7 +355,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
-| QUAL-04 | Phase 2 | Pending |
+| QUAL-04 | Phase 2 | Complete |
 | QUAL-05 | Phase 4 | Pending |
 | QUAL-06 | Phase 1 | Complete |
 | OPS-01 | Phase 3 | Pending |
@@ -484,16 +484,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEGAL-04 | Phase 12 | Pending |
 | LEGAL-05 | Phase 12 | Pending |
 | LEGAL-06 | Phase 14 | Pending |
-| A11Y-01 | Phase 2 | Pending |
-| A11Y-02 | Phase 2 | Pending |
+| A11Y-01 | Phase 2 | Complete |
+| A11Y-02 | Phase 2 | Complete |
 | A11Y-03 | Phase 4 | Pending |
 | A11Y-04 | Phase 2 | Pending |
 | A11Y-05 | Phase 14 | Pending |
 | PERF-01 | Phase 2 | Complete |
-| PERF-02 | Phase 2 | Pending |
-| PERF-03 | Phase 2 | Pending |
+| PERF-02 | Phase 2 | Complete |
+| PERF-03 | Phase 2 | Complete |
 | PERF-04 | Phase 6 | Pending |
-| PERF-05 | Phase 2 | Pending |
+| PERF-05 | Phase 2 | Complete |
 | PERF-06 | Phase 14 | Pending |
 | PERF-07 | Phase 14 | Pending |
 | MIG-01 | Phase 15 | Pending |
