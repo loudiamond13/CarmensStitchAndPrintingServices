@@ -151,6 +151,15 @@ describe('Sidebar current item (D-03, D-31 D-BL-02)', () => {
     expect(navLinks().map((item) => item.getAttribute('aria-current'))).toEqual([null, 'page', null, null, null]);
   });
 
+  it('marks no item current with active null (a page that is no section, like the showcase); Users keeps its tag', () => {
+    const { rerender } = render(inRouter(<Sidebar role={MANAGER} active={null} />));
+    expect(navLinks().map((item) => item.getAttribute('aria-current'))).toEqual([null, null, null, null, null]);
+    expect(within(link('Users')).getByText('Manager')).toBeInTheDocument();
+
+    rerender(inRouter(<Sidebar role={MANAGER} active={null} />));
+    expect(navLinks().map((item) => item.getAttribute('aria-current'))).toEqual([null, null, null, null, null]);
+  });
+
   it('gives the current row the bold second cue and the marker through aria-current (no class hook)', () => {
     render(inRouter(<Sidebar role={MANAGER} active="orders" />));
     const current = link('Orders');
