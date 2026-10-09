@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T20:57:08-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T21:58:49-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 28/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 29/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -270,7 +270,7 @@ Plans:
 - [x] 02-22-PLAN.md — Focus-trapped Modal and ConfirmDialog (cascade, type-to-confirm, stay-open failure)
 - [x] 02-23-PLAN.md — Money, KpiCard, OrderTotals on the spec seed orders
 - [x] 02-24-PLAN.md — OrderCard, DataTable, keyboard-accessible IncomeExpenseChart
-- [ ] 02-25-PLAN.md — ImageUploader (D-05) and marketing cards (O-2)
+- [x] 02-25-PLAN.md — ImageUploader (D-05) and marketing cards (O-2)
 - [ ] 02-26-PLAN.md — SiteHeader (O-3), Sidebar (D-27, D-BL-02), Topbar
 - [ ] 02-27-PLAN.md — SPEC-GAP MoneyInput, OtpInput, Checkbox (D-03), SkipLink
 - [ ] 02-28-PLAN.md — SPEC-GAP ErrorState, skeleton family, LoadingRegion, LazyImage
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 28/40 | In Progress|  |
+| 2. Web Foundation & Design System | 29/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |

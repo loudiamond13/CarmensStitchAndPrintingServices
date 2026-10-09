@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-24-PLAN.md
-last_updated: "2026-10-09T02:25:01.576Z"
+stopped_at: Completed 02-25-PLAN.md
+last_updated: "2026-10-09T02:58:30.498Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 7da21eb9937e0f86faed5d5fed04efe9ca7bf23a
+state_head: 57579691ed72611e20905f0eb6ffe6eb6dada386
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 41
+  completed_plans: 42
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T20:57:08-05:00"
+updated: "2026-10-08T21:58:49-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 29 of 40
+Plan: 30 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -99,6 +99,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P22 | 30min | 2 tasks | 18 files |
 | Phase 02 P23 | 30min | 2 tasks | 11 files |
 | Phase 02 P24 | 49min | 2 tasks | 14 files |
+| Phase 02 P25 | 31 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -233,6 +234,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-24: parity harness determinism: rest cases scroll into view before FREEZE/REPAINT and Chromium runs with --disable-partial-raster (fixes right-edge corner AA race; no tolerance)
 - [Phase 02]: D-39 (owner, 2026-10-08): a KpiCard whose figure reads as zero (money rounding to 0 centavos, or a count of 0) dims its value by colour only (text-ink-subtle, no opacity), as D-02 .is-zero tiles; reference side via rulings.css .csp-kpi-value[data-zero] plus the DimmedZeroKpi wrapper pair
 - [Phase 02]: D-40 (owner, 2026-10-08): a no-team OrderCard shows the customer as title and 'Walk-in customer' (WALK_IN_CUSTOMER from @/ui/data, spec 8.3 table wording) on the customer line; 02-30's table customer cell must import the same constant. Reference side: WalkInOrderCard wrapper pair writes the text into the frozen .csp-order-cust line (no rulings.css rule, text only)
+- [Phase 02]: 02-25: The D-05 thumb reveal tokens live in ImageUploader.tsx (the class-gate opacity allow-list admits them only in src/ui/media/ImageUploader*); App. D.3 names stay (Make cover image / Remove {name}; the star rating reads "5 out of 5" with role=img per O-2)
+- [Phase 02]: 02-25: Any later scenario showing a TestimonialCard must use the RatedTestimonial wrapper pair (the reference side adds the O-2 role so axe passes); the CategoryCard phone look (description hidden, 20px title) belongs to the public home page's .s-cats grid
 
 ### Pending Todos
 
@@ -269,6 +272,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T01:56:59.481Z
-Stopped at: Completed 02-24-PLAN.md
+Last session: 2026-10-09T02:58:30.221Z
+Stopped at: Completed 02-25-PLAN.md
 Resume file: None

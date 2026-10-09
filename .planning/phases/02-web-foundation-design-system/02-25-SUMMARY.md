@@ -242,6 +242,12 @@ None. No external service configuration is required.
 - `@/ui/media` and `@/ui/marketing` are ready for the layout plans and the public-site phase.
 - WEB-02 and A11Y-04 are also declared by unfinished sibling plans. `requirements.ready-ids` reports 0 of 2 ready, so REQUIREMENTS.md is not ticked here.
 
+## Self-Check: PASSED
+
+- All 14 created files exist on disk.
+- All 7 task commits exist: f019453, dee8598, 95540e0, bf123dc, 6f36544, fe82381, 29baabd.
+- Acceptance: `grep -c "no-hover:opacity-100" web/src/ui/media/media.recipe.ts` = 1 (see deviation 5), the ImageUploader test asserts the reveal on both the grip and the actions, `grep -c 'role="img"' web/src/ui/marketing/TestimonialCard.tsx` = 1, and `npm --prefix web run verify` exits 0.
+
 ---
 *Phase: 02-web-foundation-design-system*
 *Completed: 2026-10-08*
