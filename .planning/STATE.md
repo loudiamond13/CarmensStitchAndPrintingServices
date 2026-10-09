@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-27-PLAN.md
-last_updated: "2026-10-09T04:04:26.859Z"
+stopped_at: Completed 02-28-PLAN.md
+last_updated: "2026-10-09T04:26:31.627Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 47d2894ab5c44313121620884db540aaedc52e7e
+state_head: 61a690b17ae4a2c2de57e65bd6b477f138627224
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 44
+  completed_plans: 45
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T23:05:00-05:00"
+updated: "2026-10-08T23:26:41-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 32 of 40
+Plan: 33 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -102,6 +102,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P25 | 31 min | 2 tasks | 16 files |
 | Phase 02 P26 | 34 min | 3 tasks | 22 files |
 | Phase 02 P27 | 19 min | 2 tasks | 13 files |
+| Phase 02 P28 | 16 min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-27: Checkbox tick is an aria-hidden peer-checked sibling span; pixel-identical to the 74621f5 ::before tick in Chromium, Firefox and WebKit, so checked:before: was not needed
 - [Phase 02]: 02-27: SkipLink hides with the .csp-sr tokens under not-focus-visible: (plus p-0/border-0); layouts render <SkipLink /> first and <main id="main" tabIndex={-1}>
 - [Phase 02]: 02-27: money and OTP values stay text; callers validate on submit with moneyInputError / otpInputError (exported from @/ui/entry) and pass error; MoneyInput align="right" for item rows
+- [Phase 02]: 02-28: @/ui/states ready (ErrorState things|title+message, SkeletonText/Card/Image, LoadingRegion loading/things/failed with a sibling polite status, useDelayedFlag, LazyImage). 02-30 wraps tables in LoadingRegion, puts ErrorState above, drives data-refetching from useDelayedFlag(…, 200) and still builds SkeletonTable.
+- [Phase 02]: 02-28: ErrorState keeps App. C .s-banner.is-danger span muting the Try Again label (approved computed look); owner question logged in deferred-items 'Owner decisions pending'. Banner text column is min-w-0 flex-1 wrap-anywhere so a traceId wraps at 320px.
 
 ### Pending Todos
 
@@ -280,6 +283,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T04:04:26.613Z
-Stopped at: Completed 02-27-PLAN.md
+Last session: 2026-10-09T04:26:31.371Z
+Stopped at: Completed 02-28-PLAN.md
 Resume file: None
