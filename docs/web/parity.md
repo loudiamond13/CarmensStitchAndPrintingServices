@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T22:58:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T23:02:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -123,6 +123,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `RatedTestimonial`: a plain `<div>` around a TestimonialCard. App. D.3 names the star rating with `aria-label` on a plain `<div>`, which axe reports (`aria-prohibited-attr`). The owner approved giving it `role="img"` (D-31 O-2), and the converted TestimonialCard renders that by itself, so the implementation side does nothing; the reference side adds the same attribute to the frozen `.csp-testi-stars` after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
    Plan 02-26 added one for the navigation group:
    - `OpenedSiteDrawer`: a plain `<div>` around a SiteHeader that presses its burger once after mount, as a person would. App. D.3 keeps the drawer state inside SiteHeader with no prop for it; both sides run the same click, so the `site-header-drawer-open` case compares the open phone drawer (the O-3 italic current link, the big links and the block "Get a Quote").
+   Plan 02-27 added an implementation-only wrapper for the entry group (every case there is `parity: false`):
+   - `FocusedSkipLink`: the SkipLink with its `main#main` target. The link is visually hidden until it has keyboard focus, and the harness never drives a state on a `parity: false` case, so the wrapper focuses the link once after mount, as the first Tab on a page would. It has no reference fragment: SPEC-GAP primitives have no reference, so that side shows its missing-component note, and axe and the guard check the implementation.
    A hover target that is hidden at some widths can use Playwright's `:visible`, as `site-header-home` does: `:is(a[href="/products"], button[aria-expanded]):visible` hovers the Products link where the header shows its links and the burger where it does not. Only hover and press go through Playwright's locator; focus-visible compares the target with `document.querySelector`, so keep `:visible` out of focus-visible targets.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
