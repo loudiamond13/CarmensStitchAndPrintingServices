@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T04:08:00-05:00"
+updated: "2026-10-09T05:02:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -10,12 +10,26 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
 ## Deferred Items
 
 - Intermittent pixel difference in the forms parity group, Chromium, light theme, 1440px, focus-visible
-  status: open
+  status: resolved
   **Found by:** plan 02-23, during the Chromium regression of every group (`--grep "@parity|@reference" --project chromium`).
   **What:** `field-multiline` (first run) and then `field-hint` (a rerun of `@forms`) failed their pixel step with 5 differing pixels. Every differing pixel sits at x 1437–1439 (the right edge of the 1440px viewport), on the anti-aliased rounded right corners of the field box with its focus ring. Computed styles and boxes were equal.
   **Why deferred:** plan 02-23 changed nothing in the forms group. Repeated runs of the same rows passed (`--repeat-each 3`: 6 of 6), and a third full `@forms` run passed 16 of 16. It looks like an anti-aliasing race on the corner pixels at the viewport edge under parallel load. No tolerance was added.
   **Next step:** whoever next owns the forms group or the harness should trace a failing run (`-- --trace on`) and check whether the focus ring's transition or the edge rasterization differs between the two pages.
   **Update (plan 02-24):** the data group hit the same race at 390 px (x 388–389, rounded corners of the table frame and the order cards), on either side and from run to run, with equal computed styles, boxes and compositing layers. Plan 02-24 turned off Chromium partial raster in `web/visual/playwright.visual.config.ts` (`--disable-partial-raster`) and scrolls each rest case into view before the repaint. Reproductions under parallel load went from 3 of 20 differing to 25 of 25 equal, and the Chromium regression of every group then passed 109 of 109. Leave this open until later plans' regressions confirm the forms focus-visible rows stay equal.
+  **Update (plan 02-35, resolved):** the full parity matrix with no filter (`npm --prefix web run parity`, 452 rows in Chromium, Firefox and WebKit, 28.6 minutes) passed every forms row, the focus-visible ones included, and every data row. No tolerance was ever added.
+
+- Lighthouse LCP passes with only about 40 ms to spare (plan 02-35, performance risk, not failing today)
+  status: open
+  **Found by:** plan 02-35, `npm --prefix web run lighthouse` (mobile profile, simulated slow 4G and 4x CPU, on the real host).
+  **What:** the first run missed LCP < 2000 ms (2407 ms). Two fixes with no visible change brought it to **1958–1965 ms over four runs** (performance 0.98–0.99): `<link rel="modulepreload">` for the lazy public layout and page chunks (`web/scripts/vite-route-preload-plugin.ts`, production build only), and Brotli/gzip response compression at `CompressionLevel.Optimal` instead of the framework default `Fastest` (the 381 KB entry script now goes out at about 121 KB instead of about 150 KB). The page is drawn by JavaScript, so its first paint waits for the entry script, and its biggest text (the 80px "SITE UPDATE IN PROGRESS." h1 in Barlow Condensed 800 italic) also waits for that font, which the browser can only request once the page has rendered; the one-font-preload rule (PERF-05) keeps it from being preloaded.
+  **Why deferred:** it passes, and every bigger lever is a structure or owner decision. About 8 KB more on the public route's critical path (JS, CSS or fonts) would push LCP over 2000 ms again.
+  **Next step:** before Phase 4 adds public code, choose one of: (a) serve build-time precompressed `.br` files (Brotli quality 11 makes the entry 103.5 KB instead of 121 KB, about 90 ms; needs a small server change and a build step, no package); (b) move TanStack Query out of the public entry (the Phase 2 public page makes no API call); (c) let the owner allow a second font preload for the Barlow Condensed 800 italic display face (a change to the PERF-05 rule). Never raise the 2000 ms limit.
+
+- Parity harness: `document.fonts.ready` resolved before a case's own effect rendered new text (plan 02-35, fixed)
+  status: resolved
+  **Found by:** plan 02-35, the full parity matrix (the orchestrator asked for it because plan 02-34 changed the Sidebar without re-running parity).
+  **What:** `@navigation-gaps` `drawer-open` failed in WebKit at 390px, light and dark, every time (2 of 452 rows): the implementation page's font status read "loading" right after `document.fonts.ready`. The OpenedNavDrawer preview opens the drawer from an effect after mount, and at 390px that is the first text in a face the page had not used yet, so WebKit started a new font load after `ready` had resolved. Chromium and Firefox, and WebKit at 1440px (where the sidebar already shows those faces), passed. Nothing in the look differed.
+  **Fix:** `web/visual/parity.spec.ts` now waits until no font is loading (up to ten rounds of `ready` plus two frames) before it reads the status, which still has to be "loaded". It compares nothing differently and adds no tolerance. `--grep @navigation-gaps --project webkit` then passed 4 of 4, and the full matrix was re-run (see the plan 02-35 summary).
 
 - Dev-route builds: public JS has 0.66 KB of headroom under the 150 KB budget (plan 02-33, build risk, not failing today)
   status: open
@@ -24,6 +38,13 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Why deferred:** nothing is over a limit, and the plan applies the 150 KB limit to every build and forbids raising it. The fix is a structure change: split the `src/ui/*/index.ts` barrels (the planned Phase 4 work), or stop measuring the parity page's topology in the budget build (a change to what is measured, so it needs a decision).
   **Next step:** if a later plan (for example 02-34's showcase) makes `build:budget`, `npm run e2e` or `npm run parity` fail on public JS, do not raise the limit. Bring the numbers from `artifacts/budget/budget.json` to the planner or owner and choose between splitting the barrels now and building the budget mode without the parity entry. See docs/web/budgets.md.
   **Update (plan 02-34):** the showcase (`/dev/components`, a lazy route chunk) and the `@/ui` barrel moved the dev-route public JS from 149.34 KB to **149.47 KB** (0.53 KB headroom); admin JS is 154.61 KB, production 129.95 KB. Every build passes, so no remedy was applied and nothing was re-measured differently. The next plan that adds dev-route code will very likely need the orchestrator-approved remedy (build the `budget` and `e2e` modes without the parity entry, or split the barrels).
+
+- The page behind an open Modal stays live for axe on phones (plan 02-35, accessibility follow-up for Phase 4, not failing a gate)
+  status: open
+  **Found by:** plan 02-35, the @keyboard journeys with a page-level axe run while the Add Payment modal or the Add User slide-over was open on the Pixel 7 and iPhone 15 profiles.
+  **What:** on phones the Modal is a bottom sheet. The showcase's Delete Order demo buttons behind it are half covered, and axe's `target-size` rule (WCAG 2.5.8) reported their visible part as smaller than 24px. Nobody can reach them while the dialog is open: the focus trap keeps Tab inside, the scrim takes the taps and `aria-modal` hides them from screen readers. But the page behind is not `inert`, so axe still measures it. The phone navigation drawer already makes the frame behind it `inert` (plan 02-32); the Modal and ConfirmDialog do not. The @keyboard spec therefore runs axe over the open dialog only. The existing @showcase test (an inline ConfirmDialog in an Overlay) and every page-level axe run with no dialog open stay unscoped and clean.
+  **Why deferred:** making the page behind a dialog inert changes how the approved Modal behaves for assistive technology and is a shared-component change (D-08 territory); no Phase 2 screen opens a Modal outside the dev-only showcase.
+  **Next step:** when Phase 4 opens real dialogs from the admin screens, have the layout set `inert` on its frame while a Modal or ConfirmDialog is open (as AdminFrame does for the drawer), then run page-level axe with the dialog open again.
 
 ## Owner decisions pending
 
@@ -56,6 +77,7 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** in the admin shell the approved Topbar holds the menu button, the search box, the theme toggle and the user button in one row. App. B lets the search box shrink only to its contents (about 234px, set by the search field's own width), so below a 398px-wide page the row is wider than the screen and the whole admin page scrolls sideways: by 8px at 390px (the approved phone frame) and by 78px at 320px. The approved CSS does the same (the 02-26 Topbar and the 02-31 shell parity cases are equal at 390 in three engines and at 320 in Chromium), so plan 02-31 kept it. The UI-SPEC says 320 to 1920px with no horizontal scroll (WCAG 1.4.10 Reflow). `web/e2e/admin.spec.ts` checks the boundary widths 767/768/1023/1024, not 320, for this reason.
   **Before / after if the owner chooses to change it:** today, on a phone under 398px wide, the admin page can be nudged sideways and the user button sits partly off screen; after the change the search box gets narrower on small phones (its placeholder is cut shorter) and everything fits. Nothing changes at 398px and wider.
   **Question for the owner:** let the admin search box shrink on small phones (recommended; a one-class change, `min-w-0`, on the search box in `web/src/ui/navigation/navigation.recipe.ts`, plus a matching rulings rule), or keep the approved behaviour?
+  **Update (plan 02-35):** the 398px is Chromium's number. The search field's built-in width differs by engine, so the Topbar needs a 406px page in WebKit (the iPhone 15 profile, 393px wide, scrolls by 13px) and a 418px page in Firefox (by 98px at 320px, and still by 4px at 414px). In every engine `main` stays exactly as wide as the screen; only the Topbar sticks out. `web/e2e/responsive.spec.ts` (`@responsive`) asserts exactly this per engine (`TOPBAR_MIN_PAGE_WIDTH`) and checks every other width and page with the plain "no sideways scroll" rule.
   **Update (plan 02-34):** the same 398px page width shows on `/dev/components` at 320px (measured: page 398px, `main` 320px, identical to `/admin`). The showcase itself adds nothing: `web/e2e/showcase.spec.ts` checks that `main` does not overflow, that the page is no wider than `/admin` alone, and that the 4-chip FilterBar fixture wraps. The plan's page-level "scrollWidth <= innerWidth at 320" check on the showcase becomes true once this ruling lands; tighten that test then.
 
 - Admin preview pages: the empty-state words (plan 02-31, copy question, not blocking)
@@ -77,3 +99,14 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   status: open
   **What:** the approved Sidebar always marks one item as the current page, and Dashboard when it is told nothing. `/dev/components` is no admin section, so the sidebar there claimed to be on Dashboard (`aria-current="page"`), which a screen reader announces as "current page". The Sidebar now accepts "no current item" (`active={null}`), and the admin shell uses it on any path that is no section; the phone tab bar already did this. Every approved screen (the five admin sections) looks and behaves exactly as before.
   **Question for the owner (optional):** none needed.
+
+- Public footer headings jump from h1 to h4 (plan 02-35, accessibility structure question, not blocking)
+  status: open
+  **What:** the approved public footer (App. E.1, `web/src/app/public/SiteFooter.tsx`) titles its three columns "Shop", "Visit" and the third one with `<h4>`, straight after the page's `<h1>`, so there is no h2 or h3 in between. Lighthouse's accessibility audit "Heading elements are not in a sequentially-descending order" flags it (accessibility score 0.98, still above the 0.95 gate). axe does not report it under the WCAG A/AA tags the project gates on, because it is a best-practice rule, but screen reader users who move by heading level hear a jump. Changing the level changes the page's heading structure (D-08), so plan 02-35 kept the approved markup.
+  **Before / after if the owner chooses to change it:** today the footer column titles are level-4 headings; after the change they would be level-2 headings with the exact same look (the look comes from the classes, not the tag). Nothing visible changes.
+  **Question for the owner:** make the footer column titles h2 (recommended; a three-tag change plus a matching rule on the reference side), or keep the approved h4?
+
+- Component Showcase: one more demo button, "Open Delete Payment" (plan 02-35, dev-only words, not blocking)
+  status: open
+  **What:** the A11Y-02 keyboard journeys must show that a confirm dialog with no type-to-confirm field puts the focus on Cancel. Every confirm demo on `/dev/components` had the field (the order delete), so plan 02-35 added a demo at the end of the Feedback section: a danger button "Open Delete Payment" that opens the spec's child-row delete ("Delete payment of ₱2,000.00?", "This removes it from ORD-2026-0148 and updates the totals right away.", "Delete Payment" / Cancel; CSPS-UI-SPEC "Deleting a child row"). Delete Payment only closes it; nothing is deleted and no toast appears. It is dev-only (D-20) and its trigger words sit with the others in `web/src/dev/showcaseCopy.ts`.
+  **Question for the owner:** this joins the 02-34 question about the showcase's demo button words above; keep it, or name it differently?

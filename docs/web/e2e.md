@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-08T23:48:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-09T05:05:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -104,11 +104,13 @@ Put the tag at the start of the test title so `--grep` can select it.
 |---|---|---|
 | `@smoke` | The home page loads clean in all five projects | plan 02-09 |
 | `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404 | plan 02-09 |
-| `@axe` | Page-level axe across the showcase and layouts | later Phase 2 plans |
-| `@keyboard` | Keyboard-only paths and focus order | later Phase 2 plans |
-| `@responsive` | 320 to 1920 px with no horizontal scroll | later Phase 2 plans |
-| `@fonts` | Font loading and fallbacks | later Phase 2 plans |
-| `@a11y-rulings` | The owner's accessibility rulings | later Phase 2 plans |
+| `@public`, `@admin`, `@showcase` | The public frame, the admin shell and the Component Showcase, with page-level axe | plans 02-29, 02-31, 02-34 |
+| `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |
+| `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
+| `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |
+| `@a11y-rulings` | The owner's accessibility rulings on computed styles (D-02, D-03, D-05, D-BL-02, O-3, O-6) | plan 02-35 |
+
+Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 
 ## 8. Reports
 
