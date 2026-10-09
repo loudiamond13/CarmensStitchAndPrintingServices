@@ -5,6 +5,7 @@
 import clsx from 'clsx';
 import {
   logoClasses,
+  logoContextClasses,
   logoGapClasses,
   logoLetterClasses,
   logoLetterMarkClasses,
@@ -13,6 +14,7 @@ import {
   logoTaglineClasses,
   logoTaglineSizeClasses,
   logoWordClasses,
+  type LogoContext,
   type LogoSize,
 } from './brand.recipe';
 import { Mark } from './Mark';
@@ -24,15 +26,20 @@ export interface LogoProps {
   size?: LogoSize;
   variant?: 'full' | 'wordmark' | 'mark';
   tagline?: boolean;
+  /**
+   * The region the lockup sits in, set by the src/ui component that renders it (UI-SPEC rule 7a): `sidebar` takes the
+   * nav ink of the Sidebar (App. B `.csp-sidebar .csp-logo`). Defaults to the plain look.
+   */
+  context?: LogoContext;
   /** Layout glue only. */
   className?: string;
 }
 
 /** [C]SPS — the mark stands in for the C. One image named for the business; its parts are hidden. */
-export function Logo({ size = 'md', tagline = true, variant = 'full', className }: LogoProps) {
+export function Logo({ size = 'md', tagline = true, variant = 'full', context = 'default', className }: LogoProps) {
   return (
     <span
-      className={clsx(logoClasses, logoGapClasses[size], className)}
+      className={clsx(logoClasses, logoContextClasses[context], logoGapClasses[size], className)}
       role="img"
       aria-label="CSPS — Carmen's Stitch & Printing Services"
     >
@@ -53,7 +60,10 @@ export function Logo({ size = 'md', tagline = true, variant = 'full', className 
         </span>
       )}
       {variant !== 'mark' && tagline && (
-        <span className={clsx(logoTaglineClasses, logoTaglineSizeClasses[size])} aria-hidden="true">
+        <span
+          className={clsx(logoTaglineClasses, logoContextClasses[context], logoTaglineSizeClasses[size])}
+          aria-hidden="true"
+        >
           {"Carmen's Stitch"}
           <br />
           {'& Printing Services'}

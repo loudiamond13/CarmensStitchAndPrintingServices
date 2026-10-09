@@ -29,5 +29,18 @@ export const badgeDotClasses = tw('size-[7px] rounded-pill bg-current');
  * Avatar reads them from custom properties next to its style (UI-SPEC "Inline style rule").
  */
 export const avatarClasses = tw(
-  'inline-grid flex-none place-items-center rounded-pill bg-surface-2 font-display font-bold tracking-[.02em] text-ink [box-shadow:inset_0_0_0_1px_var(--line-strong)]',
+  'inline-grid flex-none place-items-center rounded-pill font-display font-bold tracking-[.02em] text-ink [box-shadow:inset_0_0_0_1px_var(--line-strong)]',
 );
+
+export type AvatarContext = 'default' | 'sidebar';
+
+/**
+ * The avatar background per context (plan 02-26): `.csp-avatar` on `--surface-2`, and in the sidebar user chip the
+ * App. B `.csp-sidebar .csp-avatar` `--surface-3` plus the 16px line height the chip's `.csp-sidebar-user span` rule
+ * gives every span in it, the avatar included (its colour and font size stay the avatar's own: the context rule and the
+ * size property win there).
+ */
+export const avatarContextClasses = {
+  default: tw('bg-surface-2'),
+  sidebar: tw('bg-surface-3 leading-4'),
+} as const satisfies Record<AvatarContext, string>;

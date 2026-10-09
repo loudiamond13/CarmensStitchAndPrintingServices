@@ -6,18 +6,23 @@
 // the --avatar-size and --avatar-fs custom properties, read by the utilities next to the style below, instead of
 // inline width, height and font-size (UI-SPEC "Inline style rule").
 import clsx from 'clsx';
-import { avatarClasses } from './status.recipe';
+import { avatarClasses, avatarContextClasses, type AvatarContext } from './status.recipe';
 
 export interface AvatarProps {
   /** The person's name: the initials come from its first two words, and it names the image. */
   name?: string | undefined;
   /** Diameter in px. */
   size?: number | undefined;
+  /**
+   * The region the avatar sits in, set by the src/ui component that renders it (UI-SPEC rule 7a): `sidebar` for the
+   * Sidebar user chip (App. B `.csp-sidebar .csp-avatar`). Defaults to the plain look.
+   */
+  context?: AvatarContext | undefined;
   /** Layout glue only (margin, placement); never a restyle (spec rule 3). */
   className?: string | undefined;
 }
 
-export function Avatar({ name = '', size = 36, className }: AvatarProps) {
+export function Avatar({ name = '', size = 36, context = 'default', className }: AvatarProps) {
   // SPEC-DEVIATION: noUncheckedIndexedAccess (TS2532): charAt(0) is p[0] for the non-empty words left by filter.
   const initials = name
     .split(/\s+/)
@@ -28,7 +33,12 @@ export function Avatar({ name = '', size = 36, className }: AvatarProps) {
   const fontSize = Math.max(10, Math.round(size * 0.38));
   return (
     <span
-      className={clsx(avatarClasses, 'size-(--avatar-size) text-(length:--avatar-fs)', className)}
+      className={clsx(
+        avatarClasses,
+        avatarContextClasses[context],
+        'size-(--avatar-size) text-(length:--avatar-fs)',
+        className,
+      )}
       style={{ '--avatar-size': `${String(size)}px`, '--avatar-fs': `${String(fontSize)}px` }}
       role="img"
       aria-label={name}

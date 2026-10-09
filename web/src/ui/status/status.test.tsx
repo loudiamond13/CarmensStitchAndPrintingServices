@@ -15,7 +15,7 @@ import {
   StatusBadge,
   type BadgeTone,
 } from '@/ui/status';
-import { avatarClasses, badgeClasses, badgeDotClasses, badgeToneClasses } from './status.recipe';
+import { avatarClasses, avatarContextClasses, badgeClasses, badgeDotClasses, badgeToneClasses } from './status.recipe';
 
 // The converted App. D.3 status components (plan 02-19, CSPS-UI-SPEC.md §6.2). The look is proven by the parity suite
 // (`--grep @status`); these tests pin the markup, the tone tables, the recipe each tone uses and the status scenario
@@ -195,7 +195,20 @@ describe('Avatar (App. D.3, D-31 O-1)', () => {
     expect([...avatar.style].sort()).toEqual(['--avatar-fs', '--avatar-size']);
     expect(avatar.style.getPropertyValue('--avatar-size')).toBe('40px');
     expect(avatar.style.getPropertyValue('--avatar-fs')).toBe('15px');
-    expect(classTokens(avatar)).toEqual(tokens(`${avatarClasses} size-(--avatar-size) text-(length:--avatar-fs)`));
+    expect(classTokens(avatar)).toEqual(
+      tokens(`${avatarClasses} ${avatarContextClasses.default} size-(--avatar-size) text-(length:--avatar-fs)`),
+    );
+  });
+
+  it('takes the sidebar chip look in the sidebar context (App. B .csp-sidebar .csp-avatar, plan 02-26)', () => {
+    render(<Avatar name="Carmen Reyes" size={32} context="sidebar" />);
+    const avatar = screen.getByRole('img');
+
+    expect(classTokens(avatar)).toEqual(
+      tokens(`${avatarClasses} ${avatarContextClasses.sidebar} size-(--avatar-size) text-(length:--avatar-fs)`),
+    );
+    expect(tokens(avatarContextClasses.sidebar)).toEqual(['bg-surface-3', 'leading-4']);
+    expect(tokens(avatarContextClasses.default)).toEqual(['bg-surface-2']);
   });
 
   it.each([

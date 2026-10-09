@@ -211,7 +211,7 @@ describe('Sidebar Logout (D-27)', () => {
     expect(screen.queryByRole('link', { name: 'Logout' })).toBeNull();
     expect(hasClasses(logout, navItemClasses())).toBe(true);
     expect(hasClasses(logout, navButtonClasses)).toBe(true);
-    expect(tokens(navButtonClasses)).toEqual(['cursor-pointer', 'text-start', 'w-full']);
+    expect(tokens(navButtonClasses)).toEqual(['appearance-none', 'cursor-pointer', 'text-start', 'w-full']);
     expect(logout.querySelector('svg')?.getAttribute('width')).toBe('20');
 
     await userEvent.click(logout);
@@ -311,10 +311,7 @@ describe('Sidebar scenarios, the D-27 Logout path and axe', () => {
     async (id) => {
       const { container } = renderCase(id);
       const path = id === 'sidebar-collapsed' ? [0, 2, 0] : [0, 2, 1];
-      let element: Element | undefined = container;
-      for (const index of path) {
-        element = element.children[index];
-      }
+      const element = path.reduce<Element | undefined>((parent, index) => parent?.children[index], container);
 
       expect(container.querySelector('[role="alert"]')).toBeNull();
       expect(element?.localName).toBe('button');

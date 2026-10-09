@@ -44,11 +44,13 @@ export interface ToleranceOverride {
 
 const LOGOUT_REASON =
   'The Sidebar Logout is a <button type="button"> instead of the approved <a href="#">, with the same look ' +
-  '(owner-confirmed, D-31). Plan 02-26 confirms each path when it adds the sidebar scenarios.';
+  '(owner-confirmed, D-31). Each path was confirmed by plan 02-26 against its sidebar scenario: the tag is the only ' +
+  'difference there, and the styles, box and pixels are equal.';
 
 export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.freeze([
   // D-27: [data-case] > aside > .csp-sidebar-foot > Logout. The foot holds the user chip first when it is shown
-  // (expanded, with a user), so Logout is its second child there and its first child on the collapsed sidebar.
+  // (expanded, with a user), so Logout is its second child there and its first child on the collapsed sidebar. The
+  // scenarios are in src/dev/scenarios/groups/navigation.ts (plan 02-26, paths confirmed by the parity run).
   {
     kind: 'element',
     scenario: 'sidebar-dashboard-current',

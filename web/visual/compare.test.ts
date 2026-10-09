@@ -333,9 +333,14 @@ describe('the intentional-differences registry', () => {
   it('lists the D-27 Logout exception for the three sidebar scenarios and the D-32 icon-drawing mask', () => {
     expect(
       STRUCTURAL_EXCEPTIONS.map((entry) =>
-        entry.kind === 'element' ? `${entry.scenario} ${entry.decision}` : entry.decision,
+        entry.kind === 'element' ? `${entry.scenario} ${entry.path} ${entry.decision}` : entry.decision,
       ),
-    ).toEqual(['sidebar-dashboard-current D-27', 'sidebar-users-current D-27', 'sidebar-collapsed D-27', 'D-32']);
+    ).toEqual([
+      'sidebar-dashboard-current 0/0/2/1 D-27',
+      'sidebar-users-current 0/0/2/1 D-27',
+      'sidebar-collapsed 0/0/2/0 D-27',
+      'D-32',
+    ]);
     expect(maskedIconViewBox()).toBe('0 0 24 24');
   });
 

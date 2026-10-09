@@ -8,8 +8,19 @@ export type LogoSize = 'sm' | 'md' | 'lg';
 /** `.csp-mark`: `flex: none; display: block`. */
 export const markClasses = tw('block flex-none');
 
-/** `.csp-logo`: inline-flex, centred, `--ink`, no underline (the lockup sits in links). The gap is per size. */
-export const logoClasses = tw('inline-flex items-center text-ink no-underline');
+/** `.csp-logo`: inline-flex, centred, no underline (the lockup sits in links). The gap is per size, the ink per context. */
+export const logoClasses = tw('inline-flex items-center no-underline');
+
+export type LogoContext = 'default' | 'sidebar';
+
+/**
+ * The lockup ink per context (plan 02-26): `.csp-logo` and `.csp-logo-tag` in `--ink`, and inside the sidebar the
+ * App. B `.csp-sidebar .csp-logo, .csp-sidebar .csp-logo-tag` `--nav-ink`.
+ */
+export const logoContextClasses = {
+  default: tw('text-ink'),
+  sidebar: tw('text-nav-ink'),
+} as const satisfies Record<LogoContext, string>;
 
 /** `.csp-logo-sm/md/lg { gap }` (App. B overrides the `.csp-logo` gap per size). */
 export const logoGapClasses = {
@@ -48,9 +59,9 @@ export const logoSlashClasses = tw(
   'absolute right-[-.02em] bottom-0 left-[.04em] h-[.085em] [transform:skewX(-18deg)] bg-accent',
 );
 
-/** `.csp-logo-tag` and its `::before` skewed slash. */
+/** `.csp-logo-tag` and its `::before` skewed slash. Its ink comes from the context map (logoContextClasses). */
 export const logoTaglineClasses = tw(
-  "relative ml-[.2em] pl-[1.4em] font-sans leading-[1.32] font-bold tracking-[.16em] whitespace-nowrap text-ink uppercase before:absolute before:top-[-.35em] before:bottom-[-.35em] before:left-0 before:w-[.22em] before:[transform:skewX(-18deg)] before:bg-accent before:content-['']",
+  "relative ml-[.2em] pl-[1.4em] font-sans leading-[1.32] font-bold tracking-[.16em] whitespace-nowrap uppercase before:absolute before:top-[-.35em] before:bottom-[-.35em] before:left-0 before:w-[.22em] before:[transform:skewX(-18deg)] before:bg-accent before:content-['']",
 );
 
 // ── Motifs (App. B "texture + motif utilities" and `/* ── Media placeholder ── */`, spec §5) ──
