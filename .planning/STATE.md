@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-28-PLAN.md
-last_updated: "2026-10-09T04:26:31.627Z"
+stopped_at: Completed 02-29-PLAN.md
+last_updated: "2026-10-09T05:07:47.146Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 61a690b17ae4a2c2de57e65bd6b477f138627224
+state_head: a832b3715db88eb39284bc09d7a948ba0ed9a677
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 45
+  completed_plans: 46
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T23:26:41-05:00"
+updated: "2026-10-09T00:08:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 33 of 40
+Plan: 34 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -103,6 +103,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P26 | 34 min | 3 tasks | 22 files |
 | Phase 02 P27 | 19 min | 2 tasks | 13 files |
 | Phase 02 P28 | 16 min | 2 tasks | 18 files |
+| Phase 02 P29 | 38 min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-27: money and OTP values stay text; callers validate on submit with moneyInputError / otpInputError (exported from @/ui/entry) and pass error; MoneyInput align="right" for item rows
 - [Phase 02]: 02-28: @/ui/states ready (ErrorState things|title+message, SkeletonText/Card/Image, LoadingRegion loading/things/failed with a sibling polite status, useDelayedFlag, LazyImage). 02-30 wraps tables in LoadingRegion, puts ErrorState above, drives data-refetching from useDelayedFlag(…, 200) and still builds SkeletonTable.
 - [Phase 02]: 02-28: ErrorState keeps App. C .s-banner.is-danger span muting the Try Again label (approved computed look); owner question logged in deferred-items 'Owner decisions pending'. Banner text column is min-w-0 flex-1 wrap-anywhere so a traceId wraps at 320px.
+- [Phase 02]: lazyRoute() wraps every lazy route loader: React Router 8 keeps a route whose lazy() rejected marked as loading and renders nothing below the root, so a failed chunk becomes a render error the route's ErrorBoundary catches (02-31 must use it for admin routes)
+- [Phase 02]: E2E host passes --staticWebAssets <missing file>: in Development the static web assets loader maps src/Csps.Server/wwwroot, and a production build left there was served instead of web/.e2e-dist
+- [Phase 02]: Production silence needs RouterProvider onError as a no-op too (React Router console.errors every caught render error otherwise); main#main keeps min-h 100dvh minus header always, aria-busy only while a chunk loads
 
 ### Pending Todos
 
@@ -283,6 +287,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T04:26:31.371Z
-Stopped at: Completed 02-28-PLAN.md
+Last session: 2026-10-09T05:07:46.926Z
+Stopped at: Completed 02-29-PLAN.md
 Resume file: None

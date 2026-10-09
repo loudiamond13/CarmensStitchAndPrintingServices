@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-08T23:26:41-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-09T00:08:00-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 32/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 33/40 plans executed in 13 waves (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -276,7 +276,7 @@ Plans:
 - [x] 02-28-PLAN.md — SPEC-GAP ErrorState, skeleton family, LoadingRegion, LazyImage
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-29-PLAN.md — React Router 8 data router, public layout and footer, error boundaries, public parity and E2E
+- [x] 02-29-PLAN.md — React Router 8 data router, public layout and footer, error boundaries, public parity and E2E
 - [ ] 02-30-PLAN.md — ResponsiveTable with every list state, Pagination, SearchBox, FilterBar, URL-state integration
 
 **Wave 9** *(blocked on Wave 8 completion)*
@@ -919,7 +919,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 32/40 | In Progress|  |
+| 2. Web Foundation & Design System | 33/40 | In Progress|  |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
