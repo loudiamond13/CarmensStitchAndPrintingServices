@@ -2,7 +2,7 @@
 // PERF-01: the budget plugin measures the real Rolldown bundle in generateBundle (gzip level 9), writes the numbers to
 // artifacts/budget/ and fails the build through this.error with the size table when a limit is crossed.
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -198,6 +198,88 @@ describe('budgetPlugin (PERF-01)', () => {
     await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
       /index-A1\.js contains the dev-only module src\/app\/admin\/routes\.tsx/,
     );
+  });
+});
+
+/** The budget-mode bundle: the production bundle plus the parity entry and the admin route chunks. */
+function devRoutesBundle(entryCode: string): Rollup.OutputBundle {
+  const items = [
+    outputChunk('assets/parity-P0.js', 'export const p = 0;', {
+      isEntry: true,
+      facadeModuleId: `${ROOT}/parity.html`,
+      moduleIds: [`${ROOT}/parity.html`, `${ROOT}/src/dev/scenarios/index.ts`],
+    }),
+    outputChunk('assets/AdminLayout-H8.js', 'export const l = 1;', {
+      isDynamicEntry: true,
+      facadeModuleId: `${ROOT}/src/app/admin/AdminLayout.tsx`,
+      moduleIds: [`${ROOT}/src/app/admin/AdminLayout.tsx`],
+    }),
+    outputChunk('assets/UrlStateLayout-I9.js', 'export const u = 2;', {
+      isDynamicEntry: true,
+      facadeModuleId: `${ROOT}/src/lib/url-state/UrlStateLayout.tsx`,
+      moduleIds: [`${ROOT}/src/lib/url-state/UrlStateLayout.tsx`],
+    }),
+    outputChunk('assets/AdminPreviewPage-J0.js', 'export const v = 3;', {
+      isDynamicEntry: true,
+      facadeModuleId: `${ROOT}/src/app/admin/AdminPreviewPage.tsx`,
+      moduleIds: [`${ROOT}/src/app/admin/AdminPreviewPage.tsx`],
+    }),
+  ];
+  return { ...bundle(entryCode), ...Object.fromEntries(items.map((item) => [item.fileName, item])) };
+}
+
+async function writeBundleIn(plugin: Plugin, root: string, outDir: string): Promise<void> {
+  const configResolved = plugin.configResolved;
+  const applyConfig = typeof configResolved === 'function' ? configResolved : configResolved?.handler;
+  await applyConfig?.call(
+    pluginContext as never,
+    {
+      root,
+      mode: 'production',
+      build: { outDir },
+      logger: { info: () => undefined },
+    } as never,
+  );
+  const hook = plugin.writeBundle;
+  const handler = typeof hook === 'function' ? hook : hook?.handler;
+  if (handler === undefined) {
+    throw new Error('writeBundle is missing');
+  }
+  await handler.call(pluginContext as never, {} as never, {});
+}
+
+describe('budgetPlugin: the admin topology and the web root (D-20)', () => {
+  it('logs the 135 KB barrel-split note through the info logger and still passes', async () => {
+    const reportDir = temporaryDirectory();
+    const logged: Logged = { info: [] };
+    await generate(
+      budgetPlugin({ devRoutes: true, reportDir }),
+      'budget',
+      devRoutesBundle(incompressible(140_000)),
+      logged,
+    );
+    expect(logged.info.join('\n')).toMatch(/admin JS[\s\S]*barrel split/);
+    const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.budget.json'), 'utf8')) as {
+      adminJs: number;
+      notes: string[];
+    };
+    expect(summary.adminJs).toBeGreaterThan(0);
+    expect(summary.notes).toHaveLength(1);
+  });
+
+  it.each([['.reference-dist'], ['.reference-src']])(
+    'fails the production build when the web root holds %s after writing',
+    async (name) => {
+      const root = temporaryDirectory();
+      mkdirSync(path.join(root, 'out', name), { recursive: true });
+      await expect(writeBundleIn(budgetPlugin({ devRoutes: false }), root, 'out')).rejects.toThrow(name);
+    },
+  );
+
+  it('passes when the production web root holds neither reference folder', async () => {
+    const root = temporaryDirectory();
+    mkdirSync(path.join(root, 'out', 'assets'), { recursive: true });
+    await expect(writeBundleIn(budgetPlugin({ devRoutes: false }), root, 'out')).resolves.toBeUndefined();
   });
 });
 

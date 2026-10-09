@@ -234,3 +234,6 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     table: renderTable(measurements),
   };
 }
+
+/** Public initial JS in the admin-included topology above this adds a note: the Phase 4 barrel-split trigger. */
+export const BARREL_SPLIT_TRIGGER = 135_000;

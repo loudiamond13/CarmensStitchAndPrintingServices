@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_ROUTE,
+  BARREL_SPLIT_TRIGGER,
   BUDGETS,
   evaluateBudgets,
   PUBLIC_ROUTE,
@@ -291,5 +292,63 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
     const report = evaluateBudgets(devRoutesGraph(200_000, 120_000), devRoutes);
     expect(report.ok).toBe(true);
     expect(report.publicJs).toBe(120_000);
+  });
+});
+
+describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
+  it.each([
+    ['src/dev/scenarios/groups/money.ts'],
+    ['visual/parity/page.tsx'],
+    ['visual/.reference-src/ui/index.tsx'],
+    ['src/app/admin/routes.tsx'],
+  ])('fails a production chunk that contains %s', (moduleId) => {
+    const graph = productionGraph(120_000);
+    const leaked = graph.chunks.map((c) =>
+      c.fileName === ENTRY ? { ...c, moduleIds: [...c.moduleIds, moduleId] } : c,
+    );
+    const report = evaluateBudgets({ ...graph, chunks: leaked }, production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringContaining(`index-A1.js contains the dev-only module ${moduleId}`)]);
+  });
+
+  it('allows a module whose name only resembles a dev path', () => {
+    const graph = productionGraph(120_000);
+    const similar = graph.chunks.map((c) =>
+      c.fileName === ENTRY
+        ? { ...c, moduleIds: [...c.moduleIds, 'src/devices.ts', 'node_modules/visual-x/index.js'] }
+        : c,
+    );
+    expect(evaluateBudgets({ ...graph, chunks: similar }, production).errors).toEqual([]);
+  });
+
+  it.each([['.reference-dist/assets/main.js'], ['assets/.reference-src/mark.svg']])(
+    'fails a build that emits %s (the parity reference never reaches wwwroot)',
+    (fileName) => {
+      const graph = productionGraph(120_000);
+      const report = evaluateBudgets({ ...graph, assets: [...graph.assets, { fileName, gzipSize: 10 }] }, production);
+      expect(report.ok).toBe(false);
+      expect(report.errors).toEqual([expect.stringContaining(fileName)]);
+    },
+  );
+});
+
+describe('evaluateBudgets: the Phase 4 barrel-split trigger (research Flag 4)', () => {
+  it('holds the trigger at 135 KB', () => {
+    expect(BARREL_SPLIT_TRIGGER).toBe(135_000);
+  });
+
+  it('adds a note, not an error, when public JS in the admin-included topology passes 135 KB', () => {
+    const report = evaluateBudgets(devRoutesGraph(200_000, 135_100), devRoutes);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.notes).toEqual([expect.stringMatching(/admin-included.*135\.10 KB.*135\.00 KB.*barrel split/)]);
+  });
+
+  it('adds no note at exactly 135 KB', () => {
+    expect(evaluateBudgets(devRoutesGraph(200_000, 135_000), devRoutes).notes).toEqual([]);
+  });
+
+  it('adds no note to the production build, which has no admin routes', () => {
+    expect(evaluateBudgets(productionGraph(140_000), production).notes).toEqual([]);
   });
 });

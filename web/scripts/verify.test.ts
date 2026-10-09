@@ -25,13 +25,14 @@ function fakeSpawner(statuses: readonly (number | null)[]) {
 const npmCli = 'C:/tools/npm/bin/npm-cli.js';
 
 describe('verify pipeline', () => {
-  it('runs typecheck, lint, format:check, test:coverage, build, license:check and notices:check in that order', () => {
+  it('runs typecheck, lint, format:check, test:coverage, build, build:budget, license:check and notices:check in that order', () => {
     expect(STEPS).toEqual([
       'typecheck',
       'lint',
       'format:check',
       'test:coverage',
       'build',
+      'build:budget',
       'license:check',
       'notices:check',
     ]);
