@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-22-PLAN.md
-last_updated: "2026-10-09T00:27:54.033Z"
+stopped_at: Completed 02-23-PLAN.md
+last_updated: "2026-10-09T01:04:24.609Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: f2eb952db1b35dd44bc770e1adcd8b892bae3a9c
+state_head: abe097711477b8b308d7e1a224d028c5da31c2d9
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 39
+  completed_plans: 40
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T18:49:27-05:00"
+updated: "2026-10-08T20:05:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 27 of 40
+Plan: 28 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -97,6 +97,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P20 | 30 min | 2 tasks | 13 files |
 | Phase 02 P21 | 25 min | 3 tasks | 13 files |
 | Phase 02 P22 | 30min | 2 tasks | 18 files |
+| Phase 02 P23 | 30min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-22: Overlay (App. C .s-overlay, data-ui=s-overlay) is a production component in @/ui/overlays; screens render dialogs as <Overlay><Modal inline/></Overlay> (mockup layout) or a bare <Modal/> (App. B scrim/bottom sheet)
 - [Phase 02]: 02-22: ConfirmDialog.onConfirm may return a promise; a rejection or a resolved useSubmission { ok: false } keeps the dialog open with the describeHttpError line + traceId, Delete re-enabled and focused, no toast; pending blocks further confirms, Esc, scrim and Cancel
 - [Phase 02]: 02-22: Modal adds loading (blocks Esc/scrim/Close) and initialFocus (ref); useFocusTrap(ref, {active, initialFocus, returnFocus}) and useBodyScrollLock (overflow-hidden class, holder count) are reusable by MobileNavDrawer
+- [Phase 02]: 02-23: OrderTotals keeps App. D.3 props; totals (server figures, D-09) win over a preview of order; components only format money (T-02-55)
+- [Phase 02]: 02-23: the OrderTotals panel note keeps its p inside the dl with role=definition (A11Y-01 axe definition-list); the DefinedTotalsNote wrapper pair adds the same attribute to the frozen reference note
+- [Phase 02]: 02-23: KpiCard delta icon named Up/Down (A11Y-01); a zero KPI keeps the normal approved look (no KpiCard zero state in App. D.3; D-02 is-zero is the cascade tiles)
+- [Phase 02]: 02-23: cardClasses and overlineClasses are exported from @/ui/money for OrderCard (02-24); the .s-kpis dashboard context looks stay with the layout plans
 
 ### Pending Todos
 
@@ -257,6 +262,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T00:27:53.889Z
-Stopped at: Completed 02-22-PLAN.md
+Last session: 2026-10-09T01:04:24.322Z
+Stopped at: Completed 02-23-PLAN.md
 Resume file: None
