@@ -4,7 +4,7 @@ plan: 24
 subsystem: ui
 tags: [order-card, data-table, income-expense-chart, svg, tip-x, col-w, parity, tailwind, wcag, tdd, web-02, d-09, d-33, a11y-01]
 created: "2026-10-08T20:56:00-05:00"
-updated: "2026-10-08T20:56:00-05:00"
+updated: "2026-10-08T21:35:00-05:00"
 
 requires:
   - phase: 02-web-foundation-design-system (plan 02-17)
@@ -291,3 +291,35 @@ None. No external service configuration is required.
 
 - All 10 created files and the 4 modified files exist on disk.
 - Commits `a7865e9`, `0702c0d`, `08b03c1` and `936cac7` are on `gsd/phase-2-web-foundation-design-system`.
+
+## Follow-up: owner ruling D-40
+
+On 2026-10-08 the owner ruled in chat that an order card with no team shows "Walk-in customer" on the line under the title. This is the same wording the table rows use (spec §8.3). The ruling answers the owner question above and replaces the plan-text adjustment "No 'Walk-in customer' on the card".
+
+- **Must-have now met.** The plan's truth "team/customer with 'Walk-in customer' when no team" was left unmet, because the text was not in the approved design and needed an owner decision (D-08). It is now met. A no-team OrderCard shows the customer's name as the title (unchanged) and **"Walk-in customer"** on the customer line. App. D.3 left that line empty.
+- **What renders, and where.**
+  - The `<p>` right after the card's `<h3>` holds one text node, "Walk-in customer". It uses the existing customer-line look (`orderCustomerClasses`: 14px/20px, `--ink-muted`, at least one line high), so the card's height does not change.
+  - An empty-string team counts as no team, the same truthiness rule as the title (`o.team || o.customer`).
+  - An order with a team is unchanged: the team is the title and the customer is on the line.
+- **One shared constant.** No table constant existed yet, because ResponsiveTable comes in 02-30. So `WALK_IN_CUSTOMER` now lives in `web/src/ui/data/copy.ts` and is exported from `@/ui/data`. **02-30's customer cell must import it** instead of typing the string, so the card and the table rows always match.
+- **Reference side.**
+  - CSS cannot add a text node, so D-40 has no rule group in `rulings.css`. The file's header says so, and `rulings.test.ts` pins that.
+  - The `order-card-walk-in` scenario now sits in a new `WalkInOrderCard` wrapper pair (`web/src/dev/previews/` + `web/visual/reference/fragments/`), following the D-39 `DimmedZeroKpi` precedent. The implementation side is a plain `<div>`. On the reference side, the wrapper writes "Walk-in customer" into the frozen, empty `.csp-order-cust` line after mount, when the OrderCard child's order has no team.
+  - The reference types the text from the spec rather than importing the app's constant, so a wording slip on either side shows up as a pixel difference.
+  - No tolerance, normalization or intentional-differences registry entry was added.
+- **Commits.**
+  - RED `abb36de` (test): 5 of 36 data tests and 1 of 31 rulings tests failed on assertions. `RED_EVIDENCE_OK` for both `src/ui/data/data.test.tsx` and `visual/reference/rulings.test.ts`.
+  - GREEN `1faf333` (fix): `copy.ts`, OrderCard, the barrel, the `WalkInOrderCard` pair, the scenario, the `rulings.css` header, and `docs/web/parity.md` (§5 describes the pair, §6 has the D-40 row).
+  - Docs `680176b`: D-40 in 02-CONTEXT.md, plus the copywriting, intentional-differences and partial/table-cells rows in 02-UI-SPEC.md.
+- **Tests.**
+  - `src/ui/data` has 56 tests (data 36, chart 20), all passing.
+    - The new and changed tests cover: the constant pinned to the spec wording; the walk-in line as one text node in the customer-line look; an empty team; a team order unchanged; a re-render case (same props, then a team order, then walk-in again); and the wrapper pair (one plain block, text shown).
+    - Coverage is unchanged at 99.64 / 99.25 / 100 / 100.
+  - `rulings.test.ts`: 31 of 31.
+  - `npm --prefix web run verify` exited 0: 69 files, 1820 tests, coverage 99.16 / 98.27 / 100 / 99.93. `node web/scripts/class-gate.mjs` exits 0.
+- **Parity.** Preflight was clear before each run.
+  - Chromium `@data`: 8 of 8.
+  - All three engines `@data`: **24 passed** (Chromium 8, Firefox 8, WebKit 8) in 2.7 min.
+  - Two throw-away mutations proved the comparison is live. Both were reverted, and the fragment was confirmed byte-identical to its backup before the commit.
+    - The reference text was changed to "Walk-in Customer". `order-card-walk-in` then failed in Chromium light 390 with 367 pixels different. No other case in that row failed.
+    - The reference write was removed, which leaves the approved empty line. `order-card-walk-in` then failed in Chromium dark 1440 with 403 pixels different.
