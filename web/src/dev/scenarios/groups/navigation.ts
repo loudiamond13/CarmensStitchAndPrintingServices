@@ -8,6 +8,9 @@
 //     opened by the dev-only OpenedSiteDrawer wrapper pair (D-31 O-3: the current drawer link is italic). The header's
 //     links hide on phones and its burger hides from 768 px, so the hover target is whichever of the Products link and
 //     the burger is visible at the row's width (Playwright's `:visible`).
+//   - Topbar (admin) at every width: Blush with the moon toggle ("Switch to dark mode") and keyboard focus in the search
+//     box (its focus ring), Espresso with the sun toggle and hover and focus on the user-menu button. The phone rows
+//     show the menu button and the 16px search text (D-01).
 // The user role goes through a typed constant, never a literal role prop (L-20).
 // The D-27 Logout `<button>` pairs with the approved `<a href="#">` through the registry
 // (web/visual/intentional-differences.ts): `[data-case] > aside > foot > Logout` is path 0/0/2/1 with the user chip
@@ -70,6 +73,27 @@ function siteHeaderCase({ id, node, states, responsive, target }: SiteHeaderCase
   };
 }
 
+interface TopbarCase {
+  readonly id: string;
+  readonly theme: 'light' | 'dark';
+  readonly target: string;
+}
+
+/** A Topbar case in one theme, its toggle showing that theme's icon; the harness drives `target`. */
+function topbarCase({ id, theme, target }: TopbarCase): Scenario {
+  return {
+    id,
+    group: 'navigation',
+    node: { kind: 'node', component: 'Topbar', props: { user: CARMEN, role: MANAGER, theme } },
+    themes: [theme],
+    responsive: true,
+    states: ['rest', 'hover', 'focus-visible'],
+    parity: true,
+    handlers: ['onMenu', 'onToggleTheme', 'onSearch'],
+    target,
+  };
+}
+
 export const scenarios: readonly Scenario[] = [
   sidebarCase({
     id: 'sidebar-dashboard-current',
@@ -105,4 +129,6 @@ export const scenarios: readonly Scenario[] = [
     states: ['rest'],
     responsive: false,
   }),
+  topbarCase({ id: 'topbar-light', theme: 'light', target: 'input[type="search"]' }),
+  topbarCase({ id: 'topbar-dark', theme: 'dark', target: '[aria-haspopup="menu"]' }),
 ];

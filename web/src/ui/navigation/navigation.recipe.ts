@@ -109,3 +109,14 @@ export const siteDrawerLinkClasses = tw(
 
 /** `.csp-site-drawer .csp-btn { margin-top }` (layout glue passed to the block Button it renders). */
 export const siteDrawerCtaClasses = tw('mt-4');
+
+// RED stub (plan 02-26 Task 3): the Topbar looks arrive in GREEN.
+export const topbarClasses = tw('');
+export const topbarMenuClasses = tw('');
+export const topbarRightClasses = tw('');
+export const searchClasses = tw('');
+export const searchInputClasses = tw('');
+export const searchInputCompatClasses = tw('');
+export const searchKbdClasses = tw('');
+export const userMenuClasses = tw('');
+export const userMenuTextClasses = tw('');
