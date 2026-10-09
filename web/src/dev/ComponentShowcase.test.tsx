@@ -268,6 +268,33 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('opens the Delete Payment confirm (no type-to-confirm field) with focus on Cancel; it deletes nothing', async () => {
+    const user = userEvent.setup();
+    renderShowcase();
+    const frame = caseFrame('showcase-confirm-delete-payment');
+    // A demo frame is no page root, so the fixed layer the dialog opens covers the page (like the viewport demos).
+    expect(frame).not.toHaveAttribute('role');
+    const trigger = within(frame).getByRole('button', { name: 'Open Delete Payment' });
+
+    await user.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'Delete payment of ₱2,000.00?' });
+    expect(dialog).toHaveTextContent('This removes it from ORD-2026-0148 and updates the totals right away.');
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(trigger).toHaveFocus();
+
+    await user.click(trigger);
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Payment' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
   it('opens the phone navigation drawer and closes it on Esc', async () => {
     const user = userEvent.setup();
     renderShowcase();
