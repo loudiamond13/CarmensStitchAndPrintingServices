@@ -66,7 +66,7 @@ const modalBase = tw(
 const modalShape = {
   center: tw('max-w-[520px] vp-lt-sm:rounded-t-lg vp-lt-sm:rounded-b-none'),
   slideover: tw(
-    'h-full max-w-(--slideover-width) animate-csp-slide rounded-l-lg rounded-r-none motion-reduce:animate-none vp-lt-sm:max-w-none vp-lt-sm:rounded-none',
+    'h-full max-w-(--slideover-width) animate-csp-slide rounded-l-lg rounded-r-none vp-lt-sm:max-w-none vp-lt-sm:rounded-none',
   ),
 } as const;
 

@@ -159,6 +159,64 @@ describe('useFocusTrap', () => {
     expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
   });
 
+  it('lets Shift+Tab move normally between the elements inside', async () => {
+    const user = await openTrap(fields);
+
+    await user.tab({ shift: true });
+
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
+  });
+
+  it('returns focus nowhere when the trigger was not an HTML element', () => {
+    function SvgTrigger({ open }: { readonly open: boolean }) {
+      return (
+        <>
+          <svg tabIndex={0} data-testid="svg" aria-label="Chart" role="img" />
+          {open && (
+            <Trap>
+              <button type="button">Inside</button>
+            </Trap>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<SvgTrigger open={false} />);
+    const svg = screen.getByTestId('svg');
+    svg.focus();
+    expect(svg).toHaveFocus();
+
+    rerender(<SvgTrigger open />);
+    expect(screen.getByRole('button', { name: 'Inside' })).toHaveFocus();
+    rerender(<SvgTrigger open={false} />);
+
+    expect(svg).not.toHaveFocus();
+  });
+
+  it('sends Tab to the first and Shift+Tab to the last element when focus has left everything (on the body)', async () => {
+    const user = await openTrap(fields);
+    const amount = screen.getByRole('textbox', { name: 'Amount' });
+
+    amount.blur();
+    expect(document.body).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Close' }).blur();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+  });
+
+  it('sends Shift+Tab from the focused container itself to the last element', async () => {
+    const user = await openTrap(fields);
+    const trap = screen.getByTestId('trap');
+    trap.tabIndex = -1;
+    trap.focus();
+
+    await user.tab({ shift: true });
+
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+  });
+
   it('brings focus back inside when it moves to an element outside', async () => {
     await openTrap(fields);
 

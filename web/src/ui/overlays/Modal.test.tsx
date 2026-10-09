@@ -7,7 +7,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { Button } from '@/ui/actions';
 import { iconButtonClasses } from '@/ui/feedback';
 import { Field } from '@/ui/forms';
-import { Modal, Overlay, type ModalProps } from '@/ui/overlays';
+import { Modal, Overlay, useBodyScrollLock, type ModalProps } from '@/ui/overlays';
 import {
   bodyScrollLockClass,
   modalBodyClasses,
@@ -297,6 +297,16 @@ describe('Modal (App. D.3, WEB-02)', () => {
     expect(document.body.classList.contains('overflow-hidden')).toBe(false);
   });
 
+  it('leaves body scroll alone when the lock is not active', () => {
+    function Idle() {
+      useBodyScrollLock(false);
+      return <p>Idle</p>;
+    }
+    render(<Idle />);
+
+    expect(document.body.classList.contains('overflow-hidden')).toBe(false);
+  });
+
   it('keeps the lock until the last of two open dialogs closes', () => {
     const first = render(<AddPayment />);
     const second = render(<AddPayment title="Second" />);
@@ -346,6 +356,15 @@ describe('Overlay (App. C .s-overlay)', () => {
     expect(region?.getAttribute('data-ui')).toBe('s-overlay');
     expect(classTokens(region)).toEqual(tokens(overlayRegionClasses));
     expect(region?.firstElementChild?.firstElementChild?.getAttribute('role')).toBe('dialog');
+  });
+
+  it('re-renders from the React Compiler memo cache with the same output, and updates on new children', () => {
+    const { container, rerender } = render(<Overlay>first</Overlay>);
+    rerender(<Overlay>first</Overlay>);
+    expect(container.textContent).toBe('first');
+
+    rerender(<Overlay>second</Overlay>);
+    expect(container.textContent).toBe('second');
   });
 
   it('closes an inline Modal on a mousedown on the region scrim', () => {
