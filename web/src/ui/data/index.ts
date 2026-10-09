@@ -3,5 +3,7 @@
 export type { CellAlign } from './data.recipe';
 export { DataTable } from './DataTable';
 export type { DataTableColumn, DataTableProps } from './DataTable';
+export { IncomeExpenseChart } from './IncomeExpenseChart';
+export type { ChartDatum, IncomeExpenseChartProps } from './IncomeExpenseChart';
 export { OrderCard } from './OrderCard';
 export type { OrderCardProps } from './OrderCard';

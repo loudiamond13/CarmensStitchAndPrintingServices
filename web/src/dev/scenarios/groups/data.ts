@@ -1,10 +1,12 @@
-// Data group (App. D.3 "Data display": OrderCard and DataTable, CSPS-UI-SPEC.md §6.4; plan 02-24). Every scenario
+// Data group (App. D.3 "Data display": OrderCard, DataTable and IncomeExpenseChart, CSPS-UI-SPEC.md §6.4; plan 02-24). Every scenario
 // here has group 'data'. Each case is compared in both themes at 390 and 1440:
 //   - OrderCard on the spec §12.2 seed orders: ORD-2026-0148 (In Production, 4 images, balance due ₱9,327.50; also on
 //     hover, where the card lifts), ORD-2026-0151 (Ready, 2 images, Fully Paid) and ORD-2026-0153 (no team: the
 //     customer is the title; Mockup, overdue, no images yet);
 //   - DataTable with the §12.2 orders (money columns right-aligned, two columns sized through `--col-w`; also with the
-//     first row hovered), loading (4 skeleton rows), empty and error, each in the KeyboardScrollTable wrapper pair.
+//     first row hovered), loading (4 skeleton rows), empty and error, each in the KeyboardScrollTable wrapper pair;
+//   - IncomeExpenseChart at rest with the spec §12.4 six months (May–Oct 2026; axis ₱0 / ₱100k / ₱200k) and twelve
+//     months (Nov 2025–Oct 2026: the six §12.4 months after six demo months chosen below the same axis top).
 // The OrderCard figures are never typed here: both sides compute them from the seed order with orderTotals (the
 // reference with App. D.1, the implementation with the D-09 centavo math). The table's figures are the §12.2 results
 // (Total = items; Balance = Total − Discount − Paid), which data.test.tsx checks against orderTotals.
@@ -131,6 +133,30 @@ function table(props: ScenarioProps): ScenarioNode {
   });
 }
 
+/** Spec §12.4 chart data (income / expenses), May–Oct 2026. `label` names each month for assistive technology. */
+export const CHART_6_MONTHS: readonly ScenarioProps[] = [
+  { month: 'May', label: 'May 2026', income: 98400, expenses: 61200 },
+  { month: 'Jun', label: 'Jun 2026', income: 132650, expenses: 70350 },
+  { month: 'Jul', label: 'Jul 2026', income: 87300, expenses: 66480 },
+  { month: 'Aug', label: 'Aug 2026', income: 145900, expenses: 74120 },
+  { month: 'Sep', label: 'Sep 2026', income: 112980, expenses: 69900 },
+  { month: 'Oct', label: 'Oct 2026', income: 126450, expenses: 58320 },
+];
+
+/**
+ * Twelve months: six demo months (Nov 2025–Apr 2026; the spec gives only six, so these are chosen, each below the
+ * §12.4 maximum of ₱145,900, keeping the axis at ₱200k), then the §12.4 six.
+ */
+export const CHART_12_MONTHS: readonly ScenarioProps[] = [
+  { month: 'Nov', label: 'Nov 2025', income: 76500, expenses: 52100 },
+  { month: 'Dec', label: 'Dec 2025', income: 118200, expenses: 64800 },
+  { month: 'Jan', label: 'Jan 2026', income: 64350, expenses: 48900 },
+  { month: 'Feb', label: 'Feb 2026', income: 81700, expenses: 55240 },
+  { month: 'Mar', label: 'Mar 2026', income: 104600, expenses: 60150 },
+  { month: 'Apr', label: 'Apr 2026', income: 92850, expenses: 58700 },
+  ...CHART_6_MONTHS,
+];
+
 export const scenarios: readonly Scenario[] = [
   dataCase('order-card-0148', node('OrderCard', { order: CARD_0148 }), {
     states: ['rest', 'hover'],
@@ -145,4 +171,6 @@ export const scenarios: readonly Scenario[] = [
   dataCase('data-table-loading', table({ rows: [], loading: true })),
   dataCase('data-table-empty', table({ rows: [] })),
   dataCase('data-table-error', table({ rows: [], error: "Couldn't load orders." })),
+  dataCase('chart-6-months', node('IncomeExpenseChart', { data: CHART_6_MONTHS })),
+  dataCase('chart-12-months', node('IncomeExpenseChart', { data: CHART_12_MONTHS })),
 ];
