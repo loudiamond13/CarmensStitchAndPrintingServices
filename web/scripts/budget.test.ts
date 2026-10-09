@@ -274,6 +274,19 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
     expect(report.errors).toEqual([expect.stringContaining('src/app/admin/AdminLayout.tsx')]);
   });
 
+  it('finds a route module that sits in a shared chunk (the parity entry imports it statically, so it is no facade)', () => {
+    const graph = devRoutesGraph(240_000);
+    const chunks = graph.chunks.map((c) =>
+      c.facadeModuleId === ADMIN_LAYOUT || c.facadeModuleId === PUBLIC_PAGE
+        ? { ...c, facadeModuleId: null, isDynamicEntry: false }
+        : c,
+    );
+    const report = evaluateBudgets({ ...graph, chunks }, devRoutes);
+    expect(report.errors).toEqual([]);
+    expect(report.adminJs).toBe(240_000);
+    expect(report.publicJs).toBe(120_000);
+  });
+
   it('never measures the parity entry as a route and allows dev-only modules', () => {
     const report = evaluateBudgets(devRoutesGraph(200_000, 120_000), devRoutes);
     expect(report.ok).toBe(true);

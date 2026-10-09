@@ -42,8 +42,11 @@ function outputChunk(
     facadeModuleId?: string | null;
     imports?: string[];
     moduleIds?: string[];
+    /** Rendered code length per module id (default 10); 0 means tree-shaken to nothing. */
+    rendered?: Record<string, number>;
   },
 ): Rollup.OutputChunk {
+  const moduleIds = extra.moduleIds ?? [];
   return {
     type: 'chunk',
     fileName,
@@ -53,7 +56,8 @@ function outputChunk(
     facadeModuleId: extra.facadeModuleId ?? null,
     imports: extra.imports ?? [],
     dynamicImports: [],
-    moduleIds: extra.moduleIds ?? [],
+    moduleIds,
+    modules: Object.fromEntries(moduleIds.map((id) => [id, { renderedLength: extra.rendered?.[id] ?? 10 }])),
   } as unknown as Rollup.OutputChunk;
 }
 
@@ -62,12 +66,13 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
 }
 
 /** A production-shaped bundle with absolute (Windows-style) module ids under ROOT. */
-function bundle(entryCode: string): Rollup.OutputBundle {
+function bundle(entryCode: string, entryModules: Record<string, number> = {}): Rollup.OutputBundle {
   const items = [
     outputChunk('assets/index-A1.js', entryCode, {
       isEntry: true,
       facadeModuleId: `${ROOT}/index.html`,
-      moduleIds: [`${ROOT}/index.html`, 'C:\\Work\\app\\web\\src\\main.tsx'],
+      moduleIds: [`${ROOT}/index.html`, 'C:\\Work\\app\\web\\src\\main.tsx', ...Object.keys(entryModules)],
+      rendered: entryModules,
     }),
     outputChunk('assets/PublicLayout-C3.js', 'export const a = 1;', {
       isDynamicEntry: true,
@@ -180,6 +185,19 @@ describe('budgetPlugin (PERF-01)', () => {
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
     expect(summary.errors).toHaveLength(1);
+  });
+  it('ignores a dev-only module that was tree-shaken to nothing (rendered length 0)', async () => {
+    const plugin = budgetPlugin({ devRoutes: false, reportDir: temporaryDirectory() });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 0 });
+    await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+  });
+
+  it('fails the production build when a dev-only module ships code', async () => {
+    const plugin = budgetPlugin({ devRoutes: false, reportDir: temporaryDirectory() });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 120 });
+    await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
+      /index-A1\.js contains the dev-only module src\/app\/admin\/routes\.tsx/,
+    );
   });
 });
 

@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
+import { budgetPlugin } from './scripts/vite-budget-plugin.ts';
 import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
@@ -38,6 +39,11 @@ export default defineConfig(({ mode }) => {
       // SPEC-DEVIATION: PERF-05 preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2 (the
       // LCP font), and the build fails if that file is missing or matched twice (research Pattern 14).
       preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
+      // SPEC-DEVIATION: PERF-01 budgets. Build-only: every build measures public initial JS (<= 150 KB gz), CSS
+      // (<= 35 KB gz, exactly one CSS file) and, with dev routes, admin initial JS (<= 250 KB gz); the production build
+      // also fails on any admin, dev or parity module. Over a limit the build fails with the size table
+      // (research Pattern 12, docs/web/budgets.md).
+      budgetPlugin({ devRoutes }),
     ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget
