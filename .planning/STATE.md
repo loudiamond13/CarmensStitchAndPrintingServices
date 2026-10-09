@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-33-PLAN.md
-last_updated: "2026-10-09T08:22:58.627Z"
+stopped_at: Completed 02-34-PLAN.md
+last_updated: "2026-10-09T09:09:51.844Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 17d593a0c2eee7092699d958f1cebd04d0299471
+state_head: 8388c9908c382c05ae876c12d5f690e492971711
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 50
+  completed_plans: 51
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-09T03:24:00-05:00"
+updated: "2026-10-09T04:10:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 38 of 40
+Plan: 39 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -108,6 +108,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P31 | 65 min | 3 tasks | 34 files |
 | Phase 02 P32 | 32 min | 2 tasks | 19 files |
 | Phase 02 P33 | 19 min | 2 tasks | 9 files |
+| Phase 02 P34 | 39 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -267,6 +268,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-32: rovingItem has a 'menu' pattern (Down/Up wrap, Home/End); UiLink takes role='menuitem' and tabIndex; impl-only navigation cases live in groups/navigation-gaps.ts (user-menu-open, drawer-open, user-chip-long-name).
 - [Phase 02]: 02-33: bundle budgets enforced in every vite build (public 150 KB incl. dev-route builds, admin 250 KB in dev-route builds, CSS 35 KB, exactly one CSS asset; production fails on admin/src-dev/web-visual code with rendered bytes); verify runs build:budget after build; Rolldown checks.bundlerTimings off
 - [Phase 02]: 02-33: dev-route public JS is 149.34 KB of 150 KB (parity entry sharing; 137.96 KB without it); 135 KB Phase 4 barrel-split note fires; never raise the limit - split barrels or change the budget-mode topology by decision (deferred-items.md)
+- [Phase 02]: 02-34: @/ui barrel re-exports all 15 area barrels + @/lib/csps; showcase at /dev/components (UI-SPEC sections, then Navigation and Marketing; layouts excluded); viewport scenarios become trigger demos; case frames are named focusable scroll regions; Sidebar active={null} = no current item (used on non-section admin paths)
+- [Phase 02]: 02-34: dev-route public JS 149.47 KB of 150 KB (0.53 KB headroom) - next dev-route addition likely needs the approved remedy (build budget/e2e without the parity entry, or split barrels); never raise the limit
 
 ### Pending Todos
 
@@ -303,6 +306,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T08:22:58.407Z
-Stopped at: Completed 02-33-PLAN.md
+Last session: 2026-10-09T09:09:51.622Z
+Stopped at: Completed 02-34-PLAN.md
 Resume file: None

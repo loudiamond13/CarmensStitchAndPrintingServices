@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T03:24:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T04:10:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -38,7 +38,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **WEB-03**: `web/src/lib/http/httpClient.ts` is a fetch-based, axios-like client (instances, interceptors, timeout/abort, params, JSON/FormData, upload progress via XHR only when requested, single-flight 401 refresh with one retry, capped retries for idempotent calls, normalized `HttpError`) with 100% unit coverage (PRD §9.3)
 - [x] **WEB-04**: `web/src/lib/api.ts` is the only module that defines endpoint calls (grouped `api.auth/orders/expenses/users/site/analytics/profile/inquiries`). ESLint forbids `fetch`, `httpClient` and `axios` imports elsewhere
 - [x] **WEB-05**: Public and Admin layouts per UI-SPEC §2.2/§8.1 (`.s-page[data-theme]`, sidebar/rail/tab bar, mobile nav drawer marked SPEC-GAP) with route-level code splitting and a global error boundary
-- [ ] **WEB-06**: Shared primitives exist with unit + axe tests: Skeleton family with `aria-busy` + polite live region, EmptyState, ErrorState with retry, ConfirmDialog, Toast, DataTable (`.s-rt` → cards on phones), Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput. No primitive is re-implemented in feature code (PRD §9.2)
+- [x] **WEB-06**: Shared primitives exist with unit + axe tests: Skeleton family with `aria-busy` + polite live region, EmptyState, ErrorState with retry, ConfirmDialog, Toast, DataTable (`.s-rt` → cards on phones), Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput. No primitive is re-implemented in feature code (PRD §9.2)
 - [x] **WEB-07**: The money/date formatters and order math (`formatPeso`, `formatDate`, `orderTotals`) agree with the server on a shared golden-vector file (≥ 200 cases including half-centavo values) consumed by both xUnit and Vitest ⚑ C-25 (client rounding change)
 - [x] **WEB-08**: TanStack Query provider and query-key conventions: `staleTime` defaults, keep-previous-data pagination, 300 ms debounced search with `AbortSignal` cancellation, intent prefetch
 - [x] **WEB-09**: The `lib/http` client (WEB-03) sends an `Idempotency-Key` (a UUID from `crypto.randomUUID()`) with every POST (SEC-06). It creates one key per form submission and reuses it on every retry of that submission, including the single-flight 401 refresh retry; a POST carrying a key counts as idempotent for WEB-03's capped retries. Submit buttons are disabled (`aria-disabled`, keeping keyboard focus) and show a pending state while the request is in flight, so a double-click sends one request. `lib/http`'s 100% coverage includes key reuse on retry, and component tests cover the pending button (owner, 2026-10-07)
@@ -347,7 +347,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-03 | Phase 2 | Complete |
 | WEB-04 | Phase 2 | Complete |
 | WEB-05 | Phase 2 | Complete |
-| WEB-06 | Phase 2 | Pending |
+| WEB-06 | Phase 2 | Complete |
 | WEB-07 | Phase 2 | Complete |
 | WEB-08 | Phase 2 | Complete |
 | WEB-09 | Phase 2 | Complete |
