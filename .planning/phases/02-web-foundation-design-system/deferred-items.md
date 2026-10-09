@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T05:02:00-05:00"
+updated: "2026-10-09T07:25:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -45,6 +45,20 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** on phones the Modal is a bottom sheet. The showcase's Delete Order demo buttons behind it are half covered, and axe's `target-size` rule (WCAG 2.5.8) reported their visible part as smaller than 24px. Nobody can reach them while the dialog is open: the focus trap keeps Tab inside, the scrim takes the taps and `aria-modal` hides them from screen readers. But the page behind is not `inert`, so axe still measures it. The phone navigation drawer already makes the frame behind it `inert` (plan 02-32); the Modal and ConfirmDialog do not. The @keyboard spec therefore runs axe over the open dialog only. The existing @showcase test (an inline ConfirmDialog in an Overlay) and every page-level axe run with no dialog open stay unscoped and clean.
   **Why deferred:** making the page behind a dialog inert changes how the approved Modal behaves for assistive technology and is a shared-component change (D-08 territory); no Phase 2 screen opens a Modal outside the dev-only showcase.
   **Next step:** when Phase 4 opens real dialogs from the admin screens, have the layout set `inert` on its frame while a Modal or ConfirmDialog is open (as AdminFrame does for the drawer), then run page-level axe with the dialog open again.
+
+- @showcase timing under a full five-project E2E run (plan 02-35, flake in a spec this plan did not change)
+  status: open
+  **Found by:** plan 02-35, the full `npm --prefix web run e2e` (507 tests, 29.5 minutes, 4 workers).
+  **What:** `showcase.spec.ts` (plan 02-34) "the Delete Order demo opens an axe-clean dialog and deletes nothing" hit its 30 s test timeout on the iPhone profile while clicking Delete Order, and on the rerun of that one test across all projects it failed once in Firefox waiting 5 s for the showcase h1 on a cold first load. Both passed on the next run (`--grep @showcase --project firefox --project iphone`: 10 of 10). The page renders about 190 cases, and the spec keeps Playwright's default 30 s test and 5 s expect timeouts.
+  **Why deferred:** no assertion failed on what it checks, and plan 02-35's own showcase journeys already use a 120 s test timeout for the same page. No tolerance was added.
+  **Next step:** whoever next touches `showcase.spec.ts` should give its tests the same longer timeout as `keyboard.spec.ts` (`test.setTimeout(120_000)` in `openShowcase`).
+
+- Two server integration tests failed once in a full `dotnet test` right after a Lighthouse run (plan 02-35, not reproduced)
+  status: open
+  **Found by:** plan 02-35, `dotnet test --solution Csps.slnx` run straight after `npm --prefix web run lighthouse` had built and run the server.
+  **What:** `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` and `HealthEndpointTests.ReturnsHealthyWithAllChecks` failed (888 of 890 passed). Both passed when run on their own, and a second full run passed 890 of 890. Plan 02-35's only server change is the response compression level, which neither test reads (`/health` and the API answer JSON, which is never compressed, and `NeverCompressesJson` passed in both runs).
+  **Why deferred:** not reproduced; it looks like a cold LocalDB or machine load on the first run.
+  **Next step:** if either test fails again, capture its full output (`dotnet test --project tests/Csps.Server.IntegrationTests -- --filter-method <name>`) and check the health check's database timeout.
 
 ## Owner decisions pending
 
