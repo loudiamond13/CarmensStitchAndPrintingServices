@@ -450,7 +450,7 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
 
     const drawerRoot = screen.getByRole('dialog', { name: 'Navigation' }).parentElement;
     expect(drawerRoot?.previousElementSibling).toBe(frame);
-    expect(frame?.closest('[data-theme]')).toContainElement(drawerRoot as HTMLElement);
+    expect(frame?.closest('[data-theme]')).toContainElement(drawerRoot);
     expect(frame).toHaveAttribute('inert');
 
     await userEvent.keyboard('{Escape}');

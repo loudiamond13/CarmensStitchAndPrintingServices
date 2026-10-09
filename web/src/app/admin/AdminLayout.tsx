@@ -5,18 +5,22 @@
 //     rail looks are `pg-tablet:in-data-[ui=s-admin-side]:` variants in the navigation recipes), hidden on phones;
 //   - the main column (`data-ui="s-admin-main"`): the sticky Topbar, `main#main` in the `.s-body` look, and the phone
 //     tab bar.
+// After the frame comes the phone navigation drawer (SPEC-GAP MobileNavDrawer, plan 02-32): the Topbar's "Open
+// navigation" button opens it (`aria-expanded`, `aria-controls`), it holds a second Sidebar for the same section, and
+// while it is open the frame behind it is `inert`, so neither the keyboard nor assistive technology reaches the page
+// under the scrim.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
 // The dev user is Carmen Reyes (Manager); Logout shows the "Not available yet" info toast until Phase 4.
 // Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
 // on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useNavigation } from 'react-router';
 import { SkipLink } from '@/ui/entry';
 import { Skeleton, ToastProvider, useToast } from '@/ui/feedback';
 import { pageRootClasses } from '@/ui/layout/layout.recipe';
-import { Sidebar, Topbar, type AdminSection } from '@/ui/navigation';
+import { MobileNavDrawer, Sidebar, Topbar, type AdminSection } from '@/ui/navigation';
 import {
   adminBodyClasses,
   adminClasses,
@@ -50,21 +54,47 @@ export interface AdminFrameProps {
   children?: ReactNode;
 }
 
-/** The App. E.6 frame: the side column with the Sidebar, then the Topbar, `main` and the tab bar in the main column. */
+/**
+ * The App. E.6 frame: the side column with the Sidebar, then the Topbar, `main` and the tab bar in the main column; then
+ * the phone navigation drawer, which the frame owns (its state, and `inert` on the frame while it is open).
+ */
 export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = false, children }: AdminFrameProps) {
+  const [navOpen, setNavOpen] = useState(false);
+  const drawerId = useId();
   return (
-    <div className={adminClasses}>
-      <div data-ui="s-admin-side" className={adminSideClasses}>
+    <>
+      <div className={adminClasses} inert={navOpen}>
+        <div data-ui="s-admin-side" className={adminSideClasses}>
+          <Sidebar active={section} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
+        </div>
+        <div data-ui="s-admin-main" className={adminMainClasses}>
+          <Topbar
+            user={DEV_USER}
+            role={DEV_USER.role}
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            onMenu={() => {
+              setNavOpen(true);
+            }}
+            menuExpanded={navOpen}
+            menuControls={drawerId}
+          />
+          <main id="main" tabIndex={-1} aria-busy={loading ? true : undefined} className={adminBodyClasses}>
+            {loading ? <SkeletonPageHead /> : children}
+          </main>
+          <TabBar active={section} />
+        </div>
+      </div>
+      <MobileNavDrawer
+        id={drawerId}
+        open={navOpen}
+        onClose={() => {
+          setNavOpen(false);
+        }}
+      >
         <Sidebar active={section} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
-      </div>
-      <div data-ui="s-admin-main" className={adminMainClasses}>
-        <Topbar user={DEV_USER} role={DEV_USER.role} theme={theme} onToggleTheme={onToggleTheme} />
-        <main id="main" tabIndex={-1} aria-busy={loading ? true : undefined} className={adminBodyClasses}>
-          {loading ? <SkeletonPageHead /> : children}
-        </main>
-        <TabBar active={section} />
-      </div>
-    </div>
+      </MobileNavDrawer>
+    </>
   );
 }
 

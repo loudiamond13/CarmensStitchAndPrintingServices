@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import type { Role } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -63,12 +63,18 @@ function Harness({ initialOpen = false, onClose }: HarnessProps) {
   );
 }
 
+/** The router's current path, so a test can tell an in-app navigation happened. */
+function CurrentPath() {
+  return <output aria-label="Current path">{useLocation().pathname}</output>;
+}
+
 function renderHarness(props: HarnessProps = {}) {
   return render(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
         <Route path="/admin/*" element={<Harness {...props} />} />
       </Routes>
+      <CurrentPath />
     </MemoryRouter>,
   );
 }
@@ -157,6 +163,54 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
     expect(document.activeElement).toBe(menuButton());
   });
 
+  it('returns focus to the menu button even when opening it did not focus it (Safari on a click)', async () => {
+    const user = userEvent.setup();
+    renderHarness({ initialOpen: true });
+    expect(drawer()).toContainElement(document.activeElement as HTMLElement);
+
+    await user.keyboard('{Escape}');
+
+    expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('returns focus to whatever had it on open when no element controls the drawer', async () => {
+    const user = userEvent.setup();
+    function Uncontrolled() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            Show navigation
+          </button>
+          <MobileNavDrawer
+            id="loose-drawer"
+            open={open}
+            onClose={() => {
+              setOpen(false);
+            }}
+          >
+            <Sidebar active="dashboard" role={MANAGER} />
+          </MobileNavDrawer>
+        </>
+      );
+    }
+    render(
+      <MemoryRouter>
+        <Uncontrolled />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Show navigation' }));
+
+    await user.keyboard('{Escape}');
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show navigation' }));
+  });
+
   it('ignores other keys', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -178,7 +232,11 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
     fireEvent.click(within(drawer()).getByText('Carmen Reyes'));
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(drawer().parentElement as HTMLElement);
+    const scrim = drawer().parentElement;
+    if (scrim === null) {
+      throw new Error('The drawer panel has no layer around it.');
+    }
+    fireEvent.click(scrim);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(menuButton());
@@ -192,6 +250,7 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
 
     await user.click(within(drawer()).getByRole('link', { name: 'Orders' }));
 
+    expect(screen.getByRole('status', { name: 'Current path' })).toHaveTextContent('/admin/orders');
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(menuButton());

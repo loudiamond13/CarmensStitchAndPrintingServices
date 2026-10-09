@@ -62,6 +62,7 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
   expect(box?.x).toBe(0);
   expect(box?.y).toBe(0);
   expect(box?.width).toBe(248);
+  expect(box?.height).toBe(PHONE.height);
   expect(await page.evaluate(`document.body.classList.contains('overflow-hidden')`)).toBe(true);
 
   // Tab cycles inside: twenty presses never leave the drawer and come back round to where they started.
@@ -98,12 +99,15 @@ test('@keyboard @admin following a link in the drawer goes there, closes the dra
   await page.keyboard.press('Enter');
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
 
+  // A marker on the window survives an in-app navigation and is gone after a full page load.
+  await page.evaluate(`window.cspsSameDocument = true`);
   const orders = drawer.getByRole('link', { name: 'Orders' });
   await orders.focus();
   await page.keyboard.press('Enter');
 
   await expect(page.locator('h1')).toHaveText('Orders');
   await expect(page).toHaveURL(/\/admin\/orders$/);
+  expect(await page.evaluate(`window.cspsSameDocument === true`), 'the router handled the link').toBe(true);
   await expect(drawer).toHaveCount(0);
   await expect(menu).toBeFocused();
 });

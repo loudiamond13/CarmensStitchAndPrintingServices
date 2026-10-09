@@ -189,3 +189,15 @@ export const userMenuNameClasses = tw('text-[14px] leading-[18px] text-ink');
 
 /** `.csp-usermenu-text span`. */
 export const userMenuRoleClasses = tw('text-[12px]');
+
+// ── Mobile navigation drawer (SPEC-GAP: mobile nav drawer, spec §2.10 #6; plan 02-32) ──
+// Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → MobileNavDrawer): the `--scrim` overlay at
+// `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root is a size
+// container, which makes it the containing block of fixed descendants, so the panel also sticks to the top of the
+// viewport at the viewport's height: the whole Sidebar stays in view however far the page was scrolled.
+
+/** The drawer layer: the scrim over the whole page root at the overlay layer; the panel sits at its left edge. */
+export const drawerClasses = tw('fixed inset-0 z-(--z-overlay) flex items-start bg-scrim');
+
+/** The panel: the full Sidebar at its 248px width and the viewport's height, scrolling inside when the phone is short. */
+export const drawerPanelClasses = tw('sticky top-0 h-dvh w-(--sidebar-width) overflow-y-auto overscroll-contain');
