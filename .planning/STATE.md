@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-30-PLAN.md
-last_updated: "2026-10-09T06:09:18.295Z"
+stopped_at: Completed 02-31-PLAN.md
+last_updated: "2026-10-09T07:18:14.702Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 380b83a2fb8cded1d2e15e9820d2d4d93555e946
+state_head: 80413ea54d7839fa61965684dba43fc847379039
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 47
+  completed_plans: 48
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-09T01:10:00-05:00"
+updated: "2026-10-09T02:20:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 35 of 40
+Plan: 36 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -105,6 +105,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P28 | 16 min | 2 tasks | 18 files |
 | Phase 02 P29 | 38 min | 3 tasks | 19 files |
 | Phase 02 P30 | 58 min | 3 tasks | 31 files |
+| Phase 02 P31 | 65 min | 3 tasks | 34 files |
 
 ## Accumulated Context
 
@@ -255,6 +256,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-30: list queries key on useSettledListParams(values, 300) (web/src/lib/query), not on useDebouncedValue(q) alone; setSearch resets the page at once, so debouncing only q sent an extra unfiltered request
 - [Phase 02]: 02-30: @/ui/lists toolkit (ResponsiveTable with every list state, SkeletonTable, UserCell, CustomerCell, RowActions, Pagination, SearchBox, FilterBar, ResultBar, FilterChip) is parity-equal to App. E.12/E.7; SPEC-GAP cases live in the lists-states group
 - [Phase 02]: 02-30: three approved-design accidents kept as rendered and sent to the owner: muted 12px user-cell name/avatar, no focus ring on the list search box, 22px tablet page scroll from the hidden Actions header text
+- [Phase 02]: 02-31: admin routes are compiled in only via the module-scope __DEV_ROUTES__ ? adminRoutes : [] (loaders marked @__PURE__); production assets carry no admin or showcase copy (build-output test, proven by a VITE_DEV_ROUTES=true mutation build)
+- [Phase 02]: 02-31: AdminFrame (web/src/app/admin/AdminLayout.tsx) is the shell body; 02-32 adds drawerOpen/onMenu/menuExpanded/menuControls and the UserMenu there; 02-34 mounts /dev/components under AdminLayout (no section current there needs a none option)
+- [Phase 02]: 02-31: Sidebar items and Logout are named by aria-labelledby (SPEC-DEVIATION A11Y-01) because App. C's tablet rail hides labels with display:none; UiLink has an aria-labelledby prop
+- [Phase 02]: 02-31: breakpoint variants keep App. C's exact query text (pg-phone + pg-tablet, never pg-lt-lg for a rule App. C states twice); fractional parity cases use a frameWidth page root in a non-responsive group
 
 ### Pending Todos
 
@@ -291,6 +296,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T06:09:18.037Z
-Stopped at: Completed 02-30-PLAN.md
+Last session: 2026-10-09T07:18:14.479Z
+Stopped at: Completed 02-31-PLAN.md
 Resume file: None
