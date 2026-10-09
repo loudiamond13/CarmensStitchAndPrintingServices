@@ -4,7 +4,7 @@ plan: 23
 subsystem: ui
 tags: [money, kpi-card, order-totals, peso, u-2212, d-09, parity, tailwind, wcag, tdd, web-02, ord-09, d-02, d-33]
 created: "2026-10-08T20:04:00-05:00"
-updated: "2026-10-08T20:04:00-05:00"
+updated: "2026-10-08T21:11:00-05:00"
 
 requires:
   - phase: 02-web-foundation-design-system (plan 02-07)
@@ -268,3 +268,33 @@ None. No external service configuration is required.
 
 - All 10 created files and the 1 modified file exist on disk.
 - Commits `36234df`, `2df9a26`, `8a670a8` and `171b625` are on `gsd/phase-2-web-foundation-design-system`.
+
+## Follow-up: owner ruling D-39
+
+On 2026-10-08 the owner ruled in chat: "Make KPI card showing zero look dimmed." This replaces the plan-text adjustment above that kept `kpi-zero` in the normal look.
+
+- **What dims.** Only the value. A KpiCard whose figure reads as zero gets `text-ink-subtle` (`--ink-subtle`) on its value, through `kpiZeroValueClasses` in `money.recipe.ts`. The label, icon tile, hint and delta chip keep their looks, and no opacity is used. This mirrors D-02's `.is-zero` cascade rule (`li.is-zero span`), which dims only the tile's count and leaves its label alone.
+- **What counts as zero.** A number the card shows as zero:
+  - a money figure that rounds to 0 centavos (`round2(value) === 0`, so 0, −0 and 0.004 all show "₱0.00" and dim);
+  - a count (`money={false}`) of exactly 0.
+  A text value is shown as given and never dims, even "0".
+- **Contrast.** On the card's `--surface` the dimmed figure measures 5.78:1 (light) and 6.19:1 (dark). The value is 26–40px bold, so the large-text minimum of 3:1 applies, and it would also pass the 4.5:1 normal-text bar.
+- **Reference side.**
+  - The rulings layer got a D-39 group: `.csp-kpi-value[data-zero] { color: var(--ink-subtle); }`.
+  - A CSS-only rule can't tell a zero figure, because App. D.3's markup has no hook for it. So `kpi-zero` sits in a new `DimmedZeroKpi` wrapper pair (`web/src/dev/previews/` + `web/visual/reference/fragments/`), following the `DefinedTotalsNote` precedent.
+  - On the reference side, the wrapper sets `data-zero` on the frozen `.csp-kpi-value` after mount when the KpiCard child's `value` is the number 0. The implementation side does nothing.
+  - Attributes are not compared, so the colour, boxes and pixels are still compared in full. No tolerance, normalization or intentional-differences registry entry was needed.
+  - The guide is updated: `docs/web/parity.md` §5 describes the pair and §6 has the D-39 row.
+- **Class gate / OPACITY_ALLOW.** Neither needed a change, because the dim is colour only. `node web/scripts/class-gate.mjs` exits 0.
+- **Commits.**
+  - RED `c65918a` (test): 7 of 50 money tests and 2 of 30 rulings tests failed on assertions. `RED_EVIDENCE_OK` for both `src/ui/money/money.test.tsx` and `visual/reference/rulings.test.ts`.
+  - GREEN `eb1817d` (fix): KpiCard and the recipe, rulings.css D-39, the `DimmedZeroKpi` pair, the `kpi-zero` scenario and parity.md.
+  - Docs `5f37dbc`: D-39 in 02-CONTEXT.md, plus the D-02, zero-one-many, intentional-differences and reference-layer rows in 02-UI-SPEC.md.
+- **Tests.**
+  - `src/ui/money` has 50 tests, all passing: the `kpi-zero` look with no opacity, a 10-row zero/non-zero table, a re-render case (same props, then a non-zero figure, then a zero count), and the wrapper pair. Coverage stays at 100% statements, branches, functions and lines.
+  - `rulings.test.ts`: 30 of 30.
+  - `npm --prefix web run verify` exited 0: 69 files, 1814 tests, coverage 99.16 / 98.27 / 100 / 99.93.
+- **Parity.** Preflight was clear before each run.
+  - Chromium `@money`: 10 of 10.
+  - All three engines `@money`: **18 passed** (Chromium 10, Firefox 4, WebKit 4) in 1.4 min.
+  - A throw-away mutation proved the comparison is live. It renamed the rule's selector so the reference stayed undimmed, and `kpi-zero` then failed in Chromium light 390: `color` reference rgb(59, 31, 28) against implementation rgb(122, 82, 72), and 1,009 pixels differed. It was reverted before the commit.
