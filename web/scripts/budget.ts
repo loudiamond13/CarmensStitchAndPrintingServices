@@ -60,6 +60,12 @@ export interface BudgetReport {
 /** The PERF-01 limits in gzip bytes (1 KB = 1000 B). Never raise one to make a build pass (docs/web/budgets.md). */
 export const BUDGETS = Object.freeze({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
 
+/**
+ * Public initial JS in the admin-included topology (the dev-route builds) above this adds a note, not an error: the
+ * Phase 4 trigger for splitting the component barrels (research Flag 4).
+ */
+export const BARREL_SPLIT_TRIGGER = 135_000;
+
 /** The HTML entry whose chunk every route loads first. */
 export const MAIN_ENTRY = 'index.html';
 
@@ -77,7 +83,10 @@ export const ADMIN_ROUTE: readonly string[] = Object.freeze([
 ]);
 
 /** Module path prefixes that must never reach a production build (D-20, CWE-489). */
-export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze(['src/app/admin/']);
+export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze(['src/app/admin/', 'src/dev/', 'visual/']);
+
+/** Output folders of the parity reference (web/.reference-dist, web/visual/.reference-src); never inside a build (02-13). */
+export const REFERENCE_FOLDERS: readonly string[] = Object.freeze(['.reference-dist', '.reference-src']);
 
 const LABELS: Readonly<Record<BudgetName, string>> = { publicJs: 'public JS', adminJs: 'admin JS', css: 'CSS' };
 
@@ -196,6 +205,13 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     }
   }
 
+  // 02-13: the parity reference output never sits inside a build output folder (wwwroot above all).
+  for (const fileName of [...graph.chunks, ...graph.assets].map((output) => output.fileName)) {
+    if (fileName.split('/').some((segment) => REFERENCE_FOLDERS.includes(segment))) {
+      errors.push(`The build emits ${fileName} from a parity reference folder.`);
+    }
+  }
+
   const measurements: BudgetMeasurement[] = [measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTE, errors)];
   if (options.devRoutes) {
     measurements.push(measureRoute(graph, entry, 'adminJs', ADMIN_ROUTE, errors));
@@ -221,6 +237,13 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     }
   }
 
+  const publicJs = measurements[0]?.bytes ?? null;
+  if (options.devRoutes && publicJs !== null && publicJs > BARREL_SPLIT_TRIGGER) {
+    notes.push(
+      `Note: public JS in the admin-included topology is ${formatKb(publicJs)}, past the ${formatKb(BARREL_SPLIT_TRIGGER)} trigger for the Phase 4 barrel split (research Flag 4).`,
+    );
+  }
+
   const value = (name: BudgetName): number | null => measurements.find((m) => m.name === name)?.bytes ?? null;
   return {
     ok: errors.length === 0,
@@ -234,6 +257,3 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     table: renderTable(measurements),
   };
 }
-
-/** Public initial JS in the admin-included topology above this adds a note: the Phase 4 barrel-split trigger. */
-export const BARREL_SPLIT_TRIGGER = 135_000;

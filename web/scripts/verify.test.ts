@@ -1,7 +1,7 @@
 // @vitest-environment node
-// Pins the order of the one static gate (QUAL-02): typecheck, lint, format, tests with coverage, the build, then the two
-// npm supply-chain gates (license gate, notices drift check; plan 02-06). The pipeline stops at the first failing step and
-// returns that step's exit code.
+// Pins the order of the one static gate (QUAL-02): typecheck, lint, format, tests with coverage, the build, the budget
+// build (plan 02-33), then the two npm supply-chain gates (license gate, notices drift check; plan 02-06). The pipeline
+// stops at the first failing step and returns that step's exit code.
 import { describe, expect, it, vi } from 'vitest';
 import { run, STEPS } from './verify.mjs';
 

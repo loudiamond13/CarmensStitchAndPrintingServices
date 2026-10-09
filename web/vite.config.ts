@@ -67,19 +67,23 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       // D-35: no .vite/license.md in the web root; the third-party notices live in the repository only.
       license: false,
-      // SPEC-DEVIATION: D-20 / CWE-489. Builds with dev routes (development, e2e, budget, and the parity build of
-      // `npm run parity`) add the look-equality page, parity.html (WEB-02, D-33). The production build keeps
-      // index.html as its only entry, so neither the page nor the dev scenario list can reach wwwroot.
-      ...(devRoutes
-        ? {
-            rolldownOptions: {
+      rolldownOptions: {
+        // SPEC-DEVIATION: zero build warnings (plan 02-33). Rolldown's timing check warns whenever JavaScript plugins
+        // take most of the build time, which the React Compiler (babel) and Tailwind always do in the dev-route builds;
+        // it reports speed, not a defect, and nothing here can act on it.
+        checks: { bundlerTimings: false },
+        // SPEC-DEVIATION: D-20 / CWE-489. Builds with dev routes (development, e2e, budget, and the parity build of
+        // `npm run parity`) add the look-equality page, parity.html (WEB-02, D-33). The production build keeps
+        // index.html as its only entry, so neither the page nor the dev scenario list can reach wwwroot.
+        ...(devRoutes
+          ? {
               input: {
                 main: fileURLToPath(new URL('./index.html', import.meta.url)),
                 parity: fileURLToPath(new URL('./parity.html', import.meta.url)),
               },
-            },
-          }
-        : {}),
+            }
+          : {}),
+      },
     },
   };
 });

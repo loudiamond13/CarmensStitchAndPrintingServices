@@ -2,11 +2,11 @@
 // chunk graph (gzip level 9 sizes, web-root-relative module ids), evaluates it with budget.ts, writes the numbers to
 // the git-ignored artifacts/budget/ folder and fails the build through this.error with the size table when a limit or
 // a build-shape rule is broken. Same fail-closed shape as vite-preload-font-plugin.ts.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import type { Logger, Plugin, Rollup } from 'vite';
-import { BUDGETS, evaluateBudgets, type BudgetGraph, type BudgetReport } from './budget.ts';
+import { BUDGETS, evaluateBudgets, REFERENCE_FOLDERS, type BudgetGraph, type BudgetReport } from './budget.ts';
 
 export interface BudgetPluginOptions {
   /** True for the builds with dev-only routes (`__DEV_ROUTES__`): the admin route is measured as well. */
@@ -80,6 +80,7 @@ export function budgetPlugin(options: BudgetPluginOptions): Plugin {
   const api: BudgetPluginApi = { devRoutes: options.devRoutes };
   let root = process.cwd();
   let mode = 'production';
+  let outDir = '';
   let logger: Pick<Logger, 'info'> | undefined;
   return {
     name: 'csps-budget',
@@ -88,6 +89,7 @@ export function budgetPlugin(options: BudgetPluginOptions): Plugin {
     configResolved(config) {
       root = config.root;
       mode = config.mode;
+      outDir = path.resolve(config.root, config.build.outDir);
       logger = config.logger;
     },
     generateBundle: {
@@ -104,6 +106,19 @@ export function budgetPlugin(options: BudgetPluginOptions): Plugin {
         logger?.info(`\n${report.table}${report.notes.length > 0 ? `\n${report.notes.join('\n')}` : ''}`);
         return undefined;
       },
+    },
+    writeBundle() {
+      // 02-13: the production web root (wwwroot) never holds the parity reference build or its extracted spec code.
+      if (options.devRoutes) {
+        return undefined;
+      }
+      const found = REFERENCE_FOLDERS.filter((name) => existsSync(path.join(outDir, name)));
+      if (found.length > 0) {
+        return this.error(
+          `budgetPlugin: the web root ${outDir} holds ${found.join(' and ')} (parity reference output).`,
+        );
+      }
+      return undefined;
     },
   };
 }

@@ -28,7 +28,7 @@ function temporaryDirectory(): string {
   return directory;
 }
 
-/** Text whose gzip size is close to its length (random base64 barely compresses). */
+/** Random base64 text: it gzips to about 3/4 of its length (6 bits of entropy per character). */
 function incompressible(length: number): string {
   return randomBytes(length).toString('base64').slice(0, length);
 }
@@ -255,7 +255,7 @@ describe('budgetPlugin: the admin topology and the web root (D-20)', () => {
     await generate(
       budgetPlugin({ devRoutes: true, reportDir }),
       'budget',
-      devRoutesBundle(incompressible(140_000)),
+      devRoutesBundle(incompressible(185_000)),
       logged,
     );
     expect(logged.info.join('\n')).toMatch(/admin JS[\s\S]*barrel split/);

@@ -1,7 +1,8 @@
 // @ts-check
 // The one static gate (QUAL-02): `npm run verify` runs each step below in order and stops at the first failure with
-// that step's exit code. Plans 02-06 and 02-33 append their steps to STEPS: plan 02-06 added the npm license gate and
-// the third-party notices drift check after the build.
+// that step's exit code. Plan 02-06 added the npm license gate and the third-party notices drift check after the build;
+// plan 02-33 added the budget build right after build, so the bundle budgets are measured in both topologies (production,
+// then the dev-route budget build with the admin route; PERF-01, docs/web/budgets.md).
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,7 @@ export const STEPS = Object.freeze([
   'format:check',
   'test:coverage',
   'build',
+  'build:budget',
   'license:check',
   'notices:check',
 ]);
