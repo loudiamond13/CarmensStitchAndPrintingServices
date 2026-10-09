@@ -1,0 +1,23 @@
+// RED stub (plan 02-25 Task 2): replaced by the App. B marketing looks in the GREEN commit.
+export const categoryCardClasses = '';
+export const categoryMediaClasses = '';
+export const categoryImageClasses = '';
+export const categoryPlaceholderClasses = '';
+export const categoryBodyClasses = '';
+export const categoryTitleClasses = '';
+export const categoryDescriptionClasses = '';
+export const categoryLinkClasses = '';
+export const categoryLinkIconClasses = '';
+export const stepsClasses = '';
+export const stepClasses = '';
+export const stepNumberClasses = '';
+export const stepIconClasses = '';
+export const stepTitleClasses = '';
+export const stepDescriptionClasses = '';
+export const testimonialClasses = '';
+export const starsClasses = '';
+export const starOnClasses = '';
+export const quoteClasses = '';
+export const bylineClasses = '';
+export const bylineNameClasses = '';
+export const bylineTeamClasses = '';
