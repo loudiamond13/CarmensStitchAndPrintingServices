@@ -1,7 +1,11 @@
+using System.IO.Compression;
 using System.Net;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -152,6 +156,19 @@ public sealed class SpaHostTests
 
         response.Content.Headers.ContentType.ShouldNotBeNull(path).MediaType.ShouldNotBeNull(path).ShouldContain("json", Case.Sensitive, path);
         response.Content.Headers.ContentEncoding.ShouldBeEmpty(path);
+    }
+
+    [Fact]
+    public async Task CompressesAtTheOptimalLevel()
+    {
+        // PERF-02 (plan 02-35): at the framework default (Fastest) the 381 KB entry script went out as about 150 KB, and
+        // Lighthouse's mobile LCP missed 2000 ms; at Optimal it is about 121 KB.
+        await using var factory = new CspsApiFactory();
+
+        factory.Services.GetRequiredService<IOptions<BrotliCompressionProviderOptions>>().Value.Level
+            .ShouldBe(CompressionLevel.Optimal);
+        factory.Services.GetRequiredService<IOptions<GzipCompressionProviderOptions>>().Value.Level
+            .ShouldBe(CompressionLevel.Optimal);
     }
 
     [Fact]
