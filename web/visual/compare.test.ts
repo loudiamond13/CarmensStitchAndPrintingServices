@@ -330,7 +330,7 @@ describe('structural exceptions: a tag mismatch is reported unless the registry 
 });
 
 describe('the intentional-differences registry', () => {
-  it('lists the D-27 Logout exception for the three sidebar scenarios and the D-32 icon-drawing mask', () => {
+  it('lists the D-27 Logout exception for the three sidebar and eight admin shell scenarios and the D-32 icon-drawing mask', () => {
     expect(
       STRUCTURAL_EXCEPTIONS.map((entry) =>
         entry.kind === 'element' ? `${entry.scenario} ${entry.path} ${entry.decision}` : entry.decision,
@@ -339,6 +339,14 @@ describe('the intentional-differences registry', () => {
       'sidebar-dashboard-current 0/0/2/1 D-27',
       'sidebar-users-current 0/0/2/1 D-27',
       'sidebar-collapsed 0/0/2/0 D-27',
+      'admin-shell-dashboard 0/0/0/0/2/1 D-27',
+      'admin-shell-dashboard-dark 0/0/0/0/2/1 D-27',
+      'admin-shell-users 0/0/0/0/2/1 D-27',
+      'admin-shell-users-dark 0/0/0/0/2/1 D-27',
+      'admin-shell-767-5 0/0/0/0/0/2/1 D-27',
+      'admin-shell-767-5-dark 0/0/0/0/0/2/1 D-27',
+      'admin-shell-1023-5 0/0/0/0/0/2/1 D-27',
+      'admin-shell-1023-5-dark 0/0/0/0/0/2/1 D-27',
       'D-32',
     ]);
     expect(maskedIconViewBox()).toBe('0 0 24 24');

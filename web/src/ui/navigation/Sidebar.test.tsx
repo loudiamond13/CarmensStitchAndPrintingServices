@@ -300,6 +300,40 @@ describe('Sidebar collapse', () => {
   });
 });
 
+describe('Sidebar names on the tablet rail (A11Y-01, plan 02-31)', () => {
+  /** Hides every nav label and tag as the admin shell's rail does (App. C `display: none`). */
+  function hideLabelsAsTheRailDoes(): void {
+    for (const span of document.querySelectorAll<HTMLElement>('aside nav a span, aside button span')) {
+      if (span.textContent !== '') {
+        span.style.display = 'none';
+      }
+    }
+  }
+
+  it('keeps every item and Logout named by its label when the rail hides the labels', () => {
+    render(inRouter(<Sidebar role={MANAGER} active="dashboard" user={CARMEN} />));
+    hideLabelsAsTheRailDoes();
+
+    for (const item of ADMIN_NAV.filter((entry) => entry.id !== 'users')) {
+      expect(screen.getByRole('link', { name: item.label })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('link', { name: 'Users Manager' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Logout' })).toBeInTheDocument();
+  });
+
+  it('gives the same names as the visible text: the current Users row drops its hidden tag', () => {
+    render(inRouter(<Sidebar role={MANAGER} active="users" />));
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+  });
+
+  it('keeps the names when collapsed (the labels hidden, the titles shown)', () => {
+    render(inRouter(<Sidebar role={MANAGER} collapsed />));
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('title', 'Users');
+    expect(screen.getByRole('button', { name: 'Logout' })).toHaveAttribute('title', 'Logout');
+  });
+});
+
 describe('Sidebar scenarios, the D-27 Logout path and axe', () => {
   it('lists the sidebar cases the parity suite compares, in Blush and Espresso', () => {
     const sidebar = navigationScenarios.filter((s) => s.id.startsWith('sidebar-'));

@@ -78,6 +78,32 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
     decision: 'D-27',
     reason: LOGOUT_REASON,
   },
+  // D-27 in the admin shell (plan 02-31, src/dev/scenarios/groups/layouts-admin.ts): case > .s-admin > side column >
+  // aside > foot > Logout, with the user chip before it; the boundary cases hold the frame in one more page root.
+  ...['admin-shell-dashboard', 'admin-shell-dashboard-dark', 'admin-shell-users', 'admin-shell-users-dark'].map(
+    (scenario) =>
+      ({
+        kind: 'element',
+        scenario,
+        path: '0/0/0/0/2/1',
+        reference: 'a',
+        impl: 'button',
+        decision: 'D-27',
+        reason: LOGOUT_REASON,
+      }) as const,
+  ),
+  ...['admin-shell-767-5', 'admin-shell-767-5-dark', 'admin-shell-1023-5', 'admin-shell-1023-5-dark'].map(
+    (scenario) =>
+      ({
+        kind: 'element',
+        scenario,
+        path: '0/0/0/0/0/2/1',
+        reference: 'a',
+        impl: 'button',
+        decision: 'D-27',
+        reason: LOGOUT_REASON,
+      }) as const,
+  ),
   // D-32: the approved design draws its icons from App. D.5 node data; the app uses lucide-react 1.53.0 (D-34), whose
   // drawings the owner approved separately. Both render a 24 x 24 viewBox wrapper.
   {
