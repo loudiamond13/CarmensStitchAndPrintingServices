@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
-import { scenarios as listScenarios } from '@/dev/scenarios/groups/lists';
+import { scenarios as listsParity } from '@/dev/scenarios/groups/lists';
+import { scenarios as listsStates } from '@/dev/scenarios/groups/lists-states';
 import { expectNoAxeViolations } from '@/test/axe';
 import { WALK_IN_CUSTOMER } from '@/ui/data';
 import { srOnlyClasses } from '@/ui/layout/layout.recipe';
@@ -177,7 +178,7 @@ describe('ResponsiveTable tracer (WEB-06, spec §8.4, App. E.12)', () => {
   it('puts an inactive row (Jomar Santos) on --surface-2, cell and phone card, by colour only (D-02)', () => {
     const { container } = render(table());
     const [active, inactive] = bodyRows();
-    expect(within(inactive as HTMLElement).getByText('Inactive')).toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /Jomar Santos/ })).getByText('Inactive')).toBeInTheDocument();
     for (const cell of inactive?.querySelectorAll('td') ?? []) {
       expect(tokens(cell.className)).toContain('bg-surface-2');
       expect(tokens(cell.className)).not.toContain('group-hover/row:bg-surface-2');
@@ -433,6 +434,8 @@ describe('ResponsiveTable accessibility and re-render', () => {
   });
 });
 
+const listScenarios = [...listsParity, ...listsStates];
+
 describe('lists scenarios (the ResponsiveTable cases)', () => {
   const ids = [
     'rt-users-populated',
@@ -447,12 +450,12 @@ describe('lists scenarios (the ResponsiveTable cases)', () => {
   it('declares the populated Users table and the long-name case for parity, the states implementation only', () => {
     const byId = new Map(listScenarios.map((scenario) => [scenario.id, scenario]));
     for (const id of ids) {
-      expect(byId.get(id), id).toMatchObject({ group: 'lists', themes: ['light', 'dark'], responsive: true });
+      expect(byId.get(id), id).toMatchObject({ themes: ['light', 'dark'], responsive: true });
     }
-    expect(byId.get('rt-users-populated')?.parity).toBe(true);
-    expect(byId.get('rt-long-name')?.parity).toBe(true);
+    expect(byId.get('rt-users-populated')).toMatchObject({ group: 'lists', parity: true });
+    expect(byId.get('rt-long-name')).toMatchObject({ group: 'lists', parity: true });
     for (const id of ['rt-loading', 'rt-error', 'rt-empty', 'rt-no-matches', 'rt-refetching']) {
-      expect(byId.get(id)?.parity, id).toBe(false);
+      expect(byId.get(id), id).toMatchObject({ group: 'lists-states', parity: false });
     }
   });
 

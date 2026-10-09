@@ -8,9 +8,10 @@
 //     D-38). Also on hover of Paolo Garcia's row. The ListTable wrapper pair renders it: the implementation through
 //     ResponsiveTable, the reference as a transcription of App. E.12 (web/visual/reference/fragments/ListTable.tsx).
 //   - rt-long-name: the same table with a 40-character name in the card title.
-// Implementation only (parity false: SPEC-GAP states with no reference; axe and the guard still run): the first load
-// (SkeletonTable), a failed load (ErrorState above the table), first use ("No users yet"), no matches (Clear Filters)
-// and a refetch (the previous rows dimmed after 200 ms), through the dev-only ListTableState preview.
+// The SPEC-GAP list states (parity false) are in the lists-states group: rendered on the same page as these cases, their
+// extra height changed how Chromium rasterized the 1440px frame's right-edge corners (1-level anti-aliasing noise on
+// x 1438-1439 in about half the runs, with equal computed styles); in a group of their own both pages hold only
+// compared cases. `--grep @lists` runs both groups.
 // Relative imports only: the reference build has no @ alias.
 import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
 
@@ -106,9 +107,4 @@ export const scenarios: readonly Scenario[] = [
     target: 'tbody tr:nth-child(2)',
   }),
   listCase('rt-long-name', node('ListTable', { users: LONG_NAME_USERS }), { parity: true }),
-  listCase('rt-loading', node('ListTableState', { state: 'loading' }), { parity: false }),
-  listCase('rt-error', node('ListTableState', { state: 'error' }), { parity: false }),
-  listCase('rt-empty', node('ListTableState', { state: 'empty' }), { parity: false }),
-  listCase('rt-no-matches', node('ListTableState', { state: 'no-matches' }), { parity: false }),
-  listCase('rt-refetching', node('ListTableState', { state: 'refetching' }), { parity: false }),
 ];

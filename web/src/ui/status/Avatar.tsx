@@ -15,7 +15,8 @@ export interface AvatarProps {
   size?: number | undefined;
   /**
    * The region the avatar sits in, set by the src/ui component that renders it (UI-SPEC rule 7a): `sidebar` for the
-   * Sidebar user chip (App. B `.csp-sidebar .csp-avatar`). Defaults to the plain look.
+   * Sidebar user chip (App. B `.csp-sidebar .csp-avatar`), `cellUser` for a list user cell (App. E.12 `.csp-cell-user`).
+   * Defaults to the plain look.
    */
   context?: AvatarContext | undefined;
   /** Layout glue only (margin, placement); never a restyle (spec rule 3). */

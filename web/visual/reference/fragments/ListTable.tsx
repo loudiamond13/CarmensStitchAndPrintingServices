@@ -18,18 +18,18 @@ type ModuleExports = Readonly<Record<string, unknown>>;
 
 const spec = Object.values(import.meta.glob<ModuleExports>('../../.reference-src/ui/index.tsx', { eager: true }))[0];
 
-function frozen<T>(name: string): T {
+function frozen(name: string): unknown {
   const value = spec?.[name];
   if (typeof value !== 'function') {
     throw new Error(`The frozen spec has no ${name}. Run node visual/reference/extract-spec.mjs.`);
   }
-  return value as T;
+  return value;
 }
 
-const Avatar = frozen<ComponentType<{ name?: string; size?: number }>>('Avatar');
-const Badge = frozen<ComponentType<{ tone?: string; dot?: boolean; children?: ReactNode }>>('Badge');
-const Icon = frozen<ComponentType<{ name: string; size?: number }>>('Icon');
-const formatDate = frozen<(value: string) => string>('formatDate');
+const Avatar = frozen('Avatar') as ComponentType<{ name?: string; size?: number }>;
+const Badge = frozen('Badge') as ComponentType<{ tone?: string; dot?: boolean; children?: ReactNode }>;
+const Icon = frozen('Icon') as ComponentType<{ name: string; size?: number }>;
+const formatDate = frozen('formatDate') as (value: string) => string;
 
 export interface ListTableUser {
   first: string;

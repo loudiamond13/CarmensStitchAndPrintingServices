@@ -207,8 +207,10 @@ describe('Avatar (App. D.3, D-31 O-1)', () => {
     expect(classTokens(avatar)).toEqual(
       tokens(`${avatarClasses} ${avatarContextClasses.sidebar} size-(--avatar-size) text-(length:--avatar-fs)`),
     );
-    expect(tokens(avatarContextClasses.sidebar)).toEqual(['bg-surface-3', 'leading-4']);
-    expect(tokens(avatarContextClasses.default)).toEqual(['bg-surface-2']);
+    expect(tokens(avatarContextClasses.sidebar)).toEqual(['bg-surface-3', 'leading-4', 'text-ink']);
+    expect(tokens(avatarContextClasses.default)).toEqual(['bg-surface-2', 'text-ink']);
+    expect(tokens(avatarContextClasses.cellUser)).toEqual(['bg-surface-2', 'text-ink-muted']);
+    expect(tokens(avatarClasses)).not.toContain('text-ink');
   });
 
   it.each([

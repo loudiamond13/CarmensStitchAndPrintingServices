@@ -29,18 +29,21 @@ export const badgeDotClasses = tw('size-[7px] rounded-pill bg-current');
  * Avatar reads them from custom properties next to its style (UI-SPEC "Inline style rule").
  */
 export const avatarClasses = tw(
-  'inline-grid flex-none place-items-center rounded-pill font-display font-bold tracking-[.02em] text-ink [box-shadow:inset_0_0_0_1px_var(--line-strong)]',
+  'inline-grid flex-none place-items-center rounded-pill font-display font-bold tracking-[.02em] [box-shadow:inset_0_0_0_1px_var(--line-strong)]',
 );
 
-export type AvatarContext = 'default' | 'sidebar';
+export type AvatarContext = 'default' | 'sidebar' | 'cellUser';
 
 /**
- * The avatar background per context (plan 02-26): `.csp-avatar` on `--surface-2`, and in the sidebar user chip the
- * App. B `.csp-sidebar .csp-avatar` `--surface-3` plus the 16px line height the chip's `.csp-sidebar-user span` rule
- * gives every span in it, the avatar included (its colour and font size stay the avatar's own: the context rule and the
- * size property win there).
+ * The avatar background and initials colour per context (plans 02-26 and 02-30): `.csp-avatar` (`--ink` on
+ * `--surface-2`); in the sidebar user chip the App. B `.csp-sidebar .csp-avatar` `--surface-3` plus the 16px line
+ * height the chip's `.csp-sidebar-user span` rule gives every span in it, the avatar included (its colour and font size
+ * stay the avatar's own: the context rule and the size property win there); and in a list user cell (App. E.12) the
+ * App. B `.csp-cell-user span` rule, which outranks `.csp-avatar` and turns the initials `--ink-muted` (its 12px loses to
+ * the avatar's own size; rule 8, the approved computed result).
  */
 export const avatarContextClasses = {
-  default: tw('bg-surface-2'),
-  sidebar: tw('bg-surface-3 leading-4'),
+  default: tw('bg-surface-2 text-ink'),
+  sidebar: tw('bg-surface-3 leading-4 text-ink'),
+  cellUser: tw('bg-surface-2 text-ink-muted'),
 } as const satisfies Record<AvatarContext, string>;
