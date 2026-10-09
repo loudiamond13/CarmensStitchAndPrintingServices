@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T21:51:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T22:58:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -121,6 +121,9 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `WalkInOrderCard`: a plain `<div>` around an OrderCard for an order with no team. The owner ruled that such a card shows "Walk-in customer" on its customer line, the wording of the spec §8.3 table rows. App. D.3 leaves that line empty, and CSS cannot add a text node. The converted OrderCard writes the line by itself (`WALK_IN_CUSTOMER` from `@/ui/data`), so the implementation side does nothing. The reference side writes "Walk-in customer" into the frozen, empty `.csp-order-cust` line after mount when the OrderCard child's order has no team. It types the text from the spec rather than importing the app's constant, so a wording slip on either side fails the pixel step. The line keeps its approved look, so the rulings layer has no D-40 rule (its header says so, and `rulings.test.ts` pins that).
    Plan 02-25 added one for the marketing group:
    - `RatedTestimonial`: a plain `<div>` around a TestimonialCard. App. D.3 names the star rating with `aria-label` on a plain `<div>`, which axe reports (`aria-prohibited-attr`). The owner approved giving it `role="img"` (D-31 O-2), and the converted TestimonialCard renders that by itself, so the implementation side does nothing; the reference side adds the same attribute to the frozen `.csp-testi-stars` after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
+   Plan 02-26 added one for the navigation group:
+   - `OpenedSiteDrawer`: a plain `<div>` around a SiteHeader that presses its burger once after mount, as a person would. App. D.3 keeps the drawer state inside SiteHeader with no prop for it; both sides run the same click, so the `site-header-drawer-open` case compares the open phone drawer (the O-3 italic current link, the big links and the block "Get a Quote").
+   A hover target that is hidden at some widths can use Playwright's `:visible`, as `site-header-home` does: `:is(a[href="/products"], button[aria-expanded]):visible` hovers the Products link where the header shows its links and the burger where it does not. Only hover and press go through Playwright's locator; focus-visible compares the target with `document.querySelector`, so keep `:visible` out of focus-visible targets.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)
@@ -134,7 +137,7 @@ Everything not in this table must be equal. Each ruling sits in `web/visual/refe
 | Five faded spec texts at full opacity: input placeholder, Manager tag, CTA lead, filter-pill count, big-button caption | D-02 (FYI-01) | Rulings layer, so equal |
 | Bold (700) current/selected tab, site link, sidebar item and tab-bar item; the checkbox dark border and tick | D-03 | Rulings layer, so equal (Checkbox itself is SPEC-GAP) |
 | Thumb grip and actions show on keyboard focus, and always on touch | D-05 | Rulings layer (touch pass), so equal |
-| Sidebar Logout is a `<button>` instead of `<a href="#">`, with the same look | D-27 | Rulings layer plus a structural exception in the pairing; computed styles and pixels equal |
+| Sidebar Logout is a `<button>` instead of `<a href="#">`, with the same look | D-27 | Rulings layer plus a structural exception in the pairing (paths `0/0/2/1`, and `0/0/2/0` collapsed, confirmed by plan 02-26); computed styles and pixels equal. WebKit reports a link's hand cursor as `auto`, so the rulings layer states `cursor: pointer` on the reference Logout link (no visible change in any engine) |
 | Current public drawer link is italic | D-31 O-3 | Rulings layer, so equal |
 | Reduced motion stops the skeleton shimmer and the modal and toast entry animations | O-6 | Rulings layer (reduced-motion pass), so equal |
 | "Manager" tag hidden on the current sidebar row | D-31 D-BL-02 | Rulings layer, so equal |

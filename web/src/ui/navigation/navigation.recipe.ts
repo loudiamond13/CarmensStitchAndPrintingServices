@@ -110,13 +110,61 @@ export const siteDrawerLinkClasses = tw(
 /** `.csp-site-drawer .csp-btn { margin-top }` (layout glue passed to the block Button it renders). */
 export const siteDrawerCtaClasses = tw('mt-4');
 
-// RED stub (plan 02-26 Task 3): the Topbar looks arrive in GREEN.
-export const topbarClasses = tw('');
-export const topbarMenuClasses = tw('');
-export const topbarRightClasses = tw('');
-export const searchClasses = tw('');
-export const searchInputClasses = tw('');
-export const searchInputCompatClasses = tw('');
-export const searchKbdClasses = tw('');
-export const userMenuClasses = tw('');
-export const userMenuTextClasses = tw('');
+// ── Topbar (admin) ──
+// The phone rules are App. C's frame-keyed `@container pg (max-width: 767px)` copies of App. B's `@media` block (same
+// values, `!important`), and the tablet padding and search width are App. C container rules, so all are `pg-*`. The
+// sticky position belongs to the admin shell (App. C `.s-admin-main > .csp-topbar`, plan 02-31).
+
+/** `.csp-topbar`: 64px on `--surface` over a hairline; 16px sides and 8px gaps on phones, 20px sides on tablets. */
+export const topbarClasses = tw(
+  'flex h-(--topbar-height) items-center gap-4 border-b border-line bg-surface px-6 pg-phone:gap-2 pg-phone:px-4 pg-tablet:px-5',
+);
+
+/** `.csp-iconbtn.csp-topbar-menu`: the "Open navigation" icon button, shown on phones only. */
+export const topbarMenuClasses = tw(
+  'hidden size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink-muted hover:bg-surface-2 hover:text-ink pg-phone:inline-grid',
+);
+
+/**
+ * `.csp-search` and its `:focus-within` ring: a 40px box that grows to 480px (no limit on tablets). It is the label of
+ * its input, so a click anywhere on it focuses the field.
+ */
+export const searchClasses = tw(
+  'flex h-10 max-w-[480px] flex-1 items-center gap-2 rounded-sm border border-line bg-surface-2 px-3 text-ink-muted focus-within:border-focus focus-within:[box-shadow:0_0_0_1px_var(--focus)] pg-tablet:max-w-none',
+);
+
+/**
+ * `.csp-search input`: borderless, no outline (the box shows the focus), 14px text, and D-01 (C-34) 16px on phones so
+ * iOS Safari does not zoom on focus.
+ */
+export const searchInputClasses = tw(
+  'min-w-0 flex-1 border-0 text-[14px] text-ink [outline:none] placeholder:text-ink-muted pg-phone:text-[16px]',
+);
+
+/** App. A.3 compat: the `padding: 1px 2px` the browsers gave the input before preflight removed it. */
+export const searchInputCompatClasses = tw('px-[2px] py-px');
+
+/**
+ * `.csp-search kbd`: the "/" hint, hidden on phones. App. B resets the font to the inherited one (preflight gives `kbd`
+ * the monospace family), so the family is restated as `inherit`.
+ */
+export const searchKbdClasses = tw(
+  'rounded-[4px] border border-line-strong px-1.5 [font-family:inherit] text-[12px] text-ink-muted pg-phone:hidden',
+);
+
+/** `.csp-topbar-right`. */
+export const topbarRightClasses = tw('ml-auto flex items-center gap-2');
+
+/** `.csp-usermenu` and its hover: the pill button with the avatar, the name and role, and the chevron. */
+export const userMenuClasses = tw(
+  'flex cursor-pointer items-center gap-2 rounded-pill border-0 bg-transparent py-1 pr-2 pl-1 text-ink-muted hover:bg-surface-2',
+);
+
+/** `.csp-usermenu-text`: the name over the role, hidden on phones. */
+export const userMenuTextClasses = tw('flex flex-col text-left leading-4 pg-phone:hidden');
+
+/** `.csp-usermenu-text strong`. */
+export const userMenuNameClasses = tw('text-[14px] leading-[18px] text-ink');
+
+/** `.csp-usermenu-text span`. */
+export const userMenuRoleClasses = tw('text-[12px]');

@@ -15,6 +15,8 @@
      "Walk-in customer" on its customer line, which keeps the approved .csp-order-cust look. CSS cannot add a text
      node, so the WalkInOrderCard wrapper pair (visual/reference/fragments/WalkInOrderCard.tsx) writes the text into
      the frozen line after mount.
+   - The second D-27 group (plan 02-26) states the pointer cursor the approved Logout link already shows: WebKit
+     reports a link's hand cursor as `auto`, the D-27 button reports `pointer`. It changes no look in any engine.
    - visual/reference/rulings.test.ts pins all of the above. */
 
 /* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */
@@ -156,6 +158,15 @@ button.csp-nav {
   appearance: none;
   border-width: 0;
   text-align: start;
+  cursor: pointer;
+}
+
+/* D-27 (O-9) the frozen reference still draws Logout as the approved <a href="#" class="csp-nav">, and WebKit reports a
+   link's hand cursor as `cursor: auto` (its UA sheet leaves the hand to link behaviour), while the D-27 button has to
+   state `cursor: pointer` to show the same hand. Stating the pointer on the reference Logout changes nothing anyone sees
+   in any engine (Chromium and Firefox already report `pointer` for it) and keeps the cursor compared in WebKit too
+   (plan 02-26). The other sidebar links are links on both sides and keep their engine's own value. */
+.csp-sidebar-foot > a.csp-nav {
   cursor: pointer;
 }
 

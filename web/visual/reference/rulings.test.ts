@@ -254,6 +254,15 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(normalize(group?.body ?? '')).toBe('appearance: none; border-width: 0; text-align: start; cursor: pointer;');
   });
 
+  it('D-27: the reference Logout link states its pointer cursor (WebKit reports a link hand as auto), nothing else', () => {
+    const groupsOfD27 = byRuling('D-27');
+
+    expect(groupsOfD27).toHaveLength(2);
+    expect(groupsOfD27[1]?.prelude).toBe('.csp-sidebar-foot > a.csp-nav');
+    expect(normalize(groupsOfD27[1]?.body ?? '')).toBe('cursor: pointer;');
+    expect(normalize(groupsOfD27[1]?.comment ?? '')).toContain('changes nothing anyone sees in any engine');
+  });
+
   it('D-31 O-3: the current public drawer link is italic', () => {
     const [group] = byRuling('D-31 O-3');
 
