@@ -13,5 +13,30 @@ export const bannerClasses = tw(
   'flex items-center gap-3 rounded-sm border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-danger-soft px-4 py-3 text-[14px] leading-5 text-danger [&_span]:text-ink-muted [&_strong]:block [&_strong]:text-ink',
 );
 
-/** App. E.8's `<div style="flex: 1">` around the bold and muted lines. */
-export const bannerTextClasses = tw('flex-1');
+/**
+ * App. E.8's `<div style="flex: 1">` around the bold and muted lines, plus `min-width: 0` and `overflow-wrap:
+ * anywhere`: a long traceId reference (one 32-character run) must wrap inside the banner at 320px instead of pushing
+ * Try Again out past its edge (no horizontal scroll, PERF-03; App. E.8 never shows a reference, so it has no rule).
+ */
+export const bannerTextClasses = tw('min-w-0 flex-1 wrap-anywhere');
+
+/** SkeletonText: its three lines in a grid, 8px apart. */
+export const skeletonTextClasses = tw('grid gap-2');
+
+/** App. E.8's skeleton order card: the `.csp-card` look (cardClasses) clipped by `overflow: hidden`. */
+export const skeletonCardClasses = tw('overflow-hidden');
+
+/** App. E.8's `<div style="padding: 16px; display: grid; gap: 10px">` under the media block. */
+export const skeletonCardBodyClasses = tw('grid gap-2.5 p-4');
+
+/** LazyImage's box: relative and clipped; its height comes from the aspect ratio set next to its `--ratio`. */
+export const lazyBoxClasses = tw('relative overflow-hidden');
+
+/** The image fills the box and is cropped to it. */
+export const lazyImageClasses = tw('block size-full object-cover');
+
+/** The loading Skeleton covers the whole box. */
+export const lazySkeletonClasses = tw('absolute inset-0');
+
+/** The error MediaPlaceholder fills the box's height. */
+export const lazyFallbackClasses = tw('h-full');

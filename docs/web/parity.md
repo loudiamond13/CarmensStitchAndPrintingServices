@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T23:02:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T23:35:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -125,6 +125,9 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `OpenedSiteDrawer`: a plain `<div>` around a SiteHeader that presses its burger once after mount, as a person would. App. D.3 keeps the drawer state inside SiteHeader with no prop for it; both sides run the same click, so the `site-header-drawer-open` case compares the open phone drawer (the O-3 italic current link, the big links and the block "Get a Quote").
    Plan 02-27 added an implementation-only wrapper for the entry group (every case there is `parity: false`):
    - `FocusedSkipLink`: the SkipLink with its `main#main` target. The link is visually hidden until it has keyboard focus, and the harness never drives a state on a `parity: false` case, so the wrapper focuses the link once after mount, as the first Tab on a page would. It has no reference fragment: SPEC-GAP primitives have no reference, so that side shows its missing-component note, and axe and the guard check the implementation.
+   Plan 02-28 added three implementation-only wrappers for the states group (every case there is `parity: false`, so none has a reference fragment):
+   - `TracedErrorState`: the ErrorState banner for a failed list load whose HttpError carries a traceId. An HttpError is a class instance, not plain scenario data, so the wrapper builds the 500 from a plain `traceId` prop.
+   - `PendingLazyImage` and `FailedLazyImage`: a LazyImage held in its loading state (the full-box Skeleton) or its failed state (the chip-less MediaPlaceholder named by the alt). A real slow or broken download would leave a pending or failed request, which is a guard finding, so both load a 1×1 inline GIF and stop its `load` event in the capture phase on their frame; `FailedLazyImage` then fires the image's `error` event once after mount. LazyImage itself is unchanged.
    A hover target that is hidden at some widths can use Playwright's `:visible`, as `site-header-home` does: `:is(a[href="/products"], button[aria-expanded]):visible` hovers the Products link where the header shows its links and the burger where it does not. Only hover and press go through Playwright's locator; focus-visible compares the target with `document.querySelector`, so keep `:visible` out of focus-visible targets.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 

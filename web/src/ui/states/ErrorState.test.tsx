@@ -24,8 +24,9 @@ function tokens(classes: string | null | undefined): string[] {
 // 1px border of --danger mixed 40% into transparent (in srgb, as written).
 const BANNER =
   'flex items-center gap-3 rounded-sm border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-danger-soft px-4 py-3 text-[14px] leading-5 text-danger [&_span]:text-ink-muted [&_strong]:block [&_strong]:text-ink';
-// App. E.8's `<div style="flex: 1">` around the two lines.
-const BANNER_TEXT = 'flex-1';
+// App. E.8's `<div style="flex: 1">` around the two lines; it may shrink and wraps a long traceId anywhere, so Try
+// Again stays inside the banner at 320px (the parity run's axe pass caught the overflow).
+const BANNER_TEXT = 'min-w-0 flex-1 wrap-anywhere';
 
 const BODY = 'Check your internet connection. Your data is safe — nothing was changed.';
 const TRACE = '00-4bf92f3577b34da6a3ce929d0e0e4736-01';

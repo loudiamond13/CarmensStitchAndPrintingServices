@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
@@ -209,7 +209,8 @@ describe('LazyImage scenarios (the states group)', () => {
     expect(skeleton(loading)).not.toBeNull();
     expect(failed.querySelector('img')).toBeNull();
     expect(placeholder(failed)).not.toBeNull();
-    expect(screen.getByRole('img', { name: ALT })).toBe(failed.querySelector('[role="img"]'));
+    expect(within(failed as HTMLElement).getByRole('img', { name: ALT })).toBe(failed.querySelector('[role="img"]'));
+    expect(within(loading as HTMLElement).getByRole('img', { name: ALT })).toBe(imgOf(loading));
     await expectNoAxeViolations(container);
   });
 });
