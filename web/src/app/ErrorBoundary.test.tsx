@@ -166,6 +166,25 @@ describe('the boundaries in the route tree', () => {
     expect(() => Component()).toThrow(failure);
   });
 
+  it('re-renders from the React Compiler memo cache, and a new reload takes over (L-13)', async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { container, rerender } = render(<RootErrorBoundary reload={first} />);
+    const html = container.innerHTML;
+    rerender(<RootErrorBoundary reload={first} />);
+    expect(container.innerHTML).toBe(html);
+    rerender(<RootErrorBoundary reload={second} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Reload Page' }));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+
+    rerender(<RouteErrorBoundary reload={first} />);
+    rerender(<RouteErrorBoundary reload={first} />);
+    rerender(<RouteErrorBoundary reload={second} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Reload Page' }));
+    expect(second).toHaveBeenCalledTimes(2);
+  });
+
   it('uses the Copywriting strings', () => {
     expect(ERROR_BOUNDARY_COPY).toEqual({
       title: 'Something went wrong',

@@ -62,3 +62,51 @@ for (const { path, current } of PATHS) {
     await expectNoAxeViolations(page);
   });
 }
+
+/** Where the placeholder h1 sits in its wrapper (read in the page). */
+interface H1Fit {
+  readonly pageWidth: number;
+  readonly viewport: number;
+  readonly left: number;
+  readonly right: number;
+  readonly innerLeft: number;
+  readonly innerRight: number;
+  readonly overflows: boolean;
+  readonly lines: number;
+  readonly fontSize: string;
+}
+
+// Long-text backstop (UI-SPEC "long-text | Public placeholder H1"): at 320px the 52px H1 "SITE UPDATE IN PROGRESS."
+// wraps inside its wrapper; nothing is clipped and the page never scrolls sideways.
+test('@public at 320px the placeholder h1 wraps inside its wrapper with no horizontal scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/');
+  const heading = page.locator('h1');
+  await expect(heading).toHaveText('Site update in progress.');
+
+  const fit = await page.evaluate<H1Fit>(`(() => {
+    const h1 = document.querySelector('h1');
+    const wrapper = h1.parentElement;
+    const box = h1.getBoundingClientRect();
+    const frame = wrapper.getBoundingClientRect();
+    const style = getComputedStyle(wrapper);
+    return {
+      pageWidth: document.documentElement.scrollWidth,
+      viewport: window.innerWidth,
+      left: box.left,
+      right: box.right,
+      innerLeft: frame.left + parseFloat(style.paddingLeft),
+      innerRight: frame.right - parseFloat(style.paddingRight),
+      overflows: h1.scrollWidth > h1.clientWidth,
+      lines: Math.round(box.height / parseFloat(getComputedStyle(h1).lineHeight)),
+      fontSize: getComputedStyle(h1).fontSize,
+    };
+  })()`);
+
+  expect(fit.fontSize).toBe('52px');
+  expect(fit.pageWidth).toBeLessThanOrEqual(fit.viewport);
+  expect(fit.left).toBeGreaterThanOrEqual(fit.innerLeft);
+  expect(fit.right).toBeLessThanOrEqual(fit.innerRight);
+  expect(fit.overflows).toBe(false);
+  expect(fit.lines).toBeGreaterThan(1);
+});

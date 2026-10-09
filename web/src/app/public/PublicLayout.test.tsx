@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { createMemoryRouter, type RouteObject } from 'react-router';
+import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -11,6 +11,7 @@ import { routes } from '../router';
 import { ShellFallback } from '../ShellFallback';
 import { PublicLayout } from './PublicLayout';
 import { SITE_CONTACT } from './siteContact';
+import { SiteFooter } from './SiteFooter';
 
 /** The app's own route tree in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
@@ -229,8 +230,31 @@ describe('Root and ShellFallback (research Pattern 2, Pitfall 10)', () => {
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
+  it('Root and SiteFooter re-render from the React Compiler memo cache with the same output (L-13)', () => {
+    const root = render(<Root />);
+    const firstRoot = root.container.innerHTML;
+    root.rerender(<Root />);
+    expect(root.container.innerHTML).toBe(firstRoot);
+    root.unmount();
+
+    const footer = render(
+      <MemoryRouter>
+        <SiteFooter />
+      </MemoryRouter>,
+    );
+    const firstFooter = footer.container.innerHTML;
+    footer.rerender(
+      <MemoryRouter>
+        <SiteFooter />
+      </MemoryRouter>,
+    );
+    expect(footer.container.innerHTML).toBe(firstFooter);
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+  });
+
   it('ShellFallback is an empty light page root', () => {
-    const { container } = render(<ShellFallback />);
+    const { container, rerender } = render(<ShellFallback />);
+    rerender(<ShellFallback />);
     const root = container.firstElementChild;
     expect(root).toHaveAttribute('data-theme', 'light');
     expect(root?.childElementCount).toBe(0);
