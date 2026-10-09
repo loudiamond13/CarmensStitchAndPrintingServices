@@ -383,6 +383,32 @@ describe('list cells (App. E.7/E.12)', () => {
   });
 });
 
+describe('list cells and SkeletonTable re-render', () => {
+  it('re-renders from the React Compiler memo cache with the same output, and updates on new props', () => {
+    const onClick = vi.fn();
+    const cells = (name: string) => (
+      <>
+        <UserCell name={name} sub="Admin" />
+        <CustomerCell team="Tondo Riders MC" customer={name} />
+        <RowActions>
+          <RowAction icon="pencil" label={`Edit ${name}`} onClick={onClick} />
+        </RowActions>
+      </>
+    );
+    const { rerender } = render(cells('Paolo Garcia'));
+    rerender(cells('Paolo Garcia'));
+    expect(screen.getByRole('button', { name: 'Edit Paolo Garcia' })).toBeInTheDocument();
+    rerender(cells('Liza Mercado'));
+    expect(screen.getByRole('button', { name: 'Edit Liza Mercado' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Liza Mercado' })).toHaveTextContent('LM');
+
+    const skeleton = render(<SkeletonTable columns={COLUMNS} />);
+    skeleton.rerender(<SkeletonTable columns={COLUMNS} />);
+    skeleton.rerender(<SkeletonTable columns={COLUMNS.slice(0, 2)} />);
+    expect(skeleton.container.querySelectorAll('tbody tr:first-child td')).toHaveLength(2);
+  });
+});
+
 describe('SkeletonTable', () => {
   it('renders the column headers and 4 aria-hidden skeleton rows, every cell labelled', () => {
     const { container } = render(<SkeletonTable columns={COLUMNS} />);

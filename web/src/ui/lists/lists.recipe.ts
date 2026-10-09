@@ -18,6 +18,11 @@ import { tw } from '@/ui/tw';
 /**
  * `.s-rt-wrap`: the bordered `--surface` frame, radius 12, scrolling sideways inside itself (tablet tables keep 680px).
  * Phones: no frame, no background, no clipping (the rows are the cards).
+ * Rule 8 (owner question pending, deferred-items.md): the frame is not positioned, so the visually hidden (absolutely
+ * positioned) "Actions" header text is placed against the page root, not the frame. When the table scrolls inside its
+ * frame on a tablet, that hidden text sits past the frame's right edge and lets the page scroll sideways a little (22px
+ * at 768px), exactly as the approved CSS does. Containing it changes the text's computed insets, so it waits for the
+ * owner (D-08).
  */
 export const tableWrapClasses = tw(
   'overflow-x-auto rounded-md border border-line bg-surface pg-phone:overflow-visible pg-phone:border-0 pg-phone:bg-transparent',
@@ -181,9 +186,12 @@ export const searchBoxClasses = tw(
   'flex h-10 items-center gap-2 rounded-sm border border-line-strong bg-surface-2 px-3 text-ink-muted',
 );
 
-/** `.s-search-box input`: borderless, transparent, 14px `--ink` (16px on phones, D-01), `--ink-muted` placeholder. */
+/**
+ * `.s-search-box input`: borderless, transparent, 14px `--ink` (16px on phones, D-01), `--ink-muted` placeholder, and
+ * App. A.3 compat.css's restored browser padding (1px 2px).
+ */
 export const searchInputClasses = tw(
-  'min-w-0 flex-1 border-0 bg-transparent text-[14px] text-ink [outline:none] placeholder:text-ink-muted pg-phone:text-[16px]',
+  'min-w-0 flex-1 border-0 bg-transparent px-0.5 py-px text-[14px] text-ink [outline:none] placeholder:text-ink-muted pg-phone:text-[16px]',
 );
 
 /** `.s-resultbar`: 13px `--ink-muted`, wrapping, the count left and the chips right, 12px apart. */

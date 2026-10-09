@@ -93,6 +93,17 @@ describe('Pagination (SPEC-GAP, WEB-06, WEB-10)', () => {
     expect(onPageSizeChange).toHaveBeenCalledWith(50);
   });
 
+  it('ignores a size outside 10/20/50/100 (a tampered option)', () => {
+    const onPageSizeChange = vi.fn();
+    renderPagination({ pageSize: 20, onPageSizeChange });
+    const size = screen.getByRole('combobox', { name: LISTS_COPY.pagination.rowsPerPage });
+    const forged = document.createElement('option');
+    forged.value = '9999';
+    size.append(forged);
+    fireEvent.change(size, { target: { value: '9999' } });
+    expect(onPageSizeChange).not.toHaveBeenCalled();
+  });
+
   it('shows no size select without a size setter', () => {
     renderPagination({ pageSize: 20 });
     expect(screen.queryByRole('combobox')).toBeNull();
