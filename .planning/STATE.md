@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-21-PLAN.md
-last_updated: "2026-10-08T23:49:27.280Z"
+stopped_at: Completed 02-22-PLAN.md
+last_updated: "2026-10-09T00:27:54.033Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 66aa8c59abe55e04430cbb3173caa69194c5dd7b
+state_head: f2eb952db1b35dd44bc770e1adcd8b892bae3a9c
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 38
+  completed_plans: 39
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-08T18:49:27-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 26 of 40
+Plan: 27 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -96,6 +96,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P19 | 36 min | 3 tasks | 21 files |
 | Phase 02 P20 | 30 min | 2 tasks | 13 files |
 | Phase 02 P21 | 25 min | 3 tasks | 13 files |
+| Phase 02 P22 | 30min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-21: useToast returns { show, dismiss } (SPEC-DEVIATION D-04); ToastProvider always renders the toast layer (aria-live polite, data-ui s-toast-layer) inside the page root; the pure queue (createToastQueue({ now, schedule })) owns max 3, 4.5 s success/info clocks that pause on hover/focus, persistent danger/warning and the trim order (oldest non-persistent first)
 - [Phase 02]: 02-21: EmptyState takes level (2|3|4, default h2, SPEC-DEVIATION A11Y-02); its message margin is 0 because App. C .s-page p beats .csp-empty-msg; Skeleton sizes only via --sk-w/--sk-h/--sk-r (numbers to px, radius default 6px); iconButtonClasses (.csp-iconbtn) is exported from @/ui/feedback
 - [Phase 02]: 02-21: parity FREEZE now finishes finite animations (toast/modal entries) and pauses only infinite ones (spinner, shimmer), so a side whose state input took longer no longer reads a half-run entry
+- [Phase 02]: 02-22: Overlay (App. C .s-overlay, data-ui=s-overlay) is a production component in @/ui/overlays; screens render dialogs as <Overlay><Modal inline/></Overlay> (mockup layout) or a bare <Modal/> (App. B scrim/bottom sheet)
+- [Phase 02]: 02-22: ConfirmDialog.onConfirm may return a promise; a rejection or a resolved useSubmission { ok: false } keeps the dialog open with the describeHttpError line + traceId, Delete re-enabled and focused, no toast; pending blocks further confirms, Esc, scrim and Cancel
+- [Phase 02]: 02-22: Modal adds loading (blocks Esc/scrim/Close) and initialFocus (ref); useFocusTrap(ref, {active, initialFocus, returnFocus}) and useBodyScrollLock (overflow-hidden class, holder count) are reusable by MobileNavDrawer
 
 ### Pending Todos
 
@@ -253,6 +257,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T23:49:27.144Z
-Stopped at: Completed 02-21-PLAN.md
+Last session: 2026-10-09T00:27:53.889Z
+Stopped at: Completed 02-22-PLAN.md
 Resume file: None
