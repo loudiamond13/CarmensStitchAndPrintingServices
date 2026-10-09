@@ -172,11 +172,12 @@ test('@fonts ₱ renders in Archivo Variable in the KPI value, the display Money
       0.01,
     );
     if (browserName !== 'webkit') {
-      // The ₱ drawn in place has Archivo's advance (letter-spacing included, as in the run).
+      // The ₱ drawn in place has Archivo's advance (letter-spacing included, as in the run), to within the 1/64 px
+      // layout unit Chromium places text with (the ₱ of Archivo and of Arial differ by more than 2 px).
       expect(
         Math.abs(glyph.inPlace - glyph.archivoRun / PESO_RUN),
         `${id}: ₱ in place vs Archivo Variable`,
-      ).toBeLessThan(0.01);
+      ).toBeLessThan(0.05);
     }
   }
 
