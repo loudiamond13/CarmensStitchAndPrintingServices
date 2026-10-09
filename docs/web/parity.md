@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T20:50:20-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T21:06:11-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -113,6 +113,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `FailedConfirmDialog`: the ConfirmDialog failure state, which App. D.3 lacks (`parity: false`). The implementation preview types the confirm text and presses the danger button against an action that fails with a 500 and a traceId; the reference fragment renders the frozen ConfirmDialog with the same props. Nothing is compared; axe and the guard check the implementation.
    Plan 02-23 added one for the money group:
    - `DefinedTotalsNote`: a plain `<div>` around an OrderTotals panel. App. D.3 puts the panel's note ("Profit = Total − Discount − Expenses. Internal only.") as a bare `<p>` inside a `<dl>`, which axe reports (`definition-list`) on the reference page. The converted OrderTotals gives that paragraph `role="definition"` by itself (A11Y-01), so the implementation side does nothing; the reference side adds the same attribute to the frozen note after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
+   Owner ruling D-39 (2026-10-08) added a second one for the money group:
+   - `DimmedZeroKpi`: a plain `<div>` around a KpiCard whose figure is zero. The owner ruled that a zero KPI is dimmed by colour only (its value in `--ink-subtle`, no opacity), but App. D.3 has no zero state and its markup gives CSS nothing to tell a zero figure by. The converted KpiCard dims the value by itself, so the implementation side does nothing; the reference side marks the frozen `.csp-kpi-value` with `data-zero` after mount when the KpiCard child's `value` is the number 0, and the rulings layer's D-39 rule (`.csp-kpi-value[data-zero]`) colours it. Attributes are not compared, so the colour, the box and the pixels are still compared in full.
    Plan 02-24 added one for the data group:
    - `KeyboardScrollTable`: a plain `<div>` around a DataTable. At 390 px App. D.3's `.csp-table-wrap` frame scrolls sideways but cannot take keyboard focus, which axe reports (`scrollable-region-focusable`, WCAG 2.1.1). The converted DataTable makes the frame a focusable region named by its caption by itself (A11Y-01), so the implementation side does nothing; the reference side adds `role="region"`, `tabindex="0"` and the caption as `aria-label` to the frozen frame after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
@@ -133,6 +135,7 @@ Everything not in this table must be equal. Each ruling sits in `web/visual/refe
 | Reduced motion stops the skeleton shimmer and the modal and toast entry animations | O-6 | Rulings layer (reduced-motion pass), so equal |
 | "Manager" tag hidden on the current sidebar row | D-31 D-BL-02 | Rulings layer, so equal |
 | A pending (`aria-disabled`) button looks like the disabled button | WEB-09 | Rulings layer, so equal |
+| A KpiCard whose figure is zero shows its value in `--ink-subtle` (colour only, no opacity) | D-39 | Rulings layer plus the `DimmedZeroKpi` wrapper pair's `data-zero` marker, so equal |
 | Metric-matched fallback faces in the font stacks | PERF-05 | Rulings layer, identical to `web/src/styles/base.css`, so equal once the fonts load |
 | 20 redrawn lucide icons | D-32 | Drawing masked, the icon's box compared |
 | `lucide lucide-<name>` classes; Avatar and Testimonial `role="img"`; Tabs ARIA; the Modal focus trap | D-28, D-31 O-1/O-2, WEB-02 | Attributes are not compared, and there is no visual change |

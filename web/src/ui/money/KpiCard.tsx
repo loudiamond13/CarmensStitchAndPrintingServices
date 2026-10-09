@@ -4,9 +4,12 @@
 // in %) and the delta label or hint. While `loading`, the card is busy and shows a 70% × 36 skeleton instead of the
 // value and the foot. The looks are in money.recipe.ts. The figures come from the caller; KpiCard only formats.
 //
-// A zero figure keeps the normal value look: App. D.3 has no zero state, and D-02 allows no opacity on text.
+// D-39 (owner ruling, 2026-10-08): a figure that reads as zero is dimmed by colour only. Its value takes `--ink-subtle`,
+// as D-02 dims the `.is-zero` cascade tiles; the label, the icon tile and the foot keep their looks, and no opacity is
+// used (D-02). Zero is a number the card shows as zero: a money figure that rounds to 0 centavos ("₱0.00", D-09) or a
+// count of exactly 0. A text value is shown as given and never dimmed. App. D.3 has no zero state.
 import clsx from 'clsx';
-import { formatPeso } from '@/lib/csps';
+import { formatPeso, round2 } from '@/lib/csps';
 import { Icon, type IconName } from '@/ui/brand';
 import { Skeleton } from '@/ui/feedback';
 import {
@@ -17,6 +20,7 @@ import {
   kpiHeadClasses,
   kpiIconClasses,
   kpiValueClasses,
+  kpiZeroValueClasses,
   overlineClasses,
   type DeltaDirection,
 } from './money.recipe';
@@ -40,6 +44,7 @@ export function KpiCard({ label, value, money = true, icon, delta, deltaLabel, h
   // As App. D.3's `deltaLabel || hint`: an empty delta label falls back to the hint.
   const footText = deltaLabel !== undefined && deltaLabel !== '' ? deltaLabel : hint;
   const hasFoot = delta !== undefined || (hint !== undefined && hint !== '');
+  const zero = typeof value === 'number' && (money ? round2(value) === 0 : value === 0);
   return (
     <div className={kpiClasses} aria-busy={loading || undefined}>
       <div className={kpiHeadClasses}>
@@ -53,7 +58,9 @@ export function KpiCard({ label, value, money = true, icon, delta, deltaLabel, h
       {loading ? (
         <Skeleton width="70%" height={36} />
       ) : (
-        <div className={kpiValueClasses}>{money && typeof value === 'number' ? formatPeso(value) : value}</div>
+        <div className={clsx(kpiValueClasses, zero && kpiZeroValueClasses)}>
+          {money && typeof value === 'number' ? formatPeso(value) : value}
+        </div>
       )}
       {hasFoot && !loading && (
         <div className={kpiFootClasses}>

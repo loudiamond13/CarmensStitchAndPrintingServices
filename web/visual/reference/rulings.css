@@ -7,7 +7,8 @@
    - Every rule group starts with a comment naming its decision ID, and every selector names a spec class (.csp-* or
      .s-*), except the PERF-05 font faces and font-stack tokens.
    - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. The rulings
-     made after it (D-31 O-3, O-6 and D-31 D-BL-02, 2026-10-08) follow UI-SPEC "Owner-ruled colour and state rulings".
+     made after it (D-31 O-3, O-6 and D-31 D-BL-02, 2026-10-08) follow UI-SPEC "Owner-ruled colour and state rulings",
+     and D-39 (2026-10-08) follows 02-CONTEXT.md and the UI-SPEC D-02 row.
    - The phone list-card title separator has no rule here on purpose: the owner kept it exactly as the approved CSS
      renders it (the last card has none), so the proof expects the implementation to match the spec there.
    - visual/reference/rulings.test.ts pins all of the above. */
@@ -73,6 +74,13 @@
 .s-pill-count,
 .s-bigbtn span {
   opacity: 1;
+}
+
+/* D-39 (owner, 2026-10-08) a KpiCard whose figure is zero is dimmed by colour only: the value takes --ink-subtle, as
+   the D-02 .is-zero cascade tiles do, and nothing else changes (no opacity). App. D.3 has no zero state and its markup
+   has no hook for one, so the DimmedZeroKpi wrapper pair marks the frozen value with data-zero after mount. */
+.csp-kpi-value[data-zero] {
+  color: var(--ink-subtle);
 }
 
 /* D-03 (C-35) orange is never the only state cue: the selected tab, the current site link, the current sidebar item

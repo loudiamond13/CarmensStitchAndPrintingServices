@@ -55,6 +55,13 @@ export const kpiValueClasses = tw(
   'font-display text-[length:clamp(26px,15cqi,40px)] leading-[1] font-bold tracking-[-.005em] whitespace-nowrap tabular-nums',
 );
 
+/**
+ * D-39 (owner, 2026-10-08): a zero figure is dimmed by colour only, in `--ink-subtle` (the D-02 `.is-zero` treatment;
+ * 5.78:1 light / 6.19:1 dark on the card's `--surface`). No opacity. App. B/D.3 have no KpiCard zero state; the
+ * reference side gets the same colour from the rulings layer (`.csp-kpi-value[data-zero]`).
+ */
+export const kpiZeroValueClasses = tw('text-ink-subtle');
+
 /** `.csp-kpi-foot`: the delta chip and the hint, 12px/16px `--ink-muted`. */
 export const kpiFootClasses = tw('flex items-center gap-2 text-[12px] leading-4 text-ink-muted');
 

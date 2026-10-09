@@ -6,8 +6,9 @@
 //     OrderCard block) and ORD-2026-0151 (fully paid: 23,000 − 500 − 22,500 = 0), at every width;
 //   - KpiCard with the spec §8.3 / §12.4 dashboard values at 390 and 1440: Collected · Oct (₱126,450.00, +12%),
 //     Company expenses · Oct (₱38,226.95, down 47% against September's ₱71,904.20, spec §12.3), Active orders (a
-//     count, not money), a zero receivables card (₱0.00, the normal look: App. D.3 has no zero state) and the loading
-//     card (a 70% × 36 skeleton, also in the reduced-motion pass where the shimmer stops, D-31 O-6).
+//     count, not money), a zero receivables card (₱0.00, its figure dimmed in --ink-subtle by owner ruling D-39; it
+//     sits in the DimmedZeroKpi wrapper pair, see zeroKpi) and the loading card (a 70% × 36 skeleton, also in the
+//     reduced-motion pass where the shimmer stops, D-31 O-6).
 // The figures are never typed here: both sides compute them from the seed order with orderTotals (the reference with
 // App. D.1, the implementation with the D-09 centavo math), and spec §12.2 lists the expected results, which
 // money.test.tsx asserts. Each case is compared in both themes at rest. The panels sit in the DefinedTotalsNote wrapper
@@ -45,6 +46,15 @@ function moneyCase(id: string, node: ScenarioNode, options: CaseOptions = {}): S
  */
 function totalsPanel(order: ScenarioProps): ScenarioNode {
   return node('DefinedTotalsNote', { children: node('OrderTotals', { order }) });
+}
+
+/**
+ * A zero-figure KpiCard inside the DimmedZeroKpi wrapper pair (docs/web/parity.md §5, owner ruling D-39): App. D.3 has
+ * no zero state, so the reference side marks the frozen value with `data-zero` and the rulings layer dims it, the look
+ * the converted KpiCard renders by itself. The wrapper is one plain block with no look.
+ */
+function zeroKpi(props: ScenarioProps): ScenarioNode {
+  return node('DimmedZeroKpi', { children: node('KpiCard', props) });
 }
 
 /** Spec §12.2 ORD-2026-0148 (the Order Detail mockup): 5 items, a 5% discount, 2 payments and 3 order expenses. */
@@ -139,7 +149,7 @@ export const scenarios: readonly Scenario[] = [
   ),
   moneyCase(
     'kpi-zero',
-    node('KpiCard', {
+    zeroKpi({
       label: 'Total receivables',
       value: 0,
       icon: 'wallet',
