@@ -7,8 +7,9 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios } from '@/dev/scenarios';
 import type { Role } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { navButtonClasses, navItemClasses, Topbar, UserMenu } from '@/ui/navigation';
+import { ADMIN_NAV, navButtonClasses, navItemClasses, Topbar, UserMenu } from '@/ui/navigation';
 import { userMenuClasses, userMenuPopoverClasses } from './navigation.recipe';
+import { PROFILE_PATH } from './UserMenu';
 
 // The user menu (SPEC-GAP, spec §6.6, UI-SPEC "SPEC-GAP Primitive Specs" → UserMenu; plan 02-32): the Topbar's user
 // button (`aria-haspopup="menu"`, `aria-expanded`) opens a `role="menu"` popover under it with the menuitems "My
@@ -88,11 +89,13 @@ describe('UserMenu popover (SPEC-GAP: user menu)', () => {
     expect(trigger()).toHaveAttribute('aria-expanded', 'true');
     expect(trigger()).toHaveAttribute('aria-controls', menu().id);
     expect(menu()).toHaveAttribute('aria-labelledby', trigger().id);
-    expect(within(menu()).getAllByRole('menuitem').map((element) => element.textContent)).toEqual([
-      'My Profile',
-      'Logout',
-    ]);
+    expect(
+      within(menu())
+        .getAllByRole('menuitem')
+        .map((element) => element.textContent),
+    ).toEqual(['My Profile', 'Logout']);
     expect(item('My Profile')).toHaveAttribute('href', '/admin/profile');
+    expect(ADMIN_NAV.find((entry) => entry.id === 'profile')?.to).toBe(PROFILE_PATH);
     expect(item('Logout').localName).toBe('button');
   });
 
@@ -238,7 +241,11 @@ describe('UserMenu popover (SPEC-GAP: user menu)', () => {
 
   it('closes from "Logout" without an onLogout', async () => {
     const user = userEvent.setup();
-    render(<UserMenu user={CARMEN} role={MANAGER} />);
+    render(
+      <MemoryRouter>
+        <UserMenu user={CARMEN} role={MANAGER} />
+      </MemoryRouter>,
+    );
     await user.click(screen.getByRole('button', { name: /Carmen Reyes/ }));
 
     await user.click(screen.getByRole('menuitem', { name: 'Logout' }));
@@ -307,7 +314,9 @@ describe('navigation-gaps scenarios (implementation only; SPEC-GAP)', () => {
     if (scenario === undefined) {
       throw new Error('No user-menu-open scenario.');
     }
-    const { container } = render(<MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>);
+    const { container } = render(
+      <MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>,
+    );
 
     expect(await screen.findByRole('menu')).toBeInTheDocument();
     expect(screen.getAllByRole('menuitem')).toHaveLength(2);
@@ -319,7 +328,9 @@ describe('navigation-gaps scenarios (implementation only; SPEC-GAP)', () => {
     if (scenario === undefined) {
       throw new Error('No drawer-open scenario.');
     }
-    const { container } = render(<MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>);
+    const { container } = render(
+      <MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>,
+    );
 
     expect(await screen.findByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -331,7 +342,9 @@ describe('navigation-gaps scenarios (implementation only; SPEC-GAP)', () => {
     if (scenario === undefined || typeof name !== 'string') {
       throw new Error('No user-chip-long-name scenario.');
     }
-    const { container } = render(<MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>);
+    const { container } = render(
+      <MemoryRouter>{renderNode(kit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>,
+    );
 
     expect(within(container).getAllByText(name)).toHaveLength(2);
     expect(screen.getByRole('button', { name: new RegExp(name) })).toHaveAttribute('aria-haspopup', 'menu');

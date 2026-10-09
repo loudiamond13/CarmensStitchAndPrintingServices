@@ -201,3 +201,13 @@ export const drawerClasses = tw('fixed inset-0 z-(--z-overlay) flex items-start 
 
 /** The panel: the full Sidebar at its 248px width and the viewport's height, scrolling inside when the phone is short. */
 export const drawerPanelClasses = tw('sticky top-0 h-dvh w-(--sidebar-width) overflow-y-auto overscroll-contain');
+
+// ── User menu popover (SPEC-GAP: user menu, spec §6.6; plan 02-32) ──
+// Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → UserMenu). The Topbar is its containing
+// block (sticky in the admin shell's main column), so the popover hangs from the bar's bottom edge at the bar's inline
+// padding (24px, 20px on tablets, 16px on phones), right under the user-menu button, the bar's last item.
+
+/** The popover: `--surface-3`, radius 12, `--shadow-2`, at least 200px wide, the nav-item rows 2px apart. */
+export const userMenuPopoverClasses = tw(
+  'absolute top-full right-6 mt-1 flex min-w-[200px] flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 pg-phone:right-4 pg-tablet:right-5',
+);

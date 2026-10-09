@@ -10,7 +10,8 @@
 // while it is open the frame behind it is `inert`, so neither the keyboard nor assistive technology reaches the page
 // under the scrim.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
-// The dev user is Carmen Reyes (Manager); Logout shows the "Not available yet" info toast until Phase 4.
+// The dev user is Carmen Reyes (Manager); Logout (in the Sidebar, the drawer and the Topbar's user menu, plan 02-32)
+// shows the "Not available yet" info toast until Phase 4.
 // Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
 // on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
@@ -73,6 +74,7 @@ export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = 
             role={DEV_USER.role}
             theme={theme}
             onToggleTheme={onToggleTheme}
+            onLogout={onLogout}
             onMenu={() => {
               setNavOpen(true);
             }}

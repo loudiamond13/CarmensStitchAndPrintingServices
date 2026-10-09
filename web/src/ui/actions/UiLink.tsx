@@ -23,6 +23,10 @@ export interface UiLinkProps {
   'aria-describedby'?: string | undefined;
   /** Names the link from other elements (the Sidebar's rail items, whose visible label the tablet rail hides). */
   'aria-labelledby'?: string | undefined;
+  /** A menu item inside a `role="menu"` (the UserMenu's "My Profile", plan 02-32). */
+  role?: 'menuitem' | undefined;
+  /** The roving tab stop of a menu item (-1: reached by the arrow keys, not by Tab). */
+  tabIndex?: number | undefined;
   ref?: Ref<HTMLAnchorElement> | undefined;
 }
 
@@ -42,6 +46,8 @@ export function UiLink({
   'aria-current': ariaCurrent,
   'aria-describedby': ariaDescribedBy,
   'aria-labelledby': ariaLabelledBy,
+  role,
+  tabIndex,
   ref,
 }: UiLinkProps) {
   if (EXTERNAL.test(to)) {
@@ -59,6 +65,8 @@ export function UiLink({
         aria-current={ariaCurrent}
         aria-describedby={ariaDescribedBy}
         aria-labelledby={ariaLabelledBy}
+        role={role}
+        tabIndex={tabIndex}
       >
         {children}
       </a>
@@ -78,6 +86,8 @@ export function UiLink({
       aria-current={ariaCurrent}
       aria-describedby={ariaDescribedBy}
       aria-labelledby={ariaLabelledBy}
+      role={role}
+      tabIndex={tabIndex}
     >
       {children}
     </Link>

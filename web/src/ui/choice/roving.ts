@@ -3,25 +3,27 @@
 // selection (and the focus) to another item. Arrows wrap at both ends.
 //   - radio (SegmentedControl): Right/Down = next, Left/Up = previous.
 //   - tabs (Tabs, a horizontal tab list): Right = next, Left = previous, Home = first, End = last.
+//   - menu (UserMenu, a vertical menu; WAI-ARIA APG menu button pattern, plan 02-32): Down = next, Up = previous,
+//     Home = first, End = last. Menu items have no selection: the keys move focus only.
 
-export type RovingPattern = 'radio' | 'tabs';
+export type RovingPattern = 'radio' | 'tabs' | 'menu';
 
 function step(key: string, index: number, count: number, pattern: RovingPattern): number | undefined {
   const next = (index + 1) % count;
   const previous = (index - 1 + count) % count;
   switch (key) {
     case 'ArrowRight':
-      return next;
+      return pattern === 'menu' ? undefined : next;
     case 'ArrowLeft':
-      return previous;
+      return pattern === 'menu' ? undefined : previous;
     case 'ArrowDown':
-      return pattern === 'radio' ? next : undefined;
+      return pattern === 'tabs' ? undefined : next;
     case 'ArrowUp':
-      return pattern === 'radio' ? previous : undefined;
+      return pattern === 'tabs' ? undefined : previous;
     case 'Home':
-      return pattern === 'tabs' ? 0 : undefined;
+      return pattern === 'radio' ? undefined : 0;
     case 'End':
-      return pattern === 'tabs' ? count - 1 : undefined;
+      return pattern === 'radio' ? undefined : count - 1;
     default:
       return undefined;
   }

@@ -5,14 +5,14 @@
 //     passes none, so Enter does nothing there);
 //   - the theme toggle is named for what it will do, "Switch to dark mode" with the moon in light, "Switch to light
 //     mode" with the sun in dark;
-//   - the user-menu button announces its menu (`aria-haspopup="menu"`); the popover itself is plan 02-32's UserMenu.
+//   - the user-menu button announces its menu (`aria-haspopup="menu"`) and opens it: the button and its popover are the
+//     UserMenu (SPEC-GAP, plan 02-32), which renders App. D.3's button markup unchanged and adds `aria-expanded`.
 // D-01 (C-34): the search text is 16px on phones (14px elsewhere), so iOS Safari does not zoom on focus.
 import clsx from 'clsx';
 import { useEffect, useRef } from 'react';
 import type { Role } from '@/lib/csps';
 import { Icon } from '@/ui/brand';
 import { iconButtonClasses } from '@/ui/feedback';
-import { Avatar } from '@/ui/status';
 import {
   searchClasses,
   searchInputClasses,
@@ -21,11 +21,8 @@ import {
   topbarClasses,
   topbarMenuClasses,
   topbarRightClasses,
-  userMenuClasses,
-  userMenuNameClasses,
-  userMenuRoleClasses,
-  userMenuTextClasses,
 } from './navigation.recipe';
+import { UserMenu } from './UserMenu';
 
 /** Elements whose own typing keeps a "/" (App. D.3's test). */
 const FIELD_TAGS = /^(INPUT|TEXTAREA|SELECT)$/;
@@ -47,6 +44,9 @@ export interface TopbarProps {
   onToggleTheme?: (() => void) | undefined;
   /** Called with the search text on Enter. */
   onSearch?: ((query: string) => void) | undefined;
+  // SPEC-DEVIATION: UI-SPEC UserMenu (plan 02-32) the user menu's "Logout" item; App. D.3 draws no menu to call it.
+  /** "Logout" in the user menu. */
+  onLogout?: (() => void) | undefined;
 }
 
 export function Topbar({
@@ -59,6 +59,7 @@ export function Topbar({
   theme,
   onToggleTheme,
   onSearch,
+  onLogout,
 }: TopbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -118,14 +119,7 @@ export function Topbar({
             <Icon name={theme === 'light' ? 'moon' : 'sun'} size={18} />
           </button>
         )}
-        <button type="button" className={userMenuClasses} aria-haspopup="menu">
-          <Avatar name={user.name} size={32} />
-          <span className={userMenuTextClasses}>
-            <strong className={userMenuNameClasses}>{user.name}</strong>
-            <span className={userMenuRoleClasses}>{role === 'manager' ? 'Manager' : 'Admin'}</span>
-          </span>
-          <Icon name="chevron-down" size={16} />
-        </button>
+        <UserMenu user={user} role={role} onLogout={onLogout} />
       </div>
     </div>
   );
