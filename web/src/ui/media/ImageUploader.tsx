@@ -148,7 +148,8 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
       <div ref={dropZoneRef} className={dropClasses} data-over={over}>
         <Icon name="cloud-upload" size={28} />
         <p className={dropTitleClasses}>
-          Drag images here or{' '}
+          {/* One text node, as in App. D.3: WebKit measures "…or" and " " as two runs 0.3px wider. */}
+          {'Drag images here or '}
           <button
             type="button"
             className={linkButtonClasses}
