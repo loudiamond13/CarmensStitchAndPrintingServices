@@ -179,6 +179,17 @@ describe('MoneyInput paste', () => {
     await user.paste('.555');
     expect(input.value).toBe('102');
   });
+
+  it('appends a paste when the browser reports no caret', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="12" />);
+    const input = amountBox();
+    await user.click(input);
+    Object.defineProperty(input, 'selectionStart', { configurable: true, get: () => null });
+    Object.defineProperty(input, 'selectionEnd', { configurable: true, get: () => null });
+    await user.paste('5');
+    expect(input.value).toBe('125');
+  });
 });
 
 describe('MoneyInput blur', () => {
@@ -251,7 +262,7 @@ describe('MoneyInput errors (UI-SPEC Copywriting)', () => {
 
   it('shows an error under the box with aria-invalid and aria-describedby', () => {
     render(<Harness required error={ENTRY_COPY.money.required} />);
-    const input = amountBox();
+    const input = screen.getByRole<HTMLInputElement>('textbox');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     const message = document.getElementById(input.getAttribute('aria-describedby') ?? '');
     expect(message?.textContent).toBe(ENTRY_COPY.money.required);
