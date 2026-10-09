@@ -12,4 +12,14 @@ export const STATES_COPY = {
     reference: (traceId: string): string => `Reference: ${traceId}`,
     retry: 'Try Again',
   },
+  /** LoadingRegion's polite announcements ("Loading announcement"). */
+  loading: {
+    loading: (things: string): string => `Loading ${things}…`,
+    loaded: (things: string): string => `${capitalize(things)} loaded.`,
+  },
 } as const;
+
+/** "orders" -> "Orders", for the sentence-initial "{Things} loaded." */
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
