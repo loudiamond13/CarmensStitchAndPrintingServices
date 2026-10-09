@@ -7,17 +7,37 @@
 //     tab bar.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
 // The dev user is Carmen Reyes (Manager); Logout shows the "Not available yet" info toast until Phase 4.
+// Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
+// on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
+// While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
+// page head's place (UI-SPEC UI Considerations: loading, route chunks).
 import { useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useNavigation } from 'react-router';
 import { SkipLink } from '@/ui/entry';
-import { ToastProvider, useToast } from '@/ui/feedback';
+import { Skeleton, ToastProvider, useToast } from '@/ui/feedback';
 import { pageRootClasses } from '@/ui/layout/layout.recipe';
 import { Sidebar, Topbar, type AdminSection } from '@/ui/navigation';
-import { adminBodyClasses, adminClasses, adminMainClasses, adminSideClasses } from './admin.recipe';
+import {
+  adminBodyClasses,
+  adminClasses,
+  adminMainClasses,
+  adminSideClasses,
+  skeletonHeadClasses,
+} from './admin.recipe';
 import { ADMIN_COPY } from './copy';
 import { adminNavItemForPath, DEV_USER } from './sections';
+import { TabBar } from './TabBar';
+import { readTheme, writeTheme, type Theme } from './theme';
 
-export type Theme = 'light' | 'dark';
+/** The skeleton page head shown while a page chunk loads. */
+function SkeletonPageHead() {
+  return (
+    <div className={skeletonHeadClasses}>
+      <Skeleton width="40%" height={34} />
+      <Skeleton width="60%" height={14} />
+    </div>
+  );
+}
 
 export interface AdminFrameProps {
   /** The current section (sidebar and tab bar); none for a path that is no section. */
@@ -40,8 +60,9 @@ export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = 
       <div data-ui="s-admin-main" className={adminMainClasses}>
         <Topbar user={DEV_USER} role={DEV_USER.role} theme={theme} onToggleTheme={onToggleTheme} />
         <main id="main" tabIndex={-1} aria-busy={loading ? true : undefined} className={adminBodyClasses}>
-          {children}
+          {loading ? <SkeletonPageHead /> : children}
         </main>
+        <TabBar active={section} />
       </div>
     </div>
   );
@@ -68,7 +89,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
 }
 
 export default function AdminLayout() {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>(readTheme);
   return (
     <div data-theme={theme} className={pageRootClasses}>
       <ToastProvider>
@@ -76,7 +97,9 @@ export default function AdminLayout() {
         <AdminShell
           theme={theme}
           onToggleTheme={() => {
-            setTheme(theme === 'light' ? 'dark' : 'light');
+            const next = theme === 'light' ? 'dark' : 'light';
+            setTheme(next);
+            writeTheme(next);
           }}
         />
       </ToastProvider>

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -106,7 +106,9 @@ describe('AdminLayout tracer (WEB-05, D-20)', () => {
     expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }));
     expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Component Showcase' })).toHaveAttribute('href', '/dev/components');
-    expect(document.title).toBe('Users · CSPS Admin');
+    await waitFor(() => {
+      expect(document.title).toBe('Users · CSPS Admin');
+    });
   });
 });
 
@@ -127,7 +129,9 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
         link.textContent.replace('Manager', ''),
       ),
     ).toEqual([label]);
-    expect(document.title).toBe(`${label} · CSPS Admin`);
+    await waitFor(() => {
+      expect(document.title).toBe(`${label} · CSPS Admin`);
+    });
   });
 
   it('shows the section icon in the empty state and a primary md link to the Component Showcase', async () => {
@@ -159,7 +163,9 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(router.state.location.pathname).toBe('/admin/orders');
     expect(sidebarLink('Orders')).toHaveAttribute('aria-current', 'page');
     expect(sidebarLink('Dashboard')).not.toHaveAttribute('aria-current');
-    expect(document.title).toBe('Orders · CSPS Admin');
+    await waitFor(() => {
+      expect(document.title).toBe('Orders · CSPS Admin');
+    });
   });
 });
 

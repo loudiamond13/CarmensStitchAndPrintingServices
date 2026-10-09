@@ -1,8 +1,14 @@
 // The navigation looks (App. B `/* ── Navigation ── */` and the `/* sidebar sits on nav-bg … */` context rules,
 // CSPS-UI-SPEC.md §6.6) as complete Tailwind tokens (D-33). Every string here is a class list (the class gate compiles
 // each one). The nav item itself (links, Logout) is in navItem.recipe.ts. Where App. B states a look twice for a context
-// (`.csp-sidebar .csp-iconbtn`), the class list here is the computed result in that context. The tablet icon rail
-// (App. C `.s-admin-side …`) belongs to the admin shell region (plan 02-31), not to these lists.
+// (`.csp-sidebar .csp-iconbtn`), the class list here is the computed result in that context.
+//
+// The tablet icon rail (App. C `@container pg (min-width: 768px) and (max-width: 1023px)` → `.s-admin-side …`, plan
+// 02-31) is a context look of the admin shell's side column: every rail rule is a
+// `pg-tablet:in-data-[ui=s-admin-side]:` variant here (the column carries `data-ui="s-admin-side"`), with App. C's own
+// query text, so it applies from 768 to 1023px and only inside the shell. App. C's collapsed-sidebar rules
+// (`.csp-sidebar.is-collapsed …`) outrank the rail rules there, so the rail padding and centring live in the expanded
+// layout maps only.
 import { tw } from '@/ui/tw';
 
 // ── Sidebar ──
@@ -12,7 +18,7 @@ import { tw } from '@/ui/tw';
  * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top at the column's full height.
  */
 export const sidebarClasses = tw(
-  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full',
+  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full pg-tablet:in-data-[ui=s-admin-side]:w-(--sidebar-collapsed)',
 );
 
 /** `.csp-sidebar { width }` and `.csp-sidebar.is-collapsed { width }`. */
@@ -24,19 +30,26 @@ export const sidebarWidthClasses = {
 /** `.csp-sidebar-top`: the lockup and the collapse toggle over a hairline. */
 export const sidebarTopClasses = tw('flex items-center border-b border-line');
 
-/** `.csp-sidebar-top { height; justify-content; padding }` and its collapsed column (`.is-collapsed .csp-sidebar-top`). */
+/**
+ * `.csp-sidebar-top { height; justify-content; padding }` and its collapsed column (`.is-collapsed .csp-sidebar-top`).
+ * On the rail the expanded top centres the lone mark with no padding (`.s-admin-side .csp-sidebar-top`).
+ */
 export const sidebarTopLayoutClasses = {
-  expanded: tw('h-(--topbar-height) justify-between pr-3 pl-5'),
+  expanded: tw(
+    'h-(--topbar-height) justify-between pr-3 pl-5 pg-tablet:in-data-[ui=s-admin-side]:justify-center pg-tablet:in-data-[ui=s-admin-side]:p-0',
+  ),
   collapsed: tw('h-auto flex-col justify-center gap-2 px-0 py-3'),
 } as const;
 
-/** `.csp-iconbtn` inside `.csp-sidebar`: the nav ink at rest, and the nav-ink tint on hover. */
+/** `.csp-iconbtn` inside `.csp-sidebar`: the nav ink at rest, and the nav-ink tint on hover; none on the rail. */
 export const sidebarToggleClasses = tw(
-  'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-nav-ink hover:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)]',
+  'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-nav-ink hover:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)] pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-nav`. */
-export const sidebarNavClasses = tw('flex flex-1 flex-col gap-0.5 p-3');
+/** `.csp-sidebar-nav`; on the rail 12px 8px with the items centred. */
+export const sidebarNavClasses = tw(
+  'flex flex-1 flex-col gap-0.5 p-3 pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
+);
 
 /**
  * `.csp-nav-tag`: the "Manager" tag. D-02 FYI-01: full opacity instead of App. B's `.8`, so it keeps its contrast.
@@ -44,15 +57,17 @@ export const sidebarNavClasses = tw('flex flex-1 flex-col gap-0.5 p-3');
  * `group/nav` state.
  */
 export const navTagClasses = tw(
-  'ml-auto text-[10px] font-bold tracking-[.08em] text-nav-ink uppercase group-aria-[current=page]/nav:hidden',
+  'ml-auto text-[10px] font-bold tracking-[.08em] text-nav-ink uppercase group-aria-[current=page]/nav:hidden pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-foot`: the user chip and Logout over a hairline. */
-export const sidebarFootClasses = tw('flex flex-col gap-2 border-t border-line p-3');
+/** `.csp-sidebar-foot`: the user chip and Logout over a hairline; on the rail 12px 8px with Logout centred. */
+export const sidebarFootClasses = tw(
+  'flex flex-col gap-2 border-t border-line p-3 pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
+);
 
-/** `.csp-sidebar-user`: the chip, with a dashed rule under it. */
+/** `.csp-sidebar-user`: the chip, with a dashed rule under it; none on the rail. */
 export const sidebarUserClasses = tw(
-  'mb-1 flex items-center gap-3 border-b-2 border-dashed border-line px-2 pt-2 pb-3',
+  'mb-1 flex items-center gap-3 border-b-2 border-dashed border-line px-2 pt-2 pb-3 pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
 /** `.csp-sidebar-user strong`. */

@@ -269,7 +269,12 @@ describe('Sidebar collapse', () => {
     render(inRouter(<Sidebar role={MANAGER} />));
 
     expect(navLinks().every((item) => !item.hasAttribute('title'))).toBe(true);
-    expect(navLinks().every((item) => item.querySelector('span')?.classList.length === 0)).toBe(true);
+    // Visible labels: only the admin shell's tablet-rail variant (plan 02-31), which applies inside that shell alone.
+    expect(
+      navLinks().every(
+        (item) => item.querySelector('span')?.className === 'pg-tablet:in-data-[ui=s-admin-side]:hidden',
+      ),
+    ).toBe(true);
     expect(screen.getByRole('button', { name: 'Logout' }).hasAttribute('title')).toBe(false);
   });
 

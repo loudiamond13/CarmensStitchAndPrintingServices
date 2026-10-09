@@ -10,7 +10,9 @@ import {
   logoLetterClasses,
   logoLetterContextClasses,
   logoLetterMarkClasses,
+  logoLetterMarkContextClasses,
   logoLettersClasses,
+  logoLettersContextClasses,
   logoSlashClasses,
   logoTaglineClasses,
   logoTaglineContextClasses,
@@ -53,8 +55,15 @@ export function Logo({ size = 'md', tagline = true, variant = 'full', context = 
           className={clsx(logoWordClasses, logoLetterClasses[size], logoLetterContextClasses[context])}
           aria-hidden="true"
         >
-          <Mark size={MARK_SIZE[size]} className={logoLetterMarkClasses} />
-          <span className={clsx(logoLettersClasses, logoLetterClasses[size], logoLetterContextClasses[context])}>
+          <Mark size={MARK_SIZE[size]} className={clsx(logoLetterMarkClasses, logoLetterMarkContextClasses[context])} />
+          <span
+            className={clsx(
+              logoLettersClasses,
+              logoLetterClasses[size],
+              logoLetterContextClasses[context],
+              logoLettersContextClasses[context],
+            )}
+          >
             SPS
             <span className={logoSlashClasses} />
           </span>
@@ -62,7 +71,12 @@ export function Logo({ size = 'md', tagline = true, variant = 'full', context = 
       )}
       {variant === 'wordmark' && (
         <span
-          className={clsx(logoLettersClasses, logoLetterClasses[size], logoLetterContextClasses[context])}
+          className={clsx(
+            logoLettersClasses,
+            logoLetterClasses[size],
+            logoLetterContextClasses[context],
+            logoLettersContextClasses[context],
+          )}
           aria-hidden="true"
         >
           CSPS

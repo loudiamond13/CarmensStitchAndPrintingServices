@@ -7,7 +7,8 @@
 //   - D-31 D-BL-02 the "Manager" tag is hidden on the current row and shown at full opacity elsewhere (D-02 FYI-01);
 //   - D-27 Logout is a <button type="button"> with the nav-item look (see below).
 // The Sidebar renders its own Logo, Avatar and Icons, so it passes them their sidebar context (UI-SPEC rule 7a). The
-// tablet icon rail (App. C `.s-admin-side`) comes from the admin shell region, plan 02-31.
+// tablet icon rail (App. C `.s-admin-side`) is a context look: inside the admin shell's side column the recipes' rail
+// variants apply from 768 to 1023px (plan 02-31).
 import clsx from 'clsx';
 import { useState } from 'react';
 import type { Role } from '@/lib/csps';
@@ -27,7 +28,13 @@ import {
   sidebarUserRoleClasses,
   sidebarWidthClasses,
 } from './navigation.recipe';
-import { navButtonClasses, navIconClasses, navItemClasses, navLabelHiddenClasses } from './navItem.recipe';
+import {
+  navButtonClasses,
+  navIconClasses,
+  navItemClasses,
+  navLabelHiddenClasses,
+  navLabelRailClasses,
+} from './navItem.recipe';
 
 export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'profile';
 
@@ -76,7 +83,7 @@ export function Sidebar({
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
-  const labelClasses = collapsed ? navLabelHiddenClasses : undefined;
+  const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>
       <div className={clsx(sidebarTopClasses, sidebarTopLayoutClasses[layout])}>

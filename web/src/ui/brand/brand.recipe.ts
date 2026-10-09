@@ -44,9 +44,31 @@ export const logoLetterContextClasses = {
  */
 export const logoTaglineContextClasses = {
   default: tw('text-ink'),
-  sidebar: tw('text-nav-ink'),
+  sidebar: tw('text-nav-ink pg-tablet:in-data-[ui=s-admin-side]:hidden'),
   siteHeader: tw('text-ink pg-phone:text-[8px] pg-phone:tracking-[.12em]'),
   footer: tw('text-ink pg-phone:text-[9.5px]'),
+} as const satisfies Record<LogoContext, string>;
+
+/**
+ * The "SPS" / "CSPS" letters (`.csp-logo-mark`) per context (plan 02-31): on the admin shell's tablet rail the sidebar
+ * lockup shows only its mark (App. C `.s-admin-side .csp-logo-mark { display: none }`).
+ */
+export const logoLettersContextClasses = {
+  default: tw(''),
+  sidebar: tw('pg-tablet:in-data-[ui=s-admin-side]:hidden'),
+  siteHeader: tw(''),
+  footer: tw(''),
+} as const satisfies Record<LogoContext, string>;
+
+/**
+ * The mark standing in for the C (`.csp-logo-word .csp-logo-c`) per context (plan 02-31): on the tablet rail the
+ * sidebar mark is a 36px square with no margin (App. C `.s-admin-side .csp-logo-word .csp-logo-c`).
+ */
+export const logoLetterMarkContextClasses = {
+  default: tw(''),
+  sidebar: tw('pg-tablet:in-data-[ui=s-admin-side]:m-0 pg-tablet:in-data-[ui=s-admin-side]:size-9'),
+  siteHeader: tw(''),
+  footer: tw(''),
 } as const satisfies Record<LogoContext, string>;
 
 /** `.csp-logo-sm/md/lg { gap }` (App. B overrides the `.csp-logo` gap per size). */

@@ -18,3 +18,28 @@ export const adminMainClasses = tw('flex min-w-0 flex-1 flex-col');
 export const adminBodyClasses = tw(
   'flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-8 pb-12 pg-phone:gap-5 pg-phone:px-4 pg-phone:pt-5 pg-phone:pb-8 pg-tablet:px-6 pg-tablet:pt-6 pg-tablet:pb-12',
 );
+
+// ── Phone tab bar (App. C `/* mobile tab bar (admin) */`, App. E.6 `nav.s-tabbar`) ──
+// App. C hides the bar everywhere and shows it as a grid only inside `@container pg (max-width: 767px)`, where all its
+// other rules sit too. A hidden bar shows nothing, so here only its display depends on the container.
+
+/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur. */
+export const tabBarClasses = tw(
+  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-3 [backdrop-filter:blur(12px)] pg-phone:grid',
+);
+
+/**
+ * `.s-tab-i`, `.s-tab-i.is-on` and its `::before` accent bar, read from `aria-current="page"`; D-03 (C-35) adds the
+ * weight 700 as the second cue. `group/tab` lets the icon read the current state.
+ */
+export const tabItemClasses = tw(
+  "group/tab flex flex-col items-center gap-0.5 rounded-sm py-[6px] text-[11px] leading-[14px] font-semibold text-ink-muted no-underline aria-[current=page]:font-bold aria-[current=page]:text-ink aria-[current=page]:before:mx-0 aria-[current=page]:before:mt-[-6px] aria-[current=page]:before:mb-[3px] aria-[current=page]:before:h-[3px] aria-[current=page]:before:w-6 aria-[current=page]:before:rounded-[2px] aria-[current=page]:before:bg-accent-line aria-[current=page]:before:content-['']",
+);
+
+/** `.s-tab-i.is-on .csp-icon`: the current tab's icon in the accent ink. */
+export const tabIconClasses = tw('group-aria-[current=page]/tab:text-accent-ink');
+
+// ── Route-chunk skeleton (UI-SPEC UI Considerations: loading, route chunks) ──
+
+/** The skeleton page head's two lines sit in the `.s-ph-title` column, so the page head lands in the same place. */
+export const skeletonHeadClasses = tw('flex min-w-0 flex-col gap-1');
