@@ -205,11 +205,12 @@ function answersOk(url) {
 
 /**
  * Starts the host and waits for /health. Rejects when the host exits first (for example because something else took the
- * port) or when /health does not answer within two minutes; in both cases the child is stopped first.
+ * port) or when /health does not answer within two minutes; in both cases the child is stopped first. Shared with
+ * the owner review run (scripts/owner-review.mjs, plan 02-36).
  * @param {HostStep} step
  * @returns {Promise<RunningHost>}
  */
-async function startHost(step) {
+export async function startHost(step) {
   const child = spawn(step.command, [...step.args], {
     cwd: step.cwd,
     env: { ...process.env, ...step.env },
@@ -299,7 +300,7 @@ function somethingAnswers(host) {
 }
 
 /** @returns {Promise<boolean>} true when port 5199 answers on the IPv4 or the IPv6 loopback. */
-async function portIsBusy() {
+export async function portIsBusy() {
   for (const host of ['127.0.0.1', '::1']) {
     if (await somethingAnswers(host)) {
       return true;
