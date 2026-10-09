@@ -5,6 +5,11 @@
 // screenshots. The states are listed for the showcase; the harness never drives them on a `parity: false` case.
 //   - MoneyInput (ORD-09): empty with the balance hint, filled, required and empty after a submit (the Copywriting
 //     error), and right-aligned as in an item row (App. E.9). The value is controlled, so `onChange` gets a no-op.
+//   - OtpInput (WEB-06): empty with the default legend and hint, and four digits after a submit ("Enter all 6
+//     digits.", every box invalid). Uncontrolled (`defaultValue`), so no handler is needed.
+//   - Checkbox (D-03): unticked and ticked ("Keep me signed in", spec §8.2), uncontrolled.
+//   - SkipLink (A11Y-02): through the dev-only FocusedSkipLink wrapper, which focuses the link after mount (the
+//     harness never drives a state here) and renders the `main#main` target.
 // Copy is typed out here (relative imports only: the reference build has no @ alias); the tests pin it to copy.ts.
 import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
 
@@ -63,4 +68,24 @@ export const scenarios: readonly Scenario[] = [
     target: 'input',
     handlers: ['onChange'],
   }),
+  entryCase({ id: 'otp-empty', component: 'OtpInput', props: {}, target: 'input' }),
+  entryCase({
+    id: 'otp-error',
+    component: 'OtpInput',
+    props: { defaultValue: '1234', error: 'Enter all 6 digits.' },
+    target: 'input',
+  }),
+  entryCase({
+    id: 'checkbox-unchecked',
+    component: 'Checkbox',
+    props: { label: 'Keep me signed in' },
+    target: 'input',
+  }),
+  entryCase({
+    id: 'checkbox-checked',
+    component: 'Checkbox',
+    props: { label: 'Keep me signed in', defaultChecked: true },
+    target: 'input',
+  }),
+  entryCase({ id: 'skip-link-focused', component: 'FocusedSkipLink', props: {}, target: 'a' }),
 ];

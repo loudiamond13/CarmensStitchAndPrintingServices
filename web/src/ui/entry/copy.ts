@@ -10,4 +10,16 @@ export const ENTRY_COPY = {
     required: 'Enter an amount.',
     invalid: 'Enter an amount like 1250.50 (numbers only, up to 2 decimals).',
   },
+  /** OtpInput (WEB-06). A showcase example: Phase 4 owns the final sign-in copy. */
+  otp: {
+    legend: 'Sign-in code',
+    hint: 'Enter the 6-digit code we emailed you.',
+    incomplete: 'Enter all 6 digits.',
+    /** "Digit 3 of 6", the name of each box. */
+    digit: (index: number, count: number): string => `Digit ${String(index)} of ${String(count)}`,
+  },
+  /** SkipLink (A11Y-02). */
+  skipLink: {
+    label: 'Skip to main content',
+  },
 } as const;
