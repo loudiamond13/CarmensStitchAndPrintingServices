@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Net.Http.Headers;
@@ -13,7 +14,9 @@ public static class SpaRegistration
     /// <summary>
     /// Registers Brotli and gzip response compression, over HTTPS too, for <see cref="SpaCaching.CompressibleTypes"/>
     /// only. Setting the MIME list replaces the framework defaults, which include JSON: JSON and ProblemDetails can
-    /// carry secrets next to attacker-chosen text, so they are never compressed (BREACH, research Pitfall 3).
+    /// carry secrets next to attacker-chosen text, so they are never compressed (BREACH, research Pitfall 3). Both run
+    /// at <see cref="CompressionLevel.Optimal"/>: the framework default (Fastest) sent the entry script about a quarter
+    /// larger, enough to push the mobile Lighthouse LCP past 2000 ms (PERF-02, plan 02-35).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The same service collection.</returns>
@@ -28,6 +31,8 @@ public static class SpaRegistration
             options.Providers.Add<GzipCompressionProvider>();
             options.MimeTypes = SpaCaching.CompressibleTypes;
         });
+        services.Configure<BrotliCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
+        services.Configure<GzipCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
 
         return services;
     }
