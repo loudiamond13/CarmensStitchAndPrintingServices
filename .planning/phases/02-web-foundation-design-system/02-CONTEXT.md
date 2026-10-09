@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T07:09:18-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T21:12:00-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -160,6 +160,10 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
 - **D-37 (reuse of the reverted code, research Q-4):** the owner chose **"Yes, as reference"**. Executors may read the style-independent code reverted in `bb6ef76` (available at commit `74621f5`: SPA host, HiddenSegmentFileProvider, HTTP client, order math and golden vectors, URL state, API contract, form logic, e2e host, license gate) for proven designs and pitfalls. Every plan stays TDD (RED first) and is re-verified. Nothing is restored wholesale without its tests.
 
 - **D-38 (UI-SPEC OQ-1, phone list-card title separator):** the owner chose **"A: keep as approved"** (2026-10-08, in chat, during `/gsd-ui-phase 2`). The Tailwind build reproduces the approved computed result: the last phone list card has no separator line under its title. This is not an intentional difference, so the look-equality proof expects it to match the approved CSS.
+
+### Owner ruling: a KPI card showing zero (2026-10-08, in chat, during `/gsd-execute-phase 2`)
+
+- **D-39 (KpiCard zero state):** the owner said "Make KPI card showing zero look dimmed." A KPI card whose figure is zero is dimmed **by colour only**: the big number turns the softer brown-grey `--ink-subtle` (`text-ink-subtle`), the same treatment D-02 gives the zero tiles in the delete-confirmation tally. Nothing else changes: the label, the icon tile, the hint and the trend chip keep their normal colours, and no see-through (opacity) effect is used, because D-02 forbids faded text. The dimmed number still reads clearly: 5.78:1 in the light theme and 6.19:1 in the dark theme on the card background (the rule for normal text is at least 4.5:1). "Zero" means a figure the card shows as zero: a money figure that rounds to ₱0.00, or a count of exactly 0. A figure written as text is shown as given and is never dimmed. The approved design (App. D.3) has no zero state, so this is an intentional difference: the look-equality proof applies the same colour to the approved design through the test-only rulings layer, and the zero card is still proven equal.
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.
