@@ -11,6 +11,10 @@
      and D-39 (2026-10-08) follows 02-CONTEXT.md and the UI-SPEC D-02 row.
    - The phone list-card title separator has no rule here on purpose: the owner kept it exactly as the approved CSS
      renders it (the last card has none), so the proof expects the implementation to match the spec there.
+   - D-40 (owner, 2026-10-08) has no rule here either: it changes text, not a look. A no-team OrderCard reads
+     "Walk-in customer" on its customer line, which keeps the approved .csp-order-cust look. CSS cannot add a text
+     node, so the WalkInOrderCard wrapper pair (visual/reference/fragments/WalkInOrderCard.tsx) writes the text into
+     the frozen line after mount.
    - visual/reference/rulings.test.ts pins all of the above. */
 
 /* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */

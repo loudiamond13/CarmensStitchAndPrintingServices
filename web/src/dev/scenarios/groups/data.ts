@@ -2,7 +2,8 @@
 // here has group 'data'. Each case is compared in both themes at 390 and 1440:
 //   - OrderCard on the spec §12.2 seed orders: ORD-2026-0148 (In Production, 4 images, balance due ₱9,327.50; also on
 //     hover, where the card lifts), ORD-2026-0151 (Ready, 2 images, Fully Paid) and ORD-2026-0153 (no team: the
-//     customer is the title; Mockup, overdue, no images yet);
+//     customer is the title and the customer line reads "Walk-in customer", owner ruling D-40, in the WalkInOrderCard
+//     wrapper pair; Mockup, overdue, no images yet);
 //   - DataTable with the §12.2 orders (money columns right-aligned, two columns sized through `--col-w`; also with the
 //     first row hovered), loading (4 skeleton rows), empty and error, each in the KeyboardScrollTable wrapper pair;
 //   - IncomeExpenseChart at rest with the spec §12.4 six months (May–Oct 2026; axis ₱0 / ₱100k / ₱200k) and twelve
@@ -157,13 +158,22 @@ export const CHART_12_MONTHS: readonly ScenarioProps[] = [
   ...CHART_6_MONTHS,
 ];
 
+/**
+ * A no-team OrderCard inside the WalkInOrderCard wrapper pair (docs/web/parity.md §5, owner ruling D-40): App. D.3 leaves
+ * the customer line of a no-team card empty, so the reference side writes "Walk-in customer" into it after mount; the
+ * converted OrderCard renders the line by itself.
+ */
+function walkInCard(order: ScenarioProps): ScenarioNode {
+  return node('WalkInOrderCard', { children: node('OrderCard', { order }) });
+}
+
 export const scenarios: readonly Scenario[] = [
   dataCase('order-card-0148', node('OrderCard', { order: CARD_0148 }), {
     states: ['rest', 'hover'],
     handlers: CARD_HANDLERS,
   }),
   dataCase('order-card-0151', node('OrderCard', { order: CARD_0151 }), { handlers: CARD_HANDLERS }),
-  dataCase('order-card-walk-in', node('OrderCard', { order: ORDER_0153 }), { handlers: CARD_HANDLERS }),
+  dataCase('order-card-walk-in', walkInCard(ORDER_0153), { handlers: CARD_HANDLERS }),
   dataCase('data-table-orders', table({ rows: TABLE_ROWS, rowKey: 'number' }), {
     states: ['rest', 'hover'],
     target: 'tbody tr',

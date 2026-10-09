@@ -1,12 +1,16 @@
 // OrderCard (App. D.3 "Data display", CSPS-UI-SPEC.md §6.4), converted to utilities (D-33) with the App. D.3 props,
 // markup and copy: the 16:10 cover button (image or placeholder, the status badge, the image count), the order number
-// and piece count, the team (or the customer when there is no team) and the customer line, the order and due dates,
+// and piece count, the team (or the customer when there is no team) and the customer line ("Walk-in customer" when
+// there is no team, D-40), the order and due dates,
 // the compact OrderTotals, and the View / Edit / Delete actions. The looks are in data.recipe.ts.
 //
 // The component does no money arithmetic: the figures come from `totals` when the caller has the server's figures
 // (D-09), or else from OrderTotals' csps.ts `orderTotals` preview, exactly as App. D.3 computes them for the card.
 // SPEC-DEVIATION: D-09 the optional `totals` prop (extending by a prop, spec §0 rule 3) passes the server's figures to
 // OrderTotals; without it the card shows App. D.3's `orderTotals(order)` result.
+// SPEC-DEVIATION: D-40 (owner, 2026-10-08) an order with no team shows the customer as the title, as App. D.3 does, and
+// "Walk-in customer" (WALK_IN_CUSTOMER, the spec §8.3 table-row wording) on the customer line, which App. D.3 leaves
+// empty. The line keeps its own look.
 // SPEC-DEVIATION: ORD-09 the order and due dates are date-only fields, so they go through format.ts
 // `formatCalendarDate` (no zone shift, whatever the machine's zone) instead of csps.ts `formatDate`; the text is the
 // same ("Sep 28, 2026").
@@ -17,6 +21,7 @@ import { Button } from '@/ui/actions';
 import { Icon, MediaPlaceholder } from '@/ui/brand';
 import { OrderTotals } from '@/ui/money';
 import { StatusBadge } from '@/ui/status';
+import { WALK_IN_CUSTOMER } from './copy';
 import {
   orderActionsClasses,
   orderBodyClasses,
@@ -81,7 +86,7 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
           <span className={orderQtyClasses}>{qty} pcs</span>
         </div>
         <h3 className={orderTeamClasses}>{o.team || o.customer}</h3>
-        <p className={orderCustomerClasses}>{o.team ? o.customer : ''}</p>
+        <p className={orderCustomerClasses}>{o.team ? o.customer : WALK_IN_CUSTOMER}</p>
         <div className={orderDatesClasses}>
           <span className={orderDateClasses}>
             <Icon name="calendar" size={14} />

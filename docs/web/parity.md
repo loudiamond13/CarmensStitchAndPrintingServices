@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T21:06:11-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T21:23:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -117,6 +117,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `DimmedZeroKpi`: a plain `<div>` around a KpiCard whose figure is zero. The owner ruled that a zero KPI is dimmed by colour only (its value in `--ink-subtle`, no opacity), but App. D.3 has no zero state and its markup gives CSS nothing to tell a zero figure by. The converted KpiCard dims the value by itself, so the implementation side does nothing; the reference side marks the frozen `.csp-kpi-value` with `data-zero` after mount when the KpiCard child's `value` is the number 0, and the rulings layer's D-39 rule (`.csp-kpi-value[data-zero]`) colours it. Attributes are not compared, so the colour, the box and the pixels are still compared in full.
    Plan 02-24 added one for the data group:
    - `KeyboardScrollTable`: a plain `<div>` around a DataTable. At 390 px App. D.3's `.csp-table-wrap` frame scrolls sideways but cannot take keyboard focus, which axe reports (`scrollable-region-focusable`, WCAG 2.1.1). The converted DataTable makes the frame a focusable region named by its caption by itself (A11Y-01), so the implementation side does nothing; the reference side adds `role="region"`, `tabindex="0"` and the caption as `aria-label` to the frozen frame after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
+   Owner ruling D-40 (2026-10-08) added a second one for the data group:
+   - `WalkInOrderCard`: a plain `<div>` around an OrderCard for an order with no team. The owner ruled that such a card shows "Walk-in customer" on its customer line, the wording of the spec §8.3 table rows. App. D.3 leaves that line empty, and CSS cannot add a text node. The converted OrderCard writes the line by itself (`WALK_IN_CUSTOMER` from `@/ui/data`), so the implementation side does nothing. The reference side writes "Walk-in customer" into the frozen, empty `.csp-order-cust` line after mount when the OrderCard child's order has no team. It types the text from the spec rather than importing the app's constant, so a wording slip on either side fails the pixel step. The line keeps its approved look, so the rulings layer has no D-40 rule (its header says so, and `rulings.test.ts` pins that).
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)
@@ -136,6 +138,7 @@ Everything not in this table must be equal. Each ruling sits in `web/visual/refe
 | "Manager" tag hidden on the current sidebar row | D-31 D-BL-02 | Rulings layer, so equal |
 | A pending (`aria-disabled`) button looks like the disabled button | WEB-09 | Rulings layer, so equal |
 | A KpiCard whose figure is zero shows its value in `--ink-subtle` (colour only, no opacity) | D-39 | Rulings layer plus the `DimmedZeroKpi` wrapper pair's `data-zero` marker, so equal |
+| A no-team OrderCard reads "Walk-in customer" on its customer line (App. D.3 leaves it empty) | D-40 | Text only: the `WalkInOrderCard` wrapper pair writes the same text into the frozen line, so equal (no CSS rule) |
 | Metric-matched fallback faces in the font stacks | PERF-05 | Rulings layer, identical to `web/src/styles/base.css`, so equal once the fonts load |
 | 20 redrawn lucide icons | D-32 | Drawing masked, the icon's box compared |
 | `lucide lucide-<name>` classes; Avatar and Testimonial `role="img"`; Tabs ARIA; the Modal focus trap | D-28, D-31 O-1/O-2, WEB-02 | Attributes are not compared, and there is no visual change |
