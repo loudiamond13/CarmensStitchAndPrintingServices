@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY, RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
-import { routes } from './router';
+import { lazyRoute, routes } from './router';
 
 const CRASH = new Error('Kaboom in a render');
 
@@ -73,7 +73,7 @@ describe('the route error boundary (WEB-05)', () => {
 
   it('shows the same screen when a page chunk fails to load (a deploy replaced it)', async () => {
     const chunkError = new TypeError('Failed to fetch dynamically imported module: /assets/Gone-abc123.js');
-    await renderTree(appTree({ page: { lazy: () => Promise.reject(chunkError) } }));
+    await renderTree(appTree({ page: { lazy: lazyRoute(() => Promise.reject(chunkError)) } }));
 
     expectErrorScreen(screen.getByRole('main'));
     expect(screen.getByRole('banner')).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('the root error boundary (WEB-05)', () => {
 
   it('catches a layout chunk that fails to load', async () => {
     const chunkError = new TypeError('Failed to fetch dynamically imported module: /assets/PublicLayout-x.js');
-    await renderTree(appTree({ layout: { lazy: () => Promise.reject(chunkError) } }));
+    await renderTree(appTree({ layout: { lazy: lazyRoute(() => Promise.reject(chunkError)) } }));
     expectErrorScreen(screen.getByRole('main'));
     expectOnlyReportsOf(chunkError);
   });
@@ -154,6 +154,16 @@ describe('the boundaries in the route tree', () => {
     for (const child of root?.children?.[0]?.children ?? []) {
       expect(child.ErrorBoundary).toBe(RouteErrorBoundary);
     }
+  });
+
+  it('lazyRoute passes a loaded module through and turns a failed load into a component that throws that error', async () => {
+    const loaded = { Component: () => null };
+    await expect(lazyRoute(() => Promise.resolve(loaded))()).resolves.toBe(loaded);
+
+    const failure = new TypeError('Failed to fetch dynamically imported module: /assets/Gone-abc123.js');
+    const failed = await lazyRoute(() => Promise.reject(failure))();
+    const Component = failed.Component as () => never;
+    expect(() => Component()).toThrow(failure);
   });
 
   it('uses the Copywriting strings', () => {
