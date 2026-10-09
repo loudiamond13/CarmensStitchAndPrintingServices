@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T02:16:00-05:00"
+updated: "2026-10-09T03:22:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -16,6 +16,13 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Why deferred:** plan 02-23 changed nothing in the forms group. Repeated runs of the same rows passed (`--repeat-each 3`: 6 of 6), and a third full `@forms` run passed 16 of 16. It looks like an anti-aliasing race on the corner pixels at the viewport edge under parallel load. No tolerance was added.
   **Next step:** whoever next owns the forms group or the harness should trace a failing run (`-- --trace on`) and check whether the focus ring's transition or the edge rasterization differs between the two pages.
   **Update (plan 02-24):** the data group hit the same race at 390 px (x 388–389, rounded corners of the table frame and the order cards), on either side and from run to run, with equal computed styles, boxes and compositing layers. Plan 02-24 turned off Chromium partial raster in `web/visual/playwright.visual.config.ts` (`--disable-partial-raster`) and scrolls each rest case into view before the repaint. Reproductions under parallel load went from 3 of 20 differing to 25 of 25 equal, and the Chromium regression of every group then passed 109 of 109. Leave this open until later plans' regressions confirm the forms focus-visible rows stay equal.
+
+- Dev-route builds: public JS has 0.66 KB of headroom under the 150 KB budget (plan 02-33, build risk, not failing today)
+  status: open
+  **Found by:** plan 02-33, the first measured budget build (`npm --prefix web run build:budget`).
+  **What:** the production build is well inside the budget (public JS 129.94 KB, CSS 12.90 KB). The dev-route builds (budget, e2e and the app side of parity, all with the admin routes and the parity page) measure public JS at **149.34 KB** against the 150 KB limit, and admin JS at 154.48 KB. The parity page imports most components directly, so they land in shared chunks that the public route also loads. The same build without the parity page measured 137.96 KB public and 142.86 KB admin. Either way the 135 KB Phase 4 barrel-split trigger (research Flag 4) has already fired, and every dev-route build prints that note.
+  **Why deferred:** nothing is over a limit, and the plan applies the 150 KB limit to every build and forbids raising it. The fix is a structure change: split the `src/ui/*/index.ts` barrels (the planned Phase 4 work), or stop measuring the parity page's topology in the budget build (a change to what is measured, so it needs a decision).
+  **Next step:** if a later plan (for example 02-34's showcase) makes `build:budget`, `npm run e2e` or `npm run parity` fail on public JS, do not raise the limit. Bring the numbers from `artifacts/budget/budget.json` to the planner or owner and choose between splitting the barrels now and building the budget mode without the parity entry. See docs/web/budgets.md.
 
 ## Owner decisions pending
 
