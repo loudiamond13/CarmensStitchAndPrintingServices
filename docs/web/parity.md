@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-09T01:30:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-09T02:20:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -135,6 +135,10 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `Toolbar`: the App. E.7 Orders toolbar. The implementation renders the real FilterBar, SearchBox, Select and SegmentedControl; the reference fragment transcribes App. E.7's `div.s-toolbar` with the frozen Selects and SegmentedControl.
    - `ListTableState` (implementation only, `parity: false`): the ResponsiveTable states (first load, error, first use, no matches, refetch).
    The SPEC-GAP list states sit in their own group, `lists-states`, so both pages of a compared `lists` row hold only compared cases: on one page with the taller implementation-only cases, Chromium rasterized the 1440px table frame's right-edge corners with 1-level anti-aliasing noise in about half the runs (equal computed styles). `--grep @lists` runs both groups, plus `visual/lists-overflow.spec.ts` (`@lists @overflow`), which measures the 320px chip wrap and the tablet in-frame table scroll on the implementation page.
+   Plan 02-31 added the admin layout pair (groups `layouts-admin` and `layouts-admin-boundaries`):
+   - `AdminShell`: the admin frame. The implementation renders the real `AdminFrame` from `web/src/app/admin/AdminLayout.tsx` (the side column with the Sidebar, the Topbar, `main` in the `.s-body` look and the phone TabBar) around the section's AdminPreviewPage; it leaves out the visually hidden skip link and the toast layer. The reference fragment transcribes App. E.6's `div.s-admin` shell with the frozen Sidebar and Topbar, a body written with the `.s-ph` and `.csp-empty` looks (the empty-state title is an h2 on both sides), and App. E.6's `nav.s-tabbar`. Each case lists one theme, so the Topbar toggle shows that theme's icon.
+   - The rail naming: App. C hides the nav labels on the tablet rail (`display: none`), so the approved items lose their accessible names there (axe `link-name`). The converted Sidebar names every item and Logout with `aria-labelledby` by itself (A11Y-01); the reference fragment adds the same attribute to the frozen items after mount. Attributes are not compared.
+   - `frameWidth` (the `layouts-admin-boundaries` group): a viewport width must be whole, so the WEB-05 precision cases put a second page root of 767.5px or 1023.5px inside the case frame (`max-width: 100%`, so at 390 it is capped and shows the phone layout). The group is not responsive, so only its 390 and 1440 rows load it. The D-27 Logout path is `0/0/0/0/2/1` in `layouts-admin` and one level deeper, `0/0/0/0/0/2/1`, in the boundary cases.
    A hover target that is hidden at some widths can use Playwright's `:visible`, as `site-header-home` does: `:is(a[href="/products"], button[aria-expanded]):visible` hovers the Products link where the header shows its links and the burger where it does not. Only hover and press go through Playwright's locator; focus-visible compares the target with `document.querySelector`, so keep `:visible` out of focus-visible targets.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 

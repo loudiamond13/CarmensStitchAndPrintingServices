@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T01:35:00-05:00"
+updated: "2026-10-09T02:16:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -42,4 +42,20 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** the visually hidden "Actions" column header text is absolutely positioned (App. B `.csp-sr`), and the table frame (`.s-rt-wrap`) is not positioned, so the text is placed against the page instead of the frame. When a table is wider than its frame on a tablet and scrolls inside it (UI-SPEC "overflow | ResponsiveTable at tablet"), that invisible text sits past the frame's right edge and lets the whole page scroll sideways a little (22px at 768px wide in the Users table). Nothing visible moves; the page just gains a small sideways scroll. The UI-SPEC says the page never scrolls sideways. Plan 02-30 tried containing the text in the frame (`contain: paint`); it changes no pixel, but the parity proof reports the hidden text's computed position as different from the approved CSS, so it needs the owner. `web/visual/lists-overflow.spec.ts` records today's result (only the hidden text reaches past the viewport).
   **Before / after if the owner chooses to change it:** today, on a tablet, a list page whose table scrolls sideways can also be nudged sideways by about 22px; after the change only the table scrolls and the page stays put. No visible change otherwise.
   **Question for the owner:** contain the hidden header text in the table frame (recorded as a new intentional difference in the rulings layer), or keep the approved behaviour?
+
+- Admin top bar: the page scrolls sideways on phones narrower than 398px (plan 02-31, look/behaviour question)
+  status: open
+  **What:** in the admin shell the approved Topbar holds the menu button, the search box, the theme toggle and the user button in one row. App. B lets the search box shrink only to its contents (about 234px, set by the search field's own width), so below a 398px-wide page the row is wider than the screen and the whole admin page scrolls sideways: by 8px at 390px (the approved phone frame) and by 78px at 320px. The approved CSS does the same (the 02-26 Topbar and the 02-31 shell parity cases are equal at 390 in three engines and at 320 in Chromium), so plan 02-31 kept it. The UI-SPEC says 320 to 1920px with no horizontal scroll (WCAG 1.4.10 Reflow). `web/e2e/admin.spec.ts` checks the boundary widths 767/768/1023/1024, not 320, for this reason.
+  **Before / after if the owner chooses to change it:** today, on a phone under 398px wide, the admin page can be nudged sideways and the user button sits partly off screen; after the change the search box gets narrower on small phones (its placeholder is cut shorter) and everything fits. Nothing changes at 398px and wider.
+  **Question for the owner:** let the admin search box shrink on small phones (recommended; a one-class change, `min-w-0`, on the search box in `web/src/ui/navigation/navigation.recipe.ts`, plus a matching rulings rule), or keep the approved behaviour?
+
+- Admin preview pages: the empty-state words (plan 02-31, copy question, not blocking)
+  status: open
+  **What:** the UI-SPEC gives each dev-only admin preview page its h1 (the section name), the subline "Development only. This screen is built in a later phase.", an empty state with the section's icon and the "Open Component Showcase" button, but no words for the empty state's own heading and line, which the EmptyState needs. Plan 02-31 used plain wording, kept in one place (`web/src/app/admin/copy.ts`): heading "Nothing to show here yet", line "Until this screen is built, the Component Showcase shows every shared building block." These pages exist only in development builds (D-20) and Phase 4 onwards replaces them.
+  **Question for the owner:** keep this wording, or give your own?
+
+- FYI (no decision needed unless the owner objects): admin sidebar names on the tablet rail (plan 02-31, accessibility fix with no visible change)
+  status: open
+  **What:** on tablets (768 to 1023px) the approved design shrinks the sidebar to an icon rail and hides the item labels, which also removes the links' spoken names: a screen reader announced the rail items as just "link" (axe `link-name`, WCAG 4.1.2). The converted Sidebar now names each item from its own label (`aria-labelledby`), so the names are the same as on desktop and survive on the rail. Nothing visible changes, and the parity proof still compares the look in full (the reference side gets the same attribute). The same pattern as the earlier DefinedTotalsNote and KeyboardScrollTable accessibility fixes.
+  **Question for the owner (optional):** none needed; say so if you would rather the rail show tooltips (`title`) as the collapsed sidebar does.
 
