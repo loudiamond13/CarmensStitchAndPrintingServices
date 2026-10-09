@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-29-PLAN.md
-last_updated: "2026-10-09T05:07:47.146Z"
+stopped_at: Completed 02-30-PLAN.md
+last_updated: "2026-10-09T06:09:18.295Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: a832b3715db88eb39284bc09d7a948ba0ed9a677
+state_head: 380b83a2fb8cded1d2e15e9820d2d4d93555e946
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 46
+  completed_plans: 47
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-09T00:08:00-05:00"
+updated: "2026-10-09T01:10:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 34 of 40
+Plan: 35 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -104,6 +104,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P27 | 19 min | 2 tasks | 13 files |
 | Phase 02 P28 | 16 min | 2 tasks | 18 files |
 | Phase 02 P29 | 38 min | 3 tasks | 19 files |
+| Phase 02 P30 | 58 min | 3 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -251,6 +252,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: lazyRoute() wraps every lazy route loader: React Router 8 keeps a route whose lazy() rejected marked as loading and renders nothing below the root, so a failed chunk becomes a render error the route's ErrorBoundary catches (02-31 must use it for admin routes)
 - [Phase 02]: E2E host passes --staticWebAssets <missing file>: in Development the static web assets loader maps src/Csps.Server/wwwroot, and a production build left there was served instead of web/.e2e-dist
 - [Phase 02]: Production silence needs RouterProvider onError as a no-op too (React Router console.errors every caught render error otherwise); main#main keeps min-h 100dvh minus header always, aria-busy only while a chunk loads
+- [Phase 02]: 02-30: list queries key on useSettledListParams(values, 300) (web/src/lib/query), not on useDebouncedValue(q) alone; setSearch resets the page at once, so debouncing only q sent an extra unfiltered request
+- [Phase 02]: 02-30: @/ui/lists toolkit (ResponsiveTable with every list state, SkeletonTable, UserCell, CustomerCell, RowActions, Pagination, SearchBox, FilterBar, ResultBar, FilterChip) is parity-equal to App. E.12/E.7; SPEC-GAP cases live in the lists-states group
+- [Phase 02]: 02-30: three approved-design accidents kept as rendered and sent to the owner: muted 12px user-cell name/avatar, no focus ring on the list search box, 22px tablet page scroll from the hidden Actions header text
 
 ### Pending Todos
 
@@ -287,6 +291,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T05:07:46.926Z
-Stopped at: Completed 02-29-PLAN.md
+Last session: 2026-10-09T06:09:18.037Z
+Stopped at: Completed 02-30-PLAN.md
 Resume file: None
