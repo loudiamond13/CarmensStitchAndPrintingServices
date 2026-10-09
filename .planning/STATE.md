@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-26-PLAN.md
-last_updated: "2026-10-09T03:42:20.673Z"
+stopped_at: Completed 02-27-PLAN.md
+last_updated: "2026-10-09T04:04:26.859Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 3d1e1a8b94a2f4e9f67df5d1cbbd8683318e90f9
+state_head: 47d2894ab5c44313121620884db540aaedc52e7e
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 43
+  completed_plans: 44
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T22:44:00-05:00"
+updated: "2026-10-08T23:05:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 31 of 40
+Plan: 32 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -101,6 +101,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P24 | 49min | 2 tasks | 14 files |
 | Phase 02 P25 | 31 min | 2 tasks | 16 files |
 | Phase 02 P26 | 34 min | 3 tasks | 22 files |
+| Phase 02 P27 | 19 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-26: navItemClasses({ collapsed }) + navButtonClasses (w-full cursor-pointer appearance-none text-start) is the shared nav-item look for sidebar links, the D-27 Logout button and 02-32's UserMenu items; Logo and Avatar take a context prop (sidebar / siteHeader) for region looks
 - [Phase 02]: 02-26: Get a Quote stays App. D.3's button and navigates to /contact (useNavigate) unless onQuote is given; a link would be an element change with no owner ruling (D-08), left open for the owner
 - [Phase 02]: 02-26: WebKit reports a link's hand cursor as auto; a second D-27 rulings group states cursor: pointer on the reference Logout link (no visible change), D-27 paths confirmed 0/0/2/1 and 0/0/2/0
+- [Phase 02]: 02-27: Checkbox tick is an aria-hidden peer-checked sibling span; pixel-identical to the 74621f5 ::before tick in Chromium, Firefox and WebKit, so checked:before: was not needed
+- [Phase 02]: 02-27: SkipLink hides with the .csp-sr tokens under not-focus-visible: (plus p-0/border-0); layouts render <SkipLink /> first and <main id="main" tabIndex={-1}>
+- [Phase 02]: 02-27: money and OTP values stay text; callers validate on submit with moneyInputError / otpInputError (exported from @/ui/entry) and pass error; MoneyInput align="right" for item rows
 
 ### Pending Todos
 
@@ -276,6 +280,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T03:42:20.409Z
-Stopped at: Completed 02-26-PLAN.md
+Last session: 2026-10-09T04:04:26.613Z
+Stopped at: Completed 02-27-PLAN.md
 Resume file: None
