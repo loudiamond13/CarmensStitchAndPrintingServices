@@ -252,7 +252,13 @@ describe('the real source', () => {
     expect(tokens).toContain('pg-phone:text-[52px]');
   });
 
-  it('every class token in src compiles, with no colour literal and no stray opacity', async () => {
-    expect(await runClassGate()).toEqual([]);
-  });
+  // It compiles every token in src one by one: under 1 s alone, but past the 5 s default while the full coverage run
+  // loads every core (it timed out at 5 s in plan 02-25's verify run), so it gets its own 30 s budget. Same check.
+  it(
+    'every class token in src compiles, with no colour literal and no stray opacity',
+    { timeout: 30_000 },
+    async () => {
+      expect(await runClassGate()).toEqual([]);
+    },
+  );
 });
