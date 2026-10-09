@@ -50,7 +50,7 @@ function hasClasses(element: Element | null | undefined, classes: string): boole
 }
 
 function revealTokens(element: Element | null | undefined): string[] {
-  return [...(element?.classList ?? [])].filter((token) => token.includes('opacity')).sort();
+  return [...(element?.classList ?? [])].filter((token) => /(^|:)opacity-\d+$/.test(token)).sort();
 }
 
 const images: OrderImage[] = UPLOADER_IMAGES.map((image) => ({ ...image }) as unknown as OrderImage);
