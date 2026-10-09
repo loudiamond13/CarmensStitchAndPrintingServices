@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T03:22:00-05:00"
+updated: "2026-10-09T04:08:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -23,6 +23,7 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** the production build is well inside the budget (public JS 129.94 KB, CSS 12.90 KB). The dev-route builds (budget, e2e and the app side of parity, all with the admin routes and the parity page) measure public JS at **149.34 KB** against the 150 KB limit, and admin JS at 154.48 KB. The parity page imports most components directly, so they land in shared chunks that the public route also loads. The same build without the parity page measured 137.96 KB public and 142.86 KB admin. Either way the 135 KB Phase 4 barrel-split trigger (research Flag 4) has already fired, and every dev-route build prints that note.
   **Why deferred:** nothing is over a limit, and the plan applies the 150 KB limit to every build and forbids raising it. The fix is a structure change: split the `src/ui/*/index.ts` barrels (the planned Phase 4 work), or stop measuring the parity page's topology in the budget build (a change to what is measured, so it needs a decision).
   **Next step:** if a later plan (for example 02-34's showcase) makes `build:budget`, `npm run e2e` or `npm run parity` fail on public JS, do not raise the limit. Bring the numbers from `artifacts/budget/budget.json` to the planner or owner and choose between splitting the barrels now and building the budget mode without the parity entry. See docs/web/budgets.md.
+  **Update (plan 02-34):** the showcase (`/dev/components`, a lazy route chunk) and the `@/ui` barrel moved the dev-route public JS from 149.34 KB to **149.47 KB** (0.53 KB headroom); admin JS is 154.61 KB, production 129.95 KB. Every build passes, so no remedy was applied and nothing was re-measured differently. The next plan that adds dev-route code will very likely need the orchestrator-approved remedy (build the `budget` and `e2e` modes without the parity entry, or split the barrels).
 
 ## Owner decisions pending
 
@@ -55,6 +56,7 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** in the admin shell the approved Topbar holds the menu button, the search box, the theme toggle and the user button in one row. App. B lets the search box shrink only to its contents (about 234px, set by the search field's own width), so below a 398px-wide page the row is wider than the screen and the whole admin page scrolls sideways: by 8px at 390px (the approved phone frame) and by 78px at 320px. The approved CSS does the same (the 02-26 Topbar and the 02-31 shell parity cases are equal at 390 in three engines and at 320 in Chromium), so plan 02-31 kept it. The UI-SPEC says 320 to 1920px with no horizontal scroll (WCAG 1.4.10 Reflow). `web/e2e/admin.spec.ts` checks the boundary widths 767/768/1023/1024, not 320, for this reason.
   **Before / after if the owner chooses to change it:** today, on a phone under 398px wide, the admin page can be nudged sideways and the user button sits partly off screen; after the change the search box gets narrower on small phones (its placeholder is cut shorter) and everything fits. Nothing changes at 398px and wider.
   **Question for the owner:** let the admin search box shrink on small phones (recommended; a one-class change, `min-w-0`, on the search box in `web/src/ui/navigation/navigation.recipe.ts`, plus a matching rulings rule), or keep the approved behaviour?
+  **Update (plan 02-34):** the same 398px page width shows on `/dev/components` at 320px (measured: page 398px, `main` 320px, identical to `/admin`). The showcase itself adds nothing: `web/e2e/showcase.spec.ts` checks that `main` does not overflow, that the page is no wider than `/admin` alone, and that the 4-chip FilterBar fixture wraps. The plan's page-level "scrollWidth <= innerWidth at 320" check on the showcase becomes true once this ruling lands; tighten that test then.
 
 - Admin preview pages: the empty-state words (plan 02-31, copy question, not blocking)
   status: open
@@ -66,3 +68,12 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** on tablets (768 to 1023px) the approved design shrinks the sidebar to an icon rail and hides the item labels, which also removes the links' spoken names: a screen reader announced the rail items as just "link" (axe `link-name`, WCAG 4.1.2). The converted Sidebar now names each item from its own label (`aria-labelledby`), so the names are the same as on desktop and survive on the rail. Nothing visible changes, and the parity proof still compares the look in full (the reference side gets the same attribute). The same pattern as the earlier DefinedTotalsNote and KeyboardScrollTable accessibility fixes.
   **Question for the owner (optional):** none needed; say so if you would rather the rail show tooltips (`title`) as the collapsed sidebar does.
 
+- Component Showcase: two sections the UI-SPEC list does not name, and the demo button words (plan 02-34, copy/look question, not blocking)
+  status: open
+  **What:** the UI-SPEC lists seven showcase groups (Brand & icons, Buttons, Status, Forms, Data, Feedback, Media) and also says the page shows every case of the shared scenario list. The navigation parts (Sidebar, SiteHeader, Topbar, the user menu, the phone drawer, a 40-character user name) and the marketing cards (CategoryCard, ProcessSteps, TestimonialCard) fit none of the seven, so plan 02-34 added two more sections after Media: "Navigation" and "Marketing". The whole-page layouts (the public page and the admin shell) are left out, because each is a page with its own heading and main area; their own routes show them. Dialogs and the phone drawer appear as buttons that open the real thing ("Open Add Payment", "Open Add User", "Open Delete Order", "Open navigation drawer"), the toasts as "Show success toast" and so on, and the open user menu behind "Show this example" (it would otherwise jump the page to it on load). All of these words are dev-only (D-20) and kept in `web/src/dev/showcaseCopy.ts`.
+  **Question for the owner:** keep the two extra sections and these button words, or name them differently?
+
+- FYI (no decision needed unless the owner objects): no sidebar item is marked current on the Component Showcase (plan 02-34, accessibility fix with no change to any approved screen)
+  status: open
+  **What:** the approved Sidebar always marks one item as the current page, and Dashboard when it is told nothing. `/dev/components` is no admin section, so the sidebar there claimed to be on Dashboard (`aria-current="page"`), which a screen reader announces as "current page". The Sidebar now accepts "no current item" (`active={null}`), and the admin shell uses it on any path that is no section; the phone tab bar already did this. Every approved screen (the five admin sections) looks and behaves exactly as before.
+  **Question for the owner (optional):** none needed.
