@@ -8,6 +8,10 @@
 //     D-38). Also on hover of Paolo Garcia's row. The ListTable wrapper pair renders it: the implementation through
 //     ResponsiveTable, the reference as a transcription of App. E.12 (web/visual/reference/fragments/ListTable.tsx).
 //   - rt-long-name: the same table with a 40-character name in the card title.
+//   - toolbar-orders: the App. E.7 Orders toolbar (role="search", data-ui="s-toolbar"): the SearchBox, the Status,
+//     Order date, Product type and Sort by Selects at their App. E.7 values, and the grid/table SegmentedControl in the
+//     toolbar end. The Toolbar wrapper pair renders it: the implementation through FilterBar, SearchBox, Select and
+//     SegmentedControl, the reference as a transcription of App. E.7 (web/visual/reference/fragments/Toolbar.tsx).
 // The SPEC-GAP list states (parity false) are in the lists-states group: rendered on the same page as these cases, their
 // extra height changed how Chromium rasterized the 1440px frame's right-edge corners (1-level anti-aliasing noise on
 // x 1438-1439 in about half the runs, with equal computed styles); in a group of their own both pages hold only
@@ -107,4 +111,5 @@ export const scenarios: readonly Scenario[] = [
     target: 'tbody tr:nth-child(2)',
   }),
   listCase('rt-long-name', node('ListTable', { users: LONG_NAME_USERS }), { parity: true }),
+  listCase('toolbar-orders', node('Toolbar', {}), { parity: true }),
 ];
