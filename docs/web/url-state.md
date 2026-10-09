@@ -1,6 +1,6 @@
 ---
 created: 2026-10-08T13:35:00-05:00
-updated: 2026-10-08T13:35:00-05:00
+updated: 2026-10-09T01:20:00-05:00
 ---
 
 # List state in the URL, and the list query
@@ -11,7 +11,7 @@ The short version:
 
 - **One hook per list.** Define the list's URL parameters once with `createListParams`. The screen reads and writes them only through the hook that returns. Never copy them into `useState` or form state.
 - **The URL is untrusted input.** Every parameter goes through an allow-list parser. A bad value falls back to its default, and the URL is cleaned up once.
-- **The parsed values are the only input of the query.** `useListQuery` keys on them. Search text is debounced with `useDebouncedValue(q, 300)` first.
+- **The parsed values are the only input of the query.** `useListQuery` keys on them. They go through `useSettledListParams(values, 300)` first, so the typed search is debounced and the page reset waits with it.
 
 The code is in `web/src/lib/url-state/` (URL state) and `web/src/lib/query/` (TanStack Query).
 
@@ -149,16 +149,16 @@ Feed the hook's values into `useListQuery`:
 
 ```tsx
 const [values] = useOrdersListParams();
-const q = useDebouncedValue(values.q, 300);
+const params = useSettledListParams(values, 300);
 const orders = useListQuery({
   key: 'orders',
-  params: { ...values, q },
+  params,
   fetcher: (params, signal) => api.listOrders(params, signal),
 });
 ```
 
 - The query key is `listKey('orders', params)`, which is `['orders', 'list', params]`. It holds only parsed, defaulted values, never a raw string or `location.search`. A hostile URL therefore never becomes a query key or a request.
-- **The debounce rule:** the search box writes the URL after 300 ms (`setSearch`), and the query key uses `useDebouncedValue(q, 300)`, never the immediate value. Typing "jersey" sends one request, not six.
+- **The debounce rule:** the search box writes the URL after 300 ms (`setSearch`), and the query key uses `useSettledListParams(values, 300)` (`web/src/lib/query/useSettledListParams.ts`, plan 02-30), never the immediate values. While the typed search has not settled (it uses `useDebouncedValue` inside), the query keeps the values it last ran with; then it runs once for the settled text. Typing "jersey" sends one request, not six. Debouncing only `q` (the earlier advice) is not enough: `setSearch` resets the page at once, so the key changed twice and an extra, unfiltered page-1 request went out at the first keystroke (found by `web/src/ui/lists/listState.integration.test.tsx`). A page, filter or size change still reaches the query at once.
 - Always pass `signal` on to `api.ts`. The query aborts a request that is no longer needed (the screen closed, or the search changed while it was loading).
 - While the next page loads, the previous page's rows stay on screen (`isPlaceholderData` is true).
 - `api.ts` turns the params into the request (WEB-04). A query parameter named `code` is rejected there; rename it (for example `orderCode`).
@@ -173,3 +173,5 @@ const orders = useListQuery({
 - In a real router, nuqs writes the browser history directly, so React Router's `useLocation().search` does not change after a nuqs write (L-16). Assert `window.location.search` with `createBrowserRouter`, and read list state only through the hook.
 - user-event and axe hang on fake timers. Use real timers, except for debounce tests, which fire one input event per character with `fireEvent` on fake timers.
 - Every list screen adds a Playwright test: list, open a row, Back, and the filters and rows are restored.
+- nuqs patches `window.history` once, on its first mount, and marks it as patched. A test that spies on `history.replaceState` or `pushState` before that first mount loses the patch when the spy is restored, and later tests in the file read stale list state. Mount the list once in a `beforeAll` first (as `listState.integration.test.tsx` does).
+- The list toolkit (`@/ui/lists`, plan 02-30) wires straight to the hook: `SearchBox onSearch={setters.setSearch}`, each filter `Select` and `FilterChip onClear` to `setFilter`, `Pagination onPageChange={setters.setPage}` and `onPageSizeChange={setters.setPageSize}`.

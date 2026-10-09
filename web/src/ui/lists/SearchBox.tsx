@@ -5,7 +5,8 @@
 // `onSearch` is the list hook's setSearch: every edit calls it, and it writes the URL with nuqs
 // `limitUrlUpdates: debounce(300)` (createListParams, SEARCH_DEBOUNCE_MS), so typing "jersey" makes one replace that
 // resets the page; Enter calls it with `{ immediate: true }`, which writes at once. The list query keys on
-// `useDebouncedValue(values.q, 300)`, never on the box. The box keeps the text as typed (the hook trims what it stores,
+// `useSettledListParams(values, 300)` (the search through useDebouncedValue, the page reset held with it), never on the
+// box. The box keeps the text as typed (the hook trims what it stores,
 // so the space in "red jersey" survives while typing) and takes a new value from outside (a cleared chip, Back, a
 // reset) only when it differs from the typed text once trimmed: the URL stays the one source of the search.
 import { useId, useState } from 'react';

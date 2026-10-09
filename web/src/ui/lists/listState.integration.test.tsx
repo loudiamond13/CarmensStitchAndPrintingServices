@@ -5,8 +5,8 @@ import { createBrowserRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
-import { useDebouncedValue } from '@/lib/query/useDebouncedValue';
 import { useListQuery } from '@/lib/query/useListQuery';
+import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { createListParams } from '@/lib/url-state/createListParams';
 import { literalParser, pageParser, pageSizeParser, searchParser } from '@/lib/url-state/parsers';
 import { Select } from '@/ui/forms';
@@ -14,7 +14,8 @@ import { FilterBar, Pagination, ResponsiveTable, SearchBox, type ResponsiveTable
 
 // WEB-10 end to end (plan 02-30; UI-SPEC "SPEC-GAP Primitive Specs" → Pagination, SearchBox, FilterBar, ResponsiveTable;
 // research L-16, L-17; T-02-66). A demo Orders list built the way every list screen will be: one createListParams hook,
-// the search debounced with useDebouncedValue(q, 300) before useListQuery, the real FilterBar, SearchBox, Select,
+// its values passed through useSettledListParams(values, 300) (the typed search debounced, the page reset held with it)
+// before useListQuery, the real FilterBar, SearchBox, Select,
 // ResponsiveTable and Pagination, inside a real createBrowserRouter with the lazy UrlStateLayout (the nuqs adapter with
 // the shared options and key order), against a fake API fetcher that records every request it receives. nuqs writes the browser
 // history directly (shallow), so React Router's own location is not told (L-16): these tests read
@@ -58,12 +59,8 @@ type Fetcher = (params: OrdersParams, signal: AbortSignal) => Promise<OrdersPage
 
 function OrdersList({ fetcher }: { fetcher: Fetcher }) {
   const [values, set] = useOrdersListParams();
-  const q = useDebouncedValue(values.q, 300);
-  const query = useListQuery({
-    key: 'orders',
-    params: { ...values, q },
-    fetcher,
-  });
+  const params = useSettledListParams(values, 300);
+  const query = useListQuery({ key: 'orders', params, fetcher });
   return (
     <main>
       <h1 id="orders-results" tabIndex={-1}>
