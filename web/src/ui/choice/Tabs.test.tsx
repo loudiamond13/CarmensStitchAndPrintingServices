@@ -268,6 +268,17 @@ describe('rovingItem (the shared arrow-key rule)', () => {
     expect(rovingItem(items, 1, 'End', 'tabs')).toEqual({ item: 'c', index: 2 });
     expect(rovingItem(items, 0, 'ArrowUp', 'radio')).toEqual({ item: 'c', index: 2 });
   });
+
+  it('moves a vertical menu with the up and down arrows (wrapping) and Home / End, not the side arrows', () => {
+    const items = ['a', 'b', 'c'];
+
+    expect(rovingItem(items, 2, 'ArrowDown', 'menu')).toEqual({ item: 'a', index: 0 });
+    expect(rovingItem(items, 0, 'ArrowUp', 'menu')).toEqual({ item: 'c', index: 2 });
+    expect(rovingItem(items, 1, 'Home', 'menu')).toEqual({ item: 'a', index: 0 });
+    expect(rovingItem(items, 1, 'End', 'menu')).toEqual({ item: 'c', index: 2 });
+    expect(rovingItem(items, 1, 'ArrowRight', 'menu')).toBeUndefined();
+    expect(rovingItem(items, 1, 'ArrowLeft', 'menu')).toBeUndefined();
+  });
 });
 
 describe('tabs scenarios (the choice parity group)', () => {

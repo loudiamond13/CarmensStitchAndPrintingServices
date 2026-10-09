@@ -492,3 +492,40 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     await expectNoAxeViolations(container);
   });
 });
+
+describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', () => {
+  function userButton(): HTMLElement {
+    return screen.getByRole('button', { name: /Carmen Reyes/ });
+  }
+
+  it('opens the user menu from the Topbar user button; Logout shows the dev toast', async () => {
+    await renderAt('/admin');
+    expect(userButton()).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(userButton());
+    expect(userButton()).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
+
+    const toast = await screen.findByRole('status');
+    expect(toast).toHaveTextContent('Not available yet');
+    expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('takes the user to My Profile from the user menu', async () => {
+    await renderAt('/admin');
+
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'My Profile' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Profile' })).toBeInTheDocument();
+    expect(sidebarLink('My Profile')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('has no axe violations with the user menu open', async () => {
+    const { container } = await renderAt('/admin');
+    await userEvent.click(userButton());
+
+    await expectNoAxeViolations(container);
+  });
+});

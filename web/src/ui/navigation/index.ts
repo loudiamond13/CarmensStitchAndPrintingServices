@@ -9,3 +9,5 @@ export type { TopbarProps } from './Topbar';
 export { navButtonClasses, navItemClasses } from './navItem.recipe';
 export { MobileNavDrawer } from './MobileNavDrawer';
 export type { MobileNavDrawerProps } from './MobileNavDrawer';
+export { UserMenu } from './UserMenu';
+export type { UserMenuProps } from './UserMenu';

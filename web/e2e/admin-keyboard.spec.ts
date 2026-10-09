@@ -126,3 +126,77 @@ test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) =
   await expect(page.locator('h1')).toHaveText('Dashboard');
   await expect(menu).toBeFocused();
 });
+
+test('@keyboard @admin the user menu opens from its button, moves with the arrow keys and closes on Esc back to the button', async ({
+  page,
+}) => {
+  const response = await page.goto('/admin');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Dashboard');
+  const button = page.locator('button[aria-haspopup="menu"]');
+  await expect(button).toBeVisible();
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  await button.focus();
+  await page.keyboard.press('Enter');
+
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect(await button.getAttribute('aria-controls')).toBe(await menu.getAttribute('id'));
+  const profile = menu.getByRole('menuitem', { name: 'My Profile' });
+  const logout = menu.getByRole('menuitem', { name: 'Logout' });
+  await expect(profile).toBeFocused();
+
+  // The popover sits under the button, inside the viewport.
+  const buttonBox = await button.boundingBox();
+  const menuBox = await menu.boundingBox();
+  expect(menuBox?.y ?? 0).toBeGreaterThanOrEqual((buttonBox?.y ?? 0) + (buttonBox?.height ?? 0));
+  expect(menuBox?.width ?? 0).toBeGreaterThanOrEqual(200);
+  const viewport = page.viewportSize();
+  expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0);
+
+  await page.keyboard.press('ArrowDown');
+  await expect(logout).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(profile).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(logout).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(profile).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(logout).toBeFocused();
+
+  await expectNoAxeViolations(page);
+
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(button).toBeFocused();
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  // Logout from the keyboard: the dev toast, the menu closed, focus back on the button.
+  await page.keyboard.press('ArrowUp');
+  await expect(logout).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status').filter({ hasText: 'Not available yet' })).toBeVisible();
+  await expect(menu).toHaveCount(0);
+  await expect(button).toBeFocused();
+  await expectNoAxeViolations(page);
+});
+
+test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await page.evaluate(`window.cspsSameDocument = true`);
+  const button = page.locator('button[aria-haspopup="menu"]');
+
+  await button.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'My Profile' })).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator('h1')).toHaveText('My Profile');
+  await expect(page).toHaveURL(/\/admin\/profile$/);
+  expect(await page.evaluate(`window.cspsSameDocument === true`), 'the router handled the link').toBe(true);
+  await expect(page.getByRole('menu')).toHaveCount(0);
+});

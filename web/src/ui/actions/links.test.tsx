@@ -167,6 +167,23 @@ describe('UiLink', () => {
     expect(link).toHaveAttribute('target', '_self');
     expect(link).toHaveAttribute('rel', 'nofollow');
   });
+
+  it('takes a menuitem role and a roving tabIndex, in-app and external (the UserMenu items)', () => {
+    inRouter(
+      <>
+        <UiLink to="/admin/profile" role="menuitem" tabIndex={-1}>
+          My Profile
+        </UiLink>
+        <UiLink to="https://example.com/" role="menuitem" tabIndex={-1}>
+          Example
+        </UiLink>
+      </>,
+    );
+
+    for (const name of ['My Profile', 'Example']) {
+      expect(screen.getByRole('menuitem', { name })).toHaveAttribute('tabindex', '-1');
+    }
+  });
 });
 
 describe('LinkProvider (kept for API compatibility)', () => {
