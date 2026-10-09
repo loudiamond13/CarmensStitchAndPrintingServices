@@ -12,6 +12,7 @@ import {
   logoLettersClasses,
   logoSlashClasses,
   logoTaglineClasses,
+  logoTaglineContextClasses,
   logoTaglineSizeClasses,
   logoWordClasses,
   type LogoContext,
@@ -28,7 +29,8 @@ export interface LogoProps {
   tagline?: boolean;
   /**
    * The region the lockup sits in, set by the src/ui component that renders it (UI-SPEC rule 7a): `sidebar` takes the
-   * nav ink of the Sidebar (App. B `.csp-sidebar .csp-logo`). Defaults to the plain look.
+   * nav ink of the Sidebar (App. B `.csp-sidebar .csp-logo`), `siteHeader` the smaller phone tagline of the public
+   * header (App. C `.csp-site-header .csp-logo-tag`). Defaults to the plain look.
    */
   context?: LogoContext;
   /** Layout glue only. */
@@ -61,7 +63,7 @@ export function Logo({ size = 'md', tagline = true, variant = 'full', context = 
       )}
       {variant !== 'mark' && tagline && (
         <span
-          className={clsx(logoTaglineClasses, logoContextClasses[context], logoTaglineSizeClasses[size])}
+          className={clsx(logoTaglineClasses, logoTaglineContextClasses[context], logoTaglineSizeClasses[size])}
           aria-hidden="true"
         >
           {"Carmen's Stitch"}

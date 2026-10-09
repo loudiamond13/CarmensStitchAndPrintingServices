@@ -58,13 +58,54 @@ export const sidebarUserNameClasses = tw('block text-[14px] leading-[18px]');
 /** `.csp-sidebar-user span`. */
 export const sidebarUserRoleClasses = tw('text-[12px] leading-4 text-nav-ink');
 
-// RED stub (plan 02-26 Task 2): the SiteHeader looks arrive in GREEN.
-export const siteHeaderClasses = tw('');
-export const siteHeaderInnerClasses = tw('');
-export const siteNavClasses = tw('');
-export const siteLinkClasses = tw('');
-export const siteCtaClasses = tw('');
-export const siteBurgerClasses = tw('');
-export const siteDrawerClasses = tw('');
-export const siteDrawerLinkClasses = tw('');
-export const siteDrawerCtaClasses = tw('');
+// ── SiteHeader (public) ──
+// App. B gives the header's phone and desktop looks twice: `@media (min-width: 768px)` in App. B and the frame-keyed
+// `@container pg` rules in App. C ("system components: phone overrides keyed to the frame, not the window"), which win
+// with `!important`. Inside the page root (`@container/pg`) the container rules decide, so the display utilities here
+// are `pg-*` variants; App. B's media-only padding stays `md:`.
+
+/** `.csp-site-header`: sticky, the page background at 82% over a 14px blur, a hairline under it. */
+export const siteHeaderClasses = tw(
+  'sticky top-0 z-(--z-header) border-b border-line bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] [backdrop-filter:blur(14px)]',
+);
+
+/** `.csp-site-header-in`: the 1200px row, 64px tall (56px on phones, App. C), 16px side padding (24px from 768px). */
+export const siteHeaderInnerClasses = tw(
+  'mx-auto flex h-(--header-height) max-w-(--container-max) items-center gap-6 px-4 md:px-6 pg-phone:h-14',
+);
+
+/** `.csp-site-logo`. */
+export const siteLogoLinkClasses = tw('no-underline');
+
+/** `.csp-site-nav`: hidden on phones, an inline row from 768px. */
+export const siteNavClasses = tw('ml-auto hidden gap-1 pg-md-up:inline-flex');
+
+/**
+ * `.csp-site-link`, its hover and `.is-on` with the skewed orange underline (`::after`), read from
+ * `aria-current="page"`; D-03 adds the weight 700 as the second cue (owner, C-35).
+ */
+export const siteLinkClasses = tw(
+  "relative rounded-sm px-3 py-2 text-[15px] font-semibold text-ink-muted no-underline transition-[color] duration-150 ease-[ease] hover:text-ink aria-[current=page]:font-bold aria-[current=page]:text-ink aria-[current=page]:after:absolute aria-[current=page]:after:right-3 aria-[current=page]:after:bottom-0 aria-[current=page]:after:left-3 aria-[current=page]:after:h-[3px] aria-[current=page]:after:[transform:skewX(-18deg)] aria-[current=page]:after:bg-accent aria-[current=page]:after:content-['']",
+);
+
+/** `.csp-site-cta`: the small primary "Get a Quote" hides on phones (layout glue passed to the Button it renders). */
+export const siteCtaClasses = tw('pg-phone:hidden');
+
+/** `.csp-iconbtn.csp-site-burger`: a 44px icon button in `--ink`, shown on phones only. */
+export const siteBurgerClasses = tw(
+  'ml-auto inline-grid size-11 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink hover:bg-surface-2 pg-md-up:hidden',
+);
+
+/** `.csp-site-drawer`: the phone drawer under the header. */
+export const siteDrawerClasses = tw('flex flex-col gap-2 border-t border-line px-4 pt-2 pb-6 pg-md-up:hidden');
+
+/**
+ * `.csp-site-dlink` and `.is-on` (`--accent-ink`), read from `aria-current="page"`; D-31 O-3 adds the italic as the
+ * second cue (the 800-italic face is already loaded).
+ */
+export const siteDrawerLinkClasses = tw(
+  'flex items-center justify-between border-b-2 border-dashed border-line py-4 font-display text-[32px] leading-none font-heavy text-ink uppercase no-underline aria-[current=page]:text-accent-ink aria-[current=page]:italic',
+);
+
+/** `.csp-site-drawer .csp-btn { margin-top }` (layout glue passed to the block Button it renders). */
+export const siteDrawerCtaClasses = tw('mt-4');

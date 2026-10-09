@@ -11,15 +11,27 @@ export const markClasses = tw('block flex-none');
 /** `.csp-logo`: inline-flex, centred, no underline (the lockup sits in links). The gap is per size, the ink per context. */
 export const logoClasses = tw('inline-flex items-center no-underline');
 
-export type LogoContext = 'default' | 'sidebar';
+export type LogoContext = 'default' | 'sidebar' | 'siteHeader';
 
 /**
- * The lockup ink per context (plan 02-26): `.csp-logo` and `.csp-logo-tag` in `--ink`, and inside the sidebar the
- * App. B `.csp-sidebar .csp-logo, .csp-sidebar .csp-logo-tag` `--nav-ink`.
+ * The lockup ink per context (plan 02-26): `.csp-logo` in `--ink`, and inside the sidebar the App. B
+ * `.csp-sidebar .csp-logo` `--nav-ink`.
  */
 export const logoContextClasses = {
   default: tw('text-ink'),
   sidebar: tw('text-nav-ink'),
+  siteHeader: tw('text-ink'),
+} as const satisfies Record<LogoContext, string>;
+
+/**
+ * The tagline per context (plan 02-26): `.csp-logo-tag` in `--ink`; inside the sidebar `--nav-ink`
+ * (`.csp-sidebar .csp-logo-tag`); in the public header on phones 8px with .12em tracking (App. C
+ * `.csp-site-header .csp-logo-tag` in the `@container pg (max-width: 767px)` block).
+ */
+export const logoTaglineContextClasses = {
+  default: tw('text-ink'),
+  sidebar: tw('text-nav-ink'),
+  siteHeader: tw('text-ink pg-phone:text-[8px] pg-phone:tracking-[.12em]'),
 } as const satisfies Record<LogoContext, string>;
 
 /** `.csp-logo-sm/md/lg { gap }` (App. B overrides the `.csp-logo` gap per size). */
@@ -59,7 +71,7 @@ export const logoSlashClasses = tw(
   'absolute right-[-.02em] bottom-0 left-[.04em] h-[.085em] [transform:skewX(-18deg)] bg-accent',
 );
 
-/** `.csp-logo-tag` and its `::before` skewed slash. Its ink comes from the context map (logoContextClasses). */
+/** `.csp-logo-tag` and its `::before` skewed slash. Its ink comes from the context map (logoTaglineContextClasses). */
 export const logoTaglineClasses = tw(
   "relative ml-[.2em] pl-[1.4em] font-sans leading-[1.32] font-bold tracking-[.16em] whitespace-nowrap uppercase before:absolute before:top-[-.35em] before:bottom-[-.35em] before:left-0 before:w-[.22em] before:[transform:skewX(-18deg)] before:bg-accent before:content-['']",
 );
