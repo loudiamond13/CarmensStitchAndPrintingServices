@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T02:58:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-09T03:24:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -245,7 +245,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Performance & Responsive (PERF)
 
-- [ ] **PERF-01**: Bundle budgets are enforced in CI from the first build: public route initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, total CSS ≤ 35 KB gz
+- [x] **PERF-01**: Bundle budgets are enforced in CI from the first build: public route initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, total CSS ≤ 35 KB gz
 - [ ] **PERF-02**: Public pages score ≥ 95 in every Lighthouse category on the mobile profile, with LCP < 2.0 s, CLS < 0.05 and INP < 200 ms (Lighthouse CI)
 - [ ] **PERF-03**: Every screen works from 320 px to 1920 px in portrait and landscape (verified at 320/375/414/768/1024/1280/1536/1920) with no horizontal scrolling, touch targets ≥ 44 px, ≥ 16 px inputs and correct `inputmode`/`type`
 - [ ] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
@@ -489,7 +489,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | A11Y-03 | Phase 4 | Pending |
 | A11Y-04 | Phase 2 | Pending |
 | A11Y-05 | Phase 14 | Pending |
-| PERF-01 | Phase 2 | Pending |
+| PERF-01 | Phase 2 | Complete |
 | PERF-02 | Phase 2 | Pending |
 | PERF-03 | Phase 2 | Pending |
 | PERF-04 | Phase 6 | Pending |

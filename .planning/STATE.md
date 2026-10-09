@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-32-PLAN.md
-last_updated: "2026-10-09T07:57:52.795Z"
+stopped_at: Completed 02-33-PLAN.md
+last_updated: "2026-10-09T08:22:58.627Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 448f0c725fe3c9fb850d3b9a02438bee2b245c46
+state_head: 17d593a0c2eee7092699d958f1cebd04d0299471
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 49
+  completed_plans: 50
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-09T02:58:00-05:00"
+updated: "2026-10-09T03:24:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 37 of 40
+Plan: 38 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -107,6 +107,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P30 | 58 min | 3 tasks | 31 files |
 | Phase 02 P31 | 65 min | 3 tasks | 34 files |
 | Phase 02 P32 | 32 min | 2 tasks | 19 files |
+| Phase 02 P33 | 19 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -264,6 +265,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-32: MobileNavDrawer closes on a followed link from a document-level click listener so React Router handles the click first (a panel listener unmounted the link and the browser reloaded the page); focus returns to the element whose aria-controls names the drawer (Safari does not focus clicked buttons).
 - [Phase 02]: 02-32: AdminFrame owns the phone drawer (state, second Sidebar) and makes the frame inert while it is open; UserMenu renders App. D.3's user button unchanged plus a sibling role=menu popover (no wrapper), anchored to the sticky Topbar; Topbar gained onLogout.
 - [Phase 02]: 02-32: rovingItem has a 'menu' pattern (Down/Up wrap, Home/End); UiLink takes role='menuitem' and tabIndex; impl-only navigation cases live in groups/navigation-gaps.ts (user-menu-open, drawer-open, user-chip-long-name).
+- [Phase 02]: 02-33: bundle budgets enforced in every vite build (public 150 KB incl. dev-route builds, admin 250 KB in dev-route builds, CSS 35 KB, exactly one CSS asset; production fails on admin/src-dev/web-visual code with rendered bytes); verify runs build:budget after build; Rolldown checks.bundlerTimings off
+- [Phase 02]: 02-33: dev-route public JS is 149.34 KB of 150 KB (parity entry sharing; 137.96 KB without it); 135 KB Phase 4 barrel-split note fires; never raise the limit - split barrels or change the budget-mode topology by decision (deferred-items.md)
 
 ### Pending Todos
 
@@ -300,6 +303,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T07:57:52.571Z
-Stopped at: Completed 02-32-PLAN.md
+Last session: 2026-10-09T08:22:58.407Z
+Stopped at: Completed 02-33-PLAN.md
 Resume file: None
