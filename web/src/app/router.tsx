@@ -4,38 +4,20 @@
 //     (its hydrate fallback, research Pitfall 10) and catches what no inner boundary does (RootErrorBoundary).
 //   - The public layout and its pages are lazy route modules, so each lands in its own chunk. The layout's children
 //     carry RouteErrorBoundary, so a page that crashes or whose chunk fails to load shows the error screen inside main.
-//   - Phase 2 has one public page: every non-API path renders PublicPlaceholderPage (D-21). Plan 02-31 adds the admin
-//     branch behind the compile-time `__DEV_ROUTES__` switch; without it, `/admin/*` also renders the placeholder,
-//     which is what production builds do (D-20).
-import type { ComponentType } from 'react';
+//   - Phase 2 has one public page: every non-API path renders PublicPlaceholderPage (D-21).
+//   - The admin branch (plan 02-31, ./admin/routes.tsx) exists only where the compile-time `__DEV_ROUTES__` switch is
+//     true: development and the e2e and budget builds. D-20: the production build gets a literal false, so the branch
+//     and every admin module drop out of it, nothing unprotected is deployed before Phase 4 adds sign-in, and
+//     `/admin/*` there falls through to the public placeholder.
 import { createBrowserRouter, type RouteObject } from 'react-router';
+import { adminRoutes } from './admin/routes';
 import { RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
+import { lazyRoute } from './lazyRoute';
 import { Root } from './Root';
 import { ShellFallback } from './ShellFallback';
 
-/** What a lazy route module gives the router. */
-export interface RouteModule {
-  Component: ComponentType;
-}
-
-/**
- * A lazy route loader whose failed chunk load (a network error, or a deploy that replaced the chunk) turns into a render
- * error of that route, so the nearest ErrorBoundary shows the error screen. React Router 8 keeps a route whose `lazy`
- * rejected marked as still loading, and then renders nothing below the root, not even the layout (plan 02-29).
- */
-export function lazyRoute(load: () => Promise<RouteModule>): () => Promise<RouteModule> {
-  return async () => {
-    try {
-      return await load();
-    } catch (error: unknown) {
-      return {
-        Component: function FailedRouteModule(): never {
-          throw error;
-        },
-      };
-    }
-  };
-}
+export { lazyRoute } from './lazyRoute';
+export type { RouteModule } from './lazyRoute';
 
 export const routes: RouteObject[] = [
   {
@@ -55,6 +37,8 @@ export const routes: RouteObject[] = [
           },
         ],
       },
+      // D-20: dev-only admin routes; a production build has none (see the header).
+      ...(__DEV_ROUTES__ ? adminRoutes : []),
     ],
   },
 ];

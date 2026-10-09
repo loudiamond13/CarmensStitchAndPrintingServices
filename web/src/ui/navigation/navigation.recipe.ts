@@ -7,9 +7,12 @@ import { tw } from '@/ui/tw';
 
 // ── Sidebar ──
 
-/** `.csp-sidebar`: the Taupe column with its own ink and the width transition. The width is per layout. */
+/**
+ * `.csp-sidebar`: the Taupe column with its own ink and the width transition. The width is per layout. In the admin
+ * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top at the column's full height.
+ */
 export const sidebarClasses = tw(
-  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease]',
+  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full',
 );
 
 /** `.csp-sidebar { width }` and `.csp-sidebar.is-collapsed { width }`. */
@@ -113,11 +116,14 @@ export const siteDrawerCtaClasses = tw('mt-4');
 // ── Topbar (admin) ──
 // The phone rules are App. C's frame-keyed `@container pg (max-width: 767px)` copies of App. B's `@media` block (same
 // values, `!important`), and the tablet padding and search width are App. C container rules, so all are `pg-*`. The
-// sticky position belongs to the admin shell (App. C `.s-admin-main > .csp-topbar`, plan 02-31).
+// sticky position is the admin shell's (App. C `.s-admin-main > .csp-topbar`), read from its `data-ui` marker.
 
-/** `.csp-topbar`: 64px on `--surface` over a hairline; 16px sides and 8px gaps on phones, 20px sides on tablets. */
+/**
+ * `.csp-topbar`: 64px on `--surface` over a hairline; 16px sides and 8px gaps on phones, 20px sides on tablets. In the
+ * admin shell's main column (App. C `.s-admin-main > .csp-topbar`, plan 02-31) it sticks to the top above the body.
+ */
 export const topbarClasses = tw(
-  'flex h-(--topbar-height) items-center gap-4 border-b border-line bg-surface px-6 pg-phone:gap-2 pg-phone:px-4 pg-tablet:px-5',
+  'flex h-(--topbar-height) items-center gap-4 border-b border-line bg-surface px-6 in-data-[ui=s-admin-main]:sticky in-data-[ui=s-admin-main]:top-0 in-data-[ui=s-admin-main]:z-20 pg-phone:gap-2 pg-phone:px-4 pg-tablet:px-5',
 );
 
 /** `.csp-iconbtn.csp-topbar-menu`: the "Open navigation" icon button, shown on phones only. */

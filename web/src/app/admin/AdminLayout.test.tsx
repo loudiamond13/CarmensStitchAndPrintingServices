@@ -4,7 +4,9 @@ import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { routes } from '../router';
+import { collectConsole } from '@/test/consoleGuard';
+import { ERROR_BOUNDARY_COPY } from '../ErrorBoundary';
+import { lazyRoute, routes } from '../router';
 import { adminRoutes } from './routes';
 
 /**
@@ -16,7 +18,52 @@ function devRoutes(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...adminRoutes, ...(root.children ?? [])] }, ...rest];
+  return [{ ...root, children: [...(root.children ?? []), ...adminRoutes] } as RouteObject, ...rest];
+}
+
+interface AdminTreeOptions {
+  /** Replaces the admin layout route's fields (for example its lazy module). */
+  readonly layout?: Partial<RouteObject>;
+  /** Replaces the dashboard page route's fields. */
+  readonly page?: Partial<RouteObject>;
+}
+
+/** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
+function adminTree({ layout, page }: AdminTreeOptions): RouteObject[] {
+  const admin = adminRoutes[0];
+  const urlState = admin?.children?.[0];
+  const pages = urlState?.children ?? [];
+  const [dashboard, ...others] = pages;
+  if (admin === undefined || urlState === undefined || dashboard === undefined) {
+    throw new Error('The admin routes changed shape: expected admin > url state > pages.');
+  }
+  const [root] = devRoutes();
+  return [
+    {
+      ...root,
+      children: [
+        {
+          ...admin,
+          ...layout,
+          children: [{ ...urlState, children: [{ ...dashboard, ...page } as RouteObject, ...others] } as RouteObject],
+        } as RouteObject,
+        ...(root?.children ?? []).filter((route) => route.path !== 'admin'),
+      ],
+    } as RouteObject,
+  ];
+}
+
+const CRASH = new Error('Kaboom in an admin page');
+
+function Crash(): never {
+  throw CRASH;
+}
+
+/** Development error reports may only be about the provoked failure. */
+function expectOnlyReportsOf(error: Error): void {
+  for (const call of collectConsole()) {
+    expect(call.args.some((argument) => argument === error)).toBe(true);
+  }
 }
 
 /** The dev route tree in a memory router at `path`, settled once the page's h1 is on screen. */
@@ -140,6 +187,39 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
 
   it('has no axe violations', async () => {
     const { container } = await renderAt('/admin/users');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('AdminLayout error boundaries (WEB-05, UI-SPEC "Global error boundary")', () => {
+  it('shows the admin error screen inside main when a page crashes, keeping the sidebar and topbar', async () => {
+    const router = createMemoryRouter(adminTree({ page: { lazy: () => Promise.resolve({ Component: Crash }) } }), {
+      initialEntries: ['/admin'],
+    });
+    render(<RouterProvider router={router} />);
+
+    const main = await screen.findByRole('main');
+    expect(await within(main).findByRole('heading', { level: 2, name: ERROR_BOUNDARY_COPY.title })).toBeVisible();
+    expect(within(main).getByText(ERROR_BOUNDARY_COPY.adminBody)).toBeInTheDocument();
+    expect(within(main).getByRole('button', { name: ERROR_BOUNDARY_COPY.reload })).toBeInTheDocument();
+    expect(sidebarNav()).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toBeInTheDocument();
+    expectOnlyReportsOf(CRASH);
+  });
+
+  it('shows the admin error screen in a page root of its own when the admin layout chunk fails to load', async () => {
+    const chunkError = new TypeError('Failed to fetch dynamically imported module: /assets/AdminLayout-x.js');
+    const router = createMemoryRouter(adminTree({ layout: { lazy: lazyRoute(() => Promise.reject(chunkError)) } }), {
+      initialEntries: ['/admin/orders'],
+    });
+    const { container } = render(<RouterProvider router={router} />);
+
+    const main = await screen.findByRole('main');
+    expect(await within(main).findByRole('heading', { level: 2, name: ERROR_BOUNDARY_COPY.title })).toBeVisible();
+    expect(within(main).getByText(ERROR_BOUNDARY_COPY.adminBody)).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveAttribute('data-theme', 'light');
+    expect(document.querySelector('aside')).toBeNull();
+    expectOnlyReportsOf(chunkError);
     await expectNoAxeViolations(container);
   });
 });

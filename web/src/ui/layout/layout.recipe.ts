@@ -14,3 +14,21 @@ export const srOnlyClasses = tw('absolute h-px w-px overflow-hidden whitespace-n
  * The `pg-*` variants need this container as an ancestor.
  */
 export const pageRootClasses = tw('@container/pg relative min-h-full bg-bg font-sans text-[16px] leading-6 text-ink');
+
+// ── Page header (App. C `.s-ph`, spec §8.1; plan 02-31) ──
+// The tablet and phone sizes are App. C's two container rules, kept as two variants with the same query text: between
+// 767 and 768 px (and 1023 and 1024 px) neither rule applies in the approved CSS, so neither may apply here (WEB-05).
+
+/** `.s-ph`: the title block and the actions in one wrapping row, aligned to the bottom (to the top on phones). */
+export const pageHeadClasses = tw('flex flex-wrap items-end justify-between gap-4 pg-phone:items-start');
+
+/** `.s-ph-title`: the h1 over its subline. */
+export const pageHeadTitleClasses = tw('flex min-w-0 flex-col gap-1');
+
+/** `.s-ph-title h1`: display 700 at 34px, 30px on tablets and phones. */
+export const pageTitleClasses = tw(
+  'font-display text-[34px] leading-[1.05] font-bold pg-phone:text-[30px] pg-tablet:text-[30px]',
+);
+
+/** `.s-ph-title p`: the 14px muted subline. */
+export const pageSublineClasses = tw('text-[14px] leading-5 text-ink-muted');
