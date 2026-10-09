@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T21:12:00-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T21:30:00-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -164,6 +164,10 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
 ### Owner ruling: a KPI card showing zero (2026-10-08, in chat, during `/gsd-execute-phase 2`)
 
 - **D-39 (KpiCard zero state):** the owner said "Make KPI card showing zero look dimmed." A KPI card whose figure is zero is dimmed **by colour only**: the big number turns the softer brown-grey `--ink-subtle` (`text-ink-subtle`), the same treatment D-02 gives the zero tiles in the delete-confirmation tally. Nothing else changes: the label, the icon tile, the hint and the trend chip keep their normal colours, and no see-through (opacity) effect is used, because D-02 forbids faded text. The dimmed number still reads clearly: 5.78:1 in the light theme and 6.19:1 in the dark theme on the card background (the rule for normal text is at least 4.5:1). "Zero" means a figure the card shows as zero: a money figure that rounds to ₱0.00, or a count of exactly 0. A figure written as text is shown as given and is never dimmed. The approved design (App. D.3) has no zero state, so this is an intentional difference: the look-equality proof applies the same colour to the approved design through the test-only rulings layer, and the zero card is still proven equal.
+
+### Owner ruling: an order card with no team (2026-10-08, in chat, during `/gsd-execute-phase 2`)
+
+- **D-40 (OrderCard walk-in line):** when an order has no team, the order card shows **"Walk-in customer"** on the line under the title. The customer's name stays the title, as before. This is the same wording the order tables already use for a missing team (spec §8.3), so the card and the tables always say the same thing; both read it from one shared constant (`WALK_IN_CUSTOMER`). The line keeps its normal look (14px, the muted brown-grey `--ink-muted`), and nothing else on the card changes. An order with a team is unchanged: the team is the title and the customer's name is on that line. The approved design (App. D.3 and the Orders grid, App. E.7) left that line empty, so this is an intentional difference in text only: the look-equality proof writes the same words into the approved design's empty line, and the walk-in card is still proven equal.
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.

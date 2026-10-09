@@ -6,7 +6,7 @@ reviewed_at: 2026-10-08
 shadcn_initialized: false
 preset: none
 created: "2026-10-07T19:42:42-05:00"
-updated: 2026-10-08T21:12:00-05:00
+updated: 2026-10-08T21:30:00-05:00
 ---
 
 # Phase 2 — UI Design Contract
@@ -229,6 +229,7 @@ A per-case tolerance override needs a recorded reason, and the owner must be abl
 | iOS-zoom fix: 16px text in text-entry fields on phones | D-01 | Rulings layer → equal |
 | Inactive rows on `--surface-2`, no opacity fade; `.is-zero` tiles dimmed by colour only | D-02 | Rulings layer → equal |
 | A KpiCard whose figure is zero: the value in `--ink-subtle`, colour only (App. D.3 has no zero state) | D-39 | Rulings layer (`.csp-kpi-value[data-zero]`, marked by the `DimmedZeroKpi` wrapper pair) → equal |
+| A no-team OrderCard reads "Walk-in customer" on its customer line (App. D.3 leaves it empty); the line keeps its look | D-40 | Text only, no CSS rule: the `WalkInOrderCard` wrapper pair writes the same text into the frozen `.csp-order-cust` line → equal |
 | Five spec texts at full opacity: input placeholder, Manager tag, CTA lead, filter-pill count, big-button caption (the last three are later-phase screens) | D-02 (FYI-01) | Rulings layer → equal |
 | Bold (700) current/selected tab, site link, sidebar item and tab-bar item; checkbox dark border and tick | D-03 | Rulings layer → equal; Checkbox is SPEC-GAP (owner screenshots) |
 | Danger toasts persist; the toast stack is always mounted; warning toasts persist and timers pause | D-04, D-31 O-5, O-7 | Behaviour tests (no visual difference at rest) |
@@ -547,6 +548,7 @@ Spec copy is used **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-
 | Meta description (index.html) | "Custom tailoring and full-sublimation printing for teams, leagues and riding groups." (the approved footer line) |
 | Footer social link names (D-31 O-4) | "CSPS on Facebook" · "CSPS on Instagram" · "CSPS on TikTok" (fixes the App. E.1 "CSPS onFacebook" typo; spoken label only) |
 | Skip link *(SPEC-GAP)* | "Skip to main content" |
+| Order with no team: the line under the customer's name | **"Walk-in customer"**, the spec §8.3 table-row wording. Since D-40 (owner, 2026-10-08) the OrderCard customer line says the same; App. D.3 left it empty. One constant, `WALK_IN_CUSTOMER` from `@/ui/data`, so the card and the table rows (02-30) always match. |
 | Empty state heading (list, first use) | Pattern "No {things} yet". Spec example: **"No orders yet"** (App. E.8) |
 | Empty state body (list, first use) | Pattern "Create your first {thing} to start {benefit}." + a primary action. Spec example: **"Create your first order to start tracking items, payments and balances."** + "New Order" |
 | Empty state (filters, no matches) | Heading **"No matches"**. Body "No {things} match “{q}”{ with {filter summary}}. Try another search or clear the filters." Secondary "Clear Filters" (App. E.8). |
@@ -591,7 +593,7 @@ The orchestrator ran the UI-consideration probe after the checker approved the f
 | error | LazyImage | ✅ covered | MediaPlaceholder fallback + `role="img"` name. |
 | populated | ResponsiveTable | ✅ covered | Desktop table / tablet in-wrapper scroll / phone cards (spec §8.4). Money cells are right-aligned tabular. Inactive rows use `--surface-2` (D-02). |
 | populated | Showcase + layouts | ✅ covered | Spec §12 seed data in both themes, screenshots at 390/820/1440 (D-23), and the look-equality proof at 320/390/820/1440. |
-| partial | Table cells | ✅ covered | A missing value renders "—" (spec §9.4). A missing team shows "Walk-in customer" (spec §8.3). |
+| partial | Table cells | ✅ covered | A missing value renders "—" (spec §9.4). A missing team shows "Walk-in customer" (spec §8.3), and the OrderCard customer line says the same (D-40). |
 | partial | OtpInput | ✅ covered | 1–5 digits: `onComplete` does not fire; on submit, "Enter all 6 digits." |
 | overflow | Tabs, ResponsiveTable at tablet | ✅ covered | The tab strip scrolls horizontally (`[scrollbar-width:none]`, as App. B hides the scrollbar; arrow keys reach every tab). The table scrolls **inside** its wrapper (min-width 680). The page never scrolls horizontally. |
 | overflow | FilterBar active chips at 320px (owner, probe) | ✅ covered | **Chips wrap onto new lines.** The result bar and its chip group use `flex-wrap` with gap 8px (`gap-2`), and rows are added as needed. A chip has `max-w-full`. Its label truncates with an ellipsis (`min-w-0 truncate`), while the full text stays in the chip's text node and in the clear button's `aria-label` ("Clear {filter} filter"). The 22px clear button keeps its O-8 spacing. There is no horizontal scroll, which the Playwright overflow test checks with a 4-chip fixture in the showcase. |
