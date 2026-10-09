@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T18:33:22-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T19:45:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -107,6 +107,10 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `TabsWithPanel`: the Tabs node (its `children`) followed by the selected tab's panel, a plain `<div>` with text. The implementation's panel takes its id, role and `aria-labelledby` from `getTabPanelProps`, so the selected tab's `aria-controls` points at a real tabpanel and axe checks the pair. The reference's panel is the same block without those attributes; attributes are not compared.
    Plan 02-20 added a fourth:
    - `RevealPassword`: a plain `<div>` around a PasswordField that presses the field's reveal toggle once after mount, as a person would. App. D.3 keeps the revealed state inside PasswordField with no prop for it; both sides run the same click, so the `password-visible` case compares the revealed box and the eye-off toggle.
+   Plan 02-22 added three more for the overlays group (every case there is a `frame: 'viewport'` case):
+   - `OpenedDialog`: a plain `<div>` around a dialog, showing it as a person sees it right after it opens. The converted Modal moves focus to its first field by itself (WEB-02), so the implementation side does nothing for focus; the reference side focuses the frozen dialog's first field after mount, which the frozen App. D.3 Modal never does. A focus-trap regression therefore shows up as a missing focus ring. With `typed`, both sides then type that text into the first input (the type-to-confirm case).
+   - `Overlay`: the App. C `.s-overlay` region the mockups render dialogs in. On the implementation side it is the real `Overlay` component from `@/ui/overlays` (`data-ui="s-overlay"`); the reference side is `<div className="s-overlay">`.
+   - `FailedConfirmDialog`: the ConfirmDialog failure state, which App. D.3 lacks (`parity: false`). The implementation preview types the confirm text and presses the danger button against an action that fails with a 500 and a traceId; the reference fragment renders the frozen ConfirmDialog with the same props. Nothing is compared; axe and the guard check the implementation.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)
