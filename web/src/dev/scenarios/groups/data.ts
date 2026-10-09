@@ -4,7 +4,7 @@
 //     hover, where the card lifts), ORD-2026-0151 (Ready, 2 images, Fully Paid) and ORD-2026-0153 (no team: the
 //     customer is the title; Mockup, overdue, no images yet);
 //   - DataTable with the §12.2 orders (money columns right-aligned, two columns sized through `--col-w`; also with the
-//     first row hovered), loading (4 skeleton rows), empty and error.
+//     first row hovered), loading (4 skeleton rows), empty and error, each in the KeyboardScrollTable wrapper pair.
 // The OrderCard figures are never typed here: both sides compute them from the seed order with orderTotals (the
 // reference with App. D.1, the implementation with the D-09 centavo math). The table's figures are the §12.2 results
 // (Total = items; Balance = Total − Discount − Paid), which data.test.tsx checks against orderTotals.
@@ -120,8 +120,15 @@ export const TABLE_ROWS: readonly ScenarioProps[] = [
   },
 ];
 
+/**
+ * A DataTable inside the KeyboardScrollTable wrapper pair (docs/web/parity.md §5): at 390 the frame scrolls sideways,
+ * and the reference side gives the frozen App. D.3 frame the focusable-region attributes the converted DataTable
+ * renders by itself (A11Y-01), so axe passes on both pages. The wrapper is one plain block with no look.
+ */
 function table(props: ScenarioProps): ScenarioNode {
-  return node('DataTable', { columns: TABLE_COLUMNS, caption: 'Recent orders', ...props });
+  return node('KeyboardScrollTable', {
+    children: node('DataTable', { columns: TABLE_COLUMNS, caption: 'Recent orders', ...props }),
+  });
 }
 
 export const scenarios: readonly Scenario[] = [

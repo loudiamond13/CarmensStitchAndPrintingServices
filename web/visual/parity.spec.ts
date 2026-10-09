@@ -200,6 +200,13 @@ async function runRestRow(row: MatrixRow, reference: Page, impl: Page, testInfo:
   if (block.length > 0) {
     await openBoth(reference, impl, query({ group: row.group, theme: row.theme }));
     for (const scenario of block.filter((candidate) => candidate.parity)) {
+      // Scroll the case into view on both sides before FREEZE and REPAINT (plan 02-24). The screenshot used to do the
+      // scrolling after the repaint, and the newly exposed raster then sometimes kept different anti-aliasing at a
+      // rounded corner on the viewport's right edge (x 388–389 at 390 px), on either side and run to run: 4 of 5
+      // reproductions of the data group differed by 2 to 21 pixels, with identical computed styles, boxes and layers;
+      // scrolled first, 8 of 8 were equal. It changes no value the comparison reads.
+      await reference.locator(caseSelector(scenario.id)).scrollIntoViewIfNeeded();
+      await impl.locator(caseSelector(scenario.id)).scrollIntoViewIfNeeded();
       await compareCase(reference, impl, scenario, `${scenario.id}-${row.slug}`, testInfo);
     }
     await axeBoth(reference, impl);

@@ -4,6 +4,7 @@ import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { CARD_0148, ORDER_0153, scenarios as dataScenarios, TABLE_ROWS } from '@/dev/scenarios/groups/data';
 import { ORDER_0148, ORDER_0151 } from '@/dev/scenarios/groups/money';
+import type { ScenarioNode } from '@/dev/scenarios/types';
 import { formatPeso, orderTotals, type Order, type Totals } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { DataTable, OrderCard, type DataTableColumn } from '@/ui/data';
@@ -172,7 +173,7 @@ describe('OrderCard (App. D.3)', () => {
     expect(customerLine?.localName).toBe('p');
     expect(customerLine?.textContent).toBe('');
     expect(classTokens(customerLine)).toEqual(tokens(orderCustomerClasses));
-    expect(within(card).getByRole('img', { name: 'No image yet' })).toBeTruthy();
+    expect(within(card).getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
     expect(within(card).getByText('12 pcs')).toBeTruthy();
   });
 
@@ -230,7 +231,7 @@ describe('OrderCard (App. D.3)', () => {
     render(<OrderCard order={{ number, customer, orderDate, dueDate, status }} />);
 
     expect(screen.getByText('0 pcs')).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'No image yet' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
   });
 
   it('has no axe violations on the three seed cards', async () => {
@@ -281,6 +282,14 @@ describe('DataTable (App. D.3)', () => {
       expect(header.getAttribute('scope')).toBe('col');
       expect(hasClasses(header, tableHeadCellClasses)).toBe(true);
     }
+  });
+
+  it('makes the sideways-scrolling frame a focusable region named by the caption (A11Y-01, WCAG 2.1.1)', () => {
+    render(<DataTable columns={COLUMNS} rows={ROWS} caption="Recent orders" />);
+    const region = screen.getByRole('region', { name: 'Recent orders' });
+
+    expect(region.getAttribute('tabindex')).toBe('0');
+    expect(within(region).getByRole('table')).toBeTruthy();
   });
 
   it('aligns cells through the class map: left by default, right and centre when asked', () => {
@@ -424,7 +433,11 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
   });
 
   it('declares DataTable with the orders (hovering the first row), loading, empty and error', () => {
-    const tables = dataScenarios.filter((scenario) => scenario.node.component === 'DataTable');
+    const tables = dataScenarios.filter((scenario) => scenario.node.component === 'KeyboardScrollTable');
+    for (const scenario of tables) {
+      const inner = scenario.node.props?.children as ScenarioNode | undefined;
+      expect(inner?.component, scenario.id).toBe('DataTable');
+    }
 
     expect(tables.map((scenario) => scenario.id)).toEqual([
       'data-table-orders',
