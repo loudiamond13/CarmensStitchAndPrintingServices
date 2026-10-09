@@ -1,12 +1,13 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY } from '../ErrorBoundary';
-import { lazyRoute, routes } from '../router';
+import { lazyRoute, routes, type RouteModule } from '../router';
+import { AdminPreviewRoute } from './AdminPreviewPage';
 import { adminRoutes } from './routes';
 
 /**
@@ -26,10 +27,12 @@ interface AdminTreeOptions {
   readonly layout?: Partial<RouteObject>;
   /** Replaces the dashboard page route's fields. */
   readonly page?: Partial<RouteObject>;
+  /** Replaces the orders page route's fields. */
+  readonly orders?: Partial<RouteObject>;
 }
 
 /** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
-function adminTree({ layout, page }: AdminTreeOptions): RouteObject[] {
+function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
   const admin = adminRoutes[0];
   const urlState = admin?.children?.[0];
   const pages = urlState?.children ?? [];
@@ -45,7 +48,15 @@ function adminTree({ layout, page }: AdminTreeOptions): RouteObject[] {
         {
           ...admin,
           ...layout,
-          children: [{ ...urlState, children: [{ ...dashboard, ...page } as RouteObject, ...others] } as RouteObject],
+          children: [
+            {
+              ...urlState,
+              children: [
+                { ...dashboard, ...page } as RouteObject,
+                ...others.map((route) => (route.path === 'orders' ? ({ ...route, ...orders } as RouteObject) : route)),
+              ],
+            } as RouteObject,
+          ],
         } as RouteObject,
         ...(root?.children ?? []).filter((route) => route.path !== 'admin'),
       ],
@@ -221,5 +232,183 @@ describe('AdminLayout error boundaries (WEB-05, UI-SPEC "Global error boundary")
     expect(document.querySelector('aside')).toBeNull();
     expectOnlyReportsOf(chunkError);
     await expectNoAxeViolations(container);
+  });
+});
+
+/** The page root: the element carrying the theme. */
+function pageRoot(): HTMLElement {
+  const root = document.querySelector('[data-theme]');
+  if (!(root instanceof HTMLElement)) {
+    throw new Error('No page root.');
+  }
+  return root;
+}
+
+/** The phone tab bar: the "Admin" navigation outside the sidebar. */
+function tabBar(): HTMLElement {
+  const nav = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((element) => !element.closest('aside'));
+  if (!(nav instanceof HTMLElement)) {
+    throw new Error('No tab bar.');
+  }
+  return nav;
+}
+
+const RAIL = 'pg-tablet:in-data-[ui=s-admin-side]:';
+
+afterEach(() => {
+  window.localStorage.clear();
+});
+
+describe('AdminLayout theme (D-13)', () => {
+  it('starts in Blush with nothing saved, and offers dark mode', async () => {
+    await renderAt('/admin');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument();
+  });
+
+  it('switches to Espresso on the toggle, saves "dark", and starts in Espresso after a reload', async () => {
+    const first = await renderAt('/admin');
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+    first.unmount();
+
+    await renderAt('/admin/orders');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(window.localStorage.getItem('csps-theme')).toBe('light');
+  });
+
+  it('ignores an invalid saved value and starts in Blush', async () => {
+    window.localStorage.setItem('csps-theme', 'purple');
+    await renderAt('/admin');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('keeps working in memory when localStorage throws', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    await renderAt('/admin');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+});
+
+describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
+  it('lists Dashboard, Orders, Expenses and Profile, with their paths', async () => {
+    await renderAt('/admin');
+    const links = within(tabBar()).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual(['Dashboard', 'Orders', 'Expenses', 'Profile']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/admin',
+      '/admin/orders',
+      '/admin/expenses',
+      '/admin/profile',
+    ]);
+  });
+
+  it.each([
+    ['/admin', 'Dashboard'],
+    ['/admin/orders', 'Orders'],
+    ['/admin/expenses', 'Expenses'],
+    ['/admin/profile', 'Profile'],
+  ])('on %s marks %s current, in bold (D-03), and only it', async (path, label) => {
+    await renderAt(path);
+    const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
+    expect(current.map((link) => link.textContent)).toEqual([label]);
+    expect(current[0]?.className.split(' ')).toEqual(
+      expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
+    );
+  });
+
+  it('marks no tab current on /admin/users, which has no tab', async () => {
+    await renderAt('/admin/users');
+    expect(tabBar().querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+  });
+
+  it('shows only on phones: hidden by default, a 4-column grid in the phone container', async () => {
+    await renderAt('/admin');
+    expect(tabBar().className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'pg-phone:grid', 'grid-cols-4']));
+  });
+
+  it('takes the visitor to the section of a tab', async () => {
+    const { router } = await renderAt('/admin');
+    await userEvent.click(within(tabBar()).getByRole('link', { name: 'Expenses' }));
+    await screen.findByRole('heading', { level: 1, name: 'Company Expenses' });
+    expect(router.state.location.pathname).toBe('/admin/expenses');
+  });
+});
+
+describe('AdminLayout tablet icon rail (App. C tablet block, WEB-05)', () => {
+  it('marks the side column, and gives the sidebar parts their rail looks from 768 to 1023px', async () => {
+    await renderAt('/admin');
+    const side = document.querySelector('[data-ui="s-admin-side"]');
+    const aside = side?.querySelector('aside');
+    expect(aside?.className).toContain(`${RAIL}w-(--sidebar-collapsed)`);
+    expect(sidebarLink('Orders').className).toContain(`${RAIL}w-[52px]`);
+    expect(within(sidebarLink('Users')).getByText('Manager').className).toContain(`${RAIL}hidden`);
+    expect(within(sidebarLink('Orders')).getByText('Orders').className).toContain(`${RAIL}hidden`);
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' }).className).toContain(`${RAIL}hidden`);
+  });
+
+  it('hides the side column on phones and keeps the body in the main column', async () => {
+    await renderAt('/admin');
+    const side = document.querySelector('[data-ui="s-admin-side"]');
+    expect(side?.className.split(' ')).toContain('pg-phone:hidden');
+    expect(document.querySelector('[data-ui="s-admin-main"]')).toContainElement(screen.getByRole('main'));
+  });
+});
+
+describe('AdminLayout route-chunk loading (UI-SPEC UI Considerations: loading, route chunks)', () => {
+  it('shows a skeleton page head in a busy main while the next page chunk loads, then the page', async () => {
+    let release: (module: RouteModule) => void = () => undefined;
+    const pending = new Promise<RouteModule>((resolve) => {
+      release = resolve;
+    });
+    const router = createMemoryRouter(adminTree({ orders: { lazy: () => pending } }), {
+      initialEntries: ['/admin'],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1, name: 'Dashboard' });
+
+    await userEvent.click(sidebarLink('Orders'));
+    const main = screen.getByRole('main');
+    expect(main).toHaveAttribute('aria-busy', 'true');
+    expect(within(main).queryByRole('heading', { level: 1 })).toBeNull();
+    const skeletons = main.querySelectorAll('[aria-hidden="true"][style]');
+    expect([...skeletons].map((skeleton) => skeleton.getAttribute('style'))).toEqual([
+      '--sk-w: 40%; --sk-h: 34px; --sk-r: 6px;',
+      '--sk-w: 60%; --sk-h: 14px; --sk-r: 6px;',
+    ]);
+
+    await act(async () => {
+      release({ Component: AdminPreviewRoute });
+      await pending;
+    });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).not.toHaveAttribute('aria-busy');
+  });
+});
+
+describe('AdminLayout re-render (React Compiler memo cache)', () => {
+  it('keeps the shell when the same route renders again, and updates on a new path', async () => {
+    const { router } = await renderAt('/admin/profile');
+    await act(async () => {
+      await router.navigate('/admin/profile');
+    });
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('My Profile');
+    await act(async () => {
+      await router.navigate('/admin/expenses');
+    });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
+    expect(sidebarLink('Company Expenses')).toHaveAttribute('aria-current', 'page');
   });
 });
