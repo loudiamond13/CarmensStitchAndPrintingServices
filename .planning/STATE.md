@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-25-PLAN.md
-last_updated: "2026-10-09T02:58:30.498Z"
+stopped_at: Completed 02-26-PLAN.md
+last_updated: "2026-10-09T03:42:20.673Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 57579691ed72611e20905f0eb6ffe6eb6dada386
+state_head: 3d1e1a8b94a2f4e9f67df5d1cbbd8683318e90f9
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 53
-  completed_plans: 42
+  completed_plans: 43
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-08T21:58:49-05:00"
+updated: "2026-10-08T22:44:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 30 of 40
+Plan: 31 of 40
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution started
 
@@ -100,6 +100,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P23 | 30min | 2 tasks | 11 files |
 | Phase 02 P24 | 49min | 2 tasks | 14 files |
 | Phase 02 P25 | 31 min | 2 tasks | 16 files |
+| Phase 02 P26 | 34 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -236,6 +237,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: D-40 (owner, 2026-10-08): a no-team OrderCard shows the customer as title and 'Walk-in customer' (WALK_IN_CUSTOMER from @/ui/data, spec 8.3 table wording) on the customer line; 02-30's table customer cell must import the same constant. Reference side: WalkInOrderCard wrapper pair writes the text into the frozen .csp-order-cust line (no rulings.css rule, text only)
 - [Phase 02]: 02-25: The D-05 thumb reveal tokens live in ImageUploader.tsx (the class-gate opacity allow-list admits them only in src/ui/media/ImageUploader*); App. D.3 names stay (Make cover image / Remove {name}; the star rating reads "5 out of 5" with role=img per O-2)
 - [Phase 02]: 02-25: Any later scenario showing a TestimonialCard must use the RatedTestimonial wrapper pair (the reference side adds the O-2 role so axe passes); the CategoryCard phone look (description hidden, 20px title) belongs to the public home page's .s-cats grid
+- [Phase 02]: 02-26: navItemClasses({ collapsed }) + navButtonClasses (w-full cursor-pointer appearance-none text-start) is the shared nav-item look for sidebar links, the D-27 Logout button and 02-32's UserMenu items; Logo and Avatar take a context prop (sidebar / siteHeader) for region looks
+- [Phase 02]: 02-26: Get a Quote stays App. D.3's button and navigates to /contact (useNavigate) unless onQuote is given; a link would be an element change with no owner ruling (D-08), left open for the owner
+- [Phase 02]: 02-26: WebKit reports a link's hand cursor as auto; a second D-27 rulings group states cursor: pointer on the reference Logout link (no visible change), D-27 paths confirmed 0/0/2/1 and 0/0/2/0
 
 ### Pending Todos
 
@@ -272,6 +276,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T02:58:30.221Z
-Stopped at: Completed 02-25-PLAN.md
+Last session: 2026-10-09T03:42:20.409Z
+Stopped at: Completed 02-26-PLAN.md
 Resume file: None
