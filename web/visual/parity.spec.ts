@@ -99,12 +99,28 @@ function query(parameters: Readonly<Record<string, string>>): string {
   return `?${new URLSearchParams(parameters).toString()}`;
 }
 
+/**
+ * Waits until no font is loading. `document.fonts.ready` can resolve before a case's own effect has rendered new text:
+ * the `drawer-open` preview opens the drawer after mount, and at 390px that is the first text in a face the page had not
+ * used yet, so in WebKit the status went back to "loading" right after `ready` (plan 02-35). Each round waits for
+ * `ready` and two frames, then reads the status again; after ten rounds it returns whatever the status is, so a font
+ * that never loads still fails the check below. This waits longer; it compares nothing differently.
+ */
+const FONTS_SETTLED = `(async () => {
+  for (let round = 0; round < 10; round += 1) {
+    await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (document.fonts.status === 'loaded') return 'loaded';
+  }
+  return document.fonts.status;
+})()`;
+
 /** Loads one side and waits for its cases and fonts; returns how many cases it rendered. */
 async function open(page: Page, url: string): Promise<number> {
   const response = await page.goto(url);
   expect(response?.status(), url).toBe(200);
   const count = await expectCases(page);
-  expect(await page.evaluate('document.fonts.ready.then(() => document.fonts.status)'), url).toBe('loaded');
+  expect(await page.evaluate(FONTS_SETTLED), url).toBe('loaded');
   return count;
 }
 
