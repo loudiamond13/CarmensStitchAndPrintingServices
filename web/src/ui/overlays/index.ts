@@ -1,4 +1,6 @@
 // Overlays barrel (App. D.3 "Overlays": Modal and ConfirmDialog, plus the App. C `.s-overlay` region; plan 02-22).
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
 export { Modal } from './Modal';
 export type { ModalProps } from './Modal';
 export { Overlay } from './Overlay';

@@ -11,6 +11,14 @@
 //   - `modal-add-payment`: the centred Modal on its own scrim (App. B `.csp-overlay`): "Add Payment" with the order in
 //     the description, the Amount field and the Cancel and Add Payment buttons (App. E.10 payment modal copy).
 //   - `modal-slideover`: the slide-over variant ("Add User", App. E.12 copy) with the First name field.
+//   - `confirm-delete-order` / `confirm-delete-order-typed`: the App. E.8/E.10 order delete, an inline ConfirmDialog in
+//     the Overlay region (App. C `.s-overlay`) as the mockups render it, with the ORD-2026-0148 cascade (5 items,
+//     2 payments, 1 discount, 3 expenses, 4 images) and the type-to-confirm field, empty (Delete Order disabled) and
+//     with the order number typed (enabled).
+//   - `confirm-delete-order-error`: the failure state (WEB-06, UI-SPEC "UI Considerations" → error | ConfirmDialog),
+//     which the frozen App. D.3 ConfirmDialog does not have: implementation only (`parity: false`), checked by axe and
+//     the CSP guard. The FailedConfirmDialog preview types the order number and presses Delete Order against an action
+//     that fails with a 500 and a traceId.
 import type { Scenario, ScenarioNode, ScenarioProps } from '../types';
 
 function node(component: string, props: ScenarioProps): ScenarioNode {
@@ -34,6 +42,25 @@ function overlayCase(id: string, dialog: ScenarioNode, handlers: readonly string
 }
 
 const cancel = node('Button', { variant: 'secondary', children: 'Cancel' });
+
+/** The App. E.8/E.10 order delete (spec §9.3 copy). */
+const deleteOrder: ScenarioProps = {
+  inline: true,
+  title: 'Delete order ORD-2026-0148?',
+  message:
+    'Brgy. San Roque Ballers · Juan Dela Cruz. The order will be permanently deleted along with everything inside it.',
+  counts: { items: 5, payments: 2, discounts: 1, expenses: 3, images: 4 },
+  confirmText: 'ORD-2026-0148',
+  confirmLabel: 'Delete Order',
+};
+
+/** The delete dialog in the Overlay region, opened (and typed into, with `typed`). */
+function openedDelete(typed?: string): ScenarioNode {
+  return node('OpenedDialog', {
+    children: node('Overlay', { children: node('ConfirmDialog', deleteOrder) }),
+    ...(typed === undefined ? {} : { typed }),
+  });
+}
 
 export const scenarios: readonly Scenario[] = [
   overlayCase(
@@ -67,4 +94,16 @@ export const scenarios: readonly Scenario[] = [
     }),
     ['onClose'],
   ),
+  overlayCase('confirm-delete-order', openedDelete(), ['onConfirm', 'onCancel']),
+  overlayCase('confirm-delete-order-typed', openedDelete('ORD-2026-0148'), ['onConfirm', 'onCancel']),
+  {
+    ...overlayCase(
+      'confirm-delete-order-error',
+      node('Overlay', {
+        children: node('FailedConfirmDialog', { ...deleteOrder, traceId: '00-4bf92f3577b34da6a3ce929d0e0e4736-01' }),
+      }),
+      ['onCancel'],
+    ),
+    parity: false,
+  },
 ];
