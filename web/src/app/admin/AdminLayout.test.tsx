@@ -419,3 +419,76 @@ describe('AdminLayout re-render (React Compiler memo cache)', () => {
     expect(sidebarLink('Company Expenses')).toHaveAttribute('aria-current', 'page');
   });
 });
+
+describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileNavDrawer, plan 02-32)', () => {
+  function openNavigation(): HTMLElement {
+    return screen.getByRole('button', { name: 'Open navigation' });
+  }
+
+  it('wires the Topbar menu button to the drawer: aria-controls names it, aria-expanded follows it', async () => {
+    await renderAt('/admin/orders');
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
+    expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
+    const controls = openNavigation().getAttribute('aria-controls');
+    expect(controls).toBeTruthy();
+
+    await userEvent.click(openNavigation());
+
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(drawer.id).toBe(controls);
+    expect(openNavigation()).toHaveAttribute('aria-expanded', 'true');
+    expect(within(drawer).getByRole('link', { name: 'Orders' })).toHaveAttribute('aria-current', 'page');
+    expect(drawer).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('renders the drawer inside the page root after the frame, and makes the frame inert while it is open', async () => {
+    await renderAt('/admin');
+    const frame = screen.getByRole('main').closest('[data-ui="s-admin-main"]')?.parentElement;
+    expect(frame).not.toHaveAttribute('inert');
+
+    await userEvent.click(openNavigation());
+
+    const drawerRoot = screen.getByRole('dialog', { name: 'Navigation' }).parentElement;
+    expect(drawerRoot?.previousElementSibling).toBe(frame);
+    expect(frame?.closest('[data-theme]')).toContainElement(drawerRoot as HTMLElement);
+    expect(frame).toHaveAttribute('inert');
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
+    expect(frame).not.toHaveAttribute('inert');
+    expect(document.activeElement).toBe(openNavigation());
+  });
+
+  it('follows a navigation from the drawer: the page changes, the drawer closes and focus is back on the menu button', async () => {
+    await renderAt('/admin');
+    await userEvent.click(openNavigation());
+
+    await userEvent.click(
+      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('link', { name: 'Company Expenses' }),
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
+    expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
+    expect(document.activeElement).toBe(openNavigation());
+  });
+
+  it('shows the Logout toast from the drawer and keeps the drawer open', async () => {
+    await renderAt('/admin');
+    await userEvent.click(openNavigation());
+
+    await userEvent.click(
+      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: 'Logout' }),
+    );
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Not available yet');
+    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the drawer open', async () => {
+    const { container } = await renderAt('/admin');
+    await userEvent.click(openNavigation());
+
+    await expectNoAxeViolations(container);
+  });
+});

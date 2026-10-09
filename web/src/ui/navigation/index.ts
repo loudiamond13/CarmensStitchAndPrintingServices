@@ -7,3 +7,5 @@ export type { NavLinkItem, SiteHeaderProps } from './SiteHeader';
 export { Topbar } from './Topbar';
 export type { TopbarProps } from './Topbar';
 export { navButtonClasses, navItemClasses } from './navItem.recipe';
+export { MobileNavDrawer } from './MobileNavDrawer';
+export type { MobileNavDrawerProps } from './MobileNavDrawer';
