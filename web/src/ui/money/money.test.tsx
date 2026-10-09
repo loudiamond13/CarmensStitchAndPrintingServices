@@ -51,9 +51,13 @@ function classTokens(element: Element | null | undefined): string[] {
 
 const byId = new Map(moneyScenarios.map((scenario) => [scenario.id, scenario]));
 
+/** The money group's wrapper pairs: one plain block each around the component (docs/web/parity.md section 5). */
+const WRAPPERS: readonly string[] = ['DefinedTotalsNote', 'DimmedZeroKpi'];
+
 /**
  * Renders a money scenario exactly as the parity page does: through the implementation kit. The panels sit in the
- * DefinedTotalsNote wrapper pair (one plain block), so `container` is the block that holds the component.
+ * DefinedTotalsNote wrapper pair and the zero KPI in the DimmedZeroKpi pair (one plain block each), so `container` is
+ * the block that holds the component.
  */
 function renderCase(id: string) {
   const scenario = byId.get(id);
@@ -61,15 +65,19 @@ function renderCase(id: string) {
     throw new Error(`No money scenario "${id}".`);
   }
   const result = render(renderNode(kit, scenario.node, scenario.handlers ?? []));
-  const wrapper = scenario.node.component === 'DefinedTotalsNote' ? result.container.firstElementChild : null;
+  const wrapper = WRAPPERS.includes(scenario.node.component) ? result.container.firstElementChild : null;
   return { ...result, container: wrapper ?? result.container };
 }
 
-/** The OrderTotals node of a money scenario, inside its wrapper or not. */
+/** The component node of a money scenario, inside its wrapper or not. */
 function totalsNode(id: string): ScenarioNode | undefined {
   const outer = byId.get(id)?.node;
   const inner = outer?.props?.children;
-  return outer?.component === 'DefinedTotalsNote' && typeof inner === 'object' && inner !== null && 'kind' in inner
+  return outer !== undefined &&
+    WRAPPERS.includes(outer.component) &&
+    typeof inner === 'object' &&
+    inner !== null &&
+    'kind' in inner
     ? (inner as ScenarioNode)
     : outer;
 }
@@ -462,17 +470,62 @@ describe('KpiCard (App. D.3)', () => {
     expect(card?.textContent).toBe('Active orders');
   });
 
-  it('shows a zero figure in the normal value look, with no opacity anywhere (D-02)', () => {
+  it('dims a zero figure by colour only: --ink-subtle on the value, no opacity anywhere (D-39, D-02)', () => {
     const { container } = render(
       <KpiCard label="Total receivables" value={0} icon="wallet" hint="Unpaid balances, all active orders" />,
     );
-    const value = container.firstElementChild?.children[1];
+    const card = container.firstElementChild;
+    const [head, value, foot] = [...(card?.children ?? [])];
     const allClasses = [...container.querySelectorAll('*')].flatMap((element) => [...element.classList]);
 
     expect(value?.textContent).toBe('₱0.00');
-    expect(classTokens(value)).toEqual(tokens(kpiValueClasses));
+    expect(classTokens(value)).toEqual([...tokens(kpiValueClasses), 'text-ink-subtle'].sort());
+    // Only the figure dims: the label, the icon tile and the foot keep their looks (as D-02 dims only the tile count).
+    expect(allClasses.filter((token) => token === 'text-ink-subtle')).toEqual(['text-ink-subtle']);
+    expect(classTokens(card)).toEqual(tokens(kpiClasses));
+    expect(classTokens(head?.firstElementChild)).toEqual(tokens(overlineClasses));
+    expect(classTokens(head?.lastElementChild)).toEqual(tokens(kpiIconClasses));
+    expect(classTokens(foot)).toEqual(tokens(kpiFootClasses));
     expect(allClasses.filter((token) => token.includes('opacity'))).toEqual([]);
-    expect(allClasses.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['a money zero', { value: 0 }, true],
+    ['a negative zero', { value: -0 }, true],
+    ['a money figure that rounds to ₱0.00 (D-09)', { value: 0.004 }, true],
+    ['a count of zero', { value: 0, money: false }, true],
+    ['the smallest money figure, ₱0.01', { value: 0.01 }, false],
+    ['a negative money figure', { value: -0.01 }, false],
+    ['a count that is not a whole zero', { value: 0.004, money: false }, false],
+    ['a non-zero count', { value: 18, money: false }, false],
+    ['a text value, even "0"', { value: '0' }, false],
+    ['a text value', { value: 'Rent' }, false],
+  ] as const)('dims %s: %j -> %s (D-39)', (_name, props, dimmed) => {
+    const { container } = render(<KpiCard label="Figure" {...props} />);
+    const value = container.firstElementChild?.children[1];
+
+    expect(classTokens(value).includes('text-ink-subtle')).toBe(dimmed);
+    expect(classTokens(value)).toEqual(
+      dimmed ? [...tokens(kpiValueClasses), 'text-ink-subtle'].sort() : tokens(kpiValueClasses),
+    );
+  });
+
+  it('re-renders a zero figure from the memo cache, and drops or takes the dim when the figure changes (D-39)', () => {
+    const { container, rerender } = render(<KpiCard label="Total receivables" value={0} />);
+    const value = () => container.firstElementChild?.children[1];
+    const first = container.innerHTML;
+
+    rerender(<KpiCard label="Total receivables" value={0} />);
+    expect(container.innerHTML).toBe(first);
+    expect(classTokens(value())).toContain('text-ink-subtle');
+
+    rerender(<KpiCard label="Total receivables" value={1250} />);
+    expect(value()?.textContent).toBe('₱1,250.00');
+    expect(classTokens(value())).not.toContain('text-ink-subtle');
+
+    rerender(<KpiCard label="Total receivables" value={0} money={false} />);
+    expect(value()?.textContent).toBe('0');
+    expect(classTokens(value())).toContain('text-ink-subtle');
   });
 
   it('has no axe violations, with a delta, with a hint and while loading', async () => {
@@ -566,8 +619,24 @@ describe('money scenarios (the money parity group)', () => {
     });
     expect(byId.get('kpi-expenses-delta-down')?.node.props).toMatchObject({ value: 38226.95, delta: -47 });
     expect(byId.get('kpi-active-orders')?.node.props).toMatchObject({ value: 18, money: false });
-    expect(byId.get('kpi-zero')?.node.props).toMatchObject({ label: 'Total receivables', value: 0 });
+    expect(totalsNode('kpi-zero')).toMatchObject({
+      component: 'KpiCard',
+      props: { label: 'Total receivables', value: 0 },
+    });
     expect(byId.get('kpi-loading')?.node.props).toMatchObject({ loading: true });
+  });
+
+  it('wraps the zero KPI, and only it, in the DimmedZeroKpi pair: one plain block, the figure dimmed (D-39)', () => {
+    const wrapped = moneyScenarios.filter((scenario) => scenario.node.component === 'DimmedZeroKpi');
+    expect(wrapped.map((scenario) => scenario.id)).toEqual(['kpi-zero']);
+
+    const { container } = renderCase('kpi-zero');
+    const value = container.firstElementChild?.children[1];
+    expect(container.localName).toBe('div');
+    expect(container.attributes).toHaveLength(0);
+    expect(container.children).toHaveLength(1);
+    expect(value?.textContent).toBe('₱0.00');
+    expect(classTokens(value)).toContain('text-ink-subtle');
   });
 
   it('runs the loading card, and only it, in the reduced-motion pass (the shimmer stops, D-31 O-6)', () => {

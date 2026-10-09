@@ -29,6 +29,7 @@ const RULING_IDS = [
   'D-31 D-BL-02',
   'WEB-09',
   'PERF-05',
+  'D-39',
 ] as const;
 
 interface Group {
@@ -267,6 +268,13 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(group?.prelude).toBe('.csp-nav.is-on .csp-nav-tag');
     expect(normalize(group?.body ?? '')).toBe('display: none;');
+  });
+
+  it('D-39: a zero KpiCard figure (marked data-zero by the DimmedZeroKpi pair) is --ink-subtle, colour only', () => {
+    const groupsOfD39 = byRuling('D-39');
+
+    expect(groupsOfD39.map((group) => group.prelude)).toEqual(['.csp-kpi-value[data-zero]']);
+    expect(normalize(groupsOfD39[0]?.body ?? '')).toBe('color: var(--ink-subtle);');
   });
 
   it('WEB-09: an aria-disabled button looks like the disabled button and never nudges or hovers', () => {
