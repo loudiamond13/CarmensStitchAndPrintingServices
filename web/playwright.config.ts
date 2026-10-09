@@ -7,6 +7,11 @@ import { defineConfig, devices } from '@playwright/test';
 // The host serves the e2e bundle straight from web/.e2e-dist (git-ignored). It is never copied into the API's wwwroot,
 // so the dev routes in that bundle can never be deployed (D-20).
 const e2eDist = fileURLToPath(new URL('./.e2e-dist', import.meta.url));
+// In Development the host also loads the build-time static web assets manifest, which always maps
+// src/Csps.Server/wwwroot, and that folder's files then win over --webroot. A production build left in wwwroot made the
+// host serve it instead of the e2e bundle (plan 02-29). Pointing the manifest setting at a file that does not exist turns
+// the loader off for this host only, as the .NET test hosts do (plan 02-01).
+const noStaticWebAssets = fileURLToPath(new URL('./.e2e-dist/no-static-web-assets.json', import.meta.url));
 const serverProject = fileURLToPath(new URL('../src/Csps.Server', import.meta.url));
 
 // HTTPS is mandatory: the strict CSP ends with upgrade-insecure-requests, and WebKit applies it to http://localhost, so
@@ -34,7 +39,7 @@ export default defineConfig({
   webServer: {
     // The real ASP.NET Core host. Its working directory is the server project, so the content root (appsettings, logs)
     // is the same as in a normal `dotnet run`.
-    command: `dotnet run --project "${serverProject}" --no-launch-profile -- --urls ${origin} --webroot "${e2eDist}"`,
+    command: `dotnet run --project "${serverProject}" --no-launch-profile -- --urls ${origin} --webroot "${e2eDist}" --staticWebAssets "${noStaticWebAssets}"`,
     cwd: serverProject,
     url: `${origin}/health`,
     ignoreHTTPSErrors: true,

@@ -11,27 +11,42 @@ export const markClasses = tw('block flex-none');
 /** `.csp-logo`: inline-flex, centred, no underline (the lockup sits in links). The gap is per size, the ink per context. */
 export const logoClasses = tw('inline-flex items-center no-underline');
 
-export type LogoContext = 'default' | 'sidebar' | 'siteHeader';
+export type LogoContext = 'default' | 'sidebar' | 'siteHeader' | 'footer';
 
 /**
  * The lockup ink per context (plan 02-26): `.csp-logo` in `--ink`, and inside the sidebar the App. B
- * `.csp-sidebar .csp-logo` `--nav-ink`.
+ * `.csp-sidebar .csp-logo` `--nav-ink`. In the public footer on phones the md lockup closes up to a 10px gap (App. C
+ * `.s-foot .csp-logo-md` in the `@container pg (max-width: 767px)` block, plan 02-29).
  */
 export const logoContextClasses = {
   default: tw('text-ink'),
   sidebar: tw('text-nav-ink'),
   siteHeader: tw('text-ink'),
+  footer: tw('text-ink pg-phone:gap-[10px]'),
+} as const satisfies Record<LogoContext, string>;
+
+/**
+ * The letters per context (plan 02-29): only the public footer changes them, to 40px on phones (App. C
+ * `.s-foot .csp-logo-md .csp-logo-word, .s-foot .csp-logo-md .csp-logo-mark`). The footer always shows the md lockup.
+ */
+export const logoLetterContextClasses = {
+  default: tw(''),
+  sidebar: tw(''),
+  siteHeader: tw(''),
+  footer: tw('pg-phone:text-[40px]'),
 } as const satisfies Record<LogoContext, string>;
 
 /**
  * The tagline per context (plan 02-26): `.csp-logo-tag` in `--ink`; inside the sidebar `--nav-ink`
  * (`.csp-sidebar .csp-logo-tag`); in the public header on phones 8px with .12em tracking (App. C
- * `.csp-site-header .csp-logo-tag` in the `@container pg (max-width: 767px)` block).
+ * `.csp-site-header .csp-logo-tag` in the `@container pg (max-width: 767px)` block); in the public footer on phones
+ * 9.5px (App. C `.s-foot .csp-logo-md .csp-logo-tag`, same block, plan 02-29).
  */
 export const logoTaglineContextClasses = {
   default: tw('text-ink'),
   sidebar: tw('text-nav-ink'),
   siteHeader: tw('text-ink pg-phone:text-[8px] pg-phone:tracking-[.12em]'),
+  footer: tw('text-ink pg-phone:text-[9.5px]'),
 } as const satisfies Record<LogoContext, string>;
 
 /** `.csp-logo-sm/md/lg { gap }` (App. B overrides the `.csp-logo` gap per size). */

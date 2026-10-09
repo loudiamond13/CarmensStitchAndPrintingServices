@@ -8,6 +8,7 @@ import {
   logoContextClasses,
   logoGapClasses,
   logoLetterClasses,
+  logoLetterContextClasses,
   logoLetterMarkClasses,
   logoLettersClasses,
   logoSlashClasses,
@@ -30,7 +31,8 @@ export interface LogoProps {
   /**
    * The region the lockup sits in, set by the src/ui component that renders it (UI-SPEC rule 7a): `sidebar` takes the
    * nav ink of the Sidebar (App. B `.csp-sidebar .csp-logo`), `siteHeader` the smaller phone tagline of the public
-   * header (App. C `.csp-site-header .csp-logo-tag`). Defaults to the plain look.
+   * header (App. C `.csp-site-header .csp-logo-tag`), `footer` the smaller phone md lockup of the public footer (App. C
+   * `.s-foot .csp-logo-md`). Defaults to the plain look.
    */
   context?: LogoContext;
   /** Layout glue only. */
@@ -47,16 +49,22 @@ export function Logo({ size = 'md', tagline = true, variant = 'full', context = 
     >
       {variant === 'mark' && <Mark size={MARK_SIZE[size]} />}
       {variant === 'full' && (
-        <span className={clsx(logoWordClasses, logoLetterClasses[size])} aria-hidden="true">
+        <span
+          className={clsx(logoWordClasses, logoLetterClasses[size], logoLetterContextClasses[context])}
+          aria-hidden="true"
+        >
           <Mark size={MARK_SIZE[size]} className={logoLetterMarkClasses} />
-          <span className={clsx(logoLettersClasses, logoLetterClasses[size])}>
+          <span className={clsx(logoLettersClasses, logoLetterClasses[size], logoLetterContextClasses[context])}>
             SPS
             <span className={logoSlashClasses} />
           </span>
         </span>
       )}
       {variant === 'wordmark' && (
-        <span className={clsx(logoLettersClasses, logoLetterClasses[size])} aria-hidden="true">
+        <span
+          className={clsx(logoLettersClasses, logoLetterClasses[size], logoLetterContextClasses[context])}
+          aria-hidden="true"
+        >
           CSPS
           <span className={logoSlashClasses} />
         </span>

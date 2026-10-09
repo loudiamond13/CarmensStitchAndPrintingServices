@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-08T12:05:27-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-08T23:48:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -46,7 +46,7 @@ Everything after `--` goes straight to `playwright test`. Always start through `
 3. **Runs the preflight report** (the command above), when the script exists on this machine.
 4. **Seeds `CSPS_E2E`:** `dotnet run --project tools/Csps.DevSeed -- --database CSPS_E2E` (idempotent).
 5. **Builds the e2e bundle** into `web/.e2e-dist` (`vite build --mode e2e`). That folder is git-ignored and is never copied into the API's `wwwroot`, so its dev-only routes can't be deployed.
-6. **Runs Playwright.** `web/playwright.config.ts` starts the real API host with `dotnet run --project src/Csps.Server --no-launch-profile -- --urls https://localhost:5199 --webroot <web/.e2e-dist>`, waits for `https://localhost:5199/health`, runs the tests, then stops the host it started.
+6. **Runs Playwright.** `web/playwright.config.ts` starts the real API host with `dotnet run --project src/Csps.Server --no-launch-profile -- --urls https://localhost:5199 --webroot <web/.e2e-dist> --staticWebAssets <a file that does not exist>`, waits for `https://localhost:5199/health`, runs the tests, then stops the host it started. The `--staticWebAssets` argument turns off the Development static web assets loader for this host: that loader always maps `src/Csps.Server/wwwroot`, and a production build left there would otherwise be served instead of the e2e bundle (plan 02-29).
 
 Details that matter on this machine:
 
