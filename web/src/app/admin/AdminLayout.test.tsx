@@ -81,7 +81,8 @@ function expectOnlyReportsOf(error: Error): void {
 async function renderAt(path: string) {
   const router = createMemoryRouter(devRoutes(), { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
-  await screen.findByRole('heading', { level: 1 });
+  // The first render transforms the lazy route modules on demand, which can take over the default 1 s in a full run.
+  await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
   return { ...view, router };
 }
 

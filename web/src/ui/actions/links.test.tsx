@@ -118,6 +118,7 @@ describe('UiLink', () => {
         aria-label="Example site (opens a new tab)"
         aria-current="page"
         aria-describedby="hint"
+        aria-labelledby="ext-name"
         target="_blank"
         rel="noopener"
         onClick={onClick}
@@ -131,6 +132,7 @@ describe('UiLink', () => {
     expect(link).toHaveAttribute('title', 'Example site');
     expect(link).toHaveAttribute('aria-current', 'page');
     expect(link).toHaveAttribute('aria-describedby', 'hint');
+    expect(link).toHaveAttribute('aria-labelledby', 'ext-name');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener');
   });
@@ -146,6 +148,7 @@ describe('UiLink', () => {
         aria-label="Products list"
         aria-current="page"
         aria-describedby="hint"
+        aria-labelledby="nav-products-name"
         target="_self"
         rel="nofollow"
         onClick={onClick}
@@ -160,6 +163,7 @@ describe('UiLink', () => {
     expect(link).toHaveAttribute('title', 'All products');
     expect(link).toHaveAttribute('aria-current', 'page');
     expect(link).toHaveAttribute('aria-describedby', 'hint');
+    expect(link).toHaveAttribute('aria-labelledby', 'nav-products-name');
     expect(link).toHaveAttribute('target', '_self');
     expect(link).toHaveAttribute('rel', 'nofollow');
   });

@@ -43,7 +43,9 @@ function appTree({ layout, page }: TreeOptions): RouteObject[] {
 async function renderTree(tree: RouteObject[], path = '/products') {
   const router = createMemoryRouter(tree, { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
-  await screen.findByRole('heading', { name: ERROR_BOUNDARY_COPY.title });
+  // The first render in this file transforms the lazy route modules on demand; under the parallel full run that has
+  // taken just over the default 1 s (plan 02-31), so the wait allows longer. A missing screen still fails.
+  await screen.findByRole('heading', { name: ERROR_BOUNDARY_COPY.title }, { timeout: 5000 });
   return view;
 }
 

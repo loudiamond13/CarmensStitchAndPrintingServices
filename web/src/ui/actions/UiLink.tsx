@@ -21,6 +21,8 @@ export interface UiLinkProps {
   'aria-label'?: string | undefined;
   'aria-current'?: AnchorHTMLAttributes<HTMLAnchorElement>['aria-current'] | undefined;
   'aria-describedby'?: string | undefined;
+  /** Names the link from other elements (the Sidebar's rail items, whose visible label the tablet rail hides). */
+  'aria-labelledby'?: string | undefined;
   ref?: Ref<HTMLAnchorElement> | undefined;
 }
 
@@ -39,6 +41,7 @@ export function UiLink({
   'aria-label': ariaLabel,
   'aria-current': ariaCurrent,
   'aria-describedby': ariaDescribedBy,
+  'aria-labelledby': ariaLabelledBy,
   ref,
 }: UiLinkProps) {
   if (EXTERNAL.test(to)) {
@@ -55,6 +58,7 @@ export function UiLink({
         aria-label={ariaLabel}
         aria-current={ariaCurrent}
         aria-describedby={ariaDescribedBy}
+        aria-labelledby={ariaLabelledBy}
       >
         {children}
       </a>
@@ -73,6 +77,7 @@ export function UiLink({
       aria-label={ariaLabel}
       aria-current={ariaCurrent}
       aria-describedby={ariaDescribedBy}
+      aria-labelledby={ariaLabelledBy}
     >
       {children}
     </Link>

@@ -6,11 +6,15 @@
 //   - D-03 the current item is bold (700) as its second cue, besides the primary fill and the accent marker;
 //   - D-31 D-BL-02 the "Manager" tag is hidden on the current row and shown at full opacity elsewhere (D-02 FYI-01);
 //   - D-27 Logout is a <button type="button"> with the nav-item look (see below).
+// SPEC-DEVIATION: A11Y-01 (plan 02-31) every nav item and Logout is named by `aria-labelledby` pointing at its own
+// label (and, on a Users row that is not current, its "Manager" tag): the same names as the visible text gives, but kept
+// on the admin shell's tablet rail, where App. C hides the labels (`display: none`) and the approved links lose their
+// names (axe link-name). Attributes only; nothing visible changes.
 // The Sidebar renders its own Logo, Avatar and Icons, so it passes them their sidebar context (UI-SPEC rule 7a). The
 // tablet icon rail (App. C `.s-admin-side`) is a context look: inside the admin shell's side column the recipes' rail
 // variants apply from 768 to 1023px (plan 02-31).
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Role } from '@/lib/csps';
 import { UiLink } from '@/ui/actions';
 import { Icon, Logo, type IconName } from '@/ui/brand';
@@ -84,6 +88,7 @@ export function Sidebar({
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
+  const idBase = useId();
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>
       <div className={clsx(sidebarTopClasses, sidebarTopLayoutClasses[layout])}>
@@ -111,11 +116,22 @@ export function Sidebar({
             onClick={() => onNavigate?.(item.id)}
             className={navItemClasses({ collapsed })}
             aria-current={active === item.id ? 'page' : undefined}
+            aria-labelledby={
+              item.manager === true && !collapsed && active !== item.id
+                ? `${idBase}-${item.id} ${idBase}-${item.id}-tag`
+                : `${idBase}-${item.id}`
+            }
             title={collapsed ? item.label : undefined}
           >
             <Icon name={item.icon} size={20} className={navIconClasses} />
-            <span className={labelClasses}>{item.label}</span>
-            {item.manager === true && !collapsed && <span className={navTagClasses}>Manager</span>}
+            <span id={`${idBase}-${item.id}`} className={labelClasses}>
+              {item.label}
+            </span>
+            {item.manager === true && !collapsed && (
+              <span id={`${idBase}-${item.id}-tag`} className={navTagClasses}>
+                Manager
+              </span>
+            )}
           </UiLink>
         ))}
       </nav>
@@ -136,10 +152,13 @@ export function Sidebar({
           type="button"
           className={clsx(navItemClasses({ collapsed }), navButtonClasses)}
           onClick={() => onLogout?.()}
+          aria-labelledby={`${idBase}-logout`}
           title={collapsed ? 'Logout' : undefined}
         >
           <Icon name="log-out" size={20} />
-          <span className={labelClasses}>Logout</span>
+          <span id={`${idBase}-logout`} className={labelClasses}>
+            Logout
+          </span>
         </button>
       </div>
     </aside>
