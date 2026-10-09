@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T19:45:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-08T19:52:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -111,6 +111,8 @@ A scenario renders only in the themes it lists (public scenarios are light only,
    - `OpenedDialog`: a plain `<div>` around a dialog, showing it as a person sees it right after it opens. The converted Modal moves focus to its first field by itself (WEB-02), so the implementation side does nothing for focus; the reference side focuses the frozen dialog's first field after mount, which the frozen App. D.3 Modal never does. A focus-trap regression therefore shows up as a missing focus ring. With `typed`, both sides then type that text into the first input (the type-to-confirm case).
    - `Overlay`: the App. C `.s-overlay` region the mockups render dialogs in. On the implementation side it is the real `Overlay` component from `@/ui/overlays` (`data-ui="s-overlay"`); the reference side is `<div className="s-overlay">`.
    - `FailedConfirmDialog`: the ConfirmDialog failure state, which App. D.3 lacks (`parity: false`). The implementation preview types the confirm text and presses the danger button against an action that fails with a 500 and a traceId; the reference fragment renders the frozen ConfirmDialog with the same props. Nothing is compared; axe and the guard check the implementation.
+   Plan 02-23 added one for the money group:
+   - `DefinedTotalsNote`: a plain `<div>` around an OrderTotals panel. App. D.3 puts the panel's note ("Profit = Total − Discount − Expenses. Internal only.") as a bare `<p>` inside a `<dl>`, which axe reports (`definition-list`) on the reference page. The converted OrderTotals gives that paragraph `role="definition"` by itself (A11Y-01), so the implementation side does nothing; the reference side adds the same attribute to the frozen note after mount. Attributes are not compared, so the look is still compared in full, and axe checks both pages.
 6. Run `npm --prefix web run parity -- --grep @reference` and check that the case renders: no `Missing component: <name>` alert, and no guard findings.
 
 ## 6. The intentional differences (the complete list)

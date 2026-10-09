@@ -6,7 +6,8 @@
 //     OrderCard block) and ORD-2026-0151 (fully paid: 23,000 − 500 − 22,500 = 0), at every width.
 // The figures are never typed here: both sides compute them from the seed order with orderTotals (the reference with
 // App. D.1, the implementation with the D-09 centavo math), and spec §12.2 lists the expected results, which
-// money.test.tsx asserts. Each case is compared in both themes at rest.
+// money.test.tsx asserts. Each case is compared in both themes at rest. The panels sit in the DefinedTotalsNote wrapper
+// pair (see totalsPanel); the card variant has no note and needs none.
 import type { Scenario, ScenarioNode, ScenarioProps } from '../types';
 
 function node(component: string, props: ScenarioProps): ScenarioNode {
@@ -23,6 +24,15 @@ function moneyCase(id: string, node: ScenarioNode, options: CaseOptions = {}): S
   return { id, group: 'money', node, themes: ['light', 'dark'], responsive, states: ['rest'], parity: true };
 }
 
+/**
+ * An OrderTotals panel inside the DefinedTotalsNote wrapper pair (docs/web/parity.md §5): the reference side gives the
+ * frozen App. D.3 note paragraph the role="definition" the converted panel renders by itself, so axe passes on both
+ * pages. The wrapper is one plain block with no look.
+ */
+function totalsPanel(order: ScenarioProps): ScenarioNode {
+  return node('DefinedTotalsNote', { children: node('OrderTotals', { order }) });
+}
+
 /** Spec §12.2 ORD-2026-0148 (the Order Detail mockup): 5 items, a 5% discount, 2 payments and 3 order expenses. */
 export const ORDER_0148: ScenarioProps = {
   number: 'ORD-2026-0148',
@@ -32,7 +42,12 @@ export const ORDER_0148: ScenarioProps = {
   orderDate: '2026-09-28',
   dueDate: '2026-10-14',
   items: [
-    { productType: 'Basketball Jersey', description: 'Jersey top — sublimated, names & numbers', quantity: 15, unitPrice: 650 },
+    {
+      productType: 'Basketball Jersey',
+      description: 'Jersey top — sublimated, names & numbers',
+      quantity: 15,
+      unitPrice: 650,
+    },
     { productType: 'Basketball Jersey', description: 'Shorts — matching colorway', quantity: 15, unitPrice: 300 },
     { productType: 'Polo Shirt', description: 'Coach polo, embroidered logo', quantity: 2, unitPrice: 550 },
     { productType: 'Long Sleeves', description: 'Warm-up shooting shirt', quantity: 15, unitPrice: 420 },
@@ -73,8 +88,8 @@ export const scenarios: readonly Scenario[] = [
   moneyCase('money-lg-success', node('Money', { amount: 126450, size: 'lg', tone: 'success' })),
   moneyCase('money-sm-muted', node('Money', { amount: 38226.95, size: 'sm', tone: 'muted' })),
   moneyCase('money-warning', node('Money', { amount: 9327.5, tone: 'warning' })),
-  moneyCase('order-totals-0148', node('OrderTotals', { order: ORDER_0148 }), { responsive: true }),
-  moneyCase('order-totals-0151', node('OrderTotals', { order: ORDER_0151 }), { responsive: true }),
+  moneyCase('order-totals-0148', totalsPanel(ORDER_0148), { responsive: true }),
+  moneyCase('order-totals-0151', totalsPanel(ORDER_0151), { responsive: true }),
   moneyCase('order-totals-card-0148', node('OrderTotals', { order: ORDER_0148, variant: 'card' }), {
     responsive: true,
   }),

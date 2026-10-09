@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as moneyScenarios } from '@/dev/scenarios/groups/money';
+import type { ScenarioNode } from '@/dev/scenarios/types';
 import type { Order, Totals } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { Money, OrderTotals } from '@/ui/money';
@@ -41,13 +42,27 @@ function classTokens(element: Element | null | undefined): string[] {
 
 const byId = new Map(moneyScenarios.map((scenario) => [scenario.id, scenario]));
 
-/** Renders a money scenario exactly as the parity page does: through the implementation kit. */
+/**
+ * Renders a money scenario exactly as the parity page does: through the implementation kit. The panels sit in the
+ * DefinedTotalsNote wrapper pair (one plain block), so `container` is the block that holds the component.
+ */
 function renderCase(id: string) {
   const scenario = byId.get(id);
   if (scenario === undefined) {
     throw new Error(`No money scenario "${id}".`);
   }
-  return render(renderNode(kit, scenario.node, scenario.handlers ?? []));
+  const result = render(renderNode(kit, scenario.node, scenario.handlers ?? []));
+  const wrapper = scenario.node.component === 'DefinedTotalsNote' ? result.container.firstElementChild : null;
+  return { ...result, container: wrapper ?? result.container };
+}
+
+/** The OrderTotals node of a money scenario, inside its wrapper or not. */
+function totalsNode(id: string): ScenarioNode | undefined {
+  const outer = byId.get(id)?.node;
+  const inner = outer?.props?.children;
+  return outer?.component === 'DefinedTotalsNote' && typeof inner === 'object' && inner !== null && 'kind' in inner
+    ? (inner as ScenarioNode)
+    : outer;
 }
 
 /** The label → figure pairs of one `<dl>`, in DOM order. */
@@ -338,12 +353,32 @@ describe('money scenarios (the money parity group)', () => {
   });
 
   it('declares OrderTotals on the spec seed orders ORD-2026-0148 and ORD-2026-0151', () => {
-    expect(byId.get('order-totals-0148')?.node.props).toMatchObject({ order: { number: 'ORD-2026-0148' } });
-    expect(byId.get('order-totals-0151')?.node.props).toMatchObject({ order: { number: 'ORD-2026-0151' } });
-    expect(byId.get('order-totals-card-0148')?.node.props).toMatchObject({
-      order: { number: 'ORD-2026-0148' },
-      variant: 'card',
+    expect(totalsNode('order-totals-0148')).toMatchObject({
+      component: 'OrderTotals',
+      props: { order: { number: 'ORD-2026-0148' } },
     });
+    expect(totalsNode('order-totals-0151')).toMatchObject({
+      component: 'OrderTotals',
+      props: { order: { number: 'ORD-2026-0151' } },
+    });
+    expect(totalsNode('order-totals-card-0148')).toMatchObject({
+      component: 'OrderTotals',
+      props: { order: { number: 'ORD-2026-0148' }, variant: 'card' },
+    });
+  });
+
+  it('wraps only the panels, whose note needs it, in the DefinedTotalsNote pair: one plain block', () => {
+    expect(byId.get('order-totals-0148')?.node.component).toBe('DefinedTotalsNote');
+    expect(byId.get('order-totals-0151')?.node.component).toBe('DefinedTotalsNote');
+    expect(byId.get('order-totals-card-0148')?.node.component).toBe('OrderTotals');
+
+    const { container } = render(
+      renderNode(kit, byId.get('order-totals-0148')?.node ?? { kind: 'node', component: 'none' }, []),
+    );
+    const wrapper = container.firstElementChild;
+    expect(wrapper?.localName).toBe('div');
+    expect(wrapper?.attributes).toHaveLength(0);
+    expect(wrapper?.children).toHaveLength(1);
   });
 
   it('compares every case in both themes at rest; the totals at every width, Money at 390 and 1440', () => {
@@ -352,7 +387,7 @@ describe('money scenarios (the money parity group)', () => {
       expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
       expect(scenario.states, scenario.id).toEqual(['rest']);
       expect(scenario.parity, scenario.id).toBe(true);
-      expect(scenario.responsive, scenario.id).toBe(scenario.node.component === 'OrderTotals');
+      expect(scenario.responsive, scenario.id).toBe(totalsNode(scenario.id)?.component === 'OrderTotals');
     }
   });
 });
