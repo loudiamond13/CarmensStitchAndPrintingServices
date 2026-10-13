@@ -2,7 +2,7 @@
 phase: 02-web-foundation-design-system
 lane: dotnet
 created: 2026-10-13T07:12:00-05:00
-updated: 2026-10-13T07:12:00-05:00
+updated: 2026-10-13T14:05:55-05:00
 fixed_at: 2026-10-13T12:12:00Z
 review_path: .planning/phases/02-web-foundation-design-system/02-REVIEW.md
 iteration: 1
@@ -14,7 +14,7 @@ status: partial
 
 # Phase 02: Code Review Fix Report (lane: dotnet, NET-)
 
-*Created: 2026-10-13T07:12:00-05:00 · Updated: 2026-10-13T07:12:00-05:00*
+*Created: 2026-10-13T07:12:00-05:00 · Updated: 2026-10-13T14:05:55-05:00*
 
 **Fixed at:** 2026-10-13T12:12:00Z
 **Source review:** .planning/phases/02-web-foundation-design-system/02-REVIEW.md (lane detail: 02-REVIEW-lane-dotnet.md)
@@ -24,6 +24,7 @@ status: partial
 - Findings in scope: 5 (NET-WR-01..NET-WR-05; the lane has no criticals; Info findings out of scope)
 - Fixed: 4
 - Skipped: 1 (logged as an owner decision)
+- Later: NET-WR-02 was fixed by owner ruling D-41 R2-06 in quick-261013-ihp, and NET-IN-01 (Info) was closed as "ruled: keep" (see below). The front-matter counts stay those of iteration 1.
 
 Every fix was test-first: the new test was run and seen failing (RED) before the source change, then passing (GREEN). Each finding is one atomic commit (test and fix together).
 
@@ -69,12 +70,17 @@ Every fix was test-first: the new test was run and seen failing (RED) before the
 ### NET-WR-02: `OrderMathResult.Total` is the PRD's *Subtotal*, and the PRD's net *Total* is missing
 
 **File:** `src/Csps.Domain/Orders/OrderMathModels.cs:24-38`, `src/Csps.Domain/Orders/OrderMath.cs:37,46`
+**Status:** fixed by D-41 R2-06 (owner, 2026-10-13), quick-261013-ihp. Commits c985508 (RED) and 38db727 (GREEN): the PRD §5.1 names are used in C# (`OrderMathResult(Subtotal, Discount, Total, Paid, Balance, Expenses, Profit, FullyPaid)`), in the browser preview (`web/src/lib/csps.ts` `Totals`) and in the shared golden vectors (version 2, `expected.subtotal` and `expected.total`), with Total = Subtotal − Discount, Balance = Total − Paid and Profit = Total − Expenses; every amount is unchanged. The xUnit vector loader now fails closed on a missing or unknown member. The OrderTotals panel and card read "Subtotal" and the note "Profit = Subtotal − Discount − Expenses. Internal only."; the look-equality proof stays equal through the reference-only OrderTotals and OrderCard overrides (5f467d5, 78a26ca, 63e3a21). The panel wording is awaiting the owner's before/after review (69a48f3: `npm --prefix web run review` → artifacts/owner-review/index.html, "Wording changes for you to confirm").
 **Reason:** skipped as an owner decision (logged in `deferred-items.md` under "## Owner decisions pending", commit ad95a34). The rename is internal to Phase 2 code: no table, endpoint or DTO uses these names yet. But it is not purely internal to the code:
 - `Totals.total` in `web/src/lib/csps.ts` is copied from the approved design's own `csps.ts` (App. D.3), which the parity reference build also loads.
 - The approved `OrderTotals` block shows this before-discount figure in a row labelled "Total".
 
 Renaming it to `subtotal` and adding a net `total` therefore raises a look/copy question: what the panel's rows are labelled, and whether a net-Total row appears. That needs a D-08 before/after from the owner. The same field drives the "fully paid" rule (NET-IN-01). The logged question gives the owner two options: follow the PRD naming in C#, TS and the vectors together, or record the design naming as a deliberate PRD deviation. It also notes that this must be settled before Phase 5 builds order DTOs and the reconciliation report.
 **Original issue:** PRD §5.1 defines Subtotal = Σ line totals, Total = Subtotal − Discount. `OrderMathResult.Total` is the pre-discount items total, and no field holds the net total, so a later phase could map the wrong figure to the ORD-01/ORD-07 "Total" or the reconciliation report.
+
+## Info findings closed by owner ruling
+
+- **NET-IN-01** (a 100%-discounted, unpaid order reads "Fully Paid"): closed, **ruled: keep** (D-41 R2-06, owner, 2026-10-13). FullyPaid stays Subtotal > 0 and Balance ≤ 0, so a fully discounted order with no payment is fully paid and an empty order is not. The rule is written in the `OrderMathResult.FullyPaid` XML doc and pinned by tests in the oracle, C# (`AHundredPercentDiscountWithNoPaymentIsFullyPaid`) and TS (quick-261013-ihp, 38db727).
 
 ## Verification
 

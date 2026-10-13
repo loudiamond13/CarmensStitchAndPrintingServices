@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-13T12:42:40-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-13T14:05:55-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -166,6 +166,7 @@ Each fix is small and ready. Each one changes the approved look slightly, so it 
 - **R2-28 · Lighthouse mobile LCP** is now about 1.88 s against the 2.0 s budget (about 116 ms headroom). Options are in deferred-items.md.
 - **R2-29 · Code review:** all 4 criticals and 37 of 42 warnings are fixed. The 5 unfixed warnings are items R2-04, R2-06, R2-18, R2-19 and R2-26 above.
   *Update (quick-261013-g6s, 2026-10-13):* UI-WR-07 (R2-04, now Ctrl+K / Cmd+K) and UI-WR-09 (R2-18, the refused-paste hint) are closed.
+  *Update (quick-261013-ihp, 2026-10-13):* NET-WR-02 (R2-06, the PRD Subtotal / Total names) is closed, and the Info note NET-IN-01 is closed as "ruled: keep".
 
 ## Owner answers, 2026-10-13 (in chat, `/gsd-quick`; recorded as D-41 in 02-CONTEXT.md)
 
@@ -176,7 +177,7 @@ Each fix is small and ready. Each one changes the approved look slightly, so it 
 | R2-03 | **Subtler custom focus ring** for the list search (must still meet 3:1) | resolved → implemented (quick-261013-g6s) |
 | R2-04 | Replace "/" with **Ctrl+K** (Cmd+K on macOS) | resolved → implemented (quick-261013-g6s) |
 | R2-05 | Visual review | **open** (owner hands-on, UAT tests 2–4) |
-| R2-06 | **Follow the PRD:** Subtotal = before discount, Total = after discount, everywhere. A 100%-discounted unpaid order keeps reading **"Fully Paid"** | resolved → to implement (before/after of the panel wording to owner) |
+| R2-06 | **Follow the PRD:** Subtotal = before discount, Total = after discount, everywhere. A 100%-discounted unpaid order keeps reading **"Fully Paid"** | resolved → implemented (quick-261013-ihp), awaiting owner before/after review (`npm --prefix web run review` → artifacts/owner-review/index.html, 'Wording changes for you to confirm'); NET-IN-01 closed, ruled: keep |
 | R2-07 | Edits that push the balance below zero are **allowed** and shown as **credit / refund due** (direct overpayment stays refused, OD-4). Legacy overpaid orders: **decide in Phase 15** | resolved (Orders phase) / deferred to Phase 15 |
 | R2-08 | Retry key split confirmed | resolved (human check of double-submit/upload retry still in UAT) |
 | R2-09 | Show "Your session ended. Sign in again." on a 401 | resolved → Phase 4 |

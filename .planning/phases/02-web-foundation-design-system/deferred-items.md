@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T12:42:40-05:00"
+updated: "2026-10-13T14:05:55-05:00"
 ---
 
 # Phase 02 deferred items
@@ -155,7 +155,8 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What happens next:** every difference the owner names becomes a gap-closure fix; any change that would alter the approved look comes back as a D-08 before/after first. To refresh the reports later: `npm --prefix web run review`, then `node web/scripts/design-side-by-side.mjs` (guide: `docs/web/owner-review.md`).
 
 - Order math naming: "Total" is the amount before discounts, but the PRD's "Total" is after discounts (code-review finding NET-WR-02, naming/meaning question, settle before Phase 5)
-  status: open
+  status: resolved (D-41 R2-06, quick-261013-ihp): implemented; panel wording awaiting owner before/after review in artifacts/owner-review/index.html
+  **Resolution:** the owner chose (a), the PRD names (D-41 R2-06, 2026-10-13). The server math, the browser preview and the golden vectors (version 2) now carry `subtotal` (before discount) and `total` (after discount); the panel and card read "Subtotal", the note reads "Profit = Subtotal − Discount − Expenses. Internal only.", and no row was added. NET-IN-01 is ruled keep: a 100%-discounted unpaid order still reads "Fully Paid".
   **Found by:** the phase 02 code review (lane dotnet, NET-WR-02). Not changed by the review fix, because the name is shared with the approved design and changing it changes what a screen labelled "Total" shows.
   **What:** PRD §5.1 says Subtotal = sum of the lines, Total = Subtotal minus the discount, Balance = Total minus what was paid, and ORD-07 lists "Subtotal, Discount, Total, Paid, Balance". The shared order math names the amount BEFORE discounts `Total` and has no field for the amount after discounts: `OrderMathResult.Total` in `src/Csps.Domain/Orders/OrderMathModels.cs`, `Totals.total` in `web/src/lib/csps.ts` (copied from the approved design's own `csps.ts`, App. D.3), and `expected.total` in the 220 shared golden vectors (`tests/fixtures/order-math-golden-vectors.json`). The balance and profit are correct either way. The approved OrderTotals block (`web/src/ui/money/OrderTotals.tsx`, App. E) shows a row labelled "Total" with this before-discount amount, then "Total Discount", "Total Paid" and the balance. Nothing is saved or sent by the API with these names yet (no order endpoint or table exists in phase 2), so a rename is cheap now and expensive after Phase 5 builds order DTOs, list columns and the PRD §16 reconciliation report on them. The "fully paid" rule (`total > 0 and balance <= 0`, review note NET-IN-01) also reads this field.
   **Before / after if the owner chooses the PRD naming:** today the order panel reads "Total ₱1,000.00 / Total Discount −₱100.00 / Total Paid … / Balance"; after the change the code would call the first figure `subtotal` and add `total` (₱900.00, after discounts). Whether the panel's first row is then labelled "Subtotal" (and whether a "Total" row after the discount is added) is a look/copy change to the approved design, so it needs its own before/after.
