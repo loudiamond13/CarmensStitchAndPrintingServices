@@ -6,6 +6,11 @@
 // - Tab on the last focusable element moves to the first, Shift+Tab on the first moves to the last, and focus that
 //   lands outside the container (a click elsewhere, a script) comes back to the first focusable element;
 // - when the trap ends, focus returns to the element that had it on activation (the trigger), if it is still there.
+// UI-WR-02: traps stack. Overlays render in place, never in a portal, so a dialog opened from the phone drawer is the
+// drawer's DOM sibling, and two traps that both pulled focus into their own root would fight over it. Only the newest
+// active trap (the top of the stack) acts on Tab and on focus that leaves it; the ones below wait. A trap joins the
+// stack before it moves focus. When the top trap ends, focus returns to its trigger and, if that leaves focus outside
+// the trap now on top, moves into that trap; a trap that ends below another changes nothing about focus.
 // Listeners are added with addEventListener in an effect (Pitfall 7: no JSX handlers on static elements).
 import { useEffect, type RefObject } from 'react';
 
@@ -42,6 +47,20 @@ function tabbable(container: HTMLElement): HTMLElement[] {
   );
 }
 
+interface ActiveTrap {
+  readonly root: HTMLElement;
+  /** Focuses the first focusable element, else the root itself. */
+  readonly focusFirst: () => void;
+}
+
+/** The active traps, oldest first; the last one is the top. */
+const traps: ActiveTrap[] = [];
+
+/** True when the trap on `root` is the newest active one (the overlay on top, UI-WR-01 and UI-WR-02). */
+export function isTopFocusTrap(root: HTMLElement | null): boolean {
+  return root !== null && traps.at(-1)?.root === root;
+}
+
 /**
  * Starts trapping focus in `root` and returns the function that ends the trap. A plain function, so the effect below
  * only hands it the element (the React Compiler treats a hook's arguments, and so the element its ref points at, as
@@ -62,6 +81,11 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
     root.focus();
   };
 
+  const self: ActiveTrap = { root, focusFirst };
+  // On the stack before focus moves, so a trap below ignores the focus this one takes.
+  traps.push(self);
+  const isTop = () => traps.at(-1) === self;
+
   const initial = initialFocus ?? root.querySelector<HTMLElement>(FIELD);
   if (initial === null) {
     focusFirst();
@@ -70,7 +94,7 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Tab') {
+    if (event.key !== 'Tab' || !isTop()) {
       return;
     }
     const items = tabbable(root);
@@ -95,7 +119,7 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
   };
 
   const onFocusIn = (event: FocusEvent) => {
-    if (event.target instanceof Node && !root.contains(event.target)) {
+    if (isTop() && event.target instanceof Node && !root.contains(event.target)) {
       focusFirst();
     }
   };
@@ -103,10 +127,20 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('focusin', onFocusIn);
   return () => {
+    const wasTop = isTop();
+    traps.splice(traps.indexOf(self), 1);
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('focusin', onFocusIn);
+    if (!wasTop) {
+      // A trap above this one still holds focus.
+      return;
+    }
     if (returnFocus && trigger?.isConnected === true) {
       trigger.focus();
+    }
+    const below = traps.at(-1);
+    if (below !== undefined && !below.root.contains(document.activeElement)) {
+      below.focusFirst();
     }
   };
 }

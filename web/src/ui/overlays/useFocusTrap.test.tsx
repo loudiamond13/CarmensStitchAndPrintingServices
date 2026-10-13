@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { describe, expect, it } from 'vitest';
-import { useFocusTrap } from './useFocusTrap';
+import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 
 // The ref-based focus trap behind Modal (WEB-02, A11Y-02, research Pitfall 9): initial focus, Tab and Shift+Tab wrap
 // inside the container, focus that leaves comes back, and focus returns to the trigger when the trap ends. It adds no
@@ -303,5 +303,103 @@ describe('useFocusTrap', () => {
     await user.click(screen.getByRole('button', { name: 'Shut' }));
 
     expect(screen.getByRole('button', { name: 'Open' })).not.toHaveFocus();
+  });
+});
+
+// UI-WR-02: overlays render in place (no portals), so a dialog opened from the phone drawer is a DOM sibling of the
+// drawer, not a child. Only the newest active trap enforces focus; the ones below it wait until it ends.
+function Layer({ name, children }: { readonly name: string; readonly children?: ReactNode }) {
+  const container = useRef<HTMLDivElement>(null);
+  useFocusTrap(container);
+  return (
+    <div ref={container} data-testid={name}>
+      <button type="button">{`${name} first`}</button>
+      {children}
+      <button type="button">{`${name} last`}</button>
+    </div>
+  );
+}
+
+function Stacked({ lower, upper }: { readonly lower: boolean; readonly upper: boolean }) {
+  return (
+    <>
+      <button type="button">Page</button>
+      {lower && (
+        <Layer name="Drawer">
+          <button type="button">Open dialog</button>
+        </Layer>
+      )}
+      {upper && <Layer name="Dialog" />}
+    </>
+  );
+}
+
+describe('useFocusTrap with two traps open (UI-WR-02)', () => {
+  it('lets the newest trap take and keep focus, even when it is a sibling of the older one', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Stacked lower upper={false} />);
+    expect(screen.getByRole('button', { name: 'Drawer first' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Open dialog' }).focus();
+
+    rerender(<Stacked lower upper />);
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+    expect(isTopFocusTrap(screen.getByTestId('Dialog'))).toBe(true);
+    expect(isTopFocusTrap(screen.getByTestId('Drawer'))).toBe(false);
+    expect(isTopFocusTrap(null)).toBe(false);
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+
+    // Focus sent outside comes back to the top trap only.
+    screen.getByRole('button', { name: 'Drawer last' }).focus();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+  });
+
+  it('hands focus back to the trigger in the trap below when the top trap ends, and that trap works again', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Stacked lower upper={false} />);
+    screen.getByRole('button', { name: 'Open dialog' }).focus();
+    rerender(<Stacked lower upper />);
+
+    rerender(<Stacked lower upper={false} />);
+    expect(screen.getByRole('button', { name: 'Open dialog' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Drawer last' }).focus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Drawer first' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Page' }).focus();
+    expect(screen.getByRole('button', { name: 'Drawer first' })).toHaveFocus();
+  });
+
+  it('moves focus into the trap below when the top trap ends and its trigger is gone', () => {
+    function Nested({ upper, trigger }: { readonly upper: boolean; readonly trigger: boolean }) {
+      return (
+        <>
+          <Layer name="Drawer">{trigger && <button type="button">Open dialog</button>}</Layer>
+          {upper && <Layer name="Dialog" />}
+        </>
+      );
+    }
+    const { rerender } = render(<Nested upper={false} trigger />);
+    screen.getByRole('button', { name: 'Open dialog' }).focus();
+    rerender(<Nested upper trigger />);
+    rerender(<Nested upper trigger={false} />);
+
+    rerender(<Nested upper={false} trigger={false} />);
+    expect(screen.getByRole('button', { name: 'Drawer first' })).toHaveFocus();
+  });
+
+  it('leaves focus in the top trap when a trap below it ends first', () => {
+    const { rerender } = render(<Stacked lower upper={false} />);
+    rerender(<Stacked lower upper />);
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+
+    rerender(<Stacked lower={false} upper />);
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Page' }).focus();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
   });
 });
