@@ -1,13 +1,17 @@
 namespace Csps.Domain.Orders;
 
 /// <summary>How an order discount is valued.</summary>
+/// <remarks>
+/// The values start at 1, so an unset kind (<c>default</c>, 0) is never a valid kind and <see cref="OrderMath.Compute"/>
+/// rejects it instead of reading it as a fixed amount (NET-WR-01).
+/// </remarks>
 public enum DiscountKind
 {
     /// <summary>A fixed peso amount.</summary>
-    Fixed,
+    Fixed = 1,
 
     /// <summary>A percentage of the rounded items total.</summary>
-    Percentage,
+    Percentage = 2,
 }
 
 /// <summary>One order line for <see cref="OrderMath.Compute"/>.</summary>

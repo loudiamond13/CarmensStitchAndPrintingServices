@@ -153,5 +153,28 @@ public sealed class OrderMathTests
         result.Profit.ShouldBe(-750_000_000.00m);
     }
 
+    // A kind that is out of range or never set (a bad cast, a mis-mapped legacy row, a deserializer default) must fail
+    // loudly, never be valued as a fixed peso amount (NET-WR-01). The unset value 0 is no valid kind.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(99)]
+    [InlineData(-1)]
+    public void AnUndefinedDiscountKindThrowsNamingTheDiscount(int kind)
+    {
+        OrderMathDiscount[] discounts = [new((DiscountKind)kind, 10m)];
+
+        var error = Should.Throw<ArgumentOutOfRangeException>(
+            () => OrderMath.Compute([new(1, 100m)], discounts, NoAmounts, NoAmounts));
+
+        error.ParamName.ShouldBe("discount");
+        error.ActualValue.ShouldBe((DiscountKind)kind);
+    }
+
+    [Fact]
+    public void TheDefaultDiscountKindIsNotAValidKind()
+    {
+        Enum.IsDefined(default(DiscountKind)).ShouldBeFalse();
+    }
+
     private static decimal Parse(string value) => decimal.Parse(value, CultureInfo.InvariantCulture);
 }

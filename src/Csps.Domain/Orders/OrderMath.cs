@@ -22,6 +22,7 @@ public static class OrderMath
     /// above what is owed); this is arithmetic only and implies no business rule.
     /// </returns>
     /// <exception cref="ArgumentNullException">A list is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A discount has a kind that is not defined.</exception>
     public static OrderMathResult Compute(
         IReadOnlyList<OrderMathItem> items,
         IReadOnlyList<OrderMathDiscount> discounts,
@@ -49,8 +50,14 @@ public static class OrderMath
         return new OrderMathResult(total, discount, paid, balance, expenseTotal, profit, total > 0m && balance <= 0m);
     }
 
-    private static decimal DiscountAmount(OrderMathDiscount discount, decimal itemsTotal) =>
-        Round(discount.Kind == DiscountKind.Percentage ? itemsTotal * discount.Value / 100m : discount.Value);
+    // An undefined kind (out of range, or the unset value 0) fails loudly: guessing "fixed" would turn a mis-mapped
+    // 10 percent into 10 pesos on the authoritative money path (NET-WR-01).
+    private static decimal DiscountAmount(OrderMathDiscount discount, decimal itemsTotal) => Round(discount.Kind switch
+    {
+        DiscountKind.Fixed => discount.Value,
+        DiscountKind.Percentage => itemsTotal * discount.Value / 100m,
+        _ => throw new ArgumentOutOfRangeException(nameof(discount), discount.Kind, "Unknown discount kind."),
+    });
 
     private static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 }
