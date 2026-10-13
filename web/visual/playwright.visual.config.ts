@@ -14,7 +14,9 @@ export default defineConfig({
   // close to 30 s with the other workers busy, so the default 30 s test timeout is too tight (plan 02-14).
   timeout: 120_000,
   retries: 0,
-  reporter: [['list']],
+  // The JSON report is the latest run's result per engine and group; the owner review (scripts/owner-review.mjs, plan
+  // 02-36) shows it in plain words. Git-ignored like the rest of test-results/.
+  reporter: [['list'], ['json', { outputFile: '../test-results/parity-results.json' }]],
   outputDir: '../test-results/visual',
   // Plan 02-14 writes the reference shot as the "expected" snapshot at run time; nothing is stored in git.
   snapshotPathTemplate: '{testDir}/../test-results/parity/{projectName}/{arg}{ext}',

@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-09T02:20:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T05:14:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -80,6 +80,8 @@ For example, `--grep @reference` runs the reference smoke test, `--grep @parity`
 6. Runs the visual Playwright suite with your arguments.
 
 A `--grep` that matches no test fails the run (Playwright reports "No tests found" and exits 1), so a mistyped tag never passes.
+
+Every run also writes its result per engine and group to `web/test-results/parity-results.json` (git-ignored, Playwright's JSON reporter). The owner review report shows the latest one in plain words ([owner-review.md](owner-review.md), plan 02-36).
 
 ## 4. Pick cases with the address
 
