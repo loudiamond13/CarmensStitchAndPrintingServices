@@ -1,10 +1,10 @@
 ---
 phase: 02-web-foundation-design-system
 created: "2026-10-13T10:50:00-05:00"
-updated: "2026-10-13T15:20:00-05:00"
-verified: 2026-10-13T20:20:00Z
-status: human_needed
-score: 21/23 must-haves verified
+updated: "2026-10-13T18:30:00-05:00"
+verified: 2026-10-13T23:30:00Z
+status: gaps_found
+score: 29/30 must-haves verified
 covered_files:
   - ".claude/CLAUDE.md"
   - ".config/dotnet-tools.json"
@@ -91,6 +91,8 @@ covered_files:
   - ".planning/phases/02-web-foundation-design-system/02-39-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/02-40-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/02-40-SUMMARY.md"
+  - ".planning/phases/02-web-foundation-design-system/02-41-PLAN.md"
+  - ".planning/phases/02-web-foundation-design-system/02-41-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-02-PLAN.md"
@@ -371,6 +373,7 @@ covered_files:
   - "web/e2e/a11y-rulings.spec.ts"
   - "web/e2e/admin-keyboard.spec.ts"
   - "web/e2e/admin.spec.ts"
+  - "web/e2e/dialog-fit.spec.ts"
   - "web/e2e/fixture-selftest.spec.ts"
   - "web/e2e/fixtures.ts"
   - "web/e2e/fonts.spec.ts"
@@ -683,7 +686,9 @@ covered_files:
   - "web/src/ui/overlays/Modal.test.tsx"
   - "web/src/ui/overlays/Modal.tsx"
   - "web/src/ui/overlays/Overlay.tsx"
+  - "web/src/ui/overlays/fixedLayerGuard.ts"
   - "web/src/ui/overlays/index.ts"
+  - "web/src/ui/overlays/overlays.recipe.node.test.ts"
   - "web/src/ui/overlays/overlays.recipe.ts"
   - "web/src/ui/overlays/useBodyScrollLock.ts"
   - "web/src/ui/overlays/useFocusTrap.test.tsx"
@@ -766,71 +771,63 @@ covered_files:
   - "web/visual/webkit-style-sync.ts"
   - "web/vite.config.ts"
   - "web/vitest.config.ts"
-covered_digest: "v2:sha256:40e05e580e0244ed450448130ac10d3009de79030b9d5d323b16b3e5f536b41a"
+covered_digest: "v2:sha256:2a2ae21e869c01be37030a4def353b25456306c29edaf14047aa5621734c95eb"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
-  previous_score: 19/23
-  previous_verified: 2026-10-13T15:50:00Z
+  previous_status: human_needed
+  previous_score: 21/23
+  previous_verified: 2026-10-13T20:20:00Z
+  trigger: "gap-closure plan 02-41 (UAT gap G-2-199, owner ruling D-42 dialog fit), commits 05d444f..a3899b5, and code review 02-REVIEW-g199.md"
   gaps_closed:
-    - "Truth 7 (SC2, PERF-03): no horizontal scroll from 320 to 1920 px. D-41 R2-01 (Topbar search min-w-0) and R2-02 (table frame contain-paint) are applied. TOPBAR_MIN_PAGE_WIDTH is gone, and the plain scrollWidth <= innerWidth rule passes on every page at every width in Chromium, Firefox, WebKit, Pixel 7 and iPhone 15 (full E2E 518/518)"
-    - "Truth 18 (SC5, A11Y-04, A11Y-02 'visible focus'): every open UI-spec/WCAG conflict now has an owner ruling (D-41), applied in code and in the parity rulings layer. SearchBox focus border (R2-03, contrast >= 3:1 proven), Ctrl+K / Cmd+K replaces the bare '/' (R2-04), and both reflow items as in truth 7. R2-10 (page behind a phone dialog not inert) is ruled to Phase 4"
+    - "G-2-199 (UAT test 199), layout part: at the owner's 1274x585 window the whole Delete Order dialog, Cancel and Delete Order included, is inside the window with no scrolling; at 1280x420 and on short phone pages the backdrop scrolls to the buttons; tall windows keep 140px / 96px. Proven here by @dialog-fit 23/23 in all five projects. By design, the gap entry in 02-UAT.md stays status failed with fix_plan until the owner re-checks test 199"
+    - "Truth 6 (SC2 owner look approval, WEB-02) and truth 23 (long-text wrap backstop): the owner recorded UAT tests 2, 3 and 4 as pass"
+    - "Prohibition 02-07 (judgment tier, a money preview is never shown as the saved figure): the owner recorded UAT test 5 as pass"
   gaps_remaining: []
   regressions: []
-human_verification:
-  - test: "R2-05 / UAT tests 2-3: owner visual review of the Phase 2 look (WEB-02 sign-off). Open C:\\Work\\CarmensStitchAndPrintingServices\\artifacts\\owner-review\\index.html, including the new section 'Wording changes for you to confirm (before and after)' (D-41 R2-06), and artifacts\\owner-review\\side-by-side\\index.html"
-    expected: "The public layout (Blush), the admin frame and the showcase, in Blush and Espresso at 390/820/1440, look like the approved design. The SPEC-GAP parts look like they belong. The intentional differences, now including the D-41 ones (Topbar 'Ctrl K' hint, list search focus border, footer h2, 'Subtotal' wording), match what was decided. The before/after pictures show 'Total' becoming 'Subtotal' and the note becoming 'Profit = Subtotal − Discount − Expenses. Internal only.' The owner confirms the wording or asks for a change (for example an after-discount 'Total' row)"
-    why_human: "Look approval belongs to the owner (plan 02-36 BLOCKING check, ROADMAP SC2, WEB-02 Pending). Automated parity (456/456 in three engines) compares against the ruled spec code, not the owner's eye. The D-23 pack (14:04) postdates every D-41 code change. The D-24 side-by-side (05:13) predates the review fixes and D-41; regenerate it first with `node web/scripts/design-side-by-side.mjs` after the preflight"
-  - test: "R2-23 / UAT test 4 (plan 02-34 backstop, truth 23): in the review pack's showcase shots, check the long toast, the long field error and the long EmptyState message"
-    expected: "Each wraps inside its box (toast text as a column; EmptyState message at most 380px wide) with no overflow and nothing cut off"
-    why_human: "Backstop truth whose evidence is defined as the D-23 screenshots (insufficient_spec). No test measures these three cases directly"
-  - test: "UAT test 5, judgment-tier prohibition (plan 02-07): 'MUST NOT present a client-side money preview as the saved figure'"
-    expected: "The owner agrees the rule stands: csps.ts orderTotals output is only ever shown as a preview, and the Phase 8 screens show the server's figures after a save"
-    why_human: "Unverified prohibition; human review recommended. The verifier's non-authoritative judgment is that it holds today: no Phase 2 screen saves or shows a saved order"
-  - test: "R2-20 / UAT test 11: intent prefetch on a phone"
-    expected: "On a real phone the first tap on a link never prefetches data (touch is ignored by intent prefetch); on desktop, hovering or focusing a link for about 100 ms starts the prefetch. The owner confirms this meaning of 'prefetch on intent'"
-    why_human: "Planner assumption (WEB-08) that only the owner can confirm; touch behaviour on a real device is not covered by jsdom"
-  - test: "R2-21: focus and timer fixes from the code review, on /dev/components"
-    expected: "Dialogs stack correctly; toasts stay reachable while a dialog is open; dismissing a toast returns focus sensibly; Pagination keeps focus after a page change"
-    why_human: "Focus feel across stacked overlays and timers is a hands-on check; unit and E2E tests cover the mechanics, not whether it feels right"
-  - test: "R2-22 / UAT test 9: screen-reader and real-phone spot checks (NVDA or VoiceOver) on /dev/components"
-    expected: "Toasts (including danger toasts) are announced once, politely; dialogs announce their names; the order totals list, KPI direction, chart months, scrolling table region, image uploader and star rating read sensibly; thumbnail actions are comfortable to tap on a real phone"
-    why_human: "jsdom and axe check roles and names, not what a real screen reader says. A11Y-05 owns the full pass in Phase 14; the owner may record this as skipped with that reason"
-  - test: "UAT tests 12-13: owner-facing docs and developer guides read clearly"
-    expected: "docs/dependencies.md, docs/web/budgets.md, docs/web/release-gates.md and docs/web/owner-review.md read clearly to the owner. docs/development.md, docs/web/styling.md, docs/web/e2e.md, docs/web/url-state.md and docs/web/parity.md are clear for a new developer"
-    why_human: "Reading judgment that no test asserts. The owner may delegate test 13 to a reviewer or skip it with a reason"
+gaps:
+  - truth: "Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before"
+    status: partial
+    reason: "pressedOnScrollbar only recognises scrollbars that take layout space (classic). Classic scrollbars work: a real-scrollbar probe in Chromium at 1280x420 dragged the backdrop's 15px scrollbar, the dialog stayed open with ORD-2026-0148 still typed, and the backdrop scrolled 105px. Overlay scrollbars fail. In the same probe with --enable-features=OverlayScrollbar, a real scrollbar drag fired mousedown on the region and scrolled it by 105px. The press was at clientX 1276 < clientWidth 1280, so the guard returned false and the Delete Order dialog closed, losing the typed text. Overlay scrollbars are the default in Chrome and Safari on macOS with a trackpad, and on ChromeOS. The truth's 'never closes' therefore does not hold for them"
+    artifacts:
+      - path: "web/src/ui/overlays/Modal.tsx"
+        issue: "pressedOnScrollbar (lines 59-68) is geometry-only, so an overlay scrollbar press reads as a scrim press. onMouseDown (lines 113-117) does not check event.button either, so a middle-click (autoscroll) or right-click on the backdrop also closes the dialog (review WR-01)"
+      - path: "web/e2e/dialog-fit.spec.ts"
+        issue: "Headless Playwright starts Chromium with --hide-scrollbars, so no test ever presses a real scrollbar. The guard is proven only by jsdom tests on stubbed geometry (review WR-02)"
+    missing:
+      - "A close rule that also holds for overlay scrollbars. One option is WR-01's sketch: on mousedown on the scrim, remember scrollTop/scrollLeft, and close on mouseup only if the scrim did not scroll. Another is a dedicated backdrop layer behind the scrolling region, so that a scrollbar press never targets the element that closes the dialog. The existing 'loading ignores presses', 'another parent is not a scrim' and Esc tests must stay green"
+      - "Ignore non-primary presses on the scrim (event.button !== 0), with a jsdom test that sends button 1 and button 2 and checks the dialog stays open (WR-01)"
+      - "A chromium-only @dialog-fit case with real scrollbars (launchOptions.ignoreDefaultArgs: ['--hide-scrollbars']) and one with overlay scrollbars (args: ['--enable-features=OverlayScrollbar']). At 1280x420: type ORD-2026-0148, drag the backdrop scrollbar at x = width - 4, and assert the dialog is still open, the text is kept and scrollTop changed. Then assert that a press on the scrim above the dialog still closes it (WR-02). This verifier's probe shows both launch modes run headless on this machine"
 ---
 
 # Phase 2: Web Foundation & Design System Verification Report
 
-*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T15:20:00-05:00*
+*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T18:30:00-05:00*
 
 **Phase Goal:** Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
-**Verified:** 2026-10-13T20:20:00Z (15:20 America/Chicago), on HEAD 7fd5d8b
-**Status:** human_needed (both earlier gaps are closed; only owner hands-on items remain)
-**Re-verification:** Yes. This follows the gap closure by owner ruling D-41 and two quick tasks: quick-261013-g6s (commits 33839cf..6568eed) and quick-261013-ihp (commits c985508..46e7662).
+**Verified:** 2026-10-13T23:30:00Z (18:30 America/Chicago), on HEAD b0e00a1
+**Status:** gaps_found. The D-42 dialog-fit layout holds in every engine. One 02-41 truth (the backdrop scrollbar guard) holds for classic scrollbars only; with overlay scrollbars a scrollbar drag still closes the dialog.
+**Re-verification:** Yes. This follows gap-closure plan 02-41 (UAT gap G-2-199, owner ruling D-42 "dialog fit"), commits 05d444f..a3899b5, and the code review in `02-REVIEW-g199.md`. Truths 1-23 carry forward from the 15:20 report, updated with the owner's UAT results recorded since then. Truths 24-30 are the 02-41 must-haves.
 
 ## Re-verification summary
 
 | Earlier finding | Then | Now | Evidence (run or read by this verifier) |
 | --- | --- | --- | --- |
-| Gap 1: truth 7, no horizontal scroll 320-1920 (SC2, PERF-03) | ✗ FAILED | ✓ CLOSED | `navigation.recipe.ts:159` `searchClasses` has `min-w-0` (R2-01). `lists.recipe.ts:30` `tableWrapClasses` has `contain-paint pg-phone:contain-none` (R2-02). A grep of `web/` for `TOPBAR_MIN_PAGE_WIDTH` finds nothing. `responsive.spec.ts:141` applies the plain `scrollWidth <= innerWidth` rule on every page. Full E2E 518/518: `@responsive` 13/13 and `@admin` 12/12 (now including 320 and 390, `admin.spec.ts:153`) in each of Chromium, Firefox, WebKit, Pixel 7 and iPhone 15. `lists-overflow.spec.ts` now asserts no page scroll and `contain: paint` at 768 and 820, and it passed in all three engines |
-| Gap 2: truth 18, WCAG conflicts ruled and applied (SC5, A11Y-04, A11Y-02 "visible focus") | ✗ FAILED | ✓ CLOSED | Rulings recorded as D-41 (`02-CONTEXT.md:174`; `999.1/DECISIONS.md` "Owner answers, 2026-10-13"). R2-03: `lists.recipe.ts:196` `focus-within:border-focus`, the matching `rulings.css` D-41 R2-03 group (pinned by `rulings.test.ts:328`), the contrast node test (Blush 9.01/9.88/8.95:1, Espresso 6.80/7.49/7.99:1), and 4 `@lists` focus-visible parity rows equal to the ruled reference. R2-04: `Topbar.tsx:53-59` needs exactly one of Ctrl/Cmd with K, with no Alt or Shift; `aria-keyshortcuts="Control+K Meta+K"`; `Topbar.test.tsx` proves a bare "/", a bare "k", Ctrl+/, Ctrl+Shift+K and Ctrl+Alt+K do nothing. Reflow: as gap 1 |
-| Human item 4: order-math naming (NET-WR-02) | ? owner decision | Decided and implemented; wording look folded into human item 1 | Owner chose the PRD names (D-41 R2-06). `OrderMathModels.cs:51-54` `OrderMathResult(Subtotal, Discount, Total, …)`; `OrderMath.cs:54` `total = subtotal - discount`; `csps.ts:288-298`; `OrderTotals.tsx:48,87` "Subtotal" and the new note. Golden vectors are version 2 with 220 cases, each carrying `subtotal` and `total` (39 midpoint cases). xUnit golden 230/230; `gen-golden-vectors.mjs --check` passes. NET-IN-01 (a 100%-discounted unpaid order reads "Fully Paid") was ruled keep, pinned by `FullyPaid: subtotal > 0m && balance <= 0m` on both sides |
-| Human items 1-3 (visual review, long-text wrap, money-preview prohibition) | ? human | ? human (unchanged) | Owner hands-on. See Human Verification |
+| UAT gap G-2-199: a dialog on a short window (laptop at 125-150% zoom) was cut off, with Cancel and Delete Order unreachable (WCAG 1.4.10) | ✗ UAT issue (major) | ✓ Layout fixed in code (truths 24-27, 29, 30). ✗ The scrollbar guard is partial (truth 28). The owner's re-check is pending | `@dialog-fit`: 23 passed, 17 skipped by design, 0 failed in all five projects. `@overlays` + `@selftest` parity: 21/21 in three engines. Unit pins: recipe node test 7/7, the rulings D-42 pin, Modal scrollbar tests 4/4. Real-scrollbar probe: classic scrollbars pass, overlay scrollbars fail. All run here |
+| Truth 6: owner look approval (SC2, WEB-02) | ? human | ✓ VERIFIED (owner) | `02-UAT.md` tests 2 and 3: `result: pass` |
+| Truth 23: long toast, field error and EmptyState text wrap (plan 02-34 backstop) | ? human (insufficient_spec) | ✓ VERIFIED (owner) | `02-UAT.md` test 4: `result: pass` |
+| Prohibition 02-07: a money preview is never shown as the saved figure (judgment tier) | unverified, flagged | human-resolved | `02-UAT.md` test 5: `result: pass` |
+| Human items 4-7 (intent prefetch, focus and timers, screen reader, docs) | ? human | resolved | `02-UAT.md` tests 11, 196, 9, 12 and 13: `result: pass` |
 
-**Regressions:** none. Every truth that passed before was re-checked by a full run of its own gate (see Behavioral Spot-Checks).
+**Regressions:** none. `npm --prefix web run verify` passed with 3087 tests, up from 3020. The E2E tags that touch dialogs (`@showcase`, `@keyboard`, `@a11y-rulings`) were re-run here in all five projects: 360/360 (72 per project), exit 0.
 
 ## MVP-mode note
 
-ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story.validate` returns `valid: false`; the plans record "No story was invented"). As in the first report, this uses standard goal-backward verification against the ROADMAP success criteria and the plan must-haves. The derived flows:
+ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story.validate` returns `valid: false`, and the plans record "No story was invented"). This report therefore uses standard goal-backward verification, as before. 02-41 adds one flow:
 
 | Actor | Flow | Evidence | Status |
 | --- | --- | --- | --- |
-| Visitor (phone, from Facebook) | Opens `/`, sees the Blush public layout with skip link, header, one h1 and footer, with no sideways scroll | Full E2E 518/518 in five projects; Lighthouse 0.99/1/1/1 | VERIFIED |
-| Staff (dev builds only until Phase 4) | Opens `/admin/*`, sees the admin shell in both themes, drawer and user menu by keyboard, with no sideways scroll at any width | `@admin`, `@keyboard` and `@responsive` green in all five projects with no exemption | VERIFIED (gap 1 closed) |
-| Feature-phase developer | Composes primitives, formatters, `api.ts`, `useSubmission`, list URL-state hooks and the gates | `npm --prefix web run verify` exit 0 (3020 tests) | VERIFIED (gap 2 closed) |
+| Staff on a laptop at 125-150% zoom (short window) | Opens the Delete Order confirm. Either the whole dialog shows or the dark backdrop scrolls to its buttons. Types the order number and confirms or cancels, by mouse or keyboard | `@dialog-fit` in five projects: 1274x585 fits (top 76.4); at 1280x420 both the wheel and Tab reach Delete Order; phone pages move up or scroll | VERIFIED (automated) for layout and reach. Dragging the backdrop's scrollbar keeps the dialog open only with classic scrollbars (truth 28) |
 
 ## Goal Achievement
 
@@ -838,216 +835,215 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 
 | # | Truth | Status | Evidence |
 | --- | --- | --- | --- |
-| 1 | SC1: `npm run build` emits the app into `src/Csps.Server/wwwroot` | ✓ VERIFIED | `vite.config.ts` outDir for production. Lighthouse built into wwwroot and served it from the real host. `git status` stays clean after every build |
-| 2 | SC1: `npm run dev` serves on 5180 (`strictPort`), proxies `/api`, sets no machine-level env vars | ✓ VERIFIED | Config unchanged since the first report; the 02-37 config test is inside verify. The preflight shows no User-level variables |
-| 3 | SC1: typecheck, ESLint and Prettier pass at `--max-warnings 0` | ✓ VERIFIED | `npm --prefix web run verify` exit 0, re-run here (tsc over 3 programs, `eslint . --max-warnings 0`, `prettier --check`) |
-| 4 | SC1: the build fails over 150 KB gz public JS, 250 KB admin JS or 35 KB CSS | ✓ VERIFIED | Budgets unchanged. Measured here: production public 126.18 KB, CSS 13.01 KB; dev-route public 131.58 KB, admin 156.72 KB |
-| 5 | SC1/PERF-05: self-hosted fonts render ₱ in the brand font | ✓ VERIFIED | `@fonts` passed in all five projects in the full E2E run |
-| 6 | SC2: layouts render the approved Appendix D design with Tailwind, proven visually equal in both themes, reconciliations marked `// SPEC-DEVIATION` | ? UNCERTAIN (owner) | Automated: the full parity matrix passed 456/456 in Chromium, Firefox and WebKit, re-run here (4 more rows than before: the `@lists` focus-visible rows). `TOLERANCE_OVERRIDES` stays empty. `SPEC_OVERRIDES` holds exactly Topbar, OrderTotals and OrderCard, all D-41. The owner's look approval (R2-05) is still pending: human item 1 |
-| 7 | SC2/PERF-03: the layouts work from 320 to 1920 px with no horizontal scroll | ✓ VERIFIED | Gap 1 closed (see Re-verification summary). No exemption remains in any spec |
-| 8 | SC2/A11Y-02: skip link, labelled landmarks, focus-trapped dialogs, one h1 per page | ✓ VERIFIED | `@responsive` (every page, 8 widths × 2 orientations, five projects) and `@keyboard` green in the full run |
-| 9 | SC3: every primitive passes unit tests and axe | ✓ VERIFIED | 3020/3020 Vitest tests in verify. The SearchBox focus look, which axe cannot see, is now covered by truth 18's tests |
-| 10 | SC3/ORD-09: money `₱12,450.00` with U+2212 negatives, dates `Oct 6, 2026`, 2-decimal numeric money inputs | ✓ VERIFIED | Unchanged code paths, tests in verify. R2-18 adds a refused-paste hint (`MoneyInput.tsx:83,116,134`, always-mounted polite `role="status"`); the value is never changed silently |
-| 11 | SC4/WEB-07: a shared golden-vector file (≥ 200 cases incl. half-centavo) passes in both xUnit and Vitest | ✓ VERIFIED | Version 2, 220 cases (39 midpoint), PRD names. xUnit `OrderMathGoldenVectorTests` 230/230 re-run here; `csps.golden.test.ts` inside verify; the generator `--check` passes |
-| 12 | SC4/WEB-03: `httpClient.ts` has 100% coverage incl. the single-flight 401 refresh | ✓ VERIFIED | The per-folder 100% threshold on `src/lib/http/**` held in the verify run |
-| 13 | SC4/WEB-09: one Idempotency-Key per submission, reused on retry; submit disabled while pending | ✓ VERIFIED | Unchanged; tests in verify. R2-08 (retry key split) confirmed by the owner |
-| 14 | SC4/WEB-04: lint rejects `fetch`, `httpClient` or `axios` imports outside `api.ts` | ✓ VERIFIED | `lint-rules.node.test.ts` in verify |
-| 15 | SC4/WEB-08: TanStack defaults (staleTime, keep-previous pagination, 300 ms cancellable debounced search) | ✓ VERIFIED | Tests in verify (`listState.integration.test.tsx` among them) |
-| 16 | SC5/QUAL-04: Playwright on 5199 across five projects fails on console error, CSP or axe | ✓ VERIFIED | Full run 518/518 including the `@fixture` guard self-tests; `reuseExistingServer: false` |
-| 17 | SC5/PERF-02: Lighthouse scores the public shell ≥ 95 on mobile | ✓ VERIFIED | Re-run here: performance 0.99, accessibility 1 (was 0.98; the footer h2 fix R2-17 cleared the heading-order audit), best-practices 1, SEO 1; LCP 1884 ms, CLS 0, TBT 0 ms |
-| 18 | SC5/A11Y-04: every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied | ✓ VERIFIED | Gap 2 closed (see Re-verification summary) |
-| 19 | SC6/WEB-10: list state in the URL through nuqs, with the required parser, history and lint behaviour | ✓ VERIFIED | Unchanged; tests in verify |
-| 20 | Plan 02-29 backstop: at 320px the placeholder H1 wraps with no clipping or sideways scroll | ✓ VERIFIED | `@public at 320px the placeholder h1 wraps …` passed in all five projects |
-| 21 | Plan 02-31 backstop: fractional widths (767.5 and 1023.5 px) render as the approved CSS does | ✓ VERIFIED | `layouts-admin-boundaries` scenarios inside the 456/456 parity run |
-| 22 | Plan 02-32 backstop: a 40-character user name stays inside its own box at 320 and 390 px | ✓ VERIFIED | `navigation-overflow.spec.ts` passed in the parity run; the page itself no longer scrolls at 320 (truth 7) |
-| 23 | Plan 02-34 backstop: long toast, field-error and EmptyState text wrap inside their boxes | ? UNCERTAIN (insufficient_spec) | Evidence is defined as the D-23 screenshots. Human item 2 |
+| 1 | SC1: `npm run build` emits the app into `src/Csps.Server/wwwroot` | ✓ VERIFIED | Carried. The verify run here built again, and the tree stayed clean |
+| 2 | SC1: `npm run dev` serves on 5180 (`strictPort`), proxies `/api`, sets no machine-level env vars | ✓ VERIFIED | Carried. The dev server started here on 5180 with `--strictPort`. The preflight shows no User-level variables |
+| 3 | SC1: typecheck, ESLint and Prettier pass at `--max-warnings 0` | ✓ VERIFIED | `npm --prefix web run verify` exit 0, re-run here, with no warning lines |
+| 4 | SC1: the build fails over 150 KB gz public JS, 250 KB admin JS or 35 KB CSS | ✓ VERIFIED | Measured here: production public 126.18 KB, CSS 13.04 KB; dev-route public 131.58 KB, admin 157.20 KB |
+| 5 | SC1/PERF-05: self-hosted fonts render ₱ in the brand font | ✓ VERIFIED | Carried (`@fonts`, five projects) |
+| 6 | SC2: the layouts render the approved Appendix D design with Tailwind, proven visually equal in both themes, with reconciliations marked `// SPEC-DEVIATION` | ✓ VERIFIED | Automated parity carried (456/456); the `@overlays` rows re-run here after D-42: 21/21. Owner look approval: UAT tests 2 and 3 pass. D-42 adds one registered look ruling (truth 30) |
+| 7 | SC2/PERF-03: the layouts work from 320 to 1920 px with no horizontal scroll | ✓ VERIFIED | Carried. D-42 adds vertical reflow for dialogs (truths 25-27) |
+| 8 | SC2/A11Y-02: skip link, labelled landmarks, focus-trapped dialogs, one h1 per page | ✓ VERIFIED | Carried; `@keyboard` re-run here in five projects |
+| 9 | SC3: every primitive passes unit tests and axe | ✓ VERIFIED | 3087/3087 Vitest tests in the verify run here |
+| 10 | SC3/ORD-09: money and date formats; 2-decimal money inputs | ✓ VERIFIED | Carried |
+| 11 | SC4/WEB-07: shared golden vectors pass in xUnit and Vitest | ✓ VERIFIED | Carried; `csps.golden.test.ts` runs inside verify |
+| 12 | SC4/WEB-03: `httpClient.ts` has 100% coverage, including the single-flight 401 refresh | ✓ VERIFIED | The per-folder 100% threshold held in the verify run |
+| 13 | SC4/WEB-09: one Idempotency-Key per submission | ✓ VERIFIED | Carried; tests in verify |
+| 14 | SC4/WEB-04: lint rejects raw fetch/httpClient/axios outside `api.ts` | ✓ VERIFIED | `lint-rules.node.test.ts` in verify |
+| 15 | SC4/WEB-08: TanStack defaults | ✓ VERIFIED | Carried; tests in verify |
+| 16 | SC5/QUAL-04: Playwright on 5199 across five projects fails on a console error, a CSP violation or an axe violation | ✓ VERIFIED | Both E2E runs here used the same guarded fixtures (`e2e/fixtures.ts` checks console, page errors, `securitypolicyviolation` and failed responses) and reported zero findings |
+| 17 | SC5/PERF-02: Lighthouse ≥ 95 on mobile | ✓ VERIFIED | Carried (0.99 / 1 / 1 / 1). 02-41 changed no public-route code |
+| 18 | SC5/A11Y-04: every UI-spec/WCAG conflict has an owner ruling applied | ✓ VERIFIED | Carried. D-42 adds the WCAG 1.4.10 ruling for dialogs (truth 30) |
+| 19 | SC6/WEB-10: list state in the URL through nuqs | ✓ VERIFIED | Carried |
+| 20 | Plan 02-29 backstop: the 320px H1 wraps | ✓ VERIFIED | Carried |
+| 21 | Plan 02-31 backstop: fractional widths | ✓ VERIFIED | Carried |
+| 22 | Plan 02-32 backstop: a 40-character user name at 320/390 | ✓ VERIFIED | Carried |
+| 23 | Plan 02-34 backstop: long toast, field error and EmptyState text wrap | ✓ VERIFIED | Owner: UAT test 4 pass (the evidence this backstop defines) |
+| 24 | D-42 (1): where the dialog fits it keeps the approved place. At 1440x900 it sits exactly 140px down, centred on the whole window; at 412x839 the phone sheet sits exactly 96px down. The 900px-tall `@overlays` parity rows stay equal in chromium, firefox and webkit | ✓ VERIFIED | Run here. `@dialog-fit 1440x900` passed in chromium, firefox and webkit: top 140 ±1, centre = clientWidth/2 ±1, region box = window, no scroll. `@dialog-fit 412x839` passed in all three (top 96, full width, no scroll), and the pixel device test passed (412x839, top 96). `@overlays` parity: 18 rows plus 3 `@selftest` = 21/21, and the self-test still catches its 1px drift. The parity scenarios render the Overlay region (`overlays.ts:60` `node('Overlay', …)`; reference `fragments/Overlay.tsx` `.s-overlay`), so the D-42 CSS is on both sides of the comparison |
+| 25 | D-42 (2): at the owner's 1274x585 window the top gap shrinks to max(16, 585 − 16 − h), so the whole dialog, Cancel and Delete Order included, is inside the window with no scrolling, in chromium, firefox and webkit | ✓ VERIFIED | Run here: `@dialog-fit 1274x585` passed in all three engines. It asserts h + 32 ≤ 585, top = clamp(585 − 16 − h, 16, 140) ±1 and below 140, bottom ≤ 570, both buttons `toBeInViewport({ ratio: 1 })`, no region scroll, and centring. The SUMMARY's measured top of 76.4 (h 492.6) matches the arithmetic |
+| 26 | D-42 (3): at 1280x420 the dialog sits 16px down and the backdrop scrolls (overflow-y auto). The wheel over the dialog and keyboard focus on Delete Order each bring both buttons fully into view; the scrim still covers the whole window; the page is axe-clean | ✓ VERIFIED | Run here; both tests passed in chromium, firefox and webkit. `@dialog-fit 1280x420 by mouse` checks top 16 ±1, `overflowY === 'auto'`, scrollHeight > clientHeight, `mouse.wheel`, both buttons fully in view, region box = window, and `expectNoAxeViolations`. `by keyboard` types ORD-2026-0148, tabs to Delete Order and checks it is fully in view |
+| 27 | D-42 (4): the phone sheet had the same defect. Now the 96px gap shrinks to 0 when the sheet would not fit (393x659: top = 659 − h), and the backdrop scrolls when the sheet is still taller (320x568), in all five Playwright projects | ✓ VERIFIED | Run here: the `393x659` and `320x568` phone-page tests passed in chromium, firefox and webkit, and the device test passed in pixel and iphone (on the 393x659 iphone the sheet moves up; the test asserts the clamp, and scrolling when the sheet is taller). The pre-fix defect is in the plan's measurement table and the RED commit 05d444f. The 659x393 landscape window has no test of its own (review IN-03), but the same rule covers it |
+| 28 | Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before | ✗ FAILED (partial) | Present and wired: `pressedOnScrollbar` (`Modal.tsx:59-68`) is checked in `onMouseDown` (`:113-117`), and 4 jsdom tests on stubbed geometry pass. The real-engine probe run here (details below) passes with **classic** scrollbars: the drag kept the dialog open with the text, scrolled 105px, and a scrim click still closed it. It **fails with overlay scrollbars** (Chromium `--enable-features=OverlayScrollbar`): a real scrollbar drag that scrolled the backdrop 105px fired mousedown on the region at clientX 1276 < clientWidth 1280, the guard said "not a scrollbar", and the dialog closed with the typed text lost. This is review WR-01, confirmed in a browser. See the gap in frontmatter |
+| 29 | Pure CSS: no JavaScript measuring and no inline style (strict CSP holds, the E2E guard sees zero CSP violations). The focus trap, Esc, body scroll lock and the existing `@showcase`, `@keyboard` and `@a11y-rulings` tests stay green. `npm --prefix web run verify` exits 0 | ✓ VERIFIED | `overlayRegionClasses` is one complete `tw("…")` literal (`overlays.recipe.ts:38-40`); `Overlay.tsx` sets only `data-ui` and `className`; there is no `style=` in `src/ui/overlays/*.tsx`. `Modal.tsx` adds only a pure geometry read inside the existing mousedown listener: no new listener and no style write, and Esc, `useFocusTrap` and `useBodyScrollLock` are untouched (diff 5c50ad4). The class gate (`tailwind-classes.test.ts` 57/57) and `checkClassTokens` in the recipe node test report zero findings. verify exit 0 (3087 tests, zero warnings). `@showcase\|@keyboard\|@a11y-rulings` re-run here: 360/360 in five projects (72 each), exit 0, no guard finding; the executor's two Firefox load timeouts did not recur |
+| 30 | D-42 is recorded in rulings.css (pinned by rulings.test.ts), docs/web/parity.md section 6 (read by the owner review pack), 02-UI-SPEC.md intentional differences and 02-CONTEXT.md. UAT gap G-2-199 keeps `status: failed` with a `fix_plan` pointer | ✓ VERIFIED | `rulings.css:234-270` has four D-42 groups (`.s-overlay`, `::before`, `> *`, phone container), pinned by `rulings.test.ts:336` (passed here). `parity.md:174` has the row and line 180 the note; `owner-review.test.ts` passed 62/62 against the real guide. `02-UI-SPEC.md:254` has the row; `02-CONTEXT.md:183-185` the D-42 section; `docs/web/e2e.md:112` the `@dialog-fit` tag row. `02-UAT.md:1603-1624`: G-2-199 has `status: failed`, `fix_plan: "02-41-PLAN.md (gap_ids: [G-2-199])"`, `fix_state` and `phone_check`. The recipe and Modal carry `SPEC-DEVIATION: D-42` (D-07) |
 
-**Score:** 21/23 truths verified (0 present but behaviour-unverified; 0 failed; 2 need a human)
+**Score:** 29/30 truths verified (0 present but behaviour-unverified; 1 failed (partial), truth 28; 0 need a human)
 
-The behaviour-dependent truths (7, 13, 15, 16, 18, 19) are VERIFIED on passing tests run here: the unit and component tests in the verify run, the E2E guard self-tests and sweeps in the full E2E run, and the overflow and focus-visible rows in the parity run.
+Behaviour-dependent truths 24-27 (layout geometry) and 29 (no regressions) were VERIFIED on real-engine tests run here. Truth 28 is a behaviour-dependent truth, and a real-engine run contradicted it for one class of scrollbar. A run proving the opposite is a failure, not a lack of evidence, so it is marked FAILED rather than PRESENT_BEHAVIOR_UNVERIFIED.
+
+### Scrollbar truth and the review warnings (02-REVIEW-g199.md)
+
+The orchestrator asked whether any of the four open review warnings breaks a 02-41 must-have truth. A one-off real-browser probe (see Behavioral Spot-Checks) settled each one:
+
+| Warning | Breaks a 02-41 truth? | Evidence |
+| --- | --- | --- |
+| WR-01: the guard misses overlay scrollbars and non-primary presses | **Yes, truth 28 (partial).** The overlay-scrollbar half is confirmed: a real overlay-scrollbar drag closes the dialog and loses the typed text. The middle- or right-click half does not contradict the truth as worded ("a press on the scrim … still closes it"), but the Windows autoscroll gesture now closes a dialog the user meant to scroll, so the fix plan should include it | Probe 1, overlay mode: `openAfterDrag: false`. Probe 2, overlay mode: mousedown target = region, `guardWouldSkip: false`, and the region scrolled 105px, so it was a real scrollbar drag. Classic mode: `guardWouldSkip: true`, dialog kept open, text kept. Middle-click on the scrim closed the dialog in all three configurations |
+| WR-02: no real-scrollbar browser test | It is why the truth 28 defect went unseen. On its own it is a test gap, not a truth failure | `dialog-fit.spec.ts` never removes `--hide-scrollbars`. The probe shows both `ignoreDefaultArgs: ['--hide-scrollbars']` and `--enable-features=OverlayScrollbar` work headless on this machine, so the missing test is cheap |
+| WR-03: the opening rise can overflow a bottom-flush phone sheet by about 2px for 200 ms | No. Truths 24 and 27 assert the resting place after the animations settle, and that holds. It is a transient look issue, only with classic scrollbars at phone-page widths (a narrow desktop window, not a real phone). Either fix changes the look, so it needs the owner (D-08) | Code read: the inline modal sits inside `.csp-overlay.is-inline`, so `[[data-ui=s-overlay]>&]:animate-none` does not reach it, and `animate-csp-rise` runs inside the new scroll container |
+| WR-04: the column/spacer rule conflicts with the App. E Users slide-over-in-region mockup | No. Nothing in Phase 2 renders that mockup (parity equal), so it is a forward-looking constraint on the Users phase (ROADMAP Phase 5 user management). It is not yet written into the D-42 records, and it should be (recipe comment, parity.md, a deferred item) | `overlays.recipe.ts:38-40`, `rulings.css:242-270` |
+
+On the owner's own setup (Chrome on Windows with classic scrollbars) truth 28 holds, which the probe confirmed in a real engine. Firefox headless on this Windows 11 machine reports overlay geometry (clientWidth 1280), but its edge press did not scroll the backdrop. That press was a plain scrim press, so closing was correct, and Firefox is not counted against the guard.
+
+**This may be intentional scope.** If the owner rules that staff use only Windows with classic scrollbars, accept the limit by adding this to the frontmatter (the status would then become `human_needed`):
+
+```yaml
+overrides:
+  - must_have: "Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before"
+    reason: "Owner ruling: the guard covers classic (layout-taking) scrollbars, the staff's Windows setup; overlay scrollbars (macOS trackpad, ChromeOS) are out of scope"
+    accepted_by: "{owner}"
+    accepted_at: "{ISO timestamp}"
+```
 
 ### Prohibitions (`must_haves.prohibitions`)
 
 | Plan | Prohibition | Tier | Enforcement evidence | Disposition |
 | --- | --- | --- | --- | --- |
-| 02-02 / 02-37 | No npm package or version outside the owner-approved set; no paid tool | test | `DependencyRegistryTests` in the 908/908 .NET run; no dependency added by either quick task (`tech-stack.added: []`, and `package.json` is not in their diff) | verified |
-| 02-05 | No text-bearing element below opacity 1 | test | Class gate in verify; `@a11y-rulings` D-02 in all five projects | verified |
+| 02-02 / 02-37 | No npm package or version outside the owner-approved set; no paid tool | test | 02-41 added no package (`tech-stack.added: []`; neither `package.json` nor the lockfile is in 6272a79..HEAD). License gate in verify: 0 problems | verified |
+| 02-05 | No text-bearing element below opacity 1 | test | Class gate in verify; `@a11y-rulings` D-02 re-run here in five projects | verified |
 | 02-06 | No browser-shipped package outside MIT/ISC/Apache/BSD/OFL-1.1 | test | License gate in verify: 16 shipped packages, 0 problems | verified |
-| 02-07 | A client money preview is never presented as the saved figure | judgment | `csps.ts` documents previews; no screen exists yet | **unverified-prohibition, human review recommended** (non-authoritative verifier judgment: holds). Human item 3 |
-| 02-09 | Never kill or reuse another project's processes or ports; no machine-level env vars | test | `shared-machine.mjs` tests in verify. Observed: the preflight was clear before each run here, and nothing was killed | verified |
-| 02-11 | No secrets or personal-data params in URLs | test | `createListParams` FORBIDDEN_FRAGMENTS and `assertNoSecretParams`, tests in verify | verified |
-| 02-14 | No look change outside the intentional-differences list; no tolerance | test | `compare.test.ts:365` pins `TOLERANCE_OVERRIDES` empty. Every D-41 change has a registered ruling (`rulings.css` D-41 groups, three `SPEC_OVERRIDES`, three `public-shell` h2 structural exceptions). Parity 456/456 | verified |
-| 02-27 | Never silently change typed money digits | test | `MoneyInput.test.tsx` in verify. A refused paste now shows a hint and leaves the value unchanged | verified |
-| 02-31 | No admin, `/dev` or parity code in a production build | test | Budget plugin and TOOL-CR-01 guard in verify. The reference-only overrides add 0 bytes to the app bundles (production public JS unchanged at 126.18 KB) | verified |
-| 02-36 | Never commit or upload the design exports or their renders | test | `git check-ignore` confirms `artifacts/owner-review/index.html` is ignored; the tree is clean after the review-pack and Lighthouse runs | verified |
+| 02-07 | A client money preview is never presented as the saved figure | judgment | Owner: UAT test 5 pass | human-resolved |
+| 02-09 | Never kill or reuse another project's processes or ports; no machine-level env vars | test | `shared-machine.mjs` tests in verify. Observed here: the preflight was clear before every server or Playwright run, and the only process stopped was this verifier's own Vite server | verified |
+| 02-11 | No secrets or personal-data params in URLs | test | Tests in verify | verified |
+| 02-14 | No look change outside the intentional-differences list; no tolerance | test | D-42 is registered (rulings.css, parity.md section 6, UI-SPEC row). `TOLERANCE_OVERRIDES` is still empty (`compare.test.ts` in verify), and 02-41 left `intentional-differences.ts` unchanged. `@overlays` parity 21/21 | verified |
+| 02-27 | Never silently change typed money digits | test | `MoneyInput.test.tsx` in verify | verified |
+| 02-31 | No admin, `/dev` or parity code in a production build | test | Budget plugin and guard in verify; production public JS unchanged at 126.18 KB | verified |
+| 02-36 | Never commit or upload the design exports or their renders | test | No `.planning/design/` or `_local/` path in 6272a79..HEAD | verified |
 
-### Required Artifacts (summary)
+### Required Artifacts
 
-| Area | Artifacts | Status | Details |
+| Artifact | Expected | Status | Details |
 | --- | --- | --- | --- |
-| SPA hosting | `SpaHosting.cs`, `SpaRegistration.cs`, `HiddenSegmentFileProvider.cs` | ✓ VERIFIED | Tests in the 908/908 run; Lighthouse served the built app from them |
-| Order math | `OrderMath.cs`, `OrderMathModels.cs`, `web/src/lib/csps.ts`, golden vectors v2 | ✓ VERIFIED | PRD names end to end (D-41 R2-06); both sides consume one file |
-| HTTP / API | `httpClient.ts`, `HttpError.ts`, `lib/api.ts`, `types/api.generated.ts` | ✓ VERIFIED | OpenAPI drift check passed here |
-| Forms / URL state / query | `lib/forms/*`, `lib/url-state/*`, `lib/query/*` | ✓ VERIFIED | Unchanged; tests in verify |
-| UI kit | `web/src/ui/**`, `ui/index.ts` | ✓ VERIFIED | D-41 edits in `navigation.recipe.ts`, `Topbar.tsx`, `Sidebar.tsx` (`aria-expanded`, R2-12), `lists.recipe.ts`, `MoneyInput.tsx` |
-| Layouts / router | `app/router.tsx`, `app/public/*` (`SiteFooter.tsx` h2, R2-17), `app/admin/*` | ✓ VERIFIED | Topbar overflow fixed (gap 1) |
-| Parity proof | `visual/reference/rulings.css`, `merge-kit.ts`, `fragments/Topbar.tsx`, `fragments/OrderTotals.tsx`, `fragments/OrderCard.tsx`, `intentional-differences.ts` | ✓ VERIFIED | Reference-only overrides are pinned by `merge-kit.test.ts`; parity 456/456 |
-| Gates | `verify.mjs`, `budget.ts`, `lighthouse*.mjs`, `e2e.mjs`, `parity.mjs`, `license-gate.mjs`, `owner-review.mjs`, `playwright.config.ts`, `visual/*` | ✓ VERIFIED | Each was run here, except `review`. Its pack exists from 14:04 and contains the before/after section and 6 PNGs |
+| (phase-wide areas) | SPA hosting, order math, HTTP/API, forms/URL state/query, UI kit, layouts/router, parity proof, gates | ✓ VERIFIED | Carried from the 15:20 report |
+| `web/src/ui/overlays/overlays.recipe.ts` | `overlayRegionClasses` D-42 transcription with `SPEC-DEVIATION: D-42` | ✓ VERIFIED | Lines 24-40: the exact token string; the doc comment carries the marker (count 1) |
+| `web/src/ui/overlays/overlays.recipe.node.test.ts` | Pins the tokens and the compiled CSS | ✓ VERIFIED | 7/7 run here: column, flex-start, centre, overflow-y auto, `> *` shrink 0, `::before` 124px, phone 96px with padding 0, no 140px |
+| `web/visual/reference/rulings.css` | D-42 rule groups for the frozen reference | ✓ VERIFIED | Four groups, each with a D-42 comment. They are unlayered, so they beat App. C's layered row rule |
+| `web/e2e/dialog-fit.spec.ts` | `@dialog-fit` short-window geometry and reachability | ✓ VERIFIED | 297 lines, 8 tests, imports only from `./fixtures.ts`; here 23 passed, 17 skipped (by design), 0 failed. It has no real-scrollbar case (gap) |
+| `web/src/ui/overlays/Modal.tsx` | The scrim mousedown ignores a press on the scrim's own scrollbar | ⚠️ PARTIAL | `pressedOnScrollbar` is declared at line 59 and used in `onMouseDown` at line 115, with the `SPEC-DEVIATION: D-42` marker. It is substantive and wired, but it covers classic scrollbars only (truth 28) |
+| `docs/web/parity.md` | Section 6 D-42 row | ✓ VERIFIED | Line 174 has three cells with decision `D-42`; the owner-review parser test passes |
 
 ### Key Link Verification
 
-| From | To | Via | Status |
-| --- | --- | --- | --- |
-| `app/router.tsx` | `public/PublicLayout` + `PublicPlaceholderPage` | `route.lazy` (`lazyRoute`) | WIRED |
-| `app/router.tsx` | `admin/routes.tsx` → `UrlStateLayout` → `AdminLayout` | `__DEV_ROUTES__ ? adminRoutes : []` | WIRED (dev, e2e and budget builds only, by design) |
-| `lib/api.ts` | `lib/http/httpClient.ts` | `createApi(http.createHttpClient({ baseURL: '/api/v1' }))` | WIRED |
-| `ui/lists/SearchBox` | URL / `useListQuery` | `limitUrlUpdates: debounce(300)` → `useSettledListParams` | WIRED |
-| `Topbar` search input | Ctrl+K / Cmd+K | window `keydown` → `isSearchShortcut` → `input.focus()` | WIRED (unit-tested with the window as target) |
-| `OrderTotals` / `OrderCard` | `csps.ts` `Totals.subtotal` | `['Subtotal', t.subtotal]` | WIRED |
-| `OrderMath.cs` / `csps.ts` | `tests/fixtures/order-math-golden-vectors.json` v2 | fail-closed xUnit loader (`UnmappedMemberHandling.Disallow`); Vitest golden test | WIRED |
-| Server | `wwwroot` | SPA fallback, static files, compression | WIRED (Lighthouse run) |
+| From | To | Via | Status | Details |
+| --- | --- | --- | --- | --- |
+| (phase-wide links) | | | WIRED | Carried from the 15:20 report |
+| `web/src/ui/overlays/Overlay.tsx` | `overlays.recipe.ts` | `className={overlayRegionClasses}` on the `data-ui="s-overlay"` region | WIRED | `Overlay.tsx:17-21` |
+| `web/visual/reference/rulings.css` | `reference.css` `.s-overlay` | Unlayered D-42 groups on the spec class | WIRED | `@overlays` parity 21/21 proves equal computed styles on both sides |
+| `web/e2e/dialog-fit.spec.ts` | `web/src/dev/ShowcaseDemos.tsx` | `[data-case="confirm-delete-order"]` → "Open Delete Order" → `<Overlay><ConfirmDialog inline …/></Overlay>` (`ShowcaseDemos.tsx:158-161`) | WIRED | Runs on the real host at https://localhost:5199 |
+| `web/src/ui/overlays/Modal.tsx` | the Overlay region scrim | `scrims = [overlay, region]` when the dialog is inline in `data-ui="s-overlay"`; `onMouseDown` checks `pressedOnScrollbar` before `requestClose()` | WIRED | `Modal.tsx:107-117`. The probe confirmed that a press on the region's scrollbar reaches this listener (target = region) in Chromium |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data | Source | Real data | Status |
 | --- | --- | --- | --- | --- |
-| Public/admin pages | Placeholder copy and nav | Static copy modules (D-21, D-20) | Phase 2 deliberately has no data screens | N/A (intentional placeholders, not stubs) |
-| `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` (Phase 1) | Real endpoint; no Phase 2 screen calls it | ✓ FLOWING at the API level |
-| OrderTotals / KpiCard / OrderCard | Showcase seed data | `src/dev/scenarios` (dev-only) | Seed fixtures by design. The demo table's Total column now shows the after-discount figure (₱21,327.50, ₱22,500.00) | N/A |
+| Public/admin pages | Placeholder copy and nav | Static copy modules (D-21, D-20) | Phase 2 deliberately has no data screens | N/A (carried) |
+| `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` | Real endpoint | ✓ FLOWING at the API level (carried) |
+| Delete Order demo dialog | ORD-2026-0148 cascade | `src/dev/scenarios` seed (dev-only) | Showcase fixture by design; 02-41 changes only the layout | N/A |
 
-### Behavioral Spot-Checks (run by this verifier on HEAD 7fd5d8b)
+### Behavioral Spot-Checks (run by this verifier on HEAD b0e00a1)
 
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
-| Shared-machine preflight (before each server, Playwright or full run) | `preflight.ps1 -Ports 5180,5115,7028,5199` | 4 runs: all ports free, no dev/test processes, no TheBETSLLC test processes | ✓ PASS |
-| Web gate chain | `npm --prefix web run verify` | exit 0; 107 files / 3020 tests; coverage 98.21/96.45/99.81/99.82 with thresholds held; budgets ok; license gate 0 problems; notices up to date | ✓ PASS |
-| .NET build | `dotnet build Csps.slnx` | 0 warnings, 0 errors | ✓ PASS |
-| .NET tests (one full run) | `CSPS_TEST_SQL=localdb dotnet test --solution Csps.slnx --no-build` (variable set for that process only) | 908/908 (906 before, plus the two new OrderMath tests) | ✓ PASS |
-| .NET format | `dotnet format Csps.slnx --verify-no-changes` | exit 0 | ✓ PASS |
-| Golden vectors | `dotnet test --project tests/Csps.Domain.UnitTests -- --filter-class *OrderMathGoldenVectorTests`; `node web/scripts/gen-golden-vectors.mjs --check` | 230/230; "matches the oracle (220 cases)"; version 2, every case has `subtotal` and `total` | ✓ PASS |
-| OpenAPI drift | `npm --prefix tools/openapi-gen run check` | types match the snapshot | ✓ PASS |
-| Full E2E (one full run, five projects) | `npm --prefix web run e2e` | 518 passed (29.4 min), exit 0. Per project: `@responsive` 13/13, `@admin` 12/12, showcase 320px page check 1/1 | ✓ PASS |
-| Lighthouse on the real host | `npm --prefix web run lighthouse` | 0.99 / a11y 1 / 1 / 1; LCP 1884 ms, CLS 0, TBT 0 ms | ✓ PASS |
-| Full parity matrix | `npm --prefix web run parity` | 456 passed (26.6 min), exit 0; includes `@lists @overflow` (768/820) in all three engines and the 4 `@lists` focus-visible rows | ✓ PASS |
-| Debt markers in the 51 non-planning files changed since b3204f9 | grep `TBD|FIXME|XXX|TODO|HACK` | none | ✓ PASS |
-| Builds leave the tree clean | `git status --porcelain` | clean, apart from an untracked `02-REVIEW-d41.md` written by the parallel code-review agent (not touched here) | ✓ PASS |
+| Shared-machine preflight (before every server or Playwright run, and after) | `preflight.ps1 -Ports 5180,5115,7028,5199` | 5 runs: all four ports free, no dev/test processes, no TheBETSLLC test processes | ✓ PASS |
+| 02-41 unit pins | `npm --prefix web run test -- --run src/ui/overlays visual/reference/rulings scripts/tailwind-classes.test.ts scripts/owner-review.test.ts` | 8 files, 256 tests passed: recipe node 7/7, Modal 36 (including the 4 D-42 scrollbar tests), rulings 41 (including the D-42 pin), class gate 57, owner-review 62 | ✓ PASS |
+| `@dialog-fit`, all five projects | `npm --prefix web run e2e -- --grep @dialog-fit` | 23 passed, 17 skipped, 0 failed, 56 s. The skips are by design: desktop tests skip on the device projects, and the device test skips on the desktop engines | ✓ PASS |
+| Overlays parity and self-test | `npm --prefix web run parity -- --grep "@overlays\|@selftest"` | 21 passed in chromium, firefox and webkit, exit 0 | ✓ PASS |
+| Web gate chain | `npm --prefix web run verify` | exit 0; 109 files, 3087 tests; coverage 98.25 / 96.52 / 99.81 / 99.82; budgets ok; license gate 0 problems; notices up to date; no warning lines | ✓ PASS |
+| Dialog-adjacent E2E, all five projects | `npm --prefix web run e2e -- --grep "@showcase\|@keyboard\|@a11y-rulings"` | 360 passed (19.1 min), exit 0: 72 each in chromium, firefox, webkit, pixel and iphone, with 0 failed and 0 flaky | ✓ PASS |
+| Real-scrollbar probe 1. A one-off script in the session scratchpad, run against this project's own Vite dev server on 5180, which the verifier started and then stopped | Playwright at 1280x420 in three configurations: Chromium without `--hide-scrollbars` (classic), Chromium with `--enable-features=OverlayScrollbar`, and Firefox default. Steps: type ORD-2026-0148, drag at x = 1276 from y 120 to 300, click the scrim at (20, 60), middle-click the scrim | Classic: clientWidth 1265 of 1280; dialog **open**, text kept, scrollTop 0 → 105; the scrim click closed it. Overlay: clientWidth 1280; dialog **closed** by the drag. Firefox: clientWidth 1280; dialog closed. Middle-click closed it in all three | ✓ classic / ✗ overlay |
+| Real-scrollbar probe 2: was the edge press a real scrollbar press? | As probe 1, but a capturing window listener records the mousedown, evaluates the guard's arithmetic and stops the event before the Modal sees it | Classic: target = region, `guardWouldSkip: true`, scrolled 105. **Overlay: target = region, `guardWouldSkip: false`, scrolled 105**, so it was a real scrollbar drag that the guard misses. Firefox: target = region, `guardWouldSkip: false`, scrolled 0, so it was not a scrollbar press | ✗ FAIL (overlay scrollbars), confirms the truth 28 gap |
+| Debt markers in the 8 non-planning files changed by 02-41 | grep `TBD\|FIXME\|XXX\|TODO\|HACK\|PLACEHOLDER` | none | ✓ PASS |
+| Inline styles in the overlays | grep `style=` in `src/ui/overlays/*.tsx` (non-test) | none | ✓ PASS |
 
 ### Probe Execution
 
-Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares a probe. SKIPPED.
+Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one, so this step is SKIPPED. The "real-scrollbar probes" above are one-off verifier spot-checks, not declared probes.
 
 ### Requirements Coverage
 
 | Requirement | Source plans | Status | Evidence |
 | --- | --- | --- | --- |
 | WEB-01 | 02-01, 02, 03, 06, 37 | ✓ SATISFIED | Truths 1-3 |
-| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40 | ? NEEDS HUMAN | Parity 456/456; owner look approval (R2-05) pending |
+| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40, **41** | ✓ SATISFIED | Parity proof; owner look approval (UAT 2-3 pass); D-42 registered and parity-equal (truths 24, 30). The owner's re-check of the short-window look is UAT 199 |
 | WEB-03 | 02-10 | ✓ SATISFIED | Truth 12 |
 | WEB-04 | 02-04, 15, 16 | ✓ SATISFIED | Truth 14 |
-| WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Layouts, lazy routes, error boundaries, drawer; reflow fixed |
-| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34 | ✓ SATISFIED | Truth 9 |
-| WEB-07 | 02-07 (+ quick-261013-ihp) | ✓ SATISFIED | Truth 11; PRD names applied (NET-WR-02 closed) |
-| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15 (meaning of intent prefetch: human item 4) |
+| WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Carried |
+| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34, **41** | ⚠️ SATISFIED with gap | Truth 9; ConfirmDialog is usable on short windows (truths 25-27). Its scrollbar guard is partial (truth 28, gap): with overlay scrollbars, dragging the backdrop can still drop the typed confirm text |
+| WEB-07 | 02-07 | ✓ SATISFIED | Truth 11 |
+| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15; the owner confirmed the meaning of intent prefetch (UAT 11) |
 | WEB-09 | 02-10, 16, 17 | ✓ SATISFIED | Truth 13 |
 | WEB-10 | 02-11, 30, 31 | ✓ SATISFIED | Truth 19 |
 | ORD-09 | 02-08, 23, 27 | ✓ SATISFIED | Truth 10 |
 | QUAL-02 | 02-02, 04, 37 | ✓ SATISFIED | Truth 3 |
 | QUAL-04 | 02-09, 35 | ✓ SATISFIED | Truth 16 |
-| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe in components and pages (page behind an open phone dialog not inert: ruled to Phase 4, R2-10) |
-| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35 | ✓ SATISFIED | The "visible focus" part now holds for the list SearchBox (gap 2 closed); the sidebar toggle exposes `aria-expanded` (R2-12) |
-| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36 | ✓ SATISFIED | Truth 18 |
+| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe violations in components and pages; `@dialog-fit 1280x420` is axe-clean with the backdrop scrolling |
+| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35, **41** | ✓ SATISFIED | Delete Order is reachable by keyboard on a short window (truth 26); focus trap and Esc are unchanged (truth 29) |
+| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36, **41** | ✓ SATISFIED | Truth 18; D-42 is the owner ruling for the WCAG 1.4.10 dialog conflict (truth 30) |
 | PERF-01 | 02-33 | ✓ SATISFIED | Truth 4 |
 | PERF-02 | 02-03, 35 | ✓ SATISFIED | Truth 17 |
-| PERF-03 | 02-20, 27, 30, 35 | ✓ SATISFIED | Truth 7 (gap 1 closed) |
-| PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 (Arial Narrow fallback ruled keep, R2-19) |
+| PERF-03 | 02-20, 27, 30, 35, **41** | ✓ SATISFIED | Truth 7, plus dialog reflow on short windows (truths 25-27) |
+| PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 |
 
-Orphaned requirements: none. **Bookkeeping for the orchestrator:** `.planning/REQUIREMENTS.md` still lists PERF-03, A11Y-02 and WEB-07 as "Gaps Found" and A11Y-04 as "Pending". The evidence above supports updating them. WEB-02 stays Pending until the owner's visual sign-off.
+All 20 phase requirement IDs are accounted for, and `.planning/REQUIREMENTS.md` maps exactly these 20 to Phase 2, so none is orphaned. **Bookkeeping for the orchestrator:** the REQUIREMENTS.md traceability table still shows "Gaps Found" for 18 of them and "Pending" for WEB-02 and A11Y-04. Once the truth 28 gap is closed or overridden, the evidence above supports updating them.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| (51 non-planning files changed by the two quick tasks, and the earlier phase files) | — | TBD / FIXME / XXX / TODO / HACK | — | None found |
-| `web/e2e/responsive.spec.ts`, `web/visual/lists-overflow.spec.ts` | — | The earlier defect-as-exemption blockers | — | Removed: both now assert the plain no-sideways-scroll rule |
-| `web/src/ui/overlays/Modal.tsx` / `ConfirmDialog.tsx` | — | Page behind an open dialog not `inert`; `@keyboard` scopes axe to the dialog | ⚠️ Warning (owner-ruled) | R2-10 accepted, scheduled for Phase 4 |
-| `web/visual/parity-matrix.ts` | 92 | Focus-visible parity rows run in Chromium only (harness convention since 02-14) | ℹ️ Info | The SearchBox focus border is pixel-proven in Chromium only. In Firefox and WebKit it rests on the shared Tailwind `focus-within:` utility and the unit/recipe tests |
-| Lighthouse LCP | — | 1884 ms against a 2000 ms limit | ℹ️ Info | Unchanged headroom (~116 ms); owner accepted as an FYI (R2-28) |
-
-Earlier warnings now settled by D-41: NET-WR-02 (fixed, R2-06), TOOL-WR-13 `.npmrc` waivers (ruled keep, R2-26), TOOL-WR-11 Arial Narrow fallback (ruled keep, R2-19), UI-WR-07 (fixed, R2-04), UI-WR-09 (fixed, R2-18).
+| (the 8 non-planning files changed by 02-41) | — | TBD / FIXME / XXX / TODO / HACK / PLACEHOLDER | — | None found |
+| `web/src/ui/overlays/Modal.tsx` | 59-68, 113-117 | The scrollbar guard is geometry-only and does not check `event.button` (review WR-01) | 🛑 Blocker (truth 28) | A real overlay-scrollbar drag closes the Delete Order dialog and loses the typed text (probe 2) |
+| `web/e2e/dialog-fit.spec.ts` | whole spec | Headless runs hide scrollbars, so the suite never exercises the scrollbar path (review WR-02) | ⚠️ Warning | This is why the truth 28 defect went unseen; it is part of the gap's `missing` list |
+| `web/src/ui/overlays/overlays.recipe.ts` | 39, with `modalBase` | The modal's 0.2 s rise can overflow the scrolling region by about 2px for a bottom-flush phone sheet, so a classic scrollbar may flash (review WR-03) | ⚠️ Warning | Transient. It does not happen on real phones (overlay scrollbars) or in the resting geometry. Either fix changes the look, so it needs the owner (D-08) |
+| `overlays.recipe.ts` / `rulings.css` D-42 | 38-40 / 242-270 | The unconditional column + `::before` spacer will clash with the App. E Users slide-over-in-region mockup (review WR-04) | ⚠️ Warning (forward-looking) | Nothing in Phase 2 renders that mockup. The Users phase will need a region variant, and the D-42 records do not yet say so |
+| `web/src/ui/overlays/Modal.tsx` / `ConfirmDialog.tsx` | — | The page behind an open dialog is not `inert` | ⚠️ Warning (owner-ruled) | Carried: R2-10 ruled to Phase 4 |
+| `web/visual/parity-matrix.ts` | 92 | Focus-visible parity rows run in Chromium only | ℹ️ Info | Carried |
+| Lighthouse LCP | — | 1884 ms against a 2000 ms limit | ℹ️ Info | Carried (R2-28 FYI) |
 
 ### Advisory (New Scope, Unevidenced)
 
-None. No new-scope finding was raised in this re-verification.
+None. Every new finding above has deterministic evidence (the probe or a code read with line numbers), or it is a review warning already tracked in `02-REVIEW-g199-DISPOSITION.md`.
 
 ### Human Verification Required
 
-These are owner hands-on items, not gaps. They map to R2-05 and R2-20 to R2-23 in `999.1/DECISIONS.md` and to the pending tests in `02-UAT.md`.
+The owner has passed every hands-on item from the 15:20 report (UAT tests 2-5, 9, 11-13 and 196). After the truth 28 gap is closed or overridden, these two remain:
 
-#### 1. Owner visual review, including the R2-06 before/after wording (R2-05; UAT tests 2-3; BLOCKING sign-off per plan 02-36)
+#### 1. Re-check UAT test 199 (G-2-199, D-42) in Chrome at 125-150% zoom
 
-**Test:** Open `C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\index.html`, including the section "Wording changes for you to confirm (before and after)", and `artifacts\owner-review\side-by-side\index.html`.
-**Expected:** The public layout, the admin frame and the showcase match the approved design in Blush and Espresso at 390, 820 and 1440 px. The SPEC-GAP parts look like they belong. The intentional differences, D-41 included, are correct. The owner confirms the "Subtotal" wording and note, or asks for a change.
-**Why human:** Look approval belongs to the owner. The D-23 pack (generated 14:04) postdates every D-41 code change. The D-24 side-by-side (05:13) does not; regenerate it first with `node web/scripts/design-side-by-side.mjs` after the preflight.
+**Test:** Open `/dev/components` and press "Open Delete Order". Shorten the window until the dialog no longer fits, type the order number, and drag the dark backdrop's scrollbar. Then click the dark area outside the dialog.
+**Expected:** The dialog is centred on the window. The whole dialog shows, Cancel and Delete Order included, or the backdrop scrolls to them. On a normal-height window it sits where it did before. Dragging the scrollbar scrolls without closing the dialog or clearing the typed text. A click on the dark area still closes it.
+**Why human:** The owner found the defect at real zoom on a real screen, and headless tests hide scrollbars and do not zoom. Closing G-2-199 in `02-UAT.md` needs this check (`/gsd-verify-work 2`).
 
-#### 2. Long-text wrapping in the showcase screenshots (R2-23; UAT test 4; truth 23)
+#### 2. Decide on the remaining 02-41 review warnings (`02-REVIEW-g199-DISPOSITION.md`)
 
-**Test:** In the review pack, check the long toast, the long field error and the long EmptyState message.
-**Expected:** Each wraps inside its box with no overflow.
-**Why human:** This backstop truth's evidence is defined as the screenshots.
-
-#### 3. Judgment prohibition: a money preview is never shown as the saved figure (plan 02-07; UAT test 5)
-
-**Test:** Confirm the rule stands for Phase 8.
-**Expected:** Screens show server figures after a save.
-**Why human:** Unverified prohibition; human review recommended. No screen exists yet.
-
-#### 4. Intent prefetch on a phone (R2-20; UAT test 11)
-
-**Test:** On a real phone, tap a link once; on desktop, hover or focus a link.
-**Expected:** A first tap never prefetches; about 100 ms of hover or focus does.
-**Why human:** This confirms a planner assumption, and touch behaviour needs a real device.
-
-#### 5. Focus and timer fixes (R2-21)
-
-**Test:** On `/dev/components`, stack dialogs, use a toast while a dialog is open, dismiss a toast, and change the Pagination page.
-**Expected:** Dialogs stack correctly; toasts stay reachable; focus returns sensibly; Pagination keeps focus.
-**Why human:** Focus feel is a hands-on judgment.
-
-#### 6. Screen-reader and real-phone spot checks (R2-22; UAT test 9)
-
-**Test:** Use NVDA or VoiceOver on `/dev/components`.
-**Expected:** Toasts are announced once, politely, and dialogs, totals, charts, the uploader and the rating read sensibly.
-**Why human:** Only a real screen reader shows what is announced. The full pass belongs to A11Y-05 in Phase 14, so the owner may skip this with that reason.
-
-#### 7. Docs read clearly (UAT tests 12-13)
-
-**Test:** Read the owner-facing docs and the developer guides listed in the frontmatter.
-**Expected:** Clear in plain words.
-**Why human:** Reading judgment.
-
-**UAT bookkeeping (no hands-on test left; record from this report when `/gsd-verify-work 2` resumes):**
-- Test 6 (order-math naming): decided (a) under D-41 R2-06 and implemented. The wording look is part of item 1.
-- Tests 7 and 8 (the two verifier gaps): closed with the evidence above.
-- Tests 10 and 14: answered by D-41 ("Get a Quote" stays a button; each look and copy item is ruled).
+**Test:** Mark WR-03 and WR-04 as fix, defer or accept. WR-01 and WR-02 are covered by the gap, or by the override if the owner chooses it.
+**Expected:** A recorded decision for each. WR-03 is a possible 200 ms scrollbar flash on phone-width desktop windows; it is a look change, so D-08 applies. WR-04 says the later Users slide-in panel needs its own region variant; record it as a deferred item.
+**Why human:** These are look and scope choices that only the owner can make.
 
 ### Gaps Summary
 
-Both earlier gaps are closed, and the evidence comes from runs made here, not from the SUMMARY claims.
+**One gap: truth 28, the backdrop-scrollbar guard (partial).** Plan 02-41 promised that pressing the backdrop's own scrollbar never closes the dialog. The guard decides this from layout geometry, which works only for scrollbars that take up space.
 
-1. **No horizontal scroll from 320 to 1920 px (SC2, PERF-03).** The Topbar search box shrinks (`min-w-0`), and the table frame contains its paint from 768 px up. The per-engine exemption is gone. The plain `scrollWidth <= innerWidth` rule now passes on every page at all 16 sizes in Chromium, Firefox and WebKit, and on the Pixel 7 and iPhone 15 screens. The tablet-table spec now asserts that the page does not scroll.
-2. **WCAG conflicts ruled and applied (SC5, A11Y-04, A11Y-02 "visible focus").** The owner ruled every open item (D-41). The list search box shows a `--focus` border whose contrast is proven at ≥ 3:1 in both themes. It is pixel-equal to the ruled reference in the focus-visible parity rows. The search shortcut needs Ctrl or Cmd, and a bare "/" does nothing. The two reflow items are fixed as above.
+- **Classic scrollbars (Chrome on Windows, the owner's setup):** a real-browser probe confirmed the guard works.
+- **Overlay scrollbars (Chrome and Safari on macOS with a trackpad, ChromeOS):** a real scrollbar drag still closes the Delete Order dialog and throws away the typed order number. This is review warning WR-01, confirmed here in a browser.
+- **Why nothing caught it:** the automated suite never presses a real scrollbar, because headless Playwright hides scrollbars (WR-02).
 
-The owner's NET-WR-02 decision is also implemented: the PRD names Subtotal and Total run end to end across C#, TypeScript and the version-2 golden vectors, and all amounts are unchanged. No regression was found in the 908 .NET tests, the 3020 web tests, the 518 E2E tests, the 456 parity rows or Lighthouse.
+The fix is small and local to `Modal.tsx` and `dialog-fit.spec.ts`, as the `missing` list describes. Alternatively, if overlay-scrollbar platforms are out of scope for staff, the owner can accept the limit with the override above, and the status becomes `human_needed`.
 
-What remains needs the owner in person: the visual sign-off (R2-05, which now includes the before/after wording), and the manual checks R2-20 to R2-23 with the other pending UAT tests. Hence `human_needed`.
+Everything else in 02-41 holds, and runs made here prove it rather than the SUMMARY's claims:
+
+- The Delete Order dialog keeps its approved place where it fits (140px desktop, 96px phone), and the `@overlays` parity rows stay equal.
+- At the owner's 1274x585 window it moves up and fits whole.
+- On shorter windows and short phone pages the dark backdrop scrolls, and both the wheel and the keyboard reach Delete Order. This holds in Chromium, Firefox and WebKit and on the Pixel 7 and iPhone 15 screens.
+- The fix is pure CSS and follows the D-42 ruling, which is recorded where every look ruling lives.
+- Nothing regressed: verify passed 3087/3087, the dialog-adjacent E2E passed 360/360 in five projects, and parity passed 21/21.
+
+Step 9b: no later ROADMAP phase covers the Modal scrim close rule, so the gap is not deferred. WR-04 alone points at the Users phase (Phase 5), and it is a warning, not a gap.
 
 ### Verifier side effects (disclosed)
 
-- The E2E and parity runs overwrote the git-ignored `web/test-results/` folder. The parity run regenerated `web/test-results/parity-results.json`, the input for `npm run review`. Lighthouse rewrote the git-ignored `artifacts/lighthouse/report.json`.
-- The production build from the verify and Lighthouse runs rewrote the git-ignored `src/Csps.Server/wwwroot`.
-- No tracked file was changed apart from this report. `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` (the function behind `gsd-tools query verification.fingerprint`) from a small script. Passing 760 paths on the command line exceeds the Windows argument limit.
+- The E2E and parity runs overwrote the git-ignored `web/test-results/` folder, including `parity-results.json`. The verify run rewrote the git-ignored `src/Csps.Server/wwwroot` and `.budget-dist`.
+- For the probes, the verifier ran a clear preflight, then started this project's own Vite dev server on 5180 (`npx vite --port 5180 --strictPort` in `web/`). Afterwards it stopped that process (PID 12240, command line `web\node_modules\.bin\..\vite\bin\vite.js --port 5180 --strictPort`), and a final preflight showed all four ports free. No other process was touched. The probe scripts live in the session scratchpad, not in the repository.
+- No tracked file was changed apart from this report (`git status`: only the pre-existing untracked `.claude/launch.json`). `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` in-process over the 765 covered paths; that function is behind `gsd-tools query verification.fingerprint`. The list adds the 02-41 PLAN and SUMMARY, `dialog-fit.spec.ts`, `overlays.recipe.node.test.ts` and `fixedLayerGuard.ts`.
 
 ---
 
-_Verified: 2026-10-13T20:20:00Z_
+_Verified: 2026-10-13T23:30:00Z_
 _Verifier: Claude (gsd-verifier)_
