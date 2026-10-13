@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-09T07:25:00-05:00"
+updated: "2026-10-13T05:20:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -124,3 +124,12 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   status: open
   **What:** the A11Y-02 keyboard journeys must show that a confirm dialog with no type-to-confirm field puts the focus on Cancel. Every confirm demo on `/dev/components` had the field (the order delete), so plan 02-35 added a demo at the end of the Feedback section: a danger button "Open Delete Payment" that opens the spec's child-row delete ("Delete payment of ₱2,000.00?", "This removes it from ORD-2026-0148 and updates the totals right away.", "Delete Payment" / Cancel; CSPS-UI-SPEC "Deleting a child row"). Delete Payment only closes it; nothing is deleted and no toast appears. It is dev-only (D-20) and its trigger words sit with the others in `web/src/dev/showcaseCopy.ts`.
   **Question for the owner:** this joins the 02-34 question about the showcase's demo button words above; keep it, or name it differently?
+
+- Owner visual review of the phase 2 look: the D-23 screenshot report and the D-24 side-by-side (plan 02-36, end-of-phase human check, BLOCKING the phase sign-off, not the build)
+  status: open
+  **What:** plan 02-36 produced both local review reports on this machine (git-ignored, never committed or uploaded). The owner was away, so the look was NOT approved on the owner's behalf.
+  **Open these files (double-click):**
+  - `C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\index.html` (made 2026-10-13): 39 page pictures (the public home in Blush; Dashboard, Orders, Company Expenses, Users and My Profile previews and the Component Showcase in Blush and Espresso; each at 390, 820 and 1440 px wide), then 54 pictures of the 27 SPEC-GAP parts the design never drew (each in both themes), then the automatic look check (latest full run 2026-10-09: 452 rows matched, 0 did not, in Chrome, Firefox and Safari engines) and the 16 intentional differences with their decision IDs. The pages reported no errors while the pictures were taken.
+  - `C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\side-by-side\index.html`: the same six pages next to the matching screens of the original design files (`.planning/design/`), same width and theme (32 design pictures; the public design has no tablet screen).
+  **What to check:** (1) the public layout (Blush) and the admin frame (side menu, top bar, phone tab bar) plus the showcase, in Blush and Espresso at 390/820/1440, look like the approved design (the admin pages and the public home are still placeholders: compare the frame, colours, fonts and spacing, not the page content); (2) the SPEC-GAP parts look like they belong: page numbers (Pagination), sign-in code boxes (OtpInput), money boxes (MoneyInput), tick boxes (Checkbox), the skip link, the list states (loading, error, empty, no matches, refreshing), pictures (LazyImage), error boxes (ErrorState), loading placeholders (skeletons), the phone menu (drawer) and the account menu; (3) the differences list matches what was decided.
+  **What happens next:** every difference the owner names becomes a gap-closure fix; any change that would alter the approved look comes back as a D-08 before/after first. To refresh the reports later: `npm --prefix web run review`, then `node web/scripts/design-side-by-side.mjs` (guide: `docs/web/owner-review.md`).
