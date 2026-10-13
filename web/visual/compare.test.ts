@@ -330,7 +330,7 @@ describe('structural exceptions: a tag mismatch is reported unless the registry 
 });
 
 describe('the intentional-differences registry', () => {
-  it('lists the D-27 Logout exception for the three sidebar and eight admin shell scenarios and the D-32 icon-drawing mask', () => {
+  it('lists the D-27 Logout exception for the three sidebar and eight admin shell scenarios, the D-41 footer headings and the D-32 icon-drawing mask', () => {
     expect(
       STRUCTURAL_EXCEPTIONS.map((entry) =>
         entry.kind === 'element' ? `${entry.scenario} ${entry.path} ${entry.decision}` : entry.decision,
@@ -347,8 +347,17 @@ describe('the intentional-differences registry', () => {
       'admin-shell-767-5-dark 0/0/0/0/0/2/1 D-27',
       'admin-shell-1023-5 0/0/0/0/0/2/1 D-27',
       'admin-shell-1023-5-dark 0/0/0/0/0/2/1 D-27',
+      'public-shell 0/2/0/0/1/0 D-41',
+      'public-shell 0/2/0/0/2/0 D-41',
+      'public-shell 0/2/0/0/3/0 D-41',
       'D-32',
     ]);
+    // D-41 R2-17: the three public footer column titles are h2 where the approved footer has h4.
+    expect(
+      STRUCTURAL_EXCEPTIONS.filter((entry) => entry.kind === 'element' && entry.decision === 'D-41').map((entry) =>
+        entry.kind === 'element' ? `${entry.reference}>${entry.impl}` : '',
+      ),
+    ).toEqual(['h4>h2', 'h4>h2', 'h4>h2']);
     expect(maskedIcon('impl')?.viewBox).toBe('0 0 24 24');
   });
 
