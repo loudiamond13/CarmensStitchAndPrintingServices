@@ -97,7 +97,15 @@ export function ConfirmDialog({
     if (busy || !ok || inFlight.current) {
       return;
     }
-    const result = onConfirm?.();
+    // SPEC-DEVIATION: UI-WR-06 an action that throws before it returns a promise (a guard, a null deref) is a failure
+    // too: the dialog stays open and shows the failure line, instead of the error escaping the click handler unseen.
+    let result: unknown;
+    try {
+      result = onConfirm?.();
+    } catch (error: unknown) {
+      fail(error);
+      return;
+    }
     if (!isPromiseLike(result)) {
       return;
     }

@@ -271,6 +271,32 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(alerts.every((alert) => screen.getByRole('dialog').contains(alert))).toBe(true);
   });
 
+  it('treats an onConfirm that throws before returning as a failure, stays open and allows a retry (UI-WR-06)', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi
+      .fn<() => unknown>()
+      .mockImplementationOnce(() => {
+        throw new TypeError('order is undefined');
+      })
+      .mockImplementationOnce(() => undefined);
+    render(<DeleteOrder onConfirm={onConfirm} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+
+    const failure = screen
+      .getAllByRole('alert')
+      .find((alert) => alert.localName === 'p' && alert.closest('[role="dialog"]'));
+    expect(failure?.textContent).toMatch(/^Something went wrong/);
+    expect(failure?.textContent).not.toContain('order is undefined');
+    expect(deleteButton()).toBeEnabled();
+    expect(deleteButton()).toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await user.click(deleteButton());
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+  });
+
   it('places the error above the buttons, at the end of the text column', async () => {
     const user = userEvent.setup();
     render(<DeleteOrder onConfirm={() => Promise.reject(serverError())} />);
