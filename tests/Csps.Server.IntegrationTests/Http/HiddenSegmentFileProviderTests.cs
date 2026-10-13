@@ -2,6 +2,8 @@ using System.Collections;
 using System.Net;
 using Csps.Server.Composition;
 using Csps.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.FileProviders.Physical;
 using Microsoft.Extensions.Primitives;
@@ -206,6 +208,22 @@ public sealed class HiddenSegmentFileProviderTests
 
         token.ShouldBeSameAs(inner.Token);
         inner.Calls.ShouldBe(["watch:**/*.js"]);
+    }
+
+    // NET-WR-03: the rule protects the web root itself, not one middleware's copy of it, so the shell fallback, any
+    // later UseDefaultFiles/UseFileServer and any service reading IWebHostEnvironment all get the same L-04 rule.
+    [Fact]
+    public async Task TheHostsWebRootProviderIsTheWrapper()
+    {
+        File.Exists(Path.Combine(CspsApiFactory.FixtureWebRoot, ".vite", "license.md"))
+            .ShouldBeTrue("the hidden fixture must exist for this test to mean anything");
+        await using var factory = new CspsApiFactory();
+
+        var webRoot = factory.Services.GetRequiredService<IWebHostEnvironment>().WebRootFileProvider;
+
+        webRoot.ShouldBeOfType<HiddenSegmentFileProvider>();
+        webRoot.GetFileInfo("/.vite/license.md").Exists.ShouldBeFalse();
+        webRoot.GetFileInfo("/assets/app-fixture.js").Exists.ShouldBeTrue();
     }
 
     [Fact]

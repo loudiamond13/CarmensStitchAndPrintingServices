@@ -53,6 +53,11 @@ builder.Services.AddCspsSpaHosting();
 
 var app = builder.Build();
 
+// The web root itself hides paths with a dot or tilde segment (build internals such as .vite/license.md, 8.3 aliases):
+// they read as missing and get the file 404 (L-04). Wrapped once, before any middleware, so every consumer of the web
+// root (static files, the shell fallback, any service reading IWebHostEnvironment) gets the same rule (NET-WR-03).
+app.Environment.WebRootFileProvider = new HiddenSegmentFileProvider(app.Environment.WebRootFileProvider);
+
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -73,14 +78,9 @@ app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.H
 // Compresses the static text below (and the shell) when the browser accepts it; the MIME list excludes JSON (PERF-02).
 app.UseResponseCompression();
 
-// The built React app's files from the web root, anonymously and before authorization (WEB-01). Paths with a dot or
-// tilde segment (build internals such as .vite/license.md, 8.3 aliases) read as missing and get the file 404 (L-04).
-// Hashed /assets/* files are cached as immutable, everything else revalidates (PERF-02).
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new HiddenSegmentFileProvider(app.Environment.WebRootFileProvider),
-    OnPrepareResponse = SpaCaching.Apply,
-});
+// The built React app's files from the (wrapped) web root, anonymously and before authorization (WEB-01). Hashed
+// /assets/* files are cached as immutable, everything else revalidates (PERF-02).
+app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply });
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
