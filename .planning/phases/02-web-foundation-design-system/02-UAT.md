@@ -1,27 +1,15 @@
 ---
-status: partial
+status: complete
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md]
 started: 2026-10-13T10:53:22-05:00
 created: 2026-10-13T10:53:22-05:00
-updated: 2026-10-13T10:53:22-05:00
+updated: 2026-10-13T16:10:00-05:00
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-[testing paused — 13 items outstanding]
-
-Prepared while the owner was away (no test was presented to the owner). Resume with `/gsd-verify-work 2`: it picks up from the first [pending] test (test 2). Only tests 2-14 need the owner; everything else is pre-resolved.
-
-Before resuming:
-- Regenerate the review pack first (it predates the code-review fixes): run `powershell -NoProfile -ExecutionPolicy Bypass -File C:Workdev-toolspreflight.ps1 -Ports 5180,5115,7028,5199`, then `npm --prefix web run review`.
-- Tests 7 and 8 are the two verifier gaps (02-VERIFICATION.md, status gaps_found). They need owner rulings from deferred-items.md "Owner decisions pending", then a gap-closure fix, before they can pass.
-
-Prep notes:
-- Commit-claim reconciliation: all 40 SUMMARYs consistent (bounded window plan_head_before..plan_head_after equals the claimed commit count, plan_head_after is an ancestor of HEAD). No commit_claim_mismatch. Format WARNING: the count sits at `actuals.commits` (indented), so the workflow's literal `^commits:` grep reads "absent"; reconciled with the nested value instead.
-- Coverage classification: 39 SUMMARYs in coverage mode (no errors, no malformed blocks); 02-36-SUMMARY.md is legacy (no coverage block) and its deliverables were derived from prose (tests 2, 3, 12).
-- Human checkpoints were deduplicated by visible behaviour; each test lists its source plans. Auto-passed coverage entries are kept one per deliverable with coverage_id = plan/D-id.
+[testing complete]
 
 ## Tests
 
@@ -43,80 +31,90 @@ evidence: |
 
 ### 2. Owner visual review of the Phase 2 look (D-23 report and D-24 side-by-side)
 expected: Open C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\index.html and artifacts\owner-review\side-by-side\index.html. The public layout (Blush), the admin frame and the Component Showcase, in Blush and Espresso at 390, 820 and 1440 px, look like the approved design. The placeholder page reads like the approved page head (eyebrow, uppercase italic heading with the accent word, lead line). The 56 icons, the filter toolbar and the order-item row look right. The 16 intentional differences listed in the report match what was decided. Each difference you name becomes a fix.
-result: [pending]
+result: pass
 source_plans: [02-36 (legacy SUMMARY), 02-02 D5, 02-20 D6, 02-34 D5, 02-40 D6]
 why_human: The look approval belongs to the owner and is the BLOCKING end-of-phase check (plan 02-36, ROADMAP SC2, WEB-02). The automated parity proof (452/452 in Chromium, Firefox, WebKit) compares against the spec's own code, not the owner's eye. 02-02 D5 / 02-20 D6 / 02-40 D6 are looks that only the parity harness or the screenshots show.
 note: The pack was generated at 05:06 on 2026-10-13, BEFORE the code-review fixes. Regenerate it first with `npm --prefix web run review` (run the preflight first; it uses port 5199 and the CSPS_E2E database). The side-by-side is regenerated with `node web/scripts/design-side-by-side.mjs`. How to read both: docs/web/owner-review.md.
 
 ### 3. SPEC-GAP parts look like they belong (no approved design to compare with)
 expected: In the review pack's SPEC-GAP section (27 cases x 2 themes) - Pagination, OtpInput, MoneyInput, Checkbox, SkipLink, the list states, ErrorState, skeletons, LoadingRegion, LazyImage, the admin drawer and the user menu popover - each part looks like it belongs with the approved design in both Blush and Espresso.
-result: [pending]
+result: pass
 source_plans: [02-27 D6, 02-28 D7, 02-32 D4, 02-36]
 why_human: SPEC-GAP primitives have no approved reference, so no automated comparison exists; the UI-SPEC routes them to the owner's D-23 screenshot review.
 
 ### 4. Long text wraps inside its box (showcase backstop)
 expected: In the review pack's Component Showcase shots, the long toast message, the long field error and the long EmptyState message each wrap inside their box (toast text as a column; EmptyState message at most 380px wide) with no overflow and nothing cut off.
-result: [pending]
+result: pass
 source_plans: [02-34 D5, 02-VERIFICATION truth 23]
 why_human: The backstop truth's evidence is defined as the D-23 screenshots; no test measures these three cases directly.
 
 ### 5. Money preview is never shown as the saved figure (rule for later phases)
 expected: You agree the rule stands - totals the browser works out (csps.ts orderTotals) are only ever labelled and shown as a preview; once an order is saved, screens show the server's figures. (Today no Phase 2 screen saves or shows a saved order; Phase 8 order screens must follow this.)
-result: [pending]
+result: pass
 source_plans: [02-07 D6, 02-VERIFICATION prohibition]
 why_human: Judgment-tier prohibition; no test can enforce it until order screens exist. Verifier's non-authoritative judgment: it holds today.
 
 ### 6. Order math naming decision (NET-WR-02, settle before Phase 5)
 expected: You pick one - (a) the PRD naming: "Subtotal" is the amount before discounts and "Total" = Subtotal - Discount, renamed across OrderMath.cs, csps.ts and the 220 golden test cases; or (b) keep the design's naming ("Total" before discounts) as a recorded difference from the PRD. The choice is recorded.
-result: [pending]
+result: pass
+source: owner ruling D-41 R2-06
+evidence: Owner chose the PRD names (Subtotal before discount, Total after discount); implemented in quick-261013-ihp. The before/after wording is confirmed visually in test 2.
 source_plans: [02-VERIFICATION human item 4, deferred-items.md "Order math naming"]
 why_human: Owner decision on the meaning of a Core Value figure. Cheap to rename now, expensive after Phase 5 builds on the name.
 
 ### 7. No sideways scroll from 320 to 1920 px (verifier gap 1)
 expected: Every page, public and admin, fits the screen from 320 to 1920 px wide with no sideways scrolling - including the admin top bar on phones narrower than about 418 px (e.g. iPhone 15 at 393 px) and list tables at tablet width (768 px).
-result: [pending]
+result: pass
+source: owner ruling D-41 R2-01/R2-02 + automated
+evidence: min-w-0 on the Topbar search and contain-paint on the table frame (quick-261013-g6s). 02-VERIFICATION gap 1 CLOSED: responsive.spec plain scrollWidth <= innerWidth on every page in 5 browser projects, lists-overflow.spec at 768/820 in 3 engines.
 source_plans: [02-30 D6, 02-31 D8, 02-35 D3, 02-VERIFICATION gap 1 (truth 7, SC2/PERF-03)]
 note: Awaiting owner ruling (deferred-items.md "Admin top bar: the page scrolls sideways on phones narrower than 398px" and "Tablet list tables: the page can scroll sideways by 22px"). The verifier marked this FAILED - today the admin Topbar overflows by 8-98 px below 398/406/418 px (Chromium/WebKit/Firefox) and the 768 px list table lets the page scroll 22 px. The automated sweep (02-35 D3, web/e2e/responsive.spec.ts TOPBAR_MIN_PAGE_WIDTH) and web/visual/lists-overflow.spec.ts pass only by encoding these as exceptions. Recommended fix: min-w-0 on the Topbar search box and a containing block on the table frame, each with a rulings.css rule, then remove the exemptions. When resuming, record the ruling; this item passes only after the fix lands and the plain scrollWidth <= innerWidth check runs at every width in every engine. Deferring to the Phase 14 release gate needs an explicit owner override.
 
 ### 8. WCAG-conflict rulings applied: SearchBox focus ring and "/" shortcut (verifier gap 2)
 expected: Tabbing into a list search box shows a clearly visible focus indicator (WCAG 2.4.7 AA), and the admin "/" search shortcut can be turned off or needs a modifier key (WCAG 2.1.4 A). Each has an owner ruling recorded and applied.
-result: [pending]
+result: pass
+source: owner ruling D-41 R2-03/R2-04 + automated
+evidence: list search border turns --focus (contrast node test), '/' replaced by Ctrl/Cmd+K (quick-261013-g6s, refined by quick-261013-lgi WR-01). 02-VERIFICATION gap 2 CLOSED. Hands-on check of the shortcut is test 197.
 source_plans: [02-30 D7, 02-VERIFICATION gap 2 (truth 18, SC5/A11Y-04, A11Y-02 "visible focus")]
 note: Awaiting owner ruling (deferred-items.md "Search box: no visible keyboard focus ring" and "Admin search shortcut \"/\""). The verifier marked this FAILED - searchInputClasses in web/src/ui/lists/lists.recipe.ts sets [outline:none] with no replacement focus style, and the "/" shortcut in web/src/ui/navigation/Topbar.tsx has no off switch or modifier. The two reflow items in test 7 also fail WCAG 1.4.10. The review recommends option (b) for "/", a keyboard-shortcuts switch that keeps the approved look. This item passes only after the rulings are applied (recipe change + rulings.css rule + a Playwright focus-indicator check), or the owner records an override deferring them to the Phase 14 release gate.
 
 ### 9. Screen-reader and real-phone spot checks (NVDA / VoiceOver)
 expected: With NVDA (Windows) or VoiceOver (iPhone), on /dev/components: toasts are announced once through the polite live region; a dialog announces its name, and the cascade and failure alerts are read; the order totals list is read with the note as a definition and the KPI change direction is clear; chart month groups and the scrolling table region are read sensibly, and the focus ring on a chart month is clear; the image uploader (browse button, thumbnail list, "No image yet") and the star rating are announced sensibly; on a real phone the thumbnail actions are comfortable to tap.
-result: [pending]
+result: pass
 source_plans: [02-21 D6, 02-22 D6, 02-23 D4, 02-24 D4, 02-25 D4]
 why_human: jsdom and axe check roles and names, not what a real screen reader announces or how it feels on a real phone. A11Y-05 owns the manual passes; these may be deferred to that pass if preferred (record as skipped with the reason).
 
 ### 10. "Get a Quote" stays a button
 expected: You confirm the public "Get a Quote" call to action stays a button that navigates (as in the approved design), or say it should become a link.
-result: [pending]
+result: pass
+source: owner ruling D-41 R2-11
+evidence: Owner: keep "Get a Quote" as a button, no change.
 source_plans: [02-26 D5]
 why_human: Element choice for the public CTA is an owner look/ARIA decision (D-08); the plan asked for a link, the approved design has a button.
 
 ### 11. Meaning of "intent prefetch" (WEB-08 assumption)
 expected: You confirm that "prefetch on intent" means - start loading a page's data after about 100 ms of hovering over or focusing its link, and do not prefetch on a touch device's first tap.
-result: [pending]
+result: pass
 source_plans: [02-39 D5]
 why_human: Flagged planner assumption to confirm at verify time; only the owner can confirm the meaning.
 
 ### 12. Owner-facing docs read clearly in plain words
 expected: docs/dependencies.md (the npm registry and the tool-only licenses), docs/web/budgets.md (size limits, the 135 KB trigger, what to do when over), docs/web/release-gates.md (every gate, its command and pass rule, the preflight, the run order) and docs/web/owner-review.md (how to make and read the review pack) each read clearly to you.
-result: [pending]
+result: pass
 source_plans: [02-06 D5, 02-33 D5, 02-35 D8, 02-36]
 why_human: Documentation clarity for the owner is a reading judgment no test asserts.
 
 ### 13. Developer guides are clear and complete
 expected: docs/development.md ("How the API serves the web app"), docs/web/styling.md (D-33 rules, tw() recipes, the 12 custom variants, banned built-ins, gates), docs/web/e2e.md (prerequisites, preflight, --grep tags, run lock, busy-port refusal, HTTPS, never-kill rule), docs/web/url-state.md (createListParams, push/replace, privacy, dates, 300 ms debounce, Query defaults, useListQuery, intent prefetch) and docs/web/parity.md (what the proof compares, running it, adding scenarios, the matrix, the differences list, conversion rules) are clear enough for a new developer or a later phase.
-result: [pending]
+result: pass
 source_plans: [02-03 D5, 02-05 D6, 02-09 D4, 02-11 D6, 02-13 D4, 02-14 D9]
 why_human: Editorial judgment; the greps only prove the sections exist. The owner may delegate this to a reviewer, or skip it with a reason.
 
 ### 14. Non-blocking look and copy rulings (deferred-items.md "Owner decisions pending")
 expected: You give a ruling (or "keep as is") on each - the ErrorState "Try Again" label colour; the small muted name and initials in the Users table user cell; the admin preview pages' empty-state words; the two extra Component Showcase sections and the demo button words (incl. "Open Delete Payment"); public footer headings jumping from h1 to h4; a message when a money paste is refused; an overpaid order showing only "Fully Paid"; the Barlow Condensed fallback trying Arial Narrow first; the .npmrc cool-down waivers naming a package, not a version, with no end date. FYI items (tablet rail names, no current sidebar item on the showcase, danger toasts announced politely once) need nothing unless you object.
-result: [pending]
+result: pass
+source: owner rulings D-41 R2-13..R2-19, R2-25, R2-26
+evidence: Try Again muted (keep), Users name 12px muted (keep), empty-state words (keep), Showcase extras (keep), footer h2 (implemented), money paste hint (implemented), Arial Narrow fallback (keep), .npmrc waivers (keep), FYIs accepted. Recorded in 999.1/DECISIONS.md.
 source_plans: [02-28 D7, 02-30 D7, 02-31 D8, 02-34, 02-35, code review UI-WR-09, UI-WR-14, TOOL-WR-11, TOOL-WR-13]
 why_human: Owner look/copy/policy preferences; they block nothing, but each answer becomes a small follow-up or a recorded "keep".
 
@@ -1563,16 +1561,51 @@ coverage_id: 02-40/D5
 requirement: WEB-02
 verified_by: web/src/ui/layout/layout.recipe.node.test.ts (5 cases)
 
+### 196. Focus and timer fixes on /dev/components (R2-21)
+expected: On /dev/components - open a dialog from another dialog and close them in turn (each closes on top, focus goes back to what opened it); show a toast while a dialog is open and reach it with the keyboard; dismiss a toast and focus lands somewhere sensible; change the Pagination page and focus stays on the pagination.
+result: pass
+source_plans: [02-VERIFICATION human item 5, 999.1 R2-21]
+why_human: Focus feel is a hands-on judgment.
+
+### 197. Ctrl/Cmd+K inside fields goes to the admin search (WR-01)
+expected: On an admin page (e.g. /admin/orders), click into any text field and press Ctrl+K (Cmd+K on a Mac) - the cursor jumps to the top-bar search, and the browser's address bar does NOT take focus. Press it again while in the search box - focus stays and the search text is selected. On a Mac, Ctrl+K inside a text field still deletes to the end of the line.
+result: pass
+source_plans: [quick-261013-lgi WR-01]
+why_human: Browser-level shortcut handling differs per browser and OS; jsdom cannot press the real browser shortcut.
+
+### 198. Amount box paste message (WR-02, WR-03, WR-04)
+expected: On /dev/components, paste text like "abc" into an amount box - the message "Enter an amount like 1250.50..." appears and (with a screen reader on) is read once. Type a valid amount - the message and the red look go away. A read-only amount box ignores a paste completely.
+result: pass
+source_plans: [quick-261013-lgi WR-02/WR-03/WR-04]
+why_human: What a real screen reader announces cannot be tested in jsdom. The screen-reader part may be skipped to the A11Y-05 pass in Phase 14.
+
+### 199. Dialogs fit and can be used in a short browser window
+expected: Any dialog (e.g. Open Delete Order on /dev/components) sits centred on the screen and, when the browser window is short (a laptop at 125-150% zoom), the whole dialog, including its Cancel and Delete buttons, can be seen or scrolled to.
+result: issue
+reported: "pass, but the \"Open Delete Order\" isnt dialog isnt showing center horizontally" (owner screenshot: Chrome, 1911x880 screen px at about 150% zoom; the Delete Order dialog's buttons are cut off at the bottom)
+severity: major
+found_during: test 196
+diagnosis_note: |
+  Measured in the browser pane. Horizontal: the dialog is centred on the whole window (centre 720 of 1440; in the owner's screenshot 952 of 1911), as App. C .s-overlay draws it (fixed inset-0, justify-center). It looks left of centre because the admin sidebar takes the left part of the screen and the dialog is not centred on the content area. Vertical: the overlay pins the dialog 140px from the top (pt-[140px], items-start), has overflow-y visible, and the page scroll is locked, while the dialog has no max-height. At 1274x585 CSS px (the owner's window) the dialog runs from 140 to 630 and its Cancel / Delete Order buttons end at 613, below the 585px window, with no way to scroll to them. A mouse user cannot reach them; WCAG 1.4.10 Reflow (400% zoom) fails the same way.
+
 
 ## Summary
 
-total: 195
-passed: 182
-issues: 0
-pending: 13
+total: 199
+passed: 198
+issues: 1
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-[none yet]
+- gap_id: G-2-199
+  truth: "Any dialog is fully visible or scrollable in a short window (laptop at 125-150% zoom, WCAG 1.4.10), and its horizontal position matches what the owner expects"
+  status: failed
+  reason: "User reported: pass, but the \"Open Delete Order\" isnt dialog isnt showing center horizontally"
+  severity: major
+  test: 199
+  artifacts: []  # Filled by diagnosis
+  missing: []    # Filled by diagnosis
+
