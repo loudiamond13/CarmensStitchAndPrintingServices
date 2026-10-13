@@ -303,20 +303,23 @@ describe('useSubmission: key per submission (WEB-09 idempotency)', () => {
     ['a 404', validationError(404, {})],
     ['a 422 (key reused with another body)', validationError(422, {})],
     ['a 429', validationError(429, {})],
-  ])('gives a new key after %s, a final answer the server would replay for 24 hours (LIB-WR-01)', async (_case, failure) => {
-    const user = userEvent.setup();
-    const spy = recordingSend([failure, 'ok']);
-    render(<PaymentForm send={spy.send} data={payment} />);
+  ])(
+    'gives a new key after %s, a final answer the server would replay for 24 hours (LIB-WR-01)',
+    async (_case, failure) => {
+      const user = userEvent.setup();
+      const spy = recordingSend([failure, 'ok']);
+      render(<PaymentForm send={spy.send} data={payment} />);
 
-    await user.click(save());
-    await settled();
-    await user.click(save());
-    await settled();
+      await user.click(save());
+      await settled();
+      await user.click(save());
+      await settled();
 
-    const [failed, retried] = spy.keys();
-    expect(retried).toMatch(uuidV4);
-    expect(retried).not.toBe(failed);
-  });
+      const [failed, retried] = spy.keys();
+      expect(retried).toMatch(uuidV4);
+      expect(retried).not.toBe(failed);
+    },
+  );
 
   it('gives a new key when the data changed after a failure', async () => {
     const user = userEvent.setup();
@@ -597,13 +600,27 @@ describe('useSubmission: results and errors', () => {
     );
   });
 
-  it.each([
-    ['a 400 with field errors (they go under the fields)', validationError(400, { Amount: ['Enter an amount.'] })],
-    ['a 401 after the failed refresh (sign-in takes over)', validationError(401, {})],
-  ])('does not call onFailure for %s', async (_case, failure) => {
+  it('hands onFailure the "Check the highlighted fields." banner copy for a 400 with field errors (LIB-WR-02)', async () => {
+    // A server key that no rendered field matches (for example `Items[0].UnitPrice`) highlights nothing, so the
+    // banner is the only feedback the user gets.
     const user = userEvent.setup();
+    const failure = validationError(400, { 'Items[0].UnitPrice': ['Enter a price.'] });
     const onFailure = vi.fn();
     render(<PaymentForm send={recordingSend([failure]).send} data={payment} options={{ onFailure }} />);
+
+    await user.click(save());
+    await settled();
+
+    expect(screen.getByRole('status', { name: 'Field errors' })).toHaveTextContent('Items[0].UnitPrice');
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith({ title: 'Check the highlighted fields.', body: '' }, failure);
+  });
+
+  it('does not call onFailure for a 401 after the failed refresh (sign-in takes over)', async () => {
+    const user = userEvent.setup();
+    const onFailure = vi.fn();
+    render(
+      <PaymentForm send={recordingSend([validationError(401, {})]).send} data={payment} options={{ onFailure }} />,
+    );
 
     await user.click(save());
     await settled();

@@ -33,9 +33,11 @@ export interface SubmissionOptions<TData, TResult> {
   /** Runs once per successful submission, after `pending` clears. */
   readonly onSuccess?: (result: TResult, data: TData) => void;
   /**
-   * Runs once per failed submission without field errors, after `pending` clears, with the describeHttpError copy for
-   * the danger toast that stays until closed (D-04). Not called for a 400 with field errors (the messages go under the
-   * fields: focus the first one with focusFirstInvalid) or when there is nothing to show (a 401, a cancelled request).
+   * Runs once per failed submission, after `pending` clears, with the describeHttpError copy: show it in the danger
+   * toast that stays until closed (D-04). For a 400 with field errors the copy is "Check the highlighted fields.":
+   * show it as the form's banner (UI-SPEC), put the messages under the fields and focus the first with
+   * focusFirstInvalid. Never drop it: when no rendered field matches a server key (focusFirstInvalid returns false),
+   * the banner is the only feedback (LIB-WR-02). Not called when there is nothing to show (a 401, a cancelled request).
    */
   readonly onFailure?: (copy: ErrorCopy, error: unknown) => void;
   /**
@@ -183,7 +185,7 @@ export function useSubmission<TData, TResult>(
       const failedFields = fieldErrorsOf(outcome.error);
       setError(outcome.error);
       setFieldErrors(failedFields);
-      const copy = failedFields === noFieldErrors ? describeHttpError(outcome.error) : null;
+      const copy = describeHttpError(outcome.error);
       if (copy !== null) {
         options?.onFailure?.(copy, outcome.error);
       }
