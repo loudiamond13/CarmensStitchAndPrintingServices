@@ -86,6 +86,29 @@ describe('Topbar markup (App. D.3)', () => {
     expect(hasClasses(kbd, searchKbdClasses)).toBe(true);
   });
 
+  it('lets the search box shrink below its content (D-41 R2-01), keeping every App. B token', () => {
+    expect(tokens(searchClasses)).toEqual(
+      [
+        'flex',
+        'h-10',
+        'max-w-[480px]',
+        'min-w-0',
+        'flex-1',
+        'items-center',
+        'gap-2',
+        'rounded-sm',
+        'border',
+        'border-line',
+        'bg-surface-2',
+        'px-3',
+        'text-ink-muted',
+        'focus-within:border-focus',
+        'focus-within:[box-shadow:0_0_0_1px_var(--focus)]',
+        'pg-tablet:max-w-none',
+      ].sort(),
+    );
+  });
+
   it('takes another placeholder', () => {
     render(<Topbar placeholder="Search users…" />);
     expect(search().placeholder).toBe('Search users…');

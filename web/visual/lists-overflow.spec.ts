@@ -33,7 +33,7 @@ interface TableMeasure {
   frameScroll: number;
   frameWidth: number;
   frameRight: number;
-  hiddenRight: number;
+  contain: string;
   overflowX: string;
   tableMin: string;
 }
@@ -74,11 +74,10 @@ test('@lists @overflow four filter chips wrap at 320px, the long one truncates, 
 });
 
 // The Users table on a tablet page. At 820px it fits the full-width frame and nothing scrolls sideways. At 768px the
-// table (680px at least, wider with its content) scrolls inside its frame, and every visible part stays inside the
-// viewport; the page itself still scrolls sideways by the visually hidden "Actions" header text, which the approved
-// CSS places against the page root, not the frame. That is the approved computed result (rule 8); the owner decides
-// whether to contain it (deferred-items.md, "Owner decisions pending", plan 02-30). When the owner rules, the 768px
-// expectation becomes pageScroll <= viewport like the others.
+// table (680px at least, wider with its content) scrolls inside its frame, and the page does not. D-41 R2-02 (owner,
+// 2026-10-13): the frame contains its paint from 768px up, so it is the containing block of the visually hidden
+// "Actions" header text, which the approved CSS placed against the page root (the page scrolled sideways by 22px at
+// 768px). The hidden text now lies inside the frame's scrollport, so only the table scrolls.
 for (const [width, scrolls] of [
   [768, true],
   [820, false],
@@ -90,14 +89,13 @@ for (const [width, scrolls] of [
     const measured: TableMeasure = await page.evaluate(`(() => {
       const frame = document.querySelector('[data-case="rt-users-populated"] [role="region"]');
       const table = frame.querySelector('table');
-      const hidden = table.querySelector('thead th:last-child > span');
       return {
         pageScroll: document.documentElement.scrollWidth,
         viewport: window.innerWidth,
         frameScroll: frame.scrollWidth,
         frameWidth: frame.clientWidth,
         frameRight: frame.getBoundingClientRect().right,
-        hiddenRight: Math.ceil(hidden.getBoundingClientRect().right),
+        contain: getComputedStyle(frame).contain,
         overflowX: getComputedStyle(frame).overflowX,
         tableMin: getComputedStyle(table).minWidth,
       };
@@ -106,10 +104,8 @@ for (const [width, scrolls] of [
     expect(measured.overflowX).toBe('auto');
     expect(measured.frameScroll > measured.frameWidth).toBe(scrolls);
     expect(measured.frameRight).toBeLessThanOrEqual(measured.viewport);
-    // Nothing but the 1px hidden "Actions" text may reach past the viewport (owner question pending at 768px).
-    expect(measured.pageScroll).toBeLessThanOrEqual(Math.max(measured.viewport, measured.hiddenRight));
-    if (!scrolls) {
-      expect(measured.pageScroll).toBeLessThanOrEqual(measured.viewport);
-    }
+    expect(measured.contain).toBe('paint');
+    // D-41 R2-02: the page never scrolls sideways, at either width.
+    expect(measured.pageScroll).toBeLessThanOrEqual(measured.viewport);
   });
 }

@@ -77,4 +77,29 @@ describe('lists recipe (App. C toolbar and responsive table)', () => {
     expectInOrder('border-t-2', '[border-top-style:dashed]');
     expect(css).toMatch(/> :first-child \{\s*flex: 1 1 100% !important;/);
   });
+
+  it('contains the table frame paint from 768px up and none on phones, keeping its App. C tokens (D-41 R2-02)', () => {
+    expect(recipeTokensOf('tableWrapClasses')).toEqual(
+      [
+        'overflow-x-auto',
+        'rounded-md',
+        'border',
+        'border-line',
+        'bg-surface',
+        'contain-paint',
+        'pg-phone:overflow-visible',
+        'pg-phone:border-0',
+        'pg-phone:bg-transparent',
+        'pg-phone:contain-none',
+      ].sort(),
+    );
+    expect(enclosingBlock('pg-phone:contain-none')).toBe('@container pg (max-width: 767px) ');
+    expectInOrder('contain-paint', 'pg-phone:contain-none');
+  });
 });
+
+/** The sorted class tokens of one exported `tw('…')` list in lists.recipe.ts. */
+function recipeTokensOf(name: string): string[] {
+  const match = new RegExp(`export const ${name} = tw\\(\\s*'([^']*)'`).exec(recipeSource);
+  return (match?.[1] ?? '').split(/\s+/).filter(Boolean).sort();
+}

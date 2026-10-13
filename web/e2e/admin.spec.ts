@@ -148,9 +148,9 @@ test('@admin switches from the phone tab bar to the tablet rail at 768px and to 
   expect(desktop.tabBar).toBe(false);
   expect(desktop.managerTags).toBeGreaterThan(0);
 
-  // Below 398px the approved Topbar itself scrolls sideways (its search box keeps a 234px minimum); that is an owner
-  // question in the phase's deferred-items.md, so the boundary widths are checked here.
-  for (const width of [767, 768, 1023, 1024]) {
+  // D-41 R2-01 (owner, 2026-10-13): the Topbar search box may shrink below its content, so the shell fits on the
+  // smallest phones too; the phone widths and the boundary widths are checked here.
+  for (const width of [320, 390, 767, 768, 1023, 1024]) {
     const shell = await setFrameWidth(page, width);
     expect(shell.scrollWidth, `${String(width)}px horizontal scroll`).toBeLessThanOrEqual(shell.innerWidth);
   }

@@ -30,6 +30,8 @@ const RULING_IDS = [
   'WEB-09',
   'PERF-05',
   'D-39',
+  'D-41 R2-01',
+  'D-41 R2-02',
 ] as const;
 
 interface Group {
@@ -293,6 +295,23 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(groupsOfD39.map((group) => group.prelude)).toEqual(['.csp-kpi-value[data-zero]']);
     expect(normalize(groupsOfD39[0]?.body ?? '')).toBe('color: var(--ink-subtle);');
+  });
+
+  it('D-41 R2-01: the admin Topbar search box may shrink below its content, nothing else', () => {
+    const groupsOfR201 = byRuling('D-41 R2-01');
+
+    expect(groupsOfR201.map((group) => group.prelude)).toEqual(['.csp-search']);
+    expect(normalize(groupsOfR201[0]?.body ?? '')).toBe('min-width: 0;');
+  });
+
+  it('D-41 R2-02: the list table frame contains its paint, except inside the phone page container', () => {
+    const groupsOfR202 = byRuling('D-41 R2-02');
+    const phone = groupsOfR202.filter((group) => group.prelude === '@container pg (max-width: 767px)');
+    const phoneRules = phone.flatMap((group) => groupsOf(group.body));
+
+    expect(groupsOfR202.map((group) => group.prelude)).toEqual(['.s-rt-wrap', '@container pg (max-width: 767px)']);
+    expect(normalize(groupsOfR202[0]?.body ?? '')).toBe('contain: paint;');
+    expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([['.s-rt-wrap', 'contain: none;']]);
   });
 
   it('WEB-09: an aria-disabled button looks like the disabled button and never nudges or hovers', () => {

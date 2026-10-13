@@ -15,20 +15,13 @@
 // not only the first. The desktop projects sweep all eight widths; the phone projects (Pixel 7, iPhone 15) check their own
 // screen in both orientations.
 //
-// Known owner item, asserted as it is today (deferred-items.md "Admin top bar"): the approved admin Topbar (menu
-// button, search box with its content minimum, theme toggle, user button) needs a page at least 398px wide in Chromium,
-// 406px in WebKit and 418px in Firefox (the search field's intrinsic width differs by engine; measured in plan 02-35), so
-// below that the admin pages scroll sideways by up to 98px. There the check is narrowed: the page is no wider than that
-// engine's Topbar minimum, everything that sticks out lies inside the Topbar, and `main` neither overflows nor reaches
-// past the screen. Once the owner rules, the plain check applies at every width; remove TOPBAR_MIN_PAGE_WIDTH then.
+// D-41 R2-01 (owner, 2026-10-13): the admin Topbar search box may shrink below its content (`min-w-0`), so the admin
+// pages fit at 320px in every engine and the plain "no sideways scroll" rule applies at every width and on every page.
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import { axeFindings, isShowcase, openPage, PAGES, settle } from './sweep.ts';
 
 const WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
-
-/** Per engine, the admin page width under which the approved Topbar overflows (owner item; see the header comment). */
-const TOPBAR_MIN_PAGE_WIDTH: Readonly<Record<string, number>> = { chromium: 398, webkit: 406, firefox: 418 };
 
 /** The phone layout's widest page (spec §3.5: phone ≤ 767px). */
 const PHONE_MAX_WIDTH = 767;
@@ -76,10 +69,6 @@ interface Reading {
   readonly smallInputs: readonly string[];
   /** The outermost elements that reach past the right edge (fixed layers and clipped content excluded). */
   readonly offenders: readonly string[];
-  /** True when every offender lies inside the admin Topbar. */
-  readonly offendersInTopbar: boolean;
-  readonly mainOverflow: number;
-  readonly mainRight: number;
 }
 
 const READ = `(() => {
@@ -112,7 +101,6 @@ const READ = `(() => {
     (element) => element.getClientRects().length > 0 && element.getBoundingClientRect().right > edge && !clippedOrFixed(element),
   );
   const outermost = sticking.filter((element) => !sticking.some((other) => other !== element && other.contains(element)));
-  const topbar = document.querySelector('[data-ui="s-admin-main"]')?.firstElementChild ?? null;
   const roleOf = (element) => {
     const role = element.getAttribute('role');
     if (role) return role;
@@ -128,7 +116,6 @@ const READ = `(() => {
     const type = (element.getAttribute('type') || 'text').toLowerCase();
     return !['checkbox', 'radio', 'file', 'hidden', 'range', 'color', 'submit', 'button', 'reset', 'image'].includes(type) && visible(element);
   });
-  const main = document.querySelector('main');
   const first = document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
   return {
     scrollWidth: document.documentElement.scrollWidth,
@@ -143,30 +130,18 @@ const READ = `(() => {
       .filter((element) => parseFloat(getComputedStyle(element).fontSize) < 16)
       .map((element) => describe(element) + ' ' + getComputedStyle(element).fontSize),
     offenders: outermost.map((element) => describe(element) + ' right ' + Math.round(element.getBoundingClientRect().right)),
-    offendersInTopbar: topbar !== null && outermost.every((element) => topbar.contains(element)),
-    mainOverflow: main ? main.scrollWidth - main.clientWidth : 0,
-    mainRight: main ? main.getBoundingClientRect().right : 0,
   };
 })()`;
 
 /** Checks one page at one size and returns its problems (empty when it passes). */
-async function checkSize(page: Page, admin: boolean, size: Size, topbarMinimum: number): Promise<string[]> {
+async function checkSize(page: Page, size: Size): Promise<string[]> {
   const problems: string[] = [];
   const reading = await page.evaluate<Reading>(READ);
 
   if (reading.scrollWidth > reading.innerWidth) {
-    const knownTopbar =
-      admin &&
-      size.width < topbarMinimum &&
-      reading.scrollWidth <= topbarMinimum &&
-      reading.offendersInTopbar &&
-      reading.mainOverflow <= 0 &&
-      reading.mainRight <= reading.innerWidth + 0.5;
-    if (!knownTopbar) {
-      problems.push(
-        `scrolls sideways: scrollWidth ${String(reading.scrollWidth)} > innerWidth ${String(reading.innerWidth)} (${reading.offenders.join('; ') || 'no element found'})`,
-      );
-    }
+    problems.push(
+      `scrolls sideways: scrollWidth ${String(reading.scrollWidth)} > innerWidth ${String(reading.innerWidth)} (${reading.offenders.join('; ') || 'no element found'})`,
+    );
   }
   if (reading.h1s !== 1) {
     problems.push(`${String(reading.h1s)} h1 elements`);
@@ -194,7 +169,6 @@ async function checkSize(page: Page, admin: boolean, size: Size, topbarMinimum: 
 for (const pageCase of PAGES) {
   test(`@responsive ${pageCase.name} has no horizontal scroll, one h1, a skip link, labelled landmarks and no axe findings at every width`, async ({
     page,
-    browserName,
   }, testInfo) => {
     // Sixteen sizes with a page-level axe run each; the showcase has about 190 cases.
     test.setTimeout(isShowcase(pageCase) ? 900_000 : 300_000);
@@ -213,7 +187,7 @@ for (const pageCase of PAGES) {
     for (const size of sizes) {
       await page.setViewportSize({ width: size.width, height: size.height });
       await settle(page);
-      for (const problem of await checkSize(page, pageCase.admin, size, TOPBAR_MIN_PAGE_WIDTH[browserName] ?? 0)) {
+      for (const problem of await checkSize(page, size)) {
         failures.push(`${pageCase.name} at ${size.label}: ${problem}`);
       }
     }

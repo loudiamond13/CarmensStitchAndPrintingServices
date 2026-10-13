@@ -3,8 +3,8 @@
 // viewport width must be whole). Between App. C's phone, tablet and desktop queries neither the phone nor the tablet rule
 // applies there, so the approved CSS shows the full sidebar and no tab bar, and the implementation must do the same
 // (its `pg-*` variants carry App. C's own query text). The 1440 rows run the cases at their own width; at 390 the root
-// is capped to the frame and shows the phone layout. Not responsive, so no 320 or 820 row loads them (at 320 the
-// approved Topbar overflows the capped root, an owner question in the phase's deferred-items.md).
+// is capped to the frame and shows the phone layout. Not responsive, so no 320 or 820 row loads them (the 320px fit
+// of the Topbar, D-41 R2-01, is proven by the e2e sweep and the layouts-admin group).
 // The D-27 Logout `<button>` pairs with the approved `<a href="#">` through the registry: case > page root > .s-admin >
 // side column > aside > foot > Logout is path 0/0/0/0/0/2/1.
 import type { Scenario } from '../types';

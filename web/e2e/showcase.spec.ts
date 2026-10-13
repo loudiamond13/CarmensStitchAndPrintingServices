@@ -63,17 +63,13 @@ test('@showcase nothing in the showcase widens the page at 320px, and the 4-chip
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
-  // The admin shell alone: below 398px its approved Topbar scrolls sideways (owner item in the phase's
-  // deferred-items.md), so the page width the showcase must not add to is measured on a plain admin page first.
-  await page.goto('/admin');
-  await expect(page.locator('h1')).toHaveText('Dashboard');
-  const shellWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
   await openShowcase(page);
 
   const chips = page.locator('[data-case="filterbar-chips-4"]');
   await expect(chips).toBeVisible();
   const sizes = await page.evaluate<{
     readonly page: number;
+    readonly viewport: number;
     readonly main: number;
     readonly mainClient: number;
     readonly chips: number;
@@ -85,6 +81,7 @@ test('@showcase nothing in the showcase widens the page at 320px, and the 4-chip
     const tops = new Set([...chips.querySelectorAll('button')].map((button) => Math.round(button.getBoundingClientRect().top)));
     return {
       page: document.documentElement.scrollWidth,
+      viewport: window.innerWidth,
       main: main.scrollWidth,
       mainClient: main.clientWidth,
       chips: chips.scrollWidth,
@@ -92,10 +89,10 @@ test('@showcase nothing in the showcase widens the page at 320px, and the 4-chip
       chipRows: tops.size,
     };
   })()`);
-  // The showcase content stays inside main (every case frame keeps a wide case inside its own scrollport), so the
-  // page is no wider than the admin shell alone; once the Topbar ruling lands, both are 320px.
+  // The showcase content stays inside main (every case frame keeps a wide case inside its own scrollport), and since
+  // D-41 R2-01 (owner, 2026-10-13) the admin Topbar fits too, so the page never scrolls sideways at 320px.
   expect(sizes.main).toBeLessThanOrEqual(sizes.mainClient);
-  expect(sizes.page).toBeLessThanOrEqual(shellWidth);
+  expect(sizes.page).toBeLessThanOrEqual(sizes.viewport);
   // The chips wrap onto new rows instead of scrolling sideways (UI-SPEC UI Considerations: overflow, FilterBar).
   expect(sizes.chips).toBeLessThanOrEqual(sizes.chipsClient);
   expect(sizes.chipRows).toBeGreaterThan(1);

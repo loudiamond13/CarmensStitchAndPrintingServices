@@ -5,9 +5,8 @@
 // and on phones the Topbar button leaves the name out (App. B hides the name and role there), so the name adds no
 // width. The table lead cell has its own long-name case (rt-long-name, plan 02-30).
 //
-// The page as a whole is not measured here: below 398px the approved Topbar row (its search box keeps a 234px
-// minimum) is wider than the page whatever the name, an owner question pending in the phase's deferred-items.md
-// (plan 02-31). It loads the implementation side of the parity build and is guarded like every visual spec. Run it with
+// The page as a whole is measured by the e2e sweep (`@responsive`): since D-41 R2-01 (owner, 2026-10-13) the Topbar
+// search box may shrink below its content, so the admin page fits at 320px whatever the name. It loads the implementation side of the parity build and is guarded like every visual spec. Run it with
 // `npm --prefix web run parity -- --grep @navigation`.
 import { expect, expectCases, test } from './guard.ts';
 import { routeDist } from './serve.ts';
