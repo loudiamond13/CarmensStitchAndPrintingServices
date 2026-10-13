@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
@@ -89,18 +89,21 @@ function renderCase(id: string) {
   return render(renderNode(kit, scenario.node, scenario.handlers ?? []));
 }
 
-// jsdom has no URL.createObjectURL; each test gets numbered blob URLs.
-let objectUrls = 0;
+// UI-CR-01: previews are `data:` URLs read with FileReader, because the strict CSP's img-src allows `data:` and not
+// `blob:`. jsdom has no URL.createObjectURL; a spy stands in for it so the tests can prove it is never called.
+const createObjectURL = vi.fn(() => 'blob:csps/never');
+
+/** A one-byte file's `data:` URL ("x" is "eA==" in base64). */
+function dataUrl(type: string): string {
+  return `data:${type};base64,eA==`;
+}
 
 beforeEach(() => {
-  objectUrls = 0;
+  createObjectURL.mockClear();
   Object.defineProperty(URL, 'createObjectURL', {
     configurable: true,
     writable: true,
-    value: vi.fn(() => {
-      objectUrls += 1;
-      return `blob:csps/${String(objectUrls)}`;
-    }),
+    value: createObjectURL,
   });
 });
 
@@ -138,7 +141,7 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
-  it('adds the chosen image files (not other files), up to max, and reports them', () => {
+  it('adds the chosen image files (not other files), up to max, and reports them', async () => {
     const onFiles = vi.fn<(files: File[]) => void>();
     const onChange = vi.fn<(images: OrderImage[]) => void>();
     const { container } = render(<ImageUploader max={2} onFiles={onFiles} onChange={onChange} />);
@@ -149,10 +152,13 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     });
     expect(onFiles).toHaveBeenCalledTimes(1);
     expect(onFiles.mock.calls[0]?.[0].map((f) => f.name)).toEqual(['a.png', 'b.jpg']);
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
     const next = onChange.mock.calls[0]?.[0];
     expect(next?.map((image) => [image.name, image.src])).toEqual([
-      ['a.png', 'blob:csps/1'],
-      ['b.jpg', 'blob:csps/2'],
+      ['a.png', dataUrl('image/png')],
+      ['b.jpg', dataUrl('image/jpeg')],
     ]);
     expect(thumbs()).toHaveLength(2);
     expect(screen.getByRole('img', { name: 'a.png' })).toBeInstanceOf(HTMLImageElement);
@@ -172,7 +178,7 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     expect(screen.queryByRole('list')).toBeNull();
   });
 
-  it('marks a file drag over the zone with data-over="true" and adds the dropped images', () => {
+  it('marks a file drag over the zone with data-over="true" and adds the dropped images', async () => {
     const onFiles = vi.fn<(files: File[]) => void>();
     const { container } = render(<ImageUploader onFiles={onFiles} />);
     const zone = container.firstElementChild?.firstElementChild;
@@ -188,9 +194,71 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     fireEvent.drop(zone, { dataTransfer: { files: [file('drop.webp', 'image/webp')] } });
     expect(zone.dataset.over).toBe('false');
     expect(onFiles).toHaveBeenCalledTimes(1);
-    expect(thumbs()).toHaveLength(1);
+    await waitFor(() => {
+      expect(thumbs()).toHaveLength(1);
+    });
     fireEvent.drop(zone, {});
     expect(onFiles).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ImageUploader previews under the strict CSP (UI-CR-01)', () => {
+  it('previews a picked image as a data: URL, which img-src allows, and never makes a blob: URL', async () => {
+    const onChange = vi.fn<(images: OrderImage[]) => void>();
+    const { container } = render(<ImageUploader onChange={onChange} />);
+    fireEvent.change(fileInput(container), { target: { files: [file('front.png', 'image/png')] } });
+    const preview = await screen.findByRole('img', { name: 'front.png' });
+    expect(preview.getAttribute('src')).toBe(dataUrl('image/png'));
+    expect(onChange.mock.calls.at(-1)?.[0].map((image) => image.src)).toEqual([dataUrl('image/png')]);
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('counts images still being read against max, so two quick picks never pass it', async () => {
+    const onFiles = vi.fn<(files: File[]) => void>();
+    const { container } = render(<ImageUploader max={2} onFiles={onFiles} />);
+    fireEvent.change(fileInput(container), { target: { files: [file('a.png', 'image/png')] } });
+    fireEvent.change(fileInput(container), {
+      target: { files: [file('b.png', 'image/png'), file('c.png', 'image/png')] },
+    });
+    expect(onFiles.mock.calls.map(([files]) => files.map((f) => f.name))).toEqual([['a.png'], ['b.png']]);
+    await waitFor(() => {
+      expect(thumbs()).toHaveLength(2);
+    });
+    expect(thumbs().map((thumb) => within(thumb).getByRole('img').getAttribute('alt'))).toEqual(['a.png', 'b.png']);
+  });
+
+  it('keeps the images added or removed while a pick was being read', async () => {
+    const onChange = vi.fn<(images: OrderImage[]) => void>();
+    const { container } = render(<ImageUploader defaultImages={images} onChange={onChange} />);
+    fireEvent.change(fileInput(container), { target: { files: [file('new.png', 'image/png')] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove front-mockup.png' }));
+    await screen.findByRole('img', { name: 'new.png' });
+    expect(onChange.mock.calls.at(-1)?.[0].map((image) => image.name)).toEqual([
+      'back-mockup.png',
+      'shorts.png',
+      'new.png',
+    ]);
+  });
+
+  it('skips a file that cannot be read, and changes nothing after it unmounts', async () => {
+    const onChange = vi.fn<(images: OrderImage[]) => void>();
+    const failing = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementationOnce(function (this: FileReader) {
+      this.dispatchEvent(new ProgressEvent('error'));
+    });
+    const { container, unmount } = render(<ImageUploader onChange={onChange} />);
+    fireEvent.change(fileInput(container), {
+      target: { files: [file('broken.png', 'image/png'), file('ok.png', 'image/png')] },
+    });
+    await screen.findByRole('img', { name: 'ok.png' });
+    expect(onChange.mock.calls.at(-1)?.[0].map((image) => image.name)).toEqual(['ok.png']);
+    failing.mockRestore();
+
+    fireEvent.change(fileInput(container), { target: { files: [file('late.png', 'image/png')] } });
+    unmount();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
 

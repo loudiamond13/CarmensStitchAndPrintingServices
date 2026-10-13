@@ -17,7 +17,7 @@
 // remove button still names the file.
 // SPEC-DEVIATION: exactOptionalPropertyTypes; the optional props also accept an explicit undefined (same output).
 import clsx from 'clsx';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { OrderImage } from '@/lib/csps';
 import { Icon, MediaPlaceholder } from '@/ui/brand';
 import { tw } from '@/ui/tw';
@@ -46,6 +46,23 @@ const thumbRevealClasses = tw(
   'opacity-0 group-focus-within/thumb:opacity-100 group-hover/thumb:opacity-100 no-hover:opacity-100',
 );
 
+/** Added previews so far, so each one gets its own id. */
+let uploads = 0;
+
+/** The file as a `data:` URL, or null when it cannot be read. */
+function readAsDataUrl(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      resolve(typeof reader.result === 'string' ? reader.result : null);
+    });
+    reader.addEventListener('error', () => {
+      resolve(null);
+    });
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Drag-drop or browse; thumbnails; drag to reorder; the first image is the cover. */
 export interface ImageUploaderProps {
   images?: OrderImage[] | undefined;
@@ -58,7 +75,22 @@ export interface ImageUploaderProps {
 export function ImageUploader({ images, defaultImages = [], onChange, onFiles, max = 12 }: ImageUploaderProps) {
   const [inner, setInner] = useState<OrderImage[]>(defaultImages);
   const list = images ?? inner;
+  // The list as of the last change, for previews that finish reading after a later render (UI-CR-01).
+  const latest = useRef(list);
+  // Picked files still being read; they count against `max` already.
+  const reading = useRef(0);
+  const mounted = useRef(false);
+  useEffect(() => {
+    latest.current = list;
+  }, [list]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const set = (next: OrderImage[]) => {
+    latest.current = next;
     setInner(next);
     onChange?.(next);
   };
@@ -69,18 +101,27 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
     // SPEC-DEVIATION: lint prefer-string-starts-ends-with and restrict-plus-operands; same filter and ids.
     const picked = Array.from(files ?? [])
       .filter((f) => f.type.startsWith('image/'))
-      .slice(0, max - list.length);
+      .slice(0, max - latest.current.length - reading.current);
     if (!picked.length) return;
     onFiles?.(picked);
-    set(
-      list.concat(
-        picked.map((f, i) => ({
-          id: `up-${String(Date.now())}-${String(i)}`,
-          name: f.name,
-          src: URL.createObjectURL(f),
-        })),
-      ),
-    );
+    // SPEC-DEVIATION: UI-CR-01 App. D.3 previews with `URL.createObjectURL`, a `blob:` URL the strict CSP's img-src
+    // ('self' data: https://res.cloudinary.com) blocks, so every preview would be a broken image. The preview is read
+    // as a `data:` URL instead, which img-src already allows (no CSP change), and nothing needs revoking. A file that
+    // cannot be read is left out. The thumbs appear once the pick has been read.
+    reading.current += picked.length;
+    void Promise.all(picked.map(readAsDataUrl)).then((sources) => {
+      reading.current -= picked.length;
+      if (!mounted.current) return;
+      const stamp = String(Date.now());
+      const added = picked.flatMap((f, i) => {
+        const src = sources[i];
+        if (src == null) return [];
+        // Two picks read in the same millisecond still get different ids.
+        uploads += 1;
+        return [{ id: `up-${stamp}-${String(uploads)}`, name: f.name, src }];
+      });
+      if (added.length) set(latest.current.concat(added));
+    });
   };
   const move = (from: number, to: number) => {
     if (from === to) return;

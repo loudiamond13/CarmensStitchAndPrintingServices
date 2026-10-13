@@ -2,8 +2,9 @@
 // dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
 // run checks one h1, the nine sections, no "Missing component" alert, a page-level axe pass over every case, and the
 // guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
-// (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, and an open Delete Order dialog
-// is axe-clean too.
+// (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
+// the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
+// too.
 import type { Page } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 
@@ -112,6 +113,28 @@ test('@showcase the toast triggers raise a toast in each tone', async ({ page })
     await layer.getByRole('button', { name: 'Dismiss' }).click();
     await expect(layer.getByText(title)).toHaveCount(0);
   }
+});
+
+/** A 1×1 PNG, so the preview has pixels to decode. */
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('@showcase a picked image previews under the strict CSP (UI-CR-01)', async ({ page }) => {
+  await openShowcase(page);
+  const uploader = page.locator('[data-case="uploader-empty"]');
+  await uploader.locator('input[type="file"]').setInputFiles({
+    name: 'pixel.png',
+    mimeType: 'image/png',
+    buffer: ONE_PIXEL_PNG,
+  });
+  const preview = uploader.getByRole('img', { name: 'pixel.png' });
+  await expect(preview).toBeVisible();
+  // The browser decoded it: an image the CSP blocked would have no natural size (and the guard reports the violation).
+  const naturalWidth = `document.querySelector('[data-case="uploader-empty"] img[alt="pixel.png"]').naturalWidth`;
+  await expect.poll(() => page.evaluate<number>(naturalWidth)).toBe(1);
+  expect(await preview.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
 });
 
 test('@showcase the Delete Order demo opens an axe-clean dialog and deletes nothing', async ({ page }) => {
