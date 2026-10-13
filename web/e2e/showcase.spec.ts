@@ -20,8 +20,12 @@ const SECTIONS = [
   'Marketing',
 ];
 
-/** Opens the showcase and waits for its page head. */
+/**
+ * Opens the showcase and waits for its page head. About 190 cases: under a full parallel run these tests get the same
+ * longer timeout as keyboard.spec.ts (deferred-items.md, plan 02-35 showcase timing flake).
+ */
 async function openShowcase(page: Page): Promise<void> {
+  test.setTimeout(120_000);
   const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
   await expect(page.locator('h1')).toHaveText('Component Showcase');

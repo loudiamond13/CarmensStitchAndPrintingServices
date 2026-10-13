@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T08:20:00-05:00"
+updated: "2026-10-13T08:55:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -47,11 +47,12 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Next step:** when Phase 4 opens real dialogs from the admin screens, have the layout set `inert` on its frame while a Modal or ConfirmDialog is open (as AdminFrame does for the drawer), then run page-level axe with the dialog open again.
 
 - @showcase timing under a full five-project E2E run (plan 02-35, flake in a spec this plan did not change)
-  status: open
+  status: resolved (2026-10-13, webui code-review fix)
   **Found by:** plan 02-35, the full `npm --prefix web run e2e` (507 tests, 29.5 minutes, 4 workers).
   **What:** `showcase.spec.ts` (plan 02-34) "the Delete Order demo opens an axe-clean dialog and deletes nothing" hit its 30 s test timeout on the iPhone profile while clicking Delete Order, and on the rerun of that one test across all projects it failed once in Firefox waiting 5 s for the showcase h1 on a cold first load. Both passed on the next run (`--grep @showcase --project firefox --project iphone`: 10 of 10). The page renders about 190 cases, and the spec keeps Playwright's default 30 s test and 5 s expect timeouts.
   **Why deferred:** no assertion failed on what it checks, and plan 02-35's own showcase journeys already use a 120 s test timeout for the same page. No tolerance was added.
   **Next step:** whoever next touches `showcase.spec.ts` should give its tests the same longer timeout as `keyboard.spec.ts` (`test.setTimeout(120_000)` in `openShowcase`).
+  **Resolution:** the webui code-review fix touched `showcase.spec.ts` (UI-CR-01) and saw the same timeout once more: WebKit, the Delete Order demo, 31.4 s while clicking Delete Order, in a 4-worker run of five specs (395 tests) next to the slow `a11y-rulings.spec.ts`; the rerun passed in 11.1 s. `openShowcase` now sets `test.setTimeout(120_000)`, as planned. No tolerance was added.
 
 - Two server integration tests failed once in a full `dotnet test` right after a Lighthouse run (plan 02-35, not reproduced)
   status: open
