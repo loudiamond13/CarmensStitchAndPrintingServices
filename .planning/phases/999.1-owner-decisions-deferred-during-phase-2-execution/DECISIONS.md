@@ -1,6 +1,6 @@
 # Owner decisions deferred during Phase 2
 
-*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-08T06:56:03-05:00*
+*Created: 2026-10-07T23:22:00-05:00 · Updated: 2026-10-13T10:55:45-05:00*
 
 The owner was away while Phase 2 ran (`/gsd-execute-phase 2`, then `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Anything that needed the owner was parked here instead of blocking the run. Nothing listed here was decided for the owner: each item stays open until the owner picks an option.
 
@@ -111,3 +111,57 @@ None.
 - **AR-02-02 (T-02-56):** the new rule that blocks files inside dot folders would also block a future deliberate `/.well-known/` file (for example `security.txt` or the Android app link file). Nothing like that exists today. When one is needed, it gets an explicit, tested exception.
 
 The security review also left two **medium** items open, but not blocking: T-02-26 (your review of the 20 redrawn icons) and T-02-27 (your design checkpoint). Both close when you answer **D-BL-03**.
+
+---
+
+# Run 2: the D-33 re-plan (40 plans, executed 2026-10-08 → 2026-10-13)
+
+The owner was away again while the re-planned Phase 2 ran (`/gsd-execute-phase 2`, the code review and its fixes, `/gsd-verify-work 2` and `/gsd-secure-phase 2`). Nothing below was decided for the owner. The approved spec behaviour is kept until a ruling is made. Full context for most items is in `.planning/phases/02-web-foundation-design-system/deferred-items.md` ("Owner decisions pending"), `02-VERIFICATION.md` (status `gaps_found`), the `02-REVIEW-FIX-*.md` reports and `02-UAT.md` (13 pending human tests).
+
+Already ruled during this run (recorded, no action): **D-39** zero KPI dimmed by colour only · **D-40** "Walk-in customer" on no-team order cards · **OD-4** no overpayment, the server refuses and the payment form warns during input (2026-10-13).
+
+## A. Blocking Phase 2 sign-off (verification gaps: the approved spec conflicts with binding rules)
+
+Each fix is small and ready. Each one changes the approved look slightly, so it needs your OK (D-08).
+
+- **R2-01 · Admin top bar makes pages scroll sideways on phones.** The admin Topbar's search box doesn't shrink, so the whole page scrolls sideways below 398 px (Chromium), 406 px (WebKit/Safari) and 418 px (Firefox). That is 13 px on an iPhone 15 and up to 98 px at 320 px. It breaks "no horizontal scroll 320–1920" (PERF-03, WCAG 1.4.10). **Recommended:** let the search box shrink (`min-w-0`).
+- **R2-02 · List pages scroll sideways by 22 px at 768 px (tablet).** The hidden "Actions" table header is positioned against the page instead of the table. **Recommended:** contain it in the table frame (`contain: paint`). There is no visible pixel change, but the parity harness needs an intentional-difference entry.
+- **R2-03 · The list search box shows no focus outline.** App. C removes the outline and adds no replacement (WCAG 2.4.7 Focus Visible). **Recommended:** use the same focus ring as other fields.
+- **R2-04 · The "/" search shortcut can't be turned off** (WCAG 2.1.4). The review fix stopped it firing while typing, with modifiers or while a dialog is open. **Options:** (a) remove it, (b) require a modifier key, for example Ctrl+K, or (c) add an off switch.
+- **R2-05 · Visual review of Phase 2 (WEB-02 sign-off).** Regenerate the pack first with `npm --prefix web run review`, because the current one predates the review fixes. Then open `artifacts/owner-review/index.html` and `artifacts/owner-review/side-by-side/index.html`. UAT tests 2–4 in `02-UAT.md` walk you through it.
+
+## B. Decide before Phase 4/5 builds on it
+
+- **R2-06 · Order math naming (NET-WR-02).** The shared math, the browser and the 220 golden vectors call the before-discount amount "Total". The PRD calls it "Subtotal", and the PRD's "Total" is after discount. The approved OrderTotals panel labels the before-discount figure "Total". **Option A:** follow the PRD names everywhere, with a before/after of the panel wording. **Option B:** keep the design's naming as a recorded PRD deviation. Related: a 100%-discounted, unpaid order currently reads "Fully Paid" (NET-IN-01).
+- **R2-07 · Overpayment follow-ups (OD-4 / C-38), for the Orders discuss step.** Should other edits that would push a balance below zero also be blocked? Examples are removing an item, lowering a quantity or adding a discount after payments. The default reading is yes. How should already-overpaid legacy orders be imported and shown?
+- **R2-08 · Retrying a failed save (review fix LIB-WR-01).** These failures keep the same request key, so the server won't double-save: network error, timeout, cancelled, unreadable reply, 5xx, 408, 409. These get a fresh key: 400, 401, 403, 404, 422, 429. Confirm. Also human-verify the double-submit lock and the upload-retry rules.
+- **R2-09 · "Your session ended. Sign in again."** Should a 401 show a message? The UI-SPEC currently says no message (Phase 4 sign-in).
+- **R2-10 · Page behind a phone bottom-sheet dialog isn't inert** (axe target-size on half-covered buttons). This is planned for Phase 4. FYI.
+
+## C. Look and wording questions (non-blocking; the approved look is kept until you rule)
+
+- **R2-11 · "Get a Quote"** in the public header stays a button, as in the spec. Should it become a real link?
+- **R2-12 · Sidebar collapse button** announces its state only by changing its name ("Collapse/Expand sidebar"), per App. D.3. Should it also expose an expanded/pressed state?
+- **R2-13 · "Try Again"** inside the red error banner is muted grey (approved App. E.8; passes contrast). Keep it, or use normal ink?
+- **R2-14 · Users list:** the name and avatar initials render small (12 px) and muted, exactly as approved. Confirm.
+- **R2-15 · Preview-page empty state wording:** "Nothing to show here yet" / "Until this screen is built, the Component Showcase shows every shared building block." Confirm or reword.
+- **R2-16 · Dev-only Component Showcase:** keep the two extra sections ("Navigation", "Marketing") and the demo button words ("Open Add Payment", "Open Add User", "Open Delete Order", "Open Delete Payment", "Open navigation drawer", "Show … toast", "Show this example")?
+- **R2-17 · Public footer headings** jump from h1 to h4 (Lighthouse heading order). **Recommended:** make them h2, with no visible change.
+- **R2-18 · Money paste refused:** show the amount hint, or keep ignoring the paste silently as the UI-SPEC says?
+- **R2-19 · Barlow Condensed fallback** tries "Arial Narrow" first but is sized for Arial, so text may shift on machines that have Arial Narrow. This is the UI-SPEC's exact value. Changing it needs measuring on such a machine.
+
+## D. Confirm by hand (behaviour only a person can judge)
+
+- **R2-20 · Phone tap prefetch:** on a phone, the first tap never prefetches data (touch is ignored by intent prefetch). Confirm.
+- **R2-21 · Focus and timer fixes from the review:** dialogs stack correctly, toasts are reachable while a dialog is open, dismissing a toast returns focus sensibly, and Pagination keeps focus after a page change.
+- **R2-22 · Screen readers:** toasts are now announced once, politely (also for danger toasts). Spot-check with NVDA/VoiceOver (UAT test 9; full pass in Phase 14).
+- **R2-23 · Long text wraps inside its box** (toast, field error, EmptyState), UAT test 4.
+
+## E. FYI and housekeeping (no decision needed unless you disagree)
+
+- **R2-24 · Reference-side cursor rule:** WebKit reported the approved Logout link's cursor differently, so a reference-only rule makes the cursor `pointer`. Nothing visible changes.
+- **R2-25 · Tablet rail accessible names:** the approved rail had unnamed links (labels hidden). They now carry `aria-labelledby`, with no visible change.
+- **R2-26 · Package cool-down waivers** in `web/.npmrc` (vite, source-map-js, http-cache-semantics) can't be narrowed to a version in npm 11.19, so every future release of those packages skips the 14-day cool-down. Keep them, or drop them?
+- **R2-27 · One npx download:** an executor once ran `npx tsx` for a scratch probe, which put `tsx@4.23.15` into your npm cache. The project files were not changed, and executors are now barred from npx downloads. You may want to clear the npx cache.
+- **R2-28 · Lighthouse mobile LCP** is now about 1.88 s against the 2.0 s budget (about 116 ms headroom). Options are in deferred-items.md.
+- **R2-29 · Code review:** all 4 criticals and 37 of 42 warnings are fixed. The 5 unfixed warnings are items R2-04, R2-06, R2-18, R2-19 and R2-26 above.
