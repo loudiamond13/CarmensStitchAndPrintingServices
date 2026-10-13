@@ -210,13 +210,34 @@ describe('XMLHttpRequest upload transport', () => {
     const xhr = createFakeXhrFactory([
       {
         status: 200,
-        headers: 'bad header: x\r\nno-colon-line\r\nContent-Type: text/plain\r\n\r\n',
-        body: 'stored',
+        headers: 'bad header: x\r\nno-colon-line\r\nContent-Type: application/json\r\n\r\n',
+        body: '"stored"',
       },
     ]);
     const client = createHttpClient({ xhrFactory: xhr.factory });
 
     await expect(client.post('/images', new FormData(), { onUploadProgress: () => undefined })).resolves.toBe('stored');
+  });
+
+  it('rejects an upload answered with a non-JSON 2xx body with kind parse (LIB-WR-05)', async () => {
+    const xhr = createFakeXhrFactory([{ status: 200, headers: 'Content-Type: text/html\r\n', body: '<html></html>' }]);
+    const client = createHttpClient({ xhrFactory: xhr.factory });
+
+    const error = await rejection(client.post('/images', new FormData(), { onUploadProgress: () => undefined }));
+
+    expect([error.kind, error.status]).toEqual(['parse', 200]);
+  });
+
+  it('rejects an upload whose answer came through a redirect with kind parse, and accepts the same URL', async () => {
+    const xhr = createFakeXhrFactory([
+      { ...created, responseURL: 'https://wifi.example.ph/portal' },
+      { ...created, responseURL: new URL('/images', globalThis.location.href).href },
+    ]);
+    const client = createHttpClient({ xhrFactory: xhr.factory });
+    const upload = () => client.post('/images', new FormData(), { onUploadProgress: () => undefined });
+
+    expect((await rejection(upload())).kind).toBe('parse');
+    await expect(upload()).resolves.toEqual({ id: 'img-1' });
   });
 
   it('onerror gives kind network', async () => {

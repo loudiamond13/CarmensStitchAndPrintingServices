@@ -8,6 +8,8 @@ export type PlannedResponse =
       readonly headers?: Readonly<Record<string, string>>;
       /** A string is sent as-is. Any other value is sent as JSON with Content-Type application/json. */
       readonly body?: unknown;
+      /** Marks the response as reached through a followed redirect (`Response.redirected`). */
+      readonly redirected?: boolean;
     }
   | { readonly networkError: true }
   | { readonly hang: true };
@@ -57,7 +59,11 @@ function toResponse(planned: PlannedResponse, signal: AbortSignal | null | undef
       headers.set('Content-Type', 'application/json');
     }
   }
-  return Promise.resolve(new Response(body, { status, headers }));
+  const response = new Response(body, { status, headers });
+  if (planned.redirected === true) {
+    Object.defineProperty(response, 'redirected', { value: true });
+  }
+  return Promise.resolve(response);
 }
 
 /**
@@ -96,6 +102,8 @@ export interface PlannedXhr {
   /** The raw header block getAllResponseHeaders() returns, lines separated by CRLF. */
   readonly headers?: string;
   readonly body?: string;
+  /** The final URL after redirects, as `XMLHttpRequest.responseURL` reports it. Defaults to '' (no redirect seen). */
+  readonly responseURL?: string;
   /** Upload progress events fired before the outcome. Leave total out for a size the browser cannot compute. */
   readonly progress?: readonly { readonly loaded: number; readonly total?: number }[];
   /** 'load' (default) fires onload, 'error' fires onerror, 'hang' fires nothing until abort(). */
@@ -118,6 +126,7 @@ export class FakeXhr {
   aborted = false;
   status = 0;
   responseText = '';
+  responseURL = '';
   readonly upload: { onprogress: ((event: FakeProgressEvent) => void) | null } = { onprogress: null };
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
@@ -182,6 +191,7 @@ export class FakeXhr {
     }
     this.status = this.#plan.status ?? 200;
     this.responseText = this.#plan.body ?? '';
+    this.responseURL = this.#plan.responseURL ?? '';
     this.onload?.();
   }
 }

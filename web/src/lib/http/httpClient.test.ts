@@ -130,19 +130,38 @@ describe('createHttpClient: GET round trip', () => {
     expect(onlyCall(fake.calls).method).toBe('GET');
   });
 
-  it('resolves 204, 205 and an empty 200 to undefined, and a non-JSON 200 to its text', async () => {
+  it('resolves 204, 205 and a HEAD answer to undefined', async () => {
     const fake = createFakeFetch([
       { status: 204 },
       { status: 205 },
-      { status: 200, body: '' },
-      { status: 200, body: 'pong', headers: { 'Content-Type': 'text/plain' } },
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
     ]);
     const client = createHttpClient({ fetch: fake.fetch });
 
     await expect(client.delete('/a')).resolves.toBeUndefined();
     await expect(client.put('/a', { name: 'Jersey' })).resolves.toBeUndefined();
-    await expect(client.get('/b')).resolves.toBeUndefined();
-    await expect(client.get('/c')).resolves.toBe('pong');
+    await expect(client.request({ method: 'HEAD', url: '/b' })).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ['an empty 200', { status: 200, body: '' }],
+    ['an empty 201', { status: 201, body: '' }],
+    ['an empty JSON 200', { status: 200, headers: { 'Content-Type': 'application/json' } }],
+    ['a text/plain 200', { status: 200, body: 'pong', headers: { 'Content-Type': 'text/plain' } }],
+    [
+      'a captive-portal HTML 200',
+      { status: 200, body: '<html>Sign in to Wi-Fi</html>', headers: { 'Content-Type': 'text/html' } },
+    ],
+    ['a 200 with no Content-Type', { status: 200, body: '{"a":1}', headers: { 'Content-Type': '' } }],
+    ['a JSON 200 reached through a redirect', { status: 200, body: { a: 1 }, redirected: true }],
+  ])('rejects %s with kind parse instead of resolving it as the typed DTO (LIB-WR-05)', async (_case, plan) => {
+    const fake = createFakeFetch([plan, plan]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    const error = await rejection(client.get('/site-settings'));
+
+    expect([error.kind, error.status]).toEqual(['parse', plan.status]);
+    expect(fake.calls).toHaveLength(1);
   });
 
   it('parses an application/problem+json success body and a JSON content type with parameters', async () => {

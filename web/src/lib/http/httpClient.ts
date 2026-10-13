@@ -240,6 +240,8 @@ interface RawResponse {
   readonly status: number;
   readonly headers: Headers;
   readonly text: string;
+  /** True when the transport followed a redirect to reach this answer. */
+  readonly redirected: boolean;
 }
 
 interface Outgoing {
@@ -278,7 +280,12 @@ async function sendWithFetch(fetchImpl: FetchFunction, outgoing: Outgoing): Prom
     signal: outgoing.signal,
     credentials: 'same-origin',
   });
-  return { status: response.status, headers: response.headers, text: await response.text() };
+  return {
+    status: response.status,
+    headers: response.headers,
+    text: await response.text(),
+    redirected: response.redirected,
+  };
 }
 
 /**
@@ -308,6 +315,8 @@ function sendWithXhr(
         status: xhr.status,
         headers: parseResponseHeaders(xhr.getAllResponseHeaders()),
         text: xhr.responseText,
+        // responseURL is the final URL after redirects ('' when the browser does not report one).
+        redirected: xhr.responseURL !== '' && xhr.responseURL !== new URL(outgoing.url, globalThis.location.href).href,
       });
     };
     xhr.onerror = () => {
@@ -327,8 +336,12 @@ function sendWithXhr(
   });
 }
 
-/** Turns a received status, headers and body text into the response data, or throws an HttpError. */
-function toHttpResponse(status: number, headers: Headers, text: string): HttpResponse {
+/** Statuses that carry no body by definition. A HEAD answer never has one either. */
+const noContentStatuses: ReadonlySet<number> = new Set([204, 205]);
+
+/** Turns a received answer into the response data, or throws an HttpError. */
+function toHttpResponse(raw: RawResponse, method: HttpMethod): HttpResponse {
+  const { status, headers, text } = raw;
   const json = isJson(headers);
   if (status < 200 || status > 299) {
     let problem;
@@ -341,11 +354,13 @@ function toHttpResponse(status: number, headers: Headers, text: string): HttpRes
     }
     throw new HttpError({ kind: 'http', status, problem });
   }
-  if (text === '') {
+  if (text === '' && (noContentStatuses.has(status) || method === 'HEAD')) {
     return { status, headers, data: undefined };
   }
-  if (!json) {
-    return { status, headers, data: text };
+  // The API never redirects and answers with JSON or 204. A followed redirect, an empty body or a body of another type
+  // is a captive portal, a proxy or a host page, never the DTO the caller typed (LIB-WR-05).
+  if (raw.redirected || !json || text === '') {
+    throw new HttpError({ kind: 'parse', status });
   }
   try {
     const data: unknown = JSON.parse(text);
@@ -423,7 +438,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
         onUploadProgress === undefined
           ? await sendWithFetch(fetchImpl, outgoing)
           : await sendWithXhr(createXhr, outgoing, onUploadProgress);
-      return toHttpResponse(raw.status, raw.headers, raw.text);
+      return toHttpResponse(raw, prepared.method);
     } catch (error) {
       throw toTransportError(error, caller, timeout.signal);
     } finally {
