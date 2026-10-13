@@ -1,6 +1,6 @@
 # The owner review: screenshots and the side-by-side with the design
 
-*Created: 2026-10-09T07:57:00-05:00 · Updated: 2026-10-13T05:14:00-05:00*
+*Created: 2026-10-09T07:57:00-05:00 · Updated: 2026-10-13T09:40:00-05:00*
 
 This page explains the two local reports the owner uses to check how the new site looks (decisions D-23 and D-24, plan 02-36). Both are made on this computer and **stay on this computer**: they are never put in git, uploaded or put on the live site. The output folder `artifacts/` is git-ignored, and both scripts refuse to run if it is not.
 
@@ -35,7 +35,7 @@ If TheBETSLLC's test processes are listed, wait. Never stop another project's pr
 2. **Screenshots:** `npm --prefix web run review` (about 4 minutes). It:
    1. refuses unless `artifacts/owner-review` is git-ignored (`git check-ignore`);
    2. takes the shared run lock `web/.locks/e2e.lock` (E2E, Lighthouse and this run all start the host on 5199) and refuses a busy port 5199;
-   3. runs the preflight and the guarded CSPS_E2E seed (the host's `/health` checks the database);
+   3. runs the shared-machine wait (`web/scripts/shared-machine.mjs`): it runs the preflight report and waits, up to 15 minutes, while one of this project's ports is in use by another program or TheBETSLLC's dev/test processes are listed, then exits 1. It never stops anything. Without the preflight script (CI) it says so and goes on; then the guarded CSPS_E2E seed (the host's `/health` checks the database);
    4. rebuilds the e2e bundle `web/.e2e-dist` whenever any build input (`web/src`, `web/public`, the HTML entries, `vite.config.ts`, `.env.e2e`, the lockfile, the build plugins) is newer than it, not only when it is missing (L-29);
    5. starts the real host on `https://localhost:5199` for this run only, exactly as the E2E host does, and stops only that host when the pictures are done;
    6. writes `artifacts/owner-review/shots/` (39 pages), `artifacts/owner-review/spec-gap/` (54 SPEC-GAP pictures) and `index.html`. Each SPEC-GAP picture is its case frame on `/dev/components`, except the phone menu (the whole phone screen, because it covers the page) and the skip link (reached with the keyboard, because it shows only with keyboard focus, and photographed at the top left of the screen where it then appears). It never writes into `src/`, `web/src` or the server's `wwwroot`.

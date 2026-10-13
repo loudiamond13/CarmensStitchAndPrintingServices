@@ -2,8 +2,9 @@
 // `npm run lighthouse` (PERF-02, research Pattern 13): scores the production public shell on the real host.
 //   1. Takes the exclusive run lock web/.locks/e2e.lock, shared with `npm run e2e`, because both start the host on 5199.
 //      It never shares a server with a Playwright run.
-//   2. Refuses to start when port 5199 is in use. It never stops another process (CLAUDE.md shared machine).
-//   3. Runs the shared-machine preflight report (read-only).
+//   2. Waits while the shared machine is busy (shared-machine.mjs reads the shared preflight report), up to 15
+//      minutes, then exits 1 (TOOL-WR-08). It never stops another process (CLAUDE.md shared machine).
+//   3. Refuses to start when port 5199 is in use.
 //   4. Builds production into src/Csps.Server/wwwroot (`vite build`; the budget gate runs inside it, plan 02-33).
 //   5. Starts the real ASP.NET Core host on https://localhost:5199 serving that wwwroot, with ASPNETCORE_ENVIRONMENT set
 //      on that one child only, and waits for /health.
@@ -21,16 +22,8 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertReport } from './lighthouse-assert.mjs';
-import {
-  acquireLock,
-  E2E_PORT,
-  LOCK_PATH,
-  lockTimeoutMessage,
-  PORT_BUSY_MESSAGE,
-  PREFLIGHT_SCRIPT,
-  REPO_ROOT,
-  WEB_DIRECTORY,
-} from './e2e.mjs';
+import { acquireLock, E2E_PORT, LOCK_PATH, lockTimeoutMessage, PORT_BUSY_MESSAGE, WEB_DIRECTORY } from './e2e.mjs';
+import { waitForSharedMachine } from './shared-machine.mjs';
 
 export const SERVER_PROJECT = fileURLToPath(new URL('../../src/Csps.Server', import.meta.url));
 export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', import.meta.url));
@@ -43,7 +36,7 @@ export const HEALTH_TIMEOUT_MS = 120_000;
 const HEALTH_POLL_MS = 1000;
 
 /**
- * @typedef {{ readonly kind: 'run', readonly name: 'preflight' | 'build' | 'lighthouse', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env?: Readonly<Record<string, string>> }} RunStep
+ * @typedef {{ readonly kind: 'run', readonly name: 'build' | 'lighthouse', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env?: Readonly<Record<string, string>> }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
  * @typedef {{ readonly kind: 'assert', readonly name: 'assert', readonly reportPath: string }} AssertStep
  * @typedef {{ readonly kind: 'refuse', readonly name: 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
@@ -54,25 +47,15 @@ const HEALTH_POLL_MS = 1000;
 
 /**
  * The run as data, so the order and the exact commands are unit-tested without starting anything.
- * @param {{ portBusy: boolean, preflightAvailable?: boolean, chromePath?: string }} options
+ * @param {{ portBusy: boolean, chromePath?: string }} options
  * @returns {readonly Step[]}
  */
-export function planSteps({ portBusy, preflightAvailable = true, chromePath }) {
+export function planSteps({ portBusy, chromePath }) {
   if (portBusy) {
     return [{ kind: 'refuse', name: 'port-busy', message: PORT_BUSY_MESSAGE, exitCode: 1 }];
   }
   /** @type {Step[]} */
   const steps = [];
-  if (preflightAvailable) {
-    // A read-only report of this project's ports, other projects' test processes and LocalDB (CLAUDE.md).
-    steps.push({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: REPO_ROOT,
-    });
-  }
   steps.push(
     {
       kind: 'run',
@@ -335,10 +318,15 @@ async function main() {
   process.once('SIGTERM', onSignal);
   process.once('exit', release);
   try {
+    // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.
+    const busy = await waitForSharedMachine({ label: 'lighthouse' });
+    if (busy !== null) {
+      process.stderr.write(`${busy}\n`);
+      return 1;
+    }
     const chromePath = await playwrightChromium();
     const steps = planSteps({
       portBusy: await portIsBusy(),
-      preflightAvailable: existsSync(PREFLIGHT_SCRIPT),
       ...(chromePath === undefined ? {} : { chromePath }),
     });
     return await executeSteps(steps, {

@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Pins `npm run e2e` (QUAL-04, D-30, CLAUDE.md shared machine): a busy port 5199 is refused with a wait message and
-// nothing runs; otherwise the run is preflight, the guarded CSPS_E2E seed, the e2e build, then Playwright, each spawned
+// nothing runs; otherwise the run is the guarded CSPS_E2E seed, the e2e build, then Playwright, each spawned
 // as a real executable (never a .cmd shim, L-22). The exclusive run lock makes a second run wait, then give up.
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,28 +51,20 @@ describe('planSteps', () => {
     );
   });
 
-  it('runs preflight, the CSPS_E2E seed, the e2e build and Playwright, in that order, when the port is free', () => {
+  // The shared-machine preflight is a wait gate in main(), before planning (shared-machine.mjs, TOOL-WR-08).
+  it('runs the CSPS_E2E seed, the e2e build and Playwright, in that order, when the port is free', () => {
     const steps = planSteps({ portBusy: false });
 
-    expect(steps.map((step) => step.name)).toEqual(['preflight', 'seed', 'build', 'playwright']);
+    expect(steps.map((step) => step.name)).toEqual(['seed', 'build', 'playwright']);
     expect(steps.every((step) => step.kind === 'run')).toBe(true);
   });
 
-  it('runs the shared-machine preflight report for all four of this project ports', () => {
-    const [preflight] = planSteps({ portBusy: false });
-
+  it('re-exports the shared preflight path for the other run scripts', () => {
     expect(PREFLIGHT_SCRIPT).toBe('C:\\Work\\dev-tools\\preflight.ps1');
-    expect(preflight).toEqual({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: repoRoot,
-    });
   });
 
   it('seeds only CSPS_E2E, through the guarded dev-seed tool, from the repository root', () => {
-    const seed = planSteps({ portBusy: false })[1];
+    const seed = planSteps({ portBusy: false })[0];
 
     expect(seed).toEqual({
       kind: 'run',
@@ -84,7 +76,7 @@ describe('planSteps', () => {
   });
 
   it('builds --mode e2e with this Node binary and the vite JS entry, in web/', () => {
-    const build = planSteps({ portBusy: false })[2];
+    const build = planSteps({ portBusy: false })[1];
 
     expect(build).toEqual({
       kind: 'run',
@@ -96,7 +88,7 @@ describe('planSteps', () => {
   });
 
   it('runs playwright test with this Node binary and passes the extra arguments through', () => {
-    const playwright = planSteps({ portBusy: false, extraArgs: ['--grep', '@smoke', '--project', 'webkit'] })[3];
+    const playwright = planSteps({ portBusy: false, extraArgs: ['--grep', '@smoke', '--project', 'webkit'] })[2];
 
     expect(playwright).toEqual({
       kind: 'run',
@@ -117,12 +109,6 @@ describe('planSteps', () => {
     }
   });
 
-  it('skips only the preflight when the preflight script is not on this machine', () => {
-    const steps = planSteps({ portBusy: false, preflightAvailable: false });
-
-    expect(steps.map((step) => step.name)).toEqual(['seed', 'build', 'playwright']);
-  });
-
   it('resolves the web folder and the repository root from the script location', () => {
     expect(WEB_DIRECTORY).toBe(webDirectory);
     expect(REPO_ROOT).toBe(repoRoot);
@@ -132,7 +118,7 @@ describe('planSteps', () => {
 describe('executeSteps', () => {
   it('runs every step with its cwd and inherited output, and returns 0 when all pass', () => {
     const steps = planSteps({ portBusy: false });
-    const { calls, spawn } = fakeSpawner([0, 0, 0, 0]);
+    const { calls, spawn } = fakeSpawner([0, 0, 0]);
 
     expect(executeSteps(steps, spawn)).toBe(0);
 
@@ -145,11 +131,11 @@ describe('executeSteps', () => {
 
   it('stops at the first failing step and returns its exit code', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const { calls, spawn } = fakeSpawner([0, 2, 0, 0]);
+    const { calls, spawn } = fakeSpawner([2, 0, 0]);
 
     expect(executeSteps(planSteps({ portBusy: false }), spawn)).toBe(2);
 
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(1);
     expect(stderr).toHaveBeenCalledWith(expect.stringContaining('seed failed with exit code 2'));
   });
 

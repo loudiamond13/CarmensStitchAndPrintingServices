@@ -5,7 +5,8 @@
 //   2. Takes the exclusive run lock web/.locks/e2e.lock, shared with the E2E, parity-host and Lighthouse runs, because
 //      it starts the same host on 5199. A second run waits for it, up to 15 minutes.
 //   3. Refuses to start when port 5199 is in use. It never stops another process (CLAUDE.md shared machine).
-//   4. Runs the shared-machine preflight report (read-only) and the guarded CSPS_E2E seed (the host's /health checks the
+//   4. Waits while the shared machine is busy (shared-machine.mjs reads the shared preflight report, up to 15 minutes,
+//      never stopping anything, TOOL-WR-08), then runs the guarded CSPS_E2E seed (the host's /health checks the
 //      database).
 //   5. Rebuilds the e2e bundle (web/.e2e-dist) whenever any build input is newer than it, not only when it is missing
 //      (L-29), so the pictures never show yesterday's build.
@@ -27,11 +28,11 @@ import {
   LOCK_PATH,
   lockTimeoutMessage,
   PORT_BUSY_MESSAGE,
-  PREFLIGHT_SCRIPT,
   REPO_ROOT,
   WEB_DIRECTORY,
 } from './e2e.mjs';
 import { portIsBusy, startHost } from './lighthouse.mjs';
+import { waitForSharedMachine } from './shared-machine.mjs';
 import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentional-differences.ts';
 
 /**
@@ -39,7 +40,7 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly h1: string, readonly themes: readonly Theme[] }} ReviewTarget
  * @typedef {{ readonly path: string, readonly title: string, readonly h1: string, readonly theme: Theme, readonly width: number, readonly file: string }} Shot
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
- * @typedef {{ readonly kind: 'run', readonly name: 'preflight' | 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
+ * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
  * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
@@ -165,16 +166,10 @@ export function planShots(targets = REVIEW_TARGETS, widths = REVIEW_WIDTHS) {
 
 /**
  * The run as data, so the guards, the order and the exact commands are unit-tested without starting anything.
- * @param {{ outputIgnored: boolean, portBusy?: boolean, preflightAvailable?: boolean, bundleMtime?: number | null, newestSourceMtime?: number }} options
+ * @param {{ outputIgnored: boolean, portBusy?: boolean, bundleMtime?: number | null, newestSourceMtime?: number }} options
  * @returns {readonly Step[]}
  */
-export function planReview({
-  outputIgnored,
-  portBusy = false,
-  preflightAvailable = true,
-  bundleMtime = null,
-  newestSourceMtime = 0,
-}) {
+export function planReview({ outputIgnored, portBusy = false, bundleMtime = null, newestSourceMtime = 0 }) {
   if (!outputIgnored) {
     return [{ kind: 'refuse', name: 'output-not-ignored', message: OUTPUT_NOT_IGNORED_MESSAGE, exitCode: 1 }];
   }
@@ -183,16 +178,6 @@ export function planReview({
   }
   /** @type {Step[]} */
   const steps = [];
-  if (preflightAvailable) {
-    // A read-only report of this project's ports, other projects' test processes and LocalDB (CLAUDE.md).
-    steps.push({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: REPO_ROOT,
-    });
-  }
   // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\CSPS before any connection opens (T-02-24).
   steps.push({
     kind: 'run',
@@ -981,10 +966,17 @@ async function main() {
   process.once('SIGTERM', onSignal);
   process.once('exit', release);
   try {
+    if (outputIgnored) {
+      // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.
+      const busy = await waitForSharedMachine({ label: 'review' });
+      if (busy !== null) {
+        process.stderr.write(`${busy}\n`);
+        return 1;
+      }
+    }
     const steps = planReview({
       outputIgnored,
       portBusy: outputIgnored ? await portIsBusy() : false,
-      preflightAvailable: existsSync(PREFLIGHT_SCRIPT),
       bundleMtime: existsSync(BUNDLE_MARKER) ? statSync(BUNDLE_MARKER).mtimeMs : null,
       newestSourceMtime: newestMtime(BUILD_INPUTS),
     });

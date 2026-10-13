@@ -8,7 +8,7 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { assertReport, THRESHOLDS } from './lighthouse-assert.mjs';
-import { PORT_BUSY_MESSAGE, PREFLIGHT_SCRIPT } from './e2e.mjs';
+import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
   executeSteps,
   HEALTH_URL,
@@ -20,7 +20,6 @@ import {
 } from './lighthouse.mjs';
 
 const webDirectory = fileURLToPath(new URL('..', import.meta.url));
-const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 interface ReportOptions {
   readonly scores?: Readonly<Record<string, number | null>>;
@@ -239,30 +238,15 @@ describe('planSteps (lighthouse.mjs)', () => {
     ]);
   });
 
-  it('runs preflight, the production build, the host, lighthouse and the assertion, in that order', () => {
+  // The shared-machine preflight is a wait gate in main(), before planning (shared-machine.mjs, TOOL-WR-08).
+  it('runs the production build, the host, lighthouse and the assertion, in that order', () => {
     const steps = planSteps({ portBusy: false });
 
-    expect(steps.map((step) => step.name)).toEqual(['preflight', 'build', 'host', 'lighthouse', 'assert']);
-  });
-
-  it('runs the shared-machine preflight for all four of this project ports, and skips only it when it is missing', () => {
-    expect(planSteps({ portBusy: false })[0]).toEqual({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: repoRoot,
-    });
-    expect(planSteps({ portBusy: false, preflightAvailable: false }).map((step) => step.name)).toEqual([
-      'build',
-      'host',
-      'lighthouse',
-      'assert',
-    ]);
+    expect(steps.map((step) => step.name)).toEqual(['build', 'host', 'lighthouse', 'assert']);
   });
 
   it('builds production into wwwroot with this Node binary and the vite JS entry', () => {
-    expect(planSteps({ portBusy: false })[1]).toEqual({
+    expect(planSteps({ portBusy: false })[0]).toEqual({
       kind: 'run',
       name: 'build',
       command: process.execPath,
@@ -275,7 +259,7 @@ describe('planSteps (lighthouse.mjs)', () => {
     expect(WWWROOT).toBe(fileURLToPath(new URL('../../src/Csps.Server/wwwroot', import.meta.url)));
     expect(SERVER_PROJECT).toBe(fileURLToPath(new URL('../../src/Csps.Server', import.meta.url)));
     expect(HEALTH_URL).toBe('https://localhost:5199/health');
-    expect(planSteps({ portBusy: false })[2]).toEqual({
+    expect(planSteps({ portBusy: false })[1]).toEqual({
       kind: 'host',
       name: 'host',
       command: 'dotnet',
@@ -299,7 +283,7 @@ describe('planSteps (lighthouse.mjs)', () => {
   it('runs lighthouse 13 on the mobile profile with error reporting off, writing JSON to the git-ignored artifacts', () => {
     expect(LIGHTHOUSE_URL).toBe('https://localhost:5199/');
     expect(REPORT_PATH).toBe(fileURLToPath(new URL('../../artifacts/lighthouse/report.json', import.meta.url)));
-    expect(planSteps({ portBusy: false, chromePath: 'C:/chrome/chrome.exe' })[3]).toEqual({
+    expect(planSteps({ portBusy: false, chromePath: 'C:/chrome/chrome.exe' })[2]).toEqual({
       kind: 'run',
       name: 'lighthouse',
       command: process.execPath,
@@ -319,13 +303,13 @@ describe('planSteps (lighthouse.mjs)', () => {
   });
 
   it('lets lighthouse find Chrome itself when no browser path is given', () => {
-    const lighthouse = planSteps({ portBusy: false })[3];
+    const lighthouse = planSteps({ portBusy: false })[2];
 
     expect(lighthouse).toMatchObject({ name: 'lighthouse', env: {} });
   });
 
   it('asserts the report it wrote', () => {
-    expect(planSteps({ portBusy: false })[4]).toEqual({ kind: 'assert', name: 'assert', reportPath: REPORT_PATH });
+    expect(planSteps({ portBusy: false })[3]).toEqual({ kind: 'assert', name: 'assert', reportPath: REPORT_PATH });
   });
 
   it('never spawns a .cmd or .bat shim, npm or npx (L-22)', () => {
@@ -373,7 +357,7 @@ describe('executeSteps (lighthouse.mjs)', () => {
   it('runs every step, stops the host it started after lighthouse, and returns 0 when the report passes', async () => {
     const { events, deps } = fakeDeps();
 
-    expect(await executeSteps(planSteps({ portBusy: false, preflightAvailable: false }), deps)).toBe(0);
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(0);
 
     expect(events.filter((event) => !event.startsWith('log '))).toEqual([
       'run build',
@@ -387,14 +371,14 @@ describe('executeSteps (lighthouse.mjs)', () => {
   it('returns 1 and logs every failure when the report misses a threshold', async () => {
     const { events, deps } = fakeDeps({ report: lighthouseReport({ scores: { seo: 0.9 } }) });
 
-    expect(await executeSteps(planSteps({ portBusy: false, preflightAvailable: false }), deps)).toBe(1);
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(1);
     expect(events).toContain('log lighthouse: category seo: score 0.9 is below 0.95');
   });
 
   it('still stops the host when lighthouse itself fails, and never reads a report', async () => {
     const { events, deps } = fakeDeps({ runStatus: { lighthouse: 2 } });
 
-    expect(await executeSteps(planSteps({ portBusy: false, preflightAvailable: false }), deps)).toBe(2);
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(2);
     expect(events.filter((event) => !event.startsWith('log '))).toEqual([
       'run build',
       'start host',
@@ -406,14 +390,14 @@ describe('executeSteps (lighthouse.mjs)', () => {
   it('stops at a failed build without starting the host', async () => {
     const { events, deps } = fakeDeps({ runStatus: { build: 1 } });
 
-    expect(await executeSteps(planSteps({ portBusy: false, preflightAvailable: false }), deps)).toBe(1);
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(1);
     expect(events.filter((event) => !event.startsWith('log '))).toEqual(['run build']);
   });
 
   it('returns 1 without running lighthouse when the host never becomes healthy', async () => {
     const { events, deps } = fakeDeps({ hostFails: true });
 
-    expect(await executeSteps(planSteps({ portBusy: false, preflightAvailable: false }), deps)).toBe(1);
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(1);
     expect(events.filter((event) => !event.startsWith('log '))).toEqual(['run build', 'start host']);
     expect(events).toContain('log lighthouse: the host exited before /health answered');
   });

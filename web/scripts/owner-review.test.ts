@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { PORT_BUSY_MESSAGE, PREFLIGHT_SCRIPT } from './e2e.mjs';
+import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
   assertWritable,
   E2E_DIST,
@@ -131,14 +131,15 @@ describe('planReview: refusals', () => {
 describe('planReview: the run', () => {
   const fresh = { outputIgnored: true, bundleMtime: 2000, newestSourceMtime: 1000 } as const;
 
-  it('runs preflight, the CSPS_E2E seed, the host, the capture and the report, in that order, for a fresh bundle', () => {
-    expect(names(planReview(fresh))).toEqual(['preflight', 'seed', 'host', 'capture', 'report']);
+  // The shared-machine preflight is a wait gate in main(), before planning (shared-machine.mjs, TOOL-WR-08).
+  it('runs the CSPS_E2E seed, the host, the capture and the report, in that order, for a fresh bundle', () => {
+    expect(names(planReview(fresh))).toEqual(['seed', 'host', 'capture', 'report']);
   });
 
   it('rebuilds the e2e bundle when it is missing', () => {
     const steps = planReview({ outputIgnored: true, bundleMtime: null, newestSourceMtime: 1000 });
 
-    expect(names(steps)).toEqual(['preflight', 'seed', 'build', 'host', 'capture', 'report']);
+    expect(names(steps)).toEqual(['seed', 'build', 'host', 'capture', 'report']);
   });
 
   it('rebuilds the e2e bundle when any source is newer than it (L-29), not only when it is missing', () => {
@@ -151,22 +152,6 @@ describe('planReview: the run', () => {
     const steps = planReview({ outputIgnored: true, bundleMtime: 1000, newestSourceMtime: 1000 });
 
     expect(names(steps)).not.toContain('build');
-  });
-
-  it('skips only the preflight when the preflight script is not on this machine', () => {
-    expect(names(planReview({ ...fresh, preflightAvailable: false }))).toEqual(['seed', 'host', 'capture', 'report']);
-  });
-
-  it('runs the read-only shared-machine preflight on this project ports', () => {
-    const preflight = planReview(fresh).find((step) => step.name === 'preflight');
-
-    expect(preflight).toEqual({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: repoRoot,
-    });
   });
 
   it('seeds only CSPS_E2E through the guarded dev-seed tool', () => {
@@ -311,7 +296,6 @@ describe('executeReview', () => {
 
     expect(code).toBe(0);
     expect(calls.filter((call) => !call.startsWith('log'))).toEqual([
-      'run preflight',
       'run seed',
       'run build',
       'host start',

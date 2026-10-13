@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Pins `npm run parity` (WEB-02, D-33): the run is the shared-machine preflight, the 02-38 spec extraction, the
+// Pins `npm run parity` (WEB-02, D-33): after the shared-machine wait gate (shared-machine.mjs), the run is the 02-38 spec extraction, the
 // reference build, then the visual Playwright run with the caller's arguments. Every Node tool runs on this Node binary
 // with its JS entry (never a .cmd shim, L-22), and a failing extraction (a pin mismatch) stops the run before anything
 // is built.
@@ -30,33 +30,19 @@ function fakeSpawner(statuses: readonly (number | null)[]) {
 }
 
 describe('planSteps', () => {
-  it('runs the preflight, the spec extraction, the reference build, the implementation build and Playwright, in that order', () => {
+  it('runs the spec extraction, the reference build, the implementation build and Playwright, in that order', () => {
     const steps = planSteps({});
-
-    expect(steps.map((step) => step.name)).toEqual(['preflight', 'extract', 'build', 'build-app', 'playwright']);
-  });
-
-  it('runs the read-only shared-machine preflight with this project ports from the repository root', () => {
-    const [preflight] = planSteps({});
-
-    expect(preflight).toEqual({
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: REPO_ROOT,
-    });
-    expect(PREFLIGHT_SCRIPT).toBe('C:\\Work\\dev-tools\\preflight.ps1');
-    expect(path.resolve(REPO_ROOT)).toBe(path.resolve(repoRoot));
-  });
-
-  it('skips the preflight when the preflight script is not on this machine (CI)', () => {
-    const steps = planSteps({ preflightAvailable: false });
 
     expect(steps.map((step) => step.name)).toEqual(['extract', 'build', 'build-app', 'playwright']);
   });
 
+  it('re-exports the shared preflight path and the repository root', () => {
+    expect(PREFLIGHT_SCRIPT).toBe('C:\\Work\\dev-tools\\preflight.ps1');
+    expect(path.resolve(REPO_ROOT)).toBe(path.resolve(repoRoot));
+  });
+
   it('runs every Node tool on this Node binary with its JS entry from the web folder (L-22)', () => {
-    const tools = planSteps({}).filter((step) => step.name !== 'preflight');
+    const tools = planSteps({});
 
     expect(tools).toHaveLength(4);
     for (const step of tools) {
@@ -121,11 +107,10 @@ describe('planSteps', () => {
 
 describe('executeSteps', () => {
   it('runs every step in order and returns 0 when all pass', () => {
-    const { calls, spawn } = fakeSpawner([0, 0, 0, 0, 0]);
+    const { calls, spawn } = fakeSpawner([0, 0, 0, 0]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(0);
     expect(calls.map((call) => call.args[0])).toEqual([
-      '-NoProfile',
       'visual/reference/extract-spec.mjs',
       'node_modules/vite/bin/vite.js',
       'node_modules/vite/bin/vite.js',
@@ -135,10 +120,10 @@ describe('executeSteps', () => {
 
   it('stops at a failing extraction (a pin mismatch) before anything is built, with its exit code', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const { calls, spawn } = fakeSpawner([0, 1]);
+    const { calls, spawn } = fakeSpawner([1]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(1);
-    expect(calls.map((call) => call.args[0])).toEqual(['-NoProfile', 'visual/reference/extract-spec.mjs']);
+    expect(calls.map((call) => call.args[0])).toEqual(['visual/reference/extract-spec.mjs']);
     expect(stderr).toHaveBeenCalledWith('parity: extract failed with exit code 1.\n');
   });
 
@@ -146,13 +131,13 @@ describe('executeSteps', () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { calls, spawn } = fakeSpawner([null]);
 
-    expect(executeSteps(planSteps({ preflightAvailable: false }), spawn)).toBe(1);
+    expect(executeSteps(planSteps({}), spawn)).toBe(1);
     expect(calls).toHaveLength(1);
   });
 
   it('returns the Playwright exit code, so a failing or empty visual run fails npm run parity', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const { spawn } = fakeSpawner([0, 0, 0, 0, 1]);
+    const { spawn } = fakeSpawner([0, 0, 0, 1]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(1);
     expect(stderr).toHaveBeenCalledWith('parity: playwright failed with exit code 1.\n');
@@ -160,10 +145,10 @@ describe('executeSteps', () => {
 
   it('stops at a failing implementation build before Playwright runs', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const { calls, spawn } = fakeSpawner([0, 0, 0, 2]);
+    const { calls, spawn } = fakeSpawner([0, 0, 2]);
 
     expect(executeSteps(planSteps({}), spawn)).toBe(2);
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(3);
     expect(stderr).toHaveBeenCalledWith('parity: build-app failed with exit code 2.\n');
   });
 });

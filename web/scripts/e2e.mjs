@@ -2,8 +2,10 @@
 // `npm run e2e` (QUAL-04, D-30, research Pattern 11): the only supported way to run the Playwright suite.
 //   1. Takes the exclusive run lock web/.locks/e2e.lock (shared with the parity and Lighthouse runs, which start the same
 //      host). A second run waits for it, up to 15 minutes, then exits 1 asking you to wait and retry.
-//   2. Refuses to start when port 5199 is in use. It never stops any process (CLAUDE.md shared machine).
-//   3. Runs the shared-machine preflight report.
+//   2. Waits while the shared machine is busy (shared-machine.mjs reads the shared preflight report: one of this
+//      project's ports in use by another program, or another project's test processes listed), up to 15 minutes, then
+//      exits 1. It never stops any process (CLAUDE.md shared machine).
+//   3. Refuses to start when port 5199 is in use.
 //   4. Migrates and seeds CSPS_E2E on (localdb)\CSPS through the guarded dev-seed tool (idempotent).
 //   5. Builds the e2e bundle into web/.e2e-dist (vite build --mode e2e).
 //   6. Runs `playwright test` with this script's arguments (for example --grep @smoke --project webkit).
@@ -12,13 +14,14 @@
 // so Node tools run on this Node binary with their JS entry (L-22).
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PREFLIGHT_SCRIPT, waitForSharedMachine } from './shared-machine.mjs';
 
+export { PREFLIGHT_SCRIPT };
 export const E2E_PORT = 5199;
-export const PREFLIGHT_SCRIPT = 'C:\\Work\\dev-tools\\preflight.ps1';
 export const PORT_BUSY_MESSAGE = `Port ${String(E2E_PORT)} is in use by another process. Wait for it to finish; this script never stops other processes.`;
 export const WEB_DIRECTORY = fileURLToPath(new URL('..', import.meta.url));
 export const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -28,7 +31,7 @@ export const LOCK_TIMEOUT_MS = 15 * 60 * 1000;
 const LOCK_POLL_MS = 2000;
 
 /**
- * @typedef {{ readonly kind: 'run', readonly name: 'preflight' | 'seed' | 'build' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
+ * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'refuse', readonly name: 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {RunStep | RefuseStep} Step
  * @typedef {(command: string, args: readonly string[], options: { cwd: string, stdio: 'inherit' }) => { status: number | null }} Spawner
@@ -36,25 +39,15 @@ const LOCK_POLL_MS = 2000;
 
 /**
  * The run as data, so the order and the exact commands are unit-tested without starting anything.
- * @param {{ portBusy: boolean, extraArgs?: readonly string[], preflightAvailable?: boolean }} options
+ * @param {{ portBusy: boolean, extraArgs?: readonly string[] }} options
  * @returns {readonly Step[]}
  */
-export function planSteps({ portBusy, extraArgs = [], preflightAvailable = true }) {
+export function planSteps({ portBusy, extraArgs = [] }) {
   if (portBusy) {
     return [{ kind: 'refuse', name: 'port-busy', message: PORT_BUSY_MESSAGE, exitCode: 1 }];
   }
   /** @type {RunStep[]} */
   const steps = [];
-  if (preflightAvailable) {
-    // A read-only report of this project's ports, other projects' test processes and LocalDB (CLAUDE.md).
-    steps.push({
-      kind: 'run',
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: REPO_ROOT,
-    });
-  }
   steps.push(
     // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\CSPS before any connection opens (T-02-24).
     {
@@ -248,11 +241,13 @@ async function main(argv) {
   process.once('SIGTERM', onSignal);
   process.once('exit', release);
   try {
-    const steps = planSteps({
-      portBusy: await portIsBusy(),
-      extraArgs: argv,
-      preflightAvailable: existsSync(PREFLIGHT_SCRIPT),
-    });
+    // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.
+    const busy = await waitForSharedMachine({ label: 'e2e' });
+    if (busy !== null) {
+      process.stderr.write(`${busy}\n`);
+      return 1;
+    }
+    const steps = planSteps({ portBusy: await portIsBusy(), extraArgs: argv });
     return executeSteps(steps);
   } finally {
     release();

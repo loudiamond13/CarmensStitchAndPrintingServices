@@ -2,7 +2,8 @@
 // `npm run parity` (WEB-02, D-33): the only supported way to run the look-equality proof.
 //   1. Takes the exclusive run lock web/.locks/parity.lock, so two runs never build into the same folders at once. A
 //      second run waits for it, up to 15 minutes, then exits 1 asking you to wait and retry.
-//   2. Runs the shared-machine preflight report (read-only).
+//   2. Waits while the shared machine is busy (shared-machine.mjs reads the shared preflight report), up to 15
+//      minutes, then exits 1. It never stops any process (TOOL-WR-08).
 //   3. Extracts the pinned spec appendices (plan 02-38). A pin mismatch exits non-zero and stops the run before
 //      anything is built, so the reference never compiles an unreviewed copy of the approved design.
 //   4. Builds the reference app into web/.reference-dist (visual/vite.reference.config.ts).
@@ -14,37 +15,28 @@
 // without a shell, so Node tools run on this Node binary with their JS entry (L-22). Nothing is set at User or Machine
 // level, and no other process is ever stopped (CLAUDE.md shared machine).
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquireLock, lockTimeoutMessage, PREFLIGHT_SCRIPT, REPO_ROOT, WEB_DIRECTORY } from './e2e.mjs';
+import { waitForSharedMachine } from './shared-machine.mjs';
 
 export { PREFLIGHT_SCRIPT, REPO_ROOT, WEB_DIRECTORY };
 
 export const PARITY_LOCK_PATH = path.join(WEB_DIRECTORY, '.locks', 'parity.lock');
 
 /**
- * @typedef {{ readonly name: 'preflight' | 'extract' | 'build' | 'build-app' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} Step
+ * @typedef {{ readonly name: 'extract' | 'build' | 'build-app' | 'playwright', readonly command: string, readonly args: readonly string[], readonly cwd: string }} Step
  * @typedef {(command: string, args: readonly string[], options: { cwd: string, stdio: 'inherit' }) => { status: number | null }} Spawner
  */
 
 /**
  * The run as data, so the order and the exact commands are unit-tested without starting anything.
- * @param {{ extraArgs?: readonly string[], preflightAvailable?: boolean }} options
+ * @param {{ extraArgs?: readonly string[] }} options
  * @returns {readonly Step[]}
  */
-export function planSteps({ extraArgs = [], preflightAvailable = true }) {
+export function planSteps({ extraArgs = [] }) {
   /** @type {Step[]} */
   const steps = [];
-  if (preflightAvailable) {
-    // A read-only report of this project's ports, other projects' test processes and LocalDB (CLAUDE.md).
-    steps.push({
-      name: 'preflight',
-      command: 'powershell',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PREFLIGHT_SCRIPT, '-Ports', '5180,5115,7028,5199'],
-      cwd: REPO_ROOT,
-    });
-  }
   steps.push(
     // Plan 02-38's extraction. It never gets --repin: re-pinning is a manual, owner-reviewed step.
     { name: 'extract', command: process.execPath, args: ['visual/reference/extract-spec.mjs'], cwd: WEB_DIRECTORY },
@@ -116,7 +108,13 @@ async function main(argv) {
   process.once('SIGTERM', onSignal);
   process.once('exit', release);
   try {
-    return executeSteps(planSteps({ extraArgs: argv, preflightAvailable: existsSync(PREFLIGHT_SCRIPT) }));
+    // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.
+    const busy = await waitForSharedMachine({ label: 'parity' });
+    if (busy !== null) {
+      process.stderr.write(`${busy}\n`);
+      return 1;
+    }
+    return executeSteps(planSteps({ extraArgs: argv }));
   } finally {
     release();
   }

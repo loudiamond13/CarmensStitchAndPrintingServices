@@ -1,6 +1,6 @@
 # Release gates: every check the web app must pass, and the order to run them
 
-*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-09T05:40:00-05:00*
+*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-13T09:40:00-05:00*
 
 This page lists every automated gate for the web app (Phase 2, plan 02-35), the command that runs it and the rule it passes on. Run them in the order of section 3 before `/gsd-verify-work`. A gate that fails is fixed in the code. **No gate is ever passed by loosening a limit, adding a tolerance or skipping a check.** If the only fix would change how an approved screen looks, its words or its accessibility structure, stop and take it to the owner (decision D-08).
 
@@ -10,7 +10,7 @@ This page lists every automated gate for the web app (Phase 2, plan 02-35), the 
 > powershell -NoProfile -ExecutionPolicy Bypass -File C:\Work\dev-tools\preflight.ps1 -Ports 5180,5115,7028,5199
 > ```
 >
-> If a port is in use by another project, or TheBETSLLC's test processes are listed, **wait** and try again later. Never stop another project's process. The E2E, parity and Lighthouse runners also run this preflight themselves and refuse to start when port 5199 is busy.
+> If a port is in use by another project, or TheBETSLLC's test processes are listed, **wait** and try again later. Never stop another project's process. The E2E, parity, Lighthouse and owner-review runners also run this preflight themselves, read it, and wait (up to 15 minutes, then exit 1) while a port of this project is in use by another program or TheBETSLLC's dev/test processes are listed (`web/scripts/shared-machine.mjs`, TOOL-WR-08); they also refuse to start when port 5199 is busy.
 
 ## 1. The gates
 
@@ -51,8 +51,8 @@ This page lists every automated gate for the web app (Phase 2, plan 02-35), the 
 `web/scripts/lighthouse.mjs` does the following, in order (plan 02-35):
 
 1. Takes the shared run lock `web/.locks/e2e.lock`. E2E and Lighthouse both start the host on port 5199, so they never run at the same time.
-2. Refuses to start when anything answers on port 5199. It never stops or reuses another process.
-3. Runs the preflight report.
+2. Runs the shared-machine wait (`web/scripts/shared-machine.mjs`): it runs the preflight report and **waits**, up to 15 minutes, while one of this project's ports is in use by another program or TheBETSLLC's dev/test processes are listed, then exits 1. It never stops anything. Without the preflight script (CI) it says so and goes on.
+3. Refuses to start when anything answers on port 5199. It never stops or reuses another process.
 4. Builds production into `src/Csps.Server/wwwroot` (`vite build`, with the budget gate).
 5. Starts the real ASP.NET Core host: `dotnet run --project src/Csps.Server --no-launch-profile -- --urls https://localhost:5199 --webroot <wwwroot>`. `ASPNETCORE_ENVIRONMENT=Development` is set on that one process only. It waits up to two minutes for `/health`.
 6. Runs lighthouse 13.5.0 on `https://localhost:5199/` with the default mobile profile (`--form-factor=mobile`, simulated throttling), `--no-enable-error-reporting` and `--chrome-flags="--headless=new --ignore-certificate-errors"`. It drives the Chromium build of the pinned Playwright version when it is installed (set as `CHROME_PATH` on that child only), so a Chrome update on the machine does not move the score.
