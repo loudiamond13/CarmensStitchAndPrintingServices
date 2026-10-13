@@ -80,12 +80,22 @@ export function isMoneyText(text: string): boolean {
 }
 
 /**
- * A pasted amount with grouping commas and whitespace removed (" 12,450.00 " → "12450.00"). Anything that still
- * breaks MONEY_TEXT, including a minus sign, a third decimal or a peso sign, gives "".
+ * Thousands grouping: 1 to 3 digits, then groups of exactly 3 after ONE kind of separator (a comma, a space, a
+ * no-break space, a narrow no-break space or a thin space), then an optional fraction.
+ */
+const GROUPED_MONEY = /^\d{1,3}([, \u00A0\u202F\u2009])\d{3}(?:\1\d{3})*(?:\.\d*)?$/;
+const GROUP_SEPARATORS = /[, \u00A0\u202F\u2009]/g;
+
+/**
+ * A pasted amount with its surrounding whitespace and thousands grouping removed (" 12,450.00 " → "12450.00",
+ * "1 250.50" → "1250.50"). A comma or space counts only between groups of three digits, so "1,50", "12 50" or "1,2,3"
+ * give "" instead of a different amount (₱150.00, LIB-WR-06). Anything that still breaks MONEY_TEXT, including a minus
+ * sign, a third decimal or a peso sign, gives "".
  */
 export function normalizePastedMoney(text: string): string {
-  const compact = text.replace(/[\s,]/g, '');
-  return MONEY_TEXT.test(compact) ? compact : '';
+  const trimmed = text.trim();
+  const candidate = GROUPED_MONEY.test(trimmed) ? trimmed.replace(GROUP_SEPARATORS, '') : trimmed;
+  return MONEY_TEXT.test(candidate) ? candidate : '';
 }
 
 /**

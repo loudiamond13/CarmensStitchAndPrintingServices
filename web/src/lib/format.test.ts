@@ -167,6 +167,10 @@ describe('normalizePastedMoney', () => {
     ['\t5000\n', '5000'],
     ['5000', '5000'],
     ['.5', '.5'],
+    ['1,234,567.89', '1234567.89'],
+    ['999,999,999.99', '999999999.99'],
+    ['1\u00A0250.50', '1250.50'],
+    ['1\u202F250', '1250'],
   ] as const)('turns %j into %j', ([pasted, expected]) => {
     expect(normalizePastedMoney(pasted)).toBe(expected);
   });
@@ -177,6 +181,25 @@ describe('normalizePastedMoney', () => {
       expect(normalizePastedMoney(pasted)).toBe('');
     },
   );
+
+  // A comma or space counts only as a thousands separator between groups of three digits. Anything else is refused
+  // rather than read as a different amount: "1,50" must never become ₱150.00 (LIB-WR-06).
+  it.for([
+    '1,50',
+    '12,5',
+    '1,2,3',
+    '12 50',
+    '1 2 3',
+    '1,2500',
+    ',250',
+    '1,250,',
+    '1,250 000',
+    '1\t250',
+    '1\n250',
+    '12,50.00',
+  ])('refuses %j instead of reading it as another amount', (pasted) => {
+    expect(normalizePastedMoney(pasted)).toBe('');
+  });
 });
 
 describe('padMoneyOnBlur', () => {
