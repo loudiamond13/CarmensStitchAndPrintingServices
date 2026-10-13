@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-13T17:49:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-13T18:58:00-05:00*
 
 ## Overview
 
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 41/41 plans executed: 40/40 executed in 13 waves, plus gap-closure plan 02-41 (UAT G-2-199) executed, awaiting `/gsd-verify-work 2` (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 41/42 plans executed: 40/40 executed in 13 waves, plus gap-closure plan 02-41 (UAT G-2-199) executed; gap-closure plan 02-42 (G-2-199 truth 28, the backdrop scrollbar close rule) planned 2026-10-13, then `/gsd-verify-work 2` (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -297,6 +297,7 @@ Plans:
 
 **Gap closure** *(UAT G-2-199, planned 2026-10-13; run with `/gsd-execute-phase 2 --gaps-only`)*
 - [x] 02-41-PLAN.md — Dialogs fit a short window (owner ruling D-42): the 140px top gap shrinks to 16px (96px to 0 on phones), the backdrop scrolls, its scrollbar never closes the dialog; same rule in the parity reference
+- [ ] 02-42-PLAN.md — Backdrop close rule (D-42, re-verification gap truth 28): the scrim closes on a primary click that did not scroll it, so classic and overlay scrollbar drags and middle/right presses never close the dialog; two real-scrollbar Chromium projects prove it
 
 **UI hint**: yes
 
