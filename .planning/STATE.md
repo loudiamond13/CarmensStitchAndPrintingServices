@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: verifying
-stopped_at: Completed 02-36-PLAN.md
-last_updated: "2026-10-13T21:00:01.976Z"
+stopped_at: Completed 02-41-PLAN.md
+last_updated: "2026-10-13T22:47:24.148Z"
 last_activity: 2026-10-13
 last_activity_desc: Phase 02 execution started
-state_head: c21ea0ab0a684c36002298e6728fc4698a83b33d
+state_head: 4910a4dcf670aea1240181207369b23f0d9e8ff3
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 53
-  completed_plans: 53
+  total_plans: 54
+  completed_plans: 54
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-13T05:22:00-05:00"
+updated: "2026-10-13T17:49:00-05:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 40 of 40
+Plan: 41 of 41
 Status: Phase complete — ready for verification
-Last activity: 2026-10-13 — Completed quick task 261013-lgi: Fix the five D-41 code-review warnings in phase 2 (WR-01..WR-05)
+Last activity: 2026-10-13 — Completed gap-closure plan 02-41 (UAT G-2-199, owner ruling D-42: dialog fit on short windows)
 
 Progress: [█░░░░░░░░░] 6%
 
@@ -111,6 +111,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P34 | 39 min | 2 tasks | 15 files |
 | Phase 02 P35 | 3h 11m | 3 tasks | 21 files |
 | Phase 02 P36 | 70 min | 2 tasks | 9 files |
+| Phase 02 P41 | 40 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-35: parity harness waits for document.fonts to settle (ready + 2 frames, up to 10 rounds) before reading a case; full matrix 452/452 in three engines
 - [Phase 02]: 02-36: owner review reads parity results from a Playwright JSON reporter (web/test-results/parity-results.json); the review never runs parity itself
 - [Phase 02]: 02-36: the owner's phase 2 look review is complete as a local pack (artifacts/owner-review) and pending, never auto-approved
+- [Phase 02]: D-42 (02-41): the Overlay region is a flex column with a shrinkable ::before spacer (124px, 96px on phone pages) and a scrolling backdrop; dialogs keep 140px/96px where they fit, move up to the 16px/0 edge gap, then scroll; backdrop-scrollbar presses never close the dialog
 
 ### Pending Todos
 
@@ -316,6 +318,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-13T10:21:06.911Z
-Stopped at: Completed 02-36-PLAN.md
+Last session: 2026-10-13T22:47:23.819Z
+Stopped at: Completed 02-41-PLAN.md
 Resume file: None
