@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T14:05:55-05:00"
+updated: "2026-10-13T15:50:36-05:00"
 ---
 
 # Phase 02 deferred items
@@ -205,3 +205,10 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** `web/.npmrc` waives the 14-day release cool-down with `min-release-age-exclude[]=vite`, `=source-map-js` and `=http-cache-semantics` (security fixes approved for one version each, D-25: vite 8.3.3, source-map-js 1.2.2, http-cache-semantics 4.3.0) and `=lucide-react` (D-11/D-34, newest stable on purpose). The installed versions are exactly those (vite 8.3.3, source-map-js 1.2.2, http-cache-semantics 4.3.0, lucide-react 1.53.0; nothing was reinstalled). npm 11.19 matches `min-release-age-exclude` against the package NAME only (exact names or globs, `@npmcli/arborist/lib/release-age-exclude.js`), so `vite@8.3.3` cannot be written there: every future release of these packages, a compromised one included, skips the cool-down on the next install or update. The comments give age-out dates (source-map-js 2026-10-14T14:08Z, http-cache-semantics 2026-10-18T02:56Z), but nothing removes the lines or fails when the dates pass. The exact versions stay pinned in `package.json` (`vite` 8.3.3; `overrides` for source-map-js and http-cache-semantics), so the waivers matter only when someone installs or updates.
   **Options:** (a) remove the source-map-js line after 2026-10-14T14:08Z and the http-cache-semantics line after 2026-10-18T02:56Z (both versions are then older than 14 days, so nothing that is installed changes); (b) remove the vite line too, now that 8.3.3 is installed (the next vite upgrade then waits the normal 14 days or gets its own recorded waiver); (c) add a small gate to `npm run verify` (the review's suggestion) that reads the `min-release-age-exclude` lines and fails when an excluded package's installed version is not the approved one, or when a recorded age-out date has passed. A gate with dates starts failing on the first of those dates until (a) is done.
   **Question for the owner:** which of (a), (b), (c) do you want, and should lucide-react keep its standing waiver (D-11)?
+
+- A confirm or edit dialog cannot be opened from inside a list-table cell (code review WR-05, FYI, not blocking)
+  status: open
+  **Found by:** the D-41 code review (02-REVIEW-d41.md, WR-05). Guarded by quick-261013-lgi.
+  **What:** the paint containment you ruled in D-41 R2-02 (it stops the page scrolling sideways on tablets) has a side effect: anything with a fixed position inside the list-table frame is trapped in that frame. A delete or edit dialog placed inside a table row would get a dark backdrop that covers only the table, would be cut off at the table's edges and would scroll with the rows, while the rest of the page stayed clickable. Nothing does this today. A guard now makes such a dialog fail loudly in the first test (`web/src/ui/overlays/fixedLayerGuard.ts`), and row actions keep the dialog's open state on the page and show the dialog outside the table instead, which works today (focus moves into the dialog, no axe violations). Nothing visible changed.
+  **Before / after if the owner chooses to change it:** today, a row's "Delete" button opens a dialog that the page shows; the developer cannot put the dialog inside the row. After either change the developer could, and the screen would look the same.
+  **Question for the owner:** keep this rule, or allow in-cell dialogs through either (a) a portal into the layout's `.s-page` (spec §2.7 allows it, and it keeps the theme and the phone layout), or (b) `position: relative` on the table frame instead of paint containment (a D-08 ruling; the frozen reference would get the same rule)?
