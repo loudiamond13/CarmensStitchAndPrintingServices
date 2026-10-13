@@ -12,6 +12,10 @@
 //   - onComplete(code) fires each time an edit leaves all six boxes filled. Nothing validates before a submit: the
 //     caller checks the code with `otpInputError` and passes the error, which marks every box invalid.
 // Codes are never logged.
+// SPEC-DEVIATION: UI-WR-08 the UI-SPEC gives every box `maxLength=1`; the first box has none. Browser autofill and
+// keyboard code suggestions (iOS, Chrome) insert the whole code as user input into the `one-time-code` box, and
+// maxlength would cut it to its first digit; the change handler already keeps digits only and spreads them over the
+// boxes. Attribute only; no visual change.
 import clsx from 'clsx';
 import {
   useId,
@@ -184,7 +188,7 @@ export function OtpInput({
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={1}
+              maxLength={index === 0 ? undefined : 1}
               autoComplete={index === 0 ? FIRST_BOX_AUTOCOMPLETE : 'off'}
               aria-label={ENTRY_COPY.otp.digit(index + 1, LENGTH)}
               aria-invalid={invalid || undefined}

@@ -43,7 +43,7 @@ function SignInForm(props: Omit<OtpInputProps, 'onChange' | 'error'>) {
 }
 
 describe('OtpInput markup (UI-SPEC OtpInput, PERF-03)', () => {
-  it('is a fieldset named by its legend, with six numeric one-digit boxes named "Digit i of 6"', () => {
+  it('is a fieldset named by its legend, with six numeric boxes named "Digit i of 6", boxes 2 to 6 one digit long', () => {
     render(<OtpInput />);
     const group = screen.getByRole('group', { name: ENTRY_COPY.otp.legend });
     expect(group.tagName).toBe('FIELDSET');
@@ -52,14 +52,18 @@ describe('OtpInput markup (UI-SPEC OtpInput, PERF-03)', () => {
       const box = digitBox(index);
       expect(box).toHaveAttribute('inputmode', 'numeric');
       expect(box).toHaveAttribute('pattern', '[0-9]*');
-      expect(box).toHaveAttribute('maxlength', '1');
       expect(box.type).toBe('text');
+    }
+    for (const index of [2, 3, 4, 5, 6]) {
+      expect(digitBox(index)).toHaveAttribute('maxlength', '1');
     }
   });
 
-  it('offers one-time-code autofill on the first box only', () => {
+  it('offers one-time-code autofill on the first box only, with no maxlength to cut the code to one digit (UI-WR-08)', () => {
     render(<OtpInput />);
     expect(digitBox(1)).toHaveAttribute('autocomplete', 'one-time-code');
+    // Autofill and keyboard code suggestions insert text as user input, which maxlength would cut to its first digit.
+    expect(digitBox(1)).not.toHaveAttribute('maxlength');
     for (const index of [2, 3, 4, 5, 6]) {
       expect(digitBox(index)).toHaveAttribute('autocomplete', 'off');
     }
