@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { COLOUR_LITERAL, OPACITY_ALLOW } from './class-gate.config.mjs';
+import { COLOUR_LITERAL, COLOUR_LITERAL_SOURCE, OPACITY_ALLOW } from './class-gate.config.mjs';
 import { buildCss, checkClassTokens, collectClassTokens, listSourceFiles, runClassGate } from './class-gate.mjs';
 
 const tokensOf = (file: string, source: string): string[] =>
@@ -149,6 +149,15 @@ describe('checkClassTokens', () => {
     expect(await findingsOf('src/ui/A.tsx', jsx('bg-[rgb(0,0,0)] text-[oklch(50%_0.1_10)]'))).toEqual([
       ['bg-[rgb(0,0,0)]', 'colour-literal'],
       ['text-[oklch(50%_0.1_10)]', 'colour-literal'],
+    ]);
+  });
+
+  // TOOL-WR-07: every CSS colour syntax, not only hex, rgb() and oklch().
+  it('reports hsl(), the other colour functions and named colours as colour literals', async () => {
+    expect(await findingsOf('src/ui/A.tsx', jsx('bg-[hsl(0_0%_50%)] text-[color:tomato] border-[red]'))).toEqual([
+      ['bg-[hsl(0_0%_50%)]', 'colour-literal'],
+      ['text-[color:tomato]', 'colour-literal'],
+      ['border-[red]', 'colour-literal'],
     ]);
   });
 
@@ -317,6 +326,42 @@ describe('class-gate.config.mjs', () => {
     for (const token of ['bg-surface', 'text-ink-muted', 'bg-[color-mix(in_srgb,var(--bg)_82%,transparent)]']) {
       expect(COLOUR_LITERAL.test(token)).toBe(false);
     }
+  });
+
+  it.each([
+    ['bg-[hsl(0_0%_50%)]'],
+    ['text-[hsla(0,0%,50%,.5)]'],
+    ['text-[hwb(0_0%_0%)]'],
+    ['bg-[lab(50%_40_59)]'],
+    ['bg-[lch(50%_40_59)]'],
+    ['bg-[oklab(0.5_0.1_0.1)]'],
+    ['bg-[color(display-p3_1_0_0)]'],
+    ['bg-[red]'],
+    ['text-[color:tomato]'],
+    ['border-[RebeccaPurple]'],
+    ['[background-color:navy]'],
+    ['bg-[color-mix(in_srgb,red_50%,var(--bg))]'],
+    ['BG-[#FFF]'],
+    ['bg-[RGB(1,2,3)]'],
+  ])('the colour-literal pattern catches %s (TOOL-WR-07)', (token) => {
+    expect(COLOUR_LITERAL.test(token)).toBe(true);
+  });
+
+  it.each([
+    ['bg-(--color-red)'],
+    ['text-[var(--red)]'],
+    ['w-[calc(tan(45deg)*1rem)]'],
+    ['in-data-[ui=s-toolbar]:p-2'],
+    ['border-[transparent]'],
+    ['fill-[currentColor]'],
+    ['text-red'],
+    ['bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]'],
+  ])('the colour-literal pattern leaves %s alone', (token) => {
+    expect(COLOUR_LITERAL.test(token)).toBe(false);
+  });
+
+  it('shares its pattern source with the ESLint rule', () => {
+    expect(COLOUR_LITERAL.source).toBe(COLOUR_LITERAL_SOURCE);
   });
 });
 

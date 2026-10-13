@@ -1,6 +1,6 @@
 # Styling the web app: Tailwind utilities and the CSPS tokens
 
-*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-13T09:10:00-05:00*
+*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-13T09:20:00-05:00*
 
 This page explains how to style anything in `web/` (decision D-33, requirement WEB-02). It is written for every later phase. The short version: **all styling is Tailwind utility classes in the markup, built only from the CSPS tokens.** No hand-written CSS rules, no inline styles, and no colour or size picked by eye. Two automated gates enforce this, so a mistake fails the tests instead of quietly changing the look.
 
@@ -35,7 +35,7 @@ What you can use:
 - **Layout and z-index tokens:** read them with the var shorthand, never copy the number: `w-(--sidebar-width)`, `h-(--header-height)`, `z-(--z-overlay)`, `max-w-(--container-max)`.
 - **Font sizes and line heights** have no scale. Copy the spec value exactly: `text-[15px]`, `leading-5`, `leading-[.88]`. Never round to the "nearest" Tailwind value.
 
-**No colour literals in a class.** A hex value (`bg-[#ff6600]`), `rgb(` or `oklch(` inside a class token fails the gates. If the spec uses a colour outside the tokens, add it as a named theme token with the same value first.
+**No colour literals in a class.** A hex value (`bg-[#ff6600]`), any CSS colour function (`rgb(`, `hsl(`, `hwb(`, `lab(`, `lch(`, `oklab(`, `oklch(`, `color(`) or a named colour inside an arbitrary value (`bg-[red]`, `text-[color:tomato]`) fails both gates, in any letter case. `color-mix()` over `var(--…)` tokens, `transparent` and `currentColor` stay allowed. One pattern serves both gates (`COLOUR_LITERAL_SOURCE` in `web/scripts/class-gate.config.mjs`, TOOL-WR-07). If the spec uses a colour outside the tokens, add it as a named theme token with the same value first.
 
 ## 3. Utilities in the markup
 

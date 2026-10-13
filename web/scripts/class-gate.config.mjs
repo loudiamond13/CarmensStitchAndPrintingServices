@@ -27,5 +27,40 @@ export const OPACITY_ALLOW = Object.freeze([
   { pattern: /^no-hover:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
 ]);
 
-/** A colour literal inside a class token (UI-SPEC transcription rule 2: colours come from tokens). */
-export const COLOUR_LITERAL = /#[0-9a-f]{3,8}|rgba?\(|oklch\(/i;
+/**
+ * The CSS named colours (CSS Color 4) that a bracket value may not use. `transparent` and `currentColor` are not
+ * palette colours and stay allowed (the theme's colour-mix() recipes fade to transparent).
+ */
+export const NAMED_COLOURS = Object.freeze(
+  [
+    'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood',
+    'cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray',
+    'darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen',
+    'darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue',
+    'firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew',
+    'hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan',
+    'lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue',
+    'lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine',
+    'mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise',
+    'mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered',
+    'orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple',
+    'rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue',
+    'slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white',
+    'whitesmoke yellow yellowgreen',
+  ]
+    .join(' ')
+    .split(' '),
+);
+
+/**
+ * A colour literal inside a class token (UI-SPEC transcription rule 2: colours come from tokens; TOOL-WR-07), any case:
+ * a hex colour, any CSS colour function (rgb, rgba, hsl, hsla, hwb, lab, lch, oklab, oklch, color), or a named colour
+ * as a whole word inside an arbitrary [value]. color-mix() over var(--…) tokens stays allowed. The same source is the
+ * colour restriction of the ESLint rule (eslint.config.mjs), so the two gates cannot drift apart.
+ */
+export const COLOUR_LITERAL_SOURCE =
+  '(?i:#[0-9a-f]{3,8}' +
+  '|(?<![a-z0-9-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\(' +
+  `|\\[[^\\]]*(?<![a-z0-9-])(?:${NAMED_COLOURS.join('|')})(?![a-z0-9(-]))`;
+
+export const COLOUR_LITERAL = new RegExp(COLOUR_LITERAL_SOURCE);

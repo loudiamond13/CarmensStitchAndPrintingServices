@@ -449,6 +449,16 @@ describe('D-36 Tailwind class rules against the CSPS theme', () => {
     expect(ruleIds('export const A = () => <div className="text-[oklch(0.5_0.1_20)]" />;\n')).toEqual([restricted]);
   });
 
+  // TOOL-WR-07: the same colour-literal pattern as the class gate (class-gate.config.mjs COLOUR_LITERAL_SOURCE).
+  it.each([['bg-[hsl(0_0%_50%)]'], ['bg-[red]'], ['text-[color:tomato]'], ['bg-[lab(50%_40_59)]']])(
+    'the colour literal %s is restricted',
+    (token) => {
+      expect(lint(`export const A = () => <div className="${token}" />;\n`, featureTsx)).toEqual([
+        ['better-tailwindcss/no-restricted-classes', 2, 'D-33: no colour literal in a class; use a theme token.'],
+      ]);
+    },
+  );
+
   it('the built-in max-sm: variant is restricted', () => {
     expect(lint('export const A = () => <div className="max-sm:hidden" />;\n', featureTsx)).toEqual([
       [

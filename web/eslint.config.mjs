@@ -8,6 +8,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y-x';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import { COLOUR_LITERAL_SOURCE } from './scripts/class-gate.config.mjs';
 
 /**
  * Raises a rule entry set to 'warn' (or 1) to 'error' and keeps its options, so a warn-level rule in a shared config
@@ -287,6 +288,8 @@ export const tailwindRules = [
             { pattern: '#[0-9a-fA-F]{3,8}', message: 'D-33: no hex colour in a class; use a theme token.' },
             { pattern: 'rgba?\\(', message: 'D-33: no rgb() colour in a class; use a theme token.' },
             { pattern: 'oklch\\(', message: 'D-33: no oklch() colour in a class; use a theme token.' },
+            // TOOL-WR-07: every other colour syntax (hsl(), lab(), named colours, ...), the class gate's own pattern.
+            { pattern: COLOUR_LITERAL_SOURCE, message: 'D-33: no colour literal in a class; use a theme token.' },
             {
               pattern: '(?:^|:)max-(?:\\[[^\\]]*\\]|[^:\\[]+):',
               message: 'Built-in max-* variants are off by one (Pitfall 22); use a pg-*/vp-* variant.',
