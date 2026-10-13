@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -213,8 +213,11 @@ describe('MoneyInput paste', () => {
 });
 
 // D-41 R2-18 (owner, 2026-10-13; closes UI-WR-09): a refused paste is no longer silent. The field shows the amount hint
-// (ENTRY_COPY.money.invalid) in the error look and announces it politely, until the next accepted keystroke or paste.
-// It never echoes the pasted text, a caller's error always wins, and a blank clipboard still changes nothing.
+// (ENTRY_COPY.money.invalid) in the error look and announces it politely. The hint is tied to the refused value (code
+// review WR-02): any later value, typed, pasted or set by the caller (a reset, a "Pay full balance" fill), clears it,
+// and only the blur padding of that same value keeps it. It never echoes the pasted text, a caller's non-empty error
+// wins and then nothing is announced (an empty `error` counts as none, as in Field: WR-03), and a blank clipboard
+// still changes nothing.
 describe('MoneyInput refused paste (D-41 R2-18)', () => {
   /** The always-mounted polite status node next to the field. */
   function status(): HTMLElement {
@@ -306,7 +309,7 @@ describe('MoneyInput refused paste (D-41 R2-18)', () => {
     expect(status()).toHaveTextContent(/^$/);
   });
 
-  it("shows the caller's error instead of the paste hint", async () => {
+  it("shows the caller's error instead of the paste hint, and announces nothing it does not show (WR-03)", async () => {
     const user = userEvent.setup();
     render(<Harness required error={ENTRY_COPY.money.required} />);
     const input = screen.getByRole<HTMLInputElement>('textbox');
@@ -315,6 +318,95 @@ describe('MoneyInput refused paste (D-41 R2-18)', () => {
 
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(message(input)).toBe(ENTRY_COPY.money.required);
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  it('counts error="" as no error, so a refused paste still shows and announces the hint (WR-03)', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="7" error="" />);
+    await user.click(amountBox());
+    await user.paste('abc');
+
+    expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+    expect(message(amountBox())).toBe(ENTRY_COPY.money.invalid);
+    expect(status()).toHaveTextContent(ENTRY_COPY.money.invalid);
+  });
+
+  it('counts error="" as no error with nothing refused: no aria-invalid, and the hint shows (WR-03)', () => {
+    render(<Harness initial="7" error="" hint="Balance due: ₱4,327.50" />);
+
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(message(amountBox())).toBe('Balance due: ₱4,327.50');
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  /** A form that owns the value and sets it from its own buttons, as a payment screen would. */
+  function CallerSets({ hint }: { hint?: string }) {
+    const [value, setValue] = useState('7');
+    return (
+      <>
+        <MoneyInput label="Amount" {...(hint === undefined ? {} : { hint })} value={value} onChange={setValue} />
+        <button
+          type="button"
+          onClick={() => {
+            setValue('4327.50');
+          }}
+        >
+          Pay full balance
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setValue('');
+          }}
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setValue('7');
+          }}
+        >
+          Restore 7
+        </button>
+      </>
+    );
+  }
+
+  it.each([[undefined], ['Balance due: ₱4,327.50']])(
+    'clears the hint when the caller fills the value ("Pay full balance", hint %j) (WR-02)',
+    async (hint) => {
+      const user = userEvent.setup();
+      render(<CallerSets {...(hint === undefined ? {} : { hint })} />);
+      await user.click(amountBox());
+      await user.paste('abc');
+      expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+
+      await user.click(screen.getByRole('button', { name: 'Pay full balance' }));
+      expect(amountBox().value).toBe('4327.50');
+      expect(amountBox()).not.toHaveAttribute('aria-invalid');
+      expect(message(amountBox())).toBe(hint);
+      expect(status()).toHaveTextContent(/^$/);
+    },
+  );
+
+  it('clears the hint on a caller reset, and a return to the refused value does not bring it back (WR-02)', async () => {
+    const user = userEvent.setup();
+    render(<CallerSets />);
+    await user.click(amountBox());
+    await user.paste('abc');
+    expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(amountBox().value).toBe('');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(status()).toHaveTextContent(/^$/);
+
+    await user.click(screen.getByRole('button', { name: 'Restore 7' }));
+    expect(amountBox().value).toBe('7');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(status()).toHaveTextContent(/^$/);
   });
 
   it('has no axe violations in the refused state', async () => {
@@ -323,6 +415,37 @@ describe('MoneyInput refused paste (D-41 R2-18)', () => {
     await user.click(amountBox());
     await user.paste('abc');
     await expectNoAxeViolations(container);
+  });
+});
+
+// Code review WR-04: a read-only or disabled box ignores a paste. The browser's own default does nothing there, the
+// caller's value never changes and nothing is marked invalid.
+describe('MoneyInput paste on a read-only box (WR-04)', () => {
+  it('leaves a read-only value alone on an accepted and on a refused paste', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn<(value: string) => void>();
+    render(<Harness initial="7" readOnly onValue={onValue} />);
+    await user.click(amountBox());
+    await user.paste('₱4,327.50');
+    await user.paste('abc');
+
+    expect(amountBox().value).toBe('7');
+    expect(onValue).not.toHaveBeenCalled();
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('status')).toHaveTextContent(/^$/);
+  });
+
+  it.each([
+    ['readOnly', { readOnly: true }],
+    ['disabled', { disabled: true }],
+  ])('does not prevent the default of a paste into a %s box', (_lock, locked) => {
+    const onValue = vi.fn<(value: string) => void>();
+    render(<Harness initial="7" {...locked} onValue={onValue} />);
+    const notPrevented = fireEvent.paste(amountBox(), { clipboardData: { getData: () => '₱4,327.50' } });
+
+    expect(notPrevented).toBe(true);
+    expect(amountBox().value).toBe('7');
+    expect(onValue).not.toHaveBeenCalled();
   });
 });
 
