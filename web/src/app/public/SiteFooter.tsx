@@ -6,6 +6,9 @@
 //   - App. E.1's "Products.dc.html" style links become router links to the public paths (spec §2.9).
 // SPEC-DEVIATION: D-31 O-4 each social link's name has a space between "on" and the network (App. E.1 reads
 // "CSPS onFacebook"); a spoken label only, nothing visible changes.
+// SPEC-DEVIATION: D-41 R2-17 (owner, 2026-10-13) the column titles Shop, Visit and Contact are h2 instead of App. E.1's
+// h4, so the page's headings go h1 → h2 (Lighthouse heading order). Preflight resets heading size, weight and margin,
+// and the look comes from the classes, so nothing visible changes.
 import { UiLink } from '@/ui/actions';
 import { Icon, Logo } from '@/ui/brand';
 import { SITE_CONTACT } from './siteContact';
@@ -48,7 +51,7 @@ export function SiteFooter() {
             </div>
           </div>
           <div>
-            <h4 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">Shop</h4>
+            <h2 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">Shop</h2>
             <ul className="flex flex-col gap-3 text-[14px] leading-5">
               {SHOP_LINKS.map((link) => (
                 <li key={link.to} className="flex items-start gap-2">
@@ -60,7 +63,7 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">Visit</h4>
+            <h2 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">Visit</h2>
             <ul className="flex flex-col gap-3 text-[14px] leading-5">
               <li className="flex items-start gap-2">
                 <Icon name="map-pin" size={16} className="mt-px text-ink-muted" />
@@ -73,9 +76,9 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">
+            <h2 className="mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase">
               Contact
-            </h4>
+            </h2>
             <ul className="flex flex-col gap-3 text-[14px] leading-5">
               <li className="flex items-start gap-2">
                 <Icon name="phone" size={16} className="mt-px text-ink-muted" />

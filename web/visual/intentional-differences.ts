@@ -1,5 +1,5 @@
 // The registry of everything the look-equality proof is allowed to treat as different (WEB-02, D-33, UI-SPEC
-// "Intentional differences"). Look rulings (D-01, D-02, D-03, D-05, D-31, WEB-09, PERF-05) are NOT here: they sit in
+// "Intentional differences"). Look rulings (D-01, D-02, D-03, D-05, D-31, D-41, WEB-09, PERF-05) are NOT here: they sit in
 // the reference's rulings layer (visual/reference/rulings.css), so the two sides render equal. This file holds only
 // what cannot be made equal by CSS:
 //   - STRUCTURAL_EXCEPTIONS: an element whose tag differs on purpose (paired by scenario id and DOM path), and the icon
@@ -115,6 +115,23 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
         impl: 'button',
         decision: 'D-27',
         reason: LOGOUT_REASON,
+      }) as const,
+  ),
+  // D-41 R2-17 (owner, 2026-10-13): the public footer column titles Shop, Visit and Contact are h2 where App. E.1 has
+  // h4 (src/dev/scenarios/groups/layouts-public.ts, public-shell): case > footer > container > grid > column > title.
+  // Paths read from the parity report (`--grep @layouts-public`), where the tag is the only difference.
+  ...['0/2/0/0/1/0', '0/2/0/0/2/0', '0/2/0/0/3/0'].map(
+    (path) =>
+      ({
+        kind: 'element',
+        scenario: 'public-shell',
+        path,
+        reference: 'h4',
+        impl: 'h2',
+        decision: 'D-41',
+        reason:
+          "The public footer column titles are h2 instead of the approved h4 (owner, D-41 R2-17), so the page's " +
+          'headings go h1 → h2. The look comes from the classes, so styles, box and pixels are equal.',
       }) as const,
   ),
   // D-32: the approved design draws its icons from App. D.5 node data; the app uses lucide-react 1.53.0 (D-34), whose

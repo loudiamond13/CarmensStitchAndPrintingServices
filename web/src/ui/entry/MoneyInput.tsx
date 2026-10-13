@@ -3,17 +3,29 @@
 // most 9 integer digits and 2 decimals, ASCII digits only, no sign and no grouping.
 //   - A keystroke that would break that is ignored: the value stays as it was, so React puts the box back.
 //   - A paste loses a leading peso sign or "PHP" (UI-WR-09) and its grouping commas and spaces first
-//     (`normalizePastedMoney`), then goes in at the caret or over the selection; a paste that is still not money text
-//     there is ignored.
+//     (`normalizePastedMoney`), then goes in at the caret or over the selection. A blank clipboard changes nothing.
+//     SPEC-DEVIATION: D-41 R2-18 (owner, 2026-10-13) a paste that is still not money text there (including one that
+//     cleans down to nothing, such as "PHP" alone) is refused with a word: the value stays, and the field shows the
+//     amount hint (ENTRY_COPY.money.invalid) in the error look (`aria-invalid`) and announces it politely, until the
+//     next accepted keystroke or paste. A caller's `error` always wins. The hint is fixed copy and never echoes the
+//     pasted text. This closes code-review warning UI-WR-09.
 //   - On blur a non-empty value pads to 2 decimals (`padMoneyOnBlur`: "5000" → "5000.00"); empty stays empty.
 //   - Nothing else ever changes what was typed: no rounding and no grouping while editing.
 // The value is a string; convert it with `moneyTextToCentavos` (exact integer centavos, never a binary float) after
 // `moneyInputError` says it is acceptable. Type, height and the invalid look come from Field; the component adds only
 // the `align="right"` look for item rows (App. E.9).
 import clsx from 'clsx';
-import type { ChangeEvent, ClipboardEvent, FocusEvent, InputHTMLAttributes, ReactNode } from 'react';
+import {
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type FocusEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { isMoneyText, normalizePastedMoney, padMoneyOnBlur } from '@/lib/format';
 import { Field } from '@/ui/forms';
+import { srOnlyClasses } from '@/ui/layout/layout.recipe';
 import { ENTRY_COPY } from './copy';
 import { moneyAlignRightClasses } from './entry.recipe';
 
@@ -66,25 +78,32 @@ export function moneyInputError(value: string, { required = false }: { required?
   return isMoneyText(value) ? null : ENTRY_COPY.money.invalid;
 }
 
-export function MoneyInput({ value, onChange, onBlur, align = 'left', className, ...rest }: MoneyInputProps) {
+export function MoneyInput({ value, onChange, onBlur, align = 'left', className, error, ...rest }: MoneyInputProps) {
+  // D-41 R2-18: set by a refused paste, cleared by the next accepted keystroke or paste (never by the blur padding).
+  const [refused, setRefused] = useState(false);
   const change = (event: ChangeEvent<HTMLInputElement>) => {
     const next = event.target.value;
     if (isMoneyText(next)) {
+      setRefused(false);
       onChange(next);
     }
   };
   const paste = (event: ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault();
-    const pasted = normalizePastedMoney(event.clipboardData.getData('text').replace(PESO_PREFIX, ''));
-    if (pasted === '') {
+    const text = event.clipboardData.getData('text');
+    if (text.trim() === '') {
       return;
     }
+    const pasted = normalizePastedMoney(text.replace(PESO_PREFIX, ''));
     const box = event.currentTarget;
     const start = box.selectionStart ?? value.length;
     const end = box.selectionEnd ?? value.length;
     const next = `${value.slice(0, start)}${pasted}${value.slice(end)}`;
-    if (isMoneyText(next)) {
+    if (pasted !== '' && isMoneyText(next)) {
+      setRefused(false);
       onChange(next);
+    } else {
+      setRefused(true);
     }
   };
   const blur = (event: FocusEvent<HTMLInputElement>) => {
@@ -94,18 +113,27 @@ export function MoneyInput({ value, onChange, onBlur, align = 'left', className,
     }
     onBlur?.(event);
   };
+  const pasteHint = refused ? ENTRY_COPY.money.invalid : undefined;
+  const shownError = error ?? pasteHint;
   return (
-    <Field
-      {...rest}
-      className={clsx(align === 'right' && moneyAlignRightClasses, className)}
-      prefix={ENTRY_COPY.money.prefix}
-      type="text"
-      inputMode="decimal"
-      autoComplete="off"
-      value={value}
-      onChange={change}
-      onPaste={paste}
-      onBlur={blur}
-    />
+    <>
+      <Field
+        {...rest}
+        {...(shownError === undefined ? {} : { error: shownError })}
+        className={clsx(align === 'right' && moneyAlignRightClasses, className)}
+        prefix={ENTRY_COPY.money.prefix}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        value={value}
+        onChange={change}
+        onPaste={paste}
+        onBlur={blur}
+      />
+      {/* WCAG 4.1.3: always mounted, so the refusal is announced politely without moving focus. */}
+      <span role="status" aria-live="polite" className={srOnlyClasses}>
+        {pasteHint}
+      </span>
+    </>
   );
 }
