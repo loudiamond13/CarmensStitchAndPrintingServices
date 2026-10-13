@@ -104,6 +104,34 @@ export const syntaxBans = [
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
     message: 'Raw HTML injection is forbidden (CWE-79).',
   },
+  // TOOL-WR-12: the other raw-HTML sinks. Reading innerHTML stays allowed (tests compare markup).
+  {
+    selector: 'AssignmentExpression > MemberExpression.left[property.name=/^(innerHTML|outerHTML)$/]',
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name=/^(insertAdjacentHTML|setHTMLUnsafe|createContextualFragment|parseHTMLUnsafe)$/]',
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
+  {
+    selector:
+      "CallExpression[callee.property.name=/^(write|writeln)$/][callee.object.name='document'], " +
+      'CallExpression[callee.property.name=/^(write|writeln)$/][callee.object.property.name=/^(document|ownerDocument)$/]',
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
+  {
+    selector: "NewExpression[callee.name='DOMParser']",
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
+  {
+    selector: "Property[key.name='dangerouslySetInnerHTML'], Property[key.value='dangerouslySetInnerHTML']",
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
+  {
+    selector: 'JSXAttribute[name.name=/^srcdoc$/i]',
+    message: 'Raw HTML injection is forbidden (CWE-79).',
+  },
   {
     selector: "Property[key.name='shallow'][value.value=false]",
     message: 'Keep the nuqs default shallow: true (nuqs #1563).',

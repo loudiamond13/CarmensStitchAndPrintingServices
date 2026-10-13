@@ -214,6 +214,36 @@ describe('CWE-79 and D-33 markup bans', () => {
     expect(lint(rawHtmlJsx, featureTsx)).toEqual([syntax(rawHtml)]);
   });
 
+  // TOOL-WR-12: every raw-HTML sink, not only the JSX attribute.
+  it.each([
+    ['innerHTML assignment', "export const f = (el: HTMLElement) => {\n  el.innerHTML = '<b>x</b>';\n};\n", feature],
+    ['outerHTML assignment', "export const f = (el: HTMLElement) => {\n  el.outerHTML += '<b>x</b>';\n};\n", feature],
+    [
+      'insertAdjacentHTML',
+      "export const f = (el: HTMLElement) => el.insertAdjacentHTML('beforeend', '<b>x</b>');\n",
+      feature,
+    ],
+    ['document.write', "export const f = () => document.write('<b>x</b>');\n", feature],
+    ['ownerDocument.writeln', "export const f = (el: HTMLElement) => el.ownerDocument.writeln('<b>x</b>');\n", feature],
+    ['DOMParser', "export const f = () => new DOMParser().parseFromString('<b>x</b>', 'text/html');\n", feature],
+    ['createContextualFragment', "export const f = (r: Range) => r.createContextualFragment('<b>x</b>');\n", feature],
+    ['setHTMLUnsafe', "export const f = (el: Element) => el.setHTMLUnsafe('<b>x</b>');\n", feature],
+    [
+      'createElement with dangerouslySetInnerHTML',
+      "import { createElement } from 'react';\nexport const f = () => createElement('div', { dangerouslySetInnerHTML: { __html: '<b>x</b>' } });\n",
+      feature,
+    ],
+    ['an iframe srcDoc', 'export const A = () => <iframe title="x" srcDoc="<b>x</b>" />;\n', featureTsx],
+  ])('%s is an error', (_name, code, file) => {
+    expect(lint(code, file)).toEqual([syntax(rawHtml)]);
+  });
+
+  it('reading innerHTML (a test comparing markup) and writing to a stream stay allowed', () => {
+    const code =
+      'export const f = (el: HTMLElement, out: { write(s: string): void }) => {\n  out.write(el.innerHTML);\n};\n';
+    expect(lint(code, feature)).toEqual([]);
+  });
+
   it('style={{ width }} is an error', () => {
     expect(lint('export const A = (width: number) => <div style={{ width }} />;\n', featureTsx)).toEqual([
       syntax(styleObject),
