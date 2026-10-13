@@ -124,6 +124,16 @@ describe('rulings.css: one commented rule group per owner ruling', () => {
     expect(normalize(header)).toContain('WalkInOrderCard');
     expect(normalize(header)).toContain('"Walk-in customer"');
   });
+
+  it('has no rule group for D-41 R2-06 (text only): the header says the OrderTotals and OrderCard overrides write "Subtotal"', () => {
+    const header = rulingsCss.slice(0, rulingsCss.indexOf('*/'));
+
+    expect(groups.filter((group) => group.comment?.startsWith('D-41 R2-06') === true)).toEqual([]);
+    expect(normalize(header)).toContain('D-41 R2-06');
+    expect(normalize(header)).toContain('OrderTotals');
+    expect(normalize(header)).toContain('OrderCard');
+    expect(normalize(header)).toContain('"Subtotal"');
+  });
 });
 
 describe('rulings.css: the layer can only restyle the frozen reference', () => {
