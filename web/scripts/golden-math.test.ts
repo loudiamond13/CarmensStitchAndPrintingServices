@@ -38,7 +38,7 @@ describe('computeExpected', () => {
 
   it('rounds the items total before the percentage: 3 x 0.335 = 1.005 -> 1.01, and 10% of 1.01 = 0.101 -> 0.10', () => {
     const expected = computeExpected(percentOf('0.335', '10', 3));
-    expect(expected.total).toBe('1.01');
+    expect(expected.subtotal).toBe('1.01');
     expect(expected.discount).toBe('0.10');
   });
 
@@ -55,7 +55,7 @@ describe('computeExpected', () => {
     expect(computeExpected(input).discount).toBe('2.02');
   });
 
-  it('computes ORD-2026-0151 as fully paid', () => {
+  it('computes ORD-2026-0151 as fully paid: Total = Subtotal - Discount and Balance = Total - Paid (PRD 5.1, D-41 R2-06)', () => {
     const input: VectorInput = {
       items: [{ quantity: 20, unitPrice: '1150.00' }],
       discounts: [{ kind: 'fixed', value: '500.00' }],
@@ -63,8 +63,9 @@ describe('computeExpected', () => {
       expenses: ['7200.00', '2100.00'],
     };
     expect(computeExpected(input)).toEqual({
-      total: '23000.00',
+      subtotal: '23000.00',
       discount: '500.00',
+      total: '22500.00',
       paid: '22500.00',
       balance: '0.00',
       expenses: '9300.00',
@@ -87,8 +88,9 @@ describe('computeExpected', () => {
       expenses: ['3825.00', '1640.00', '600.00'],
     };
     expect(computeExpected(input)).toEqual({
-      total: '22450.00',
+      subtotal: '22450.00',
       discount: '1122.50',
+      total: '21327.50',
       paid: '12000.00',
       balance: '9327.50',
       expenses: '6065.00',
@@ -97,9 +99,42 @@ describe('computeExpected', () => {
     });
   });
 
-  it('gives balance 0 minus payments on a 100% discount', () => {
+  it('gives total 0 and balance 0 minus payments on a 100% discount', () => {
     const input: VectorInput = { ...percentOf('17.00', '100', 3), payments: ['20.00'] };
-    expect(computeExpected(input)).toMatchObject({ total: '51.00', discount: '51.00', balance: '-20.00' });
+    expect(computeExpected(input)).toMatchObject({
+      subtotal: '51.00',
+      discount: '51.00',
+      total: '0.00',
+      balance: '-20.00',
+    });
+  });
+
+  // D-41 R2-06 (owner, 2026-10-13): NET-IN-01 is ruled keep. Fully paid is Subtotal > 0 and Balance <= 0, so a fully
+  // discounted order with no payment reads "Fully Paid", and an empty order does not.
+  it('is fully paid on a 100% discount with no payment (NET-IN-01 ruled keep)', () => {
+    expect(computeExpected(percentOf('17.00', '100', 3))).toEqual({
+      subtotal: '51.00',
+      discount: '51.00',
+      total: '0.00',
+      paid: '0.00',
+      balance: '0.00',
+      expenses: '0.00',
+      profit: '0.00',
+      fullyPaid: true,
+    });
+  });
+
+  it('returns the PRD 5.1 names in a fixed order (D-41 R2-06)', () => {
+    expect(Object.keys(computeExpected(percentOf('17.00', '5')))).toEqual([
+      'subtotal',
+      'discount',
+      'total',
+      'paid',
+      'balance',
+      'expenses',
+      'profit',
+      'fullyPaid',
+    ]);
   });
 
   it('gives a negative balance when payments exceed what is owed', () => {
@@ -114,8 +149,9 @@ describe('computeExpected', () => {
 
   it('is not fully paid when there are no items', () => {
     expect(computeExpected({ items: [], discounts: [], payments: [], expenses: [] })).toEqual({
-      total: '0.00',
+      subtotal: '0.00',
       discount: '0.00',
+      total: '0.00',
       paid: '0.00',
       balance: '0.00',
       expenses: '0.00',
@@ -127,8 +163,9 @@ describe('computeExpected', () => {
   it('computes the largest items total exactly', () => {
     const input: VectorInput = { ...percentOf('999999999.99', '7.5'), payments: ['999999999.99'] };
     expect(computeExpected(input)).toMatchObject({
-      total: '999999999.99',
+      subtotal: '999999999.99',
       discount: '75000000.00',
+      total: '924999999.99',
       balance: '-75000000.00',
     });
   });

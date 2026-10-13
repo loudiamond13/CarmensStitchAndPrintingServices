@@ -42,7 +42,7 @@ public sealed class OrderMathTests
     {
         var result = OrderMath.Compute(NoItems, NoDiscounts, NoAmounts, NoAmounts);
 
-        result.ShouldBe(new OrderMathResult(0m, 0m, 0m, 0m, 0m, 0m, FullyPaid: false));
+        result.ShouldBe(new OrderMathResult(0m, 0m, 0m, 0m, 0m, 0m, 0m, FullyPaid: false));
     }
 
     [Fact]
@@ -50,7 +50,30 @@ public sealed class OrderMathTests
     {
         var result = OrderMath.Compute([new(0, 650m), new(2, 550m)], NoDiscounts, NoAmounts, NoAmounts);
 
+        result.Subtotal.ShouldBe(1100m);
         result.Total.ShouldBe(1100m);
+    }
+
+    // PRD section 5.1 (owner ruling D-41 R2-06): Subtotal is before discount, Total = Subtotal - Discount,
+    // Balance = Total - Paid and Profit = Total - Expenses.
+    [Fact]
+    public void TheTotalIsTheSubtotalMinusTheDiscount()
+    {
+        var result = OrderMath.Compute(
+            [new(15, 650m), new(15, 300m), new(2, 550m), new(15, 420m), new(1, 800m)],
+            [new(DiscountKind.Percentage, 5m), new(DiscountKind.Fixed, 100m)],
+            [10_000m, 2_000m],
+            [3_825m, 1_640m, 600m]);
+
+        result.ShouldBe(new OrderMathResult(
+            Subtotal: 22_450m,
+            Discount: 1_222.50m,
+            Total: 21_227.50m,
+            Paid: 12_000m,
+            Balance: 9_227.50m,
+            Expenses: 6_065m,
+            Profit: 15_162.50m,
+            FullyPaid: false));
     }
 
     [Fact]
@@ -64,7 +87,7 @@ public sealed class OrderMathTests
     }
 
     [Fact]
-    public void AHundredPercentDiscountEqualsTheTotalAndTheBalanceIsMinusPaid()
+    public void AHundredPercentDiscountEqualsTheSubtotalAndTheBalanceIsMinusPaid()
     {
         var result = OrderMath.Compute(
             [new(3, 17m)],
@@ -72,9 +95,21 @@ public sealed class OrderMathTests
             [20m],
             NoAmounts);
 
-        result.Discount.ShouldBe(result.Total);
+        result.Subtotal.ShouldBe(51m);
+        result.Discount.ShouldBe(result.Subtotal);
+        result.Total.ShouldBe(0m);
         result.Balance.ShouldBe(-20m);
         result.FullyPaid.ShouldBeTrue();
+    }
+
+    // Owner ruling D-41 R2-06 (2026-10-13), NET-IN-01 ruled keep: a fully discounted order with no payment is fully
+    // paid, because its subtotal is above zero and nothing is owed.
+    [Fact]
+    public void AHundredPercentDiscountWithNoPaymentIsFullyPaid()
+    {
+        var result = OrderMath.Compute([new(3, 17m)], [new(DiscountKind.Percentage, 100m)], NoAmounts, NoAmounts);
+
+        result.ShouldBe(new OrderMathResult(51m, 51m, 0m, 0m, 0m, 0m, 0m, FullyPaid: true));
     }
 
     [Fact]
@@ -147,8 +182,9 @@ public sealed class OrderMathTests
             [9_999_999_999.99m],
             [9_999_999_999.99m]);
 
-        result.Total.ShouldBe(9_999_999_999.99m);
+        result.Subtotal.ShouldBe(9_999_999_999.99m);
         result.Discount.ShouldBe(750_000_000.00m);
+        result.Total.ShouldBe(9_249_999_999.99m);
         result.Balance.ShouldBe(-750_000_000.00m);
         result.Profit.ShouldBe(-750_000_000.00m);
     }

@@ -16,8 +16,9 @@ interface VectorCase {
   payments: string[];
   expenses: string[];
   expected: {
-    total: string;
+    subtotal: string;
     discount: string;
+    total: string;
     paid: string;
     balance: string;
     expenses: string;
@@ -60,8 +61,9 @@ const CATEGORIES = [
 
 /** Formats a Totals-shaped result the way the vector file writes amounts. */
 function asExpected(t: {
-  total: number;
+  subtotal: number;
   discount: number;
+  total: number;
   paid: number;
   balance: number;
   expenses: number;
@@ -69,8 +71,9 @@ function asExpected(t: {
   fullyPaid: boolean;
 }): VectorCase['expected'] {
   return {
-    total: t.total.toFixed(2),
+    subtotal: t.subtotal.toFixed(2),
     discount: t.discount.toFixed(2),
+    total: t.total.toFixed(2),
     paid: t.paid.toFixed(2),
     balance: t.balance.toFixed(2),
     expenses: t.expenses.toFixed(2),
@@ -82,24 +85,36 @@ function asExpected(t: {
 /* The UNMODIFIED App. D.1 order math (spec §9.2: `Math.round(n × 100) / 100`), kept here only to prove the vectors
    catch it (research Pitfall 13). It must never be used for a figure. */
 const specRound2 = (n: number): number => Math.round(n * 100) / 100;
+// D.1's `total` is the amount before discount, the PRD 5.1 Subtotal (D-41 R2-06); the after-discount Total is added
+// with the same D.1 rounding so the shapes match and only the rounding differs.
 function specOrderTotals(order: Partial<Order>): VectorCase['expected'] {
-  const total = specRound2((order.items ?? []).reduce((s, i) => s + i.quantity * i.unitPrice, 0));
+  const subtotal = specRound2((order.items ?? []).reduce((s, i) => s + i.quantity * i.unitPrice, 0));
   const discount = specRound2(
     (order.discounts ?? []).reduce(
-      (s, d) => s + specRound2(d.type === 'percentage' ? (total * d.value) / 100 : d.value),
+      (s, d) => s + specRound2(d.type === 'percentage' ? (subtotal * d.value) / 100 : d.value),
       0,
     ),
   );
+  const total = specRound2(subtotal - discount);
   const paid = specRound2((order.payments ?? []).reduce((s, p) => s + p.amount, 0));
   const expenses = specRound2((order.expenses ?? []).reduce((s, e) => s + e.amount, 0));
-  const balance = specRound2(total - discount - paid);
-  const profit = specRound2(total - discount - expenses);
-  return asExpected({ total, discount, paid, balance, expenses, profit, fullyPaid: total > 0 && balance <= 0 });
+  const balance = specRound2(subtotal - discount - paid);
+  const profit = specRound2(subtotal - discount - expenses);
+  return asExpected({
+    subtotal,
+    discount,
+    total,
+    paid,
+    balance,
+    expenses,
+    profit,
+    fullyPaid: subtotal > 0 && balance <= 0,
+  });
 }
 
 describe('order-math golden vectors', () => {
   it('pins the operation order in the shared file (D-09)', () => {
-    expect(vectors.version).toBe(1);
+    expect(vectors.version).toBe(2);
     expect(vectors.operationOrder).toBe(
       'round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)',
     );

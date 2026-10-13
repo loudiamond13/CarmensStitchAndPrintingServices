@@ -36,9 +36,12 @@ const ORD_0148: Order = {
 describe('orderTotals', () => {
   it('matches the approved ORD-2026-0148 figures', () => {
     const t = orderTotals(ORD_0148);
+    // SPEC-DEVIATION: D-41 R2-06 (owner, 2026-10-13). App. D.2 expects `total: 22450`, the amount before discount;
+    // the PRD 5.1 names are used now: Subtotal is before discount and Total = Subtotal − Discount.
     expect(t).toEqual({
-      total: 22450,
+      subtotal: 22450,
       discount: 1122.5,
+      total: 21327.5,
       paid: 12000,
       balance: 9327.5,
       expenses: 6065,
@@ -59,6 +62,21 @@ describe('orderTotals', () => {
   });
   it('is not fully paid when empty', () => {
     expect(orderTotals({}).fullyPaid).toBe(false);
+  });
+  // SPEC-DEVIATION: D-41 R2-06 (owner, 2026-10-13; NET-IN-01 ruled keep), not in App. D.2.
+  it('marks a 100%-discounted order with no payment fully paid (Subtotal > 0 and Balance ≤ 0)', () => {
+    expect(
+      orderTotals({ items: [{ quantity: 3, unitPrice: 17 }], discounts: [{ type: 'percentage', value: 100 }] }),
+    ).toEqual({
+      subtotal: 51,
+      discount: 51,
+      total: 0,
+      paid: 0,
+      balance: 0,
+      expenses: 0,
+      profit: 0,
+      fullyPaid: true,
+    });
   });
   it('applies percentage discounts to the items total', () => {
     expect(discountAmount({ type: 'percentage', value: 5 }, 22450)).toBe(1122.5);
@@ -177,8 +195,9 @@ describe('App. D.1 characterization', () => {
 
   it('treats a missing order as empty', () => {
     expect(orderTotals(null)).toEqual({
-      total: 0,
+      subtotal: 0,
       discount: 0,
+      total: 0,
       paid: 0,
       balance: 0,
       expenses: 0,

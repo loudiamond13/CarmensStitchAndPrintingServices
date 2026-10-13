@@ -89,6 +89,22 @@ describe('buildCases', () => {
     }
   });
 
+  // D-41 R2-06 (owner, 2026-10-13): the PRD 5.1 names. Subtotal is before discount and Total is after it.
+  it('writes every expected block with the PRD 5.1 keys in a fixed order (D-41 R2-06)', () => {
+    for (const c of cases) {
+      expect(Object.keys(c.expected), c.id).toEqual([
+        'subtotal',
+        'discount',
+        'total',
+        'paid',
+        'balance',
+        'expenses',
+        'profit',
+        'fullyPaid',
+      ]);
+    }
+  });
+
   it('is deterministic: the same seeds always render the same bytes', () => {
     expect(renderVectorFile(buildCases())).toBe(renderVectorFile(cases));
   });
@@ -98,7 +114,7 @@ describe('buildCases', () => {
     expect(text).not.toContain('\r');
     expect(text.endsWith('}\n')).toBe(true);
     expect(JSON.parse(text)).toMatchObject({
-      version: 1,
+      version: 2,
       operationOrder:
         'round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)',
     });

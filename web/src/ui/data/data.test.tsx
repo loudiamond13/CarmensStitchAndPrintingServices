@@ -100,7 +100,7 @@ describe('OrderCard (App. D.3)', () => {
     const { container } = render(<OrderCard order={order0148} />);
 
     expect(figures(container)).toEqual([
-      ['Total', '₱22,450.00'],
+      ['Subtotal', '₱22,450.00'],
       ['Total Discount', '−₱1,122.50'],
       ['Total Paid', '−₱12,000.00'],
     ]);
@@ -119,8 +119,9 @@ describe('OrderCard (App. D.3)', () => {
 
   it('shows the server totals it is given instead of computing a preview (D-09)', () => {
     const totals: Totals = {
-      total: 23000,
+      subtotal: 23000,
       discount: 500,
+      total: 22500,
       paid: 10000,
       balance: 12500,
       expenses: 0,
@@ -542,6 +543,7 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
     expect(byId.get('data-table-orders')?.target).toBe('tbody tr');
   });
 
+  // D-41 R2-06 (owner, 2026-10-13): the table's "Total" column is the PRD Total, the amount after discount.
   it('lists the table figures that orderTotals gives for the seed orders', () => {
     const fromSeed = new Map(
       [ORDER_0148, ORDER_0151, ORDER_0153].map((order) => [
@@ -557,6 +559,10 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
       }
     }
     expect(fromSeed.size).toBe(3);
+    expect(TABLE_ROWS.slice(0, 2).map((row) => [row.number, row.total])).toEqual([
+      ['ORD-2026-0148', 21327.5],
+      ['ORD-2026-0151', 22500],
+    ]);
   });
 
   it('compares every case in both themes at 390 and 1440', () => {

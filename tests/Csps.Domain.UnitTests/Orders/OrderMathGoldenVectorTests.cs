@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Csps.Domain.Orders;
 
 namespace Csps.Domain.UnitTests.Orders;
@@ -34,7 +35,7 @@ public sealed class OrderMathGoldenVectorTests
     [Fact]
     public void PinsTheOperationOrder()
     {
-        Vectors.Value.Version.ShouldBe(1);
+        Vectors.Value.Version.ShouldBe(2);
         Vectors.Value.OperationOrder.ShouldBe(OperationOrder);
     }
 
@@ -86,8 +87,9 @@ public sealed class OrderMathGoldenVectorTests
     };
 
     private static VectorExpected Format(OrderMathResult result) => new(
-        Text(result.Total),
+        Text(result.Subtotal),
         Text(result.Discount),
+        Text(result.Total),
         Text(result.Paid),
         Text(result.Balance),
         Text(result.Expenses),
@@ -100,9 +102,17 @@ public sealed class OrderMathGoldenVectorTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "order-math-golden-vectors.json");
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<VectorFile>(json, JsonSerializerOptions.Web)
+        return JsonSerializer.Deserialize<VectorFile>(json, StrictOptions)
             ?? throw new InvalidOperationException("The golden-vector file is empty.");
     }
+
+    // Fails closed (D-41 R2-06): a renamed, missing or unknown member is an error, never a silent default, so the file
+    // and this record can never drift apart on what "total" means.
+    private static readonly JsonSerializerOptions StrictOptions = new(JsonSerializerOptions.Web)
+    {
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        RespectRequiredConstructorParameters = true,
+    };
 
     private sealed record VectorFile(int Version, string OperationOrder, IReadOnlyList<VectorCase> Cases);
 
@@ -121,8 +131,9 @@ public sealed class OrderMathGoldenVectorTests
     private sealed record VectorDiscount(string Kind, string Value);
 
     private sealed record VectorExpected(
-        string Total,
+        string Subtotal,
         string Discount,
+        string Total,
         string Paid,
         string Balance,
         string Expenses,
