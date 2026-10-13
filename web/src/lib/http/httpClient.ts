@@ -31,6 +31,11 @@ export interface RequestConfig {
    */
   readonly idempotencyKey?: string | undefined;
   readonly onUploadProgress?: ((progress: UploadProgress) => void) | undefined;
+  /**
+   * A 401 on this request is its answer, not an ended session: it rejects untouched, with no session refresh, no retry
+   * and no onUnauthorized. For sign-in, 2FA verify and the refresh call itself (LIB-WR-03).
+   */
+  readonly skipAuthRefresh?: boolean | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;
@@ -486,7 +491,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     try {
       return await sendWithRetries(requestConfig, method);
     } catch (error) {
-      if (!isUnauthorized(error)) {
+      if (!isUnauthorized(error) || requestConfig.skipAuthRefresh === true) {
         throw error;
       }
       const { refresh } = config;

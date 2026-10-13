@@ -588,6 +588,30 @@ describe('single-flight 401 refresh', () => {
     expect((await rejection(client.get('/a'))).status).toBe(401);
   });
 
+  it('a 401 on a request with skipAuthRefresh is its answer: no refresh, no sign-out, no retry (LIB-WR-03)', async () => {
+    // For example a sign-in or 2FA-verify call rejecting a wrong password.
+    const refresh = vi.fn(() => Promise.resolve());
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([unauthorized, ok]);
+    const client = createHttpClient({ fetch: fake.fetch, refresh, onUnauthorized });
+
+    const error = await rejection(client.post('/auth/sign-in', { email: 'a@b.ph' }, { skipAuthRefresh: true }));
+
+    expect(error.status).toBe(401);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it('skipAuthRefresh also keeps onUnauthorized quiet when the client has no refresh', async () => {
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([unauthorized]);
+    const client = createHttpClient({ fetch: fake.fetch, onUnauthorized });
+
+    expect((await rejection(client.get('/a', { skipAuthRefresh: true }))).status).toBe(401);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it('a 403 never triggers a refresh', async () => {
     const refresh = vi.fn(() => Promise.resolve());
     const onUnauthorized = vi.fn();

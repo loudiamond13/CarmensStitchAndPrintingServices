@@ -67,6 +67,13 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Why deferred:** the idempotency store is server work in Phase 4 (SEC-06); nothing in phase 02 posts an upload yet.
   **Next step:** when SEC-06 is built, hash a multipart request from its parsed parts (each part's name, file name, content type and bytes, in order), not from the raw bytes. Otherwise an upload form that passes `identity` gets a 422 on its first user retry after a network error, and the upload screens must not pass `identity` (losing the duplicate protection). Add an integration test that sends the same upload twice with the same key and two different boundaries and gets the stored response.
 
+- Every 401 shows nothing until Phase 4 wires the session (code-review finding LIB-WR-03, part 2, for the Phase 4 sign-in plan)
+  status: open
+  **Found by:** the phase 02 code review (lane weblib, LIB-WR-03). Part 1 is fixed: `RequestConfig.skipAuthRefresh` lets a call whose 401 is its own answer (sign-in, 2FA verify, the refresh call) reject untouched, with no refresh and no sign-out.
+  **What:** `describeHttpError` returns `null` for every 401, as the UI-SPEC says ("401 after the failed refresh: no toast; redirect to sign-in from Phase 4"). In phase 02 the shared client has no `refresh` and no `onUnauthorized`, so nothing redirects and a 401 is silent. A `skipAuthRefresh` 401 (a wrong password) also gets no copy from `describeHttpError`.
+  **Why deferred:** no phase 02 screen calls a staff endpoint, and new user-facing words need the owner's approval. The UI-SPEC rule (no toast for a 401) was kept.
+  **Next step:** Phase 4 passes `refresh` (sending its own request with `skipAuthRefresh: true`) and `onUnauthorized` (redirect to sign-in) to the shared client in `web/src/lib/api.ts`, and gives the sign-in and 2FA forms their own approved wrong-password copy. If a 401 can still reach a screen unhandled after that, ask the owner for words such as "Your session ended. Sign in again."
+
 ## Owner decisions pending
 
 - ErrorState "Try Again" label colour (plan 02-28, look question, not blocking)
