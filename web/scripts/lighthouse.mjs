@@ -316,6 +316,7 @@ async function main() {
   };
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
+  process.once('SIGHUP', onSignal);
   process.once('exit', release);
   try {
     // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.

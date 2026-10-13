@@ -964,6 +964,7 @@ async function main() {
   };
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
+  process.once('SIGHUP', onSignal);
   process.once('exit', release);
   try {
     if (outputIgnored) {

@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T09:40:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T09:55:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -41,7 +41,7 @@ Everything after `--` goes straight to `playwright test`. Always start through `
 
 ## 3. What `npm run e2e` does (web/scripts/e2e.mjs)
 
-1. **Takes the run lock** `web/.locks/e2e.lock`. The file is created exclusively, so only one E2E, parity or Lighthouse run (they all start the same host) can hold it. A second run waits for it, up to 15 minutes, then exits 1 and asks you to wait and run again. The lock is removed when the run ends, including after Ctrl+C. Never delete a lock that another run holds. If a crashed run left one behind and no run is active, the owner of that run removes it.
+1. **Takes the run lock** `web/.locks/e2e.lock`. The file is created exclusively, so only one E2E, parity or Lighthouse run (they all start the same host) can hold it. A second run waits for it, up to 15 minutes, then exits 1 and asks you to wait and run again. The lock is removed when the run ends, including after Ctrl+C or a closed terminal (SIGHUP). A lock left behind by a run that was killed (Task Manager, `taskkill /F`, a power loss) is taken over at once when its process is no longer running (checked read-only with `tasklist`/`ps`), or when it is older than 3 hours (TOOL-WR-09). Never delete a lock that another run holds; the timeout message names the file to delete only when no run is going on.
 2. **Waits for the shared machine.** Runs the shared-machine wait (`web/scripts/shared-machine.mjs`): it runs the preflight report and waits, up to 15 minutes, while one of this project's ports is in use by another program or TheBETSLLC's dev/test processes are listed, then exits 1. It never stops anything. Without the preflight script (CI) it says so and goes on.
 3. **Refuses a busy port.** If anything answers on port 5199, it prints "Port 5199 is in use by another process. Wait for it to finish; this script never stops other processes." and exits 1. It never kills, stops or reuses that process.
 4. **Seeds `CSPS_E2E`:** `dotnet run --project tools/Csps.DevSeed -- --database CSPS_E2E` (idempotent).

@@ -14,7 +14,17 @@
 // so Node tools run on this Node binary with their JS entry (L-22).
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  linkSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeSync,
+} from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +37,8 @@ export const WEB_DIRECTORY = fileURLToPath(new URL('..', import.meta.url));
 export const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 export const LOCK_PATH = path.join(WEB_DIRECTORY, '.locks', 'e2e.lock');
 export const LOCK_TIMEOUT_MS = 15 * 60 * 1000;
+/** A lock older than this is stale even when its pid looks alive (a pid can be reused); a full run takes ~30 minutes. */
+export const LOCK_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 
 const LOCK_POLL_MS = 2000;
 
@@ -101,15 +113,83 @@ export function executeSteps(steps, spawn = spawnSync) {
  * @returns {string}
  */
 export function lockTimeoutMessage(file) {
-  return `Another E2E, parity or Lighthouse run has held ${file} for 15 minutes. Wait for it to finish, then run this again.`;
+  return (
+    `Another E2E, parity or Lighthouse run has held ${file} for 15 minutes. Wait for it to finish, then run this again. ` +
+    `If no such run is going on (for example after a crash or a closed terminal), delete ${file} and run this again.`
+  );
+}
+
+/**
+ * True when a process with this pid is running. Read-only: it lists processes (tasklist on Windows, ps elsewhere) and
+ * never signals one. When the check itself fails, the process counts as alive, so the run waits instead of taking a
+ * lock that may still be held.
+ * @param {number} pid
+ * @returns {boolean}
+ */
+export function processIsAlive(pid) {
+  if (process.platform === 'win32') {
+    const result = spawnSync('tasklist', ['/FI', `PID eq ${String(pid)}`, '/NH', '/FO', 'CSV'], { encoding: 'utf8' });
+    return result.error !== undefined || result.status !== 0 || result.stdout.includes(`"${String(pid)}"`);
+  }
+  const result = spawnSync('ps', ['-p', String(pid)], { encoding: 'utf8' });
+  return result.error !== undefined || result.status === 0;
+}
+
+/**
+ * Why the lock held in `file` (with `token`) is stale, or null when it may still be held: its run is no longer
+ * running, or the lock is older than `maxAgeMs` (TOOL-WR-09).
+ * @param {string} file
+ * @param {string} token
+ * @param {{ now: () => number, isAlive: (pid: number) => boolean, maxAgeMs: number }} options
+ * @returns {string | null}
+ */
+function staleReason(file, token, { now, isAlive, maxAgeMs }) {
+  const pid = Number(token.split(' ')[0]);
+  if (Number.isSafeInteger(pid) && pid > 0 && pid !== process.pid && !isAlive(pid)) {
+    return `its run (pid ${String(pid)}) is no longer running`;
+  }
+  let modified;
+  try {
+    modified = statSync(file).mtimeMs;
+  } catch {
+    return null;
+  }
+  return now() - modified > maxAgeMs ? `it is older than ${String(maxAgeMs / 3_600_000)} hours` : null;
+}
+
+/**
+ * Removes a stale lock without ever removing a newer one: the file is renamed aside first, and when the renamed file
+ * is not the stale token (another run replaced it meanwhile), it is linked back, which fails if a third lock exists.
+ * @param {string} file
+ * @param {string} token the stale lock's contents
+ * @returns {boolean} true when the stale lock is gone.
+ */
+function removeStaleLock(file, token) {
+  const aside = `${file}.stale-${randomUUID()}`;
+  try {
+    renameSync(file, aside);
+  } catch {
+    return false;
+  }
+  if (readOrNull(aside) !== token) {
+    try {
+      linkSync(aside, file);
+    } catch {
+      // A third run already holds the lock; the renamed file was never ours to keep.
+    }
+  }
+  rmSync(aside, { force: true });
+  return true;
 }
 
 /**
  * Takes the exclusive run lock. The file is created with the `wx` flag, so exactly one run holds it; the others poll
  * until it is gone or the timeout passes. The returned release removes the file only while it still holds this run's
- * token, so a run never deletes a lock another run owns.
+ * token, so a run never deletes a lock another run owns. A stale lock (its run is no longer running, or it is older than
+ * LOCK_MAX_AGE_MS) is taken over at once (TOOL-WR-09).
  * @param {string} file
- * @param {{ timeoutMs?: number, pollMs?: number, now?: () => number, sleep?: (ms: number) => Promise<void>, onWait?: () => void }} [options]
+ * @param {{ timeoutMs?: number, pollMs?: number, now?: () => number, sleep?: (ms: number) => Promise<void>, onWait?: () => void,
+ *   isAlive?: (pid: number) => boolean, maxAgeMs?: number, onStale?: (reason: string) => void }} [options]
  * @returns {Promise<(() => void) | null>} the release function, or null when the lock stayed taken until the timeout.
  */
 export async function acquireLock(file, options = {}) {
@@ -123,6 +203,11 @@ export async function acquireLock(file, options = {}) {
       }),
     onWait = () => {
       process.stdout.write(`e2e: another run holds ${file}; waiting for it (up to 15 minutes).\n`);
+    },
+    isAlive = processIsAlive,
+    maxAgeMs = LOCK_MAX_AGE_MS,
+    onStale = (reason) => {
+      process.stdout.write(`e2e: ${file} was left behind (${reason}); taking it over.\n`);
     },
   } = options;
   mkdirSync(path.dirname(file), { recursive: true });
@@ -141,6 +226,12 @@ export async function acquireLock(file, options = {}) {
           rmSync(file, { force: true });
         }
       };
+    }
+    const held = readOrNull(file);
+    const reason = held === null ? null : staleReason(file, held, { now, isAlive, maxAgeMs });
+    if (held !== null && reason !== null && removeStaleLock(file, held)) {
+      onStale(reason);
+      continue;
     }
     const remaining = deadline - now();
     if (remaining <= 0) {
@@ -239,6 +330,7 @@ async function main(argv) {
   };
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
+  process.once('SIGHUP', onSignal);
   process.once('exit', release);
   try {
     // TOOL-WR-08: wait while another project uses this machine (shared-machine.mjs); never stop anything.

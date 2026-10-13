@@ -2,7 +2,7 @@
 // Pins `npm run e2e` (QUAL-04, D-30, CLAUDE.md shared machine): a busy port 5199 is refused with a wait message and
 // nothing runs; otherwise the run is the guarded CSPS_E2E seed, the e2e build, then Playwright, each spawned
 // as a real executable (never a .cmd shim, L-22). The exclusive run lock makes a second run wait, then give up.
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   acquireLock,
   executeSteps,
+  LOCK_MAX_AGE_MS,
   LOCK_PATH,
   LOCK_TIMEOUT_MS,
   lockTimeoutMessage,
@@ -259,10 +260,72 @@ describe('acquireLock', () => {
     next?.();
   });
 
-  it('explains the timeout as wait and retry, naming the lock file', () => {
+  it('explains the timeout as wait and retry, naming the lock file and how to clear a stale one', () => {
     expect(lockTimeoutMessage(LOCK_PATH)).toBe(
-      `Another E2E, parity or Lighthouse run has held ${LOCK_PATH} for 15 minutes. Wait for it to finish, then run this again.`,
+      `Another E2E, parity or Lighthouse run has held ${LOCK_PATH} for 15 minutes. Wait for it to finish, then run this again. ` +
+        `If no such run is going on (for example after a crash or a closed terminal), delete ${LOCK_PATH} and run this again.`,
     );
+  });
+
+  // TOOL-WR-09: a run killed hard (Task Manager, taskkill /F, a closed console, a power loss) leaves its lock behind.
+  it('takes over a lock whose run is no longer running, at once and without waiting', async () => {
+    const file = lockFile();
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `424242 ${'0'.repeat(36)} 2026-10-13T00:00:00.000Z\n`);
+    const onWait = vi.fn();
+    const stale: string[] = [];
+
+    const release = await acquireLock(file, {
+      isAlive: (pid: number) => pid !== 424242,
+      onWait,
+      onStale: (reason: string) => stale.push(reason),
+    });
+
+    expect(release).not.toBeNull();
+    expect(onWait).not.toHaveBeenCalled();
+    expect(stale).toEqual([expect.stringContaining('pid 424242')]);
+    expect(readFileSync(file, 'utf8')).toMatch(new RegExp(`^${String(process.pid)} `));
+    expect(readdirSync(path.dirname(file))).toEqual(['e2e.lock']);
+    release?.();
+  });
+
+  it('keeps waiting for a lock whose run is still alive and younger than the ceiling', async () => {
+    const file = lockFile();
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `424242 x ${new Date().toISOString()}\n`);
+
+    const release = await acquireLock(file, {
+      timeoutMs: 1,
+      pollMs: 1,
+      isAlive: () => true,
+      onWait: () => undefined,
+      onStale: () => {
+        throw new Error('must not take over');
+      },
+    });
+
+    expect(release).toBeNull();
+    expect(readFileSync(file, 'utf8')).toContain('424242');
+  });
+
+  it('takes over a lock older than the ceiling even when its pid looks alive (pid reuse)', async () => {
+    const file = lockFile();
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, 'garbage without a pid\n');
+    const later = Date.now() + LOCK_MAX_AGE_MS + 60_000;
+    const stale: string[] = [];
+
+    const release = await acquireLock(file, {
+      now: () => later,
+      isAlive: () => true,
+      onWait: () => undefined,
+      onStale: (reason: string) => stale.push(reason),
+    });
+
+    expect(LOCK_MAX_AGE_MS).toBe(3 * 60 * 60 * 1000);
+    expect(release).not.toBeNull();
+    expect(stale).toEqual([expect.stringContaining('older than 3 hours')]);
+    release?.();
   });
 });
 
@@ -271,5 +334,11 @@ describe('e2e.mjs source (T-02-23)', () => {
     const source = readFileSync(fileURLToPath(new URL('./e2e.mjs', import.meta.url)), 'utf8');
 
     expect(source).not.toMatch(/taskkill|Stop-Process|kill\(/i);
+  });
+
+  it('releases its lock on SIGHUP (a closed terminal) as well as SIGINT and SIGTERM', () => {
+    const source = readFileSync(fileURLToPath(new URL('./e2e.mjs', import.meta.url)), 'utf8');
+
+    expect(source).toContain("process.once('SIGHUP', onSignal)");
   });
 });

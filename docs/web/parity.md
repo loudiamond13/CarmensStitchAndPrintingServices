@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T09:40:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T09:55:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -72,7 +72,7 @@ npm --prefix web run parity -- --grep <tag>
 
 For example, `--grep @reference` runs the reference smoke test, `--grep @parity` runs the whole comparison, `--grep @actions` one group and `--grep @selftest` the self-test. Add `--project webkit` to run one engine. `npm run parity` does this, in order:
 
-1. Takes the run lock `web/.locks/parity.lock`. A second run waits for it, up to 15 minutes, then stops and asks you to try again. Never delete a lock another run holds.
+1. Takes the run lock `web/.locks/parity.lock`. A second run waits for it, up to 15 minutes, then stops and asks you to try again. A lock left by a killed run (its process is gone, or it is older than 3 hours) is taken over at once (TOOL-WR-09). Never delete a lock another run holds.
 2. Runs the shared-machine wait (`web/scripts/shared-machine.mjs`): it runs the preflight report and **waits**, up to 15 minutes, while one of this project's ports is in use by another program or TheBETSLLC's dev/test processes are listed, then exits 1. It never stops anything. Without the preflight script (CI) it says so and goes on.
 3. Runs the spec extraction. If the owner edited an appendix of `CSPS-UI-SPEC.md`, the pin no longer matches, and the run **stops here** before anything is built. Re-pinning (`node web/visual/reference/extract-spec.mjs --repin`) is a manual step, done only after the owner's edit has been reviewed. No script passes `--repin`.
 4. Builds the reference into `web/.reference-dist/`.
