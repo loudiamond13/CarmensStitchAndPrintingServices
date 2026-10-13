@@ -403,3 +403,72 @@ describe('useFocusTrap with two traps open (UI-WR-02)', () => {
     expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
   });
 });
+
+// UI-WR-03: danger and warning toasts stay until closed (D-04, D-31 O-7), and a failed save inside a dialog is reported
+// in one. The toast layer sits outside the dialog, so the trap lets Tab cycle through the dialog and then the toasts,
+// and never pulls focus back out of the toast layer.
+function DialogWithToast({ toasts, inertLayer = false }: { readonly toasts: boolean; readonly inertLayer?: boolean }) {
+  const layer = (
+    <div data-ui="s-toast-layer">
+      {toasts && (
+        <div>
+          <button type="button">Try again</button>
+          <button type="button" aria-label="Dismiss" />
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <>
+      <button type="button">Page</button>
+      <Layer name="Dialog" />
+      {inertLayer ? <div inert>{layer}</div> : layer}
+    </>
+  );
+}
+
+describe('useFocusTrap and the toast layer (UI-WR-03)', () => {
+  it('Tabs from the dialog into the toasts and back, both ways', async () => {
+    const user = userEvent.setup();
+    render(<DialogWithToast toasts />);
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Dialog last' }).focus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+  });
+
+  it('leaves focus on a toast it was sent to, and still pulls focus back from the rest of the page', () => {
+    render(<DialogWithToast toasts />);
+
+    screen.getByRole('button', { name: 'Dismiss' }).focus();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Page' }).focus();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+  });
+
+  it('keeps the plain wrap when no toast can take focus, or the layer is inert', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DialogWithToast toasts={false} />);
+    screen.getByRole('button', { name: 'Dialog last' }).focus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+
+    rerender(<DialogWithToast toasts inertLayer />);
+    screen.getByRole('button', { name: 'Dialog first' }).focus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+  });
+});

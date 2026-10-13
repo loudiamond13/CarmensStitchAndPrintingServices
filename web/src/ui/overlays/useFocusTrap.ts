@@ -11,6 +11,10 @@
 // active trap (the top of the stack) acts on Tab and on focus that leaves it; the ones below wait. A trap joins the
 // stack before it moves focus. When the top trap ends, focus returns to its trigger and, if that leaves focus outside
 // the trap now on top, moves into that trap; a trap that ends below another changes nothing about focus.
+// UI-WR-03: the toast layer (`data-ui="s-toast-layer"`, outside every dialog) is the one region outside the trap that
+// focus may visit, because danger and warning toasts stay until they are closed (D-04, D-31 O-7) and a failed save is
+// reported there. Tab goes from the dialog's last element to the toasts' first and from their last back to the
+// dialog's first (Shift+Tab the other way), and focus on a toast is never pulled back. An inert layer is skipped.
 // Listeners are added with addEventListener in an effect (Pitfall 7: no JSX handlers on static elements).
 import { useEffect, type RefObject } from 'react';
 
@@ -45,6 +49,23 @@ function tabbable(container: HTMLElement): HTMLElement[] {
   return [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     (element) => element.tabIndex >= 0 && element.closest('[hidden], [inert]') === null,
   );
+}
+
+/** The toast layer ToastProvider renders (UI-WR-03). */
+const TOAST_LAYER = '[data-ui="s-toast-layer"]';
+
+/** True when the node is inside a toast layer outside `root`. */
+function inToastLayer(root: HTMLElement, node: Node | null): boolean {
+  const element = node instanceof Element ? node : null;
+  const layer = element?.closest(TOAST_LAYER);
+  return layer != null && !root.contains(layer);
+}
+
+/** What Tab can reach in the toast layers outside `root` (none in an inert layer). */
+function toastTabbable(root: HTMLElement): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>(TOAST_LAYER)]
+    .filter((layer) => !root.contains(layer))
+    .flatMap((layer) => tabbable(layer));
 }
 
 interface ActiveTrap {
@@ -105,21 +126,31 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
       root.focus();
       return;
     }
+    const toasts = toastTabbable(root);
+    const toastFirst = toasts[0] ?? first;
+    const toastLast = toasts.at(-1) ?? last;
     const current = document.activeElement;
-    const outside = !root.contains(current);
+    const outside = !root.contains(current) && !inToastLayer(root, current);
+    let target: HTMLElement | null = null;
     if (event.shiftKey) {
       if (outside || current === first || current === root) {
-        event.preventDefault();
-        last.focus();
+        target = toastLast;
+      } else if (current === toasts[0]) {
+        target = last;
       }
-    } else if (outside || current === last) {
+    } else if (outside || current === toastLast) {
+      target = first;
+    } else if (current === last) {
+      target = toastFirst;
+    }
+    if (target !== null) {
       event.preventDefault();
-      first.focus();
+      target.focus();
     }
   };
 
   const onFocusIn = (event: FocusEvent) => {
-    if (isTop() && event.target instanceof Node && !root.contains(event.target)) {
+    if (isTop() && event.target instanceof Node && !root.contains(event.target) && !inToastLayer(root, event.target)) {
       focusFirst();
     }
   };
