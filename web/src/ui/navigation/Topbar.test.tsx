@@ -24,12 +24,20 @@ import {
 
 // The converted App. D.3 Topbar (plan 02-26, CSPS-UI-SPEC.md §6.6, UI-SPEC Interaction Contract "Topbar search" and
 // "Theme toggle", Color D-01): App. D.3's markup, props and copy. Ctrl+K or Cmd+K (D-41 R2-04, replacing App. D.3's
-// bare "/") focuses the search box from anywhere outside a field, Enter hands the text to onSearch, the theme toggle is named for what it will do, and the user-menu button
+// bare "/") focuses the search box from anywhere outside text entry; inside text entry only the platform's primary
+// combo (Cmd+K on Apple, Ctrl+K elsewhere) is taken, so Mac Ctrl+K stays the field's kill-line (code review WR-01).
+// Enter hands the text to onSearch, the theme toggle is named for what it will do, and the user-menu button
 // announces its menu. The phone menu button passes through the aria-expanded / aria-controls the mobile drawer needs
 // (plan 02-31). The look is proven by the parity suite (`--grep @navigation`).
 
 // L-20: the user role goes through a typed variable, never a literal role prop.
 const ADMIN: Role = 'admin';
+
+/** A Windows (non-Apple) user agent: Ctrl+K is the primary search combo there. */
+const WINDOWS_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0';
+
+/** A Macintosh user agent: Cmd+K is the primary search combo there, and Ctrl+K is Cocoa's kill-line in text fields. */
+const MAC_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)';
 
 function tokens(classes: string): string[] {
   return classes.split(/\s+/).filter(Boolean).sort();
@@ -90,7 +98,7 @@ describe('Topbar markup (App. D.3)', () => {
   });
 
   it.each([
-    ['Macintosh', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
+    ['Macintosh', MAC_AGENT],
     ['iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
     ['iPad', 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
   ])('shows the "⌘K" hint on a %s', (_device, userAgent) => {
@@ -102,7 +110,7 @@ describe('Topbar markup (App. D.3)', () => {
   });
 
   it.each([
-    ['Windows', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0'],
+    ['Windows', WINDOWS_AGENT],
     ['Android', 'Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0'],
     ['Linux', 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0'],
   ])('chooses the "Ctrl K" hint on %s, and "⌘K" on an iPod (searchShortcutHint)', (_platform, userAgent) => {
@@ -198,8 +206,10 @@ describe('Topbar theme toggle', () => {
 });
 
 describe('Topbar search keys', () => {
-  // D-41 R2-04 (owner, 2026-10-13): Ctrl+K or Cmd+K focuses the search box from outside a field; a bare "/" no longer
-  // does (WCAG 2.1.4 no longer applies, because the shortcut needs a modifier). The UI-WR-07 guards stay.
+  // D-41 R2-04 (owner, 2026-10-13): Ctrl+K or Cmd+K focuses the search box from outside text entry; a bare "/" no
+  // longer does (WCAG 2.1.4 no longer applies, because the shortcut needs a modifier). Inside text entry only the
+  // platform's primary combo is taken (Cmd+K on Apple, Ctrl+K elsewhere), so the browser never gets it and Mac Ctrl+K
+  // stays the field's Cocoa kill-line (code review WR-01). The other UI-WR-07 guards stay.
   function press(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
     const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
     target.dispatchEvent(event);
@@ -245,30 +255,6 @@ describe('Topbar search keys', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it.each(['input', 'textarea', 'select'])('leaves Ctrl+K alone inside a %s', (tag) => {
-    render(<Topbar />);
-    const field = document.createElement(tag);
-    document.body.append(field);
-    field.focus();
-    const event = press(field, { key: 'k', ctrlKey: true });
-
-    expect(document.activeElement).not.toBe(search());
-    expect(event.defaultPrevented).toBe(false);
-    field.remove();
-  });
-
-  it('leaves Ctrl+K alone inside editable content', () => {
-    render(<Topbar />);
-    const editor = document.createElement('div');
-    Object.defineProperty(editor, 'isContentEditable', { value: true });
-    document.body.append(editor);
-    const event = press(editor, { key: 'k', ctrlKey: true });
-
-    expect(document.activeElement).not.toBe(search());
-    expect(event.defaultPrevented).toBe(false);
-    editor.remove();
-  });
-
   it('leaves a Ctrl+K that something else already handled alone', () => {
     render(<Topbar />);
     const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true });
@@ -278,23 +264,187 @@ describe('Topbar search keys', () => {
     expect(document.activeElement).not.toBe(search());
   });
 
-  it.each(['textbox', 'searchbox', 'combobox', 'spinbutton'])(
-    'leaves Ctrl+K alone inside a role="%s" widget',
-    (role) => {
-      render(<Topbar />);
-      const widget = document.createElement('div');
-      widget.setAttribute('role', role);
-      widget.tabIndex = 0;
-      const inner = document.createElement('span');
-      widget.append(inner);
-      document.body.append(widget);
-      const event = press(inner, { key: 'k', ctrlKey: true });
+  /** Uses the user agent for one test; the returned function restores it. */
+  function useAgent(userAgent: string): () => void {
+    const agent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+    return () => {
+      agent.mockRestore();
+    };
+  }
 
-      expect(document.activeElement).not.toBe(search());
-      expect(event.defaultPrevented).toBe(false);
-      widget.remove();
+  /** Builds a text-entry target in the document: the element to press on, and its removal. */
+  type TextEntry = () => { target: HTMLElement; remove: () => void };
+
+  function field(tag: 'input' | 'textarea', type?: string): TextEntry {
+    return () => {
+      const element = document.createElement(tag);
+      if (type !== undefined) {
+        element.setAttribute('type', type);
+      }
+      document.body.append(element);
+      element.focus();
+      return {
+        target: element,
+        remove: () => {
+          element.remove();
+        },
+      };
+    };
+  }
+
+  const editable: TextEntry = () => {
+    const editor = document.createElement('div');
+    Object.defineProperty(editor, 'isContentEditable', { value: true });
+    editor.tabIndex = 0;
+    document.body.append(editor);
+    editor.focus();
+    return {
+      target: editor,
+      remove: () => {
+        editor.remove();
+      },
+    };
+  };
+
+  function widget(role: string): TextEntry {
+    return () => {
+      const element = document.createElement('div');
+      element.setAttribute('role', role);
+      element.tabIndex = 0;
+      const inner = document.createElement('span');
+      element.append(inner);
+      document.body.append(element);
+      element.focus();
+      return {
+        target: inner,
+        remove: () => {
+          element.remove();
+        },
+      };
+    };
+  }
+
+  const TEXT_ENTRIES: [string, TextEntry][] = [
+    ['a text input', field('input', 'text')],
+    ['an input with no type', field('input')],
+    ['a search input', field('input', 'search')],
+    ['an email input', field('input', 'email')],
+    ['a url input', field('input', 'url')],
+    ['a tel input', field('input', 'tel')],
+    ['a password input', field('input', 'password')],
+    ['a number input', field('input', 'number')],
+    ['a textarea', field('textarea')],
+    ['editable content', editable],
+    ['a role="textbox" widget', widget('textbox')],
+    ['a role="searchbox" widget', widget('searchbox')],
+    ['a role="combobox" widget', widget('combobox')],
+    ['a role="spinbutton" widget', widget('spinbutton')],
+  ];
+
+  it.each(TEXT_ENTRIES)('takes Ctrl+K inside %s on Windows and focuses the search box (WR-01)', (_what, make) => {
+    const restore = useAgent(WINDOWS_AGENT);
+    render(<Topbar />);
+    const { target, remove } = make();
+    const event = press(target, { key: 'k', ctrlKey: true });
+
+    expect(document.activeElement).toBe(search());
+    expect(event.defaultPrevented).toBe(true);
+    remove();
+    restore();
+  });
+
+  it.each(TEXT_ENTRIES)('takes Cmd+K inside %s on a Mac and focuses the search box (WR-01)', (_what, make) => {
+    const restore = useAgent(MAC_AGENT);
+    render(<Topbar />);
+    const { target, remove } = make();
+    const event = press(target, { key: 'k', metaKey: true });
+
+    expect(document.activeElement).toBe(search());
+    expect(event.defaultPrevented).toBe(true);
+    remove();
+    restore();
+  });
+
+  it.each(TEXT_ENTRIES)('leaves Ctrl+K inside %s to the field on a Mac (Cocoa kill-line)', (_what, make) => {
+    const restore = useAgent(MAC_AGENT);
+    render(<Topbar />);
+    const { target, remove } = make();
+    const before = document.activeElement;
+    const event = press(target, { key: 'k', ctrlKey: true });
+
+    expect(document.activeElement).toBe(before);
+    expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
+    remove();
+    restore();
+  });
+
+  it('leaves Meta+K inside a text input alone on Windows: inside text entry only the primary combo is taken', () => {
+    const restore = useAgent(WINDOWS_AGENT);
+    render(<Topbar />);
+    const { target, remove } = field('input', 'text')();
+    const event = press(target, { key: 'k', metaKey: true });
+
+    expect(document.activeElement).toBe(target);
+    expect(event.defaultPrevented).toBe(false);
+    remove();
+    restore();
+  });
+
+  it.each([
+    ['a select', (): HTMLElement => document.createElement('select')],
+    [
+      'a checkbox',
+      (): HTMLElement => {
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        return box;
+      },
+    ],
+  ])('takes Ctrl+K on %s on a Mac: it is not text entry, so it has no kill-line to protect', (_what, make) => {
+    const restore = useAgent(MAC_AGENT);
+    render(<Topbar />);
+    const element = make();
+    document.body.append(element);
+    element.focus();
+    const event = press(element, { key: 'k', ctrlKey: true });
+
+    expect(document.activeElement).toBe(search());
+    expect(event.defaultPrevented).toBe(true);
+    element.remove();
+    restore();
+  });
+
+  it.each([
+    ['Ctrl+K on Windows', WINDOWS_AGENT, { key: 'k', ctrlKey: true }],
+    ['Cmd+K on a Mac', MAC_AGENT, { key: 'k', metaKey: true }],
+  ])(
+    'keeps focus in the search box on %s pressed inside it, selects its text and takes the key',
+    async (_what, userAgent, init) => {
+      const restore = useAgent(userAgent);
+      render(<Topbar />);
+      await userEvent.type(search(), 'jersey');
+      const event = press(search(), init);
+
+      expect(document.activeElement).toBe(search());
+      expect(search().selectionStart).toBe(0);
+      expect(search().selectionEnd).toBe(6);
+      expect(event.defaultPrevented).toBe(true);
+      restore();
     },
   );
+
+  it('leaves Ctrl+K inside the search box to the field on a Mac', async () => {
+    const restore = useAgent(MAC_AGENT);
+    render(<Topbar />);
+    await userEvent.type(search(), 'jersey');
+    const event = press(search(), { key: 'k', ctrlKey: true });
+
+    expect(document.activeElement).toBe(search());
+    expect(search().selectionStart).toBe(6);
+    expect(event.defaultPrevented).toBe(false);
+    restore();
+  });
 
   it('leaves Ctrl+K alone while a modal dialog is open, so focus never leaves the dialog', () => {
     render(<Topbar />);
