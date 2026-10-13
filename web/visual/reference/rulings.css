@@ -231,6 +231,44 @@ button.csp-nav {
   border-color: var(--focus);
 }
 
+/* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short
+   window. The region becomes a column with a 16px top padding and a ::before spacer of 124px above the dialog, so the
+   dialog still sits 140px down (16 + 124) wherever it fits; on a shorter window only the spacer shrinks, down to 0, and
+   when the dialog is still taller than the window the backdrop scrolls (WCAG 1.4.10). Phone pages: 96px of spacer and
+   no padding (96 + 0). These rules are unlayered, so they beat App. C's layered row rule (justify-content: center;
+   align-items: flex-start; padding: 140px var(--space-4) var(--space-4)) and its phone rule (padding: 96px 0 0;
+   align-items: flex-start): align-items becomes center there too, because in a column it centres sideways, and the
+   full-width sheet does not move. Nothing moves where the dialog already fits. */
+.s-overlay {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: var(--space-4);
+  overflow-y: auto;
+}
+
+/* D-42 the spacer above the dialog: the only part that shrinks. */
+.s-overlay::before {
+  content: "";
+  flex: 0 1 124px;
+}
+
+/* D-42 the dialog itself never shrinks (App. C gives the inline overlay min-height: 0). */
+.s-overlay > * {
+  flex-shrink: 0;
+}
+
+/* D-42 phone pages: the approved 96px comes from the spacer alone, so the padding-top goes back to 0. */
+@container pg (max-width: 767px) {
+  .s-overlay {
+    padding-top: 0;
+  }
+
+  .s-overlay::before {
+    flex-basis: 96px;
+  }
+}
+
 /* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */
 .csp-btn[aria-disabled="true"] {
   opacity: 0.45;

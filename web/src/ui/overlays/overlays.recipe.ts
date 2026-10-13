@@ -22,11 +22,21 @@ interface LayerOptions {
 }
 
 /**
- * App. C `.s-overlay`: the fixed scrim region the mockups render dialogs in, top-aligned 140px down; on phone pages
- * 96px down with no side padding. It carries `data-ui="s-overlay"`.
+ * App. C `.s-overlay`: the fixed scrim region the mockups render dialogs in. It carries `data-ui="s-overlay"`.
+ *
+ * SPEC-DEVIATION: D-42 (owner, 2026-10-13, UAT G-2-199). App. C pinned the dialog 140px down (96px on phone pages)
+ * with nothing to scroll, so on a short window the bottom of a tall dialog, buttons included, was off screen. Now the
+ * region is a column: its `::before` is a spacer of 124px (96px on phone pages) above the dialog, so the 16px padding
+ * plus the spacer is the approved 140px (96px plus 0 on phones) whenever the dialog fits. When it does not fit, only
+ * the spacer shrinks, down to 0, so the dialog moves up to the 16px edge gap (0 on phones). `*:shrink-0` stops the
+ * dialog itself from shrinking (App. C gives the inline overlay `min-height: 0`). `justify-start` keeps any overflow at
+ * the bottom, where it can be scrolled to, and `overflow-y-auto` lets the backdrop scroll when the dialog is still
+ * taller than the window (WCAG 1.4.10). `items-center` keeps the horizontal centring (the child is full width); the
+ * phone `items-start` is dropped because in a column it would mean start-aligned sideways, and the rulings layer gives
+ * the reference the same `center`. Pure CSS: no measuring and no inline style (strict CSP).
  */
 export const overlayRegionClasses = tw(
-  'fixed inset-0 z-(--z-overlay) flex items-start justify-center bg-scrim px-4 pt-[140px] pb-4 pg-phone:items-start pg-phone:p-0 pg-phone:pt-24',
+  "fixed inset-0 z-(--z-overlay) flex flex-col items-center justify-start overflow-y-auto bg-scrim p-4 *:shrink-0 before:basis-[124px] before:content-[''] pg-phone:p-0 pg-phone:before:basis-[96px]",
 );
 
 /** `.csp-overlay` and `.csp-overlay.is-inline`: how the overlay is placed. */

@@ -42,6 +42,7 @@ const SETTLE = `(async () => {
 
 interface RegionMetrics {
   readonly scrollHeight: number;
+  readonly scrollTop: number;
   readonly clientHeight: number;
   readonly clientWidth: number;
   readonly overflowY: string;
@@ -51,6 +52,7 @@ const READ_REGION = `(() => {
   const region = ${REGION};
   return {
     scrollHeight: region.scrollHeight,
+    scrollTop: region.scrollTop,
     clientHeight: region.clientHeight,
     clientWidth: region.clientWidth,
     overflowY: getComputedStyle(region).overflowY,
@@ -108,7 +110,7 @@ async function openDeleteOrder(
   if (viewport === null) {
     throw new Error('Expected a viewport size.');
   }
-  return {
+  const fit: OpenDialog = {
     dialog,
     region: page.locator('[data-ui="s-overlay"]').filter({ has: dialog }),
     cancel: dialog.getByRole('button', { name: 'Cancel' }),
@@ -117,7 +119,19 @@ async function openDeleteOrder(
     metrics: await page.evaluate<RegionMetrics>(READ_REGION),
     viewport,
   };
+  // The measured place, in the report (plan 02-41 records the post-fix tops per window).
+  test.info().annotations.push({
+    type: 'dialog-fit',
+    description: `${String(viewport.width)}x${String(viewport.height)}: top ${String(topOf(fit))}, height ${String(fit.box.height)}, region ${String(fit.metrics.scrollHeight)}/${String(fit.metrics.clientHeight)} ${fit.metrics.overflowY}`,
+  });
+  return fit;
 }
+
+/**
+ * Where the layout puts the dialog: its top with the backdrop scrolled back to the start. Opening it moves focus to its
+ * first field, and on a window shorter than the dialog the browser may scroll the backdrop to show that field.
+ */
+const topOf = (fit: OpenDialog): number => fit.box.y + fit.metrics.scrollTop;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
@@ -175,7 +189,7 @@ test('@dialog-fit 1440x900: the Delete Order dialog keeps the approved 140px top
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 1440, height: 900 });
 
-  expectNear(fit.box.y, DESKTOP_TOP, 'dialog top');
+  expectNear(topOf(fit), DESKTOP_TOP, 'dialog top');
   expectCentred(fit);
   await expectWholeWindow(fit);
   expectNoScrolling(fit);
@@ -189,7 +203,7 @@ test("@dialog-fit 1274x585 (the owner's window): the dialog moves up until Cance
   const height = fit.box.height;
 
   expect(height + 2 * DESKTOP_EDGE, "the owner's window fits the dialog without scrolling").toBeLessThanOrEqual(585);
-  expectNear(fit.box.y, clamp(585 - DESKTOP_EDGE - height, DESKTOP_EDGE, DESKTOP_TOP), 'dialog top');
+  expectNear(topOf(fit), clamp(585 - DESKTOP_EDGE - height, DESKTOP_EDGE, DESKTOP_TOP), 'dialog top');
   expect(fit.box.y).toBeLessThan(DESKTOP_TOP);
   expect(fit.box.y + height).toBeLessThanOrEqual(585 - DESKTOP_EDGE + 1);
   await expectButtonsInView(fit);
@@ -203,7 +217,7 @@ test('@dialog-fit 1280x420 by mouse: the dialog sits 16px down and the wheel scr
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
 
-  expectNear(fit.box.y, DESKTOP_EDGE, 'dialog top');
+  expectNear(topOf(fit), DESKTOP_EDGE, 'dialog top');
   expectScrolling(fit);
   await wheelOverDialog(page, fit);
   await expectButtonsInView(fit);
@@ -233,8 +247,8 @@ test('@dialog-fit 412x839 phone page: the sheet keeps the approved 96px top, ful
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 412, height: 839 });
 
-  expectNear(fit.box.y, clamp(839 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
-  expectNear(fit.box.y, PHONE_TOP, 'sheet top');
+  expectNear(topOf(fit), clamp(839 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectNear(topOf(fit), PHONE_TOP, 'sheet top');
   expectFullWidthSheet(fit);
   expectNoScrolling(fit);
 });
@@ -245,7 +259,7 @@ test('@dialog-fit 393x659 phone page: the sheet moves up until both buttons are 
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 393, height: 659 });
 
-  expectNear(fit.box.y, clamp(659 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectNear(topOf(fit), clamp(659 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
   expectFullWidthSheet(fit);
   await expectButtonsInView(fit);
   expectNoScrolling(fit);
@@ -257,7 +271,7 @@ test('@dialog-fit 320x568 phone page: the sheet starts at the top and the wheel 
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 320, height: 568 });
 
-  expectNear(fit.box.y, clamp(568 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectNear(topOf(fit), clamp(568 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
   expectFullWidthSheet(fit);
   expectScrolling(fit);
   await wheelOverDialog(page, fit);
@@ -271,7 +285,7 @@ test("@dialog-fit on the phone's own screen: the sheet sits 96px down, moves up,
   const fit = await openDeleteOrder(page);
   const { height } = fit.viewport;
 
-  expectNear(fit.box.y, clamp(height - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectNear(topOf(fit), clamp(height - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
   expectFullWidthSheet(fit);
   if (fit.box.height > height) {
     expectScrolling(fit);
