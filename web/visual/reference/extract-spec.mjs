@@ -4,7 +4,9 @@
 // and App. D.1, D.3, D.4 and D.5 (the frozen components). This script copies the first fenced block under each of those
 // headings, byte for byte after CRLF -> LF, into the git-ignored web/visual/.reference-src/.
 //
-// The SHA-256 of the nine blocks (concatenated in APPENDIX_FILES order) is pinned in spec-appendix.sha256. When the
+// spec-appendix.sha256 pins two SHA-256 values of the nine blocks in APPENDIX_FILES order: line 1 the blocks
+// concatenated (the owner-reviewed pin of 02-38), line 2 `framed <hash>`, each block after its file name and byte length,
+// so content moved from one appendix to the next is caught too (TOOL-WR-03). Both must match. When the
 // owner edits an appendix, the hash changes and this script exits 1 without writing anything, so the yardstick never
 // moves silently. After reviewing the edit, re-pin by hand:
 //
@@ -113,13 +115,48 @@ export function hashAppendices(blocks) {
 }
 
 /**
+ * Lowercase hex SHA-256 of the blocks in APPENDIX_FILES order, each preceded by its file name and UTF-8 byte length
+ * (`<file>\0<length>\0<text>`). Unlike hashAppendices, a line moved from the end of one appendix to the start of the
+ * next changes it (TOOL-WR-03).
+ * @param {ReadonlyMap<string, string>} blocks
+ * @returns {string}
+ */
+export function framedHashAppendices(blocks) {
+  const hash = createHash('sha256');
+  for (const file of Object.values(APPENDIX_FILES)) {
+    const text = blocks.get(file) ?? '';
+    hash.update(`${file}\0${String(Buffer.byteLength(text, 'utf8'))}\0`, 'utf8');
+    hash.update(text, 'utf8');
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * The pin file text: line 1 the owner-reviewed unframed hash, line 2 `framed <hash>`. Both must match.
+ * @param {ReadonlyMap<string, string>} blocks
+ * @returns {string}
+ */
+export function pinTextFor(blocks) {
+  return `${hashAppendices(blocks)}\nframed ${framedHashAppendices(blocks)}\n`;
+}
+
+/**
+ * The two pin lines on one line, for messages.
+ * @param {string} pin
+ * @returns {string}
+ */
+function oneLine(pin) {
+  return pin.split('\n').join(' / ');
+}
+
+/**
  * @param {ReadonlyMap<string, string>} blocks
  * @param {string} pinText the contents of spec-appendix.sha256
  * @returns {{ matches: boolean, actual: string, pinned: string }}
  */
 export function compareWithPin(blocks, pinText) {
-  const actual = hashAppendices(blocks);
-  const pinned = pinText.trim();
+  const actual = pinTextFor(blocks).trim();
+  const pinned = pinText.replace(/\r\n/g, '\n').trim();
   return { matches: actual === pinned, actual, pinned };
 }
 
@@ -150,23 +187,25 @@ export function runExtract({ args, specPath, outDir, pinPath, report }) {
   }
   const blocks = extractAppendices(readFileSync(specPath, 'utf8'));
   if (args.includes('--repin')) {
-    const actual = hashAppendices(blocks);
-    writeFileSync(pinPath, `${actual}\n`, 'utf8');
+    const pin = pinTextFor(blocks);
+    writeFileSync(pinPath, pin, 'utf8');
     writeBlocks(outDir, blocks);
-    report(`extract-spec: re-pinned the spec appendices to ${actual}. Commit spec-appendix.sha256 with the spec edit.`);
+    report(
+      `extract-spec: re-pinned the spec appendices to ${oneLine(pin.trim())}. Commit spec-appendix.sha256 with the spec edit.`,
+    );
     return 0;
   }
   const result = compareWithPin(blocks, readFileSync(pinPath, 'utf8'));
   if (!result.matches) {
     report(
       'extract-spec: the approved appendices in CSPS-UI-SPEC.md have changed since they were pinned ' +
-        `(pinned ${result.pinned}, now ${result.actual}). Nothing was written. Review the spec edit with the ` +
+        `(pinned ${oneLine(result.pinned)}, now ${oneLine(result.actual)}). Nothing was written. Review the spec edit with the ` +
         'owner, then run `node web/visual/reference/extract-spec.mjs --repin` by hand and commit the new pin.',
     );
     return 1;
   }
   writeBlocks(outDir, blocks);
-  report(`extract-spec: wrote ${String(blocks.size)} appendix files to ${outDir} (pin ${result.actual}).`);
+  report(`extract-spec: wrote ${String(blocks.size)} appendix files to ${outDir} (pin ${oneLine(result.actual)}).`);
   return 0;
 }
 

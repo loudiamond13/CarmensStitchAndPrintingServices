@@ -5,7 +5,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { APPENDIX_FILES, compareWithPin, extractAppendices, hashAppendices, runExtract } from './extract-spec.mjs';
+import {
+  APPENDIX_FILES,
+  compareWithPin,
+  extractAppendices,
+  framedHashAppendices,
+  hashAppendices,
+  pinTextFor,
+  runExtract,
+} from './extract-spec.mjs';
 
 const specPath = fileURLToPath(new URL('../../../CSPS-UI-SPEC.md', import.meta.url));
 const pinPath = fileURLToPath(new URL('./spec-appendix.sha256', import.meta.url));
@@ -105,14 +113,42 @@ describe('the SHA-256 pin', () => {
   it('is the lowercase hex SHA-256 of the nine blocks concatenated in order', () => {
     const expected = createHash('sha256').update(concatenated(blocks), 'utf8').digest('hex');
     expect(hashAppendices(blocks)).toBe(expected);
-    expect(pin.trim()).toMatch(/^[0-9a-f]{64}$/);
+    expect(pin.replace(/\r\n/g, '\n').split('\n')[0]).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  // TOOL-WR-03: the first line alone hashes the blocks joined with no separator, so a line moved from the end of one
+  // appendix to the start of the next leaves it unchanged. The second line frames each block with its file and length.
+  it('holds a second, framed line: each block hashed after its file name and byte length', () => {
+    const expected = createHash('sha256');
+    for (const file of Object.values(APPENDIX_FILES)) {
+      const text = blocks.get(file) ?? '';
+      expected.update(`${file}\0${String(Buffer.byteLength(text, 'utf8'))}\0`, 'utf8');
+      expected.update(text, 'utf8');
+    }
+    expect(framedHashAppendices(blocks)).toBe(expected.digest('hex'));
+    expect(pinTextFor(blocks)).toBe(`${hashAppendices(blocks)}\nframed ${framedHashAppendices(blocks)}\n`);
+  });
+
+  it('reports a line moved from the end of one appendix to the start of the next as a mismatch', () => {
+    const before = new Map(blocks);
+    before.set('styles/components.css', '.a { }\n.b { }\n');
+    before.set('styles/screens.css', '.c { }\n');
+    const after = new Map(before);
+    after.set('styles/components.css', '.a { }\n');
+    after.set('styles/screens.css', '.b { }\n.c { }\n');
+    expect(hashAppendices(after)).toBe(hashAppendices(before));
+    expect(compareWithPin(after, pinTextFor(before)).matches).toBe(false);
+  });
+
+  it('fails a pin file that has only the unframed line', () => {
+    expect(compareWithPin(blocks, `${hashAppendices(blocks)}\n`).matches).toBe(false);
   });
 
   it("the committed pin matches the extraction of today's spec", () => {
     expect(compareWithPin(blocks, pin)).toEqual({
       matches: true,
-      actual: hashAppendices(blocks),
-      pinned: pin.trim(),
+      actual: pinTextFor(blocks).trim(),
+      pinned: pin.replace(/\r\n/g, '\n').trim(),
     });
   });
 
@@ -188,7 +224,7 @@ describe('runExtract (the CLI)', () => {
     const edited = lfSpec.replace('export function Button(', 'export function Buttom(');
     const files = setUp(edited, `${'0'.repeat(64)}\n`);
     expect(run(['--repin'], files).code).toBe(0);
-    expect(readFileSync(files.pin, 'utf8')).toBe(`${hashAppendices(extractAppendices(edited))}\n`);
+    expect(readFileSync(files.pin, 'utf8')).toBe(pinTextFor(extractAppendices(edited)));
     expect(run([], files).code).toBe(0);
   });
 

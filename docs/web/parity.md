@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T08:27:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T08:55:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -34,7 +34,7 @@ The only normalizations allowed are these:
 
 | File | What it does |
 |---|---|
-| `web/visual/reference/extract-spec.mjs` | Copies the nine spec appendices, byte for byte, into `web/visual/.reference-src/`. It refuses (exit 1, writes nothing) when their SHA-256 differs from the committed pin `spec-appendix.sha256` (plan 02-38). |
+| `web/visual/reference/extract-spec.mjs` | Copies the nine spec appendices, byte for byte, into `web/visual/.reference-src/`. It refuses (exit 1, writes nothing) when their SHA-256 differs from the committed pin `spec-appendix.sha256` (plan 02-38). The pin has two lines: the owner-reviewed hash of the nine blocks joined, and a `framed` hash that adds each block's file name and length, so a line moved from one appendix into the next is caught too (TOOL-WR-03). The framed line was added for the same, unchanged appendix text; the first line is still the 02-38 pin. |
 | `web/visual/reference/index.html`, `main.tsx` | The reference page. It reads `?theme`, `?group` and `?case` from the address and renders each selected scenario in a `[data-case="<id>"]` frame with the `.s-page` class and `data-theme`. |
 | `web/visual/reference/select.ts` | How the page picks its cases (see section 4). |
 | `web/visual/reference/kit.ts` | The frozen App. D.3 components, plus any layout fragments in `web/visual/reference/fragments/` (App. E.1/E.6 shell markup, plans 02-29 to 02-31). |
