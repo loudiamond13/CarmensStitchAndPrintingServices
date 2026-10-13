@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-08T21:30:00-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-13T11:30:05-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -168,6 +168,17 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
 ### Owner ruling: an order card with no team (2026-10-08, in chat, during `/gsd-execute-phase 2`)
 
 - **D-40 (OrderCard walk-in line):** when an order has no team, the order card shows **"Walk-in customer"** on the line under the title. The customer's name stays the title, as before. This is the same wording the order tables already use for a missing team (spec §8.3), so the card and the tables always say the same thing; both read it from one shared constant (`WALK_IN_CUSTOMER`). The line keeps its normal look (14px, the muted brown-grey `--ink-muted`), and nothing else on the card changes. An order with a team is unchanged: the team is the title and the customer's name is on that line. The approved design (App. D.3 and the Orders grid, App. E.7) left that line empty, so this is an intentional difference in text only: the look-equality proof writes the same words into the approved design's empty line, and the walk-in card is still proven equal.
+
+### Owner rulings: Phase 2 run-2 decisions R2-01..R2-29 (2026-10-13, in chat, `/gsd-quick`)
+
+- **D-41 (run-2 rulings):** the owner settled the run-2 backlog in `999.1/DECISIONS.md`. Full answer list there ("Owner answers, 2026-10-13").
+  - **Fix (look changes approved under D-08):** R2-01 Topbar search shrinks (`min-w-0`). R2-02 contain the hidden Actions header (`contain: paint`) plus a parity intentional-difference entry. R2-03 list search gets a **subtler custom focus ring** made for that box (not the shared field ring); it must still meet 3:1 non-text contrast (WCAG 2.4.7/1.4.11). R2-04 the search shortcut becomes **Ctrl+K** (Cmd+K on macOS), and bare "/" is removed. R2-12 sidebar collapse button adds `aria-expanded`. R2-17 public footer headings become h2, with no visible change. R2-18 a refused money paste shows the amount hint.
+  - **Order math (R2-06):** follow the PRD names everywhere: **Subtotal** = before discount, **Total** = after discount (shared math, browser, golden vectors and the OrderTotals panel label; show the owner a before/after of the panel wording). A 100%-discounted, unpaid order keeps reading **"Fully Paid"**.
+  - **Negative balance (R2-07):** other edits that push the balance below zero (removing an item, lowering a quantity, adding a discount after payments) are **allowed**, and the order shows the negative balance as **credit / refund due**. Direct overpayment by a payment stays refused (OD-4). Importing legacy orders that are already overpaid is **decided in Phase 15** once their count is known.
+  - **Confirmed as built:** R2-08 retry idempotency-key split. R2-09 a 401 shows "Your session ended. Sign in again." on sign-in (Phase 4; this replaces the UI-SPEC's "no message").
+  - **Keep as approved/spec:** R2-11 "Get a Quote" stays a button. R2-13 "Try Again" stays muted grey. R2-14 Users list name/initials stay 12 px muted. R2-15 empty-state wording kept. R2-16 Showcase extras kept. R2-19 the Barlow Condensed fallback keeps the spec value. R2-26 the three `.npmrc` cool-down waivers are kept.
+  - **FYIs ratified:** AR-02-01, AR-02-02, R2-10, R2-24, R2-25, R2-27, R2-28.
+  - **Still open (needs the owner hands-on):** R2-05 visual review (WEB-02 sign-off) and R2-20..R2-23 manual checks (UAT).
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.
