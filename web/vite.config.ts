@@ -1,6 +1,6 @@
 // Source: CSPS-UI-SPEC.md App. D.7, plus the deltas below. Each delta is marked SPEC-DEVIATION (research Pattern 1).
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
@@ -23,8 +23,12 @@ const isAppSource = (id: string | undefined): boolean => {
   return normalized.startsWith(sourceDirectory) && /\.tsx?$/.test(normalized);
 };
 
+/** The web root: .env files are read from here, whatever the working directory (TOOL-CR-01). */
+const webRoot = fileURLToPath(new URL('.', import.meta.url));
+
 /**
- * What each mode builds (D-20). `budget` is the budget plugin's build profile: production keeps every D-20 rule, the
+ * What each mode builds (D-20). The mode alone decides; no environment variable or .env file can turn the dev-only
+ * routes on (TOOL-CR-01). `budget` is the budget plugin's build profile: production keeps every D-20 rule, the
  * e2e and budget builds measure the shipped topology with the admin routes in, and the parity build may add the
  * test-only parity page (docs/web/budgets.md).
  */
@@ -39,9 +43,17 @@ const MODES: Readonly<Record<string, { devRoutes: boolean; parityEntry: boolean;
 
 // SPEC-DEVIATION: a function config, so the build output folder and the dev-route switch follow the mode (D-20).
 export default defineConfig(({ mode }) => {
-  const settings = MODES[mode];
+  const settings = Object.hasOwn(MODES, mode) ? MODES[mode] : undefined;
   if (settings === undefined) {
     throw new Error(`vite.config.ts: unknown mode "${mode}". Use one of: ${Object.keys(MODES).join(', ')}.`);
+  }
+  // D-20 / CWE-489 (TOOL-CR-01): loadEnv merges every VITE_* process variable and the git-ignored .env, .env.local,
+  // .env.production and .env.production.local files. The build that ships refuses the old dev-route switch outright,
+  // so a stray value in a shell, in CI or in an untracked file stops the build instead of being silently ignored.
+  if (mode === 'production' && loadEnv(mode, webRoot, 'VITE_').VITE_DEV_ROUTES !== undefined) {
+    throw new Error(
+      'VITE_DEV_ROUTES must never be set for a production build (D-20). Remove it from the environment and from any .env file in web/.',
+    );
   }
   const devRoutes = settings.devRoutes;
 

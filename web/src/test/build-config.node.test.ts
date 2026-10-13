@@ -26,6 +26,21 @@ const buildModes = [
   { mode: 'parity', outDir: '.parity-dist', devRoutes: 'true' },
 ] as const;
 
+/** Runs `body` with VITE_DEV_ROUTES set in this process only, then restores it (never User/Machine level). */
+async function withProcessFlag<T>(value: string, body: () => Promise<T>): Promise<T> {
+  const saved = process.env.VITE_DEV_ROUTES;
+  process.env.VITE_DEV_ROUTES = value;
+  try {
+    return await body();
+  } finally {
+    if (saved === undefined) {
+      delete process.env.VITE_DEV_ROUTES;
+    } else {
+      process.env.VITE_DEV_ROUTES = saved;
+    }
+  }
+}
+
 describe('vite.config.ts', () => {
   it('serves development on this project port 5180, strictly, and proxies /api to the API http port', async () => {
     const config = await load('serve', 'development');
@@ -60,6 +75,29 @@ describe('vite.config.ts', () => {
     'keeps index.html as the only entry of the %s build, so the parity page never shapes it (D-20, CWE-489)',
     async (mode) => {
       expect((await load('build', mode)).build?.rolldownOptions?.input).toBeUndefined();
+    },
+  );
+
+  // TOOL-CR-01: the dev-route switch follows the mode only. A VITE_DEV_ROUTES value in the process environment (or in an
+  // untracked .env, .env.local or .env.production file) must never turn dev code on in the build that ships.
+  it.each(['true', 'false', '1'])(
+    'refuses a production build when VITE_DEV_ROUTES is set (%s) in the environment (D-20, CWE-489)',
+    async (value) => {
+      await withProcessFlag(value, async () => {
+        await expect(load('build', 'production')).rejects.toThrow(/VITE_DEV_ROUTES must never be set/);
+      });
+    },
+  );
+
+  it('keeps the dev routes off in the test mode even when VITE_DEV_ROUTES is set', async () => {
+    const config = await withProcessFlag('true', () => load('serve', 'test'));
+    expect(config.define?.__DEV_ROUTES__).toBe('false');
+  });
+
+  it.each(['staging', 'constructor'])(
+    'refuses the mode %s, which it does not know, so no build lands in an unreviewed output folder',
+    async (mode) => {
+      await expect(load('build', mode)).rejects.toThrow(`unknown mode "${mode}"`);
     },
   );
 
