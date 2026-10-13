@@ -99,6 +99,19 @@ describe('IncomeExpenseChart (App. D.3)', () => {
     expect(months()[0]?.getAttribute('aria-label')).toBe('Nov 2025: income ₱76,500.00, expenses ₱52,100.00');
   });
 
+  it('draws thirteen months that repeat a short month name, each its own group, with no React key warning (UI-WR-13)', () => {
+    const THIRTEEN: ChartDatum[] = [{ month: 'Oct', label: 'Oct 2025', income: 1000, expenses: 500 }, ...TWELVE];
+    const { rerender } = render(<IncomeExpenseChart data={THIRTEEN} />);
+    expect(months()).toHaveLength(13);
+    expect(months().filter((month) => month.getAttribute('aria-label')?.startsWith('Oct '))).toHaveLength(2);
+
+    // Without labels the short names repeat outright; the groups still keep their own identity.
+    rerender(
+      <IncomeExpenseChart data={THIRTEEN.map(({ month, income, expenses }) => ({ month, income, expenses }))} />,
+    );
+    expect(months()).toHaveLength(13);
+  });
+
   it('reads the axis top from the largest figure rounded up to one significant digit: ₱0, ₱100k, ₱200k', () => {
     const { container } = renderSix();
     const ticks = [...container.querySelectorAll('text')].map((text) => text.textContent);

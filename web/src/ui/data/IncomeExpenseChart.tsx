@@ -116,7 +116,9 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
           const cx0 = L + gw * i + gw / 2;
           return (
             <g
-              key={d.month}
+              // SPEC-DEVIATION: UI-WR-13 App. D.3 keys on the short month ("Oct"), which repeats in a series longer
+              // than 12 months or one that crosses a year; the bars are positional, so the key is the position.
+              key={`${String(i)}-${d.label ?? d.month}`}
               role="img"
               aria-label={monthName(d)}
               tabIndex={0}
