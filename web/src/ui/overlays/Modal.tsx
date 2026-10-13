@@ -52,6 +52,21 @@ export interface ModalProps {
   children?: ReactNode;
 }
 
+/**
+ * True when a mousedown on a scrim landed on the scrim's own scrollbar: the scrim overflows and the press lies outside
+ * its client area (right of it, or below it). Browsers fire mousedown on an element for a press on its scrollbar.
+ */
+function pressedOnScrollbar(scrim: HTMLElement, event: MouseEvent): boolean {
+  const overflows = scrim.scrollHeight > scrim.clientHeight || scrim.scrollWidth > scrim.clientWidth;
+  if (!overflows) {
+    return false;
+  }
+  const box = scrim.getBoundingClientRect();
+  const x = event.clientX - box.left - scrim.clientLeft;
+  const y = event.clientY - box.top - scrim.clientTop;
+  return x >= scrim.clientWidth || y >= scrim.clientHeight;
+}
+
 export function Modal({ open = true, ...props }: ModalProps) {
   return open ? <OpenModal {...props} /> : null;
 }
@@ -93,8 +108,10 @@ function OpenModal({
     // In an Overlay region the inline overlay is only as tall as the dialog, so the region is the scrim around it.
     const region = overlay.parentElement;
     const scrims = inline && region?.dataset.ui === 's-overlay' ? [overlay, region] : [overlay];
+    // SPEC-DEVIATION: D-42 a press on the backdrop's own scrollbar scrolls it; it never closes the dialog (App. D.3
+    // closed on any mousedown whose target was the scrim, and the D-42 backdrop scrolls on a short window).
     const onMouseDown = (event: MouseEvent) => {
-      if (scrims.some((scrim) => scrim === event.target)) {
+      if (scrims.some((scrim) => scrim === event.target && !pressedOnScrollbar(scrim, event))) {
         requestClose();
       }
     };
