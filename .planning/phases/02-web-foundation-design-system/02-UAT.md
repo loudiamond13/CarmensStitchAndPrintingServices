@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md]
 started: 2026-10-13T10:53:22-05:00
@@ -1606,6 +1606,17 @@ blocked: 0
   reason: "User reported: pass, but the \"Open Delete Order\" isnt dialog isnt showing center horizontally"
   severity: major
   test: 199
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "overlayClasses (web/src/ui/overlays/overlays.recipe.ts, App. C .s-overlay) pins every dialog 140px below the top (pt-[140px], items-start) with overflow-y visible, and useBodyScrollLock stops the page scrolling; the dialog has no max-height. When 140px + dialog height > window height (e.g. 1274x585 CSS px: Delete Order dialog 140..630, buttons end at 613), the bottom of the dialog, including Cancel / Delete Order, is off screen and cannot be reached. Horizontal position is by design: centred on the window."
+  owner_decision: "2026-10-13 (UAT): keep dialogs centred on the whole window (no change). On a short window, move the dialog up toward the top so the whole dialog is visible (the 140px top gap shrinks, down to the normal 16px edge gap); on tall windows the approved 140px position is unchanged. If the window is too short even then, the backdrop scrolls so the buttons can still be reached (WCAG 1.4.10). Desktop overlay only; the phone bottom-sheet layout (pg-phone) is out of scope unless it has the same defect."
+  artifacts:
+    - path: "web/src/ui/overlays/overlays.recipe.ts"
+      issue: "fixed 140px top padding, items-start, no overflow-y and no shrinking top gap"
+    - path: "web/visual/reference/rulings.css"
+      issue: "the frozen reference needs the same ruled rule (D-08) so parity stays equal"
+  missing:
+    - "A top gap that shrinks from 140px to 16px when the dialog would not fit, e.g. a shrinkable spacer in a column flex overlay"
+    - "overflow-y auto on the overlay as the last-resort fallback"
+    - "A Playwright check at a short window (e.g. 1274x585 and 1280x500) that the dialog's buttons are inside the window or reachable by scrolling, in all engines"
+    - "Unit/recipe test for the new overlay classes; rulings.css entry and an intentional-differences row (D-08)"
+  debug_session: ""
 
