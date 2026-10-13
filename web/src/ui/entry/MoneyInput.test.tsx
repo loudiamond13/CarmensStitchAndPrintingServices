@@ -149,15 +149,35 @@ describe('MoneyInput paste', () => {
     expect(amountBox().value).toBe('1250.00');
   });
 
-  it.each([['-5'], ['₱100'], ['1.234'], ['abc'], ['1234567890']])('rejects a paste of %j', async (text) => {
+  // UI-WR-09: every amount the app shows is formatPeso text ("₱4,327.50"), so copying a balance into the field works.
+  it.each([
+    ['₱4,327.50', '4327.50'],
+    ['₱ 4,327.50', '4327.50'],
+    [' ₱100 ', '100'],
+    ['PHP 1,250', '1250'],
+    ['php1250.5', '1250.5'],
+  ])('takes a paste of %j in the app peso format as %j', async (text, expected) => {
     const user = userEvent.setup();
     const onValue = vi.fn<(value: string) => void>();
-    render(<Harness initial="7" onValue={onValue} />);
+    render(<Harness onValue={onValue} />);
     await user.click(amountBox());
     await user.paste(text);
-    expect(amountBox().value).toBe('7');
-    expect(onValue).not.toHaveBeenCalled();
+    expect(amountBox().value).toBe(expected);
+    expect(onValue).toHaveBeenLastCalledWith(expected);
   });
+
+  it.each([['-5'], ['₱-5'], ['₱−5'], ['-₱5'], ['₱₱100'], ['100₱'], ['1.234'], ['abc'], ['1234567890']])(
+    'rejects a paste of %j',
+    async (text) => {
+      const user = userEvent.setup();
+      const onValue = vi.fn<(value: string) => void>();
+      render(<Harness initial="7" onValue={onValue} />);
+      await user.click(amountBox());
+      await user.paste(text);
+      expect(amountBox().value).toBe('7');
+      expect(onValue).not.toHaveBeenCalled();
+    },
+  );
 
   it('replaces the selected text with the pasted amount', async () => {
     const user = userEvent.setup();

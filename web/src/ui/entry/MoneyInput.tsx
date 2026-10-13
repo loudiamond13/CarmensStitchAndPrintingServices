@@ -2,8 +2,9 @@
 // `Field` with the ₱ prefix and the decimal keypad. The box only ever holds money text (web/src/lib/format.ts): at
 // most 9 integer digits and 2 decimals, ASCII digits only, no sign and no grouping.
 //   - A keystroke that would break that is ignored: the value stays as it was, so React puts the box back.
-//   - A paste loses its grouping commas and spaces first (`normalizePastedMoney`), then goes in at the caret or over
-//     the selection; a paste that is still not money text there is ignored.
+//   - A paste loses a leading peso sign or "PHP" (UI-WR-09) and its grouping commas and spaces first
+//     (`normalizePastedMoney`), then goes in at the caret or over the selection; a paste that is still not money text
+//     there is ignored.
 //   - On blur a non-empty value pads to 2 decimals (`padMoneyOnBlur`: "5000" → "5000.00"); empty stays empty.
 //   - Nothing else ever changes what was typed: no rounding and no grouping while editing.
 // The value is a string; convert it with `moneyTextToCentavos` (exact integer centavos, never a binary float) after
@@ -15,6 +16,13 @@ import { isMoneyText, normalizePastedMoney, padMoneyOnBlur } from '@/lib/format'
 import { Field } from '@/ui/forms';
 import { ENTRY_COPY } from './copy';
 import { moneyAlignRightClasses } from './entry.recipe';
+
+/**
+ * SPEC-DEVIATION: UI-WR-09 the UI-SPEC paste rule strips grouping only, but every amount the app shows is `formatPeso`
+ * text ("₱4,327.50"), so a copied balance must paste too. One leading "₱" or "PHP" (any case) and the spaces around it
+ * go; a sign after it ("₱-5") is still rejected, and so is anything else around the amount.
+ */
+const PESO_PREFIX = /^\s*(?:₱|PHP)\s*/i;
 
 export interface MoneyInputProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -67,7 +75,7 @@ export function MoneyInput({ value, onChange, onBlur, align = 'left', className,
   };
   const paste = (event: ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault();
-    const pasted = normalizePastedMoney(event.clipboardData.getData('text'));
+    const pasted = normalizePastedMoney(event.clipboardData.getData('text').replace(PESO_PREFIX, ''));
     if (pasted === '') {
       return;
     }

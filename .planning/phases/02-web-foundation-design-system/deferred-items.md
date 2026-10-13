@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T07:45:00-05:00"
+updated: "2026-10-13T07:55:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -168,3 +168,10 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** in the admin top bar (`web/src/ui/navigation/Topbar.tsx`, App. D.3 behaviour) pressing "/" anywhere outside a field jumps to the search box. WCAG 2.1.4 Character Key Shortcuts (level A) says a one-key shortcut must be one of: possible to turn off, possible to change so it needs a modifier key (Ctrl, Alt), or active only while its own control has focus. Speech-input users who dictate text are the ones it hurts: a dictated "slash" can move their focus. The review fix narrowed it with no visible change: "/" is now ignored with Ctrl, Cmd or Alt held, while typing in another language's input method, inside any text entry (fields, editable areas and text-entry widgets), when another handler already took the key, and while a dialog or the phone drawer is open. It still has no off switch and no modifier, so 2.1.4 is not fully met.
   **Before / after if the owner chooses to change it:** (a) need a modifier, for example Ctrl+K or Ctrl+/: the "/" hint in the search box would change to show the new keys (a look change to the approved top bar); or (b) a "Keyboard shortcuts" on/off switch, for example in My Profile (new screen content, Phase 4 or later); or (c) drop the shortcut (the "/" hint goes away).
   **Question for the owner:** which of (a), (b) or (c), or keep it as it is now (narrowed, but not fully 2.1.4)? The review recommends (b), which keeps the approved look.
+
+- Money boxes: say something when a paste is refused (code-review finding UI-WR-09, behaviour/copy question, not blocking)
+  status: open
+  **Found by:** the phase 02 code review (lane webui, UI-WR-09). Fixed in part by the review fix.
+  **What:** a money box (`web/src/ui/entry/MoneyInput.tsx`, SPEC-GAP) ignored a pasted "₱4,327.50", the way the app itself writes every amount, so copying a balance into the amount box silently did nothing. The review fix now takes a pasted amount with a leading "₱" or "PHP". A paste that is still not an amount (a minus sign, three decimals, words) is still ignored without a word, as the UI-SPEC says ("a paste that is still not money text there is ignored").
+  **Before / after if the owner chooses to change it:** today a refused paste leaves the box as it was and shows nothing; after the change the box would show the existing amount hint under it, "Enter an amount like 1250.50 (numbers only, up to 2 decimals).", in the error look until the next edit.
+  **Question for the owner:** show that hint when a paste is refused, or keep ignoring it quietly?
