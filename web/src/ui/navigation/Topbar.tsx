@@ -3,6 +3,11 @@
 // the shell can toggle) and the user-menu button. Behaviour as App. D.3 (UI-SPEC Interaction Contract):
 //   - "/" pressed anywhere outside a field focuses the search box; Enter hands its text to onSearch (the Phase 2 shell
 //     passes none, so Enter does nothing there);
+//     SPEC-DEVIATION: UI-WR-07 (WCAG 2.1.4) the shortcut is narrowed without any visible change: it ignores "/" with
+//     Ctrl, Cmd or Alt, during an IME composition, after another handler took the key, inside any text entry (fields,
+//     editable content and the textbox, searchbox, combobox and spinbutton roles), and while a modal dialog is open
+//     (it would move focus out of the dialog). A way to turn it off or to need a modifier is an owner question
+//     (deferred-items.md), because either changes what the user sees;
 //   - the theme toggle is named for what it will do, "Switch to dark mode" with the moon in light, "Switch to light
 //     mode" with the sun in dark;
 //   - the user-menu button announces its menu (`aria-haspopup="menu"`) and opens it: the button and its popover are the
@@ -26,6 +31,26 @@ import { UserMenu } from './UserMenu';
 
 /** Elements whose own typing keeps a "/" (App. D.3's test). */
 const FIELD_TAGS = /^(INPUT|TEXTAREA|SELECT)$/;
+
+/** ARIA text-entry widgets, which keep their "/" too (UI-WR-07). */
+const TEXT_ENTRY = '[role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"]';
+
+/** True when a "/" keydown is the search shortcut (App. D.3, narrowed by UI-WR-07). */
+function isSearchShortcut(event: KeyboardEvent): boolean {
+  if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
+    return false;
+  }
+  if (event.defaultPrevented || document.querySelector('[aria-modal="true"]') !== null) {
+    return false;
+  }
+  // SPEC-DEVIATION: strict types: App. D.3 casts the event target; a target that is not an element (the window
+  // itself) counts as "outside a field" here, as it does there.
+  const target = event.target instanceof HTMLElement ? event.target : null;
+  const inField =
+    target !== null &&
+    (target.isContentEditable || FIELD_TAGS.test(target.tagName) || target.closest(TEXT_ENTRY) !== null);
+  return !inField;
+}
 
 export interface TopbarProps {
   user?: { name: string } | undefined;
@@ -64,11 +89,7 @@ export function Topbar({
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      // SPEC-DEVIATION: strict types: App. D.3 casts the event target; a target that is not an element (the window
-      // itself) counts as "outside a field" here, as it does there.
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const inField = target !== null && (target.isContentEditable || FIELD_TAGS.test(target.tagName));
-      if (event.key === '/' && !inField) {
+      if (isSearchShortcut(event)) {
         event.preventDefault();
         inputRef.current?.focus();
       }

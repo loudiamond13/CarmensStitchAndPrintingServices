@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T07:30:00-05:00"
+updated: "2026-10-13T07:45:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -161,3 +161,10 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** the UI-SPEC asks for two things that clash: the toast layer stays mounted as the polite live region (owner ruling D-31 O-5), and each toast carries its own live role (danger `role="alert"`, the others `role="status"`, App. D.3). A live region inside another live region is read twice by NVDA and JAWS, so every toast was announced twice. The fix keeps O-5: the layer is now the only live region and the toasts inside it carry no role of their own (`web/src/ui/feedback/ToastProvider.tsx`, `Toast` prop `announce={false}`). Every toast, danger included, is read once, politely (after what the screen reader is saying now). Nothing visible changes, and a Toast rendered on its own (the showcase cases) keeps the App. D.3 role.
   **Before / after if the owner wants danger toasts to interrupt:** that needs a second always-mounted region for danger toasts (`role="alert"`), which splits the toast stack in two and so changes its markup and possibly its look; it would come back as a D-08 before/after first.
   **Question for the owner (optional):** none needed; say so if a failed save should interrupt the screen reader.
+
+- Admin search shortcut "/": a way to turn it off, or to need a modifier key (code-review finding UI-WR-07, accessibility question, WCAG 2.1.4 level A)
+  status: open
+  **Found by:** the phase 02 code review (lane webui, UI-WR-07). Fixed in part by the review fix.
+  **What:** in the admin top bar (`web/src/ui/navigation/Topbar.tsx`, App. D.3 behaviour) pressing "/" anywhere outside a field jumps to the search box. WCAG 2.1.4 Character Key Shortcuts (level A) says a one-key shortcut must be one of: possible to turn off, possible to change so it needs a modifier key (Ctrl, Alt), or active only while its own control has focus. Speech-input users who dictate text are the ones it hurts: a dictated "slash" can move their focus. The review fix narrowed it with no visible change: "/" is now ignored with Ctrl, Cmd or Alt held, while typing in another language's input method, inside any text entry (fields, editable areas and text-entry widgets), when another handler already took the key, and while a dialog or the phone drawer is open. It still has no off switch and no modifier, so 2.1.4 is not fully met.
+  **Before / after if the owner chooses to change it:** (a) need a modifier, for example Ctrl+K or Ctrl+/: the "/" hint in the search box would change to show the new keys (a look change to the approved top bar); or (b) a "Keyboard shortcuts" on/off switch, for example in My Profile (new screen content, Phase 4 or later); or (c) drop the shortcut (the "/" hint goes away).
+  **Question for the owner:** which of (a), (b) or (c), or keep it as it is now (narrowed, but not fully 2.1.4)? The review recommends (b), which keeps the approved look.

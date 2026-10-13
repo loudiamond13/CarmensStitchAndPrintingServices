@@ -190,6 +190,72 @@ describe('Topbar search keys', () => {
     editor.remove();
   });
 
+  // UI-WR-07 (WCAG 2.1.4 Character Key Shortcuts): the single-key "/" shortcut fires only for a plain "/" that nothing
+  // else handled, outside any text entry, while no modal dialog is open.
+  it.each([
+    ['Ctrl', { ctrlKey: true }],
+    ['Cmd', { metaKey: true }],
+    ['Alt', { altKey: true }],
+    ['an IME composition', { isComposing: true }],
+  ])('leaves "/" alone with %s', (_what, init) => {
+    render(<Topbar />);
+    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true, ...init });
+
+    document.body.dispatchEvent(event);
+    expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('still takes a "/" typed with Shift (keyboard layouts that need it)', () => {
+    render(<Topbar />);
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '/', shiftKey: true, bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(search());
+  });
+
+  it('leaves a "/" that something else already handled alone', () => {
+    render(<Topbar />);
+    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+    event.preventDefault();
+
+    document.body.dispatchEvent(event);
+    expect(document.activeElement).not.toBe(search());
+  });
+
+  it.each(['textbox', 'searchbox', 'combobox', 'spinbutton'])('leaves "/" alone inside a role="%s" widget', (role) => {
+    render(<Topbar />);
+    const widget = document.createElement('div');
+    widget.setAttribute('role', role);
+    widget.tabIndex = 0;
+    const inner = document.createElement('span');
+    widget.append(inner);
+    document.body.append(widget);
+    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+
+    inner.dispatchEvent(event);
+    expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
+    widget.remove();
+  });
+
+  it('leaves "/" alone while a modal dialog is open, so focus never leaves the dialog', () => {
+    render(<Topbar />);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    document.body.append(dialog);
+    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+
+    document.body.dispatchEvent(event);
+    expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
+
+    dialog.remove();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(search());
+  });
+
   it('ignores other keys, and stops listening once unmounted', () => {
     const { unmount } = render(<Topbar />);
     fireEvent.keyDown(document.body, { key: 'k' });
