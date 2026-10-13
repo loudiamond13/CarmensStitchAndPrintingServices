@@ -149,9 +149,14 @@ export const topbarMenuClasses = tw(
 /**
  * `.csp-search` and its `:focus-within` ring: a 40px box that grows to 480px (no limit on tablets). It is the label of
  * its input, so a click anywhere on it focuses the field.
+ * SPEC-DEVIATION: D-41 R2-01 (owner, 2026-10-13) the box may shrink below its content (`min-w-0`). App. B lets this
+ * flex item shrink only to the search field's intrinsic width (about 234px, engine-dependent), so the Topbar row needed
+ * a 398px (Chromium), 406px (WebKit) or 418px (Firefox) page and the admin pages scrolled sideways on small phones. Now
+ * the row fits at 320px; the placeholder is cut shorter there (accepted by the owner). The rulings layer gives the
+ * frozen reference the same rule, so the look-equality proof stays equal.
  */
 export const searchClasses = tw(
-  'flex h-10 max-w-[480px] flex-1 items-center gap-2 rounded-sm border border-line bg-surface-2 px-3 text-ink-muted focus-within:border-focus focus-within:[box-shadow:0_0_0_1px_var(--focus)] pg-tablet:max-w-none',
+  'flex h-10 max-w-[480px] min-w-0 flex-1 items-center gap-2 rounded-sm border border-line bg-surface-2 px-3 text-ink-muted focus-within:border-focus focus-within:[box-shadow:0_0_0_1px_var(--focus)] pg-tablet:max-w-none',
 );
 
 /**

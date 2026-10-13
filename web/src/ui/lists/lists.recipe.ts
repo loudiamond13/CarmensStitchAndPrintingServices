@@ -18,14 +18,16 @@ import { tw } from '@/ui/tw';
 /**
  * `.s-rt-wrap`: the bordered `--surface` frame, radius 12, scrolling sideways inside itself (tablet tables keep 680px).
  * Phones: no frame, no background, no clipping (the rows are the cards).
- * Rule 8 (owner question pending, deferred-items.md): the frame is not positioned, so the visually hidden (absolutely
- * positioned) "Actions" header text is placed against the page root, not the frame. When the table scrolls inside its
- * frame on a tablet, that hidden text sits past the frame's right edge and lets the page scroll sideways a little (22px
- * at 768px), exactly as the approved CSS does. Containing it changes the text's computed insets, so it waits for the
- * owner (D-08).
+ * SPEC-DEVIATION: D-41 R2-02 (owner, 2026-10-13) the frame contains its paint from 768px up (`contain-paint`). App. C's
+ * frame is not positioned, so the visually hidden (absolutely positioned) "Actions" header text was placed against the
+ * page root; when the table scrolled inside its frame on a tablet, that text sat past the frame's right edge and let the
+ * page scroll sideways (22px at 768px). Paint containment makes the frame its containing block, and the frame already
+ * clips with `overflow-x-auto`, so only the table scrolls and nothing visible changes. Phones keep no containment
+ * (`pg-phone:contain-none`): the rows are the cards there and the head is hidden. The rulings layer gives the frozen
+ * reference the same containment, so the proof compares the same computed insets.
  */
 export const tableWrapClasses = tw(
-  'overflow-x-auto rounded-md border border-line bg-surface pg-phone:overflow-visible pg-phone:border-0 pg-phone:bg-transparent',
+  'overflow-x-auto rounded-md border border-line bg-surface contain-paint pg-phone:overflow-visible pg-phone:border-0 pg-phone:bg-transparent pg-phone:contain-none',
 );
 
 /** `.s-rt`: full width, 14px/20px; at least 680px on tablets; a block on phones (preflight collapses the borders). */

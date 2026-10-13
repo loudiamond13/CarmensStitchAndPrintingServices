@@ -193,6 +193,28 @@ button.csp-nav {
   }
 }
 
+/* D-41 R2-01 (owner, 2026-10-13) the admin Topbar search box may shrink below its content, so the Topbar row fits at
+   320px in every engine and the admin pages never scroll sideways (PERF-03). App. B let it shrink only to the search
+   field's intrinsic width (about 234px). The placeholder is cut shorter on small phones; nothing changes where the box
+   already had room. */
+.csp-search {
+  min-width: 0;
+}
+
+/* D-41 R2-02 (owner, 2026-10-13) the list table frame contains its paint, so it is the containing block of the
+   visually hidden "Actions" header text: when the table scrolls inside its frame on a tablet, that text no longer
+   lets the page scroll sideways (22px at 768px). The frame already clips sideways, so nothing visible changes. */
+.s-rt-wrap {
+  contain: paint;
+}
+
+/* D-41 R2-02 phones keep no containment: the rows are the cards there, nothing is clipped and the head is hidden. */
+@container pg (max-width: 767px) {
+  .s-rt-wrap {
+    contain: none;
+  }
+}
+
 /* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */
 .csp-btn[aria-disabled="true"] {
   opacity: 0.45;
