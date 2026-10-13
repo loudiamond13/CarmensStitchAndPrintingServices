@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T08:55:00-05:00"
+updated: "2026-10-13T08:21:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -178,7 +178,7 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Question for the owner:** show that hint when a paste is refused, or keep ignoring it quietly?
 
 - Order totals: an overpaid order shows only "Fully Paid" (code-review finding UI-WR-14, look/copy question, settle before Phase 5 order screens)
-  status: open
+  status: resolved in part by owner ruling OD-4 (2026-10-13): overpayment is not allowed. The server refuses a payment above the remaining balance and the payment form warns during input that the payment exceeds the balance (Orders phase, ORD-05). New orders therefore cannot reach a negative balance through a payment, so the approved "Fully Paid" display stays. Still open for the Orders discuss step: C-38 (other changes that would push the balance below zero; default reading: blocked too) and how already-overpaid legacy orders import and display.
   **Found by:** the phase 02 code review (lane webui, UI-WR-14). Not changed by the review fix: the block is the approved App. D.3 / App. E look (D-08), so changing it needs the owner.
   **What:** the order totals block (`web/src/ui/money/OrderTotals.tsx`, on the order card and the order detail panel) shows "Balance" with a check and "Fully Paid" whenever the balance is zero or less, and never shows the balance figure then. An order where the payments are more than the total minus the discount (for example a GCash payment entered twice) therefore looks exactly like one paid to the centavo, and the amount the shop owes back, or holds as credit, is not visible anywhere on it. The Core Value says staff must always see correct, server-computed balances. The server math already returns the negative balance (`OrderMathResult.Balance`, `Totals.balance`); only the display hides it. Related: NET-IN-01 (the "fully paid" rule) and the NET-WR-02 naming question above.
   **Before / after if the owner chooses to change it:** today an overpaid order reads "Balance ✓ Fully Paid". After the change it would read, for example, "Overpaid ₱500.00" (or "Credit ₱500.00") in the warning colour, instead of or next to "Fully Paid"; an order paid exactly is unchanged.

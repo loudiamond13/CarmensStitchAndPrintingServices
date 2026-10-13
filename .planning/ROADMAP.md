@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-13T05:22:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-13T08:21:00-05:00*
 
 ## Overview
 
@@ -476,7 +476,7 @@ Plans:
 
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
-- **OD-4 + C-38** overpayments, including via removed items or added discounts
+- **OD-4 + C-38** overpayments, including via removed items or added discounts. *OD-4 ruled by the owner, 2026-10-13: no overpayment; the server refuses a payment above the balance and the payment form warns during input. Still to confirm here: C-38 (other mutations that would push the balance below zero) and how already-overpaid legacy orders import and display.*
 - **OD-5** order delete semantics (affects the schema)
 - **OD-6** whether Admins can delete orders
 - **OD-7** reusable Customer entity vs customer fields on each order

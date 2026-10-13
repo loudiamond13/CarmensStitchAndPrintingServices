@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-07T19:05:08-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-13T08:21:00-05:00*
 
 ## What This Is
 
@@ -163,7 +163,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-1 | Currency & locale | PHP `₱`, en-PH | Phase 1 (formatters) |
 | OD-2 | Business time zone | Asia/Manila | Phase 1 |
 | OD-3 | Order statuses & allowed transitions | Pending → Mockup → In Production → Ready → Completed, plus Cancelled. Transitions aren't defined | Orders phase |
-| OD-4 | Overpayments allowed? | PRD default: no. The UI spec treats Balance ≤ 0 as "Fully Paid" | Orders phase |
+| OD-4 | Overpayments allowed? | **Ruled by the owner, 2026-10-13: no.** The system never accepts an overpayment: the server refuses a payment above the remaining balance with a plain-English error, and the payment form warns while the amount is typed that it exceeds the balance. Default reading (confirm at the Orders discuss step, C-38): the same rule blocks any other change (removing an item, lowering a quantity, adding or raising a discount) that would leave the balance below zero. Open: how legacy orders that are already overpaid are imported and shown | Orders phase |
 | OD-5 | Delete semantics (hard vs soft) for orders and company expenses | The UI spec says "permanently deleted… can't be undone" with type-to-confirm. The PRD recommends soft delete with a Manager purge | Orders phase |
 | OD-6 | Can Admins delete orders? | Yes (PRD and UI spec agree) | Orders phase |
 | OD-7 | Reusable `Customer` entity vs customer fields on each order | The UI spec puts the fields on the order. The PRD recommends a reusable entity. Decide before the Orders phase | Orders phase |
