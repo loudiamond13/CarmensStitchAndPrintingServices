@@ -209,19 +209,49 @@ describe('useSubmission: key per submission (WEB-09 idempotency)', () => {
     expect(new Set(keys).size).toBe(1);
   });
 
-  it('gives the next submission a new key after a success, even with the same data', async () => {
+  it('sends nothing for a second Save with the same data after a fast success, and repeats its outcome (LIB-CR-01)', async () => {
+    // A double-click whose second click lands after a fast response: the second click must not create a second record.
     const user = userEvent.setup();
     const spy = recordingSend(['ok', 'ok']);
-    render(<PaymentForm send={spy.send} data={payment} />);
+    const onSuccess = vi.fn();
+    const outcomes: SubmissionOutcome<string>[] = [];
+    const onOutcome = (outcome: SubmissionOutcome<string>) => {
+      outcomes.push(outcome);
+    };
+    render(<PaymentForm send={spy.send} data={payment} options={{ onSuccess }} onOutcome={onOutcome} />);
 
     await user.click(save());
     await settled();
     await user.click(save());
     await settled();
+    await vi.waitFor(() => {
+      expect(outcomes).toHaveLength(2);
+    });
 
-    const [first, second] = spy.keys();
-    expect(second).toMatch(uuidV4);
-    expect(second).not.toBe(first);
+    expect(spy.send).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledOnce();
+    expect(outcomes[0]).toEqual({ ok: true, value: 'saved' });
+    expect(outcomes[1]).toBe(outcomes[0]);
+  });
+
+  it('starts a new submission with a new key after a success once the data changes or reset() runs', async () => {
+    const user = userEvent.setup();
+    const spy = recordingSend(['ok', 'ok', 'ok']);
+    const { rerender } = render(<PaymentForm send={spy.send} data={payment} />);
+
+    await user.click(save());
+    await settled();
+    rerender(<PaymentForm send={spy.send} data={{ ...payment, amount: '1600.00' }} />);
+    await user.click(save());
+    await settled();
+    await user.click(screen.getByRole('button', { name: 'Start Over' }));
+    await user.click(save());
+    await settled();
+
+    const keys = spy.keys();
+    expect(keys).toHaveLength(3);
+    expect(new Set(keys).size).toBe(3);
+    expect(spy.send.mock.calls[2]?.[1]).toEqual({ ...payment, amount: '1600.00' });
   });
 
   it('gives a new key when the data changed after a failure', async () => {

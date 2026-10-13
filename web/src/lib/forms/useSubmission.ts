@@ -5,7 +5,10 @@
 // - while a submission is pending, every further trigger gets the same in-flight promise, so one request is in flight;
 // - a failed submission resubmitted with the same data (compared as JSON) is the same submission and keeps its key,
 //   including one that carries no data (a fixed sentinel, L-25: JSON.stringify(undefined) is undefined);
-// - a success, reset() or changed data starts a new submission with a new key.
+// - a succeeded submission triggered again with the same data (a double-click whose second click lands after a fast
+//   response, LIB-CR-01) sends nothing: submit resolves with the same success outcome and onSuccess does not run again;
+// - reset() or changed data starts a new submission with a new key. Call reset() when the form is ready for a new
+//   entry (for example after clearing it), not inside onSuccess, or the double-click protection above is lost.
 import { useRef, useState } from 'react';
 import { isHttpError } from '@/lib/api';
 import { describeHttpError, type ErrorCopy } from '@/lib/errors/describeHttpError';
@@ -41,7 +44,7 @@ export interface SubmissionState<TData, TResult> {
   readonly error: unknown;
   /** The field messages of the last failure when it was a 400 with field errors; otherwise empty. */
   readonly fieldErrors: FieldErrors;
-  /** Forgets the last failure, its field errors and its key, so the next submit is a new submission. */
+  /** Forgets the last submission (its outcome, error, field errors and key), so the next submit is a new submission. */
   readonly reset: () => void;
 }
 
@@ -83,9 +86,12 @@ function attempt<TResult>(sendOnce: () => Promise<TResult>): Promise<SubmissionO
   }
 }
 
-interface FailedSubmission {
+/** The last settled submission, kept while the next trigger with the same data counts as the same submission. */
+interface LastSubmission<TResult> {
   readonly key: string;
   readonly serialized: string;
+  /** The outcome of a success, repeated for the same data; undefined after a failure that a retry may repeat. */
+  readonly success: SubmissionOutcome<TResult> | undefined;
 }
 
 export function useSubmission<TData, TResult>(
@@ -96,13 +102,10 @@ export function useSubmission<TData, TResult>(
   const [error, setError] = useState<unknown>(undefined);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(noFieldErrors);
   const inFlightRef = useRef<Promise<SubmissionOutcome<TResult>> | undefined>(undefined);
-  const failedRef = useRef<FailedSubmission | undefined>(undefined);
+  const lastRef = useRef<LastSubmission<TResult> | undefined>(undefined);
 
-  const run = async (data: TData): Promise<SubmissionOutcome<TResult>> => {
-    const serialized = serialize(data);
-    const failed = failedRef.current;
-    const key = failed !== undefined && failed.serialized === serialized ? failed.key : newIdempotencyKey();
-    failedRef.current = undefined;
+  const run = async (data: TData, serialized: string | undefined, key: string): Promise<SubmissionOutcome<TResult>> => {
+    lastRef.current = undefined;
     setPending(true);
 
     // Always settles asynchronously, after submit has stored the in-flight promise.
@@ -111,11 +114,12 @@ export function useSubmission<TData, TResult>(
     inFlightRef.current = undefined;
     setPending(false);
     if (outcome.ok) {
+      lastRef.current = serialized === undefined ? undefined : { key, serialized, success: outcome };
       setError(undefined);
       setFieldErrors(noFieldErrors);
       options?.onSuccess?.(outcome.value, data);
     } else {
-      failedRef.current = serialized === undefined ? undefined : { key, serialized };
+      lastRef.current = serialized === undefined ? undefined : { key, serialized, success: undefined };
       const failedFields = fieldErrorsOf(outcome.error);
       setError(outcome.error);
       setFieldErrors(failedFields);
@@ -133,13 +137,20 @@ export function useSubmission<TData, TResult>(
       return inFlight;
     }
     // SubmitArgs leaves the data out only when TData admits undefined.
-    const started = run(args[0] as TData);
+    const data = args[0] as TData;
+    const serialized = serialize(data);
+    const last = lastRef.current;
+    const same = last !== undefined && last.serialized === serialized;
+    if (same && last.success !== undefined) {
+      return Promise.resolve(last.success);
+    }
+    const started = run(data, serialized, same ? last.key : newIdempotencyKey());
     inFlightRef.current = started;
     return started;
   };
 
   const reset = (): void => {
-    failedRef.current = undefined;
+    lastRef.current = undefined;
     setError(undefined);
     setFieldErrors(noFieldErrors);
   };
