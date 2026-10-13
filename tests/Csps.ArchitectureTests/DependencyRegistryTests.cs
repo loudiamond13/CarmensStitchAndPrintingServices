@@ -249,6 +249,70 @@ public sealed class DependencyRegistryTests
             ignoreOrder: true);
     }
 
+    // npm 7+ installs peerDependencies automatically and optionalDependencies by default, so they are pins too
+    // (NET-WR-05).
+    [Theory]
+    [InlineData("optionalDependencies")]
+    [InlineData("peerDependencies")]
+    public void ReadNpmManifestReadsOptionalAndPeerDependenciesAsPins(string section)
+    {
+        var json = $$"""{ "{{section}}": { "fsevents": "2.3.3" } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe([new PackagePin("web:fsevents", "2.3.3", "npm")]);
+    }
+
+    [Fact]
+    public void AnOptionalDependencyWithoutAnEntryFailsNamingIt()
+    {
+        const string json = """{ "optionalDependencies": { "fsevents": "2.3.3" } }""";
+
+        DependencyRegistry.Validate(Registry().ToJsonString(), [.. SamplePins, .. PackagePins.ReadNpmManifest(json, "web")])
+            .ShouldContain(problem => problem.Contains("web:fsevents 2.3.3 (npm) has no registry entry", StringComparison.Ordinal));
+    }
+
+    // A bundled name takes its version from the section that installs it; a bundled name no section pins still
+    // becomes a pin (with no version), so it can never skip the registry gate.
+    [Theory]
+    [InlineData("bundleDependencies")]
+    [InlineData("bundledDependencies")]
+    public void ReadNpmManifestReadsBundledNamesAsPins(string section)
+    {
+        var json = $$"""{ "dependencies": { "left-pad": "1.3.0" }, "{{section}}": ["left-pad", "right-pad"] }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe(
+            [new PackagePin("web:left-pad", "1.3.0", "npm"), new PackagePin("web:right-pad", string.Empty, "npm")],
+            ignoreOrder: true);
+    }
+
+    [Fact]
+    public void ABundleAllFlagAddsNoPinOfItsOwn()
+    {
+        const string json = """{ "dependencies": { "left-pad": "1.3.0" }, "bundleDependencies": true }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBe([new PackagePin("web:left-pad", "1.3.0", "npm")]);
+    }
+
+    // Fail closed: a dependency section the reader does not know (a typo, or a section a future npm adds) stops the
+    // gate instead of being skipped silently.
+    [Theory]
+    [InlineData("devdependencies")]
+    [InlineData("futureDependencies")]
+    public void AnUnknownDependencySectionFailsNamingIt(string section)
+    {
+        var json = $$"""{ "{{section}}": { "left-pad": "1.3.0" } }""";
+
+        Should.Throw<InvalidDataException>(() => PackagePins.ReadNpmManifest(json, "web"))
+            .Message.ShouldContain($"'{section}'");
+    }
+
+    [Fact]
+    public void PeerDependenciesMetaIsNotADependencySection()
+    {
+        const string json = """{ "peerDependenciesMeta": { "left-pad": { "optional": true } } }""";
+
+        PackagePins.ReadNpmManifest(json, "web").ShouldBeEmpty();
+    }
+
     [Fact]
     public void ReadNpmManifestKeepsOneCopyOfAPinThatIsAlsoAnOverride()
     {
