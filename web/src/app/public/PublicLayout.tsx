@@ -6,11 +6,14 @@
 //     other path marks none (A11Y-04 empty edge), so nothing turns bold.
 //   - `main` keeps at least the viewport height minus the header, so the footer stays put while a route chunk loads;
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
+//   - PERF-01: the components come from their own modules, not the `@/ui/*` barrels. A barrel re-exports admin-only
+//     parts (Sidebar, Topbar, MoneyInput, ...), and once a build uses them, importing the barrel here put them in the
+//     chunks the public route loads (docs/web/budgets.md, "Public route imports").
 import { Outlet, useLocation, useNavigation } from 'react-router';
-import { SkipLink } from '@/ui/entry';
-import { ToastProvider } from '@/ui/feedback';
+import { SkipLink } from '@/ui/entry/SkipLink';
+import { ToastProvider } from '@/ui/feedback/ToastProvider';
 import { pageRootClasses } from '@/ui/layout/layout.recipe';
-import { SITE_LINKS, SiteHeader } from '@/ui/navigation';
+import { SITE_LINKS, SiteHeader } from '@/ui/navigation/SiteHeader';
 import { SiteFooter } from './SiteFooter';
 
 /** The label of the header link for `pathname`, or '' (no link current) for any other path. */
