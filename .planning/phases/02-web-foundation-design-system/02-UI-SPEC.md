@@ -6,7 +6,7 @@ reviewed_at: 2026-10-08
 shadcn_initialized: false
 preset: none
 created: "2026-10-07T19:42:42-05:00"
-updated: 2026-10-13T13:58:41-05:00
+updated: 2026-10-13T17:31:12-05:00
 ---
 
 # Phase 2 — UI Design Contract
@@ -251,6 +251,7 @@ A per-case tolerance override needs a recorded reason, and the owner must be abl
 | Sidebar collapse toggle exposes `aria-expanded` | D-41 R2-12 | Attributes are not compared; no visual change |
 | Public footer column titles h4 → h2 (heading order h1 → h2), same classes | D-41 R2-17 | Structural exception in the pairing (`0/2/0/0/1/0`, `0/2/0/0/2/0` and `0/2/0/0/3/0`); computed and pixels equal |
 | A refused MoneyInput paste shows the amount hint (`ENTRY_COPY.money.invalid`) in the error look and announces it politely until the next accepted edit | D-41 R2-18 | MoneyInput is SPEC-GAP (behaviour tests, owner screenshots) |
+| Dialogs in the Overlay region move up on a short window: the 140px top gap (96px on phone pages) shrinks down to the 16px edge gap (0 on phones), and the backdrop scrolls when the dialog is still taller than the window; a press on the backdrop's scrollbar does not close the dialog | D-42 (owner, 2026-10-13, UAT G-2-199) | Rulings layer → equal (parity rows are 900px tall, where nothing moves); the short-window behaviour is proven by `@dialog-fit` |
 
 **Owner review still applies on top of the proof.** D-23 screenshots at 390/820/1440 (public in light; admin and showcase in light and dark) cover the SPEC-GAP primitives and the overall impression. The D-24 local side-by-side with `.planning/design/*.html` stays local-only and git-ignored, and it never runs in CI.
 

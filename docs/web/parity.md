@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T13:58:41-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T17:31:12-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -171,10 +171,13 @@ Everything not in this table must be equal. Each ruling sits in `web/visual/refe
 | Topbar shortcut hint reads "Ctrl K" ("⌘K" on Apple) instead of "/" | D-41 (R2-04) | Text only: the reference-only `Topbar` override (`SPEC_OVERRIDES`, D-41) writes the same hint into the frozen kbd, so equal (no CSS rule) |
 | OrderTotals first row reads "Subtotal" (the amount before discount) and the panel note reads "Profit = Subtotal − Discount − Expenses. Internal only." (App. D.3: "Total" and "Profit = Total − Discount − Expenses.") | D-41 (R2-06) | Text only: the reference-only `OrderTotals` and `OrderCard` overrides (`SPEC_OVERRIDES`, D-41) write the same words into the frozen rows and note, so equal (no CSS rule) |
 | Public footer column titles are h2, not h4 | D-41 (R2-17) | Structural exception in the pairing (`public-shell` paths `0/2/0/0/1/0`, `0/2/0/0/2/0` and `0/2/0/0/3/0`, reference h4, implementation h2); computed styles and pixels equal |
+| Dialogs in the Overlay region move up on a short window: the 140px top gap (96px on phone pages) shrinks down to the 16px edge gap (0 on phones), and the backdrop scrolls when the dialog is still taller than the window; a press on the backdrop's scrollbar does not close the dialog | D-42 | Rulings layer (`.s-overlay` column flow, the `::before` spacer, `.s-overlay > *` no-shrink, the phone container values), so equal; the parity rows are 900px tall, where nothing moves, and `web/e2e/dialog-fit.spec.ts` (`@dialog-fit`) proves the short windows in all five projects |
 | Metric-matched fallback faces in the font stacks | PERF-05 | Rulings layer, identical to `web/src/styles/base.css`, so equal once the fonts load |
 | 20 redrawn lucide icons | D-32 | Drawing masked, the icon's box compared |
 | `lucide lucide-<name>` classes; Avatar and Testimonial `role="img"`; Tabs ARIA; the Modal focus trap | D-28, D-31 O-1/O-2, WEB-02 | Attributes are not compared, and there is no visual change |
 | Danger and warning toasts persist; the toast stack is always mounted; timers pause | D-04, D-31 O-5, O-7 | Behaviour tests, no visual difference at rest |
+
+The D-42 spacer is a `::before` pseudo-element that both sides draw, so the DOM paths stay the approved ones: no structural exception is needed and `web/visual/intentional-differences.ts` is unchanged.
 
 The phone list-card title separator is **not** a difference. The owner kept the approved result (the last card has no separator), so the implementation must match the spec there too.
 

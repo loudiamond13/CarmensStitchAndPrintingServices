@@ -4,7 +4,7 @@ phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md]
 started: 2026-10-13T10:53:22-05:00
 created: 2026-10-13T10:53:22-05:00
-updated: 2026-10-13T16:10:00-05:00
+updated: 2026-10-13T17:31:12-05:00
 ---
 
 ## Current Test
@@ -1619,4 +1619,7 @@ blocked: 0
     - "A Playwright check at a short window (e.g. 1274x585 and 1280x500) that the dialog's buttons are inside the window or reachable by scrolling, in all engines"
     - "Unit/recipe test for the new overlay classes; rulings.css entry and an intentional-differences row (D-08)"
   debug_session: ""
+  fix_plan: "02-41-PLAN.md (gap_ids: [G-2-199])"
+  fix_state: "implemented by 02-41; awaiting /gsd-verify-work 2 and the owner's re-check of test 199"
+  phone_check: "same defect before the fix (393x659: Delete Order ends at 680 > 659; 320x568: 759; 659x393: 618; 412x839 fits); fixed by the same D-42 rule (96px gap shrinks to 0, backdrop scrolls)"
 

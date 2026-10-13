@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-13T11:30:05-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-13T17:31:12-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -179,6 +179,10 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
   - **Keep as approved/spec:** R2-11 "Get a Quote" stays a button. R2-13 "Try Again" stays muted grey. R2-14 Users list name/initials stay 12 px muted. R2-15 empty-state wording kept. R2-16 Showcase extras kept. R2-19 the Barlow Condensed fallback keeps the spec value. R2-26 the three `.npmrc` cool-down waivers are kept.
   - **FYIs ratified:** AR-02-01, AR-02-02, R2-10, R2-24, R2-25, R2-27, R2-28.
   - **Still open (needs the owner hands-on):** R2-05 visual review (WEB-02 sign-off) and R2-20..R2-23 manual checks (UAT).
+
+### Owner ruling: dialogs on a short window (2026-10-13, UAT test 199, gap G-2-199)
+
+- **D-42 (dialog fit):** the owner tested at 150% zoom in Chrome, where the Delete Order buttons were below the bottom of the window and could not be reached. The owner decided: dialogs stay **centred on the whole window** (no change). On a short window the dialog **moves up**: the 140px gap above it shrinks as needed, down to the normal 16px edge gap, so the whole dialog shows. If it is still too tall, the **dark backdrop scrolls** so every part of the dialog, buttons included, can be reached (WCAG 1.4.10). The phone bottom sheet had the same defect (393x659: Delete Order ended at 680 > 659; 320x568 at 759; 659x393 at 618; 412x839 fit), so it follows the same rule with its own values: the 96px gap shrinks down to 0, then the backdrop scrolls. On a tall window nothing moves: the approved 140px (96px on phones) position stays pixel-for-pixel. Pressing the backdrop's scrollbar never closes the dialog, so typed confirm text is never lost. Plan 02-41 builds it (pure CSS: a shrinking spacer above the dialog; no measuring, no inline style). — **Reversibility:** reversible (one class string and one rulings group).
 
 ### Carried forward (already decided; do not re-ask)
 - Ports: Vite **5180** (`strictPort`), API **5115/7028**, Playwright host **5199** (`reuseExistingServer: false`); HostProbe 5116/7029. The dev proxy has `/api` targets hard-coded, and no machine-level env vars are set. Run the preflight script before any dev server, Playwright or full test run.
