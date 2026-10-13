@@ -234,7 +234,8 @@ test('@keyboard a danger toast stays until its Dismiss button is pressed by keyb
   await page.keyboard.press('Enter');
 
   const layer = page.locator('[data-ui="s-toast-layer"]');
-  const toast = layer.getByRole('alert');
+  // The layer is the live region; a toast in it has no role of its own (UI-WR-04).
+  const toast = layer.locator(':scope > *', { hasText: "Couldn't save order" });
   await expect(toast).toContainText("Couldn't save order");
   // Danger toasts persist (D-04): still there after the 4.5 s a success toast would last.
   await page.waitForTimeout(5000);

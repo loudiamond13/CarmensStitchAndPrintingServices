@@ -227,6 +227,13 @@ describe('Toast (App. D.3)', () => {
     expect(close?.getAttribute('type')).toBe('button');
   });
 
+  it.each(TONES)('drops the %s toast role when a live region around it announces it (UI-WR-04)', (tone) => {
+    const { container } = render(<Toast tone={tone} title="Title" announce={false} />);
+
+    expect(container.firstElementChild?.hasAttribute('role')).toBe(false);
+    expect(classTokens(container.firstElementChild)).toEqual(tokens(`${toastClasses} ${toastEdgeToneClasses[tone]}`));
+  });
+
   it.each(TONES)('gives the %s toast its role, its icon and its edge and icon colours', (tone) => {
     const { container } = render(<Toast tone={tone} title="Title" />);
     const toast = container.firstElementChild;

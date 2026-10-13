@@ -178,7 +178,8 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
   await page.keyboard.press('ArrowUp');
   await expect(logout).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status').filter({ hasText: 'Not available yet' })).toBeVisible();
+  // The toast layer is the live region; a toast in it has no role of its own (UI-WR-04).
+  await expect(page.locator('[data-ui="s-toast-layer"]').getByText('Not available yet')).toBeVisible();
   await expect(menu).toHaveCount(0);
   await expect(button).toBeFocused();
   await expectNoAxeViolations(page);

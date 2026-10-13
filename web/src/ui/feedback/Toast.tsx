@@ -2,6 +2,9 @@
 // the tone icon, the bold title over an optional message, an optional action and the "Dismiss" icon button. Danger is
 // role="alert", the others role="status". The looks are in feedback.recipe.ts; each tone is one complete literal.
 // The timing rules (D-04, D-31 O-5, O-7) live in the toast queue and ToastProvider, not here.
+// SPEC-DEVIATION: UI-WR-04 `announce={false}` drops the role. ToastProvider passes it because its always-mounted layer
+// is already the polite live region (D-31 O-5), and a role="status" or role="alert" toast inside it is a live region
+// nested in a live region, which NVDA and JAWS read twice. A Toast on its own keeps the App. D.3 role. Attribute only.
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@/ui/brand';
@@ -24,6 +27,8 @@ export interface ToastProps {
   /** Shows the "Dismiss" button. */
   onClose?: (() => void) | undefined;
   action?: ReactNode;
+  /** The toast's own live role (default true); false inside a live region that already announces it. */
+  announce?: boolean | undefined;
 }
 
 const TOAST_ICON = {
@@ -33,9 +38,10 @@ const TOAST_ICON = {
   warning: 'triangle-alert',
 } as const satisfies Record<ToastTone, IconName>;
 
-export function Toast({ tone = 'success', title, message, onClose, action }: ToastProps) {
+export function Toast({ tone = 'success', title, message, onClose, action, announce = true }: ToastProps) {
+  const role = tone === 'danger' ? 'alert' : 'status';
   return (
-    <div className={clsx(toastClasses, toastEdgeToneClasses[tone])} role={tone === 'danger' ? 'alert' : 'status'}>
+    <div className={clsx(toastClasses, toastEdgeToneClasses[tone])} role={announce ? role : undefined}>
       <span className={clsx(toastIconClasses, toastIconToneClasses[tone])}>
         <Icon name={TOAST_ICON[tone]} size={20} />
       </span>

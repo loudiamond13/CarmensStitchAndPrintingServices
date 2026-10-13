@@ -58,6 +58,15 @@ function layerOf(container: HTMLElement): HTMLElement {
   return layer;
 }
 
+/** The toast in the layer whose title is `title`. */
+function toastIn(container: HTMLElement, title: string): HTMLElement {
+  const toast = [...layerOf(container).children].find((item) => item.querySelector('strong')?.textContent === title);
+  if (!(toast instanceof HTMLElement)) {
+    throw new Error(`No toast titled "${title}".`);
+  }
+  return toast;
+}
+
 const PAYMENT: ToastInput = { tone: 'success', title: 'Payment added', message: 'Balance now ₱4,327.50' };
 const SAVE_FAILED: ToastInput = {
   tone: 'danger',
@@ -78,6 +87,24 @@ describe('ToastProvider', () => {
     expect(layer.getAttribute('aria-live')).toBe('polite');
     expect([...layer.classList].sort()).toEqual(toastLayerClasses.split(/\s+/).filter(Boolean).sort());
     expect(layer.previousElementSibling?.textContent).toBe('Page');
+  });
+
+  it('is the only live region: a toast inside it has no live role of its own, so it is announced once (UI-WR-04)', async () => {
+    const user = userEvent.setup();
+    const inputs: ToastInput[] = [PAYMENT, SAVE_FAILED, { tone: 'warning', title: 'Someone else changed this' }];
+    const { container } = render(
+      <ToastProvider>
+        <Trigger toasts={inputs} />
+      </ToastProvider>,
+    );
+    for (const input of inputs) {
+      await user.click(screen.getByRole('button', { name: `Show ${input.title}` }));
+    }
+    const layer = layerOf(container);
+
+    expect(layer.childElementCount).toBe(3);
+    expect(layer.getAttribute('aria-live')).toBe('polite');
+    expect(layer.querySelectorAll('[role="status"], [role="alert"], [role="log"], [aria-live]')).toHaveLength(0);
   });
 
   it('renders the layer where the provider is, never in a portal, so it keeps data-theme and the page container', () => {
@@ -101,7 +128,7 @@ describe('ToastProvider', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Show Payment added' }));
-    const toast = screen.getByRole('status');
+    const toast = toastIn(container, 'Payment added');
 
     expect(layerOf(container).contains(toast)).toBe(true);
     expect(toast.textContent).toContain('Payment added');
@@ -129,7 +156,6 @@ describe('ToastProvider', () => {
     const shown = [...layerOf(container).children].map((toast) => toast.querySelector('strong')?.textContent);
 
     expect(shown).toEqual(['Three', 'Two', "Couldn't save order"]);
-    expect(screen.getByRole('alert').textContent).toContain("Couldn't save order");
   });
 
   it('closes a toast with its Dismiss button', async () => {
@@ -162,8 +188,8 @@ describe('ToastProvider', () => {
     });
 
     expect(layerOf(container).childElementCount).toBe(1);
-    expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(layerOf(container).textContent).not.toContain('Payment added');
+    expect(layerOf(container).textContent).toContain("Couldn't save order");
   });
 
   it('pauses the timers while the pointer is over the stack and resumes when it leaves (O-7)', async () => {
@@ -176,7 +202,7 @@ describe('ToastProvider', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Show Payment added' }));
 
-    await user.hover(screen.getByRole('status'));
+    await user.hover(toastIn(container, 'Payment added'));
     expect(queue.getSnapshot().paused).toBe(true);
 
     await user.unhover(layerOf(container));
@@ -319,7 +345,7 @@ describe('useToast', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(toastIn(container, "Couldn't save order")).toBeTruthy();
 
     act(() => {
       closeLast?.();

@@ -12,6 +12,10 @@
 // persistent toast needs a way to be closed by the screen that raised it, for example once a retry succeeds.
 // SPEC-DEVIATION: D-31 O-5 the layer is always rendered (App. D.3 mounted it only with toasts) and carries
 // aria-live="polite"; with no toasts it has no size, so the resting look is unchanged.
+// SPEC-DEVIATION: UI-WR-04 the layer is the ONLY live region: the toasts in it render with `announce={false}` (no
+// role="status" / role="alert" of their own), because a live region nested in another is read twice by NVDA and JAWS.
+// Every toast, danger included, is announced once, politely (the UI-SPEC's per-tone roles and the O-5 layer cannot
+// both hold without the double reading; deferred-items.md records it for the owner).
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { toastLayerClasses } from './feedback.recipe';
 import { Toast } from './Toast';
@@ -127,6 +131,7 @@ export function ToastProvider({ children, queue: injected }: ToastProviderProps)
             title={toast.title}
             message={toast.message}
             action={toast.action}
+            announce={false}
             onClose={() => {
               queue.dismiss(toast.id);
             }}

@@ -98,6 +98,16 @@ function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
 
+/** The toast titled `title` in the toast layer (UI-WR-04: the layer is the live region, so a toast has no role). */
+async function findToast(title: string): Promise<HTMLElement> {
+  const heading = await screen.findByText(title);
+  const layer = document.querySelector('[data-ui="s-toast-layer"]');
+  const toast = [...(layer?.children ?? [])].find((item) => item.contains(heading));
+  if (!(toast instanceof HTMLElement)) {
+    throw new Error(`No toast titled "${title}" in the toast layer.`);
+  }
+  return toast;
+}
 describe('AdminLayout tracer (WEB-05, D-20)', () => {
   it('on /admin/users shows the admin shell with Users current, its preview page and the document title', async () => {
     await renderAt('/admin/users');
@@ -196,8 +206,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     await renderAt('/admin/users');
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
-    const toast = await screen.findByRole('status');
-    expect(toast).toHaveTextContent('Not available yet');
+    const toast = await findToast('Not available yet');
     expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
     const layer = document.querySelector('[data-ui="s-toast-layer"]');
     expect(layer).toContainElement(toast);
@@ -481,7 +490,7 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
       within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: 'Logout' }),
     );
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Not available yet');
+    expect(await findToast('Not available yet')).toHaveTextContent('Sign-out comes with the sign-in phase.');
     expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
   });
 
@@ -506,8 +515,7 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     expect(userButton()).toHaveAttribute('aria-expanded', 'true');
     await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
 
-    const toast = await screen.findByRole('status');
-    expect(toast).toHaveTextContent('Not available yet');
+    const toast = await findToast('Not available yet');
     expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
     expect(screen.queryByRole('menu')).toBeNull();
   });

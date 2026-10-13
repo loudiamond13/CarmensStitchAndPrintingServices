@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T07:09:00-05:00"
+updated: "2026-10-13T07:30:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -154,3 +154,10 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** PRD §5.1 says Subtotal = sum of the lines, Total = Subtotal minus the discount, Balance = Total minus what was paid, and ORD-07 lists "Subtotal, Discount, Total, Paid, Balance". The shared order math names the amount BEFORE discounts `Total` and has no field for the amount after discounts: `OrderMathResult.Total` in `src/Csps.Domain/Orders/OrderMathModels.cs`, `Totals.total` in `web/src/lib/csps.ts` (copied from the approved design's own `csps.ts`, App. D.3), and `expected.total` in the 220 shared golden vectors (`tests/fixtures/order-math-golden-vectors.json`). The balance and profit are correct either way. The approved OrderTotals block (`web/src/ui/money/OrderTotals.tsx`, App. E) shows a row labelled "Total" with this before-discount amount, then "Total Discount", "Total Paid" and the balance. Nothing is saved or sent by the API with these names yet (no order endpoint or table exists in phase 2), so a rename is cheap now and expensive after Phase 5 builds order DTOs, list columns and the PRD §16 reconciliation report on them. The "fully paid" rule (`total > 0 and balance <= 0`, review note NET-IN-01) also reads this field.
   **Before / after if the owner chooses the PRD naming:** today the order panel reads "Total ₱1,000.00 / Total Discount −₱100.00 / Total Paid … / Balance"; after the change the code would call the first figure `subtotal` and add `total` (₱900.00, after discounts). Whether the panel's first row is then labelled "Subtotal" (and whether a "Total" row after the discount is added) is a look/copy change to the approved design, so it needs its own before/after.
   **Question for the owner:** (a) follow the PRD: rename the before-discount figure to Subtotal and add Total = Subtotal − Discount in the server math, the browser preview and the golden vectors (and say how the order panel should label them), or (b) keep the design's naming, where "Total" means before discounts, recorded as a deliberate deviation from the PRD so Phase 5 maps it correctly?
+
+- FYI (no decision needed unless the owner objects): danger toasts are now announced politely, once (code-review finding UI-WR-04, accessibility fix with no visible change)
+  status: open
+  **Found by:** the phase 02 code review (lane webui, UI-WR-04). Fixed by the review fix.
+  **What:** the UI-SPEC asks for two things that clash: the toast layer stays mounted as the polite live region (owner ruling D-31 O-5), and each toast carries its own live role (danger `role="alert"`, the others `role="status"`, App. D.3). A live region inside another live region is read twice by NVDA and JAWS, so every toast was announced twice. The fix keeps O-5: the layer is now the only live region and the toasts inside it carry no role of their own (`web/src/ui/feedback/ToastProvider.tsx`, `Toast` prop `announce={false}`). Every toast, danger included, is read once, politely (after what the screen reader is saying now). Nothing visible changes, and a Toast rendered on its own (the showcase cases) keeps the App. D.3 role.
+  **Before / after if the owner wants danger toasts to interrupt:** that needs a second always-mounted region for danger toasts (`role="alert"`), which splits the toast stack in two and so changes its markup and possibly its look; it would come back as a D-08 before/after first.
+  **Question for the owner (optional):** none needed; say so if a failed save should interrupt the screen reader.
