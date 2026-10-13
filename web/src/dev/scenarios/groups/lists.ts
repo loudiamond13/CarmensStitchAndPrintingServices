@@ -12,6 +12,8 @@
 //     Order date, Product type and Sort by Selects at their App. E.7 values, and the grid/table SegmentedControl in the
 //     toolbar end. The Toolbar wrapper pair renders it: the implementation through FilterBar, SearchBox, Select and
 //     SegmentedControl, the reference as a transcription of App. E.7 (web/visual/reference/fragments/Toolbar.tsx).
+//     Also with the search input focused by Tab: D-41 R2-03 (owner, 2026-10-13) gives the search box its own 1px
+//     `--focus` border, and the rulings layer gives the reference the same (`input[type="search"]` matches both sides).
 // The SPEC-GAP list states (parity false) are in the lists-states group: rendered on the same page as these cases, their
 // extra height changed how Chromium rasterized the 1440px frame's right-edge corners (1-level anti-aliasing noise on
 // x 1438-1439 in about half the runs, with equal computed styles); in a group of their own both pages hold only
@@ -111,5 +113,9 @@ export const scenarios: readonly Scenario[] = [
     target: 'tbody tr:nth-child(2)',
   }),
   listCase('rt-long-name', node('ListTable', { users: LONG_NAME_USERS }), { parity: true }),
-  listCase('toolbar-orders', node('Toolbar', {}), { parity: true }),
+  listCase('toolbar-orders', node('Toolbar', {}), {
+    parity: true,
+    states: ['rest', 'focus-visible'],
+    target: 'input[type="search"]',
+  }),
 ];

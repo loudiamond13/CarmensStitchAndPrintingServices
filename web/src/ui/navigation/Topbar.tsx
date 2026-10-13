@@ -1,13 +1,16 @@
 // Topbar (App. D.3 "Navigation", CSPS-UI-SPEC.md §6.6, §8.1), converted to utilities (D-33) with App. D.3's props API,
-// markup and copy: the phone "Open navigation" button, the search box with its "/" hint, then the theme toggle (when
-// the shell can toggle) and the user-menu button. Behaviour as App. D.3 (UI-SPEC Interaction Contract):
-//   - "/" pressed anywhere outside a field focuses the search box; Enter hands its text to onSearch (the Phase 2 shell
-//     passes none, so Enter does nothing there);
-//     SPEC-DEVIATION: UI-WR-07 (WCAG 2.1.4) the shortcut is narrowed without any visible change: it ignores "/" with
-//     Ctrl, Cmd or Alt, during an IME composition, after another handler took the key, inside any text entry (fields,
-//     editable content and the textbox, searchbox, combobox and spinbutton roles), and while a modal dialog is open
-//     (it would move focus out of the dialog). A way to turn it off or to need a modifier is an owner question
-//     (deferred-items.md), because either changes what the user sees;
+// markup and copy: the phone "Open navigation" button, the search box with its shortcut hint, then the theme toggle
+// (when the shell can toggle) and the user-menu button. Behaviour as App. D.3 (UI-SPEC Interaction Contract):
+//   - the search shortcut pressed anywhere outside a field focuses the search box; Enter hands its text to onSearch
+//     (the Phase 2 shell passes none, so Enter does nothing there);
+//     SPEC-DEVIATION: D-41 R2-04 (owner, 2026-10-13) the shortcut is Ctrl+K or Cmd+K (Meta+K) instead of App. D.3's
+//     bare "/", which no longer does anything. Both modifiers work on every platform (Ctrl+K is harmless outside
+//     fields on macOS; Windows takes Meta+K itself). Alt or Shift held means no trigger. The hint reads "Ctrl K", or
+//     "⌘K" on Apple platforms, and the input announces `aria-keyshortcuts="Control+K Meta+K"`. Because the shortcut
+//     needs a modifier, WCAG 2.1.4 (Character Key Shortcuts) no longer applies, and code-review warning UI-WR-07 is
+//     closed. The UI-WR-07 guards stay: no trigger during an IME composition, after another handler took the key,
+//     inside any text entry (fields, editable content and the textbox, searchbox, combobox and spinbutton roles), or
+//     while a modal dialog is open (it would move focus out of the dialog);
 //   - the theme toggle is named for what it will do, "Switch to dark mode" with the moon in light, "Switch to light
 //     mode" with the sun in dark;
 //   - the user-menu button announces its menu (`aria-haspopup="menu"`) and opens it: the button and its popover are the
@@ -29,15 +32,31 @@ import {
 } from './navigation.recipe';
 import { UserMenu } from './UserMenu';
 
-/** Elements whose own typing keeps a "/" (App. D.3's test). */
+/** Elements whose own typing keeps the key (App. D.3's test). */
 const FIELD_TAGS = /^(INPUT|TEXTAREA|SELECT)$/;
 
-/** ARIA text-entry widgets, which keep their "/" too (UI-WR-07). */
+/** ARIA text-entry widgets, which keep the key too (UI-WR-07). */
 const TEXT_ENTRY = '[role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"]';
 
-/** True when a "/" keydown is the search shortcut (App. D.3, narrowed by UI-WR-07). */
+/** Apple platforms, whose hint names the Command key. */
+const APPLE_AGENT = /Mac|iPhone|iPad|iPod/;
+
+/** The search shortcut hint for a user agent (D-41 R2-04): "⌘K" on Apple platforms, "Ctrl K" elsewhere. */
+export function searchShortcutHint(userAgent: string): string {
+  return APPLE_AGENT.test(userAgent) ? '⌘K' : 'Ctrl K';
+}
+
+/**
+ * True for the K key: "k" or "K" (Caps Lock), or the physical K key on a layout whose key is not an ASCII letter
+ * (Cyrillic, Greek…). A Latin layout that puts another letter there (Dvorak's "t") keeps that letter's meaning.
+ */
+function isKeyK(event: KeyboardEvent): boolean {
+  return event.key === 'k' || event.key === 'K' || (event.code === 'KeyK' && !/^[A-Za-z]$/.test(event.key));
+}
+
+/** True when a keydown is the search shortcut (D-41 R2-04: Ctrl+K or Cmd+K, with the UI-WR-07 guards). */
 function isSearchShortcut(event: KeyboardEvent): boolean {
-  if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
+  if (!isKeyK(event) || event.ctrlKey === event.metaKey || event.altKey || event.shiftKey || event.isComposing) {
     return false;
   }
   if (event.defaultPrevented || document.querySelector('[aria-modal="true"]') !== null) {
@@ -121,13 +140,14 @@ export function Topbar({
           className={clsx(searchInputClasses, searchInputCompatClasses)}
           placeholder={placeholder}
           aria-label="Search"
+          aria-keyshortcuts="Control+K Meta+K"
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               onSearch?.(event.currentTarget.value);
             }
           }}
         />
-        <kbd className={searchKbdClasses}>/</kbd>
+        <kbd className={searchKbdClasses}>{searchShortcutHint(navigator.userAgent)}</kbd>
       </label>
       <div className={topbarRightClasses}>
         {onToggleTheme !== undefined && (

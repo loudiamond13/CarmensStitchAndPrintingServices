@@ -171,7 +171,7 @@ export const searchInputClasses = tw(
 export const searchInputCompatClasses = tw('px-[2px] py-px');
 
 /**
- * `.csp-search kbd`: the "/" hint, hidden on phones. App. B resets the font to the inherited one (preflight gives `kbd`
+ * `.csp-search kbd`: the shortcut hint ("Ctrl K", or "⌘K" on Apple platforms, D-41 R2-04), hidden on phones. App. B resets the font to the inherited one (preflight gives `kbd`
  * the monospace family), so the family is restated as `inherit`.
  */
 export const searchKbdClasses = tw(

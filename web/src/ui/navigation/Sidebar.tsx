@@ -107,6 +107,9 @@ export function Sidebar({
             setCollapsedState(!collapsed);
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          // SPEC-DEVIATION: D-41 R2-12 (owner, 2026-10-13) the toggle also states whether the sidebar is expanded
+          // (the displayed state, controlled or not); its name still says what it will do. Nothing visible changes.
+          aria-expanded={!collapsed}
         >
           <Icon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={18} />
         </button>

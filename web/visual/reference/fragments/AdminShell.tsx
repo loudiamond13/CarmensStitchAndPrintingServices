@@ -1,6 +1,6 @@
 // Reference side of the admin frame (plan 02-31; test only, never shipped): a JSX transcription of the App. E.6 shell,
-// `div.s-admin` > `div.s-admin-side` (the frozen App. D.3 Sidebar) and `div.s-admin-main` (the frozen Topbar,
-// `main.s-body`, `nav.s-tabbar`), for the dev user Carmen Reyes (Manager). App. E.6's design-canvas links become paths
+// `div.s-admin` > `div.s-admin-side` (the frozen App. D.3 Sidebar) and `div.s-admin-main` (the frozen Topbar through
+// the D-41 Topbar override in ./Topbar.tsx, which writes the owner-ruled shortcut hint; `main.s-body`, `nav.s-tabbar`), for the dev user Carmen Reyes (Manager). App. E.6's design-canvas links become paths
 // (spec §2.9). The body holds the AdminPreviewPage content, which App. E has no screen for, written with the spec
 // looks it is built from (UI-SPEC "Phase 2 pages"): the `.s-ph` page head (h1 = the nav label, the dev subline) and an
 // App. B `.csp-empty` empty state with the section's nav icon and a primary md link. The empty-state title is an h2,
@@ -16,6 +16,7 @@
 // The frozen components come from the extracted spec module, loaded the way kit.ts loads it (import.meta.glob, so the
 // frozen code is never type-checked).
 import { useEffect, useId, useRef, type ComponentType, type ReactNode } from 'react';
+import { Topbar } from './Topbar';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
@@ -34,7 +35,6 @@ interface Person {
 }
 
 const Sidebar = frozen<{ active?: string; role?: string; user?: Person; onLogout?: () => void }>('Sidebar');
-const Topbar = frozen<{ user?: Person; role?: string; theme?: string; onToggleTheme?: () => void }>('Topbar');
 const Icon = frozen<{ name: string; size?: number }>('Icon');
 const ButtonLink = frozen<{ variant?: string; size?: string; to: string; children?: ReactNode }>('ButtonLink');
 

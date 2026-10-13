@@ -15,6 +15,9 @@
      "Walk-in customer" on its customer line, which keeps the approved .csp-order-cust look. CSS cannot add a text
      node, so the WalkInOrderCard wrapper pair (visual/reference/fragments/WalkInOrderCard.tsx) writes the text into
      the frozen line after mount.
+   - D-41 R2-04 (owner, 2026-10-13) has no rule here: it changes the Topbar shortcut hint text ("Ctrl K", or "⌘K" on
+     Apple platforms, instead of "/"). The reference-only Topbar override (visual/reference/fragments/Topbar.tsx, on
+     SPEC_OVERRIDES in merge-kit.ts) writes the hint into the frozen kbd after mount.
    - The second D-27 group (plan 02-26) states the pointer cursor the approved Logout link already shows: WebKit
      reports a link's hand cursor as `auto`, the D-27 button reports `pointer`. It changes no look in any engine.
    - visual/reference/rulings.test.ts pins all of the above. */
@@ -213,6 +216,14 @@ button.csp-nav {
   .s-rt-wrap {
     contain: none;
   }
+}
+
+/* D-41 R2-03 (owner, 2026-10-13) the list search box shows a focus ring of its own, subtler than the shared field
+   ring: while its input has focus, the box's own 1px border turns --focus (no outer ring, no change in size). App. B
+   gave it none (its input has outline: none). --focus is at least 3:1 against --surface-2, --surface and --bg in both
+   themes (WCAG 1.4.11; web/src/ui/lists/search-focus-contrast.node.test.ts). */
+.s-search-box:focus-within {
+  border-color: var(--focus);
 }
 
 /* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */

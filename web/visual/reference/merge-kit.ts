@@ -9,8 +9,13 @@ type ModuleExports = Readonly<Record<string, unknown>>;
 /** The same shape as src/dev/renderScenario.tsx `Kit` (not imported: the node TS program has no JSX). */
 export type MergedKit = Readonly<Record<string, ComponentType<never>>>;
 
-/** Frozen spec component name → the owner decision (D-<n>) that lets a fragment replace it. Empty: none may. */
-export const SPEC_OVERRIDES: ReadonlyMap<string, string> = new Map();
+/**
+ * Frozen spec component name → the owner decision (D-<n>) that lets a fragment replace it.
+ *   - Topbar → D-41 (R2-04, owner, 2026-10-13): the override in fragments/Topbar.tsx still renders the pinned frozen
+ *     Topbar, unchanged and with no wrapper, and only writes the owner-ruled shortcut hint ("Ctrl K", or "⌘K" on Apple
+ *     platforms) into its kbd after mount, because CSS cannot change a text node.
+ */
+export const SPEC_OVERRIDES: ReadonlyMap<string, string> = new Map([['Topbar', 'D-41']]);
 
 /** Component exports only: PascalCase functions (the D.3 namespace also re-exports csps.ts helpers and constants). */
 function components(exports: ModuleExports): Record<string, ComponentType<never>> {
