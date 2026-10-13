@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cascadeSentence,
   discountAmount,
@@ -143,12 +143,34 @@ describe('discountAmount (D-09)', () => {
   });
 });
 
+// LIB-WR-07: the date an order shows must not move with the machine's zone.
+describe('formatDate never reads the machine zone', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.for(['America/Chicago', 'Pacific/Kiritimati', 'Pacific/Pago_Pago'])(
+    'shows the API instant 2026-10-05T16:30:00Z and the date 2026-10-06 as "Oct 6, 2026" on a machine in %s',
+    (zone) => {
+      vi.stubEnv('TZ', zone);
+      expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(zone);
+      expect(formatDate('2026-10-05T16:30:00Z')).toBe('Oct 6, 2026');
+      expect(formatDate(new Date('2026-10-05T16:30:00Z'))).toBe('Oct 6, 2026');
+      expect(formatDate('2026-10-06')).toBe('Oct 6, 2026');
+    },
+  );
+});
+
 // App. D.1 behavior beyond the App. D.2 tests (characterization, so the lint-only SPEC-DEVIATION edits stay honest).
 describe('App. D.1 characterization', () => {
-  it('formats a Date, a local date-time and keeps unparseable text', () => {
-    expect(formatDate(new Date(2026, 9, 6))).toBe('Oct 6, 2026');
-    expect(formatDate('2026-10-06T08:00:00')).toBe('Oct 6, 2026');
-    expect(formatDate('garbage')).toBe('garbage');
+  // SPEC-DEVIATION (LIB-WR-07): D.1 read a Date or a timestamp in the machine's zone, read a zone-less date-time as
+  // machine-local and echoed unparseable text. formatDate now goes through @/lib/format: instants in the business zone,
+  // and "—" for anything that is neither a calendar date nor an instant with a zone.
+  it('formats a Date in the business zone, and refuses a zone-less date-time and unparseable text', () => {
+    expect(formatDate(new Date('2026-10-05T16:30:00Z'))).toBe('Oct 6, 2026');
+    expect(formatDate(new Date(Number.NaN))).toBe('—');
+    expect(formatDate('2026-10-06T08:00:00')).toBe('—');
+    expect(formatDate('garbage')).toBe('—');
     expect(formatDate('')).toBe('—');
     expect(formatDate(null)).toBe('—');
   });

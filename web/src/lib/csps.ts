@@ -6,6 +6,8 @@
    show the server's figures and never present a preview as the saved figure. The shared golden vectors
    (tests/fixtures/order-math-golden-vectors.json) prove both sides agree to the centavo. */
 
+import { formatBusinessDate, formatCalendarDate } from './format';
+
 /* ───────────── domain types ───────────── */
 
 export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'completed' | 'cancelled';
@@ -164,16 +166,17 @@ export function formatPeso(n: number | string | null | undefined): string {
   return `${centavos < 0n ? '−₱' : '₱'}${pesoWholeFmt.format(magnitude / 100n)}.${cents}`;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "Oct 6, 2026". Accepts ISO "2026-10-06" (treated as a local date) or a Date. Empty → "—". */
+/**
+ * "Oct 6, 2026". Accepts a calendar date "2026-10-06" (no zone shift), an API instant with a zone, or a Date (both
+ * shown in the business zone). Empty, a zone-less date-time and unparseable text → "—".
+ * SPEC-DEVIATION (LIB-WR-07): App. D.1 formatted with getMonth/getDate/getFullYear, so an instant showed the calendar
+ * day of the machine's zone, not Asia/Manila. This is now a thin wrapper over @/lib/format, which never reads the
+ * machine's zone. New screens call formatCalendarDate / formatBusinessDate directly.
+ */
 export function formatDate(d: string | Date | null | undefined): string {
   if (!d) return '—';
-  // SPEC-DEVIATION: lint no-unnecessary-type-conversion and restrict-plus-operands (d is already a string; the parts
-  // are joined in a template with String()). Same output.
-  const x = d instanceof Date ? d : new Date(d.length === 10 ? `${d}T00:00:00` : d);
-  if (Number.isNaN(x.getTime())) return String(d);
-  return `${MONTHS[x.getMonth()] ?? ''} ${String(x.getDate())}, ${String(x.getFullYear())}`;
+  if (d instanceof Date) return Number.isNaN(d.getTime()) ? '—' : formatBusinessDate(d.toISOString());
+  return d.length === 10 ? formatCalendarDate(d) : formatBusinessDate(d);
 }
 
 /* ───────────── order math ───────────── */
