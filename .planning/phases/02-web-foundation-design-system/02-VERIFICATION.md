@@ -1,10 +1,10 @@
 ---
 phase: 02-web-foundation-design-system
 created: "2026-10-13T10:50:00-05:00"
-updated: "2026-10-13T10:50:00-05:00"
-verified: 2026-10-13T15:50:00Z
-status: gaps_found
-score: 19/23 must-haves verified
+updated: "2026-10-13T15:20:00-05:00"
+verified: 2026-10-13T20:20:00Z
+status: human_needed
+score: 21/23 must-haves verified
 covered_files:
   - ".claude/CLAUDE.md"
   - ".config/dotnet-tools.json"
@@ -648,6 +648,7 @@ covered_files:
   - "web/src/ui/lists/listState.integration.test.tsx"
   - "web/src/ui/lists/lists.recipe.node.test.ts"
   - "web/src/ui/lists/lists.recipe.ts"
+  - "web/src/ui/lists/search-focus-contrast.node.test.ts"
   - "web/src/ui/marketing/CategoryCard.tsx"
   - "web/src/ui/marketing/ProcessSteps.tsx"
   - "web/src/ui/marketing/TestimonialCard.tsx"
@@ -736,12 +737,15 @@ covered_files:
   - "web/visual/reference/fragments/MediaPlaceholderNoChip.tsx"
   - "web/visual/reference/fragments/OpenedDialog.tsx"
   - "web/visual/reference/fragments/OpenedSiteDrawer.tsx"
+  - "web/visual/reference/fragments/OrderCard.tsx"
+  - "web/visual/reference/fragments/OrderTotals.tsx"
   - "web/visual/reference/fragments/Overlay.tsx"
   - "web/visual/reference/fragments/PublicShell.tsx"
   - "web/visual/reference/fragments/RatedTestimonial.tsx"
   - "web/visual/reference/fragments/RevealPassword.tsx"
   - "web/visual/reference/fragments/TabsWithPanel.tsx"
   - "web/visual/reference/fragments/Toolbar.tsx"
+  - "web/visual/reference/fragments/Topbar.tsx"
   - "web/visual/reference/fragments/WalkInOrderCard.tsx"
   - "web/visual/reference/index.html"
   - "web/visual/reference/kit.ts"
@@ -762,71 +766,71 @@ covered_files:
   - "web/visual/webkit-style-sync.ts"
   - "web/vite.config.ts"
   - "web/vitest.config.ts"
-covered_digest: "v2:sha256:d2d109bf717a022742029b7583765fa88d9f171b04e198abb94838c82d7d1af6"
+covered_digest: "v2:sha256:40e05e580e0244ed450448130ac10d3009de79030b9d5d323b16b3e5f536b41a"
 behavior_unverified: 0
 overrides_applied: 0
-gaps:
-  - truth: "Public and admin layouts work from 320 to 1920 px with no horizontal scroll (ROADMAP SC2; PERF-03; plan 02-35 backstop truth 'No page in the app scrolls horizontally anywhere between 320 and 1920 px')"
-    status: failed
-    reason: "The admin shell scrolls sideways on narrow phones. The approved Topbar row (menu button, search box with a ~234px content minimum, theme toggle, user button) needs a page at least 398px wide in Chromium, 406px in WebKit and 418px in Firefox. So /admin/* scrolls by 8px at 390px, by 13px on the iPhone 15 profile (393px) and by up to 98px at 320px. The project's own sweep passes only through a coded exception (TOPBAR_MIN_PAGE_WIDTH in web/e2e/responsive.spec.ts). Separately, the shared ResponsiveTable lets the page scroll ~22px at 768px when its table scrolls inside the frame. The visually hidden 'Actions' header text is positioned against the page, not against the unpositioned .s-rt-wrap frame, and web/visual/lists-overflow.spec.ts records this as the expected result. Both behaviours come from the approved spec's computed CSS, and neither has an owner ruling, so the binding 320-1920 no-horizontal-scroll constraint is not met. Every later admin screen and list screen builds on these two parts."
-    artifacts:
-      - path: "web/src/ui/navigation/navigation.recipe.ts"
-        issue: "The Topbar search box cannot shrink below its content width (no min-w-0), so the admin row overflows under 398-418px"
-      - path: "web/src/ui/lists/lists.recipe.ts"
-        issue: "The table frame (.s-rt-wrap look) is not a containing block for the sr-only 'Actions' header, so the page scrolls ~22px at tablet width"
-      - path: "web/e2e/responsive.spec.ts"
-        issue: "TOPBAR_MIN_PAGE_WIDTH {chromium:398, webkit:406, firefox:418} exempts the admin overflow instead of failing it"
-      - path: "web/visual/lists-overflow.spec.ts"
-        issue: "Asserts today's 768px page overflow from the hidden header text as the expected result"
-    missing:
-      - "Owner ruling on the deferred-items.md item 'Admin top bar: the page scrolls sideways on phones narrower than 398px' (recommended: min-w-0 on the topbar search box plus a matching rulings.css rule)"
-      - "Owner ruling on the deferred-items.md item 'Tablet list tables: the page can scroll sideways by 22px' (contain the hidden header text in the table frame, recorded as an intentional difference)"
-      - "Apply both rulings and remove TOPBAR_MIN_PAGE_WIDTH, so the plain scrollWidth <= innerWidth check runs at every width in every engine. Tighten lists-overflow.spec.ts and the showcase 320px page check, then re-run @responsive and the parity matrix"
-  - truth: "Every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied (ROADMAP SC5; A11Y-04; A11Y-02 'visible focus')"
-    status: failed
-    reason: "Several approved-spec items that conflict with WCAG 2.2 are still open owner questions, and no ruling has been applied to them. (1) The list SearchBox has no visible keyboard focus indicator. searchInputClasses carries [outline:none] in the utilities layer, which beats the base-layer :focus-visible rule, and the box has no focus-within style. This fails WCAG 2.4.7 Focus Visible (AA), and axe cannot detect it. (2) The admin Topbar reflow failure above fails WCAG 1.4.10 Reflow (AA). (3) The 768px list-table page scroll also fails 1.4.10. (4) The global '/' single-key shortcut has no off switch and no modifier, so it fails WCAG 2.1.4 Character Key Shortcuts (A); the review fix narrowed it but did not make it pass. REQUIREMENTS.md itself still lists A11Y-04 as Pending, while 02-35-SUMMARY claims A11Y-04 and PERF-03 are complete."
-    artifacts:
-      - path: "web/src/ui/lists/lists.recipe.ts"
-        issue: "searchInputClasses sets '[outline:none]' and the search box has no replacement focus style (WCAG 2.4.7)"
-      - path: "web/src/ui/navigation/Topbar.tsx"
-        issue: "The '/' shortcut has no off switch or modifier (WCAG 2.1.4). The review's recommended option (b), a keyboard-shortcuts switch, keeps the approved look"
-    missing:
-      - "Owner rulings on the deferred-items.md items 'Search box: no visible keyboard focus ring' and 'Admin search shortcut \"/\"', and on the two reflow items above"
-      - "Apply the rulings (a recipe change plus a matching rulings.css reference rule), and add a Playwright check that the focused list search box shows a focus indicator"
-      - "If the owner prefers to carry these items to the release gate, record an override for each one. Phase 14's owner decisions already require 'any open OD-14 item, which must close before release'"
+re_verification:
+  previous_status: gaps_found
+  previous_score: 19/23
+  previous_verified: 2026-10-13T15:50:00Z
+  gaps_closed:
+    - "Truth 7 (SC2, PERF-03): no horizontal scroll from 320 to 1920 px. D-41 R2-01 (Topbar search min-w-0) and R2-02 (table frame contain-paint) are applied. TOPBAR_MIN_PAGE_WIDTH is gone, and the plain scrollWidth <= innerWidth rule passes on every page at every width in Chromium, Firefox, WebKit, Pixel 7 and iPhone 15 (full E2E 518/518)"
+    - "Truth 18 (SC5, A11Y-04, A11Y-02 'visible focus'): every open UI-spec/WCAG conflict now has an owner ruling (D-41), applied in code and in the parity rulings layer. SearchBox focus border (R2-03, contrast >= 3:1 proven), Ctrl+K / Cmd+K replaces the bare '/' (R2-04), and both reflow items as in truth 7. R2-10 (page behind a phone dialog not inert) is ruled to Phase 4"
+  gaps_remaining: []
+  regressions: []
 human_verification:
-  - test: "Owner visual review of the Phase 2 look: open C:\\Work\\CarmensStitchAndPrintingServices\\artifacts\\owner-review\\index.html and artifacts\\owner-review\\side-by-side\\index.html (both local and git-ignored)"
-    expected: "The public layout (Blush), the admin frame and the showcase, in Blush and Espresso at 390/820/1440, look like the approved design. The 27 SPEC-GAP parts look like they belong, and the 16 intentional differences match what was decided. Each difference the owner names becomes a gap-closure fix"
-    why_human: "ROADMAP SC2 ('proven visually equal to the approved design') and WEB-02 (still Pending in REQUIREMENTS.md) need the owner's look approval. Plan 02-36 makes this the BLOCKING end-of-phase check, and it was not given on the owner's behalf. The automated parity proof (452 rows in 3 engines) compares against the spec's own code, not against the owner's eye. The pack was generated at 05:06, before the review fixes; regenerate it with npm --prefix web run review if a fresh pack is wanted"
-  - test: "Long-text wrapping in the D-23 screenshots (plan 02-34 backstop truth): a long toast message, a long field error and a long EmptyState message in the showcase"
-    expected: "Each one wraps inside its box (the toast text as a flex column; the EmptyState message at most 380px wide) with no overflow"
-    why_human: "Backstop truth whose evidence is defined as the owner-review screenshots. No test measures these three cases directly (insufficient_spec)"
-  - test: "Judgment-tier prohibition (plan 02-07): 'MUST NOT present a client-side money preview as the saved figure'"
-    expected: "The csps.ts orderTotals output is only ever shown as a preview. Once the Phase 8 screens save, they show the server's figures"
-    why_human: "Unverified prohibition; human review recommended. The verifier's non-authoritative judgment is that it holds today: web/src/lib/csps.ts documents the totals as previews, and no Phase 2 screen saves or shows a saved order. No test can enforce it until order screens exist"
-  - test: "Order math naming (code review NET-WR-02, owner decision pending, settle before Phase 5)"
-    expected: "The owner picks (a) the PRD naming: Subtotal before discounts and Total = Subtotal - Discount, across OrderMath.cs, csps.ts and the 220 golden vectors; or (b) keeping the design's naming as a recorded deviation from the PRD"
-    why_human: "The shared contract that shipped uses 'Total' for the amount before discounts, which disagrees with the PRD. The Core Value depends on correct server-computed totals. A rename is cheap now and expensive after Phase 5 builds DTOs on this name"
+  - test: "R2-05 / UAT tests 2-3: owner visual review of the Phase 2 look (WEB-02 sign-off). Open C:\\Work\\CarmensStitchAndPrintingServices\\artifacts\\owner-review\\index.html, including the new section 'Wording changes for you to confirm (before and after)' (D-41 R2-06), and artifacts\\owner-review\\side-by-side\\index.html"
+    expected: "The public layout (Blush), the admin frame and the showcase, in Blush and Espresso at 390/820/1440, look like the approved design. The SPEC-GAP parts look like they belong. The intentional differences, now including the D-41 ones (Topbar 'Ctrl K' hint, list search focus border, footer h2, 'Subtotal' wording), match what was decided. The before/after pictures show 'Total' becoming 'Subtotal' and the note becoming 'Profit = Subtotal − Discount − Expenses. Internal only.' The owner confirms the wording or asks for a change (for example an after-discount 'Total' row)"
+    why_human: "Look approval belongs to the owner (plan 02-36 BLOCKING check, ROADMAP SC2, WEB-02 Pending). Automated parity (456/456 in three engines) compares against the ruled spec code, not the owner's eye. The D-23 pack (14:04) postdates every D-41 code change. The D-24 side-by-side (05:13) predates the review fixes and D-41; regenerate it first with `node web/scripts/design-side-by-side.mjs` after the preflight"
+  - test: "R2-23 / UAT test 4 (plan 02-34 backstop, truth 23): in the review pack's showcase shots, check the long toast, the long field error and the long EmptyState message"
+    expected: "Each wraps inside its box (toast text as a column; EmptyState message at most 380px wide) with no overflow and nothing cut off"
+    why_human: "Backstop truth whose evidence is defined as the D-23 screenshots (insufficient_spec). No test measures these three cases directly"
+  - test: "UAT test 5, judgment-tier prohibition (plan 02-07): 'MUST NOT present a client-side money preview as the saved figure'"
+    expected: "The owner agrees the rule stands: csps.ts orderTotals output is only ever shown as a preview, and the Phase 8 screens show the server's figures after a save"
+    why_human: "Unverified prohibition; human review recommended. The verifier's non-authoritative judgment is that it holds today: no Phase 2 screen saves or shows a saved order"
+  - test: "R2-20 / UAT test 11: intent prefetch on a phone"
+    expected: "On a real phone the first tap on a link never prefetches data (touch is ignored by intent prefetch); on desktop, hovering or focusing a link for about 100 ms starts the prefetch. The owner confirms this meaning of 'prefetch on intent'"
+    why_human: "Planner assumption (WEB-08) that only the owner can confirm; touch behaviour on a real device is not covered by jsdom"
+  - test: "R2-21: focus and timer fixes from the code review, on /dev/components"
+    expected: "Dialogs stack correctly; toasts stay reachable while a dialog is open; dismissing a toast returns focus sensibly; Pagination keeps focus after a page change"
+    why_human: "Focus feel across stacked overlays and timers is a hands-on check; unit and E2E tests cover the mechanics, not whether it feels right"
+  - test: "R2-22 / UAT test 9: screen-reader and real-phone spot checks (NVDA or VoiceOver) on /dev/components"
+    expected: "Toasts (including danger toasts) are announced once, politely; dialogs announce their names; the order totals list, KPI direction, chart months, scrolling table region, image uploader and star rating read sensibly; thumbnail actions are comfortable to tap on a real phone"
+    why_human: "jsdom and axe check roles and names, not what a real screen reader says. A11Y-05 owns the full pass in Phase 14; the owner may record this as skipped with that reason"
+  - test: "UAT tests 12-13: owner-facing docs and developer guides read clearly"
+    expected: "docs/dependencies.md, docs/web/budgets.md, docs/web/release-gates.md and docs/web/owner-review.md read clearly to the owner. docs/development.md, docs/web/styling.md, docs/web/e2e.md, docs/web/url-state.md and docs/web/parity.md are clear for a new developer"
+    why_human: "Reading judgment that no test asserts. The owner may delegate test 13 to a reviewer or skip it with a reason"
 ---
 
 # Phase 2: Web Foundation & Design System Verification Report
 
-*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T10:50:00-05:00*
+*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T15:20:00-05:00*
 
 **Phase Goal:** Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
-**Verified:** 2026-10-13T15:50:00Z (10:50 America/Chicago)
-**Status:** gaps_found (two failed truths that need owner rulings, plus four human items)
-**Re-verification:** No. This is the initial verification.
+**Verified:** 2026-10-13T20:20:00Z (15:20 America/Chicago), on HEAD 7fd5d8b
+**Status:** human_needed (both earlier gaps are closed; only owner hands-on items remain)
+**Re-verification:** Yes. This follows the gap closure by owner ruling D-41 and two quick tasks: quick-261013-g6s (commits 33839cf..6568eed) and quick-261013-ihp (commits c985508..46e7662).
+
+## Re-verification summary
+
+| Earlier finding | Then | Now | Evidence (run or read by this verifier) |
+| --- | --- | --- | --- |
+| Gap 1: truth 7, no horizontal scroll 320-1920 (SC2, PERF-03) | ✗ FAILED | ✓ CLOSED | `navigation.recipe.ts:159` `searchClasses` has `min-w-0` (R2-01). `lists.recipe.ts:30` `tableWrapClasses` has `contain-paint pg-phone:contain-none` (R2-02). A grep of `web/` for `TOPBAR_MIN_PAGE_WIDTH` finds nothing. `responsive.spec.ts:141` applies the plain `scrollWidth <= innerWidth` rule on every page. Full E2E 518/518: `@responsive` 13/13 and `@admin` 12/12 (now including 320 and 390, `admin.spec.ts:153`) in each of Chromium, Firefox, WebKit, Pixel 7 and iPhone 15. `lists-overflow.spec.ts` now asserts no page scroll and `contain: paint` at 768 and 820, and it passed in all three engines |
+| Gap 2: truth 18, WCAG conflicts ruled and applied (SC5, A11Y-04, A11Y-02 "visible focus") | ✗ FAILED | ✓ CLOSED | Rulings recorded as D-41 (`02-CONTEXT.md:174`; `999.1/DECISIONS.md` "Owner answers, 2026-10-13"). R2-03: `lists.recipe.ts:196` `focus-within:border-focus`, the matching `rulings.css` D-41 R2-03 group (pinned by `rulings.test.ts:328`), the contrast node test (Blush 9.01/9.88/8.95:1, Espresso 6.80/7.49/7.99:1), and 4 `@lists` focus-visible parity rows equal to the ruled reference. R2-04: `Topbar.tsx:53-59` needs exactly one of Ctrl/Cmd with K, with no Alt or Shift; `aria-keyshortcuts="Control+K Meta+K"`; `Topbar.test.tsx` proves a bare "/", a bare "k", Ctrl+/, Ctrl+Shift+K and Ctrl+Alt+K do nothing. Reflow: as gap 1 |
+| Human item 4: order-math naming (NET-WR-02) | ? owner decision | Decided and implemented; wording look folded into human item 1 | Owner chose the PRD names (D-41 R2-06). `OrderMathModels.cs:51-54` `OrderMathResult(Subtotal, Discount, Total, …)`; `OrderMath.cs:54` `total = subtotal - discount`; `csps.ts:288-298`; `OrderTotals.tsx:48,87` "Subtotal" and the new note. Golden vectors are version 2 with 220 cases, each carrying `subtotal` and `total` (39 midpoint cases). xUnit golden 230/230; `gen-golden-vectors.mjs --check` passes. NET-IN-01 (a 100%-discounted unpaid order reads "Fully Paid") was ruled keep, pinned by `FullyPaid: subtotal > 0m && balance <= 0m` on both sides |
+| Human items 1-3 (visual review, long-text wrap, money-preview prohibition) | ? human | ? human (unchanged) | Owner hands-on. See Human Verification |
+
+**Regressions:** none. Every truth that passed before was re-checked by a full run of its own gate (see Behavioral Spot-Checks).
 
 ## MVP-mode note
 
-ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story. `user-story.validate` returns `valid: false`, and the plans themselves record "No story was invented". The orchestrator asked for verification anyway, so this report uses standard goal-backward verification against the ROADMAP success criteria and the plan must-haves. Instead of the MVP "User Flow Coverage" table, the derived flows are:
+ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story.validate` returns `valid: false`; the plans record "No story was invented"). As in the first report, this uses standard goal-backward verification against the ROADMAP success criteria and the plan must-haves. The derived flows:
 
 | Actor | Flow | Evidence | Status |
 | --- | --- | --- | --- |
-| Visitor (phone, from Facebook) | Opens `/`, sees the Blush public layout with skip link, header, one h1 and footer, with no sideways scroll | `@smoke`, `@public` and `@responsive` re-run here (Chromium and WebKit); Lighthouse 0.99/0.98/1/1 | VERIFIED |
-| Staff (dev builds only until Phase 4) | Opens `/admin/*`, sees the admin shell in both themes, drawer and user menu by keyboard | `@admin` and `@keyboard` re-run here in WebKit, 28/28 | VERIFIED, except 320-418px sideways scroll (gap 1) |
-| Feature-phase developer | Composes primitives, formatters, `api.ts`, `useSubmission`, list URL-state hooks and the gates | `npm --prefix web run verify` exit 0 (2950 tests) | VERIFIED, except the SearchBox focus ring (gap 2) |
+| Visitor (phone, from Facebook) | Opens `/`, sees the Blush public layout with skip link, header, one h1 and footer, with no sideways scroll | Full E2E 518/518 in five projects; Lighthouse 0.99/1/1/1 | VERIFIED |
+| Staff (dev builds only until Phase 4) | Opens `/admin/*`, sees the admin shell in both themes, drawer and user menu by keyboard, with no sideways scroll at any width | `@admin`, `@keyboard` and `@responsive` green in all five projects with no exemption | VERIFIED (gap 1 closed) |
+| Feature-phase developer | Composes primitives, formatters, `api.ts`, `useSubmission`, list URL-state hooks and the gates | `npm --prefix web run verify` exit 0 (3020 tests) | VERIFIED (gap 2 closed) |
 
 ## Goal Achievement
 
@@ -834,61 +838,61 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story. `user-story
 
 | # | Truth | Status | Evidence |
 | --- | --- | --- | --- |
-| 1 | SC1: `npm run build` emits the app into `src/Csps.Server/wwwroot` | ✓ VERIFIED | `vite.config.ts:96` outDir `../src/Csps.Server/wwwroot` for production. The Lighthouse run here built into wwwroot and served it from the real host. `git status --porcelain` is empty after every build (the folder is git-ignored) |
-| 2 | SC1: `npm run dev` serves on 5180 (`strictPort`), proxies `/api`, sets no machine-level env vars | ✓ VERIFIED | `vite.config.ts:89-91` (port 5180, strictPort true, `/api` to http://localhost:5115); 02-37 config test inside verify. The preflight shows no User-level `ASPNETCORE_*`/`DEV_SERVER_PORT` set |
-| 3 | SC1: typecheck, ESLint and Prettier pass at `--max-warnings 0` | ✓ VERIFIED | `npm --prefix web run verify` exit 0 (re-run here). tsc 7.0.2 over 3 programs, `eslint . --max-warnings 0`, `prettier --check`. ESLint escalates every warn to error (`eslint.config.mjs:14-25`) |
-| 4 | SC1: the build fails over 150 KB gz public JS, 250 KB admin JS or 35 KB CSS | ✓ VERIFIED | `scripts/budget.ts:73` BUDGETS frozen; `vite-budget-plugin.ts` `this.error`; 17+39 budget tests pass. Measured here: production public 126.18 KB, CSS 12.92 KB; dev-route public 131.57 KB, admin 156.43 KB |
-| 5 | SC1/PERF-05: self-hosted fonts render ₱ in the brand font | ✓ VERIFIED | `e2e/fonts.spec.ts` (`document.fonts.check`, a width proof against Arial, exactly one woff2 preload, same-origin woff2 only) passed in WebKit here. `main.tsx` imports the fontsource weight files; `font-metrics.test.ts` passes |
-| 6 | SC2: layouts render the approved Appendix D design with Tailwind, proven visually equal in both themes, reconciliations marked `// SPEC-DEVIATION` | ? UNCERTAIN (owner) | Automated: the full parity matrix passed 452/452 in Chromium, Firefox and WebKit on HEAD (re-run here: 452 passed, exit 0). 95 `SPEC-DEVIATION` markers in 42 files. The owner's look approval (D-23/D-24, plan 02-36) is still pending, and WEB-02 is Pending in REQUIREMENTS.md, so this goes to human verification |
-| 7 | SC2/PERF-03: the layouts work from 320 to 1920 px with no horizontal scroll | ✗ FAILED | Admin Topbar overflow under 398 (Chromium), 406 (WebKit) and 418 (Firefox) px is exempted by `TOPBAR_MIN_PAGE_WIDTH` in `e2e/responsive.spec.ts:31`. ResponsiveTable at 768px lets the page scroll 22px (`visual/lists-overflow.spec.ts:78-109`). See gap 1 |
-| 8 | SC2/A11Y-02: skip link, labelled landmarks, focus-trapped dialogs, one h1 per page | ✓ VERIFIED | `@responsive` (Chromium, every page at 8 widths × 2 orientations: one h1, skip link first, labelled landmarks, axe) and `@keyboard` (WebKit: drawer trap, Esc returns focus, Modal trap and return) re-run here and green |
-| 9 | SC3: every primitive (skeleton aria-busy, Empty/Error states, ConfirmDialog, Toast, DataTable→cards, Pagination, FilterBar/SearchBox, LazyImage, OtpInput, PasswordInput, MoneyInput) passes unit tests and axe | ✓ VERIFIED | Every listed primitive exists under `web/src/ui/*`, has a co-located test using `expectNoAxeViolations`, and is part of the 2950/2950 tests; `ui/index.test.ts` pins the export list. Not axe-detectable: SearchBox focus visibility (truth 18) |
-| 10 | SC3/ORD-09: money `₱12,450.00` with U+2212 negatives, dates `Oct 6, 2026`, money inputs only 2-decimal on a numeric keypad | ✓ VERIFIED | `lib/csps.ts:158-166` (BigInt centavos, `−₱`), `lib/format.ts:47-53` (Asia/Manila), `MoneyInput.tsx:102-103` `type="text" inputMode="decimal"`, gated by `isMoneyText` `^\d{0,9}(\.\d{0,2})?$` |
-| 11 | SC4/WEB-07: a shared golden-vector file (≥ 200 cases incl. half-centavo) passes in both xUnit and Vitest | ✓ VERIFIED | `tests/fixtures/order-math-golden-vectors.json` has 220 cases (39 midpoint). xUnit `OrderMathGoldenVectorTests` 230/230 re-run here; `csps.golden.test.ts` inside verify |
-| 12 | SC4/WEB-03: `httpClient.ts` has 100% coverage incl. the single-flight 401 refresh | ✓ VERIFIED | The per-folder 100% threshold on `src/lib/http/**` held in the verify run (it fails verify otherwise). Single-flight and refresh tests are in `httpClient.resilience.test.ts` (68 tests) |
-| 13 | SC4/WEB-09: one Idempotency-Key per form submission, reused on retry; submit disabled while pending | ✓ VERIFIED | `httpClient.ts:403-404,463,542` (header on unsafe methods; a keyed POST is retryable; the 401 retry resends the same config); `forms/useSubmission.ts` plus tests; `Button.tsx:100-101` aria-disabled/aria-busy. Info: the client does not *force* a key on a POST; `api.ts` declares it as the convention, and no POST endpoint exists yet |
-| 14 | SC4/WEB-04: lint rejects `fetch`, `httpClient` or `axios` imports outside `api.ts` | ✓ VERIFIED | `eslint.config.mjs:51-54,162-167,193,216-217`, with per-rule Linter tests in `src/test/lint-rules.node.test.ts` (verify run) |
-| 15 | SC4/WEB-08: TanStack defaults (staleTime, keep-previous pagination, 300 ms cancellable debounced search) | ✓ VERIFIED | `lib/query/queryClient.ts`, `useListQuery.ts`, `useDebouncedValue.ts`, `useSettledListParams.ts` with tests; SearchBox writes through `limitUrlUpdates: debounce(300)` |
-| 16 | SC5/QUAL-04: after the preflight, Playwright runs on 5199 across Chromium, Firefox, WebKit, Pixel and iPhone and fails on console error, CSP or axe | ✓ VERIFIED | `playwright.config.ts:20-47` (5 projects, `reuseExistingServer: false`); `e2e/fixtures.ts` guards. The `@fixture` self-tests (a deliberate console.error, an injected `<style>`, an unlabelled image) were re-run here and proved each guard fires |
-| 17 | SC5/PERF-02: Lighthouse scores the public shell ≥ 95 on mobile | ✓ VERIFIED | Re-run here on HEAD: performance 0.99, a11y 0.98, best-practices 1, SEO 1; LCP 1884 ms, CLS 0, TBT 0 ms. The earlier report (06:29) predated the 08:29 PublicLayout import fix |
-| 18 | SC5/A11Y-04: every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied | ✗ FAILED | Open, with no ruling: SearchBox focus ring (2.4.7 AA; `lists.recipe.ts:194` `[outline:none]` beats the base-layer `:focus-visible`), Topbar reflow (1.4.10), the 768px table scroll (1.4.10), and the '/' shortcut (2.1.4 A). See gap 2 |
-| 19 | SC6/WEB-10: list state in the URL through nuqs, with the required parser, history and lint behaviour | ✓ VERIFIED | `UrlStateLayout.tsx` (`nuqs/adapters/react-router/v8` around `<Outlet/>`), mounted lazily in `admin/routes.tsx`, not in Root. `createListParams.test.tsx:90-153` covers `?page=0&size=9999&status=bogus`, `?from=2026-02-30` and push vs replace. ESLint bans `shallow:false`, `startTransition` and the deprecated adapters. nuqs 2.10.1 is installed |
-| 20 | Plan 02-29 backstop: at 320px the 52px placeholder H1 wraps with no clipping or sideways scroll | ✓ VERIFIED | `@responsive` checks `/` at 320 with the plain `scrollWidth <= innerWidth` rule (no exemption for public pages) and passed here |
-| 21 | Plan 02-31 backstop: fractional widths (767.5 and 1023.5 px) render as the approved CSS does | ✓ VERIFIED | Scenarios `admin-shell-767-5(-dark)` and the 1023.5 cases in `src/dev/scenarios/groups/layouts-admin-boundaries.ts` are part of the 452-row parity matrix that passed |
-| 22 | Plan 02-32 backstop: a 40-character user name stays inside its own box at 320 and 390 px | ✓ VERIFIED | `visual/navigation-overflow.spec.ts` (in the parity run) measures the chip, sidebar and button overflow. The page-level scroll at 320 is the Topbar issue in truth 7, not the name |
-| 23 | Plan 02-34 backstop: long toast, field-error and EmptyState text wrap inside their boxes | ? UNCERTAIN (insufficient_spec) | The truth's evidence is defined as the D-23 screenshots. Routed to human verification |
+| 1 | SC1: `npm run build` emits the app into `src/Csps.Server/wwwroot` | ✓ VERIFIED | `vite.config.ts` outDir for production. Lighthouse built into wwwroot and served it from the real host. `git status` stays clean after every build |
+| 2 | SC1: `npm run dev` serves on 5180 (`strictPort`), proxies `/api`, sets no machine-level env vars | ✓ VERIFIED | Config unchanged since the first report; the 02-37 config test is inside verify. The preflight shows no User-level variables |
+| 3 | SC1: typecheck, ESLint and Prettier pass at `--max-warnings 0` | ✓ VERIFIED | `npm --prefix web run verify` exit 0, re-run here (tsc over 3 programs, `eslint . --max-warnings 0`, `prettier --check`) |
+| 4 | SC1: the build fails over 150 KB gz public JS, 250 KB admin JS or 35 KB CSS | ✓ VERIFIED | Budgets unchanged. Measured here: production public 126.18 KB, CSS 13.01 KB; dev-route public 131.58 KB, admin 156.72 KB |
+| 5 | SC1/PERF-05: self-hosted fonts render ₱ in the brand font | ✓ VERIFIED | `@fonts` passed in all five projects in the full E2E run |
+| 6 | SC2: layouts render the approved Appendix D design with Tailwind, proven visually equal in both themes, reconciliations marked `// SPEC-DEVIATION` | ? UNCERTAIN (owner) | Automated: the full parity matrix passed 456/456 in Chromium, Firefox and WebKit, re-run here (4 more rows than before: the `@lists` focus-visible rows). `TOLERANCE_OVERRIDES` stays empty. `SPEC_OVERRIDES` holds exactly Topbar, OrderTotals and OrderCard, all D-41. The owner's look approval (R2-05) is still pending: human item 1 |
+| 7 | SC2/PERF-03: the layouts work from 320 to 1920 px with no horizontal scroll | ✓ VERIFIED | Gap 1 closed (see Re-verification summary). No exemption remains in any spec |
+| 8 | SC2/A11Y-02: skip link, labelled landmarks, focus-trapped dialogs, one h1 per page | ✓ VERIFIED | `@responsive` (every page, 8 widths × 2 orientations, five projects) and `@keyboard` green in the full run |
+| 9 | SC3: every primitive passes unit tests and axe | ✓ VERIFIED | 3020/3020 Vitest tests in verify. The SearchBox focus look, which axe cannot see, is now covered by truth 18's tests |
+| 10 | SC3/ORD-09: money `₱12,450.00` with U+2212 negatives, dates `Oct 6, 2026`, 2-decimal numeric money inputs | ✓ VERIFIED | Unchanged code paths, tests in verify. R2-18 adds a refused-paste hint (`MoneyInput.tsx:83,116,134`, always-mounted polite `role="status"`); the value is never changed silently |
+| 11 | SC4/WEB-07: a shared golden-vector file (≥ 200 cases incl. half-centavo) passes in both xUnit and Vitest | ✓ VERIFIED | Version 2, 220 cases (39 midpoint), PRD names. xUnit `OrderMathGoldenVectorTests` 230/230 re-run here; `csps.golden.test.ts` inside verify; the generator `--check` passes |
+| 12 | SC4/WEB-03: `httpClient.ts` has 100% coverage incl. the single-flight 401 refresh | ✓ VERIFIED | The per-folder 100% threshold on `src/lib/http/**` held in the verify run |
+| 13 | SC4/WEB-09: one Idempotency-Key per submission, reused on retry; submit disabled while pending | ✓ VERIFIED | Unchanged; tests in verify. R2-08 (retry key split) confirmed by the owner |
+| 14 | SC4/WEB-04: lint rejects `fetch`, `httpClient` or `axios` imports outside `api.ts` | ✓ VERIFIED | `lint-rules.node.test.ts` in verify |
+| 15 | SC4/WEB-08: TanStack defaults (staleTime, keep-previous pagination, 300 ms cancellable debounced search) | ✓ VERIFIED | Tests in verify (`listState.integration.test.tsx` among them) |
+| 16 | SC5/QUAL-04: Playwright on 5199 across five projects fails on console error, CSP or axe | ✓ VERIFIED | Full run 518/518 including the `@fixture` guard self-tests; `reuseExistingServer: false` |
+| 17 | SC5/PERF-02: Lighthouse scores the public shell ≥ 95 on mobile | ✓ VERIFIED | Re-run here: performance 0.99, accessibility 1 (was 0.98; the footer h2 fix R2-17 cleared the heading-order audit), best-practices 1, SEO 1; LCP 1884 ms, CLS 0, TBT 0 ms |
+| 18 | SC5/A11Y-04: every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied | ✓ VERIFIED | Gap 2 closed (see Re-verification summary) |
+| 19 | SC6/WEB-10: list state in the URL through nuqs, with the required parser, history and lint behaviour | ✓ VERIFIED | Unchanged; tests in verify |
+| 20 | Plan 02-29 backstop: at 320px the placeholder H1 wraps with no clipping or sideways scroll | ✓ VERIFIED | `@public at 320px the placeholder h1 wraps …` passed in all five projects |
+| 21 | Plan 02-31 backstop: fractional widths (767.5 and 1023.5 px) render as the approved CSS does | ✓ VERIFIED | `layouts-admin-boundaries` scenarios inside the 456/456 parity run |
+| 22 | Plan 02-32 backstop: a 40-character user name stays inside its own box at 320 and 390 px | ✓ VERIFIED | `navigation-overflow.spec.ts` passed in the parity run; the page itself no longer scrolls at 320 (truth 7) |
+| 23 | Plan 02-34 backstop: long toast, field-error and EmptyState text wrap inside their boxes | ? UNCERTAIN (insufficient_spec) | Evidence is defined as the D-23 screenshots. Human item 2 |
 
-**Score:** 19/23 truths verified (0 present but behaviour-unverified; 2 failed; 2 need a human)
+**Score:** 21/23 truths verified (0 present but behaviour-unverified; 0 failed; 2 need a human)
 
-Behaviour-dependent truths (13, 15, 16, 19) are VERIFIED on passing tests: the unit and component tests ran in the verify run, and the guard self-tests and E2E ran here.
+The behaviour-dependent truths (7, 13, 15, 16, 18, 19) are VERIFIED on passing tests run here: the unit and component tests in the verify run, the E2E guard self-tests and sweeps in the full E2E run, and the overflow and focus-visible rows in the parity run.
 
 ### Prohibitions (`must_haves.prohibitions`)
 
 | Plan | Prohibition | Tier | Enforcement evidence | Disposition |
 | --- | --- | --- | --- | --- |
-| 02-02 / 02-37 | No npm package or version outside the owner-approved set; no paid tool | test | `tests/Csps.ArchitectureTests/DependencyRegistryTests.cs` (reads both package.json files; 906/906 pass); `.npmrc` save-exact; `npm ci` lockfile | verified (see the TOOL-WR-13 warning on name-wide waivers) |
-| 02-05 | No text-bearing element below opacity 1 | test | Class gate "every class token in src compiles, with no colour literal and no stray opacity" (verify run); `@a11y` rulings spec | verified |
-| 02-06 | No browser-shipped package outside MIT/ISC/Apache/BSD/OFL-1.1 | test | License gate in verify: production tree 16 packages, 0 problems | verified |
-| 02-07 | A client money preview is never presented as the saved figure | judgment | `csps.ts` header documents previews; no screen exists yet | **unverified-prohibition, human review recommended** (non-authoritative verifier judgment: holds) |
-| 02-09 | Never kill or reuse another project's processes or ports; no machine-level env vars | test | `scripts/shared-machine.mjs` and tests; e2e/lighthouse/parity refuse a busy 5199 (observed: the preflight ran clear before each of my runs) | verified |
-| 02-11 | No secrets or personal-data params in URLs | test | `createListParams.ts:63` FORBIDDEN_FRAGMENTS throws at definition; `httpClient` `assertNoSecretParams` on the built URL | verified |
-| 02-14 | No look change outside the intentional-differences list; no tolerance | test | `visual/intentional-differences.ts` `assertRegistry()`; TOLERANCE_OVERRIDES empty; 452/452 parity | verified |
-| 02-27 | Never silently change typed money digits | test | `MoneyInput.test.tsx` (verify run) | verified |
-| 02-31 | No admin, `/dev` or parity code in a production build | test | Budget plugin fails prod on admin/dev modules; TOOL-CR-01 refuses `VITE_DEV_ROUTES`; grep of the built `wwwroot/assets/*.js` for "Component Showcase"/"AdminPreview" finds nothing | verified |
-| 02-36 | Never commit or upload the design exports or their renders | test | `git ls-files .planning/design artifacts _local` is empty; `git check-ignore` confirms both are ignored; the script's guards are unit-tested | verified |
+| 02-02 / 02-37 | No npm package or version outside the owner-approved set; no paid tool | test | `DependencyRegistryTests` in the 908/908 .NET run; no dependency added by either quick task (`tech-stack.added: []`, and `package.json` is not in their diff) | verified |
+| 02-05 | No text-bearing element below opacity 1 | test | Class gate in verify; `@a11y-rulings` D-02 in all five projects | verified |
+| 02-06 | No browser-shipped package outside MIT/ISC/Apache/BSD/OFL-1.1 | test | License gate in verify: 16 shipped packages, 0 problems | verified |
+| 02-07 | A client money preview is never presented as the saved figure | judgment | `csps.ts` documents previews; no screen exists yet | **unverified-prohibition, human review recommended** (non-authoritative verifier judgment: holds). Human item 3 |
+| 02-09 | Never kill or reuse another project's processes or ports; no machine-level env vars | test | `shared-machine.mjs` tests in verify. Observed: the preflight was clear before each run here, and nothing was killed | verified |
+| 02-11 | No secrets or personal-data params in URLs | test | `createListParams` FORBIDDEN_FRAGMENTS and `assertNoSecretParams`, tests in verify | verified |
+| 02-14 | No look change outside the intentional-differences list; no tolerance | test | `compare.test.ts:365` pins `TOLERANCE_OVERRIDES` empty. Every D-41 change has a registered ruling (`rulings.css` D-41 groups, three `SPEC_OVERRIDES`, three `public-shell` h2 structural exceptions). Parity 456/456 | verified |
+| 02-27 | Never silently change typed money digits | test | `MoneyInput.test.tsx` in verify. A refused paste now shows a hint and leaves the value unchanged | verified |
+| 02-31 | No admin, `/dev` or parity code in a production build | test | Budget plugin and TOOL-CR-01 guard in verify. The reference-only overrides add 0 bytes to the app bundles (production public JS unchanged at 126.18 KB) | verified |
+| 02-36 | Never commit or upload the design exports or their renders | test | `git check-ignore` confirms `artifacts/owner-review/index.html` is ignored; the tree is clean after the review-pack and Lighthouse runs | verified |
 
-### Required Artifacts (summary; every listed `must_haves.artifacts` file exists)
+### Required Artifacts (summary)
 
 | Area | Artifacts | Status | Details |
 | --- | --- | --- | --- |
-| SPA hosting | `src/Csps.Server/Endpoints/SpaHosting.cs`, `Composition/SpaRegistration.cs`, `HiddenSegmentFileProvider.cs` | ✓ VERIFIED | `SpaHostTests` and `HiddenSegmentFileProviderTests` are in the 906/906 run; Lighthouse served the built app from them |
-| Order math | `src/Csps.Domain/Orders/OrderMath.cs`, `web/src/lib/csps.ts`, golden vectors | ✓ VERIFIED | Both sides consume one file; `gen-golden-vectors.mjs --check` is in verify |
-| HTTP / API | `web/src/lib/http/httpClient.ts` (595 lines), `HttpError.ts`, `lib/api.ts`, `types/api.generated.ts` | ✓ VERIFIED | `api.ts` is the only consumer (lint enforced); the OpenAPI drift check passed here |
-| Forms | `lib/forms/useSubmission.ts`, `idempotencyKey.ts`, `focusFirstInvalid.ts`, `errors/describeHttpError.ts` | ✓ VERIFIED | Wired: Button pending, ConfirmDialog retry path |
-| URL state / query | `lib/url-state/*`, `lib/query/*` | ✓ VERIFIED | `UrlStateLayout` is lazily mounted above the admin routes; `useListQuery` keys on parsed values |
-| UI kit | `web/src/ui/**` (17 groups, about 100 modules), `ui/index.ts` barrel | ✓ VERIFIED | Used by the layouts, the showcase and the parity page; PublicLayout imports leaf modules (budget fix) |
-| Layouts / router | `app/router.tsx`, `app/public/*`, `app/admin/*`, `ErrorBoundary.tsx` | ✓ VERIFIED / ⚠️ | Route-level lazy chunks plus a root and route error boundary; admin compiled out of production (D-20). Topbar overflow: gap 1 |
-| Gates | `scripts/verify.mjs`, `budget.ts`, `vite-budget-plugin.ts`, `lighthouse*.mjs`, `e2e.mjs`, `parity.mjs`, `license-gate.mjs`, `playwright.config.ts`, `visual/*` | ✓ VERIFIED | Each was run here, or its output was checked |
+| SPA hosting | `SpaHosting.cs`, `SpaRegistration.cs`, `HiddenSegmentFileProvider.cs` | ✓ VERIFIED | Tests in the 908/908 run; Lighthouse served the built app from them |
+| Order math | `OrderMath.cs`, `OrderMathModels.cs`, `web/src/lib/csps.ts`, golden vectors v2 | ✓ VERIFIED | PRD names end to end (D-41 R2-06); both sides consume one file |
+| HTTP / API | `httpClient.ts`, `HttpError.ts`, `lib/api.ts`, `types/api.generated.ts` | ✓ VERIFIED | OpenAPI drift check passed here |
+| Forms / URL state / query | `lib/forms/*`, `lib/url-state/*`, `lib/query/*` | ✓ VERIFIED | Unchanged; tests in verify |
+| UI kit | `web/src/ui/**`, `ui/index.ts` | ✓ VERIFIED | D-41 edits in `navigation.recipe.ts`, `Topbar.tsx`, `Sidebar.tsx` (`aria-expanded`, R2-12), `lists.recipe.ts`, `MoneyInput.tsx` |
+| Layouts / router | `app/router.tsx`, `app/public/*` (`SiteFooter.tsx` h2, R2-17), `app/admin/*` | ✓ VERIFIED | Topbar overflow fixed (gap 1) |
+| Parity proof | `visual/reference/rulings.css`, `merge-kit.ts`, `fragments/Topbar.tsx`, `fragments/OrderTotals.tsx`, `fragments/OrderCard.tsx`, `intentional-differences.ts` | ✓ VERIFIED | Reference-only overrides are pinned by `merge-kit.test.ts`; parity 456/456 |
+| Gates | `verify.mjs`, `budget.ts`, `lighthouse*.mjs`, `e2e.mjs`, `parity.mjs`, `license-gate.mjs`, `owner-review.mjs`, `playwright.config.ts`, `visual/*` | ✓ VERIFIED | Each was run here, except `review`. Its pack exists from 14:04 and contains the before/after section and 6 PNGs |
 
 ### Key Link Verification
 
@@ -897,37 +901,36 @@ Behaviour-dependent truths (13, 15, 16, 19) are VERIFIED on passing tests: the u
 | `app/router.tsx` | `public/PublicLayout` + `PublicPlaceholderPage` | `route.lazy` (`lazyRoute`) | WIRED |
 | `app/router.tsx` | `admin/routes.tsx` → `UrlStateLayout` → `AdminLayout` | `__DEV_ROUTES__ ? adminRoutes : []` | WIRED (dev, e2e and budget builds only, by design) |
 | `lib/api.ts` | `lib/http/httpClient.ts` | `createApi(http.createHttpClient({ baseURL: '/api/v1' }))` | WIRED |
-| `api.site.settings` | `GET /api/v1/site-settings` | generated `SiteSettingsDto` | WIRED (type drift check passed) |
-| `ui/lists/SearchBox` | URL / `useListQuery` | `limitUrlUpdates: debounce(300)`, then `useSettledListParams` → `useDebouncedValue` | WIRED |
-| `ui/actions/Button` (pending) | `useSubmission.pending` | `pending` prop → aria-disabled/aria-busy | WIRED (component-level; no feature form yet) |
-| `ToastProvider` | `PublicLayout` / `AdminLayout` | provider + always-mounted live region | WIRED |
-| Server | `wwwroot` | SPA fallback for GET/HEAD non-file paths, static files, compression | WIRED (Lighthouse run served `/` and the assets) |
+| `ui/lists/SearchBox` | URL / `useListQuery` | `limitUrlUpdates: debounce(300)` → `useSettledListParams` | WIRED |
+| `Topbar` search input | Ctrl+K / Cmd+K | window `keydown` → `isSearchShortcut` → `input.focus()` | WIRED (unit-tested with the window as target) |
+| `OrderTotals` / `OrderCard` | `csps.ts` `Totals.subtotal` | `['Subtotal', t.subtotal]` | WIRED |
+| `OrderMath.cs` / `csps.ts` | `tests/fixtures/order-math-golden-vectors.json` v2 | fail-closed xUnit loader (`UnmappedMemberHandling.Disallow`); Vitest golden test | WIRED |
+| Server | `wwwroot` | SPA fallback, static files, compression | WIRED (Lighthouse run) |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data | Source | Real data | Status |
 | --- | --- | --- | --- | --- |
 | Public/admin pages | Placeholder copy and nav | Static copy modules (D-21, D-20) | Phase 2 deliberately has no data screens | N/A (intentional placeholders, not stubs) |
-| `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` (Phase 1 endpoint) | Real endpoint; no Phase 2 screen calls it | ✓ FLOWING at the API level |
-| OrderTotals / KpiCard / OrderCard | Showcase seed data | `src/dev/scenarios` (dev-only, D-20) | Seed fixtures by design; real data from Phase 8/10 | N/A |
+| `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` (Phase 1) | Real endpoint; no Phase 2 screen calls it | ✓ FLOWING at the API level |
+| OrderTotals / KpiCard / OrderCard | Showcase seed data | `src/dev/scenarios` (dev-only) | Seed fixtures by design. The demo table's Total column now shows the after-discount figure (₱21,327.50, ₱22,500.00) | N/A |
 
-### Behavioral Spot-Checks (run by this verifier on HEAD 05a86c3)
+### Behavioral Spot-Checks (run by this verifier on HEAD 7fd5d8b)
 
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
-| Web gate chain | `npm --prefix web run verify` | exit 0; 106 files / 2950 tests; coverage 98.18/96.34/99.81/99.82; license gate 0 problems; notices up to date | ✓ PASS |
+| Shared-machine preflight (before each server, Playwright or full run) | `preflight.ps1 -Ports 5180,5115,7028,5199` | 4 runs: all ports free, no dev/test processes, no TheBETSLLC test processes | ✓ PASS |
+| Web gate chain | `npm --prefix web run verify` | exit 0; 107 files / 3020 tests; coverage 98.21/96.45/99.81/99.82 with thresholds held; budgets ok; license gate 0 problems; notices up to date | ✓ PASS |
 | .NET build | `dotnet build Csps.slnx` | 0 warnings, 0 errors | ✓ PASS |
-| .NET tests (one full run) | `dotnet test --solution Csps.slnx --no-build` | 906/906 | ✓ PASS |
+| .NET tests (one full run) | `CSPS_TEST_SQL=localdb dotnet test --solution Csps.slnx --no-build` (variable set for that process only) | 908/908 (906 before, plus the two new OrderMath tests) | ✓ PASS |
 | .NET format | `dotnet format Csps.slnx --verify-no-changes` | exit 0 | ✓ PASS |
-| Golden vectors (xUnit) | `dotnet test --project tests/Csps.Domain.UnitTests -- --filter-class *OrderMathGoldenVectorTests` | 230/230 | ✓ PASS |
+| Golden vectors | `dotnet test --project tests/Csps.Domain.UnitTests -- --filter-class *OrderMathGoldenVectorTests`; `node web/scripts/gen-golden-vectors.mjs --check` | 230/230; "matches the oracle (220 cases)"; version 2, every case has `subtotal` and `total` | ✓ PASS |
 | OpenAPI drift | `npm --prefix tools/openapi-gen run check` | types match the snapshot | ✓ PASS |
-| Lighthouse on the real host | `npm --prefix web run lighthouse` | 0.99/0.98/1/1, LCP 1884 ms, CLS 0, TBT 0 | ✓ PASS |
-| E2E guards, smoke, responsive (Chromium) | `npm --prefix web run e2e -- --grep "@smoke\|@responsive\|@fixture" --project chromium` | 20 passed | ✓ PASS (responsive only through the Topbar exemption, gap 1) |
-| E2E fonts, keyboard, public, admin (WebKit) | `npm --prefix web run e2e -- --grep "@fonts\|@keyboard\|@public\|@admin" --project webkit` | 28 passed | ✓ PASS |
-| Full parity matrix | `npm --prefix web run parity` | 452 passed (26.5 min), exit 0; regenerates `web/test-results/parity-results.json` | ✓ PASS |
-| Builds leave the tree clean | `git status --porcelain` | empty | ✓ PASS |
-
-Not re-run here: the full 518-test, five-project E2E run (about 28 minutes). The orchestrator and `02-REVIEW-FIX-tooling.md` report 518/518 after the last E2E-guard change (c7d6bc7). The subsets above cover every tag in both a Chromium-family and a WebKit engine.
+| Full E2E (one full run, five projects) | `npm --prefix web run e2e` | 518 passed (29.4 min), exit 0. Per project: `@responsive` 13/13, `@admin` 12/12, showcase 320px page check 1/1 | ✓ PASS |
+| Lighthouse on the real host | `npm --prefix web run lighthouse` | 0.99 / a11y 1 / 1 / 1; LCP 1884 ms, CLS 0, TBT 0 ms | ✓ PASS |
+| Full parity matrix | `npm --prefix web run parity` | 456 passed (26.6 min), exit 0; includes `@lists @overflow` (768/820) in all three engines and the 4 `@lists` focus-visible rows | ✓ PASS |
+| Debt markers in the 51 non-planning files changed since b3204f9 | grep `TBD|FIXME|XXX|TODO|HACK` | none | ✓ PASS |
+| Builds leave the tree clean | `git status --porcelain` | clean, apart from an untracked `02-REVIEW-d41.md` written by the parallel code-review agent (not touched here) | ✓ PASS |
 
 ### Probe Execution
 
@@ -937,99 +940,114 @@ Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares a probe. SK
 
 | Requirement | Source plans | Status | Evidence |
 | --- | --- | --- | --- |
-| WEB-01 | 02-01, 02, 03, 06, 37 | ✓ SATISFIED | Truths 1-3; the SPA host tests |
-| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40 | ? NEEDS HUMAN | Automated parity 452/452. Owner look approval pending (REQUIREMENTS.md: Pending) |
+| WEB-01 | 02-01, 02, 03, 06, 37 | ✓ SATISFIED | Truths 1-3 |
+| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40 | ? NEEDS HUMAN | Parity 456/456; owner look approval (R2-05) pending |
 | WEB-03 | 02-10 | ✓ SATISFIED | Truth 12 |
-| WEB-04 | 02-04, 15, 16 | ✓ SATISFIED | Truth 14; `api.ts` |
-| WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Layouts, lazy routes, error boundaries, drawer (the reflow defect is tracked under PERF-03) |
+| WEB-04 | 02-04, 15, 16 | ✓ SATISFIED | Truth 14 |
+| WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Layouts, lazy routes, error boundaries, drawer; reflow fixed |
 | WEB-06 | 02-20, 21, 22, 27, 28, 30, 34 | ✓ SATISFIED | Truth 9 |
-| WEB-07 | 02-07 | ✓ SATISFIED | Truth 11 (naming question NET-WR-02 is a human item) |
-| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15 |
+| WEB-07 | 02-07 (+ quick-261013-ihp) | ✓ SATISFIED | Truth 11; PRD names applied (NET-WR-02 closed) |
+| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15 (meaning of intent prefetch: human item 4) |
 | WEB-09 | 02-10, 16, 17 | ✓ SATISFIED | Truth 13 |
 | WEB-10 | 02-11, 30, 31 | ✓ SATISFIED | Truth 19 |
 | ORD-09 | 02-08, 23, 27 | ✓ SATISFIED | Truth 10 |
 | QUAL-02 | 02-02, 04, 37 | ✓ SATISFIED | Truth 3 |
 | QUAL-04 | 02-09, 35 | ✓ SATISFIED | Truth 16 |
-| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe in components and pages (warning: the page behind an open Modal is not `inert`, so `@keyboard` scopes axe to the dialog) |
-| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35 | ✗ BLOCKED (partial) | Keyboard, skip link, traps and landmarks pass, but the "visible focus" part fails for the list SearchBox (gap 2). REQUIREMENTS.md marks it [x], and the evidence contradicts that |
-| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36 | ✗ BLOCKED | Gap 2 (REQUIREMENTS.md: Pending) |
+| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe in components and pages (page behind an open phone dialog not inert: ruled to Phase 4, R2-10) |
+| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35 | ✓ SATISFIED | The "visible focus" part now holds for the list SearchBox (gap 2 closed); the sidebar toggle exposes `aria-expanded` (R2-12) |
+| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36 | ✓ SATISFIED | Truth 18 |
 | PERF-01 | 02-33 | ✓ SATISFIED | Truth 4 |
 | PERF-02 | 02-03, 35 | ✓ SATISFIED | Truth 17 |
-| PERF-03 | 02-20, 27, 30, 35 | ✗ BLOCKED | Gap 1. REQUIREMENTS.md marks it [x], and the evidence contradicts that |
-| PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 (TOOL-WR-11 Arial Narrow fallback is an open owner question, info) |
+| PERF-03 | 02-20, 27, 30, 35 | ✓ SATISFIED | Truth 7 (gap 1 closed) |
+| PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 (Arial Narrow fallback ruled keep, R2-19) |
 
-Orphaned requirements: none. All 20 Phase 2 IDs in REQUIREMENTS.md are claimed by at least one plan.
+Orphaned requirements: none. **Bookkeeping for the orchestrator:** `.planning/REQUIREMENTS.md` still lists PERF-03, A11Y-02 and WEB-07 as "Gaps Found" and A11Y-04 as "Pending". The evidence above supports updating them. WEB-02 stays Pending until the owner's visual sign-off.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| (all phase files) | — | TBD / FIXME / XXX / TODO / HACK | — | None found in `web/src`, `e2e`, `scripts`, `visual` or the phase's .NET files |
-| `web/e2e/responsive.spec.ts` | 31, 157-170 | Known defect encoded as a test exemption (`TOPBAR_MIN_PAGE_WIDTH`) | 🛑 Blocker (gap 1) | Makes the gate green while the binding constraint fails |
-| `web/visual/lists-overflow.spec.ts` | 78-109 | Asserts the current overflow as expected | 🛑 Blocker (gap 1) | Same |
-| `web/src/ui/lists/lists.recipe.ts` | 194 | `[outline:none]` with no replacement focus style | 🛑 Blocker (gap 2) | WCAG 2.4.7 in a shared primitive |
-| `web/src/ui/overlays/Modal.tsx` / `ConfirmDialog.tsx` | — | Page behind an open dialog not `inert`; `@keyboard` scopes axe to the dialog | ⚠️ Warning | Deferred to Phase 4 in deferred-items.md; dev-only showcase today |
-| `web/.npmrc` | — | `min-release-age-exclude` waivers by package name, with no expiry (TOOL-WR-13) | ⚠️ Warning | Future releases of vite, lucide-react and the two others skip the 14-day cool-down; owner decision pending; two lines age out 2026-10-14 and 2026-10-18 |
-| `src/Csps.Domain/Orders/OrderMathModels.cs`, `web/src/lib/csps.ts` | — | `Total` means before discounts, which conflicts with the PRD (NET-WR-02) | ⚠️ Warning | Must settle before Phase 5 DTOs (human item) |
-| `web/src/styles/base.css` | — | Barlow fallback sized for Arial but tries Arial Narrow first (TOOL-WR-11) | ℹ️ Info | CLS risk only on machines with Arial Narrow; owner question |
-| Lighthouse LCP | — | 1884 ms against a 2000 ms limit | ℹ️ Info | Headroom grew from ~40 ms to ~116 ms after the 08:29 barrel fix; still thin before Phase 4 adds public code |
+| (51 non-planning files changed by the two quick tasks, and the earlier phase files) | — | TBD / FIXME / XXX / TODO / HACK | — | None found |
+| `web/e2e/responsive.spec.ts`, `web/visual/lists-overflow.spec.ts` | — | The earlier defect-as-exemption blockers | — | Removed: both now assert the plain no-sideways-scroll rule |
+| `web/src/ui/overlays/Modal.tsx` / `ConfirmDialog.tsx` | — | Page behind an open dialog not `inert`; `@keyboard` scopes axe to the dialog | ⚠️ Warning (owner-ruled) | R2-10 accepted, scheduled for Phase 4 |
+| `web/visual/parity-matrix.ts` | 92 | Focus-visible parity rows run in Chromium only (harness convention since 02-14) | ℹ️ Info | The SearchBox focus border is pixel-proven in Chromium only. In Firefox and WebKit it rests on the shared Tailwind `focus-within:` utility and the unit/recipe tests |
+| Lighthouse LCP | — | 1884 ms against a 2000 ms limit | ℹ️ Info | Unchanged headroom (~116 ms); owner accepted as an FYI (R2-28) |
 
-All four code-review criticals (TOOL-CR-01, LIB-CR-01, LIB-CR-02, UI-CR-01) are fixed (review-fix reports; tests in the verify run). The warnings that were skipped or only partly fixed are owner questions: NET-WR-02, TOOL-WR-11, TOOL-WR-13, UI-WR-07, UI-WR-09 and UI-WR-14 (the last partly settled by OD-4).
+Earlier warnings now settled by D-41: NET-WR-02 (fixed, R2-06), TOOL-WR-13 `.npmrc` waivers (ruled keep, R2-26), TOOL-WR-11 Arial Narrow fallback (ruled keep, R2-19), UI-WR-07 (fixed, R2-04), UI-WR-09 (fixed, R2-18).
+
+### Advisory (New Scope, Unevidenced)
+
+None. No new-scope finding was raised in this re-verification.
 
 ### Human Verification Required
 
-#### 1. Owner visual review (BLOCKING phase sign-off, per plan 02-36)
+These are owner hands-on items, not gaps. They map to R2-05 and R2-20 to R2-23 in `999.1/DECISIONS.md` and to the pending tests in `02-UAT.md`.
 
-**Test:** Open `C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\index.html` and `artifacts\owner-review\side-by-side\index.html`.
-**Expected:** The public layout, the admin frame and the showcase match the approved design in Blush and Espresso at 390, 820 and 1440 px. The SPEC-GAP parts look like they belong, and the intentional-differences list is correct.
-**Why human:** Look approval belongs to the owner. The automated parity proves equality with the spec code, not with the owner's intent. The pack predates the review fixes (05:06); `npm --prefix web run review` refreshes it.
+#### 1. Owner visual review, including the R2-06 before/after wording (R2-05; UAT tests 2-3; BLOCKING sign-off per plan 02-36)
 
-#### 2. Long-text wrapping in the showcase screenshots (plan 02-34 backstop)
+**Test:** Open `C:\Work\CarmensStitchAndPrintingServices\artifacts\owner-review\index.html`, including the section "Wording changes for you to confirm (before and after)", and `artifacts\owner-review\side-by-side\index.html`.
+**Expected:** The public layout, the admin frame and the showcase match the approved design in Blush and Espresso at 390, 820 and 1440 px. The SPEC-GAP parts look like they belong. The intentional differences, D-41 included, are correct. The owner confirms the "Subtotal" wording and note, or asks for a change.
+**Why human:** Look approval belongs to the owner. The D-23 pack (generated 14:04) postdates every D-41 code change. The D-24 side-by-side (05:13) does not; regenerate it first with `node web/scripts/design-side-by-side.mjs` after the preflight.
+
+#### 2. Long-text wrapping in the showcase screenshots (R2-23; UAT test 4; truth 23)
 
 **Test:** In the review pack, check the long toast, the long field error and the long EmptyState message.
 **Expected:** Each wraps inside its box with no overflow.
 **Why human:** This backstop truth's evidence is defined as the screenshots.
 
-#### 3. Judgment prohibition: a money preview is never shown as the saved figure (plan 02-07)
+#### 3. Judgment prohibition: a money preview is never shown as the saved figure (plan 02-07; UAT test 5)
 
 **Test:** Confirm the rule stands for Phase 8.
 **Expected:** Screens show server figures after a save.
 **Why human:** Unverified prohibition; human review recommended. No screen exists yet.
 
-#### 4. Order math naming (NET-WR-02)
+#### 4. Intent prefetch on a phone (R2-20; UAT test 11)
 
-**Test:** Decide between the PRD naming (Subtotal/Total) and the design naming.
-**Expected:** A recorded decision before Phase 5.
-**Why human:** This is an owner decision on the meaning of a Core Value figure.
+**Test:** On a real phone, tap a link once; on desktop, hover or focus a link.
+**Expected:** A first tap never prefetches; about 100 ms of hover or focus does.
+**Why human:** This confirms a planner assumption, and touch behaviour needs a real device.
 
-Other owner questions in `deferred-items.md` are look or copy preferences that block nothing. They are the ErrorState label colour, the Users name style, the admin preview copy, the showcase section names and buttons, footer h4 to h2, the money-paste hint, the Arial Narrow fallback and the `.npmrc` waivers. They are listed there and not repeated as gaps.
+#### 5. Focus and timer fixes (R2-21)
+
+**Test:** On `/dev/components`, stack dialogs, use a toast while a dialog is open, dismiss a toast, and change the Pagination page.
+**Expected:** Dialogs stack correctly; toasts stay reachable; focus returns sensibly; Pagination keeps focus.
+**Why human:** Focus feel is a hands-on judgment.
+
+#### 6. Screen-reader and real-phone spot checks (R2-22; UAT test 9)
+
+**Test:** Use NVDA or VoiceOver on `/dev/components`.
+**Expected:** Toasts are announced once, politely, and dialogs, totals, charts, the uploader and the rating read sensibly.
+**Why human:** Only a real screen reader shows what is announced. The full pass belongs to A11Y-05 in Phase 14, so the owner may skip this with that reason.
+
+#### 7. Docs read clearly (UAT tests 12-13)
+
+**Test:** Read the owner-facing docs and the developer guides listed in the frontmatter.
+**Expected:** Clear in plain words.
+**Why human:** Reading judgment.
+
+**UAT bookkeeping (no hands-on test left; record from this report when `/gsd-verify-work 2` resumes):**
+- Test 6 (order-math naming): decided (a) under D-41 R2-06 and implemented. The wording look is part of item 1.
+- Tests 7 and 8 (the two verifier gaps): closed with the evidence above.
+- Tests 10 and 14: answered by D-41 ("Get a Quote" stays a button; each look and copy item is ruled).
 
 ### Gaps Summary
 
-The phase delivers almost everything it promised, and the gates are real. A strict TS app is built into `wwwroot` and served by the API. The kit of about 100 UI modules passes unit and axe tests, and a 452-row three-engine parity proof matches it to the spec. The HTTP client has 100% coverage and single-flight refresh, and the 220-case golden vectors pass identically in xUnit and Vitest. The nuqs URL-state layer is in place. The budget, lint, license, Lighthouse (re-run: LCP 1884 ms) and Playwright guards all bite, and their self-tests prove it.
+Both earlier gaps are closed, and the evidence comes from runs made here, not from the SUMMARY claims.
 
-Two success-criteria truths fail. Both share one root cause: the approved UI spec conflicts with binding WCAG and responsive rules, and the owner has not ruled yet.
+1. **No horizontal scroll from 320 to 1920 px (SC2, PERF-03).** The Topbar search box shrinks (`min-w-0`), and the table frame contains its paint from 768 px up. The per-engine exemption is gone. The plain `scrollWidth <= innerWidth` rule now passes on every page at all 16 sizes in Chromium, Firefox and WebKit, and on the Pixel 7 and iPhone 15 screens. The tablet-table spec now asserts that the page does not scroll.
+2. **WCAG conflicts ruled and applied (SC5, A11Y-04, A11Y-02 "visible focus").** The owner ruled every open item (D-41). The list search box shows a `--focus` border whose contrast is proven at ≥ 3:1 in both themes. It is pixel-equal to the ruled reference in the focus-visible parity rows. The search shortcut needs Ctrl or Cmd, and a bare "/" does nothing. The two reflow items are fixed as above.
 
-1. **No horizontal scroll from 320 to 1920 px (SC2, PERF-03).** The admin Topbar overflows on phones under 398 to 418 px, which includes the iPhone 15 in WebKit. The shared ResponsiveTable lets the page scroll 22 px at tablet width. Each test passes only because it encodes the defect as an exemption. Plan 02-35's summary marks PERF-03 complete anyway.
-2. **WCAG conflicts ruled and applied (SC5, A11Y-04, and A11Y-02's "visible focus").** The list SearchBox shows no focus indicator (2.4.7 AA). The '/' shortcut still fails 2.1.4. The two reflow items above also fail 1.4.10.
+The owner's NET-WR-02 decision is also implemented: the PRD names Subtotal and Total run end to end across C#, TypeScript and the version-2 golden vectors, and all amounts are unchanged. No regression was found in the 908 .NET tests, the 3020 web tests, the 518 E2E tests, the 456 parity rows or Lighthouse.
 
-Both gaps need the owner (Escalation Gate), and the code changes are small: one class on the Topbar search box, a containing block on the table frame, and a focus style on the search box. Each also needs a matching rulings.css reference rule, and the test exemptions must be removed. Phase 14 is a release backstop for open OD-14 items. Deferring there needs an explicit owner override, because these are shared primitives that Phases 4-13 compose. The owner's visual approval (D-23/D-24) is also outstanding and blocks sign-off on its own.
+What remains needs the owner in person: the visual sign-off (R2-05, which now includes the before/after wording), and the manual checks R2-20 to R2-23 with the other pending UAT tests. Hence `human_needed`.
 
-**Override suggestion (only if the owner chooses to defer to the release gate):**
+### Verifier side effects (disclosed)
 
-```yaml
-overrides:
-  - must_have: "Every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied"
-    reason: "Owner defers the open OD-14 items (SearchBox focus ring, '/' shortcut, Topbar and table reflow) to the Phase 14 release gate"
-    accepted_by: "{owner}"
-    accepted_at: "{ISO timestamp}"
-```
-
-### Verifier side effect (disclosed)
-
-The E2E subset runs cleared the git-ignored `web/test-results/` folder, which removed the earlier `parity-results.json` (the parity summary input for `npm run review`). The full parity matrix was re-run to regenerate it (see Behavioral Spot-Checks). No tracked file was changed.
+- The E2E and parity runs overwrote the git-ignored `web/test-results/` folder. The parity run regenerated `web/test-results/parity-results.json`, the input for `npm run review`. Lighthouse rewrote the git-ignored `artifacts/lighthouse/report.json`.
+- The production build from the verify and Lighthouse runs rewrote the git-ignored `src/Csps.Server/wwwroot`.
+- No tracked file was changed apart from this report. `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` (the function behind `gsd-tools query verification.fingerprint`) from a small script. Passing 760 paths on the command line exceeds the Windows argument limit.
 
 ---
 
-_Verified: 2026-10-13T15:50:00Z_
+_Verified: 2026-10-13T20:20:00Z_
 _Verifier: Claude (gsd-verifier)_
