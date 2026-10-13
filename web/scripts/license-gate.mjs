@@ -7,15 +7,23 @@
 //         exceptions in npmLicenseExceptions of docs/license-exceptions.json, each only for the scopes it lists (why a
 //         package is installed comes from the docs/dependencies.json scope of the direct dependencies that pull it in).
 //         An exception, or a listed scope, that no package needs fails the gate as stale.
+// Rule 3. A license that license-checker only guessed (marked with '*') fails unless docs/license-guesses.json lists
+//         that exact name@version with the license the owner confirmed; a listed guess no longer installed is stale.
 // Exits 1 on any problem and prints a plain table. Reads only the installed node_modules folders, the lockfiles and the
 // docs/ policy files, so no network access is needed.
-// `--allowed <path>` and `--exceptions <path>` replace the two policy files; use them only to prove the gate fails on a
+// `--allowed <path>`, `--exceptions <path>` and `--guesses <path>` replace the policy files; use them only to prove the gate fails on a
 // stricter policy. Never widen either file to make the gate pass: report the package to the owner instead.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { evaluateTree, registryScopes, validateNpmExceptions } from './license-policy.mjs';
+import {
+  evaluateTree,
+  registryScopes,
+  reviewedGuessIds,
+  validateLicenseGuesses,
+  validateNpmExceptions,
+} from './license-policy.mjs';
 import { readScopes, readTree, withScopes } from './npm-tree.mjs';
 
 /** @typedef {import('./license-policy.mjs').NpmPackage} NpmPackage */
@@ -29,6 +37,7 @@ const { values } = parseArgs({
   options: {
     allowed: { type: 'string', default: path.join(repoRoot, 'docs', 'allowed-licenses.json') },
     exceptions: { type: 'string', default: path.join(repoRoot, 'docs', 'license-exceptions.json') },
+    guesses: { type: 'string', default: path.join(repoRoot, 'docs', 'license-guesses.json') },
   },
 });
 
@@ -68,6 +77,8 @@ const allowed = stringList(readJson(values.allowed));
 const exceptionsDocument = /** @type {Record<string, unknown>} */ (readJson(values.exceptions));
 const npmExceptions = exceptionsDocument.npmLicenseExceptions;
 const registry = readJson(path.join(repoRoot, 'docs', 'dependencies.json'));
+const guessesDocument = readJson(values.guesses);
+const reviewedGuesses = reviewedGuessIds(guessesDocument);
 
 /** @type {LicenseException[]} */
 const exceptions = Array.isArray(npmExceptions)
@@ -93,8 +104,11 @@ if (allowed.length === 0) {
   problems.push(`[policy] ${values.allowed}: the allow-list is empty or not a JSON list of license ids.`);
 }
 problems.push(...validateNpmExceptions(npmExceptions, allowed, development).map((problem) => `[policy] ${problem}`));
-const productionResult = evaluateTree(production, { allowed, exceptions: [] });
-const developmentResult = evaluateTree(development, { allowed, exceptions });
+problems.push(
+  ...validateLicenseGuesses(guessesDocument, [...production, ...development]).map((problem) => `[policy] ${problem}`),
+);
+const productionResult = evaluateTree(production, { allowed, exceptions: [], reviewedGuesses });
+const developmentResult = evaluateTree(development, { allowed, exceptions, reviewedGuesses });
 problems.push(...productionResult.problems.map((problem) => `[production web] ${problem}`));
 problems.push(...developmentResult.problems.map((problem) => `[dev/build/tool] ${problem}`));
 
@@ -120,7 +134,7 @@ for (const row of rows) {
 
 const guessed = [...new Set([...productionResult.guessed, ...developmentResult.guessed])].sort();
 if (guessed.length > 0) {
-  console.log(`Guessed licenses (checked without the '*'): ${guessed.join(', ')}`);
+  console.log(`Guessed licenses (owner-reviewed in docs/license-guesses.json): ${guessed.join(', ')}`);
 }
 
 if (problems.length > 0) {

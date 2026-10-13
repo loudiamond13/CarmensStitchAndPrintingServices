@@ -13,6 +13,8 @@ import {
   attributeScopes,
   evaluateTree,
   registryScopes,
+  reviewedGuessIds,
+  validateLicenseGuesses,
   validateNpmExceptions,
 } from './license-policy.mjs';
 
@@ -81,7 +83,6 @@ describe('evaluateTree: SPDX expressions', () => {
     ['(MIT AND ISC)', 'every AND part is allowed'],
     ['Apache-2.0 WITH LLVM-exception', 'an approved WITH exception on an allowed base license'],
     ['((MIT OR GPL-2.0) AND BSD-3-Clause)', 'nested groups are evaluated'],
-    ['MIT*', "license-checker's guessed mark is ignored"],
   ])('passes %s (%s)', (expression) => {
     expect(evaluateTree([pkg('x', expression)], policy).problems).toEqual([]);
   });
@@ -132,10 +133,74 @@ describe('evaluateTree: SPDX expressions', () => {
     ]);
   });
 
-  it('lists guessed licenses separately so the gate can show them', () => {
+  // TOOL-WR-02: license-checker marks a license it only guessed (often from a README line) with a trailing '*'.
+  it('fails a guessed license that no reviewed entry covers', () => {
     const result = evaluateTree([pkg('guess', 'MIT*'), pkg('sure', 'MIT')], policy);
 
+    expect(result.problems).toEqual([
+      "guess@1.0.0: license-checker only guessed the license 'MIT*'; a guess passes only with an owner-reviewed entry in docs/license-guesses.json.",
+    ]);
+    expect(result.guessed).toEqual([]);
+  });
+
+  it('passes a reviewed guess on its exact name@version and lists it so the gate can show it', () => {
+    const reviewed = { ...policy, reviewedGuesses: ['guess@1.0.0'] };
+    const result = evaluateTree([pkg('guess', 'MIT*'), pkg('sure', 'MIT')], reviewed);
+
+    expect(result.problems).toEqual([]);
     expect(result.guessed).toEqual(['guess@1.0.0 (MIT*)']);
+    expect(evaluateTree([{ ...pkg('guess', 'MIT*'), version: '1.0.1' }], reviewed).problems).toHaveLength(1);
+  });
+
+  it('still fails a reviewed guess whose license is not allowed', () => {
+    const reviewed = { ...policy, reviewedGuesses: ['guess@1.0.0'] };
+    expect(evaluateTree([pkg('guess', 'GPL-3.0*')], reviewed).problems).toEqual([
+      "guess@1.0.0: license 'GPL-3.0*' is not allowed in this tree.",
+    ]);
+  });
+});
+
+describe('validateLicenseGuesses (TOOL-WR-02)', () => {
+  const guessed = [pkg('guess', 'MIT*'), pkg('sure', 'MIT')];
+  const entry = {
+    package: 'guess@1.0.0',
+    license: 'MIT',
+    checked: '2026-10-13',
+    note: 'LICENSE file is the MIT text.',
+  };
+
+  it('accepts an empty list and a complete entry for a guessed package', () => {
+    expect(validateLicenseGuesses([], guessed)).toEqual([]);
+    expect(validateLicenseGuesses([entry], guessed)).toEqual([]);
+  });
+
+  it('fails a document that is not a list', () => {
+    expect(validateLicenseGuesses({}, guessed)).toEqual(['docs/license-guesses.json must be a list.']);
+  });
+
+  it('fails an entry with a missing field or a bad date', () => {
+    expect(validateLicenseGuesses([{ ...entry, note: '' }], guessed)).toEqual([
+      "license guess 'guess@1.0.0': note is missing or empty.",
+    ]);
+    expect(validateLicenseGuesses([{ ...entry, checked: 'today' }], guessed)).toEqual([
+      "license guess 'guess@1.0.0': checked must be a yyyy-mm-dd date.",
+    ]);
+  });
+
+  it('fails an entry whose license differs from the guess', () => {
+    expect(validateLicenseGuesses([{ ...entry, license: 'ISC' }], guessed)).toEqual([
+      "license guess 'guess@1.0.0' records 'ISC', but license-checker now guesses 'MIT'.",
+    ]);
+  });
+
+  it('fails a stale entry (no installed package with that name@version has a guessed license)', () => {
+    expect(validateLicenseGuesses([{ ...entry, package: 'sure@1.0.0' }], guessed)).toEqual([
+      "license guess 'sure@1.0.0' is stale: no installed package with that name and version has a guessed license; remove it.",
+    ]);
+  });
+
+  it('lists the reviewed name@version ids', () => {
+    expect(reviewedGuessIds([entry, { bad: true }])).toEqual(['guess@1.0.0']);
   });
 });
 

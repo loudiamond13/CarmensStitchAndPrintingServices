@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-08T11:19:31-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-13T08:45:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -81,7 +81,7 @@ The tools that build, test and check the web app pull in a few packages under li
 | BlueOak-1.0.0, 0BSD, MIT-0 | Free and permissive, like MIT | File-matching and test helpers, a Lighthouse helper (tslib) |
 | Python-2.0 | Free and permissive, like BSD | A command-line helper (argparse) of the API type generator |
 
-`node web/scripts/license-gate.mjs` (also part of `npm run verify`) checks this on every run. The shipped web packages may use only the five licenses above plus OFL-1.1 for the two fonts. The tool packages may also use the licenses in this table, each only for the kinds of tool it lists. The gate fails if anything else appears, and also if an entry here is no longer needed, so the list stays honest. `web/THIRD-PARTY-NOTICES.txt` lists every shipped web package with its full license text; it stays in the repository and is not published on the site (D-35).
+`node web/scripts/license-gate.mjs` (also part of `npm run verify`) checks this on every run. The shipped web packages may use only the five licenses above plus OFL-1.1 for the two fonts. The tool packages may also use the licenses in this table, each only for the kinds of tool it lists. The gate fails if anything else appears, and also if an entry here is no longer needed, so the list stays honest. When license-checker could only **guess** a package's license (it marks the guess with `*`, often taken from a README line), the gate fails unless `docs/license-guesses.json` lists that exact `name@version` with the license the owner read and confirmed (`package`, `license`, `checked` date, `note`); an entry for a package no longer installed with a guessed license fails as stale. The file is an empty list today. `web/THIRD-PARTY-NOTICES.txt` lists every shipped web package with its full license text; it stays in the repository and is not published on the site (D-35).
 
 ## Adding a dependency
 

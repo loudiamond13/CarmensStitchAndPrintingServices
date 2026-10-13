@@ -29,7 +29,9 @@
 
 /**
  * The rules for one tree. The production tree passes no exceptions; the dev/build/tool trees pass npmLicenseExceptions.
- * @typedef {{ allowed: readonly string[], exceptions: readonly LicenseException[] }} TreePolicy
+ * `reviewedGuesses` lists the name@version of each package whose guessed license the owner reviewed
+ * (docs/license-guesses.json); any other guessed license fails (TOOL-WR-02).
+ * @typedef {{ allowed: readonly string[], exceptions: readonly LicenseException[], reviewedGuesses?: readonly string[] }} TreePolicy
  */
 
 /** @typedef {{ problems: string[], guessed: string[] }} TreeResult */
@@ -185,7 +187,7 @@ function withoutGuessMark(expression) {
 /**
  * True when the SPDX expression is satisfied by the allowed licenses: OR needs any side, AND needs every side, WITH
  * needs an allowed base license and an approved exception id (ALLOWED_WITH_EXCEPTIONS). A list (the legacy `licenses` array) needs every entry. license-checker's trailing `*`
- * (a guessed license) is ignored here and reported by evaluateTree. Malformed, empty, UNKNOWN and UNLICENSED never pass.
+ * (a guessed license) is ignored here; evaluateTree fails a guess that no reviewed entry covers (TOOL-WR-02). Malformed, empty, UNKNOWN and UNLICENSED never pass.
  * @param {string | readonly string[] | undefined} expression
  * @param {ReadonlySet<string>} allowed
  * @returns {boolean}
@@ -320,6 +322,7 @@ function passes(item, allowed, extra) {
  */
 export function evaluateTree(packages, policy) {
   const everyException = policy.exceptions.map((item) => item.license);
+  const reviewedGuesses = new Set(policy.reviewedGuesses ?? []);
   /** @type {string[]} */
   const problems = [];
   /** @type {string[]} */
@@ -334,8 +337,15 @@ export function evaluateTree(packages, policy) {
         usable.map((exception) => exception.license),
       )
     ) {
-      if (isGuessed(item.licenses)) {
+      if (!isGuessed(item.licenses)) {
+        continue;
+      }
+      if (reviewedGuesses.has(label)) {
         guessed.push(`${label} (${licenseText(item.licenses)})`);
+      } else {
+        problems.push(
+          `${label}: license-checker only guessed the license '${licenseText(item.licenses)}'; a guess passes only with an owner-reviewed entry in docs/license-guesses.json.`,
+        );
       }
     } else if (passes(item, policy.allowed, everyException)) {
       const before = problems.length;
@@ -372,6 +382,78 @@ export function evaluateTree(packages, policy) {
  */
 function isText(value) {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {Record<string, unknown>}
+ */
+function asRecord(entry) {
+  return /** @type {Record<string, unknown>} */ (typeof entry === 'object' && entry !== null ? entry : {});
+}
+
+/**
+ * The name@version of every docs/license-guesses.json entry that names one (the evaluation's `reviewedGuesses`).
+ * @param {unknown} entries
+ * @returns {string[]}
+ */
+export function reviewedGuessIds(entries) {
+  return Array.isArray(entries)
+    ? /** @type {unknown[]} */ (entries).flatMap((entry) => {
+        const name = asRecord(entry).package;
+        return isText(name) ? [name] : [];
+      })
+    : [];
+}
+
+/**
+ * Checks docs/license-guesses.json (TOOL-WR-02): a list of `{ package: 'name@version', license, checked, note }`, one
+ * per package whose license license-checker only guessed and the owner read and confirmed. `license` must equal the
+ * current guess (without the '*'), `checked` is the review date. An entry for a package that is not installed with a
+ * guessed license is stale and fails, so the list cannot outlive the packages it covers.
+ * @param {unknown} entries
+ * @param {readonly NpmPackage[]} packages every installed package of every tree
+ * @returns {string[]}
+ */
+export function validateLicenseGuesses(entries, packages) {
+  if (!Array.isArray(entries)) {
+    return ['docs/license-guesses.json must be a list.'];
+  }
+  /** @type {Map<string, string>} */
+  const guesses = new Map();
+  for (const item of packages) {
+    if (isGuessed(item.licenses)) {
+      guesses.set(`${item.name}@${item.version}`, asList(item.licenses).map(withoutGuessMark).join(' AND '));
+    }
+  }
+  /** @type {string[]} */
+  const problems = [];
+  for (const entry of /** @type {unknown[]} */ (entries)) {
+    const record = asRecord(entry);
+    const name = isText(record.package) ? record.package : '(no package)';
+    const label = `license guess '${name}'`;
+    const before = problems.length;
+    for (const field of ['package', 'license', 'note']) {
+      if (!isText(record[field])) {
+        problems.push(`${label}: ${field} is missing or empty.`);
+      }
+    }
+    if (!isText(record.checked) || !DATE_PATTERN.test(record.checked)) {
+      problems.push(`${label}: checked must be a yyyy-mm-dd date.`);
+    }
+    if (problems.length !== before) {
+      continue;
+    }
+    const guess = guesses.get(name);
+    if (guess === undefined) {
+      problems.push(
+        `${label} is stale: no installed package with that name and version has a guessed license; remove it.`,
+      );
+    } else if (guess !== record.license) {
+      problems.push(`${label} records '${String(record.license)}', but license-checker now guesses '${guess}'.`);
+    }
+  }
+  return problems;
 }
 
 /**
