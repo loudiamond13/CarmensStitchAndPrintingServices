@@ -169,6 +169,23 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     expect(thumbs()).toHaveLength(2);
   });
 
+  it('adds nothing when a migrated list already holds more than max (UI-WR-10)', async () => {
+    const onFiles = vi.fn<(files: File[]) => void>();
+    const onChange = vi.fn<(images: OrderImage[]) => void>();
+    const { container } = render(<ImageUploader images={images} max={2} onFiles={onFiles} onChange={onChange} />);
+    expect(screen.getByText('JPG, PNG or WEBP · up to 10 MB each · 3/2')).toBeDefined();
+
+    fireEvent.change(fileInput(container), {
+      target: { files: [file('a.png', 'image/png'), file('b.png', 'image/png')] },
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(onFiles).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('ignores a pick with no image and an empty pick', () => {
     const onFiles = vi.fn<(files: File[]) => void>();
     const { container } = render(<ImageUploader onFiles={onFiles} />);

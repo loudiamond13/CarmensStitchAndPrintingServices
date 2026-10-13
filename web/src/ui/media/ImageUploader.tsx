@@ -99,9 +99,12 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
   const inputRef = useRef<HTMLInputElement>(null);
   const addFiles = (files: FileList | null) => {
     // SPEC-DEVIATION: lint prefer-string-starts-ends-with and restrict-plus-operands; same filter and ids.
+    // SPEC-DEVIATION: UI-WR-10 the room left is never below 0: App. D.3's `slice(0, max - list.length)` turns negative
+    // for a migrated order that already holds more than `max` images, and `slice(0, -n)` then adds files past the cap.
+    const room = Math.max(0, max - latest.current.length - reading.current);
     const picked = Array.from(files ?? [])
       .filter((f) => f.type.startsWith('image/'))
-      .slice(0, max - latest.current.length - reading.current);
+      .slice(0, room);
     if (!picked.length) return;
     onFiles?.(picked);
     // SPEC-DEVIATION: UI-CR-01 App. D.3 previews with `URL.createObjectURL`, a `blob:` URL the strict CSP's img-src
