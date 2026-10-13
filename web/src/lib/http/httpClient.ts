@@ -107,7 +107,9 @@ export interface HttpClientConfig {
   readonly sleep?: Sleep | undefined;
   /**
    * Renews the session after a 401. Concurrent 401s share one call (single flight), and each request then retries
-   * once. A rejection means the session is over.
+   * once. A 401 from a request sent before the last successful refresh retries with the new session without another
+   * refresh. A rejection means the session is over. If it calls this same client, it must pass
+   * `skipAuthRefresh: true`, or a 401 on the refresh call would wait for its own refresh forever (LIB-WR-04).
    */
   readonly refresh?: (() => Promise<void>) | undefined;
   /** Called when a 401 cannot be recovered: no refresh, a failed refresh, or a 401 again after a refresh. */
@@ -368,6 +370,8 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     readonly onRejected: ErrorInterceptor | undefined;
   }>();
   let refreshCycle: RefreshCycle | undefined;
+  /** The last refresh that succeeded. Each request notes it when sent (LIB-WR-04). */
+  let lastRefreshed: RefreshCycle | undefined;
 
   function initialRequest(request: RequestConfig, method: HttpMethod): HttpRequest {
     const headers = new Headers(config.headers);
@@ -477,6 +481,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
     cycle.done = (async () => {
       try {
         await refresh();
+        lastRefreshed = cycle;
       } catch (error) {
         notifyUnauthorized(cycle);
         throw error;
@@ -488,6 +493,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
   }
 
   async function execute(requestConfig: RequestConfig, method: HttpMethod): Promise<HttpResponse> {
+    const sentAfter = lastRefreshed;
     try {
       return await sendWithRetries(requestConfig, method);
     } catch (error) {
@@ -499,11 +505,19 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
         config.onUnauthorized?.();
         throw error;
       }
-      const cycle = joinRefresh(refresh);
-      try {
-        await cycle.done;
-      } catch {
-        throw error;
+      const refreshed = lastRefreshed;
+      let cycle: RefreshCycle;
+      if (refreshed !== undefined && refreshed !== sentAfter) {
+        // A refresh succeeded after this request was sent: its 401 is stale, so retry with the new session. Another
+        // refresh could revoke the session where refresh tokens rotate with reuse detection (LIB-WR-04).
+        cycle = refreshed;
+      } else {
+        cycle = joinRefresh(refresh);
+        try {
+          await cycle.done;
+        } catch {
+          throw error;
+        }
       }
       // Retry once with the same config, so a POST resends its own Idempotency-Key (WEB-09).
       try {

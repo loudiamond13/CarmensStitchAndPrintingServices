@@ -123,7 +123,9 @@ All calls share one client, so its behaviour holds across the whole app. When se
 
 Phase 4 passes the real `refresh` and `onUnauthorized` to the shared client when sign-in exists.
 
-A call whose 401 is its own answer, not an ended session, passes `skipAuthRefresh: true` (LIB-WR-03): sign-in and 2FA verify (a wrong password), and the `refresh` call itself. Such a 401 rejects untouched, with no refresh, no retry and no `onUnauthorized`, and the screen shows its own message.
+A call whose 401 is its own answer, not an ended session, passes `skipAuthRefresh: true` (LIB-WR-03): sign-in and 2FA verify (a wrong password), and the `refresh` call itself. Such a 401 rejects untouched, with no refresh, no retry and no `onUnauthorized`, and the screen shows its own message. The `refresh` function must send its own request this way: without it, a 401 on the refresh call would wait for its own refresh forever (LIB-WR-04).
+
+A request sent before the last successful refresh whose 401 arrives late retries once with the new session, without starting a second refresh (LIB-WR-04). Where refresh tokens rotate with reuse detection, a second refresh could otherwise end the whole session.
 
 ## 3. Where things live
 

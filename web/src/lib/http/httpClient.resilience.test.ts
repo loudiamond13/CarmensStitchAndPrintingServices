@@ -562,6 +562,81 @@ describe('single-flight 401 refresh', () => {
     expect(fake.calls).toHaveLength(4);
   });
 
+  it('a 401 that arrives after a refresh it did not wait for retries at once, with no second refresh (LIB-WR-04)', async () => {
+    // With rotating refresh tokens a second refresh could revoke the session, so a request sent with the old session
+    // whose 401 lands after the refresh finished just retries with the new one.
+    const late = createDeferred<undefined>();
+    const refresh = vi.fn(() => Promise.resolve());
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([
+      async () => {
+        await late.promise;
+        return unauthorized;
+      },
+      unauthorized,
+      { body: { n: 'b' } },
+      { body: { n: 'a' } },
+    ]);
+    const client = createHttpClient({ fetch: fake.fetch, refresh, onUnauthorized });
+
+    const slow = client.get('/a');
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    await expect(client.get('/b')).resolves.toEqual({ n: 'b' });
+    late.resolve(undefined);
+
+    await expect(slow).resolves.toEqual({ n: 'a' });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(fake.calls.map((c) => c.url)).toEqual(['/a', '/b', '/b', '/a']);
+  });
+
+  it('a late 401 whose direct retry gets a 401 again signs out once, sharing the finished cycle', async () => {
+    const late = createDeferred<undefined>();
+    const refresh = vi.fn(() => Promise.resolve());
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([
+      async () => {
+        await late.promise;
+        return unauthorized;
+      },
+      unauthorized,
+      unauthorized,
+      unauthorized,
+    ]);
+    const client = createHttpClient({ fetch: fake.fetch, refresh, onUnauthorized });
+
+    const slow = rejection(client.get('/a'));
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    expect((await rejection(client.get('/b'))).status).toBe(401);
+    late.resolve(undefined);
+
+    expect((await slow).status).toBe(401);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(fake.calls).toHaveLength(4);
+  });
+
+  it('a refresh that calls the same client with skipAuthRefresh ends the session on its own 401 instead of hanging', async () => {
+    const onUnauthorized = vi.fn();
+    const fake = createFakeFetch([unauthorized, unauthorized]);
+    const shared: { client?: ReturnType<typeof createHttpClient> } = {};
+    const refresh = async (): Promise<void> => {
+      await shared.client?.post('/auth/refresh', undefined, { skipAuthRefresh: true });
+    };
+    const client = createHttpClient({ fetch: fake.fetch, refresh, onUnauthorized });
+    shared.client = client;
+
+    const error = await rejection(client.get('/a'));
+
+    expect(error.status).toBe(401);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(fake.calls.map((c) => c.url)).toEqual(['/a', '/auth/refresh']);
+  });
+
   it('without a refresh function a 401 calls onUnauthorized and rejects', async () => {
     const onUnauthorized = vi.fn();
     const fake = createFakeFetch([unauthorized, ok]);
