@@ -215,6 +215,9 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
           hidden
           onChange={(e) => {
             addFiles(e.target.files);
+            // SPEC-DEVIATION: UI-WR-11 the input is emptied after each pick (addFiles has copied the files by now): a
+            // browser fires no change for the same file again, so a removed file could not be chosen a second time.
+            e.target.value = '';
           }}
         />
       </div>

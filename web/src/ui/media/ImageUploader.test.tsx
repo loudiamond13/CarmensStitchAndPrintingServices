@@ -186,6 +186,29 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('empties the file input after each pick, so a removed file can be chosen again (UI-WR-11)', async () => {
+    const { container } = render(<ImageUploader />);
+    const input = fileInput(container);
+    // A browser fires no change event when the input still holds the same file; the component must clear it.
+    const written: string[] = [];
+    Object.defineProperty(input, 'value', {
+      configurable: true,
+      get: () => '',
+      set: (value: string) => {
+        written.push(value);
+      },
+    });
+
+    fireEvent.change(input, { target: { files: [file('jersey.jpg', 'image/jpeg')] } });
+    await screen.findByRole('img', { name: 'jersey.jpg' });
+    expect(written).toEqual(['']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove jersey.jpg' }));
+    fireEvent.change(input, { target: { files: [file('jersey.jpg', 'image/jpeg')] } });
+    await screen.findByRole('img', { name: 'jersey.jpg' });
+    expect(written).toEqual(['', '']);
+  });
+
   it('ignores a pick with no image and an empty pick', () => {
     const onFiles = vi.fn<(files: File[]) => void>();
     const { container } = render(<ImageUploader onFiles={onFiles} />);
