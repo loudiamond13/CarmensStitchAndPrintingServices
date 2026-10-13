@@ -134,9 +134,9 @@ describe('OrderCard (App. D.3)', () => {
     expect(screen.queryByText('Fully Paid')).toBeNull();
   });
 
-  it('makes the cover a button named "View order {number}" holding the placeholder, the status and the image count', () => {
+  it('makes the cover a button named with the order, its status and image count, holding all three (UI-WR-12)', () => {
     render(<OrderCard order={order0148} />);
-    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148' });
+    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 4 images' });
 
     expect(media.getAttribute('type')).toBe('button');
     expect(classTokens(media)).toEqual(tokens(orderMediaClasses));
@@ -149,6 +149,16 @@ describe('OrderCard (App. D.3)', () => {
     const count = within(media).getByText('4');
     expect(classTokens(count)).toEqual(tokens(orderCountClasses));
     expect(count.querySelector('svg')).not.toBeNull();
+  });
+
+  it('names the cover with the status alone for one image, and with the raw text for a status it does not know', () => {
+    const single: Order = { ...order0148, images: [{ id: 'cover', name: 'front.png', src: '/media/front.png' }] };
+    const { rerender } = render(<OrderCard order={single} />);
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' })).toBeTruthy();
+
+    const unknown = { ...order0148, images: [], status: 'on_hold' } as unknown as Order;
+    rerender(<OrderCard order={unknown} />);
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, on_hold' })).toBeTruthy();
   });
 
   it('shows a cover image with an empty alt, and no count chip for a single image', () => {
@@ -236,9 +246,10 @@ describe('OrderCard (App. D.3)', () => {
     const onDelete = vi.fn();
     render(<OrderCard order={order0148} onView={onView} onEdit={onEdit} onDelete={onDelete} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 4 images' }));
+    // UI-WR-12: the visible words lead each name (WCAG 2.5.3), and the order number tells the cards apart.
     fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148' }));
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit order ORD-2026-0148' }));
     const remove = screen.getByRole('button', { name: 'Delete order ORD-2026-0148' });
     fireEvent.click(remove);
 

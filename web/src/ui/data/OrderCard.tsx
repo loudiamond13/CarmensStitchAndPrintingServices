@@ -14,13 +14,18 @@
 // SPEC-DEVIATION: ORD-09 the order and due dates are date-only fields, so they go through format.ts
 // `formatCalendarDate` (no zone shift, whatever the machine's zone) instead of csps.ts `formatDate`; the text is the
 // same ("Sep 28, 2026").
+// SPEC-DEVIATION: UI-WR-12 (WCAG 1.3.1, 4.1.2) App. D.3 names the cover button "View order {number}", which hides the
+// status badge and the image count inside it from assistive technology; the name now carries them ("View order
+// ORD-2026-0148, In Production, 4 images"). The View and Edit buttons are named "View order {number}" and "Edit order
+// {number}" (the visible word first, WCAG 2.5.3), as Delete already is, so the cards' buttons are told apart.
+// Attributes only; no visual change.
 import clsx from 'clsx';
-import type { Order, Totals } from '@/lib/csps';
+import { ORDER_STATUSES, type Order, type Totals } from '@/lib/csps';
 import { formatCalendarDate } from '@/lib/format';
 import { Button } from '@/ui/actions';
 import { Icon, MediaPlaceholder } from '@/ui/brand';
 import { OrderTotals } from '@/ui/money';
-import { StatusBadge } from '@/ui/status';
+import { isOrderStatus, StatusBadge } from '@/ui/status';
 import { WALK_IN_CUSTOMER } from './copy';
 import {
   orderActionsClasses,
@@ -57,9 +62,14 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
   const images = o.images ?? [];
   const cover = images[0];
   const qty = (o.items ?? []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+  // What the cover shows, in words: the status badge's text, then the image count chip when there is one.
+  const statusLabel = isOrderStatus(o.status) ? ORDER_STATUSES[o.status] : o.status;
+  const coverName = [`View order ${o.number}`, statusLabel, images.length > 1 ? `${String(images.length)} images` : '']
+    .filter(Boolean)
+    .join(', ');
   return (
     <article className={orderCardClasses}>
-      <button type="button" className={orderMediaClasses} onClick={onView} aria-label={`View order ${o.number}`}>
+      <button type="button" className={orderMediaClasses} onClick={onView} aria-label={coverName}>
         {cover?.src ? (
           <img src={cover.src} alt="" className={orderImageClasses} />
         ) : (
@@ -107,6 +117,7 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
           onClick={() => {
             onView?.();
           }}
+          aria-label={`View order ${o.number}`}
         >
           View
         </Button>
@@ -117,6 +128,7 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
           onClick={() => {
             onEdit?.();
           }}
+          aria-label={`Edit order ${o.number}`}
         >
           Edit
         </Button>
