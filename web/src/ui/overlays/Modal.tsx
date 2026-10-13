@@ -9,7 +9,8 @@
 //   Tab and Shift+Tab are trapped through useFocusTrap on the dialog's own ref (no wrapper element), and focus returns
 //   to the trigger on close;
 // - Esc and a mousedown on the scrim close it, except while `loading`; the scrim listener is attached through a ref and
-//   an effect (Pitfall 7), and in an Overlay region the region is the scrim;
+//   an effect (Pitfall 7), and in an Overlay region the region is the scrim; with dialogs stacked, Esc closes only the
+//   one on top (UI-WR-01);
 // - body scroll is locked with the `overflow-hidden` class while it is open (useBodyScrollLock).
 // It renders where it is placed, inside the page root, never in a portal.
 import { useEffect, useEffectEvent, useId, useRef, type ReactNode, type RefObject } from 'react';
@@ -26,7 +27,7 @@ import {
   type ModalVariant,
 } from './overlays.recipe';
 import { useBodyScrollLock } from './useBodyScrollLock';
-import { useFocusTrap } from './useFocusTrap';
+import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 
 export interface ModalProps {
   open?: boolean;
@@ -92,8 +93,12 @@ function OpenModal({
         requestClose();
       }
     };
+    // UI-WR-01: only the dialog on top (the newest focus trap) answers Esc, and it marks the key as handled, so one Esc
+    // never closes a dialog together with the dialog or drawer it was opened from.
+    const dialog = dialogRef.current;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented && isTopFocusTrap(dialog)) {
+        event.preventDefault();
         requestClose();
       }
     };

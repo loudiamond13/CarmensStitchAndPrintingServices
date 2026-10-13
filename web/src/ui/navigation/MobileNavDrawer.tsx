@@ -18,7 +18,7 @@
 //     anew. Listeners go through refs and an effect (Pitfall 7: no JSX handlers on static elements).
 //   - Body scroll is locked with the class while it is open (useBodyScrollLock).
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
-import { useBodyScrollLock, useFocusTrap } from '@/ui/overlays';
+import { isTopFocusTrap, useBodyScrollLock, useFocusTrap } from '@/ui/overlays';
 import { drawerClasses, drawerPanelClasses } from './navigation.recipe';
 
 export interface MobileNavDrawerProps {
@@ -84,8 +84,11 @@ function OpenDrawer({ onClose, id, children }: Omit<MobileNavDrawerProps, 'open'
         requestClose();
       }
     };
+    // UI-WR-01: Esc closes the drawer only while it is the overlay on top (a dialog opened over it closes first), and
+    // marks the key as handled.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented && isTopFocusTrap(panel)) {
+        event.preventDefault();
         requestClose();
       }
     };

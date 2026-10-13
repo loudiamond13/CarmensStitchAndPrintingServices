@@ -7,5 +7,5 @@ export { Overlay } from './Overlay';
 export type { OverlayProps } from './Overlay';
 export type { ModalVariant } from './overlays.recipe';
 export { useBodyScrollLock } from './useBodyScrollLock';
-export { useFocusTrap } from './useFocusTrap';
+export { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 export type { FocusTrapOptions } from './useFocusTrap';

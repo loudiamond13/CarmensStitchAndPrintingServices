@@ -344,6 +344,61 @@ describe('Modal (App. D.3, WEB-02)', () => {
   });
 });
 
+// UI-WR-01: a confirm opened from an edit dialog (a child-row delete) is a second dialog on top of the first. One Esc
+// closes the top one only, so the edit form under it keeps its input.
+function EditWithConfirm({ onEditClose }: { readonly onEditClose: () => void }) {
+  const [confirming, setConfirming] = useState(true);
+  return (
+    <>
+      <Modal title="Edit Order" onClose={onEditClose}>
+        <Field label="Team" defaultValue="Thunder Riders" />
+      </Modal>
+      {confirming && (
+        <Modal
+          title="Delete payment?"
+          onClose={() => {
+            setConfirming(false);
+          }}
+        >
+          <Button>Delete Payment</Button>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+describe('Modal with another dialog open (UI-WR-01)', () => {
+  it('closes only the dialog on top on Esc; the next Esc closes the one under it', async () => {
+    const user = userEvent.setup();
+    const onEditClose = vi.fn();
+    render(<EditWithConfirm onEditClose={onEditClose} />);
+    expect(screen.getAllByRole('dialog')).toHaveLength(2);
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Delete payment?' })).toBeNull();
+    expect(onEditClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Team' })).toHaveValue('Thunder Riders');
+
+    await user.keyboard('{Escape}');
+    expect(onEditClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves an Esc that something else already handled alone', () => {
+    const onClose = vi.fn();
+    render(<AddPayment onClose={onClose} />);
+
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    event.preventDefault();
+    window.dispatchEvent(event);
+    expect(onClose).not.toHaveBeenCalled();
+
+    const fresh = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    window.dispatchEvent(fresh);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(fresh.defaultPrevented).toBe(true);
+  });
+});
+
 describe('Overlay (App. C .s-overlay)', () => {
   it('is the data-ui="s-overlay" region with the App. C look, holding an inline Modal', () => {
     const { container } = render(

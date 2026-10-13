@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Role } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { MobileNavDrawer, Sidebar } from '@/ui/navigation';
+import { Modal } from '@/ui/overlays';
 import { bodyScrollLockClass } from '@/ui/overlays/overlays.recipe';
 import { drawerClasses, drawerPanelClasses } from './navigation.recipe';
 
@@ -322,5 +323,42 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
       </MemoryRouter>,
     );
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('MobileNavDrawer under a dialog (UI-WR-01, UI-WR-02)', () => {
+  it('stays open on the Esc that closes a dialog opened over it, and gets focus back when it closes', async () => {
+    const user = userEvent.setup();
+    const onDrawerClose = vi.fn();
+    function DrawerAndDialog() {
+      const [dialog, setDialog] = useState(true);
+      return (
+        <MemoryRouter>
+          <MobileNavDrawer id={DRAWER_ID} open onClose={onDrawerClose}>
+            <Sidebar active="dashboard" role={MANAGER} user={CARMEN} />
+          </MobileNavDrawer>
+          {dialog && (
+            <Modal
+              title="Session ending"
+              onClose={() => {
+                setDialog(false);
+              }}
+            >
+              <button type="button">Stay signed in</button>
+            </Modal>
+          )}
+        </MemoryRouter>
+      );
+    }
+    render(<DrawerAndDialog />);
+    expect(screen.getByRole('dialog', { name: 'Session ending' }).contains(document.activeElement)).toBe(true);
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Session ending' })).toBeNull();
+    expect(onDrawerClose).not.toHaveBeenCalled();
+    expect(drawer().contains(document.activeElement)).toBe(true);
+
+    await user.keyboard('{Escape}');
+    expect(onDrawerClose).toHaveBeenCalledTimes(1);
   });
 });
