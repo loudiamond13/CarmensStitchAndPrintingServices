@@ -5,6 +5,7 @@
 // failure in a fixed order (categories by name, then metrics by name). `npm run lighthouse` (scripts/lighthouse.mjs)
 // refuses a busy port 5199 and never stops another process; otherwise it runs the preflight, the production build, the
 // real host on https://localhost:5199 (only that child is stopped), lighthouse and the assertion.
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { assertReport, THRESHOLDS } from './lighthouse-assert.mjs';
@@ -16,6 +17,7 @@ import {
   planSteps,
   REPORT_PATH,
   SERVER_PROJECT,
+  stopHostSync,
   WWWROOT,
 } from './lighthouse.mjs';
 
@@ -408,4 +410,53 @@ describe('executeSteps (lighthouse.mjs)', () => {
     expect(await executeSteps(planSteps({ portBusy: true }), deps)).toBe(1);
     expect(events).toEqual([`log lighthouse: ${PORT_BUSY_MESSAGE}`]);
   });
+});
+
+// TOOL-WR-10: on Linux and macOS the host runs in its own process group, so the terminal's Ctrl+C never reaches it. A
+// signal handler must stop it synchronously before process.exit, or the host stays on 5199 after the lock is gone.
+describe('stopHostSync (TOOL-WR-10)', () => {
+  function fakes(goneAfter: number) {
+    const calls: string[] = [];
+    let checks = 0;
+    return {
+      calls,
+      tools: {
+        kill: (pid: number, signal: string) => calls.push(`kill ${String(pid)} ${signal}`),
+        taskkill: (pid: number) => calls.push(`taskkill ${String(pid)}`),
+        isGone: () => {
+          checks += 1;
+          return checks > goneAfter;
+        },
+        sleepSync: (ms: number) => calls.push(`sleep ${String(ms)}`),
+      },
+    };
+  }
+
+  it('sends SIGTERM to the host process group on POSIX and stops when it is gone', () => {
+    const { calls, tools } = fakes(1);
+    stopHostSync(4321, { platform: 'linux', ...tools });
+    expect(calls).toEqual(['kill -4321 SIGTERM', 'sleep 100']);
+  });
+
+  it('sends SIGKILL to the group when SIGTERM did not end it within the grace period', () => {
+    const { calls, tools } = fakes(1_000);
+    stopHostSync(4321, { platform: 'darwin', ...tools, graceMs: 300 });
+    expect(calls).toEqual(['kill -4321 SIGTERM', 'sleep 100', 'sleep 100', 'sleep 100', 'kill -4321 SIGKILL']);
+  });
+
+  it('stops the tree of that one child by its own pid on Windows', () => {
+    const { calls, tools } = fakes(0);
+    stopHostSync(77, { platform: 'win32', ...tools });
+    expect(calls).toEqual(['taskkill 77']);
+  });
+
+  it.each([['lighthouse.mjs'], ['owner-review.mjs']])(
+    '%s stops its running host in the signal handler before it exits',
+    (file) => {
+      const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
+      const handler = /const onSignal = \(\) => \{([\s\S]*?)\n {2}\};/.exec(source)?.[1] ?? '';
+      expect(handler).toContain('stopRunningHostsSync()');
+      expect(handler.indexOf('stopRunningHostsSync()')).toBeLessThan(handler.indexOf('process.exit(130)'));
+    },
+  );
 });

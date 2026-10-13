@@ -31,7 +31,7 @@ import {
   REPO_ROOT,
   WEB_DIRECTORY,
 } from './e2e.mjs';
-import { portIsBusy, startHost } from './lighthouse.mjs';
+import { portIsBusy, startHost, stopRunningHostsSync } from './lighthouse.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentional-differences.ts';
 
@@ -959,6 +959,8 @@ async function main() {
     return 1;
   }
   const onSignal = () => {
+    // TOOL-WR-10: process.exit skips every finally, so the host this run started is stopped here first.
+    stopRunningHostsSync();
     release();
     process.exit(130);
   };

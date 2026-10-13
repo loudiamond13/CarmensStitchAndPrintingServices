@@ -187,6 +187,75 @@ function answersOk(url) {
 }
 
 /**
+ * The pids of the hosts this process started that have not exited yet (TOOL-WR-10).
+ * @type {Set<number>}
+ */
+const runningHosts = new Set();
+
+/**
+ * Stops one host this process started, synchronously, so a signal handler can call it before process.exit. On Windows
+ * it ends that child's own tree by its pid (taskkill /T /F); on Linux and macOS, where the host runs in its own process
+ * group (the terminal's Ctrl+C never reaches it), it sends SIGTERM to that group and SIGKILL after the grace period.
+ * Nothing else is ever signalled.
+ * @param {number} pid the host child's pid
+ * @param {{ platform?: string, kill?: (pid: number, signal: string) => void, taskkill?: (pid: number) => void,
+ *   isGone?: (pid: number) => boolean, sleepSync?: (ms: number) => void, graceMs?: number }} [tools]
+ */
+export function stopHostSync(pid, tools = {}) {
+  const {
+    platform = process.platform,
+    kill = (target, signal) => {
+      process.kill(target, signal);
+    },
+    taskkill = (target) => {
+      spawnSync('taskkill', ['/pid', String(target), '/T', '/F'], { stdio: 'ignore' });
+    },
+    isGone = (target) => {
+      try {
+        process.kill(target, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    },
+    sleepSync = (ms) => {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    },
+    graceMs = 3000,
+  } = tools;
+  if (platform === 'win32') {
+    taskkill(pid);
+    return;
+  }
+  try {
+    kill(-pid, 'SIGTERM');
+  } catch {
+    return;
+  }
+  for (let waited = 0; waited < graceMs; waited += 100) {
+    if (isGone(-pid)) {
+      return;
+    }
+    sleepSync(100);
+  }
+  if (!isGone(-pid)) {
+    try {
+      kill(-pid, 'SIGKILL');
+    } catch {
+      // Gone between the check and the signal.
+    }
+  }
+}
+
+/** Stops every host this process started and has not seen exit; for signal handlers (TOOL-WR-10). */
+export function stopRunningHostsSync() {
+  for (const pid of runningHosts) {
+    stopHostSync(pid);
+  }
+  runningHosts.clear();
+}
+
+/**
  * Starts the host and waits for /health. Rejects when the host exits first (for example because something else took the
  * port) or when /health does not answer within two minutes; in both cases the child is stopped first. Shared with
  * the owner review run (scripts/owner-review.mjs, plan 02-36).
@@ -203,10 +272,17 @@ export async function startHost(step) {
   });
   /** @type {{ exited: boolean, code: number | null }} */
   const state = { exited: false, code: null };
+  const pid = child.pid;
+  if (pid !== undefined) {
+    runningHosts.add(pid);
+  }
   const exitPromise = new Promise((resolve) => {
     child.once('exit', (code) => {
       state.exited = true;
       state.code = code;
+      if (pid !== undefined) {
+        runningHosts.delete(pid);
+      }
       resolve(undefined);
     });
   });
@@ -311,6 +387,8 @@ async function main() {
     return 1;
   }
   const onSignal = () => {
+    // TOOL-WR-10: process.exit skips every finally, so the host this run started is stopped here first.
+    stopRunningHostsSync();
     release();
     process.exit(130);
   };
