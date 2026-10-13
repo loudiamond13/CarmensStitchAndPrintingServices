@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T09:55:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T10:20:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -92,7 +92,7 @@ The guard is automatic. After every test it fails the test when it recorded any 
 - a CSP violation (reported through a Playwright binding, so it is kept even after the page navigates);
 - a same-origin response with status 400 or higher.
 
-If a test expects a failed response on purpose, declare it before it happens: `guard.expectStatus('/api/v1/orders/missing', 404)`. That covers both the response and the browser's own "Failed to load resource" console line for it (Chromium and WebKit write one; Firefox doesn't). Anything else still fails.
+If a test expects a failed response on purpose, declare it before it happens: `guard.expectStatus('/api/v1/orders/missing', 404)`. That covers both the response and the browser's own "Failed to load resource" console line for it (Chromium and WebKit write one; Firefox doesn't). Anything else still fails. A same-origin request that gets no response at all (reset, refused) is a finding too, because it never reaches the response check and Firefox logs nothing for it; declare an expected one with `guard.expectFailure('/api/v1/x')`. A cancelled request (a navigation or an AbortController) is not a failure. Every page of the test's browser context is guarded, including `context.newPage()` pages and popups (TOOL-WR-14).
 
 `expectNoAxeViolations(page)` runs axe over the whole page with the same WCAG 2.0/2.1/2.2 A and AA tags as the component tests (`web/src/test/axeTags.ts`). Unlike the jsdom tests, the colour-contrast rule is on here.
 

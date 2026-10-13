@@ -96,3 +96,41 @@ test('@fixture an unexpected same-origin 404 is caught, and a declared one is no
     assertNoFindings(record);
   }).toThrow('response: 404 GET');
 });
+
+// TOOL-WR-14: a same-origin request that fails at network level gets no response event (and Firefox writes no console
+// line for it), so the guard records requestfailed too. A cancellation (navigation, AbortController) is not a failure.
+test('@fixture a same-origin request that fails at network level is caught, and a declared one is not', async ({
+  page,
+  guard,
+  baseURL,
+}) => {
+  await page.goto('/');
+  await page.route('**/e2e-fixture-reset*.js', (route) => route.abort('connectionreset'));
+  guard.expectFailure('/e2e-fixture-reset-declared.js');
+
+  await page.evaluate(`fetch('/e2e-fixture-reset-declared.js').then(() => 'ok', () => 'failed')`);
+  expect(await page.evaluate<string>(`fetch('/e2e-fixture-reset.js').then(() => 'ok', () => 'failed')`)).toBe('failed');
+  await expect.poll(async () => (await guard.peek()).failedResponses.length).toBe(1);
+  const record = await guard.take();
+
+  expect(record.failedResponses).toEqual([
+    expect.stringMatching(new RegExp(`^failed GET ${String(baseURL)}/e2e-fixture-reset\\.js \\(.+\\)$`)),
+  ]);
+  expect(() => {
+    assertNoFindings(record);
+  }).toThrow('response: failed GET');
+});
+
+test('@fixture a second page of the same context is guarded too', async ({ page, guard }) => {
+  await page.goto('/');
+  const second = await page.context().newPage();
+  await second.goto('/');
+  await second.evaluate(`console.error(${JSON.stringify(DELIBERATE)})`);
+  await second.close();
+  const record = await guard.take();
+
+  expect(record.console).toEqual([expect.stringContaining(`console.error: ${DELIBERATE}`)]);
+  expect(() => {
+    assertNoFindings(record);
+  }).toThrow(DELIBERATE);
+});

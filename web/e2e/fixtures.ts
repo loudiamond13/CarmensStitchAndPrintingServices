@@ -3,7 +3,10 @@
 //   - any console message of type error or warning,
 //   - any uncaught page error,
 //   - any Content-Security-Policy violation (reported through a Playwright binding, so it survives navigation, L-23),
-//   - any same-origin response with status 400 or higher that the test did not declare with guard.expectStatus.
+//   - any same-origin response with status 400 or higher that the test did not declare with guard.expectStatus,
+//   - any same-origin request that failed at network level (reset, refused, DNS: no response at all) that the test did
+//     not declare with guard.expectFailure; a cancellation (a navigation or an AbortController) is not a failure.
+// Every page of the test's browser context is guarded, not only the fixture `page` (TOOL-WR-14).
 // expectNoAxeViolations(page) adds the page-level axe check with the same tags as the component tests.
 import { AxeBuilder } from '@axe-core/playwright';
 import { test as base, expect } from '@playwright/test';
@@ -32,6 +35,11 @@ export interface Guard {
    * including the browser's own "Failed to load resource" console line for it. Every other failed response is a finding.
    */
   expectStatus(urlPart: string, status: number): void;
+  /**
+   * Declares that a same-origin request whose URL contains `urlPart` may fail at network level (no response) in this
+   * test, including the browser's own "Failed to load resource" console line for it.
+   */
+  expectFailure(urlPart: string): void;
   /** Returns the record so far without clearing it. */
   peek(): Promise<GuardRecord>;
   /** Returns and clears the record. Only the fixture self-tests need it: they provoke a finding on purpose. */
@@ -49,6 +57,10 @@ const cspListener = `document.addEventListener('securitypolicyviolation', (event
 
 // The console line Chromium and WebKit write for a failed load (Firefox writes none).
 const LOAD_FAILURE = /^Failed to load resource: the server responded with a status of (\d{3})\b/;
+// Their console line for a load that got no response at all (net::ERR_*, "The network connection was lost.", ...).
+const NETWORK_FAILURE = /^Failed to load resource\b/;
+// How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
+const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
 function isCspViolation(value: unknown): value is CspViolation {
   if (typeof value !== 'object' || value === null) {
@@ -80,8 +92,10 @@ export const test = base.extend<{ guard: Guard }>({
   guard: [
     // The callback is named `provide`, not `use`, so react-hooks/rules-of-hooks does not misfire (L-23).
     async ({ page, baseURL }, provide) => {
+      const context = page.context();
       const origin = new URL(baseURL ?? 'https://localhost:5199').origin;
       const expected: { urlPart: string; status: number }[] = [];
+      const expectedFailures: string[] = [];
       let consoleMessages: string[] = [];
       let pageErrors: string[] = [];
       let cspViolations: CspViolation[] = [];
@@ -92,44 +106,68 @@ export const test = base.extend<{ guard: Guard }>({
         new URL(url).origin === origin &&
         expected.some((entry) => entry.status === status && url.includes(entry.urlPart));
 
-      page.on('console', (message) => {
-        const type = message.type();
-        if (type !== 'error' && type !== 'warning') {
-          return;
-        }
-        const text = message.text();
-        const { url, lineNumber } = message.location();
-        // Chromium and WebKit also log every failed load as a console error located at the resource URL. A status the
-        // test declared with expectStatus is not a finding there either.
-        const loadFailure = LOAD_FAILURE.exec(text);
-        if (loadFailure?.[1] !== undefined && isDeclared(url, Number(loadFailure[1]))) {
-          return;
-        }
-        consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
-      });
-      page.on('pageerror', (error) => {
-        pageErrors.push(error.message);
-      });
-      page.on('response', (response) => {
-        const status = response.status();
-        const url = response.url();
-        if (status < 400 || new URL(url).origin !== origin || isDeclared(url, status)) {
-          return;
-        }
-        failedResponses.push(`${String(status)} ${response.request().method()} ${url}`);
-      });
-      await page.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
+      const isSameOrigin = (url: string): boolean => URL.canParse(url) && new URL(url).origin === origin;
+      const isDeclaredFailure = (url: string): boolean =>
+        isSameOrigin(url) && expectedFailures.some((urlPart) => url.includes(urlPart));
+
+      /** Attaches the console, page error, response and network-failure listeners to one page of the context. */
+      const watch = (target: Page): void => {
+        target.on('console', (message) => {
+          const type = message.type();
+          if (type !== 'error' && type !== 'warning') {
+            return;
+          }
+          const text = message.text();
+          const { url, lineNumber } = message.location();
+          // Chromium and WebKit also log every failed load as a console error located at the resource URL. A status or
+          // a network failure the test declared is not a finding there either.
+          const loadFailure = LOAD_FAILURE.exec(text);
+          if (loadFailure?.[1] !== undefined && isDeclared(url, Number(loadFailure[1]))) {
+            return;
+          }
+          if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
+            return;
+          }
+          consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
+        });
+        target.on('pageerror', (error) => {
+          pageErrors.push(error.message);
+        });
+        target.on('response', (response) => {
+          const status = response.status();
+          const url = response.url();
+          if (status < 400 || new URL(url).origin !== origin || isDeclared(url, status)) {
+            return;
+          }
+          failedResponses.push(`${String(status)} ${response.request().method()} ${url}`);
+        });
+        // TOOL-WR-14: a request with no response at all (reset, refused) never reaches the response listener.
+        target.on('requestfailed', (request) => {
+          const url = request.url();
+          const reason = request.failure()?.errorText ?? 'unknown';
+          if (!isSameOrigin(url) || CANCELLED.test(reason) || isDeclaredFailure(url)) {
+            return;
+          }
+          failedResponses.push(`failed ${request.method()} ${url} (${reason})`);
+        });
+      };
+      watch(page);
+      context.on('page', watch);
+      // Context-wide, so every page of the test (popups, context.newPage()) reports its CSP violations too.
+      await context.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
         cspViolations.push(
           isCspViolation(violation) ? violation : { directive: 'unknown', blockedURI: JSON.stringify(violation) },
         );
       });
-      await page.addInitScript({ content: cspListener });
+      await context.addInitScript({ content: cspListener });
 
-      // A round trip to the page delivers any binding call the page made before it, so a violation raised during the
-      // last load is recorded before the guard reads it. A closed page has nothing left to deliver.
+      // A round trip to each open page delivers any binding call the page made before it, so a violation raised during
+      // the last load is recorded before the guard reads it. A closed page has nothing left to deliver.
       const settle = async (): Promise<void> => {
-        if (!page.isClosed()) {
-          await page.evaluate('0').catch(() => undefined);
+        for (const open of context.pages()) {
+          if (!open.isClosed()) {
+            await open.evaluate('0').catch(() => undefined);
+          }
         }
       };
 
@@ -143,6 +181,9 @@ export const test = base.extend<{ guard: Guard }>({
       await provide({
         expectStatus: (urlPart, status) => {
           expected.push({ urlPart, status });
+        },
+        expectFailure: (urlPart) => {
+          expectedFailures.push(urlPart);
         },
         peek: async () => {
           await settle();
