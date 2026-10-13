@@ -330,6 +330,9 @@ describe('toolbar and chip scenarios', () => {
   it('declares toolbar-orders for parity at every width and the 4-chip overflow case implementation only', () => {
     const toolbar = listsParity.find((scenario) => scenario.id === 'toolbar-orders');
     expect(toolbar).toMatchObject({ group: 'lists', parity: true, responsive: true, themes: ['light', 'dark'] });
+    // D-41 R2-03: the search box's own focus border is compared too, on the search input (the same selector matches
+    // the App. E.7 transcription and the SearchBox).
+    expect(toolbar).toMatchObject({ states: ['rest', 'focus-visible'], target: 'input[type="search"]' });
     const chips = listsStates.find((scenario) => scenario.id === 'filterbar-chips-4');
     expect(chips).toMatchObject({ group: 'lists-states', parity: false, responsive: true });
     const chipNodes = (chips?.node.props?.children ?? []) as readonly unknown[];

@@ -98,6 +98,30 @@ describe('lists recipe (App. C toolbar and responsive table)', () => {
   });
 });
 
+describe('list SearchBox focus look (D-41 R2-03)', () => {
+  it('turns its own 1px border --focus on focus-within, with no outer ring (not the shared field ring)', () => {
+    const tokens = recipeTokensOf('searchBoxClasses');
+
+    expect(tokens).toEqual(
+      [
+        'flex',
+        'h-10',
+        'items-center',
+        'gap-2',
+        'rounded-sm',
+        'border',
+        'border-line-strong',
+        'bg-surface-2',
+        'px-3',
+        'text-ink-muted',
+        'focus-within:border-focus',
+      ].sort(),
+    );
+    expect(tokens.filter((token) => /shadow|ring|outline/.test(token))).toEqual([]);
+    expect(recipeTokensOf('searchInputClasses')).toContain('[outline:none]');
+  });
+});
+
 /** The sorted class tokens of one exported `tw('…')` list in lists.recipe.ts. */
 function recipeTokensOf(name: string): string[] {
   const match = new RegExp(`export const ${name} = tw\\(\\s*'([^']*)'`).exec(recipeSource);

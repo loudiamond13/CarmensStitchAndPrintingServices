@@ -235,18 +235,24 @@ describe('Sidebar Logout (D-27)', () => {
 });
 
 describe('Sidebar collapse', () => {
-  it('collapses and expands from its toggle; the toggle name says what it will do', async () => {
+  it('collapses and expands from its toggle; the toggle name says what it will do, aria-expanded the state (D-41 R2-12)', async () => {
     render(inRouter(<Sidebar role={MANAGER} user={CARMEN} />));
     const aside = screen.getByRole('navigation', { name: 'Admin' }).parentElement;
 
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' }).getAttribute('aria-expanded')).toBe('true');
     await userEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
-    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Expand sidebar' }).getAttribute('aria-expanded')).toBe('false');
     expect(hasClasses(aside, sidebarWidthClasses.collapsed)).toBe(true);
     expect(hasClasses(aside, sidebarWidthClasses.expanded)).toBe(false);
 
     await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
-    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' }).getAttribute('aria-expanded')).toBe('true');
     expect(hasClasses(aside, sidebarWidthClasses.expanded)).toBe(true);
+  });
+
+  it('starts collapsed with aria-expanded="false" when defaultCollapsed is given (D-41 R2-12)', () => {
+    render(inRouter(<Sidebar role={MANAGER} defaultCollapsed />));
+    expect(screen.getByRole('button', { name: 'Expand sidebar' }).getAttribute('aria-expanded')).toBe('false');
   });
 
   it('collapsed: the mark only, icons with title tooltips, no tags, no user chip, a titled Logout', () => {
@@ -290,10 +296,10 @@ describe('Sidebar collapse', () => {
   it('follows the collapsed prop when it is given (controlled), whatever the toggle does', async () => {
     const { rerender } = render(inRouter(<Sidebar role={MANAGER} collapsed />));
     await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
-    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Expand sidebar' }).getAttribute('aria-expanded')).toBe('false');
 
     rerender(inRouter(<Sidebar role={MANAGER} collapsed={false} />));
-    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' }).getAttribute('aria-expanded')).toBe('true');
   });
 
   it('renders the same markup again for the same props, and the new sidebar for new props', () => {

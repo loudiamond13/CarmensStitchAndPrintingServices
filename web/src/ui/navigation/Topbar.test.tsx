@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import type { Role } from '@/lib/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { iconButtonClasses } from '@/ui/feedback';
 import { Topbar } from '@/ui/navigation';
+import { searchShortcutHint } from './Topbar';
 import {
   searchClasses,
   searchInputClasses,
@@ -22,8 +23,8 @@ import {
 } from './navigation.recipe';
 
 // The converted App. D.3 Topbar (plan 02-26, CSPS-UI-SPEC.md §6.6, UI-SPEC Interaction Contract "Topbar search" and
-// "Theme toggle", Color D-01): App. D.3's markup, props and copy. `/` focuses the search box from anywhere outside a
-// field, Enter hands the text to onSearch, the theme toggle is named for what it will do, and the user-menu button
+// "Theme toggle", Color D-01): App. D.3's markup, props and copy. Ctrl+K or Cmd+K (D-41 R2-04, replacing App. D.3's
+// bare "/") focuses the search box from anywhere outside a field, Enter hands the text to onSearch, the theme toggle is named for what it will do, and the user-menu button
 // announces its menu. The phone menu button passes through the aria-expanded / aria-controls the mobile drawer needs
 // (plan 02-31). The look is proven by the parity suite (`--grep @navigation`).
 
@@ -67,7 +68,7 @@ describe('Topbar markup (App. D.3)', () => {
     expect(hasClasses(bar?.children[2], topbarRightClasses)).toBe(true);
   });
 
-  it('labels the search box, with its icon, the placeholder, 14px text (16px on phones, D-01) and the "/" hint', () => {
+  it('labels the search box, with its icon, the placeholder, 14px text (16px on phones, D-01) and the shortcut hint', () => {
     render(<Topbar />);
     const box = search().parentElement;
 
@@ -82,8 +83,31 @@ describe('Topbar markup (App. D.3)', () => {
     expect(search().classList.contains('text-[14px]')).toBe(true);
     expect(search().classList.contains('pg-phone:text-[16px]')).toBe(true);
     const kbd = box?.querySelector('kbd');
-    expect(kbd?.textContent).toBe('/');
+    // D-41 R2-04: the hint names the modifier shortcut (jsdom's user agent is not an Apple one).
+    expect(kbd?.textContent).toBe('Ctrl K');
     expect(hasClasses(kbd, searchKbdClasses)).toBe(true);
+    expect(search().getAttribute('aria-keyshortcuts')).toBe('Control+K Meta+K');
+  });
+
+  it.each([
+    ['Macintosh', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
+    ['iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
+    ['iPad', 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'],
+  ])('shows the "⌘K" hint on a %s', (_device, userAgent) => {
+    const agent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+    render(<Topbar />);
+
+    expect(search().parentElement?.querySelector('kbd')?.textContent).toBe('⌘K');
+    agent.mockRestore();
+  });
+
+  it.each([
+    ['Windows', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0'],
+    ['Android', 'Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0'],
+    ['Linux', 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0'],
+  ])('chooses the "Ctrl K" hint on %s, and "⌘K" on an iPod (searchShortcutHint)', (_platform, userAgent) => {
+    expect(searchShortcutHint(userAgent)).toBe('Ctrl K');
+    expect(searchShortcutHint('Mozilla/5.0 (iPod touch; CPU iPhone OS 18_0 like Mac OS X)')).toBe('⌘K');
   });
 
   it('lets the search box shrink below its content (D-41 R2-01), keeping every App. B token', () => {
@@ -174,119 +198,125 @@ describe('Topbar theme toggle', () => {
 });
 
 describe('Topbar search keys', () => {
-  it('focuses the search box on "/" pressed outside a field, and keeps the "/" out of it', () => {
-    render(<Topbar />);
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+  // D-41 R2-04 (owner, 2026-10-13): Ctrl+K or Cmd+K focuses the search box from outside a field; a bare "/" no longer
+  // does (WCAG 2.1.4 no longer applies, because the shortcut needs a modifier). The UI-WR-07 guards stay.
+  function press(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(event);
+    return event;
+  }
 
-    document.body.dispatchEvent(event);
+  it.each([
+    ['Ctrl+K', { key: 'k', ctrlKey: true }],
+    ['Cmd+K', { key: 'k', metaKey: true }],
+    ['Ctrl+K with Caps Lock', { key: 'K', ctrlKey: true }],
+    ['Cmd+K with Caps Lock', { key: 'K', metaKey: true }],
+    ['Ctrl+K on a non-Latin layout', { key: 'л', code: 'KeyK', ctrlKey: true }],
+  ])('focuses the search box on %s pressed outside a field, and takes the key', (_what, init) => {
+    render(<Topbar />);
+    const event = press(document.body, init);
+
     expect(document.activeElement).toBe(search());
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it('focuses the search box on "/" sent to the window itself', () => {
+  it('focuses the search box on Ctrl+K sent to the window itself', () => {
     render(<Topbar />);
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', cancelable: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true }));
     expect(document.activeElement).toBe(search());
   });
 
-  it.each(['input', 'textarea', 'select'])('leaves "/" alone inside a %s', (tag) => {
+  it.each([
+    ['a bare "/"', { key: '/' }],
+    ['a bare "/" with Shift', { key: '/', shiftKey: true }],
+    ['a bare "k"', { key: 'k' }],
+    ['Ctrl+/', { key: '/', ctrlKey: true }],
+    ['Ctrl+Shift+K', { key: 'K', ctrlKey: true, shiftKey: true }],
+    ['Ctrl+Alt+K', { key: 'k', ctrlKey: true, altKey: true }],
+    ['Ctrl+Cmd+K', { key: 'k', ctrlKey: true, metaKey: true }],
+    ['Ctrl+K during an IME composition', { key: 'k', ctrlKey: true, isComposing: true }],
+    ['Ctrl+T on Dvorak (the physical K key)', { key: 't', code: 'KeyK', ctrlKey: true }],
+    ['Ctrl+J', { key: 'j', ctrlKey: true }],
+  ])('leaves %s alone', (_what, init) => {
+    render(<Topbar />);
+    const event = press(document.body, init);
+
+    expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it.each(['input', 'textarea', 'select'])('leaves Ctrl+K alone inside a %s', (tag) => {
     render(<Topbar />);
     const field = document.createElement(tag);
     document.body.append(field);
     field.focus();
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+    const event = press(field, { key: 'k', ctrlKey: true });
 
-    field.dispatchEvent(event);
     expect(document.activeElement).not.toBe(search());
     expect(event.defaultPrevented).toBe(false);
     field.remove();
   });
 
-  it('leaves "/" alone inside editable content', () => {
+  it('leaves Ctrl+K alone inside editable content', () => {
     render(<Topbar />);
     const editor = document.createElement('div');
     Object.defineProperty(editor, 'isContentEditable', { value: true });
     document.body.append(editor);
+    const event = press(editor, { key: 'k', ctrlKey: true });
 
-    fireEvent.keyDown(editor, { key: '/' });
     expect(document.activeElement).not.toBe(search());
+    expect(event.defaultPrevented).toBe(false);
     editor.remove();
   });
 
-  // UI-WR-07 (WCAG 2.1.4 Character Key Shortcuts): the single-key "/" shortcut fires only for a plain "/" that nothing
-  // else handled, outside any text entry, while no modal dialog is open.
-  it.each([
-    ['Ctrl', { ctrlKey: true }],
-    ['Cmd', { metaKey: true }],
-    ['Alt', { altKey: true }],
-    ['an IME composition', { isComposing: true }],
-  ])('leaves "/" alone with %s', (_what, init) => {
+  it('leaves a Ctrl+K that something else already handled alone', () => {
     render(<Topbar />);
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true, ...init });
-
-    document.body.dispatchEvent(event);
-    expect(document.activeElement).not.toBe(search());
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it('still takes a "/" typed with Shift (keyboard layouts that need it)', () => {
-    render(<Topbar />);
-    document.body.dispatchEvent(
-      new KeyboardEvent('keydown', { key: '/', shiftKey: true, bubbles: true, cancelable: true }),
-    );
-    expect(document.activeElement).toBe(search());
-  });
-
-  it('leaves a "/" that something else already handled alone', () => {
-    render(<Topbar />);
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true });
     event.preventDefault();
 
     document.body.dispatchEvent(event);
     expect(document.activeElement).not.toBe(search());
   });
 
-  it.each(['textbox', 'searchbox', 'combobox', 'spinbutton'])('leaves "/" alone inside a role="%s" widget', (role) => {
-    render(<Topbar />);
-    const widget = document.createElement('div');
-    widget.setAttribute('role', role);
-    widget.tabIndex = 0;
-    const inner = document.createElement('span');
-    widget.append(inner);
-    document.body.append(widget);
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+  it.each(['textbox', 'searchbox', 'combobox', 'spinbutton'])(
+    'leaves Ctrl+K alone inside a role="%s" widget',
+    (role) => {
+      render(<Topbar />);
+      const widget = document.createElement('div');
+      widget.setAttribute('role', role);
+      widget.tabIndex = 0;
+      const inner = document.createElement('span');
+      widget.append(inner);
+      document.body.append(widget);
+      const event = press(inner, { key: 'k', ctrlKey: true });
 
-    inner.dispatchEvent(event);
-    expect(document.activeElement).not.toBe(search());
-    expect(event.defaultPrevented).toBe(false);
-    widget.remove();
-  });
+      expect(document.activeElement).not.toBe(search());
+      expect(event.defaultPrevented).toBe(false);
+      widget.remove();
+    },
+  );
 
-  it('leaves "/" alone while a modal dialog is open, so focus never leaves the dialog', () => {
+  it('leaves Ctrl+K alone while a modal dialog is open, so focus never leaves the dialog', () => {
     render(<Topbar />);
     const dialog = document.createElement('div');
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     document.body.append(dialog);
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+    const event = press(document.body, { key: 'k', ctrlKey: true });
 
-    document.body.dispatchEvent(event);
     expect(document.activeElement).not.toBe(search());
     expect(event.defaultPrevented).toBe(false);
 
     dialog.remove();
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+    press(document.body, { key: 'k', ctrlKey: true });
     expect(document.activeElement).toBe(search());
   });
 
-  it('ignores other keys, and stops listening once unmounted', () => {
+  it('stops listening once unmounted', () => {
     const { unmount } = render(<Topbar />);
-    fireEvent.keyDown(document.body, { key: 'k' });
-    expect(document.activeElement).not.toBe(search());
 
     unmount();
-    const event = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
-    document.body.dispatchEvent(event);
+    const event = press(document.body, { key: 'k', ctrlKey: true });
     expect(event.defaultPrevented).toBe(false);
   });
 

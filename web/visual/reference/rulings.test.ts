@@ -32,6 +32,7 @@ const RULING_IDS = [
   'D-39',
   'D-41 R2-01',
   'D-41 R2-02',
+  'D-41 R2-03',
 ] as const;
 
 interface Group {
@@ -312,6 +313,13 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(groupsOfR202.map((group) => group.prelude)).toEqual(['.s-rt-wrap', '@container pg (max-width: 767px)']);
     expect(normalize(groupsOfR202[0]?.body ?? '')).toBe('contain: paint;');
     expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([['.s-rt-wrap', 'contain: none;']]);
+  });
+
+  it('D-41 R2-03: the list search box turns its own 1px border --focus on focus-within, nothing else', () => {
+    const groupsOfR203 = byRuling('D-41 R2-03');
+
+    expect(groupsOfR203.map((group) => group.prelude)).toEqual(['.s-search-box:focus-within']);
+    expect(normalize(groupsOfR203[0]?.body ?? '')).toBe('border-color: var(--focus);');
   });
 
   it('WEB-09: an aria-disabled button looks like the disabled button and never nudges or hovers', () => {
