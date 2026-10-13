@@ -8,7 +8,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { attributeScopes, evaluateTree, registryScopes, validateNpmExceptions } from './license-policy.mjs';
+import {
+  ALLOWED_WITH_EXCEPTIONS,
+  attributeScopes,
+  evaluateTree,
+  registryScopes,
+  validateNpmExceptions,
+} from './license-policy.mjs';
 
 const ALLOWED = ['MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC'];
 
@@ -73,7 +79,7 @@ describe('evaluateTree: SPDX expressions', () => {
     ['(MIT OR CC0-1.0)', 'one OR alternative is allowed'],
     ['(GPL-3.0 OR MIT)', 'the other OR alternative is allowed'],
     ['(MIT AND ISC)', 'every AND part is allowed'],
-    ['Apache-2.0 WITH LLVM-exception', 'a WITH exception is judged by its base license'],
+    ['Apache-2.0 WITH LLVM-exception', 'an approved WITH exception on an allowed base license'],
     ['((MIT OR GPL-2.0) AND BSD-3-Clause)', 'nested groups are evaluated'],
     ['MIT*', "license-checker's guessed mark is ignored"],
   ])('passes %s (%s)', (expression) => {
@@ -85,6 +91,24 @@ describe('evaluateTree: SPDX expressions', () => {
     expect(evaluateTree([pkg('bad', ['MIT', 'GPL-3.0'])], policy).problems).toEqual([
       "bad@1.0.0: license 'MIT AND GPL-3.0' is not allowed in this tree.",
     ]);
+  });
+
+  // TOOL-WR-01: an exception id adds terms to its base license, and some (the Commons Clause) forbid selling the code.
+  it.each([
+    ['Apache-2.0 WITH Commons-Clause'],
+    ['MIT WITH LicenseRef-NonCommercial'],
+    ['(ISC AND MIT WITH Commons-Clause)'],
+    ['Apache-2.0 WITH llvm-exception'],
+  ])('fails %j: only an approved WITH exception id passes', (expression) => {
+    expect(evaluateTree([pkg('x', expression)], policy).problems).toHaveLength(1);
+  });
+
+  it('passes an OR whose other side is allowed even when one side has an unapproved WITH exception', () => {
+    expect(evaluateTree([pkg('x', '(MIT WITH Commons-Clause OR ISC)')], policy).problems).toEqual([]);
+  });
+
+  it('approves only LLVM-exception as a WITH exception id', () => {
+    expect([...ALLOWED_WITH_EXCEPTIONS]).toEqual(['LLVM-exception']);
   });
 
   it.each([

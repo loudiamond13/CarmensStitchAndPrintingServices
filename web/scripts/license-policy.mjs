@@ -54,6 +54,14 @@ export const ROOT_PACKAGES = new Set(['csps-web', 'csps-openapi-gen']);
 /** Scopes an npm license exception may name. The production (shipped) tree never has exceptions (D-26). */
 export const EXCEPTION_SCOPES = Object.freeze(['build', 'test', 'tool']);
 
+/**
+ * SPDX exception ids a `WITH` clause may carry (TOOL-WR-01). An exception adds terms to its base license, and some
+ * (the Commons Clause, a LicenseRef-* add-on) take freedoms away, so any other id fails, case-sensitively. LLVM-exception
+ * only waives attribution for compiled output. A new id needs the owner's approval first (D-00 free only).
+ * @type {ReadonlySet<string>}
+ */
+export const ALLOWED_WITH_EXCEPTIONS = new Set(['LLVM-exception']);
+
 const GUESSED_MARK = '*';
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const LICENSE_ID = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/;
@@ -82,7 +90,8 @@ function tokenize(expression) {
 
 /**
  * Recursive-descent SPDX evaluation: or := and ('OR' and)*, and := atom ('AND' atom)*,
- * atom := '(' or ')' | id ['WITH' exception]. A WITH exception is judged by its base license.
+ * atom := '(' or ')' | id ['WITH' exception]. A WITH atom passes only when its base license is allowed and its
+ * exception id is in ALLOWED_WITH_EXCEPTIONS.
  * Throws on a malformed expression.
  * @param {readonly string[]} tokens
  * @param {ReadonlySet<string>} allowed
@@ -117,9 +126,11 @@ function evaluate(tokens, allowed) {
     }
     if (peek() === 'WITH') {
       take();
-      if (!isPlain(take())) {
+      const exception = take();
+      if (!isPlain(exception)) {
         throw new Error('WITH needs an exception id');
       }
+      return allowed.has(token) && ALLOWED_WITH_EXCEPTIONS.has(exception);
     }
     return allowed.has(token);
   }
@@ -172,8 +183,8 @@ function withoutGuessMark(expression) {
 }
 
 /**
- * True when the SPDX expression is satisfied by the allowed licenses: OR needs any side, AND needs every side, WITH is
- * judged by its base license. A list (the legacy `licenses` array) needs every entry. license-checker's trailing `*`
+ * True when the SPDX expression is satisfied by the allowed licenses: OR needs any side, AND needs every side, WITH
+ * needs an allowed base license and an approved exception id (ALLOWED_WITH_EXCEPTIONS). A list (the legacy `licenses` array) needs every entry. license-checker's trailing `*`
  * (a guessed license) is ignored here and reported by evaluateTree. Malformed, empty, UNKNOWN and UNLICENSED never pass.
  * @param {string | readonly string[] | undefined} expression
  * @param {ReadonlySet<string>} allowed
