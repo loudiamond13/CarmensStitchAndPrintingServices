@@ -1,16 +1,22 @@
 // Topbar (App. D.3 "Navigation", CSPS-UI-SPEC.md §6.6, §8.1), converted to utilities (D-33) with App. D.3's props API,
 // markup and copy: the phone "Open navigation" button, the search box with its shortcut hint, then the theme toggle
 // (when the shell can toggle) and the user-menu button. Behaviour as App. D.3 (UI-SPEC Interaction Contract):
-//   - the search shortcut pressed anywhere outside a field focuses the search box; Enter hands its text to onSearch
+//   - the search shortcut focuses the search box; Enter hands its text to onSearch
 //     (the Phase 2 shell passes none, so Enter does nothing there);
 //     SPEC-DEVIATION: D-41 R2-04 (owner, 2026-10-13) the shortcut is Ctrl+K or Cmd+K (Meta+K) instead of App. D.3's
 //     bare "/", which no longer does anything. Both modifiers work on every platform (Ctrl+K is harmless outside
 //     fields on macOS; Windows takes Meta+K itself). Alt or Shift held means no trigger. The hint reads "Ctrl K", or
 //     "⌘K" on Apple platforms, and the input announces `aria-keyshortcuts="Control+K Meta+K"`. Because the shortcut
 //     needs a modifier, WCAG 2.1.4 (Character Key Shortcuts) no longer applies, and code-review warning UI-WR-07 is
-//     closed. The UI-WR-07 guards stay: no trigger during an IME composition, after another handler took the key,
-//     inside any text entry (fields, editable content and the textbox, searchbox, combobox and spinbutton roles), or
-//     while a modal dialog is open (it would move focus out of the dialog);
+//     closed. The UI-WR-07 guards stay: no trigger during an IME composition, after another handler took the key, or
+//     while a modal dialog is open (it would move focus out of the dialog). Code review WR-01 (02-REVIEW-d41.md): the
+//     old "inside a field" guard was written for the bare "/", which types a character. A modifier shortcut types
+//     nothing, so that guard only handed the key to the browser's own Ctrl/Cmd+K (address-bar search) and threw focus
+//     out of the page. Inside text entry (a text-type input, a textarea, editable content, or the textbox, searchbox,
+//     combobox and spinbutton roles) the platform's primary combo is therefore taken too: Cmd+K on Apple platforms,
+//     Ctrl+K elsewhere. Only Mac Ctrl+K inside text entry is left to the field (Cocoa "kill to end of line"). A select,
+//     a checkbox or any other non-text input is not text entry. Pressed in the search box itself, the shortcut keeps
+//     focus there and selects its text;
 //   - the theme toggle is named for what it will do, "Switch to dark mode" with the moon in light, "Switch to light
 //     mode" with the sun in dark;
 //   - the user-menu button announces its menu (`aria-haspopup="menu"`) and opens it: the button and its popover are the
@@ -32,8 +38,8 @@ import {
 } from './navigation.recipe';
 import { UserMenu } from './UserMenu';
 
-/** Elements whose own typing keeps the key (App. D.3's test). */
-const FIELD_TAGS = /^(INPUT|TEXTAREA|SELECT)$/;
+/** Input types that take typed text (an input with no or an unknown type is a text input). */
+const TEXT_INPUT_TYPES = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
 
 /** ARIA text-entry widgets, which keep the key too (UI-WR-07). */
 const TEXT_ENTRY = '[role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"]';
@@ -65,10 +71,21 @@ function isSearchShortcut(event: KeyboardEvent): boolean {
   // SPEC-DEVIATION: strict types: App. D.3 casts the event target; a target that is not an element (the window
   // itself) counts as "outside a field" here, as it does there.
   const target = event.target instanceof HTMLElement ? event.target : null;
-  const inField =
-    target !== null &&
-    (target.isContentEditable || FIELD_TAGS.test(target.tagName) || target.closest(TEXT_ENTRY) !== null);
-  return !inField;
+  if (target === null || !isTextEntry(target)) {
+    return true;
+  }
+  // Code review WR-01: a modifier shortcut types nothing, so inside text entry the platform's primary combo is taken
+  // too (otherwise the browser's own Ctrl/Cmd+K moves focus to its address bar). The first guard already ensures
+  // exactly one of Ctrl and Meta is held. Mac Ctrl+K stays the text field's Cocoa "kill to end of line".
+  return APPLE_AGENT.test(navigator.userAgent) ? event.metaKey : event.ctrlKey;
+}
+
+/** True when the element takes typed text: a text-type input, a textarea, editable content or a text-entry role. */
+function isTextEntry(element: HTMLElement): boolean {
+  if (element instanceof HTMLTextAreaElement || element.isContentEditable || element.closest(TEXT_ENTRY) !== null) {
+    return true;
+  }
+  return element instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(element.type);
 }
 
 export interface TopbarProps {
@@ -108,9 +125,14 @@ export function Topbar({
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (isSearchShortcut(event)) {
+      const input = inputRef.current;
+      if (input !== null && isSearchShortcut(event)) {
         event.preventDefault();
-        inputRef.current?.focus();
+        input.focus();
+        // WR-01: pressed again in the search box itself, keep focus there and select the text to retype.
+        if (event.target === input) {
+          input.select();
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
