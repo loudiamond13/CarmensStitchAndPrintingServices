@@ -459,6 +459,83 @@ describe('Overlay (App. C .s-overlay)', () => {
   });
 });
 
+// D-42 (owner, 2026-10-13, UAT G-2-199): on a short window the Overlay region scrolls. A press on an element's own
+// scrollbar fires mousedown on that element, so without a guard dragging the backdrop's scrollbar would close the dialog
+// and lose the typed confirm text. jsdom has no layout, so each test states the scrim's geometry: a 1015x400 box whose
+// client area is 1000 wide (a 15px vertical scrollbar on the right) or 385 tall (a 15px horizontal one at the bottom).
+interface ScrimGeometry {
+  readonly clientWidth: number;
+  readonly clientHeight: number;
+  readonly scrollWidth: number;
+  readonly scrollHeight: number;
+}
+
+function stubGeometry(scrim: Element, geometry: ScrimGeometry): void {
+  for (const [property, value] of Object.entries({ ...geometry, clientLeft: 0, clientTop: 0 })) {
+    Object.defineProperty(scrim, property, { configurable: true, value });
+  }
+  vi.spyOn(scrim, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1015, 400));
+}
+
+/** Overflows downwards, so the right-hand 15px of the box is the vertical scrollbar. */
+const OVERFLOWING: ScrimGeometry = { clientWidth: 1000, clientHeight: 400, scrollWidth: 1000, scrollHeight: 600 };
+
+describe("scrim presses on the backdrop's own scrollbar (D-42)", () => {
+  function renderInRegion(onClose: () => void): Element {
+    const { container } = render(
+      <Overlay>
+        <AddPayment inline onClose={onClose} />
+      </Overlay>,
+    );
+    return firstChild(container);
+  }
+
+  it('ignores a press on the vertical scrollbar of an overflowing region, and still closes on the scrim', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERFLOWING);
+
+    fireEvent.mouseDown(region, { clientX: 1005, clientY: 100 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on a press at the right edge when the region does not overflow (no scrollbar there, it is scrim)', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, { clientWidth: 1000, clientHeight: 400, scrollWidth: 1000, scrollHeight: 400 });
+
+    fireEvent.mouseDown(region, { clientX: 1005, clientY: 100 });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a press on the horizontal scrollbar of a region that overflows sideways only', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, { clientWidth: 1000, clientHeight: 385, scrollWidth: 1200, scrollHeight: 385 });
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 395 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("gives the fixed Modal's own scrim the same guard", () => {
+    const onClose = vi.fn();
+    const { container } = render(<AddPayment onClose={onClose} />);
+    const scrim = firstChild(container);
+    stubGeometry(scrim, OVERFLOWING);
+
+    fireEvent.mouseDown(scrim, { clientX: 1005, clientY: 100 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.mouseDown(scrim, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('overlay scenarios (the overlays parity group)', () => {
   const byId = new Map(overlayScenarios.map((scenario) => [scenario.id, scenario]));
 
