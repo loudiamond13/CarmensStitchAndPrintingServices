@@ -4,18 +4,23 @@
 // the preflight, the guarded CSPS_E2E seed and a rebuild of the e2e bundle whenever a source is newer than it (L-29),
 // starts the real host for its own run only, captures every page at 390, 820 and 1440 px (the admin pages in both
 // themes) and writes one index.html. It writes nowhere but artifacts/owner-review/.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
+  assertSwapsApplied,
   assertWritable,
+  BEFORE_AFTER_CASES,
+  beforeAfterScript,
   E2E_DIST,
   executeReview,
   OUTPUT_DIR,
   OUTPUT_NOT_IGNORED_MESSAGE,
   parseDifferencesTable,
+  planBeforeAfterShots,
   planReview,
   planShots,
   planSpecGapShots,
@@ -207,6 +212,7 @@ describe('planReview: the run', () => {
       origin: 'https://localhost:5199',
       shots: planShots(),
       specGap: planSpecGapShots(),
+      beforeAfter: planBeforeAfterShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -605,5 +611,233 @@ describe('renderIndex: SPEC-GAP section and parity summary (D-23)', () => {
     expect(html).toContain('<td>actions</td>');
     expect(html).toContain('webkit: @parity @actions light 390px rest');
     expect(html).toContain('--grep @actions');
+  });
+});
+
+// D-41 R2-06 (owner, 2026-10-13) and D-08: a visible wording change goes to the owner as a before/after. "Before" is the
+// approved wording, "after" what the app shows now (the PRD §5.1 names: Subtotal before discount, Total after it).
+const MINUS = '\u2212';
+const SPEC_NOTE = `Profit = Total ${MINUS} Discount ${MINUS} Expenses. Internal only.`;
+const PRD_NOTE = `Profit = Subtotal ${MINUS} Discount ${MINUS} Expenses. Internal only.`;
+
+describe('BEFORE_AFTER_CASES (wording changes for the owner to confirm, D-41 R2-06)', () => {
+  it('holds exactly the totals panel, the card totals and the demo Orders table, frozen', () => {
+    expect(BEFORE_AFTER_CASES.map((entry) => entry.id)).toEqual([
+      'order-totals-0148',
+      'order-totals-card-0148',
+      'data-table-orders',
+    ]);
+    expect(Object.isFrozen(BEFORE_AFTER_CASES)).toBe(true);
+    for (const entry of BEFORE_AFTER_CASES) {
+      expect(entry.decision, entry.id).toBe('D-41 (R2-06)');
+    }
+  });
+
+  it('swaps the panel row and note, the card row, and the table Total figures', () => {
+    const swaps = Object.fromEntries(BEFORE_AFTER_CASES.map((entry) => [entry.id, entry.swaps]));
+
+    expect(swaps['order-totals-0148']).toEqual([
+      { before: 'Total', after: 'Subtotal' },
+      { before: SPEC_NOTE, after: PRD_NOTE },
+    ]);
+    expect(swaps['order-totals-card-0148']).toEqual([{ before: 'Total', after: 'Subtotal' }]);
+    expect(swaps['data-table-orders']).toEqual([
+      { before: '₱22,450.00', after: '₱21,327.50' },
+      { before: '₱23,000.00', after: '₱22,500.00' },
+    ]);
+  });
+
+  it('names each case in plain words and never swaps a text for itself', () => {
+    for (const entry of BEFORE_AFTER_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.label, entry.id).not.toMatch(/^[a-z0-9-]+$/);
+      expect(entry.swaps.length, entry.id).toBeGreaterThan(0);
+      for (const swap of entry.swaps) {
+        expect(swap.before, entry.id).not.toBe(swap.after);
+      }
+    }
+  });
+
+  it('uses only scenario ids of the shared scenario list', () => {
+    const groups = path.join(webDirectory, 'src', 'dev', 'scenarios', 'groups');
+    const sources = readdirSync(groups)
+      .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
+      .map((file) => readFileSync(path.join(groups, file), 'utf8'))
+      .join('\n');
+    for (const entry of BEFORE_AFTER_CASES) {
+      expect(sources, entry.id).toMatch(new RegExp(`Case\\(\\s*'${entry.id}'`));
+    }
+  });
+});
+
+describe('planBeforeAfterShots', () => {
+  it('plans a before and an after picture per case, in Blush at 1440 px, under before-after/', () => {
+    const shots = planBeforeAfterShots();
+
+    expect(shots).toHaveLength(BEFORE_AFTER_CASES.length * 2);
+    expect(shots.map((shot) => shot.file)).toEqual(
+      BEFORE_AFTER_CASES.flatMap((entry) => [
+        `before-after/${entry.id}-before.png`,
+        `before-after/${entry.id}-after.png`,
+      ]),
+    );
+    for (const shot of shots) {
+      expect(shot.theme, shot.file).toBe('light');
+      expect(shot.width, shot.file).toBe(1440);
+      expect(shot.decision, shot.file).toBe('D-41 (R2-06)');
+    }
+  });
+});
+
+/** A minimal text-node tree for the page script (this program has no DOM). */
+interface FakeNode {
+  nodeType: number;
+  nodeValue: string | null;
+  childNodes: FakeNode[];
+}
+const text = (value: string): FakeNode => ({ nodeType: 3, nodeValue: value, childNodes: [] });
+const element = (...childNodes: FakeNode[]): FakeNode => ({ nodeType: 1, nodeValue: null, childNodes });
+
+function runScript(script: string, frames: Record<string, FakeNode[]>): unknown {
+  const document = { querySelectorAll: (selector: string) => frames[selector] ?? [] };
+  return runInNewContext(script, { document });
+}
+
+describe('beforeAfterScript (the page script that writes the approved wording back)', () => {
+  it('replaces only the exact text nodes inside the one case frame and returns a count per swap', () => {
+    const row = text('Subtotal');
+    const discount = text('Total Discount');
+    const note = text(PRD_NOTE);
+    const outside = text('Subtotal');
+    const frame = element(element(row, discount), element(note));
+    const swaps = [
+      { before: 'Total', after: 'Subtotal' },
+      { before: SPEC_NOTE, after: PRD_NOTE },
+      { before: 'x', after: 'nowhere' },
+    ];
+
+    const counts = runScript(beforeAfterScript('order-totals-0148', swaps), {
+      '[data-case="order-totals-0148"]': [frame],
+      body: [element(outside)],
+    });
+
+    expect(counts).toEqual([1, 1, 0]);
+    expect(row.nodeValue).toBe('Total');
+    expect(discount.nodeValue).toBe('Total Discount');
+    expect(note.nodeValue).toBe(SPEC_NOTE);
+    expect(outside.nodeValue).toBe('Subtotal');
+  });
+
+  it('returns null unless exactly one frame has the case id', () => {
+    const script = beforeAfterScript('order-totals-0148', [{ before: 'Total', after: 'Subtotal' }]);
+
+    expect(runScript(script, {})).toBeNull();
+    expect(
+      runScript(script, { '[data-case="order-totals-0148"]': [element(text('Subtotal')), element(text('Subtotal'))] }),
+    ).toBeNull();
+  });
+
+  it('writes the swaps and the case id as JSON, never as raw text', () => {
+    const swaps = [{ before: `</script>"'\\`, after: '`${x}`' }];
+    const script = beforeAfterScript('a"b', swaps);
+
+    expect(script).toContain(JSON.stringify(swaps));
+    expect(script).toContain(JSON.stringify('[data-case="a\\"b"]'));
+  });
+});
+
+describe('assertSwapsApplied', () => {
+  const swaps = [
+    { before: 'Total', after: 'Subtotal' },
+    { before: SPEC_NOTE, after: PRD_NOTE },
+  ];
+
+  it('passes when every swap changed at least one text', () => {
+    expect(() => {
+      assertSwapsApplied('order-totals-0148', swaps, [1, 2]);
+    }).not.toThrow();
+  });
+
+  it('fails naming the case and the text when a swap matched nothing, so an outdated case never shows two equal pictures', () => {
+    expect(() => {
+      assertSwapsApplied('order-totals-0148', swaps, [1, 0]);
+    }).toThrow(/order-totals-0148.*Profit = Subtotal/);
+  });
+
+  it('fails naming the case when its frame was not found', () => {
+    expect(() => {
+      assertSwapsApplied('order-totals-0148', swaps, null);
+    }).toThrow(/order-totals-0148/);
+  });
+});
+
+describe('renderIndex: wording changes for the owner to confirm (D-41 R2-06)', () => {
+  const beforeAfter = planBeforeAfterShots();
+
+  it('shows the section before the SPEC-GAP section, with the plain-words note', () => {
+    const html = renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      specGap: planSpecGapShots(),
+      beforeAfter,
+    });
+    const section = html.indexOf('Wording changes for you to confirm (before and after)');
+
+    expect(section).toBeGreaterThan(-1);
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    expect(html).toContain('D-41 R2-06');
+    expect(html).toContain('Subtotal');
+    expect(html).toContain('before discount');
+    expect(html).toContain('after discount');
+    expect(html).toContain('Fully Paid');
+    expect(html).toContain('only the words change');
+    expect(html).toContain('no row for the Total after discount');
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('lists every swap in a Place / Before / After table and shows both pictures of each case', () => {
+    const html = renderIndex({ generatedAt: 'now', shots: [], problems: [], beforeAfter });
+
+    expect(html).toContain('<th>Place</th><th>Before</th><th>After</th>');
+    for (const entry of BEFORE_AFTER_CASES) {
+      expect(html).toContain(entry.label);
+      for (const swap of entry.swaps) {
+        expect(html).toContain(`<td>${swap.before}</td><td>${swap.after}</td>`);
+      }
+    }
+    for (const shot of beforeAfter) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+  });
+
+  it('escapes the labels and alt text', () => {
+    const html = renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      beforeAfter: [
+        {
+          id: 'x',
+          label: '<b>"x"</b>',
+          decision: 'D-41 (R2-06)',
+          side: 'before',
+          theme: 'light',
+          width: 1440,
+          file: 'before-after/x-before.png',
+          swaps: [{ before: '<i>', after: '&' }],
+        },
+      ],
+    });
+
+    expect(html).toContain('&lt;b&gt;&quot;x&quot;&lt;/b&gt;');
+    expect(html).toContain('<td>&lt;i&gt;</td><td>&amp;</td>');
+    expect(html).not.toContain('<b>"x"</b>');
+  });
+
+  it('has no section when there are no before/after pictures', () => {
+    const html = renderIndex({ generatedAt: 'now', shots: [], problems: [] });
+
+    expect(html).not.toContain('Wording changes for you to confirm');
   });
 });
