@@ -1,6 +1,6 @@
 # Styling the web app: Tailwind utilities and the CSPS tokens
 
-*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-08T10:45:00-05:00*
+*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-13T09:10:00-05:00*
 
 This page explains how to style anything in `web/` (decision D-33, requirement WEB-02). It is written for every later phase. The short version: **all styling is Tailwind utility classes in the markup, built only from the CSPS tokens.** No hand-written CSS rules, no inline styles, and no colour or size picked by eye. Two automated gates enforce this, so a mistake fails the tests instead of quietly changing the look.
 
@@ -128,7 +128,7 @@ The `pg-*` variants need an ancestor with `@container/pg` (the page root). A 767
 | Prettier (`prettier-plugin-tailwindcss`) | Class order in `className`, `clsx(…)` and `tw(…)` | `web/.prettierrc.json` |
 | Parity harness | Any visible difference from the approved design | later plan in this phase |
 
-The class gate collects tokens from `className` string literals (including both branches of a `? :`), the arguments of `clsx(…)` and `tw(…)` (strings, arrays, object keys, conditionals), and every string literal in a `*.recipe.ts` file. It compiles each token against the real `app.css` with Tailwind's own `compile()`, so it sees exactly what the build sees. The `group` and `peer` marker classes (`group/nav`, `group/thumb`) emit no CSS by design and are accepted. To run the gate on its own, outside Vitest: `node web/scripts/class-gate.mjs` (it prints each finding and exits 1 when there is one).
+The class gate collects tokens from `className` string literals (including both branches of a `? :`), the arguments of `clsx(…)` and `tw(…)` (strings, arrays, object keys, conditionals), and every string literal in a `*.recipe.ts` file. A variable in one of those positions is followed too: a `const` of the same file through its initializer, and an imported one (through `@/` paths and barrels) to the src module that declares it, where its tokens are checked and reported (TOOL-WR-06). It compiles each token against the real `app.css` with Tailwind's own `compile()`, so it sees exactly what the build sees. The `group` and `peer` marker classes (`group/nav`, `group/thumb`) emit no CSS by design and are accepted. To run the gate on its own, outside Vitest: `node web/scripts/class-gate.mjs` (it prints each finding and exits 1 when there is one).
 
 Run them from the repository root:
 

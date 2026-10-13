@@ -9,7 +9,10 @@
 // Where class tokens are read:
 // - JSX `className` string literals, and the string branches of expressions inside `className={…}`;
 // - the arguments of `clsx(…)` and `tw(…)` calls: strings, arrays, object keys and conditional branches;
-// - every string literal in a `*.recipe.ts` file, except import/export specifiers, property names and types.
+// - every string literal in a `*.recipe.ts` file, except import/export specifiers, property names and types;
+// - a variable in any of those positions (TOOL-WR-06): a `const` of the same file is read through its initializer,
+//   and `runClassGate` follows an imported one (through barrels, with the TypeScript checker) to its declaration in
+//   another src module and checks it there. Props and parameters are read where their value is written.
 //
 // `node scripts/class-gate.mjs` prints every finding and exits 1 when there is one.
 import { readdirSync, readFileSync } from 'node:fs';
@@ -45,19 +48,80 @@ const markerClass = /^(?:group|peer)(?:\/[A-Za-z0-9_-]+)?$/;
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
+ * Called for an identifier in a class position that names no `const` of its own file (an import, a prop, a parameter).
+ * @typedef {(identifier: ts.Identifier) => void} UnresolvedIdentifier
+ */
+
+/**
  * Every class token in one source file, with the 1-based line it sits on.
  * @param {string} fileName Used for the script kind (`.tsx`) and the recipe rule (`*.recipe.ts`).
  * @param {string} sourceText
+ * @param {{ sourceFile?: ts.SourceFile, onUnresolved?: UnresolvedIdentifier }} [options] `sourceFile`: the parsed file
+ *   (from a ts.Program, so a checker can resolve its identifiers); `onUnresolved`: see UnresolvedIdentifier.
  * @returns {ClassToken[]}
  */
-export function collectClassTokens(fileName, sourceText) {
+export function collectClassTokens(fileName, sourceText, options = {}) {
   const scriptKind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true, scriptKind);
-  const isRecipe = fileName.endsWith('.recipe.ts');
+  const sourceFile =
+    options.sourceFile ?? ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true, scriptKind);
+  const collector = createCollector(sourceFile, fileName.endsWith('.recipe.ts'), options.onUnresolved);
+  collector.visit(sourceFile);
+  return collector.tokens;
+}
+
+/**
+ * The class tokens one expression can produce, read in its own file (an imported class constant, TOOL-WR-06).
+ * @param {ts.SourceFile} sourceFile
+ * @param {ts.Expression} expression
+ * @param {UnresolvedIdentifier} [onUnresolved]
+ * @returns {ClassToken[]}
+ */
+function collectExpressionTokens(sourceFile, expression, onUnresolved) {
+  const collector = createCollector(sourceFile, false, onUnresolved);
+  collector.readClassExpression(expression);
+  return collector.tokens;
+}
+
+/**
+ * The `const` declarations of a file by name, with their initializers (several when a name is shadowed).
+ * @param {ts.SourceFile} sourceFile
+ * @returns {Map<string, ts.Expression[]>}
+ */
+function constInitializers(sourceFile) {
+  /** @type {Map<string, ts.Expression[]>} */
+  const byName = new Map();
+  /** @param {ts.Node} node */
+  const walk = (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer !== undefined &&
+      ts.isVariableDeclarationList(node.parent) &&
+      (node.parent.flags & ts.NodeFlags.Const) !== 0
+    ) {
+      byName.set(node.name.text, [...(byName.get(node.name.text) ?? []), node.initializer]);
+    }
+    ts.forEachChild(node, walk);
+  };
+  walk(sourceFile);
+  return byName;
+}
+
+/**
+ * The token reader for one file.
+ * @param {ts.SourceFile} sourceFile
+ * @param {boolean} isRecipe
+ * @param {UnresolvedIdentifier} [onUnresolved]
+ */
+function createCollector(sourceFile, isRecipe, onUnresolved) {
   /** @type {ClassToken[]} */
   const tokens = [];
   /** Literal nodes already read, so a `tw('…')` inside a recipe is counted once. @type {Set<ts.Node>} */
   const seen = new Set();
+  /** @type {Map<string, ts.Expression[]> | undefined} */
+  let localConsts;
+  /** Names being resolved right now, so a cycle of constants stops. @type {Set<string>} */
+  const resolving = new Set();
 
   /**
    * Splits class text into tokens. `text` starts at `offset` characters after the node's start.
@@ -114,7 +178,9 @@ export function collectClassTokens(fileName, sourceText) {
    * @param {ts.Expression} expression
    */
   const readClassExpression = (expression) => {
-    if (
+    if (ts.isIdentifier(expression)) {
+      readIdentifier(expression);
+    } else if (
       ts.isStringLiteral(expression) ||
       ts.isNoSubstitutionTemplateLiteral(expression) ||
       ts.isTemplateExpression(expression)
@@ -148,6 +214,27 @@ export function collectClassTokens(fileName, sourceText) {
       }
     }
   };
+
+  /**
+   * A variable in a class position: a `const` of this file is read through its initializer (TOOL-WR-06); anything
+   * else goes to onUnresolved.
+   * @param {ts.Identifier} identifier
+   */
+  function readIdentifier(identifier) {
+    const name = identifier.text;
+    if (resolving.has(name)) {
+      return;
+    }
+    localConsts ??= constInitializers(sourceFile);
+    const initializers = localConsts.get(name);
+    if (initializers === undefined) {
+      onUnresolved?.(identifier);
+      return;
+    }
+    resolving.add(name);
+    initializers.forEach(readClassExpression);
+    resolving.delete(name);
+  }
 
   /**
    * A string literal in a recipe file that is not a class string: a property name, an element-access key or a
@@ -197,8 +284,7 @@ export function collectClassTokens(fileName, sourceText) {
     ts.forEachChild(node, visit);
   };
 
-  visit(sourceFile);
-  return tokens;
+  return { tokens, visit, readClassExpression };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -345,18 +431,86 @@ export function listSourceFiles(webRoot = defaultWebRoot) {
 }
 
 /**
- * Runs the gate over every source file.
+ * A program over the gate's files, only for resolving imports (`@/` paths and barrels); nothing is type-checked.
+ * @param {string} webRoot
+ * @param {readonly string[]} files
+ */
+function createSourceProgram(webRoot, files) {
+  return ts.createProgram(
+    files.map((file) => path.join(webRoot, file)),
+    {
+      jsx: ts.JsxEmit.Preserve,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      target: ts.ScriptTarget.ES2022,
+      paths: { '@/*': [path.join(webRoot, 'src', '*')] },
+      noEmit: true,
+      skipLibCheck: true,
+      types: [],
+    },
+  );
+}
+
+/** @param {string} file */
+const posix = (file) => file.replaceAll('\\', '/');
+
+/**
+ * Runs the gate over every source file. A class constant imported from another src module that is not a recipe (whose
+ * strings are all read anyway) is read and checked in the module that declares it (TOOL-WR-06).
  * @param {string} [webRoot]
  * @returns {Promise<ClassFinding[]>}
  */
 export async function runClassGate(webRoot = defaultWebRoot) {
+  const files = listSourceFiles(webRoot);
+  const program = createSourceProgram(webRoot, files);
+  const checker = program.getTypeChecker();
+  const root = posix(path.resolve(webRoot)).replace(/\/$/, '');
+  const listed = new Set(files);
+  /** Foreign class constants already read: declaration → its file and tokens. @type {Map<ts.Node, { file: string, tokens: ClassToken[] }>} */
+  const foreign = new Map();
+
+  /** @type {UnresolvedIdentifier} */
+  const onUnresolved = (identifier) => {
+    let symbol = checker.getSymbolAtLocation(identifier);
+    if (symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0) {
+      symbol = checker.getAliasedSymbol(symbol);
+    }
+    const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+    if (
+      declaration === undefined ||
+      !ts.isVariableDeclaration(declaration) ||
+      declaration.initializer === undefined ||
+      foreign.has(declaration)
+    ) {
+      return;
+    }
+    const declaringFile = declaration.getSourceFile();
+    const absolute = posix(declaringFile.fileName);
+    const file = absolute.toLowerCase().startsWith(`${root.toLowerCase()}/`) ? absolute.slice(root.length + 1) : '';
+    if (!listed.has(file) || file.endsWith('.recipe.ts') || declaringFile === identifier.getSourceFile()) {
+      return;
+    }
+    const entry = { file, tokens: /** @type {ClassToken[]} */ ([]) };
+    foreign.set(declaration, entry);
+    entry.tokens.push(...collectExpressionTokens(declaringFile, declaration.initializer, onUnresolved));
+  };
+
   /** @type {ClassFinding[]} */
   const findings = [];
-  for (const file of listSourceFiles(webRoot)) {
-    const tokens = collectClassTokens(file, readFileSync(path.join(webRoot, file), 'utf8'));
+  for (const file of files) {
+    const sourceFile = program.getSourceFile(path.join(webRoot, file));
+    const tokens = collectClassTokens(file, readFileSync(path.join(webRoot, file), 'utf8'), {
+      ...(sourceFile === undefined ? {} : { sourceFile }),
+      onUnresolved,
+    });
     findings.push(...(await checkClassTokens(tokens, { file })));
   }
-  return findings;
+  for (const { file, tokens } of foreign.values()) {
+    findings.push(...(await checkClassTokens(tokens, { file })));
+  }
+  // A constant also used in a class position of its own file is read by both walks; report each finding once.
+  const unique = new Map(findings.map((finding) => [finding.message, finding]));
+  return [...unique.values()];
 }
 
 const invokedPath = process.argv[1];

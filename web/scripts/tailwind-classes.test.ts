@@ -2,8 +2,10 @@
 // Class gate (D-33, WEB-02, D-02, A11Y-04, T-02-15): every class token in src compiles to CSS against the real CSPS
 // theme in src/styles/app.css, carries no colour literal, and uses opacity only from the D-02 allow-list. The cleared
 // theme makes a default-palette class or a typo emit nothing, silently (research Pitfall 23); this gate makes it fail.
-import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { COLOUR_LITERAL, OPACITY_ALLOW } from './class-gate.config.mjs';
 import { buildCss, checkClassTokens, collectClassTokens, listSourceFiles, runClassGate } from './class-gate.mjs';
 
@@ -189,6 +191,90 @@ describe('checkClassTokens', () => {
         kind: 'unknown',
         message: expect.stringContaining('bg-blue-500') as unknown,
       },
+    ]);
+  });
+});
+
+// TOOL-WR-06: a class string held in a variable is read where the variable is declared, so the gate sees it.
+describe('class strings held in variables (TOOL-WR-06)', () => {
+  it('reads a same-file const used as a className', () => {
+    const source = "const x = 'bg-blue-500';\nexport const A = () => <div className={x} />;\n";
+    expect(collectClassTokens('src/ui/A.tsx', source)).toEqual([{ token: 'bg-blue-500', line: 1 }]);
+  });
+
+  it('reads consts in both branches of a conditional className and in clsx arguments', () => {
+    const source = [
+      "import clsx from 'clsx';",
+      "const on = 'p-4';",
+      "const off = 'bg-blue-500';",
+      'export const A = (o: { on: boolean }) => <div className={o.on ? on : off} />;',
+      "export const B = (o: { on: boolean }) => <div className={clsx('flex', o.on && on)} />;",
+    ].join('\n');
+    expect(tokensOf('src/ui/A.tsx', source)).toEqual(['p-4', 'bg-blue-500', 'flex']);
+  });
+
+  it('follows a const that names another const, and stops on a cycle', () => {
+    const source = [
+      "const base = 'm-1';",
+      'const alias = base;',
+      'const a: string = b;',
+      'const b: string = a;',
+      'export const A = () => <div className={alias} />;',
+      'export const B = () => <div className={a} />;',
+    ].join('\n');
+    expect(tokensOf('src/ui/A.tsx', source)).toEqual(['m-1']);
+  });
+
+  it('reads nothing for a prop or parameter passed through', () => {
+    const source = 'export const A = ({ className }: { className: string }) => <div className={className} />;';
+    expect(tokensOf('src/ui/A.tsx', source)).toEqual([]);
+  });
+
+  it('fails an unknown class held in a const', async () => {
+    const source = "const x = 'p-4 bg-blue-500';\nexport const A = () => <div className={x} />;\n";
+    expect(await findingsOf('src/ui/A.tsx', source)).toEqual([['bg-blue-500', 'unknown']]);
+  });
+});
+
+describe('runClassGate: class strings imported from another module (TOOL-WR-06)', () => {
+  let root = '';
+  afterEach(() => {
+    if (root !== '') {
+      rmSync(root, { recursive: true, force: true });
+      root = '';
+    }
+  });
+
+  function project(files: Record<string, string>): string {
+    root = mkdtempSync(path.join(tmpdir(), 'csps-class-gate-'));
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), text);
+    }
+    return root;
+  }
+
+  it('reads a class const exported by a plain module (through a barrel) and reports it in that module', async () => {
+    const webRoot = project({
+      'src/ui/copy.ts': "export const panelClasses = 'p-4 bg-blue-500';\n",
+      'src/ui/index.ts': "export { panelClasses } from './copy';\n",
+      'src/app/Page.tsx':
+        "import { panelClasses } from '@/ui';\nexport const Page = () => <div className={panelClasses} />;\n",
+    });
+    const findings = await runClassGate(webRoot);
+    expect(findings.map((finding) => [finding.file, finding.line, finding.token, finding.kind])).toEqual([
+      ['src/ui/copy.ts', 1, 'bg-blue-500', 'unknown'],
+    ]);
+  });
+
+  it('does not read a recipe const twice', async () => {
+    const webRoot = project({
+      'src/ui/a.recipe.ts': "export const aClasses = 'p-4 bg-blue-500';\n",
+      'src/app/Page.tsx':
+        "import { aClasses } from '../ui/a.recipe';\nexport const Page = () => <div className={aClasses} />;\n",
+    });
+    expect((await runClassGate(webRoot)).map((finding) => [finding.file, finding.token])).toEqual([
+      ['src/ui/a.recipe.ts', 'bg-blue-500'],
     ]);
   });
 });
