@@ -12,7 +12,9 @@
 //   an effect (Pitfall 7), and in an Overlay region the region is the scrim; with dialogs stacked, Esc closes only the
 //   one on top (UI-WR-01);
 // - body scroll is locked with the `overflow-hidden` class while it is open (useBodyScrollLock).
-// It renders where it is placed, inside the page root, never in a portal.
+// It renders where it is placed, inside the page root, never in a portal, and never inside a ResponsiveTable frame,
+// whose paint containment would trap the fixed scrim: an open Modal there throws (code review WR-05, see
+// fixedLayerGuard.ts).
 import { useEffect, useEffectEvent, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { Icon } from '@/ui/brand';
 import { iconButtonClasses } from '@/ui/feedback';
@@ -26,6 +28,7 @@ import {
   overlayClasses,
   type ModalVariant,
 } from './overlays.recipe';
+import { useFixedLayerGuard } from './fixedLayerGuard';
 import { useBodyScrollLock } from './useBodyScrollLock';
 import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 
@@ -64,6 +67,8 @@ function OpenModal({
   initialFocus,
   children,
 }: Omit<ModalProps, 'open'>) {
+  // WR-05: first, so it throws before any focus or scroll side effect (ConfirmDialog and inline Modals included).
+  useFixedLayerGuard('Modal');
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();

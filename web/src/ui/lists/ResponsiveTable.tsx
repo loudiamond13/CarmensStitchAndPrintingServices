@@ -20,6 +20,7 @@ import { Button } from '@/ui/actions';
 import type { IconName } from '@/ui/brand';
 import { EmptyState, type EmptyStateHeadingLevel } from '@/ui/feedback';
 import { srOnlyClasses } from '@/ui/layout/layout.recipe';
+import { PaintContainmentContext } from '@/ui/overlays/fixedLayerGuard';
 import { ErrorState, LoadingRegion, useDelayedFlag } from '@/ui/states';
 import { LISTS_COPY } from './copy';
 import {
@@ -200,42 +201,47 @@ export function ResponsiveTable<T>({
         aria-label={caption}
         data-refetching={marked ? 'true' : undefined}
       >
-        <table className={tableClasses}>
-          <caption id={captionId} tabIndex={captionId === undefined ? undefined : -1} className={srOnlyClasses}>
-            {caption}
-          </caption>
-          <thead className={tableHeadClasses}>
-            <tr>{columns.map((column) => headCell(column))}</tr>
-          </thead>
-          <tbody className={tableSectionClasses}>
-            {shown.map((row) => {
-              const tone = toneOf(isInactive?.(row) ?? false);
-              return (
-                <tr key={rowKey(row)} className={tableRowClasses[tone]}>
-                  {columns.map((column) => {
-                    const content = column.cell(row);
-                    return (
-                      <td key={column.key} data-label={labelOf(column)} className={bodyCellClasses(column, tone)}>
-                        {isMissing(content) ? LISTS_COPY.missing : content}
-                      </td>
-                    );
-                  })}
+        {/* WR-05: the frame's D-41 R2-02 paint containment makes it the containing block of position: fixed
+            descendants, so a dialog in a cell would be trapped and clipped. The context (no DOM) makes Modal and
+            ConfirmDialog refuse to render here; see fixedLayerGuard.ts. */}
+        <PaintContainmentContext value>
+          <table className={tableClasses}>
+            <caption id={captionId} tabIndex={captionId === undefined ? undefined : -1} className={srOnlyClasses}>
+              {caption}
+            </caption>
+            <thead className={tableHeadClasses}>
+              <tr>{columns.map((column) => headCell(column))}</tr>
+            </thead>
+            <tbody className={tableSectionClasses}>
+              {shown.map((row) => {
+                const tone = toneOf(isInactive?.(row) ?? false);
+                return (
+                  <tr key={rowKey(row)} className={tableRowClasses[tone]}>
+                    {columns.map((column) => {
+                      const content = column.cell(row);
+                      return (
+                        <td key={column.key} data-label={labelOf(column)} className={bodyCellClasses(column, tone)}>
+                          {isMissing(content) ? LISTS_COPY.missing : content}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+            {footer !== undefined && (
+              <tfoot className={tableSectionClasses}>
+                <tr className={tableFootRowClasses}>
+                  {columns.map((column) => (
+                    <td key={column.key} data-label={labelOf(column)} className={footCellClassList(column)}>
+                      {footer[column.key]}
+                    </td>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-          {footer !== undefined && (
-            <tfoot className={tableSectionClasses}>
-              <tr className={tableFootRowClasses}>
-                {columns.map((column) => (
-                  <td key={column.key} data-label={labelOf(column)} className={footCellClassList(column)}>
-                    {footer[column.key]}
-                  </td>
-                ))}
-              </tr>
-            </tfoot>
-          )}
-        </table>
+              </tfoot>
+            )}
+          </table>
+        </PaintContainmentContext>
       </div>
     );
   }
