@@ -4,7 +4,10 @@
 //   POST as `{ idempotencyKey }`; the HTTP client resends that key on its own retries and on the 401 refresh retry;
 // - while a submission is pending, every further trigger gets the same in-flight promise, so one request is in flight;
 // - a failed submission resubmitted with the same data (compared as JSON) is the same submission and keeps its key,
-//   including one that carries no data (a fixed sentinel, L-25: JSON.stringify(undefined) is undefined);
+//   including one that carries no data (a fixed sentinel, L-25: JSON.stringify(undefined) is undefined), but only
+//   when the failure leaves open whether the server saved it: no answer (network, timeout, cancelled), an unreadable
+//   2xx, a 5xx, a 408 or a 409 (SEC-06 "still running"). A final 4xx (400, 401, 403, 404, 422, 429) is replayed by
+//   SEC-06 for 24 hours, so the next submit after one gets a new key (LIB-WR-01);
 // - only plain JSON data is compared (plain objects, arrays, strings, finite numbers, booleans, null). FormData, File,
 //   Blob, Map, Set, Date, class instances, symbols, BigInts and cycles are never "the same submission", because
 //   JSON.stringify turns many of them into "{}" and two different payloads would share a key (LIB-CR-02). Such a form
@@ -115,6 +118,14 @@ function serialize<TData>(data: TData, identity: ((data: TData) => string) | und
   }
 }
 
+/** True when the server may have run the failed request, so a retry must reuse its key to land on the stored result. */
+function mayHaveRun(error: unknown): boolean {
+  if (!isHttpError(error) || error.kind !== 'http') {
+    return true;
+  }
+  return error.status >= 500 || error.status === 408 || error.status === 409;
+}
+
 function fieldErrorsOf(error: unknown): FieldErrors {
   if (isHttpError(error) && error.status === 400 && Object.keys(error.fieldErrors).length > 0) {
     return error.fieldErrors;
@@ -167,7 +178,8 @@ export function useSubmission<TData, TResult>(
       setFieldErrors(noFieldErrors);
       options?.onSuccess?.(outcome.value, data);
     } else {
-      lastRef.current = serialized === undefined ? undefined : { key, serialized, success: undefined };
+      lastRef.current =
+        serialized === undefined || !mayHaveRun(outcome.error) ? undefined : { key, serialized, success: undefined };
       const failedFields = fieldErrorsOf(outcome.error);
       setError(outcome.error);
       setFieldErrors(failedFields);

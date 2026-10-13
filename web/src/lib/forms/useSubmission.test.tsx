@@ -271,6 +271,53 @@ describe('useSubmission: key per submission (WEB-09 idempotency)', () => {
     expect(spy.send.mock.calls[2]?.[1]).toEqual({ ...payment, amount: '1600.00' });
   });
 
+  it.each<[string, Error]>([
+    ['a network error', new HttpError({ kind: 'network' })],
+    ['a timeout', new HttpError({ kind: 'timeout' })],
+    ['a cancelled request', new HttpError({ kind: 'aborted' })],
+    ['an unreadable 2xx reply', new HttpError({ kind: 'parse', status: 201 })],
+    ['a 500', validationError(500, {})],
+    ['a 503', validationError(503, {})],
+    ['a 408', validationError(408, {})],
+    ['a 409 (still running, SEC-06)', validationError(409, {})],
+    ['an error that is not an HttpError', new Error('Server unavailable')],
+  ])('reuses the key after %s, because the server may have saved it (LIB-WR-01)', async (_case, failure) => {
+    const user = userEvent.setup();
+    const spy = recordingSend([failure, 'ok']);
+    render(<PaymentForm send={spy.send} data={payment} />);
+
+    await user.click(save());
+    await settled();
+    await user.click(save());
+    await settled();
+
+    const [failed, retried] = spy.keys();
+    expect(retried).toBe(failed);
+  });
+
+  it.each<[string, Error]>([
+    ['a 400 with field errors', validationError(400, { Amount: ['Enter an amount.'] })],
+    ['a 400 without field errors', validationError(400, {})],
+    ['a 401', validationError(401, {})],
+    ['a 403', validationError(403, {})],
+    ['a 404', validationError(404, {})],
+    ['a 422 (key reused with another body)', validationError(422, {})],
+    ['a 429', validationError(429, {})],
+  ])('gives a new key after %s, a final answer the server would replay for 24 hours (LIB-WR-01)', async (_case, failure) => {
+    const user = userEvent.setup();
+    const spy = recordingSend([failure, 'ok']);
+    render(<PaymentForm send={spy.send} data={payment} />);
+
+    await user.click(save());
+    await settled();
+    await user.click(save());
+    await settled();
+
+    const [failed, retried] = spy.keys();
+    expect(retried).toMatch(uuidV4);
+    expect(retried).not.toBe(failed);
+  });
+
   it('gives a new key when the data changed after a failure', async () => {
     const user = userEvent.setup();
     const spy = recordingSend([new Error('Server unavailable'), 'ok']);
