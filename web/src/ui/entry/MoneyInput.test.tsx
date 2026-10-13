@@ -212,6 +212,120 @@ describe('MoneyInput paste', () => {
   });
 });
 
+// D-41 R2-18 (owner, 2026-10-13; closes UI-WR-09): a refused paste is no longer silent. The field shows the amount hint
+// (ENTRY_COPY.money.invalid) in the error look and announces it politely, until the next accepted keystroke or paste.
+// It never echoes the pasted text, a caller's error always wins, and a blank clipboard still changes nothing.
+describe('MoneyInput refused paste (D-41 R2-18)', () => {
+  /** The always-mounted polite status node next to the field. */
+  function status(): HTMLElement {
+    return screen.getByRole('status');
+  }
+
+  function message(input: HTMLInputElement): string | null | undefined {
+    return document.getElementById(input.getAttribute('aria-describedby') ?? '')?.textContent;
+  }
+
+  it('keeps an empty polite status node mounted while nothing was refused', () => {
+    render(<Harness />);
+    expect(status()).toHaveTextContent(/^$/);
+    expect(status()).toHaveAttribute('aria-live', 'polite');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it.each([['abc'], ['-5'], ['1.234'], ['PHP'], ['<b>hi</b>']])(
+    'shows and announces the amount hint for a refused paste of %j, never the pasted text',
+    async (text) => {
+      const user = userEvent.setup();
+      const onValue = vi.fn<(value: string) => void>();
+      render(<Harness initial="7" onValue={onValue} />);
+      await user.click(amountBox());
+      await user.paste(text);
+
+      expect(amountBox().value).toBe('7');
+      expect(onValue).not.toHaveBeenCalled();
+      expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+      expect(message(amountBox())).toBe(ENTRY_COPY.money.invalid);
+      expect(status()).toHaveTextContent(ENTRY_COPY.money.invalid);
+      expect(document.body.textContent).not.toContain(text);
+    },
+  );
+
+  it('clears the hint on the next accepted keystroke, and keeps it through a refused one and the blur', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="7" hint="Balance due: ₱4,327.50" />);
+    await user.click(amountBox());
+    await user.paste('abc');
+    await user.keyboard('x');
+    expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+
+    await user.tab();
+    expect(amountBox().value).toBe('7.00');
+    expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+
+    await user.click(amountBox());
+    await user.keyboard('{End}{Backspace}');
+    expect(amountBox().value).toBe('7.0');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(message(amountBox())).toBe('Balance due: ₱4,327.50');
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  it('clears the hint on the next accepted paste', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(amountBox());
+    await user.paste('abc');
+    expect(status()).toHaveTextContent(ENTRY_COPY.money.invalid);
+
+    await user.paste('₱4,327.50');
+    expect(amountBox().value).toBe('4327.50');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  it('takes an accepted paste with no hint at all', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(amountBox());
+    await user.paste('₱4,327.50');
+    expect(amountBox().value).toBe('4327.50');
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  it.each([[''], ['   ']])('ignores a blank clipboard (%j) silently', async (text) => {
+    const user = userEvent.setup();
+    const onValue = vi.fn<(value: string) => void>();
+    render(<Harness initial="7" onValue={onValue} />);
+    await user.click(amountBox());
+    await user.paste(text);
+
+    expect(amountBox().value).toBe('7');
+    expect(onValue).not.toHaveBeenCalled();
+    expect(amountBox()).not.toHaveAttribute('aria-invalid');
+    expect(status()).toHaveTextContent(/^$/);
+  });
+
+  it("shows the caller's error instead of the paste hint", async () => {
+    const user = userEvent.setup();
+    render(<Harness required error={ENTRY_COPY.money.required} />);
+    const input = screen.getByRole<HTMLInputElement>('textbox');
+    await user.click(input);
+    await user.paste('abc');
+
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(message(input)).toBe(ENTRY_COPY.money.required);
+  });
+
+  it('has no axe violations in the refused state', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Harness />);
+    await user.click(amountBox());
+    await user.paste('abc');
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('MoneyInput blur', () => {
   it.each([
     ['5000', '5000.00'],

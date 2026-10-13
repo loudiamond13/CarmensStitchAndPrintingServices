@@ -163,7 +163,7 @@ describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
     const footer = screen.getByRole('contentinfo');
     expect(
       within(footer)
-        .getAllByRole('heading', { level: 4 })
+        .getAllByRole('heading', { level: 2 })
         .map((heading) => heading.textContent),
     ).toEqual(['Shop', 'Visit', 'Contact']);
     expect(within(footer).getByText(SITE_CONTACT.address)).toBeInTheDocument();
@@ -178,6 +178,27 @@ describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
     expect(
       within(footer).getByText("© 2026 Carmen's Stitch & Printing Services. All rights reserved."),
     ).toBeInTheDocument();
+  });
+});
+
+describe('PublicLayout heading order (D-41 R2-17)', () => {
+  it('goes h1 then h2: the footer column titles are h2 (not h4), after exactly one h1, with their look unchanged', async () => {
+    await renderAt('/');
+    const footer = screen.getByRole('contentinfo');
+    const titles = within(footer).getAllByRole('heading');
+    const levels = screen.getAllByRole('heading').map((heading) => heading.localName);
+
+    expect(titles.map((heading) => [heading.localName, heading.textContent])).toEqual([
+      ['h2', 'Shop'],
+      ['h2', 'Visit'],
+      ['h2', 'Contact'],
+    ]);
+    expect(footer.querySelector('h3, h4, h5, h6')).toBeNull();
+    expect(levels.filter((level) => level === 'h1')).toHaveLength(1);
+    expect(levels.indexOf('h1')).toBeLessThan(levels.indexOf('h2'));
+    for (const title of titles) {
+      expect(title.className).toBe('mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase');
+    }
   });
 });
 
