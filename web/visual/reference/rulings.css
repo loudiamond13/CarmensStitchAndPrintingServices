@@ -18,6 +18,11 @@
    - D-41 R2-04 (owner, 2026-10-13) has no rule here: it changes the Topbar shortcut hint text ("Ctrl K", or "⌘K" on
      Apple platforms, instead of "/"). The reference-only Topbar override (visual/reference/fragments/Topbar.tsx, on
      SPEC_OVERRIDES in merge-kit.ts) writes the hint into the frozen kbd after mount.
+   - D-41 R2-06 (owner, 2026-10-13) has no rule here: it changes text, not a look. The order math follows the PRD
+     names, so the OrderTotals row before discount reads "Subtotal" (App. D.3: "Total") and the panel note reads
+     "Profit = Subtotal − Discount − Expenses. Internal only.". The reference-only OrderTotals and OrderCard overrides
+     (visual/reference/fragments/OrderTotals.tsx and OrderCard.tsx, on SPEC_OVERRIDES in merge-kit.ts) write the words
+     into the frozen rows and note after mount.
    - The second D-27 group (plan 02-26) states the pointer cursor the approved Logout link already shows: WebKit
      reports a link's hand cursor as `auto`, the D-27 button reports `pointer`. It changes no look in any engine.
    - visual/reference/rulings.test.ts pins all of the above. */

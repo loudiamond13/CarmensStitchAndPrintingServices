@@ -14,8 +14,19 @@ export type MergedKit = Readonly<Record<string, ComponentType<never>>>;
  *   - Topbar → D-41 (R2-04, owner, 2026-10-13): the override in fragments/Topbar.tsx still renders the pinned frozen
  *     Topbar, unchanged and with no wrapper, and only writes the owner-ruled shortcut hint ("Ctrl K", or "⌘K" on Apple
  *     platforms) into its kbd after mount, because CSS cannot change a text node.
+ *   - OrderTotals → D-41 (R2-06, owner, 2026-10-13): the override in fragments/OrderTotals.tsx still renders the pinned
+ *     frozen OrderTotals, unchanged and with no wrapper, and only writes the PRD §5.1 wording after mount: the
+ *     before-discount row reads "Subtotal" and the note "Profit = Subtotal − Discount − Expenses. Internal only.".
+ *   - OrderCard → D-41 (R2-06, owner, 2026-10-13): the override in fragments/OrderCard.tsx still renders the pinned
+ *     frozen OrderCard, unchanged and with no wrapper, and only writes the same "Subtotal" wording into the card's
+ *     internal totals block after mount (the frozen OrderCard draws the frozen OrderTotals, out of the other
+ *     override's reach).
  */
-export const SPEC_OVERRIDES: ReadonlyMap<string, string> = new Map([['Topbar', 'D-41']]);
+export const SPEC_OVERRIDES: ReadonlyMap<string, string> = new Map([
+  ['Topbar', 'D-41'],
+  ['OrderTotals', 'D-41'],
+  ['OrderCard', 'D-41'],
+]);
 
 /** Component exports only: PascalCase functions (the D.3 namespace also re-exports csps.ts helpers and constants). */
 function components(exports: ModuleExports): Record<string, ComponentType<never>> {
