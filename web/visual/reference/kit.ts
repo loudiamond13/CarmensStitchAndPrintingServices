@@ -5,29 +5,21 @@
 // The spec module is loaded through import.meta.glob, not a static import, for two reasons: the TypeScript programs
 // never type-check the frozen code (it is the approved design, kept verbatim, with known strict-mode findings, research
 // Pitfall 7), and a missing extraction fails loudly here instead of as an unresolved import.
-import type { ComponentType } from 'react';
 import type { Kit } from '../../src/dev/renderScenario';
+import { mergeKit } from './merge-kit';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
 const specModules = import.meta.glob<ModuleExports>('../.reference-src/ui/index.tsx', { eager: true });
 const fragmentModules = import.meta.glob<ModuleExports>('./fragments/*.tsx', { eager: true });
 
-/** Component exports only: PascalCase functions (the D.3 namespace also re-exports csps.ts helpers and constants). */
-function components(exports: ModuleExports): Record<string, ComponentType<never>> {
-  const entries = Object.entries(exports).filter(
-    (entry): entry is [string, ComponentType<never>] => /^[A-Z]/.test(entry[0]) && typeof entry[1] === 'function',
-  );
-  return Object.fromEntries(entries);
-}
-
 const spec = specModules['../.reference-src/ui/index.tsx'];
 if (spec === undefined) {
   throw new Error('The frozen spec is missing. Run node visual/reference/extract-spec.mjs (npm run parity does).');
 }
 
-/** Component name → frozen spec component (fragments win on a name clash, so a shell fragment can wrap a primitive). */
-export const kit: Kit = Object.freeze({
-  ...components(spec),
-  ...Object.fromEntries(Object.values(fragmentModules).flatMap((fragment) => Object.entries(components(fragment)))),
-});
+/**
+ * Component name → frozen spec component or fragment. A fragment never replaces a frozen component unless an owner
+ * decision on SPEC_OVERRIDES allows it; a clash stops the page (merge-kit.ts, TOOL-WR-04).
+ */
+export const kit: Kit = mergeKit(spec, Object.values(fragmentModules));
