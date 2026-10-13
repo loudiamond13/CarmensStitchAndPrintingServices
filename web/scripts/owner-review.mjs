@@ -14,7 +14,9 @@
 //      one child only, exactly as the Playwright E2E host does (playwright.config.ts).
 //   7. Opens every page in Playwright Chromium at 390, 820 and 1440 px (the admin pages and the showcase in Blush and
 //      Espresso, the public page in Blush only, D-13/D-14) and saves full-page screenshots.
-//   8. Stops the host it started (that child and its own children, nothing else) and writes
+//   8. Photographs the SPEC-GAP cases on the showcase, and the wording changes the owner has still to confirm as a
+//      before (the approved wording, written back into the page) and after (what the app shows now) pair (D-41 R2-06).
+//   9. Stops the host it started (that child and its own children, nothing else) and writes
 //      artifacts/owner-review/index.html, a plain-words page that shows every picture.
 // It writes nowhere but artifacts/owner-review/ (assertWritable), never into src/, web/src or the server's wwwroot.
 // Guide: docs/web/owner-review.md.
@@ -42,12 +44,15 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
+ * @typedef {{ readonly before: string, readonly after: string }} WordingSwap
+ * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly side: 'before' | 'after', readonly theme: Theme, readonly width: number, readonly file: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterShot
  * @typedef {{ readonly engine: string, readonly group: string, readonly passed: number, readonly failed: number, readonly flaky: number, readonly skipped: number }} ParityRow
  * @typedef {{ readonly passed: number, readonly failed: number, readonly flaky: number, readonly skipped: number }} ParityTotals
  * @typedef {{ readonly available: false } | { readonly available: true, readonly startTime: string, readonly durationMinutes: number, readonly filters: string, readonly totals: ParityTotals, readonly rows: readonly ParityRow[], readonly failures: readonly string[] }} ParitySummary
@@ -222,7 +227,14 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       },
       healthUrl: `${ORIGIN}/health`,
     },
-    { kind: 'capture', name: 'capture', origin: ORIGIN, shots: planShots(), specGap: planSpecGapShots() },
+    {
+      kind: 'capture',
+      name: 'capture',
+      origin: ORIGIN,
+      shots: planShots(),
+      specGap: planSpecGapShots(),
+      beforeAfter: planBeforeAfterShots(),
+    },
     {
       kind: 'report',
       name: 'report',
@@ -396,6 +408,58 @@ function pageSections(shots) {
     .join('\n');
 }
 
+/**
+ * The wording changes the owner has still to confirm (D-41 R2-06, D-08): a table of every swap and, per case, the
+ * before (approved wording) and after (what the app shows now) pictures side by side.
+ * @param {readonly BeforeAfterShot[]} beforeAfter
+ * @returns {string}
+ */
+function beforeAfterSection(beforeAfter) {
+  if (beforeAfter.length === 0) {
+    return '';
+  }
+  const ids = [...new Set(beforeAfter.map((shot) => shot.id))];
+  const tableRows = ids
+    .flatMap((id) => {
+      const first = beforeAfter.find((shot) => shot.id === id);
+      const label = first?.label ?? id;
+      return (first?.swaps ?? []).map(
+        (swap) =>
+          `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(swap.before)}</td><td>${escapeHtml(swap.after)}</td></tr>`,
+      );
+    })
+    .join('');
+  const cases = ids
+    .map((id) => {
+      const ofCase = beforeAfter.filter((shot) => shot.id === id);
+      const label = ofCase[0]?.label ?? id;
+      const figures = ofCase
+        .map((shot) => {
+          const caption = shot.side === 'before' ? 'Before (the approved wording)' : 'After (the PRD wording)';
+          return (
+            `<figure class="gap"><figcaption>${escapeHtml(caption)}</figcaption>` +
+            `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+              `${label}: ${caption}`,
+            )}"></a></figure>`
+          );
+        })
+        .join('');
+      return `<h3>${escapeHtml(label)}</h3><div class="row">${figures}</div>`;
+    })
+    .join('\n');
+  return `<section><h2>Wording changes for you to confirm (before and after)</h2>
+<p class="note">Your ruling D-41 R2-06 says the order money words follow the PRD: <strong>Subtotal</strong> is the
+amount before discount, and <strong>Total</strong> is the amount after discount (Subtotal minus the discount). The order
+totals now say "Subtotal" where the approved design said "Total", and the profit note now reads
+"Profit = Subtotal − Discount − Expenses. Internal only." Nothing else moves: only the words change, and every amount,
+colour and size stays the same. An order with a 100% discount and no payment still reads "Fully Paid", as you ruled.
+The approved panel has no row for the Total after discount, so the app has no row for the Total after discount either;
+say so if you want one. In the demo Orders table, the "Total" column now shows the amount after discount. Please approve
+the new wording, or say what to change.</p>
+<table><thead><tr><th>Place</th><th>Before</th><th>After</th></tr></thead><tbody>${tableRows}</tbody></table>
+${cases}</section>`;
+}
+
 /** @param {readonly SpecGapShot[]} specGap @returns {string} */
 function specGapSection(specGap) {
   if (specGap.length === 0) {
@@ -499,10 +563,18 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
-export function renderIndex({ generatedAt, shots, problems, specGap = [], parity, otherReports = [] }) {
+export function renderIndex({
+  generatedAt,
+  shots,
+  problems,
+  specGap = [],
+  beforeAfter = [],
+  parity,
+  otherReports = [],
+}) {
   const problemList =
     problems.length === 0
       ? '<p>The pages reported no errors while the pictures were taken.</p>'
@@ -534,6 +606,7 @@ wrong, in your own words. Every difference you name becomes a fix.</p>
 ${others}
 ${problemList}
 ${pageSections(shots)}
+${beforeAfterSection(beforeAfter)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -596,6 +669,117 @@ export function planSpecGapShots(cases = SPEC_GAP_CASES) {
       file: `spec-gap/${entry.id}-${theme}.png`,
     })),
   );
+}
+
+/**
+ * The visible wording changes the owner has still to confirm (D-41 R2-06, owner, 2026-10-13; D-08). Each is a case on
+ * /dev/components, named by its `[data-case]` id, with the texts the app shows now (`after`) and the approved wording
+ * the "before" picture writes back (`before`). U+2212 minus signs in the note, as on the page.
+ * @type {readonly BeforeAfterCase[]}
+ */
+export const BEFORE_AFTER_CASES = Object.freeze([
+  {
+    id: 'order-totals-0148',
+    label: 'Order Detail totals panel (order ORD-2026-0148)',
+    decision: 'D-41 (R2-06)',
+    swaps: Object.freeze([
+      { before: 'Total', after: 'Subtotal' },
+      {
+        before: 'Profit = Total \u2212 Discount \u2212 Expenses. Internal only.',
+        after: 'Profit = Subtotal \u2212 Discount \u2212 Expenses. Internal only.',
+      },
+    ]),
+  },
+  {
+    id: 'order-totals-card-0148',
+    label: 'Totals on an order card (order ORD-2026-0148)',
+    decision: 'D-41 (R2-06)',
+    swaps: Object.freeze([{ before: 'Total', after: 'Subtotal' }]),
+  },
+  {
+    id: 'data-table-orders',
+    label: 'Demo Orders table: the Total column now shows the amount after discount',
+    decision: 'D-41 (R2-06)',
+    swaps: Object.freeze([
+      { before: '₱22,450.00', after: '₱21,327.50' },
+      { before: '₱23,000.00', after: '₱22,500.00' },
+    ]),
+  },
+]);
+
+/**
+ * A before and an after picture per wording case, in Blush at laptop width.
+ * @param {readonly BeforeAfterCase[]} [cases]
+ * @returns {BeforeAfterShot[]}
+ */
+export function planBeforeAfterShots(cases = BEFORE_AFTER_CASES) {
+  return cases.flatMap((entry) =>
+    /** @type {const} */ (['before', 'after']).map((side) => ({
+      id: entry.id,
+      label: entry.label,
+      decision: entry.decision,
+      side,
+      theme: /** @type {Theme} */ ('light'),
+      width: 1440,
+      file: `before-after/${entry.id}-${side}.png`,
+      swaps: entry.swaps,
+    })),
+  );
+}
+
+/**
+ * The page script for a "before" picture: inside the one `[data-case]` frame of the case, every text node whose value
+ * is exactly a swap's `after` gets that swap's `before`. It returns the number of texts changed per swap, or null
+ * when the page has no single frame for the case. The id and the swaps go in as JSON, never as raw text. A string,
+ * because this file has no DOM types (as SETTLE).
+ * @param {string} id
+ * @param {readonly WordingSwap[]} swaps
+ * @returns {string}
+ */
+export function beforeAfterScript(id, swaps) {
+  return `(() => {
+  const frames = document.querySelectorAll(${JSON.stringify(`[data-case="${id.replaceAll('"', '\\"')}"]`)});
+  if (frames.length !== 1) return null;
+  const swaps = ${JSON.stringify(swaps)};
+  const counts = swaps.map(() => 0);
+  const texts = [];
+  const visit = (node) => {
+    if (node.nodeType === 3) {
+      texts.push(node);
+      return;
+    }
+    for (const child of node.childNodes) visit(child);
+  };
+  visit(frames[0]);
+  for (const text of texts) {
+    const index = swaps.findIndex((swap) => swap.after === text.nodeValue);
+    if (index !== -1) {
+      text.nodeValue = swaps[index].before;
+      counts[index] += 1;
+    }
+  }
+  return counts;
+})()`;
+}
+
+/**
+ * Throws, naming the case, unless the page had the case frame and every swap changed at least one text, so an outdated
+ * case can never produce two equal pictures.
+ * @param {string} id
+ * @param {readonly WordingSwap[]} swaps
+ * @param {unknown} counts what beforeAfterScript returned.
+ */
+export function assertSwapsApplied(id, swaps, counts) {
+  if (!Array.isArray(counts) || counts.length !== swaps.length) {
+    throw new Error(`/dev/components has no single case "${id}"; update BEFORE_AFTER_CASES.`);
+  }
+  const missing = swaps.filter((_, index) => counts[index] === 0).map((swap) => JSON.stringify(swap.after));
+  if (missing.length > 0) {
+    throw new Error(
+      `Case "${id}" shows none of these texts, so its before picture would equal its after picture: ` +
+        `${missing.join(', ')}. Update BEFORE_AFTER_CASES.`,
+    );
+  }
 }
 
 /** @param {unknown} value @returns {value is Record<string, unknown>} */
@@ -875,13 +1059,65 @@ async function captureSpecGap(browser, origin, shots, problems) {
 }
 
 /**
- * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases.
+ * Takes the before/after pictures of the wording changes on /dev/components (D-41 R2-06). Per case it photographs the
+ * `[data-case]` frame as the app shows it (after), then writes the approved wording back with beforeAfterScript and
+ * photographs it again (before). A swap that matches no text stops the run with the case's name.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {string} origin
+ * @param {readonly BeforeAfterShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function captureBeforeAfter(browser, origin, shots, problems) {
+  const showcase = REVIEW_TARGETS.find((target) => target.path === '/dev/components');
+  if (showcase === undefined) {
+    throw new Error('The review targets have no /dev/components page.');
+  }
+  const ids = [...new Set(shots.map((shot) => shot.id))];
+  for (const id of ids) {
+    const ofCase = shots.filter((shot) => shot.id === id);
+    const before = ofCase.find((shot) => shot.side === 'before');
+    const after = ofCase.find((shot) => shot.side === 'after');
+    if (before === undefined || after === undefined) {
+      throw new Error(`The before/after case "${id}" needs one before and one after picture.`);
+    }
+    const opened = await openReviewPage(
+      browser,
+      origin,
+      { ...showcase, theme: after.theme, width: after.width },
+      problems,
+    );
+    try {
+      const { page } = opened;
+      const frame = page.locator(`[data-case="${id}"]`);
+      if ((await frame.count()) !== 1) {
+        throw new Error(`/dev/components has no single case "${id}"; update BEFORE_AFTER_CASES.`);
+      }
+      await frame.scrollIntoViewIfNeeded();
+      await page.evaluate(SETTLE);
+      await frame.screenshot({ path: assertWritable(path.join(OUTPUT_DIR, after.file)) });
+      process.stdout.write(`review: ${after.file}\n`);
+      /** @type {unknown} */
+      const counts = await page.evaluate(beforeAfterScript(id, before.swaps));
+      assertSwapsApplied(id, before.swaps, counts);
+      await page.evaluate(SETTLE);
+      await frame.screenshot({ path: assertWritable(path.join(OUTPUT_DIR, before.file)) });
+      process.stdout.write(`review: ${before.file}\n`);
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
+/**
+ * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases, then the wording
+ * before/after pairs.
  * @param {CaptureStep} step
  * @returns {Promise<CaptureResult>}
  */
 async function captureShots(step) {
   const { chromium } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap']) {
+  for (const folder of ['shots', 'spec-gap', 'before-after']) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
@@ -899,10 +1135,11 @@ async function captureShots(step) {
       }
     }
     await captureSpecGap(browser, step.origin, step.specGap, problems);
+    await captureBeforeAfter(browser, step.origin, step.beforeAfter, problems);
   } finally {
     await browser.close();
   }
-  return { captured: step.shots, specGap: step.specGap, problems };
+  return { captured: step.shots, specGap: step.specGap, beforeAfter: step.beforeAfter, problems };
 }
 
 /**
@@ -914,7 +1151,8 @@ function runStep(step) {
 }
 
 /**
- * Writes index.html: the pictures, the SPEC-GAP section and the latest parity summary with the differences list.
+ * Writes index.html: the pictures, the wording before/after section, the SPEC-GAP section and the latest parity
+ * summary with the differences list.
  * @param {ReportStep} step
  * @param {CaptureResult} result
  */
@@ -940,6 +1178,7 @@ function writeReport(step, result) {
       generatedAt: new Date().toString(),
       shots: result.captured,
       specGap: result.specGap ?? [],
+      beforeAfter: result.beforeAfter ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),
