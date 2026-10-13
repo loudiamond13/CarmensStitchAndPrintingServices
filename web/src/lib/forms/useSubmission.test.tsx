@@ -437,6 +437,27 @@ describe('useSubmission: key per submission (WEB-09 idempotency)', () => {
     expect(keys[2]).not.toBe(keys[0]);
   });
 
+  it('compares plain JSON with null members, arrays and a null prototype, and keeps the key on a retry', async () => {
+    const user = userEvent.setup();
+    const spy = recordingSend([new Error('down'), 'ok']);
+    const bare = Object.assign(Object.create(null) as Record<string, unknown>, { size: 'XL' });
+    const data = { amount: '1500.00', note: null, tags: ['rush', 2, true], optional: undefined, bare };
+    render(<SubmitButton send={spy.send} data={data} />);
+    const button = screen.getByRole('button', { name: 'Submit' });
+
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(1);
+    });
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(2);
+    });
+
+    const [first, second] = spy.keys();
+    expect(second).toBe(first);
+  });
+
   it('treats an identity option that throws as data it cannot compare', async () => {
     const user = userEvent.setup();
     const spy = recordingSend([new Error('down'), new Error('down')]);
