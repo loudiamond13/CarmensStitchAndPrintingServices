@@ -10,7 +10,8 @@
 //     months (Nov 2025–Oct 2026: the six §12.4 months after six demo months chosen below the same axis top).
 // The OrderCard figures are never typed here: both sides compute them from the seed order with orderTotals (the
 // reference with App. D.1, the implementation with the D-09 centavo math). The table's figures are the §12.2 results
-// (Total = items; Balance = Total − Discount − Paid), which data.test.tsx checks against orderTotals.
+// (Total = Subtotal − Discount, PRD §5.1, D-41 R2-06; Balance = Total − Paid), which data.test.tsx checks against
+// orderTotals.
 import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
 import { ORDER_0148, ORDER_0151 } from './money';
 
@@ -86,17 +87,17 @@ const TABLE_COLUMNS: readonly ScenarioProps[] = [
   { key: 'balance', label: 'Balance', align: 'right', money: true },
 ];
 
-/** Spec §12.2 orders as table rows: Total = Σ qty × price; Balance = Total − Discount − Paid. */
+/** Spec §12.2 orders as table rows: Total = Subtotal − Discount (PRD §5.1, D-41 R2-06); Balance = Total − Paid. */
 export const TABLE_ROWS: readonly ScenarioProps[] = [
   {
     number: 'ORD-2026-0148',
     team: 'Brgy. San Roque Ballers',
     status: 'In Production',
     due: 'Oct 14, 2026',
-    total: 22450,
+    total: 21327.5,
     balance: 9327.5,
   },
-  { number: 'ORD-2026-0151', team: 'Tondo Riders MC', status: 'Ready', due: 'Oct 10, 2026', total: 23000, balance: 0 },
+  { number: 'ORD-2026-0151', team: 'Tondo Riders MC', status: 'Ready', due: 'Oct 10, 2026', total: 22500, balance: 0 },
   {
     number: 'ORD-2026-0153',
     team: 'Angelica Santos',

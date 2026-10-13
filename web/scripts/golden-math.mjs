@@ -6,13 +6,15 @@
 // Pinned operation order (the same text is the vector file's `operationOrder`):
 //   round the items total; round each discount; sum the discounts and round the sum; subtract (D-09).
 // Rounding is half away from zero at the centavo, the server's MidpointRounding.AwayFromZero.
+// D-09's "items total" is the PRD section 5.1 Subtotal (before discount); Total is Subtotal - Discount (D-41 R2-06).
 
 /** @typedef {{ quantity: number, unitPrice: string }} VectorItem */
 /** @typedef {{ kind: 'fixed' | 'percentage', value: string }} VectorDiscount */
 /** @typedef {{ items: VectorItem[], discounts: VectorDiscount[], payments: string[], expenses: string[] }} VectorInput */
 /**
- * @typedef {{ total: string, discount: string, paid: string, balance: string, expenses: string, profit: string,
- *   fullyPaid: boolean }} VectorExpected
+ * The PRD section 5.1 names (owner ruling D-41 R2-06): subtotal is before discount, total is after it.
+ * @typedef {{ subtotal: string, discount: string, total: string, paid: string, balance: string, expenses: string,
+ *   profit: string, fullyPaid: boolean }} VectorExpected
  */
 /** An exact fraction num / den with den > 0. @typedef {{ num: bigint, den: bigint }} Fraction */
 
@@ -108,17 +110,17 @@ export function formatCentavos(centavos) {
  * @returns {VectorExpected}
  */
 export function computeExpected(input) {
-  // 1. Round the items total.
-  const total = toCentavos(
+  // 1. Round the items total (the PRD Subtotal).
+  const subtotal = toCentavos(
     input.items.map((item) => multiply(parseQuantity(item.quantity), parseDecimal(item.unitPrice))).reduce(add, ZERO),
   );
-  const totalPesos = { num: total, den: 100n };
+  const subtotalPesos = { num: subtotal, den: 100n };
 
-  // 2. Round each discount: a fixed value, or the rounded items total x percent / 100.
+  // 2. Round each discount: a fixed value, or the rounded subtotal x percent / 100.
   const discounts = input.discounts.map((discount) => {
     const value = parseDecimal(discount.value);
     return discount.kind === 'percentage'
-      ? toCentavos(multiply(multiply(totalPesos, value), { num: 1n, den: 100n }))
+      ? toCentavos(multiply(multiply(subtotalPesos, value), { num: 1n, den: 100n }))
       : toCentavos(value);
   });
 
@@ -128,17 +130,20 @@ export function computeExpected(input) {
   const paid = sumToCentavos(input.payments);
   const expenses = sumToCentavos(input.expenses);
 
-  // 4. Subtract.
-  const balance = total - discount - paid;
-  const profit = total - discount - expenses;
+  // 4. Subtract: Total = Subtotal - Discount, Balance = Total - Paid, Profit = Total - Expenses (PRD section 5.1).
+  const total = subtotal - discount;
+  const balance = total - paid;
+  const profit = total - expenses;
 
   return {
-    total: formatCentavos(total),
+    subtotal: formatCentavos(subtotal),
     discount: formatCentavos(discount),
+    total: formatCentavos(total),
     paid: formatCentavos(paid),
     balance: formatCentavos(balance),
     expenses: formatCentavos(expenses),
     profit: formatCentavos(profit),
-    fullyPaid: total > 0n && balance <= 0n,
+    // D-41 R2-06 (NET-IN-01 ruled keep): a fully discounted order with no payment is fully paid; an empty one is not.
+    fullyPaid: subtotal > 0n && balance <= 0n,
   };
 }

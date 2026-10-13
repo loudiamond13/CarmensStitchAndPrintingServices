@@ -1,5 +1,5 @@
 // OrderTotals (App. D.3 "Data display", CSPS-UI-SPEC.md §6.4 and §9.2), converted to utilities (D-33) with the App.
-// D.3 props and markup: the Total / Total Discount / Total Paid list, the balance block (due: "Balance due" and the
+// D.3 props and markup: the Subtotal / Total Discount / Total Paid list, the balance block (due: "Balance due" and the
 // figure; fully paid: "Balance" and the check with "Fully Paid"), and in the panel the dashed list of Order Expenses
 // and Estimated Profit with the internal-only note. The looks are in money.recipe.ts.
 //
@@ -7,6 +7,11 @@
 // figures (D-09: once a save returns, screens show the server's totals), or else from csps.ts `orderTotals`, the
 // golden-vector-proven preview with the D-09 centavo rounding. formatPeso writes each one; Total Discount and Total
 // Paid are shown as negatives by flipping the sign of the figure, as App. D.3 does.
+//
+// SPEC-DEVIATION: D-41 R2-06 (owner, 2026-10-13). App. D.3 labels the before-discount figure "Total" and its note
+// reads "Profit = Total − Discount − Expenses."; both follow the PRD §5.1 names now: the first row is "Subtotal" (the
+// amount before discount, `t.subtotal`) and the note reads "Profit = Subtotal − Discount − Expenses.". Only the words
+// change: no row is added, and every element, class and order stays App. D.3's.
 import clsx from 'clsx';
 import { formatPeso, orderTotals, type Order, type Totals } from '@/lib/csps';
 import { Icon } from '@/ui/brand';
@@ -40,7 +45,7 @@ export function OrderTotals({ order, totals, variant = 'panel' }: OrderTotalsPro
   const t = totals ?? orderTotals(order);
   const state = t.fullyPaid ? 'paid' : 'due';
   const rows: readonly (readonly [string, number])[] = [
-    ['Total', t.total],
+    ['Subtotal', t.subtotal],
     ['Total Discount', -t.discount],
     ['Total Paid', -t.paid],
   ];
@@ -79,7 +84,7 @@ export function OrderTotals({ order, totals, variant = 'panel' }: OrderTotalsPro
               which a <dl> may not hold, so assistive technology can misread the list. The paragraph keeps its place
               and look and takes role="definition": it defines how the Estimated Profit above is worked out. */}
           <p role="definition" className={totalsNoteClasses}>
-            Profit = Total − Discount − Expenses. Internal only.
+            Profit = Subtotal − Discount − Expenses. Internal only.
           </p>
         </dl>
       )}

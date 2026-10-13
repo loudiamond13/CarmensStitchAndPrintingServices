@@ -94,9 +94,13 @@ export interface User {
   active: boolean;
   createdAt: string;
 }
+/* SPEC-DEVIATION: D-41 R2-06 (owner, 2026-10-13). App. D.1's `total` was the amount before discount. The PRD §5.1
+   names are used now: `subtotal` is the amount before discount and `total` is the amount after it
+   (Subtotal − Discount), as the server's OrderMathResult names them. */
 export interface Totals {
-  total: number;
+  subtotal: number;
   discount: number;
+  total: number;
   paid: number;
   balance: number;
   expenses: number;
@@ -184,7 +188,8 @@ export function formatDate(d: string | Date | null | undefined): string {
 /* SPEC-DEVIATION: D-09 integer-centavo, half-away-from-zero rounding to match the server
    (MidpointRounding.AwayFromZero). App. D.1 rounded with Math.round(n * 100) / 100 in binary floating point, which
    previews 7.5% of ₱17.00 as ₱1.27 while the server saves ₱1.28. round2, discountAmount and orderTotals keep D.1's
-   names, signatures and return shapes, but work in exact integer centavos (BigInt): a number is read through its
+   names and signatures, and round2 and discountAmount keep D.1's return shapes (orderTotals' Totals shape follows the
+   PRD §5.1 names by D-41 R2-06, see Totals), but work in exact integer centavos (BigInt): a number is read through its
    shortest decimal text (String(n)), never n * 100, and turned back into a number through its exact decimal text
    (L-12). NaN and ±Infinity count as 0, as D.1's `Number(n) || 0` did for NaN.
    Pinned operation order, quoted from the vector file's `operationOrder`:
@@ -247,46 +252,50 @@ function sumToCentavos(values: readonly (number | string | null | undefined)[]):
 /** Half away from zero at the centavo: round2(1.005) = 1.01, round2(10.075) = 10.08, round2(-1.005) = -1.01. */
 export const round2 = (n: number | string | null | undefined): number => fromCentavos(toCentavos(n));
 
-function discountCentavos(discount: Discount, itemsTotal: Exact): bigint {
+function discountCentavos(discount: Discount, subtotal: Exact): bigint {
   const value = exactOf(discount.value);
   return roundToCentavos(
-    discount.type === 'percentage' ? multiply(multiply(itemsTotal, value), { num: 1n, den: 100n }) : value,
+    discount.type === 'percentage' ? multiply(multiply(subtotal, value), { num: 1n, den: 100n }) : value,
   );
 }
 
-/** fixed → value; percentage → value % of the items total. */
-export function discountAmount(discount: Discount | null | undefined, itemsTotal: number): number {
+/** fixed → value; percentage → value % of the subtotal (the items total, before discount). */
+export function discountAmount(discount: Discount | null | undefined, subtotal: number): number {
   if (!discount) return 0;
-  return fromCentavos(discountCentavos(discount, exactOf(itemsTotal)));
+  return fromCentavos(discountCentavos(discount, exactOf(subtotal)));
 }
 
 /**
- * Total = Σ qty × unit price · Discount = Σ discounts · Paid = Σ payments
- * Balance = Total − Discount − Paid · Expenses = Σ order expenses
- * Profit = Total − Discount − Expenses · Fully paid = Total > 0 and Balance ≤ 0
+ * PRD §5.1 names (D-41 R2-06):
+ * Subtotal = Σ qty × unit price · Discount = Σ discounts · Total = Subtotal − Discount · Paid = Σ payments
+ * Balance = Total − Paid · Expenses = Σ order expenses · Profit = Total − Expenses
+ * Fully paid = Subtotal > 0 and Balance ≤ 0 (D-41 R2-06, NET-IN-01 ruled keep: a fully discounted unpaid order is
+ * fully paid; an empty order is not)
  */
 export function orderTotals(order: Partial<Order> | null | undefined): Totals {
   const o = order ?? {};
   // SPEC-DEVIATION: D-09 integer-centavo, half-away-from-zero rounding to match the server (see round2 above).
-  // 1. Round the items total.
-  const total = roundToCentavos(
+  // 1. Round the items total (the PRD Subtotal).
+  const subtotal = roundToCentavos(
     (o.items ?? []).map((i) => multiply(exactOf(i.quantity), exactOf(i.unitPrice))).reduce(add, ZERO),
   );
-  // 2. Round each discount (a percentage applies to the rounded items total). 3. Sum the discounts and round the
-  // sum: each discount is already whole centavos, so the rounding of the sum is exact.
-  const discount = (o.discounts ?? []).reduce((sum, d) => sum + discountCentavos(d, pesosOf(total)), 0n);
+  // 2. Round each discount (a percentage applies to the rounded subtotal). 3. Sum the discounts and round the sum:
+  // each discount is already whole centavos, so the rounding of the sum is exact.
+  const discount = (o.discounts ?? []).reduce((sum, d) => sum + discountCentavos(d, pesosOf(subtotal)), 0n);
   const paid = sumToCentavos((o.payments ?? []).map((p) => p.amount));
   const expenses = sumToCentavos((o.expenses ?? []).map((e) => e.amount));
-  // 4. Subtract.
-  const balance = total - discount - paid;
+  // 4. Subtract (PRD §5.1).
+  const total = subtotal - discount;
+  const balance = total - paid;
   return {
-    total: fromCentavos(total),
+    subtotal: fromCentavos(subtotal),
     discount: fromCentavos(discount),
+    total: fromCentavos(total),
     paid: fromCentavos(paid),
     balance: fromCentavos(balance),
     expenses: fromCentavos(expenses),
-    profit: fromCentavos(total - discount - expenses),
-    fullyPaid: total > 0n && balance <= 0n,
+    profit: fromCentavos(total - expenses),
+    fullyPaid: subtotal > 0n && balance <= 0n,
   };
 }
 

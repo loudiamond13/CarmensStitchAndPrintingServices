@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "operationOrder": "round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)",
   "cases": [
     {
@@ -21,8 +21,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "17.00",
+        "subtotal": "17.00",
         "discount": "1.28",
+        "total": "15.72",
         "paid": "0.00",
         "balance": "15.72",
         "expenses": "0.00",
@@ -49,8 +50,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "3.83",
+        "total": "47.17",
         "paid": "0.00",
         "balance": "47.17",
         "expenses": "0.00",
@@ -77,8 +79,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "23.00",
+        "subtotal": "23.00",
         "discount": "0.58",
+        "total": "22.42",
         "paid": "0.00",
         "balance": "22.42",
         "expenses": "0.00",
@@ -105,8 +108,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "1.16",
+        "subtotal": "1.16",
         "discount": "0.15",
+        "total": "1.01",
         "paid": "0.00",
         "balance": "1.01",
         "expenses": "0.00",
@@ -133,8 +137,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "100.00",
+        "subtotal": "100.00",
         "discount": "1.01",
+        "total": "98.99",
         "paid": "0.00",
         "balance": "98.99",
         "expenses": "0.00",
@@ -161,8 +166,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "41.00",
+        "subtotal": "41.00",
         "discount": "1.03",
+        "total": "39.97",
         "paid": "0.00",
         "balance": "39.97",
         "expenses": "0.00",
@@ -189,8 +195,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "1.28",
+        "total": "49.72",
         "paid": "0.00",
         "balance": "49.72",
         "expenses": "0.00",
@@ -217,8 +224,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "87.00",
+        "subtotal": "87.00",
         "discount": "2.18",
+        "total": "84.82",
         "paid": "0.00",
         "balance": "84.82",
         "expenses": "0.00",
@@ -245,8 +253,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "97.00",
+        "subtotal": "97.00",
         "discount": "2.43",
+        "total": "94.57",
         "paid": "0.00",
         "balance": "94.57",
         "expenses": "0.00",
@@ -273,8 +282,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "169.00",
+        "subtotal": "169.00",
         "discount": "4.23",
+        "total": "164.77",
         "paid": "0.00",
         "balance": "164.77",
         "expenses": "0.00",
@@ -301,8 +311,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "179.00",
+        "subtotal": "179.00",
         "discount": "4.48",
+        "total": "174.52",
         "paid": "0.00",
         "balance": "174.52",
         "expenses": "0.00",
@@ -329,8 +340,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "189.00",
+        "subtotal": "189.00",
         "discount": "4.73",
+        "total": "184.27",
         "paid": "0.00",
         "balance": "184.27",
         "expenses": "0.00",
@@ -357,8 +369,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "199.00",
+        "subtotal": "199.00",
         "discount": "4.98",
+        "total": "194.02",
         "paid": "0.00",
         "balance": "194.02",
         "expenses": "0.00",
@@ -385,8 +398,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "29.00",
+        "subtotal": "29.00",
         "discount": "2.18",
+        "total": "26.82",
         "paid": "0.00",
         "balance": "26.82",
         "expenses": "0.00",
@@ -413,8 +427,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "63.00",
+        "subtotal": "63.00",
         "discount": "4.73",
+        "total": "58.27",
         "paid": "0.00",
         "balance": "58.27",
         "expenses": "0.00",
@@ -441,8 +456,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "111.00",
+        "subtotal": "111.00",
         "discount": "8.33",
+        "total": "102.67",
         "paid": "0.00",
         "balance": "102.67",
         "expenses": "0.00",
@@ -469,8 +485,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "121.00",
+        "subtotal": "121.00",
         "discount": "9.08",
+        "total": "111.92",
         "paid": "0.00",
         "balance": "111.92",
         "expenses": "0.00",
@@ -497,8 +514,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "131.00",
+        "subtotal": "131.00",
         "discount": "9.83",
+        "total": "121.17",
         "paid": "0.00",
         "balance": "121.17",
         "expenses": "0.00",
@@ -525,8 +543,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "217.00",
+        "subtotal": "217.00",
         "discount": "16.28",
+        "total": "200.72",
         "paid": "0.00",
         "balance": "200.72",
         "expenses": "0.00",
@@ -553,8 +572,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "227.00",
+        "subtotal": "227.00",
         "discount": "17.03",
+        "total": "209.97",
         "paid": "0.00",
         "balance": "209.97",
         "expenses": "0.00",
@@ -581,8 +601,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "237.00",
+        "subtotal": "237.00",
         "discount": "17.78",
+        "total": "219.22",
         "paid": "0.00",
         "balance": "219.22",
         "expenses": "0.00",
@@ -593,7 +614,7 @@
     {
       "id": "midpoint-021",
       "category": "midpoint",
-      "note": "5% of centavo total 2.90 is a half centavo; rounds away from zero",
+      "note": "5% of centavo subtotal 2.90 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -609,8 +630,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "2.90",
+        "subtotal": "2.90",
         "discount": "0.15",
+        "total": "2.75",
         "paid": "0.00",
         "balance": "2.75",
         "expenses": "0.00",
@@ -621,7 +643,7 @@
     {
       "id": "midpoint-022",
       "category": "midpoint",
-      "note": "5% of centavo total 5.70 is a half centavo; rounds away from zero",
+      "note": "5% of centavo subtotal 5.70 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -637,8 +659,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "5.70",
+        "subtotal": "5.70",
         "discount": "0.29",
+        "total": "5.41",
         "paid": "0.00",
         "balance": "5.41",
         "expenses": "0.00",
@@ -649,7 +672,7 @@
     {
       "id": "midpoint-023",
       "category": "midpoint",
-      "note": "5% of centavo total 11.30 is a half centavo; rounds away from zero",
+      "note": "5% of centavo subtotal 11.30 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -665,8 +688,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "11.30",
+        "subtotal": "11.30",
         "discount": "0.57",
+        "total": "10.73",
         "paid": "0.00",
         "balance": "10.73",
         "expenses": "0.00",
@@ -677,7 +701,7 @@
     {
       "id": "midpoint-024",
       "category": "midpoint",
-      "note": "10% of centavo total 1.45 is a half centavo; rounds away from zero",
+      "note": "10% of centavo subtotal 1.45 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -693,8 +717,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "0.15",
+        "total": "1.30",
         "paid": "0.00",
         "balance": "1.30",
         "expenses": "0.00",
@@ -705,7 +730,7 @@
     {
       "id": "midpoint-025",
       "category": "midpoint",
-      "note": "10% of centavo total 2.85 is a half centavo; rounds away from zero",
+      "note": "10% of centavo subtotal 2.85 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -721,8 +746,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "2.85",
+        "subtotal": "2.85",
         "discount": "0.29",
+        "total": "2.56",
         "paid": "0.00",
         "balance": "2.56",
         "expenses": "0.00",
@@ -733,7 +759,7 @@
     {
       "id": "midpoint-026",
       "category": "midpoint",
-      "note": "10% of centavo total 5.65 is a half centavo; rounds away from zero",
+      "note": "10% of centavo subtotal 5.65 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -749,8 +775,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "5.65",
+        "subtotal": "5.65",
         "discount": "0.57",
+        "total": "5.08",
         "paid": "0.00",
         "balance": "5.08",
         "expenses": "0.00",
@@ -761,7 +788,7 @@
     {
       "id": "midpoint-027",
       "category": "midpoint",
-      "note": "12.5% of centavo total 2.28 is a half centavo; rounds away from zero",
+      "note": "12.5% of centavo subtotal 2.28 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -777,8 +804,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "2.28",
+        "subtotal": "2.28",
         "discount": "0.29",
+        "total": "1.99",
         "paid": "0.00",
         "balance": "1.99",
         "expenses": "0.00",
@@ -789,7 +817,7 @@
     {
       "id": "midpoint-028",
       "category": "midpoint",
-      "note": "12.5% of centavo total 4.52 is a half centavo; rounds away from zero",
+      "note": "12.5% of centavo subtotal 4.52 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -805,8 +833,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "4.52",
+        "subtotal": "4.52",
         "discount": "0.57",
+        "total": "3.95",
         "paid": "0.00",
         "balance": "3.95",
         "expenses": "0.00",
@@ -817,7 +846,7 @@
     {
       "id": "midpoint-029",
       "category": "midpoint",
-      "note": "12.5% of centavo total 4.60 is a half centavo; rounds away from zero",
+      "note": "12.5% of centavo subtotal 4.60 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -833,8 +862,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "4.60",
+        "subtotal": "4.60",
         "discount": "0.58",
+        "total": "4.02",
         "paid": "0.00",
         "balance": "4.02",
         "expenses": "0.00",
@@ -845,7 +875,7 @@
     {
       "id": "midpoint-030",
       "category": "midpoint",
-      "note": "15% of centavo total 1.90 is a half centavo; rounds away from zero",
+      "note": "15% of centavo subtotal 1.90 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -861,8 +891,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "1.90",
+        "subtotal": "1.90",
         "discount": "0.29",
+        "total": "1.61",
         "paid": "0.00",
         "balance": "1.61",
         "expenses": "0.00",
@@ -873,7 +904,7 @@
     {
       "id": "midpoint-031",
       "category": "midpoint",
-      "note": "15% of centavo total 4.10 is a half centavo; rounds away from zero",
+      "note": "15% of centavo subtotal 4.10 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -889,8 +920,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "4.10",
+        "subtotal": "4.10",
         "discount": "0.62",
+        "total": "3.48",
         "paid": "0.00",
         "balance": "3.48",
         "expenses": "0.00",
@@ -901,7 +933,7 @@
     {
       "id": "midpoint-032",
       "category": "midpoint",
-      "note": "15% of centavo total 6.70 is a half centavo; rounds away from zero",
+      "note": "15% of centavo subtotal 6.70 is a half centavo; rounds away from zero",
       "items": [
         {
           "quantity": 1,
@@ -917,8 +949,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "6.70",
+        "subtotal": "6.70",
         "discount": "1.01",
+        "total": "5.69",
         "paid": "0.00",
         "balance": "5.69",
         "expenses": "0.00",
@@ -945,8 +978,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "100.00",
+        "subtotal": "100.00",
         "discount": "10.08",
+        "total": "89.92",
         "paid": "0.00",
         "balance": "89.92",
         "expenses": "0.00",
@@ -973,8 +1007,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "100.00",
+        "subtotal": "100.00",
         "discount": "0.15",
+        "total": "99.85",
         "paid": "0.00",
         "balance": "99.85",
         "expenses": "0.00",
@@ -1001,8 +1036,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "100.00",
+        "subtotal": "100.00",
         "discount": "0.29",
+        "total": "99.71",
         "paid": "0.00",
         "balance": "99.71",
         "expenses": "0.00",
@@ -1029,8 +1065,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "100.00",
+        "subtotal": "100.00",
         "discount": "1.26",
+        "total": "98.74",
         "paid": "0.00",
         "balance": "98.74",
         "expenses": "0.00",
@@ -1057,8 +1094,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "1.01",
+        "subtotal": "1.01",
         "discount": "0.10",
+        "total": "0.91",
         "paid": "0.00",
         "balance": "0.91",
         "expenses": "0.00",
@@ -1082,8 +1120,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "10.08",
+        "subtotal": "10.08",
         "discount": "0.00",
+        "total": "10.08",
         "paid": "10.08",
         "balance": "0.00",
         "expenses": "0.00",
@@ -1133,8 +1172,9 @@
         "600.00"
       ],
       "expected": {
-        "total": "22450.00",
+        "subtotal": "22450.00",
         "discount": "1122.50",
+        "total": "21327.50",
         "paid": "12000.00",
         "balance": "9327.50",
         "expenses": "6065.00",
@@ -1145,7 +1185,7 @@
     {
       "id": "ord-2026-0151",
       "category": "ord-fixture",
-      "note": "ORD-2026-0151 (spec seed): 23,000 - 500 - 22,500 = 0, fully paid",
+      "note": "ORD-2026-0151 (spec seed): subtotal 23,000 - discount 500 = total 22,500; - paid 22,500 = 0, fully paid",
       "items": [
         {
           "quantity": 20,
@@ -1167,8 +1207,9 @@
         "2100.00"
       ],
       "expected": {
-        "total": "23000.00",
+        "subtotal": "23000.00",
         "discount": "500.00",
+        "total": "22500.00",
         "paid": "22500.00",
         "balance": "0.00",
         "expenses": "9300.00",
@@ -1192,8 +1233,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "0.00",
+        "total": "9360.00",
         "paid": "3000.00",
         "balance": "6360.00",
         "expenses": "0.00",
@@ -1215,8 +1257,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "10080.00",
+        "subtotal": "10080.00",
         "discount": "0.00",
+        "total": "10080.00",
         "paid": "0.00",
         "balance": "10080.00",
         "expenses": "0.00",
@@ -1242,8 +1285,9 @@
         "6400.00"
       ],
       "expected": {
-        "total": "18000.00",
+        "subtotal": "18000.00",
         "discount": "0.00",
+        "total": "18000.00",
         "paid": "9000.00",
         "balance": "9000.00",
         "expenses": "6400.00",
@@ -1267,8 +1311,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "28750.00",
+        "subtotal": "28750.00",
         "discount": "0.00",
+        "total": "28750.00",
         "paid": "5000.00",
         "balance": "23750.00",
         "expenses": "0.00",
@@ -1300,8 +1345,9 @@
         "8900.00"
       ],
       "expected": {
-        "total": "20700.00",
+        "subtotal": "20700.00",
         "discount": "1000.00",
+        "total": "19700.00",
         "paid": "19700.00",
         "balance": "0.00",
         "expenses": "8900.00",
@@ -1323,8 +1369,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "8500.00",
+        "subtotal": "8500.00",
         "discount": "0.00",
+        "total": "8500.00",
         "paid": "0.00",
         "balance": "8500.00",
         "expenses": "0.00",
@@ -1335,7 +1382,7 @@
     {
       "id": "percent-100-001",
       "category": "percent-100",
-      "note": "100% of 17.00: discount equals total",
+      "note": "100% of 17.00: discount equals subtotal, total 0, fully paid",
       "items": [
         {
           "quantity": 1,
@@ -1351,8 +1398,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "17.00",
+        "subtotal": "17.00",
         "discount": "17.00",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "0.00",
@@ -1381,8 +1429,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "51.00",
+        "total": "0.00",
         "paid": "20.00",
         "balance": "-20.00",
         "expenses": "0.00",
@@ -1411,8 +1460,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "23000.00",
+        "subtotal": "23000.00",
         "discount": "23000.00",
+        "total": "0.00",
         "paid": "12000.00",
         "balance": "-12000.00",
         "expenses": "0.00",
@@ -1441,8 +1491,9 @@
         "5.00"
       ],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "8.12",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "5.00",
@@ -1469,8 +1520,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "9999999999.99",
+        "subtotal": "9999999999.99",
         "discount": "9999999999.99",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "0.00",
@@ -1481,7 +1533,7 @@
     {
       "id": "percent-100-006",
       "category": "percent-100",
-      "note": "100% plus a fixed 50.00: discount above the total",
+      "note": "100% plus a fixed 50.00: discount above the subtotal",
       "items": [
         {
           "quantity": 2,
@@ -1501,8 +1553,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "200.00",
+        "subtotal": "200.00",
         "discount": "250.00",
+        "total": "-50.00",
         "paid": "0.00",
         "balance": "-50.00",
         "expenses": "0.00",
@@ -1519,8 +1572,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "0.00",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "0.00",
@@ -1542,8 +1596,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "100.00",
+        "total": "-100.00",
         "paid": "0.00",
         "balance": "-100.00",
         "expenses": "0.00",
@@ -1565,8 +1620,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "0.00",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "0.00",
@@ -1585,8 +1641,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "0.00",
+        "total": "0.00",
         "paid": "500.00",
         "balance": "-500.00",
         "expenses": "0.00",
@@ -1605,8 +1662,9 @@
         "250.00"
       ],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "0.00",
+        "total": "0.00",
         "paid": "0.00",
         "balance": "0.00",
         "expenses": "250.00",
@@ -1639,8 +1697,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "0.00",
+        "subtotal": "0.00",
         "discount": "0.00",
+        "total": "0.00",
         "paid": "100.00",
         "balance": "-100.00",
         "expenses": "0.00",
@@ -1673,8 +1732,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "102.55",
+        "total": "-51.55",
         "paid": "5.00",
         "balance": "-56.55",
         "expenses": "0.00",
@@ -1707,8 +1767,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "5.11",
+        "total": "45.89",
         "paid": "5.00",
         "balance": "40.89",
         "expenses": "0.00",
@@ -1741,8 +1802,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "7.39",
+        "total": "43.61",
         "paid": "5.00",
         "balance": "38.61",
         "expenses": "0.00",
@@ -1779,8 +1841,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "15.47",
+        "total": "35.53",
         "paid": "5.00",
         "balance": "30.53",
         "expenses": "0.00",
@@ -1813,8 +1876,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "51.00",
+        "subtotal": "51.00",
         "discount": "0.00",
+        "total": "51.00",
         "paid": "5.00",
         "balance": "46.00",
         "expenses": "0.00",
@@ -1847,8 +1911,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "115.00",
+        "subtotal": "115.00",
         "discount": "105.75",
+        "total": "9.25",
         "paid": "5.00",
         "balance": "4.25",
         "expenses": "0.00",
@@ -1881,8 +1946,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "115.00",
+        "subtotal": "115.00",
         "discount": "11.51",
+        "total": "103.49",
         "paid": "5.00",
         "balance": "98.49",
         "expenses": "0.00",
@@ -1915,8 +1981,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "115.00",
+        "subtotal": "115.00",
         "discount": "15.39",
+        "total": "99.61",
         "paid": "5.00",
         "balance": "94.61",
         "expenses": "0.00",
@@ -1953,8 +2020,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "115.00",
+        "subtotal": "115.00",
         "discount": "21.87",
+        "total": "93.13",
         "paid": "5.00",
         "balance": "88.13",
         "expenses": "0.00",
@@ -1987,8 +2055,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "115.00",
+        "subtotal": "115.00",
         "discount": "0.00",
+        "total": "115.00",
         "paid": "5.00",
         "balance": "110.00",
         "expenses": "0.00",
@@ -2021,8 +2090,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "100.41",
+        "total": "-92.29",
         "paid": "5.00",
         "balance": "-97.29",
         "expenses": "0.00",
@@ -2055,8 +2125,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "0.81",
+        "total": "7.31",
         "paid": "5.00",
         "balance": "2.31",
         "expenses": "0.00",
@@ -2089,8 +2160,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "2.03",
+        "total": "6.09",
         "paid": "5.00",
         "balance": "1.09",
         "expenses": "0.00",
@@ -2127,8 +2199,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "11.18",
+        "total": "-3.06",
         "paid": "5.00",
         "balance": "-8.06",
         "expenses": "0.00",
@@ -2161,8 +2234,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "8.12",
+        "subtotal": "8.12",
         "discount": "0.00",
+        "total": "8.12",
         "paid": "5.00",
         "balance": "3.12",
         "expenses": "0.00",
@@ -2199,8 +2273,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "14250.00",
+        "subtotal": "14250.00",
         "discount": "812.50",
+        "total": "13437.50",
         "paid": "5.00",
         "balance": "13432.50",
         "expenses": "0.00",
@@ -2237,8 +2312,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "14250.00",
+        "subtotal": "14250.00",
         "discount": "1425.00",
+        "total": "12825.00",
         "paid": "5.00",
         "balance": "12820.00",
         "expenses": "0.00",
@@ -2275,8 +2351,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "14250.00",
+        "subtotal": "14250.00",
         "discount": "1782.26",
+        "total": "12467.74",
         "paid": "5.00",
         "balance": "12462.74",
         "expenses": "0.00",
@@ -2317,8 +2394,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "14250.00",
+        "subtotal": "14250.00",
         "discount": "1435.37",
+        "total": "12814.63",
         "paid": "5.00",
         "balance": "12809.63",
         "expenses": "0.00",
@@ -2355,8 +2433,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "14250.00",
+        "subtotal": "14250.00",
         "discount": "0.00",
+        "total": "14250.00",
         "paid": "5.00",
         "balance": "14245.00",
         "expenses": "0.00",
@@ -2389,8 +2468,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "568.00",
+        "total": "8792.00",
         "paid": "5.00",
         "balance": "8787.00",
         "expenses": "0.00",
@@ -2423,8 +2503,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "936.00",
+        "total": "8424.00",
         "paid": "5.00",
         "balance": "8419.00",
         "expenses": "0.00",
@@ -2457,8 +2538,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "1171.01",
+        "total": "8188.99",
         "paid": "5.00",
         "balance": "8183.99",
         "expenses": "0.00",
@@ -2495,8 +2577,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "946.37",
+        "total": "8413.63",
         "paid": "5.00",
         "balance": "8408.63",
         "expenses": "0.00",
@@ -2529,8 +2612,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9360.00",
+        "subtotal": "9360.00",
         "discount": "0.00",
+        "total": "9360.00",
         "paid": "5.00",
         "balance": "9355.00",
         "expenses": "0.00",
@@ -2563,8 +2647,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "100.07",
+        "total": "-98.62",
         "paid": "5.00",
         "balance": "-103.62",
         "expenses": "0.00",
@@ -2597,8 +2682,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "0.15",
+        "total": "1.30",
         "paid": "5.00",
         "balance": "-3.70",
         "expenses": "0.00",
@@ -2631,8 +2717,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "1.19",
+        "total": "0.26",
         "paid": "5.00",
         "balance": "-4.74",
         "expenses": "0.00",
@@ -2669,8 +2756,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "10.52",
+        "total": "-9.07",
         "paid": "5.00",
         "balance": "-14.07",
         "expenses": "0.00",
@@ -2703,8 +2791,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "1.45",
+        "subtotal": "1.45",
         "discount": "0.00",
+        "total": "1.45",
         "paid": "5.00",
         "balance": "-3.55",
         "expenses": "0.00",
@@ -2715,7 +2804,7 @@
     {
       "id": "negative-balance-001",
       "category": "negative-balance",
-      "note": "a fixed discount above the total",
+      "note": "a fixed discount above the subtotal",
       "items": [
         {
           "quantity": 1,
@@ -2731,8 +2820,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "500.00",
+        "subtotal": "500.00",
         "discount": "600.00",
+        "total": "-100.00",
         "paid": "0.00",
         "balance": "-100.00",
         "expenses": "0.00",
@@ -2762,8 +2852,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "23000.00",
+        "subtotal": "23000.00",
         "discount": "500.00",
+        "total": "22500.00",
         "paid": "24000.00",
         "balance": "-1500.00",
         "expenses": "0.00",
@@ -2774,7 +2865,7 @@
     {
       "id": "negative-balance-003",
       "category": "negative-balance",
-      "note": "paid the full total despite a 2.5% discount",
+      "note": "paid the full subtotal despite a 2.5% discount",
       "items": [
         {
           "quantity": 1,
@@ -2792,8 +2883,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "23.00",
+        "subtotal": "23.00",
         "discount": "0.58",
+        "total": "22.42",
         "paid": "23.00",
         "balance": "-0.58",
         "expenses": "0.00",
@@ -2804,7 +2896,7 @@
     {
       "id": "negative-balance-004",
       "category": "negative-balance",
-      "note": "a rounded fixed 1.005 above a 1.00 total",
+      "note": "a rounded fixed 1.005 above a 1.00 subtotal",
       "items": [
         {
           "quantity": 1,
@@ -2820,8 +2912,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "1.00",
+        "subtotal": "1.00",
         "discount": "1.01",
+        "total": "-0.01",
         "paid": "0.00",
         "balance": "-0.01",
         "expenses": "0.00",
@@ -2847,8 +2940,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "199.98",
+        "subtotal": "199.98",
         "discount": "0.00",
+        "total": "199.98",
         "paid": "225.25",
         "balance": "-25.27",
         "expenses": "0.00",
@@ -2859,7 +2953,7 @@
     {
       "id": "negative-balance-006",
       "category": "negative-balance",
-      "note": "fixed 50.00 and 10% above a 40.00 total, expenses above it too",
+      "note": "fixed 50.00 and 10% above a 40.00 subtotal, expenses above it too",
       "items": [
         {
           "quantity": 1,
@@ -2881,8 +2975,9 @@
         "60.00"
       ],
       "expected": {
-        "total": "40.00",
+        "subtotal": "40.00",
         "discount": "54.00",
+        "total": "-14.00",
         "paid": "0.00",
         "balance": "-14.00",
         "expenses": "60.00",
@@ -2904,8 +2999,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "9999999999.99",
+        "subtotal": "9999999999.99",
         "discount": "0.00",
+        "total": "9999999999.99",
         "paid": "0.00",
         "balance": "9999999999.99",
         "expenses": "0.00",
@@ -2936,8 +3032,9 @@
         "9999999999.99"
       ],
       "expected": {
-        "total": "9999999999.99",
+        "subtotal": "9999999999.99",
         "discount": "750000000.00",
+        "total": "9249999999.99",
         "paid": "9999999999.99",
         "balance": "-750000000.00",
         "expenses": "9999999999.99",
@@ -2964,8 +3061,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "75000000.00",
+        "total": "924999999.99",
         "paid": "0.00",
         "balance": "924999999.99",
         "expenses": "0.00",
@@ -2992,8 +3090,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "25000000.00",
+        "total": "974999999.99",
         "paid": "0.00",
         "balance": "974999999.99",
         "expenses": "0.00",
@@ -3020,8 +3119,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "125000000.00",
+        "total": "874999999.99",
         "paid": "0.00",
         "balance": "874999999.99",
         "expenses": "0.00",
@@ -3048,8 +3148,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "333300000.00",
+        "total": "666699999.99",
         "paid": "0.00",
         "balance": "666699999.99",
         "expenses": "0.00",
@@ -3073,8 +3174,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "0.00",
+        "total": "999999999.99",
         "paid": "999999999.99",
         "balance": "0.00",
         "expenses": "0.00",
@@ -3101,8 +3203,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999000.00",
+        "subtotal": "999999000.00",
         "discount": "149999850.00",
+        "total": "849999150.00",
         "paid": "0.00",
         "balance": "849999150.00",
         "expenses": "0.00",
@@ -3129,8 +3232,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999990000.00",
+        "subtotal": "999990000.00",
         "discount": "0.01",
+        "total": "999989999.99",
         "paid": "0.00",
         "balance": "999989999.99",
         "expenses": "0.00",
@@ -3152,8 +3256,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "999999999.99",
+        "subtotal": "999999999.99",
         "discount": "0.00",
+        "total": "999999999.99",
         "paid": "0.00",
         "balance": "999999999.99",
         "expenses": "0.00",
@@ -3196,8 +3301,9 @@
         "500000000.00"
       ],
       "expected": {
-        "total": "9999999999.99",
+        "subtotal": "9999999999.99",
         "discount": "1251000000.00",
+        "total": "8748999999.99",
         "paid": "9000000000.00",
         "balance": "-251000000.01",
         "expenses": "500000000.00",
@@ -3208,7 +3314,7 @@
     {
       "id": "large-value-012",
       "category": "large-value",
-      "note": "paid twice the largest total",
+      "note": "paid twice the largest items total",
       "items": [
         {
           "quantity": 1,
@@ -3222,8 +3328,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "9999999999.99",
+        "subtotal": "9999999999.99",
         "discount": "0.00",
+        "total": "9999999999.99",
         "paid": "19999999999.98",
         "balance": "-9999999999.99",
         "expenses": "0.00",
@@ -3270,8 +3377,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "262358.30",
+        "subtotal": "262358.30",
         "discount": "131179.16",
+        "total": "131179.14",
         "paid": "0.00",
         "balance": "131179.14",
         "expenses": "0.00",
@@ -3313,8 +3421,9 @@
         "5582.68"
       ],
       "expected": {
-        "total": "223978.04",
+        "subtotal": "223978.04",
         "discount": "391.87",
+        "total": "223586.17",
         "paid": "37563.57",
         "balance": "186022.60",
         "expenses": "16321.45",
@@ -3360,8 +3469,9 @@
         "9099.38"
       ],
       "expected": {
-        "total": "268224.82",
+        "subtotal": "268224.82",
         "discount": "89399.33",
+        "total": "178825.49",
         "paid": "50076.08",
         "balance": "128749.41",
         "expenses": "11973.44",
@@ -3398,8 +3508,9 @@
         "9817.28"
       ],
       "expected": {
-        "total": "407370.00",
+        "subtotal": "407370.00",
         "discount": "142579.50",
+        "total": "264790.50",
         "paid": "0.00",
         "balance": "264790.50",
         "expenses": "9817.28",
@@ -3432,8 +3543,9 @@
         "3888.70"
       ],
       "expected": {
-        "total": "167142.40",
+        "subtotal": "167142.40",
         "discount": "20892.80",
+        "total": "146249.60",
         "paid": "0.00",
         "balance": "146249.60",
         "expenses": "3888.70",
@@ -3460,8 +3572,9 @@
         "6089.46"
       ],
       "expected": {
-        "total": "50608.00",
+        "subtotal": "50608.00",
         "discount": "0.00",
+        "total": "50608.00",
         "paid": "2167.04",
         "balance": "48440.96",
         "expenses": "8349.46",
@@ -3501,8 +3614,9 @@
         "1325.16"
       ],
       "expected": {
-        "total": "76809.18",
+        "subtotal": "76809.18",
         "discount": "11542.80",
+        "total": "65266.38",
         "paid": "44891.70",
         "balance": "20374.68",
         "expenses": "1325.16",
@@ -3538,8 +3652,9 @@
         "9569.59"
       ],
       "expected": {
-        "total": "147055.14",
+        "subtotal": "147055.14",
         "discount": "147055.14",
+        "total": "0.00",
         "paid": "49667.15",
         "balance": "-49667.15",
         "expenses": "9569.59",
@@ -3581,8 +3696,9 @@
         "165.43"
       ],
       "expected": {
-        "total": "329991.06",
+        "subtotal": "329991.06",
         "discount": "8249.78",
+        "total": "321741.28",
         "paid": "32999.82",
         "balance": "288741.46",
         "expenses": "13393.95",
@@ -3633,8 +3749,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "320346.00",
+        "subtotal": "320346.00",
         "discount": "48087.21",
+        "total": "272258.79",
         "paid": "60377.23",
         "balance": "211881.56",
         "expenses": "0.00",
@@ -3676,8 +3793,9 @@
         "2135.63"
       ],
       "expected": {
-        "total": "222301.44",
+        "subtotal": "222301.44",
         "discount": "1159.93",
+        "total": "221141.51",
         "paid": "0.00",
         "balance": "221141.51",
         "expenses": "10617.05",
@@ -3723,8 +3841,9 @@
         "4205.32"
       ],
       "expected": {
-        "total": "271126.26",
+        "subtotal": "271126.26",
         "discount": "651.31",
+        "total": "270474.95",
         "paid": "36885.68",
         "balance": "233589.27",
         "expenses": "20545.80",
@@ -3760,8 +3879,9 @@
         "991.51"
       ],
       "expected": {
-        "total": "174564.72",
+        "subtotal": "174564.72",
         "discount": "0.00",
+        "total": "174564.72",
         "paid": "16395.98",
         "balance": "158168.74",
         "expenses": "3568.99",
@@ -3795,8 +3915,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "146449.84",
+        "subtotal": "146449.84",
         "discount": "48811.73",
+        "total": "97638.11",
         "paid": "29492.52",
         "balance": "68145.59",
         "expenses": "0.00",
@@ -3839,8 +3960,9 @@
         "7374.06"
       ],
       "expected": {
-        "total": "303696.04",
+        "subtotal": "303696.04",
         "discount": "68331.61",
+        "total": "235364.43",
         "paid": "0.00",
         "balance": "235364.43",
         "expenses": "17415.50",
@@ -3887,8 +4009,9 @@
         "4741.09"
       ],
       "expected": {
-        "total": "186530.10",
+        "subtotal": "186530.10",
         "discount": "13989.76",
+        "total": "172540.34",
         "paid": "45748.62",
         "balance": "126791.72",
         "expenses": "16619.69",
@@ -3934,8 +4057,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "215259.42",
+        "subtotal": "215259.42",
         "discount": "12359.08",
+        "total": "202900.34",
         "paid": "11151.81",
         "balance": "191748.53",
         "expenses": "0.00",
@@ -3967,8 +4091,9 @@
         "8896.54"
       ],
       "expected": {
-        "total": "204760.16",
+        "subtotal": "204760.16",
         "discount": "0.00",
+        "total": "204760.16",
         "paid": "0.00",
         "balance": "204760.16",
         "expenses": "8896.54",
@@ -4012,8 +4137,9 @@
         "7999.06"
       ],
       "expected": {
-        "total": "118885.42",
+        "subtotal": "118885.42",
         "discount": "10138.71",
+        "total": "108746.71",
         "paid": "19074.65",
         "balance": "89672.06",
         "expenses": "16928.82",
@@ -4046,8 +4172,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "294125.49",
+        "subtotal": "294125.49",
         "discount": "1036.35",
+        "total": "293089.14",
         "paid": "23007.62",
         "balance": "270081.52",
         "expenses": "0.00",
@@ -4092,8 +4219,9 @@
         "6897.02"
       ],
       "expected": {
-        "total": "230214.84",
+        "subtotal": "230214.84",
         "discount": "35933.48",
+        "total": "194281.36",
         "paid": "25958.61",
         "balance": "168322.75",
         "expenses": "21770.93",
@@ -4130,8 +4258,9 @@
         "1307.59"
       ],
       "expected": {
-        "total": "40824.00",
+        "subtotal": "40824.00",
         "discount": "5836.87",
+        "total": "34987.13",
         "paid": "40263.56",
         "balance": "-5276.43",
         "expenses": "1307.59",
@@ -4168,8 +4297,9 @@
         "1713.67"
       ],
       "expected": {
-        "total": "40859.00",
+        "subtotal": "40859.00",
         "discount": "6128.85",
+        "total": "34730.15",
         "paid": "32929.83",
         "balance": "1800.32",
         "expenses": "1713.67",
@@ -4199,8 +4329,9 @@
         "3201.93"
       ],
       "expected": {
-        "total": "75827.04",
+        "subtotal": "75827.04",
         "discount": "0.00",
+        "total": "75827.04",
         "paid": "17066.09",
         "balance": "58760.95",
         "expenses": "3201.93",
@@ -4243,8 +4374,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "97620.62",
+        "subtotal": "97620.62",
         "discount": "68334.44",
+        "total": "29286.18",
         "paid": "0.00",
         "balance": "29286.18",
         "expenses": "0.00",
@@ -4278,8 +4410,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "119960.61",
+        "subtotal": "119960.61",
         "discount": "0.00",
+        "total": "119960.61",
         "paid": "37743.74",
         "balance": "82216.87",
         "expenses": "0.00",
@@ -4319,8 +4452,9 @@
         "3801.86"
       ],
       "expected": {
-        "total": "54780.00",
+        "subtotal": "54780.00",
         "discount": "11140.32",
+        "total": "43639.68",
         "paid": "14589.89",
         "balance": "29049.79",
         "expenses": "13794.32",
@@ -4370,8 +4504,9 @@
         "8614.34"
       ],
       "expected": {
-        "total": "252333.83",
+        "subtotal": "252333.83",
         "discount": "2973.97",
+        "total": "249359.86",
         "paid": "9819.55",
         "balance": "239540.31",
         "expenses": "15927.58",
@@ -4404,8 +4539,9 @@
         "5151.35"
       ],
       "expected": {
-        "total": "4901.58",
+        "subtotal": "4901.58",
         "discount": "0.00",
+        "total": "4901.58",
         "paid": "59653.61",
         "balance": "-54752.03",
         "expenses": "6899.81",
@@ -4442,8 +4578,9 @@
         "9830.31"
       ],
       "expected": {
-        "total": "100543.20",
+        "subtotal": "100543.20",
         "discount": "48592.53",
+        "total": "51950.67",
         "paid": "0.00",
         "balance": "51950.67",
         "expenses": "9830.31",
@@ -4476,8 +4613,9 @@
         "2560.26"
       ],
       "expected": {
-        "total": "155647.83",
+        "subtotal": "155647.83",
         "discount": "0.00",
+        "total": "155647.83",
         "paid": "18732.00",
         "balance": "136915.83",
         "expenses": "18105.00",
@@ -4512,8 +4650,9 @@
         "3022.00"
       ],
       "expected": {
-        "total": "279147.43",
+        "subtotal": "279147.43",
         "discount": "0.00",
+        "total": "279147.43",
         "paid": "27374.71",
         "balance": "251772.72",
         "expenses": "7773.89",
@@ -4542,8 +4681,9 @@
         "4997.72"
       ],
       "expected": {
-        "total": "147330.00",
+        "subtotal": "147330.00",
         "discount": "14733.00",
+        "total": "132597.00",
         "paid": "0.00",
         "balance": "132597.00",
         "expenses": "4997.72",
@@ -4581,8 +4721,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "147233.04",
+        "subtotal": "147233.04",
         "discount": "75220.87",
+        "total": "72012.17",
         "paid": "19164.62",
         "balance": "52847.55",
         "expenses": "0.00",
@@ -4626,8 +4767,9 @@
         "3312.76"
       ],
       "expected": {
-        "total": "318867.19",
+        "subtotal": "318867.19",
         "discount": "111603.52",
+        "total": "207263.67",
         "paid": "12380.86",
         "balance": "194882.81",
         "expenses": "6124.27",
@@ -4674,8 +4816,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "87347.50",
+        "subtotal": "87347.50",
         "discount": "1742.10",
+        "total": "85605.40",
         "paid": "43372.74",
         "balance": "42232.66",
         "expenses": "0.00",
@@ -4709,8 +4852,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "213666.00",
+        "subtotal": "213666.00",
         "discount": "0.00",
+        "total": "213666.00",
         "paid": "36198.13",
         "balance": "177467.87",
         "expenses": "0.00",
@@ -4755,8 +4899,9 @@
         "1198.96"
       ],
       "expected": {
-        "total": "356429.97",
+        "subtotal": "356429.97",
         "discount": "2293.58",
+        "total": "354136.39",
         "paid": "28060.73",
         "balance": "326075.66",
         "expenses": "1198.96",
@@ -4809,8 +4954,9 @@
         "939.77"
       ],
       "expected": {
-        "total": "138857.43",
+        "subtotal": "138857.43",
         "discount": "60812.12",
+        "total": "78045.31",
         "paid": "27970.05",
         "balance": "50075.26",
         "expenses": "15285.94",
@@ -4863,8 +5009,9 @@
         "5706.14"
       ],
       "expected": {
-        "total": "63227.48",
+        "subtotal": "63227.48",
         "discount": "3172.75",
+        "total": "60054.73",
         "paid": "43996.67",
         "balance": "16058.06",
         "expenses": "5706.14",
@@ -4897,8 +5044,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "76797.30",
+        "subtotal": "76797.30",
         "discount": "0.00",
+        "total": "76797.30",
         "paid": "29003.77",
         "balance": "47793.53",
         "expenses": "0.00",
@@ -4940,8 +5088,9 @@
         "6650.31"
       ],
       "expected": {
-        "total": "326814.00",
+        "subtotal": "326814.00",
         "discount": "24511.05",
+        "total": "302302.95",
         "paid": "51795.77",
         "balance": "250507.18",
         "expenses": "16326.63",
@@ -4992,8 +5141,9 @@
         "6272.00"
       ],
       "expected": {
-        "total": "189893.65",
+        "subtotal": "189893.65",
         "discount": "194641.00",
+        "total": "-4747.35",
         "paid": "29943.86",
         "balance": "-34691.21",
         "expenses": "6272.00",
@@ -5017,8 +5167,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "10701.00",
+        "subtotal": "10701.00",
         "discount": "0.00",
+        "total": "10701.00",
         "paid": "4316.89",
         "balance": "6384.11",
         "expenses": "0.00",
@@ -5060,8 +5211,9 @@
         "8902.18"
       ],
       "expected": {
-        "total": "210840.00",
+        "subtotal": "210840.00",
         "discount": "42621.20",
+        "total": "168218.80",
         "paid": "44573.17",
         "balance": "123645.63",
         "expenses": "9923.97",
@@ -5102,8 +5254,9 @@
         "2843.27"
       ],
       "expected": {
-        "total": "112075.79",
+        "subtotal": "112075.79",
         "discount": "11207.58",
+        "total": "100868.21",
         "paid": "0.00",
         "balance": "100868.21",
         "expenses": "2843.27",
@@ -5140,8 +5293,9 @@
         "1547.76"
       ],
       "expected": {
-        "total": "139628.00",
+        "subtotal": "139628.00",
         "discount": "27925.60",
+        "total": "111702.40",
         "paid": "49557.71",
         "balance": "62144.69",
         "expenses": "6446.49",
@@ -5180,8 +5334,9 @@
         "825.69"
       ],
       "expected": {
-        "total": "203683.64",
+        "subtotal": "203683.64",
         "discount": "50920.91",
+        "total": "152762.73",
         "paid": "20957.29",
         "balance": "131805.44",
         "expenses": "825.69",
@@ -5222,8 +5377,9 @@
         "2740.03"
       ],
       "expected": {
-        "total": "43260.00",
+        "subtotal": "43260.00",
         "discount": "3168.98",
+        "total": "40091.02",
         "paid": "9242.41",
         "balance": "30848.61",
         "expenses": "6587.87",
@@ -5256,8 +5412,9 @@
         "9556.34"
       ],
       "expected": {
-        "total": "216811.00",
+        "subtotal": "216811.00",
         "discount": "54202.75",
+        "total": "162608.25",
         "paid": "11749.31",
         "balance": "150858.94",
         "expenses": "19895.42",
@@ -5294,8 +5451,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "172824.90",
+        "subtotal": "172824.90",
         "discount": "17282.49",
+        "total": "155542.41",
         "paid": "20368.26",
         "balance": "135174.15",
         "expenses": "0.00",
@@ -5340,8 +5498,9 @@
         "9510.23"
       ],
       "expected": {
-        "total": "482643.92",
+        "subtotal": "482643.92",
         "discount": "1081.74",
+        "total": "481562.18",
         "paid": "29911.29",
         "balance": "451650.89",
         "expenses": "9753.18",
@@ -5378,8 +5537,9 @@
         "5821.77"
       ],
       "expected": {
-        "total": "13050.00",
+        "subtotal": "13050.00",
         "discount": "3060.06",
+        "total": "9989.94",
         "paid": "44769.45",
         "balance": "-34779.51",
         "expenses": "5821.77",
@@ -5417,8 +5577,9 @@
         "3504.00"
       ],
       "expected": {
-        "total": "178260.00",
+        "subtotal": "178260.00",
         "discount": "896.46",
+        "total": "177363.54",
         "paid": "53980.31",
         "balance": "123383.23",
         "expenses": "3931.94",
@@ -5464,8 +5625,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "361428.15",
+        "subtotal": "361428.15",
         "discount": "81321.33",
+        "total": "280106.82",
         "paid": "32794.98",
         "balance": "247311.84",
         "expenses": "0.00",
@@ -5515,8 +5677,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "484374.58",
+        "subtotal": "484374.58",
         "discount": "25939.59",
+        "total": "458434.99",
         "paid": "27490.46",
         "balance": "430944.53",
         "expenses": "0.00",
@@ -5559,8 +5722,9 @@
         "683.33"
       ],
       "expected": {
-        "total": "341273.44",
+        "subtotal": "341273.44",
         "discount": "316.47",
+        "total": "340956.97",
         "paid": "0.00",
         "balance": "340956.97",
         "expenses": "10765.41",
@@ -5602,8 +5766,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "214904.80",
+        "subtotal": "214904.80",
         "discount": "1203.45",
+        "total": "213701.35",
         "paid": "24653.42",
         "balance": "189047.93",
         "expenses": "0.00",
@@ -5641,8 +5806,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "157204.75",
+        "subtotal": "157204.75",
         "discount": "0.00",
+        "total": "157204.75",
         "paid": "56938.12",
         "balance": "100266.63",
         "expenses": "0.00",
@@ -5697,8 +5863,9 @@
         "5045.38"
       ],
       "expected": {
-        "total": "285044.18",
+        "subtotal": "285044.18",
         "discount": "135395.99",
+        "total": "149648.19",
         "paid": "47501.99",
         "balance": "102146.20",
         "expenses": "7815.44",
@@ -5745,8 +5912,9 @@
         "1292.43"
       ],
       "expected": {
-        "total": "125156.00",
+        "subtotal": "125156.00",
         "discount": "1145.27",
+        "total": "124010.73",
         "paid": "0.00",
         "balance": "124010.73",
         "expenses": "14992.62",
@@ -5777,8 +5945,9 @@
         "5793.46"
       ],
       "expected": {
-        "total": "144020.00",
+        "subtotal": "144020.00",
         "discount": "0.00",
+        "total": "144020.00",
         "paid": "24169.41",
         "balance": "119850.59",
         "expenses": "10821.31",
@@ -5820,8 +5989,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "142771.28",
+        "subtotal": "142771.28",
         "discount": "58626.18",
+        "total": "84145.10",
         "paid": "25666.29",
         "balance": "58478.81",
         "expenses": "0.00",
@@ -5864,8 +6034,9 @@
         "1383.67"
       ],
       "expected": {
-        "total": "82407.15",
+        "subtotal": "82407.15",
         "discount": "24722.14",
+        "total": "57685.01",
         "paid": "45239.05",
         "balance": "12445.96",
         "expenses": "11836.72",
@@ -5904,8 +6075,9 @@
         "8705.45"
       ],
       "expected": {
-        "total": "363631.00",
+        "subtotal": "363631.00",
         "discount": "0.00",
+        "total": "363631.00",
         "paid": "4951.73",
         "balance": "358679.27",
         "expenses": "17725.48",
@@ -5941,8 +6113,9 @@
         "9025.05"
       ],
       "expected": {
-        "total": "90284.00",
+        "subtotal": "90284.00",
         "discount": "0.00",
+        "total": "90284.00",
         "paid": "40377.89",
         "balance": "49906.11",
         "expenses": "11616.98",
@@ -5985,8 +6158,9 @@
         "8678.72"
       ],
       "expected": {
-        "total": "488852.34",
+        "subtotal": "488852.34",
         "discount": "162934.48",
+        "total": "325917.86",
         "paid": "38610.98",
         "balance": "287306.88",
         "expenses": "18184.87",
@@ -6040,8 +6214,9 @@
         "7431.39"
       ],
       "expected": {
-        "total": "320676.56",
+        "subtotal": "320676.56",
         "discount": "56118.39",
+        "total": "264558.17",
         "paid": "29165.47",
         "balance": "235392.70",
         "expenses": "15528.32",
@@ -6076,8 +6251,9 @@
         "8803.07"
       ],
       "expected": {
-        "total": "16448.00",
+        "subtotal": "16448.00",
         "discount": "2364.95",
+        "total": "14083.05",
         "paid": "0.00",
         "balance": "14083.05",
         "expenses": "23766.94",
@@ -6110,8 +6286,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "81431.60",
+        "subtotal": "81431.60",
         "discount": "20357.90",
+        "total": "61073.70",
         "paid": "28250.08",
         "balance": "32823.62",
         "expenses": "0.00",
@@ -6156,8 +6333,9 @@
         "4067.81"
       ],
       "expected": {
-        "total": "406141.80",
+        "subtotal": "406141.80",
         "discount": "91381.91",
+        "total": "314759.89",
         "paid": "8129.35",
         "balance": "306630.54",
         "expenses": "8307.03",
@@ -6187,8 +6365,9 @@
         "7130.57"
       ],
       "expected": {
-        "total": "86878.96",
+        "subtotal": "86878.96",
         "discount": "0.00",
+        "total": "86878.96",
         "paid": "0.00",
         "balance": "86878.96",
         "expenses": "16355.34",
@@ -6218,8 +6397,9 @@
         "726.17"
       ],
       "expected": {
-        "total": "105786.50",
+        "subtotal": "105786.50",
         "discount": "0.00",
+        "total": "105786.50",
         "paid": "5648.08",
         "balance": "100138.42",
         "expenses": "726.17",
@@ -6243,8 +6423,9 @@
         "497.28"
       ],
       "expected": {
-        "total": "87561.72",
+        "subtotal": "87561.72",
         "discount": "0.00",
+        "total": "87561.72",
         "paid": "0.00",
         "balance": "87561.72",
         "expenses": "497.28",
@@ -6278,8 +6459,9 @@
         "63.15"
       ],
       "expected": {
-        "total": "328160.00",
+        "subtotal": "328160.00",
         "discount": "0.00",
+        "total": "328160.00",
         "paid": "0.00",
         "balance": "328160.00",
         "expenses": "9727.08",
@@ -6310,8 +6492,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "141920.27",
+        "subtotal": "141920.27",
         "discount": "72839.01",
+        "total": "69081.26",
         "paid": "0.00",
         "balance": "69081.26",
         "expenses": "0.00",
@@ -6355,8 +6538,9 @@
         "5018.15"
       ],
       "expected": {
-        "total": "21158.00",
+        "subtotal": "21158.00",
         "discount": "16926.40",
+        "total": "4231.60",
         "paid": "15894.14",
         "balance": "-11662.54",
         "expenses": "11486.97",
@@ -6394,8 +6578,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "52681.00",
+        "subtotal": "52681.00",
         "discount": "0.00",
+        "total": "52681.00",
         "paid": "59955.62",
         "balance": "-7274.62",
         "expenses": "0.00",
@@ -6431,8 +6616,9 @@
         "7382.80"
       ],
       "expected": {
-        "total": "95555.91",
+        "subtotal": "95555.91",
         "discount": "2388.90",
+        "total": "93167.01",
         "paid": "41713.27",
         "balance": "51453.74",
         "expenses": "7382.80",
@@ -6486,8 +6672,9 @@
         "7584.97"
       ],
       "expected": {
-        "total": "362300.49",
+        "subtotal": "362300.49",
         "discount": "45642.86",
+        "total": "316657.63",
         "paid": "17640.09",
         "balance": "299017.54",
         "expenses": "13242.23",
@@ -6537,8 +6724,9 @@
         "8556.94"
       ],
       "expected": {
-        "total": "178615.10",
+        "subtotal": "178615.10",
         "discount": "15369.55",
+        "total": "163245.55",
         "paid": "42090.68",
         "balance": "121154.87",
         "expenses": "18765.65",
@@ -6586,8 +6774,9 @@
         "1674.48"
       ],
       "expected": {
-        "total": "148838.58",
+        "subtotal": "148838.58",
         "discount": "65531.56",
+        "total": "83307.02",
         "paid": "7446.59",
         "balance": "75860.43",
         "expenses": "2928.09",
@@ -6621,8 +6810,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "81538.76",
+        "subtotal": "81538.76",
         "discount": "0.00",
+        "total": "81538.76",
         "paid": "15634.08",
         "balance": "65904.68",
         "expenses": "0.00",
@@ -6657,8 +6847,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "60396.99",
+        "subtotal": "60396.99",
         "discount": "36238.20",
+        "total": "24158.79",
         "paid": "0.00",
         "balance": "24158.79",
         "expenses": "0.00",
@@ -6703,8 +6894,9 @@
         "5759.19"
       ],
       "expected": {
-        "total": "143273.20",
+        "subtotal": "143273.20",
         "discount": "19110.07",
+        "total": "124163.13",
         "paid": "2130.88",
         "balance": "122032.25",
         "expenses": "16618.72",
@@ -6745,8 +6937,9 @@
         "7148.22"
       ],
       "expected": {
-        "total": "158089.88",
+        "subtotal": "158089.88",
         "discount": "700.83",
+        "total": "157389.05",
         "paid": "49027.88",
         "balance": "108361.17",
         "expenses": "7148.22",
@@ -6785,8 +6978,9 @@
         "6451.57"
       ],
       "expected": {
-        "total": "246954.10",
+        "subtotal": "246954.10",
         "discount": "113179.06",
+        "total": "133775.04",
         "paid": "0.00",
         "balance": "133775.04",
         "expenses": "12842.10",
@@ -6824,8 +7018,9 @@
         "9394.48"
       ],
       "expected": {
-        "total": "14288.20",
+        "subtotal": "14288.20",
         "discount": "3780.63",
+        "total": "10507.57",
         "paid": "27598.60",
         "balance": "-17091.03",
         "expenses": "13563.24",
@@ -6874,8 +7069,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "439704.63",
+        "subtotal": "439704.63",
         "discount": "274815.40",
+        "total": "164889.23",
         "paid": "25766.39",
         "balance": "139122.84",
         "expenses": "0.00",
@@ -6914,8 +7110,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "394006.94",
+        "subtotal": "394006.94",
         "discount": "198395.04",
+        "total": "195611.90",
         "paid": "49019.66",
         "balance": "146592.24",
         "expenses": "0.00",
@@ -6962,8 +7159,9 @@
         "9634.09"
       ],
       "expected": {
-        "total": "298366.08",
+        "subtotal": "298366.08",
         "discount": "175624.28",
+        "total": "122741.80",
         "paid": "17609.18",
         "balance": "105132.62",
         "expenses": "9634.09",
@@ -7008,8 +7206,9 @@
         "8432.56"
       ],
       "expected": {
-        "total": "221891.00",
+        "subtotal": "221891.00",
         "discount": "73956.27",
+        "total": "147934.73",
         "paid": "31424.04",
         "balance": "116510.69",
         "expenses": "10890.47",
@@ -7049,8 +7248,9 @@
         "3924.67"
       ],
       "expected": {
-        "total": "97359.00",
+        "subtotal": "97359.00",
         "discount": "3287.16",
+        "total": "94071.84",
         "paid": "5966.84",
         "balance": "88105.00",
         "expenses": "7227.66",
@@ -7084,8 +7284,9 @@
         "5508.71"
       ],
       "expected": {
-        "total": "107387.00",
+        "subtotal": "107387.00",
         "discount": "21477.40",
+        "total": "85909.60",
         "paid": "0.00",
         "balance": "85909.60",
         "expenses": "6114.61",
@@ -7118,8 +7319,9 @@
         "5577.41"
       ],
       "expected": {
-        "total": "88948.86",
+        "subtotal": "88948.86",
         "discount": "11118.61",
+        "total": "77830.25",
         "paid": "0.00",
         "balance": "77830.25",
         "expenses": "5577.41",
@@ -7168,8 +7370,9 @@
         "6707.94"
       ],
       "expected": {
-        "total": "177235.40",
+        "subtotal": "177235.40",
         "discount": "19715.11",
+        "total": "157520.29",
         "paid": "29247.30",
         "balance": "128272.99",
         "expenses": "6707.94",
@@ -7200,8 +7403,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "158395.11",
+        "subtotal": "158395.11",
         "discount": "1505.84",
+        "total": "156889.27",
         "paid": "0.00",
         "balance": "156889.27",
         "expenses": "0.00",
@@ -7229,8 +7433,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "132269.60",
+        "subtotal": "132269.60",
         "discount": "0.00",
+        "total": "132269.60",
         "paid": "25335.20",
         "balance": "106934.40",
         "expenses": "0.00",
@@ -7275,8 +7480,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "291342.59",
+        "subtotal": "291342.59",
         "discount": "66002.61",
+        "total": "225339.98",
         "paid": "13745.03",
         "balance": "211594.95",
         "expenses": "0.00",
@@ -7311,8 +7517,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "158730.00",
+        "subtotal": "158730.00",
         "discount": "2218.37",
+        "total": "156511.63",
         "paid": "0.00",
         "balance": "156511.63",
         "expenses": "0.00",
@@ -7341,8 +7548,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "67200.00",
+        "subtotal": "67200.00",
         "discount": "0.00",
+        "total": "67200.00",
         "paid": "39854.44",
         "balance": "27345.56",
         "expenses": "0.00",
@@ -7393,8 +7601,9 @@
         "7691.46"
       ],
       "expected": {
-        "total": "256947.76",
+        "subtotal": "256947.76",
         "discount": "19812.15",
+        "total": "237135.61",
         "paid": "0.00",
         "balance": "237135.61",
         "expenses": "11913.77",
@@ -7424,8 +7633,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "41323.00",
+        "subtotal": "41323.00",
         "discount": "1537.41",
+        "total": "39785.59",
         "paid": "30351.92",
         "balance": "9433.67",
         "expenses": "0.00",
@@ -7467,8 +7677,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "148187.17",
+        "subtotal": "148187.17",
         "discount": "77798.27",
+        "total": "70388.90",
         "paid": "29900.57",
         "balance": "40488.33",
         "expenses": "0.00",
@@ -7506,8 +7717,9 @@
         "1198.90"
       ],
       "expected": {
-        "total": "38549.04",
+        "subtotal": "38549.04",
         "discount": "51.34",
+        "total": "38497.70",
         "paid": "0.00",
         "balance": "38497.70",
         "expenses": "3558.76",
@@ -7545,8 +7757,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "23155.32",
+        "subtotal": "23155.32",
         "discount": "6293.14",
+        "total": "16862.18",
         "paid": "18188.84",
         "balance": "-1326.66",
         "expenses": "0.00",
@@ -7584,8 +7797,9 @@
         "2359.75"
       ],
       "expected": {
-        "total": "32634.00",
+        "subtotal": "32634.00",
         "discount": "16721.31",
+        "total": "15912.69",
         "paid": "41848.07",
         "balance": "-25935.38",
         "expenses": "17176.87",
@@ -7627,8 +7841,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "232863.19",
+        "subtotal": "232863.19",
         "discount": "34929.48",
+        "total": "197933.71",
         "paid": "24179.50",
         "balance": "173754.21",
         "expenses": "0.00",
@@ -7650,8 +7865,9 @@
       "payments": [],
       "expenses": [],
       "expected": {
-        "total": "29077.74",
+        "subtotal": "29077.74",
         "discount": "0.00",
+        "total": "29077.74",
         "paid": "0.00",
         "balance": "29077.74",
         "expenses": "0.00",
@@ -7690,8 +7906,9 @@
         "7497.92"
       ],
       "expected": {
-        "total": "237834.40",
+        "subtotal": "237834.40",
         "discount": "59458.60",
+        "total": "178375.80",
         "paid": "35875.84",
         "balance": "142499.96",
         "expenses": "18888.15",
@@ -7722,8 +7939,9 @@
         "2545.20"
       ],
       "expected": {
-        "total": "36892.00",
+        "subtotal": "36892.00",
         "discount": "0.00",
+        "total": "36892.00",
         "paid": "29113.96",
         "balance": "7778.04",
         "expenses": "4962.27",
@@ -7747,8 +7965,9 @@
       ],
       "expenses": [],
       "expected": {
-        "total": "79322.34",
+        "subtotal": "79322.34",
         "discount": "0.00",
+        "total": "79322.34",
         "paid": "625.32",
         "balance": "78697.02",
         "expenses": "0.00",
@@ -7793,8 +8012,9 @@
         "272.23"
       ],
       "expected": {
-        "total": "435629.76",
+        "subtotal": "435629.76",
         "discount": "596.67",
+        "total": "435033.09",
         "paid": "61271.08",
         "balance": "373762.01",
         "expenses": "272.23",

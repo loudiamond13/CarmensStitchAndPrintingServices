@@ -268,7 +268,9 @@ describe('OrderTotals (App. D.3)', () => {
     expect(classTokens(balance?.lastElementChild)).toEqual(tokens(balanceValueClasses.card));
     expect(container.textContent).not.toContain('Estimated Profit');
 
-    const paid = render(<OrderTotals variant="card" totals={{ ...ZERO_TOTALS, subtotal: 100, total: 100, fullyPaid: true }} />);
+    const paid = render(
+      <OrderTotals variant="card" totals={{ ...ZERO_TOTALS, subtotal: 100, total: 100, fullyPaid: true }} />,
+    );
     expect(paid.container.querySelector('svg')?.getAttribute('width')).toBe('18');
   });
 

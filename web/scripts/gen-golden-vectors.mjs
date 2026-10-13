@@ -78,7 +78,7 @@ function spec(category, note, input, id) {
 }
 
 /**
- * Explicit half-centavo midpoints (D-09, research Pitfall 13). Most total/percent pairs below were picked because the
+ * Explicit half-centavo midpoints (D-09, research Pitfall 13). Most subtotal/percent pairs below were picked because the
  * unmodified App. D.1 round2 (Math.round(n * 100) / 100) rounds them the wrong way.
  * @returns {CaseSpec[]}
  */
@@ -109,32 +109,32 @@ function midpointCases() {
     }),
   ];
   /** @type {[string, string[]][]} */
-  const wholePesoTotals = [
+  const wholePesoSubtotals = [
     ['2.5', ['41', '51', '87', '97', '169', '179', '189', '199']],
     ['7.5', ['29', '63', '111', '121', '131', '217', '227', '237']],
   ];
-  for (const [rate, totals] of wholePesoTotals) {
-    for (const total of totals) {
+  for (const [rate, subtotals] of wholePesoSubtotals) {
+    for (const subtotal of subtotals) {
       cases.push(
-        spec('midpoint', `${rate}% of whole-peso ${total}.00 is a half centavo; rounds away from zero`, {
-          items: [item(1, `${total}.00`)],
+        spec('midpoint', `${rate}% of whole-peso ${subtotal}.00 is a half centavo; rounds away from zero`, {
+          items: [item(1, `${subtotal}.00`)],
           discounts: [percent(rate)],
         }),
       );
     }
   }
   /** @type {[string, string[]][]} */
-  const centavoTotals = [
+  const centavoSubtotals = [
     ['5', ['2.90', '5.70', '11.30']],
     ['10', ['1.45', '2.85', '5.65']],
     ['12.5', ['2.28', '4.52', '4.60']],
     ['15', ['1.90', '4.10', '6.70']],
   ];
-  for (const [rate, totals] of centavoTotals) {
-    for (const total of totals) {
+  for (const [rate, subtotals] of centavoSubtotals) {
+    for (const subtotal of subtotals) {
       cases.push(
-        spec('midpoint', `${rate}% of centavo total ${total} is a half centavo; rounds away from zero`, {
-          items: [item(1, total)],
+        spec('midpoint', `${rate}% of centavo subtotal ${subtotal} is a half centavo; rounds away from zero`, {
+          items: [item(1, subtotal)],
           discounts: [percent(rate)],
         }),
       );
@@ -181,7 +181,7 @@ function ordFixtureCases() {
     ),
     spec(
       'ord-fixture',
-      'ORD-2026-0151 (spec seed): 23,000 - 500 - 22,500 = 0, fully paid',
+      'ORD-2026-0151 (spec seed): subtotal 23,000 - discount 500 = total 22,500; - paid 22,500 = 0, fully paid',
       {
         items: [item(20, '1150.00')],
         discounts: [fixed('500.00')],
@@ -227,7 +227,7 @@ function ordFixtureCases() {
 /** @returns {CaseSpec[]} */
 function percent100Cases() {
   return [
-    spec('percent-100', '100% of 17.00: discount equals total', {
+    spec('percent-100', '100% of 17.00: discount equals subtotal, total 0, fully paid', {
       items: [item(1, '17.00')],
       discounts: [percent('100')],
     }),
@@ -250,7 +250,7 @@ function percent100Cases() {
       items: [item(1, '9999999999.99')],
       discounts: [percent('100')],
     }),
-    spec('percent-100', '100% plus a fixed 50.00: discount above the total', {
+    spec('percent-100', '100% plus a fixed 50.00: discount above the subtotal', {
       items: [item(2, '100.00')],
       discounts: [percent('100'), fixed('50.00')],
     }),
@@ -310,7 +310,7 @@ function multiDiscountCases() {
  */
 function negativeBalanceCases() {
   return [
-    spec('negative-balance', 'a fixed discount above the total', {
+    spec('negative-balance', 'a fixed discount above the subtotal', {
       items: [item(1, '500.00')],
       discounts: [fixed('600.00')],
     }),
@@ -319,12 +319,12 @@ function negativeBalanceCases() {
       discounts: [fixed('500.00')],
       payments: ['12000.00', '12000.00'],
     }),
-    spec('negative-balance', 'paid the full total despite a 2.5% discount', {
+    spec('negative-balance', 'paid the full subtotal despite a 2.5% discount', {
       items: [item(1, '23.00')],
       discounts: [percent('2.5')],
       payments: ['23.00'],
     }),
-    spec('negative-balance', 'a rounded fixed 1.005 above a 1.00 total', {
+    spec('negative-balance', 'a rounded fixed 1.005 above a 1.00 subtotal', {
       items: [item(1, '1.00')],
       discounts: [fixed('1.005')],
     }),
@@ -332,7 +332,7 @@ function negativeBalanceCases() {
       items: [item(2, '99.99')],
       payments: ['100.00', '50.00', '75.25'],
     }),
-    spec('negative-balance', 'fixed 50.00 and 10% above a 40.00 total, expenses above it too', {
+    spec('negative-balance', 'fixed 50.00 and 10% above a 40.00 subtotal, expenses above it too', {
       items: [item(1, '40.00')],
       discounts: [fixed('50.00'), percent('10')],
       expenses: ['60.00'],
@@ -382,7 +382,7 @@ function largeValueCases() {
       payments: ['9000000000.00'],
       expenses: ['500000000.00'],
     }),
-    spec('large-value', 'paid twice the largest total', {
+    spec('large-value', 'paid twice the largest items total', {
       items: [item(1, '9999999999.99')],
       payments: ['9999999999.99', '9999999999.99'],
     }),
@@ -497,7 +497,7 @@ export function buildCases() {
  * @returns {string} The vector file's exact text.
  */
 export function renderVectorFile(cases) {
-  return `${JSON.stringify({ version: 1, operationOrder: OPERATION_ORDER, cases }, null, 2)}\n`;
+  return `${JSON.stringify({ version: 2, operationOrder: OPERATION_ORDER, cases }, null, 2)}\n`;
 }
 
 /**

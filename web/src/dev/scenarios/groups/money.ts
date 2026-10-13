@@ -3,7 +3,8 @@
 //   - Money in the default look ("₱12,450.00"), negative in the danger tone ("−₱732.50", U+2212), and the other sizes
 //     and tones (lg success, sm muted, md warning);
 //   - OrderTotals on the spec §12.2 seed orders: ORD-2026-0148 (balance due ₱9,327.50, the Order Detail panel and the
-//     OrderCard block) and ORD-2026-0151 (fully paid: 23,000 − 500 − 22,500 = 0), at every width;
+//     OrderCard block) and ORD-2026-0151 (fully paid: subtotal 23,000 − discount 500 = total 22,500, less 22,500
+//     paid = 0; PRD §5.1 names, D-41 R2-06), at every width;
 //   - KpiCard with the spec §8.3 / §12.4 dashboard values at 390 and 1440: Collected · Oct (₱126,450.00, +12%),
 //     Company expenses · Oct (₱38,226.95, down 47% against September's ₱71,904.20, spec §12.3), Active orders (a
 //     count, not money), a zero receivables card (₱0.00, its figure dimmed in --ink-subtle by owner ruling D-39; it
