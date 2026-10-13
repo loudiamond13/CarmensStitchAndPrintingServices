@@ -24,12 +24,25 @@ export interface ElementException {
   readonly reason: string;
 }
 
-/** Icon drawings: every `<svg viewBox>` with this value is compared as a wrapper only, and masked in screenshots. */
+/**
+ * Icon drawings: an `<svg>` with this viewBox AND its side's icon class is compared as a wrapper only, and masked in
+ * screenshots. Any other svg, whatever its viewBox, is compared in full (TOOL-WR-05).
+ */
 export interface DrawingMask {
   readonly kind: 'icon-drawing';
   readonly viewBox: string;
+  /** The class the reference icon wrapper carries (App. D.3 `Icon`). */
+  readonly referenceClass: string;
+  /** The class the implementation icon wrapper carries (lucide-react). */
+  readonly implClass: string;
   readonly decision: string;
   readonly reason: string;
+}
+
+/** How one side marks its icon wrappers. */
+export interface IconMarker {
+  readonly viewBox: string;
+  readonly className: string;
 }
 
 export type StructuralException = ElementException | DrawingMask;
@@ -105,10 +118,13 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
       }) as const,
   ),
   // D-32: the approved design draws its icons from App. D.5 node data; the app uses lucide-react 1.53.0 (D-34), whose
-  // drawings the owner approved separately. Both render a 24 x 24 viewBox wrapper.
+  // drawings the owner approved separately. Both render a 24 x 24 viewBox wrapper: App. D.3 `Icon` with class
+  // csp-icon, lucide-react with class lucide (src/ui/brand/Icon.test.tsx pins it).
   {
     kind: 'icon-drawing',
     viewBox: '0 0 24 24',
+    referenceClass: 'csp-icon',
+    implClass: 'lucide',
     decision: 'D-32',
     reason:
       'Icon drawings come from lucide-react 1.53.0 (20 of 56 redrawn, approved by the owner); the wrapper size, ' +
@@ -118,6 +134,9 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
 
 /** Empty on purpose: every case must be pixel-identical. An entry needs an owner decision (D-08) and a reason. */
 export const TOLERANCE_OVERRIDES: readonly ToleranceOverride[] = Object.freeze([]);
+
+/** A class name the mask selector can use as is (`svg.<class>`). */
+const PLAIN_CLASS = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 /** A decision ID as the planning documents write them: D-27, D-31, D-BL-02, O-6, WEB-09, PERF-05, A11Y-04. */
 const DECISION_ID = /^(?:D-(?:BL-)?\d+|O-\d+|[A-Z][A-Z0-9]*-\d+)$/;
@@ -150,6 +169,9 @@ export function assertRegistry(
       }
       check(`element ${entry.scenario} ${entry.path}`, entry.decision, entry.reason);
     } else {
+      if (!PLAIN_CLASS.test(entry.referenceClass) || !PLAIN_CLASS.test(entry.implClass)) {
+        throw new Error(`Icon-drawing mask ${entry.viewBox} needs a plain class name for each side.`);
+      }
       check(`icon-drawing ${entry.viewBox}`, entry.decision, entry.reason);
     }
   }
@@ -171,10 +193,21 @@ export function elementExceptionsFor(
   );
 }
 
-/** The icon wrapper viewBox whose drawing is masked (D-32), or null when the registry masks no drawing. */
-export function maskedIconViewBox(structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS): string | null {
+/** How `side` marks the icon wrappers whose drawing is masked (D-32), or null when the registry masks no drawing. */
+export function maskedIcon(
+  side: 'reference' | 'impl',
+  structural: readonly StructuralException[] = STRUCTURAL_EXCEPTIONS,
+): IconMarker | null {
   const mask = structural.find((entry): entry is DrawingMask => entry.kind === 'icon-drawing');
-  return mask?.viewBox ?? null;
+  if (mask === undefined) {
+    return null;
+  }
+  return { viewBox: mask.viewBox, className: side === 'reference' ? mask.referenceClass : mask.implClass };
+}
+
+/** The CSS selector of the icon wrappers a screenshot masks on one side. */
+export function iconSelector(marker: IconMarker): string {
+  return `svg.${marker.className}[viewBox=${JSON.stringify(marker.viewBox)}]`;
 }
 
 /** The pixel tolerance for one scenario: 0 unless an override with an owner decision says otherwise. */

@@ -192,7 +192,8 @@ export interface Difference {
 interface CollectArgs {
   readonly selector: string;
   readonly properties: readonly string[];
-  readonly iconViewBox: string | null;
+  /** The side's icon wrapper marker (intentional-differences.ts maskedIcon), or null to mark no icon. */
+  readonly icon: { readonly viewBox: string; readonly className: string } | null;
 }
 
 // The few DOM shapes the walker touches (the node TS program has no DOM library).
@@ -217,8 +218,11 @@ interface BrowserScope {
   getComputedStyle(element: BrowserElement, pseudo?: string): BrowserStyle;
 }
 
-/** Runs in the page. Self-contained: Playwright sends its source text, so it may not use anything from this module. */
-function collectInPage({ selector, properties, iconViewBox }: CollectArgs): CaseRecord | null {
+/**
+ * Runs in the page. Self-contained: Playwright sends its source text, so it may not use anything from this module.
+ * Exported for icon-mask.test.ts, which runs it over a fake document.
+ */
+export function collectInPage({ selector, properties, icon }: CollectArgs): CaseRecord | null {
   const scope = globalThis as unknown as BrowserScope;
   const root = scope.document.querySelector(selector);
   if (root === null) {
@@ -250,7 +254,12 @@ function collectInPage({ selector, properties, iconViewBox }: CollectArgs): Case
       pseudo: '',
       box: { x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height },
       styles: read(style),
-      icon: element.localName === 'svg' && iconViewBox !== null && element.getAttribute('viewBox') === iconViewBox,
+      // D-32 / TOOL-WR-05: only an svg with the masked viewBox AND the side's icon class is an icon wrapper.
+      icon:
+        element.localName === 'svg' &&
+        icon !== null &&
+        element.getAttribute('viewBox') === icon.viewBox &&
+        (element.getAttribute('class') ?? '').split(/\s+/).includes(icon.className),
       attributes,
     });
     for (const pseudo of ['::before', '::after'] as const) {
@@ -278,8 +287,8 @@ function collectInPage({ selector, properties, iconViewBox }: CollectArgs): Case
 }
 
 export interface CollectOptions {
-  /** Icon wrappers with this viewBox are marked `icon` (their drawing is dropped by normalizeRecord). */
-  readonly iconViewBox?: string | null;
+  /** Icon wrappers with this marker are marked `icon` (their drawing is dropped by normalizeRecord). */
+  readonly icon?: { readonly viewBox: string; readonly className: string } | null;
 }
 
 /** Reads the case frame matching `selector` on `page`. Throws when nothing matches. */
@@ -287,7 +296,7 @@ export async function collectCase(page: Page, selector: string, options: Collect
   const record = await page.evaluate(collectInPage, {
     selector,
     properties: [...VISUAL_PROPERTIES],
-    iconViewBox: options.iconViewBox ?? null,
+    icon: options.icon ?? null,
   });
   if (record === null) {
     throw new Error(`No case frame matches ${selector}.`);

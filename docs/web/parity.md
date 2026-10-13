@@ -26,7 +26,7 @@ The only normalizations allowed are these:
 - repeated entries in transition lists collapse to one;
 - border and outline style and colour are ignored on a side whose width is 0;
 - hidden (`display: none`) parts are skipped;
-- icon drawings are masked (only the icon's box, colour and stroke are compared, D-32);
+- icon drawings are masked (only the icon's box, colour and stroke are compared, D-32). Only real icon wrappers are masked: a 24 x 24 `<svg>` with class `csp-icon` (the App. D.3 `Icon`) on the reference side and class `lucide` (lucide-react) on the app side. Any other svg, such as a spinner or a check mark drawn in place, is compared in full (TOOL-WR-05);
 - transforms are compared by box and pixels, not by their CSS text;
 - attributes are not compared.
 

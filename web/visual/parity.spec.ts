@@ -22,8 +22,10 @@ import { expect, expectCases, screenshotLocator, screenshotPage, test } from './
 import {
   assertRegistry,
   elementExceptionsFor,
-  maskedIconViewBox,
+  iconSelector,
+  maskedIcon,
   maxDiffPixelsFor,
+  type IconMarker,
 } from './intentional-differences.ts';
 import { planMatrix, rowTimeout, type MatrixRow } from './parity-matrix.ts';
 import { selectScenarios } from './reference/select.ts';
@@ -41,7 +43,8 @@ const MAX_TABS = 40;
 
 assertRegistry();
 const SCENARIOS = await loadScenarios();
-const ICON_VIEWBOX = maskedIconViewBox();
+const REFERENCE_ICON = maskedIcon('reference');
+const IMPL_ICON = maskedIcon('impl');
 
 // `caret: 'initial'`: Playwright's caret hiding injects a <style> element, which the strict CSP blocks in WebKit and which
 // would then not apply. FREEZE hides the caret of a focused field through the CSSOM instead (allowed by the CSP).
@@ -163,9 +166,9 @@ async function applyState(page: Page, scenario: Scenario, state: ScenarioState):
   }
 }
 
-/** The icon drawings to mask in a screenshot of `scope` (D-32). */
-function iconMasks(scope: Locator): Locator[] {
-  return ICON_VIEWBOX === null ? [] : [scope.locator(`svg[viewBox=${JSON.stringify(ICON_VIEWBOX)}]`)];
+/** The icon drawings to mask in a screenshot of `scope` (D-32): only that side's marked icon wrappers. */
+function iconMasks(scope: Locator, marker: IconMarker | null): Locator[] {
+  return marker === null ? [] : [scope.locator(iconSelector(marker))];
 }
 
 /** Compares one case: computed styles and boxes, then pixels. Records soft failures, so every case is reported. */
@@ -183,8 +186,8 @@ async function compareCase(
   await impl.evaluate(REPAINT);
 
   const differences = diffCases(
-    normalizeRecord(await collectCase(reference, selector, { iconViewBox: ICON_VIEWBOX })),
-    normalizeRecord(await collectCase(impl, selector, { iconViewBox: ICON_VIEWBOX })),
+    normalizeRecord(await collectCase(reference, selector, { icon: REFERENCE_ICON })),
+    normalizeRecord(await collectCase(impl, selector, { icon: IMPL_ICON })),
     elementExceptionsFor(scenario.id),
   );
   expect.soft(formatDifferences(differences), `${scenario.id}: computed styles and boxes`).toEqual([]);
@@ -199,12 +202,12 @@ async function compareCase(
   writeFileSync(
     expectedPath,
     viewport
-      ? await screenshotPage(reference, { ...SHOT, mask: iconMasks(reference.locator('body')) })
-      : await screenshotLocator(referenceFrame, { ...SHOT, mask: iconMasks(referenceFrame) }),
+      ? await screenshotPage(reference, { ...SHOT, mask: iconMasks(reference.locator('body'), REFERENCE_ICON) })
+      : await screenshotLocator(referenceFrame, { ...SHOT, mask: iconMasks(referenceFrame, REFERENCE_ICON) }),
   );
   const actual = viewport
-    ? await screenshotPage(impl, { ...SHOT, mask: iconMasks(impl.locator('body')) })
-    : await screenshotLocator(implFrame, { ...SHOT, mask: iconMasks(implFrame) });
+    ? await screenshotPage(impl, { ...SHOT, mask: iconMasks(impl.locator('body'), IMPL_ICON) })
+    : await screenshotLocator(implFrame, { ...SHOT, mask: iconMasks(implFrame, IMPL_ICON) });
   expect
     .soft(actual, `${scenario.id}: pixels`)
     .toMatchSnapshot(name, { maxDiffPixels: maxDiffPixelsFor(scenario.id), threshold: 0 });

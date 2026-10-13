@@ -8,7 +8,7 @@ import type { CaseRecord, Difference, ElementRecord } from './compare.ts';
 import {
   assertRegistry,
   elementExceptionsFor,
-  maskedIconViewBox,
+  maskedIcon,
   maxDiffPixelsFor,
   STRUCTURAL_EXCEPTIONS,
   TOLERANCE_OVERRIDES,
@@ -349,7 +349,7 @@ describe('the intentional-differences registry', () => {
       'admin-shell-1023-5-dark 0/0/0/0/0/2/1 D-27',
       'D-32',
     ]);
-    expect(maskedIconViewBox()).toBe('0 0 24 24');
+    expect(maskedIcon('impl')?.viewBox).toBe('0 0 24 24');
   });
 
   it('has no tolerance override, so every case must be pixel-identical', () => {
