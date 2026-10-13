@@ -6,18 +6,27 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import type { Logger, Plugin, Rollup } from 'vite';
-import { BUDGETS, evaluateBudgets, REFERENCE_FOLDERS, type BudgetGraph, type BudgetReport } from './budget.ts';
+import {
+  BUDGETS,
+  evaluateBudgets,
+  REFERENCE_FOLDERS,
+  type BudgetBuild,
+  type BudgetGraph,
+  type BudgetReport,
+} from './budget.ts';
+
+export type { BudgetBuild };
 
 export interface BudgetPluginOptions {
-  /** True for the builds with dev-only routes (`__DEV_ROUTES__`): the admin route is measured as well. */
-  readonly devRoutes: boolean;
+  /** What the build is (budget.ts `BudgetBuild`), from its Vite mode only. */
+  readonly build: BudgetBuild;
   /** Where budget.json is written; defaults to `<repo>/artifacts/budget` (the web root's parent). */
   readonly reportDir?: string;
 }
 
 /** What the plugin exposes on `plugin.api`, so tests can check how vite.config.ts wired it. */
 export interface BudgetPluginApi {
-  readonly devRoutes: boolean;
+  readonly build: BudgetBuild;
 }
 
 function gzipBytes(content: string | Uint8Array): number {
@@ -60,6 +69,7 @@ export function toBudgetGraph(bundle: Rollup.OutputBundle, root: string): Budget
 function writeReport(reportDir: string, mode: string, report: BudgetReport): void {
   const summary = {
     mode,
+    build: report.build,
     devRoutes: report.devRoutes,
     limits: BUDGETS,
     publicJs: report.publicJs,
@@ -77,7 +87,7 @@ function writeReport(reportDir: string, mode: string, report: BudgetReport): voi
 }
 
 export function budgetPlugin(options: BudgetPluginOptions): Plugin {
-  const api: BudgetPluginApi = { devRoutes: options.devRoutes };
+  const api: BudgetPluginApi = { build: options.build };
   let root = process.cwd();
   let mode = 'production';
   let outDir = '';
@@ -96,7 +106,7 @@ export function budgetPlugin(options: BudgetPluginOptions): Plugin {
       // After every other plugin has emitted and rewritten its output, so the sizes are the shipped bytes.
       order: 'post',
       handler(_outputOptions, bundle) {
-        const report = evaluateBudgets(toBudgetGraph(bundle, root), { devRoutes: options.devRoutes });
+        const report = evaluateBudgets(toBudgetGraph(bundle, root), { build: options.build });
         writeReport(options.reportDir ?? path.resolve(root, '..', 'artifacts', 'budget'), mode, report);
         if (!report.ok) {
           return this.error(
@@ -109,7 +119,7 @@ export function budgetPlugin(options: BudgetPluginOptions): Plugin {
     },
     writeBundle() {
       // 02-13: the production web root (wwwroot) never holds the parity reference build or its extracted spec code.
-      if (options.devRoutes) {
+      if (options.build !== 'production') {
         return undefined;
       }
       const found = REFERENCE_FOLDERS.filter((name) => existsSync(path.join(outDir, name)));

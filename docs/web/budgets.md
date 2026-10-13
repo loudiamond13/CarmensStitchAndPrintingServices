@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-09T03:15:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-13T08:28:00-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -11,7 +11,7 @@ The code: `web/scripts/budget.ts` (the pure rules, tested with made-up chunk gra
 | Measure | Limit (gzip -9) | Measured in |
 |---|---|---|
 | Public initial JS | **150 KB** | every build |
-| Admin initial JS | **250 KB** | builds with the dev-only routes (`npm run build:budget`, and the e2e and parity builds) |
+| Admin initial JS | **250 KB** | builds with the dev-only routes (`npm run build:budget`, the e2e build and the parity build) |
 | CSS, all files together | **35 KB** | every build |
 
 - Sizes are **gzip level 9**, the way the server compresses files, and **1 KB = 1000 bytes**.
@@ -32,25 +32,30 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 | Public (`/`) | `src/app/public/PublicLayout.tsx`, `src/app/public/PublicPlaceholderPage.tsx` |
 | Admin (`/admin`) | `src/app/admin/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/app/admin/AdminPreviewPage.tsx` |
 
-A route module is usually the start of its own lazy chunk. In the dev-route builds the parity page imports some of them directly, so they end up inside a shared chunk; the plugin then measures that shared chunk, because it is what the router downloads.
+A route module is usually the start of its own lazy chunk. In the parity build the parity page imports some of them directly, so they end up inside a shared chunk; the plugin then measures that shared chunk, because it is what the router downloads.
 
 If a route module cannot be found in the build at all, the build fails. A renamed or moved route must update `PUBLIC_ROUTE` or `ADMIN_ROUTE` in `budget.ts`; the check never silently skips it.
 
-## The two builds
+## The builds
 
-| Command | Output folder | What it measures |
-|---|---|---|
-| `npm run build` | `src/Csps.Server/wwwroot` (what ships) | public JS and CSS, plus the "no dev code" rules below |
-| `npm run build:budget` | `web/.budget-dist` (git-ignored) | public JS, admin JS and CSS with the admin routes and the parity page built in |
+What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.ts`). No environment variable or `.env` file can turn the dev-only routes on in the build that ships: a production build with `VITE_DEV_ROUTES` set anywhere (the shell, CI, an untracked `.env.local`) stops with an error, and an unknown mode stops too (decision D-20, code-review finding TOOL-CR-01).
+
+| Command | Mode | Output folder | What it measures |
+|---|---|---|---|
+| `npm run build` | `production` | `src/Csps.Server/wwwroot` (what ships) | public JS and CSS, plus the "no dev code" rules below |
+| `npm run build:budget` | `budget` | `web/.budget-dist` (git-ignored) | public JS, admin JS and CSS with the admin routes built in |
+| `npm run build:e2e` (run by `npm run e2e`) | `e2e` | `web/.e2e-dist` (git-ignored) | the same as the budget build |
+| `npm run parity` (its app build) | `parity` | `web/.parity-dist` (git-ignored) | the same, with the parity page added |
 
 `npm run verify` runs `build` and then `build:budget`, so both are checked every time.
 
-The parity page (`parity.html`) is only an extra entry of the dev-route builds. It is **never measured** as a route.
+**The parity page is in the parity build only** (orchestrator-approved measurement fix, 2026-10-13). `parity.html` is a test-only page that imports nearly every component. Built into the budget and e2e builds, it reshaped the shared chunks the public route loads and added about 0.3 KB that no visitor ever downloads. So the budget and e2e builds have `index.html` as their only entry and measure the **shipped topology** with the admin routes added, and they fail if a second entry appears. The parity build keeps the page as a second entry, still meets every limit, and never measures the page as a route. The limits themselves did not change.
 
 ## Rules that fail the build besides the limits
 
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/styles/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
-- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/app/admin/`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. Modules that the build reduced to nothing (for example `src/app/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
+- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/app/admin/`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. These rules follow the mode, never a flag.
+- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example `src/app/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 
 ## The numbers file
@@ -58,9 +63,9 @@ The parity page (`parity.html`) is only an extra entry of the dev-route builds. 
 Every build writes its numbers to the git-ignored `artifacts/budget/` folder at the repository root:
 
 - `budget.json`: the latest build,
-- `budget.<mode>.json`: the latest build of each mode (`budget.production.json`, `budget.budget.json`, ...).
+- `budget.<mode>.json`: the latest build of each mode (`budget.production.json`, `budget.budget.json`, `budget.e2e.json`, `budget.parity.json`).
 
-Each file holds `mode`, the `limits`, `publicJs`, `adminJs` (`null` in production), `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
+Each file holds `mode`, `build` (`production`, `dev-routes` or `parity`), the `limits`, `publicJs`, `adminJs` (`null` in production), `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
 
 ## The 135 KB note (Phase 4 barrel split)
 
@@ -78,6 +83,16 @@ Measured at plan 02-33 (2026-10-09):
 | Budget (admin + parity page) | 149.34 KB | 154.48 KB | 12.90 KB |
 
 The budget build's public number is high mostly because the parity page shares many components with the public layout, so they land in shared chunks the public route has to load. The same build without the parity page measured 137.96 KB public and 142.86 KB admin.
+
+Measured after the parity page left the budget and e2e builds (2026-10-13, code-review fix):
+
+| Build | Public JS | Admin JS | CSS |
+|---|---|---|---|
+| Production | 130.40 KB | — | 12.92 KB |
+| Budget and e2e (admin, no parity page) | 149.70 KB | 154.86 KB | 12.92 KB |
+| Parity (admin + parity page) | 149.99 KB | 155.13 KB | 12.92 KB |
+
+Since plan 02-34 the dev-only showcase (`/dev/components`) also imports nearly every component, so without the parity page the budget build saved only 0.29 KB.
 
 ## When the build fails
 

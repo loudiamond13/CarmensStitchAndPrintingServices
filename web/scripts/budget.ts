@@ -29,10 +29,21 @@ export interface BudgetGraph {
   readonly assets: readonly BudgetAsset[];
 }
 
+/**
+ * What one build is, decided by its Vite mode and never by an environment flag (D-20, TOOL-CR-01):
+ * - `production`: the build that ships. index.html is its only entry and no dev-only module may ship code.
+ * - `dev-routes`: the e2e and budget builds. The admin routes are in, and index.html is still the only entry, so the
+ *   budgets measure the shipped topology with the admin routes added.
+ * - `parity`: the test-only build of `npm run parity`. It also has the parity page (parity.html) as a second entry.
+ */
+export type BudgetBuild = 'production' | 'dev-routes' | 'parity';
+
 export interface BudgetOptions {
-  /** True for builds with the dev-only routes (development, e2e, budget, parity): the admin route is measured too. */
-  readonly devRoutes: boolean;
+  readonly build: BudgetBuild;
 }
+
+/** The HTML entry of the parity page; only the parity build may have it (WEB-02, D-33). */
+export const PARITY_ENTRY = 'parity.html';
 
 export type BudgetName = 'publicJs' | 'adminJs' | 'css';
 
@@ -47,6 +58,7 @@ export interface BudgetMeasurement {
 
 export interface BudgetReport {
   readonly ok: boolean;
+  readonly build: BudgetBuild;
   readonly devRoutes: boolean;
   readonly publicJs: number | null;
   readonly adminJs: number | null;
@@ -192,12 +204,19 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     errors.push(`The build must have exactly one ${MAIN_ENTRY} entry chunk; found ${String(mainEntries.length)}.`);
   }
   const entry = mainEntries.length === 1 ? mainEntries[0] : undefined;
+  const devRoutes = options.build !== 'production';
 
-  if (!options.devRoutes) {
-    // Production: index.html is the only entry. The parity page (parity.html) exists only in dev-route builds.
-    for (const extra of entries.filter((c) => c.facadeModuleId !== MAIN_ENTRY)) {
-      errors.push(`The production build has an unexpected entry ${extra.facadeModuleId ?? extra.fileName}.`);
-    }
+  // index.html is the only entry of the production, e2e and budget builds; only the parity build adds parity.html.
+  const allowedEntries = options.build === 'parity' ? [MAIN_ENTRY, PARITY_ENTRY] : [MAIN_ENTRY];
+  for (const extra of entries.filter((c) => c.facadeModuleId === null || !allowedEntries.includes(c.facadeModuleId))) {
+    errors.push(
+      options.build === 'production'
+        ? `The production build has an unexpected entry ${extra.facadeModuleId ?? extra.fileName}.`
+        : `The ${options.build} build has an unexpected entry ${extra.facadeModuleId ?? extra.fileName}; only the parity build may add ${PARITY_ENTRY}.`,
+    );
+  }
+
+  if (options.build === 'production') {
     for (const c of graph.chunks) {
       for (const id of c.moduleIds.filter((m) => DEV_ONLY_MODULE_PREFIXES.some((prefix) => m.startsWith(prefix)))) {
         errors.push(`The production chunk ${c.fileName} contains the dev-only module ${id} (D-20).`);
@@ -213,7 +232,7 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   }
 
   const measurements: BudgetMeasurement[] = [measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTE, errors)];
-  if (options.devRoutes) {
+  if (devRoutes) {
     measurements.push(measureRoute(graph, entry, 'adminJs', ADMIN_ROUTE, errors));
   }
 
@@ -238,7 +257,7 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   }
 
   const publicJs = measurements[0]?.bytes ?? null;
-  if (options.devRoutes && publicJs !== null && publicJs > BARREL_SPLIT_TRIGGER) {
+  if (devRoutes && publicJs !== null && publicJs > BARREL_SPLIT_TRIGGER) {
     notes.push(
       `Note: public JS in the admin-included topology is ${formatKb(publicJs)}, past the ${formatKb(BARREL_SPLIT_TRIGGER)} trigger for the Phase 4 barrel split (research Flag 4).`,
     );
@@ -247,7 +266,8 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   const value = (name: BudgetName): number | null => measurements.find((m) => m.name === name)?.bytes ?? null;
   return {
     ok: errors.length === 0,
-    devRoutes: options.devRoutes,
+    build: options.build,
+    devRoutes,
     publicJs: value('publicJs'),
     adminJs: value('adminJs'),
     css: value('css'),

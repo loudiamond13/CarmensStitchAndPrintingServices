@@ -1,11 +1,11 @@
 // Source: CSPS-UI-SPEC.md App. D.7, plus the deltas below. Each delta is marked SPEC-DEVIATION (research Pattern 1).
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { PUBLIC_ROUTE } from './scripts/budget.ts';
-import { budgetPlugin } from './scripts/vite-budget-plugin.ts';
+import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
 import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
 
@@ -23,12 +23,27 @@ const isAppSource = (id: string | undefined): boolean => {
   return normalized.startsWith(sourceDirectory) && /\.tsx?$/.test(normalized);
 };
 
+/**
+ * What each mode builds (D-20). `budget` is the budget plugin's build profile: production keeps every D-20 rule, the
+ * e2e and budget builds measure the shipped topology with the admin routes in, and the parity build may add the
+ * test-only parity page (docs/web/budgets.md).
+ */
+const MODES: Readonly<Record<string, { devRoutes: boolean; parityEntry: boolean; budget: BudgetBuild }>> = {
+  production: { devRoutes: false, parityEntry: false, budget: 'production' },
+  development: { devRoutes: true, parityEntry: true, budget: 'parity' },
+  test: { devRoutes: false, parityEntry: false, budget: 'production' },
+  e2e: { devRoutes: true, parityEntry: false, budget: 'dev-routes' },
+  budget: { devRoutes: true, parityEntry: false, budget: 'dev-routes' },
+  parity: { devRoutes: true, parityEntry: true, budget: 'parity' },
+};
+
 // SPEC-DEVIATION: a function config, so the build output folder and the dev-route switch follow the mode (D-20).
 export default defineConfig(({ mode }) => {
-  // VITE_DEV_ROUTES comes from the committed, non-secret .env.e2e / .env.budget files (plan 02-37). Nothing is read
-  // from or written to the machine-level environment.
-  const env = loadEnv(mode, process.cwd(), 'VITE_');
-  const devRoutes = mode === 'development' || env.VITE_DEV_ROUTES === 'true';
+  const settings = MODES[mode];
+  if (settings === undefined) {
+    throw new Error(`vite.config.ts: unknown mode "${mode}". Use one of: ${Object.keys(MODES).join(', ')}.`);
+  }
+  const devRoutes = settings.devRoutes;
 
   return {
     plugins: [
@@ -45,7 +60,7 @@ export default defineConfig(({ mode }) => {
       // (<= 35 KB gz, exactly one CSS file) and, with dev routes, admin initial JS (<= 250 KB gz); the production build
       // also fails on any admin, dev or parity module. Over a limit the build fails with the size table
       // (research Pattern 12, docs/web/budgets.md).
-      budgetPlugin({ devRoutes }),
+      budgetPlugin({ build: settings.budget }),
       // SPEC-DEVIATION: PERF-02 route preload (plan 02-35). Production only: `<link rel="modulepreload">` for the lazy
       // public layout and page chunks, so a phone fetches them with the entry script instead of one round trip later.
       // The dev-route builds put those modules in shared chunks with no facade, and nothing measures them for speed.
@@ -78,10 +93,10 @@ export default defineConfig(({ mode }) => {
         // take most of the build time, which the React Compiler (babel) and Tailwind always do in the dev-route builds;
         // it reports speed, not a defect, and nothing here can act on it.
         checks: { bundlerTimings: false },
-        // SPEC-DEVIATION: D-20 / CWE-489. Builds with dev routes (development, e2e, budget, and the parity build of
-        // `npm run parity`) add the look-equality page, parity.html (WEB-02, D-33). The production build keeps
-        // index.html as its only entry, so neither the page nor the dev scenario list can reach wwwroot.
-        ...(devRoutes
+        // SPEC-DEVIATION: D-20 / CWE-489. Only the parity build of `npm run parity` (and development) adds the
+        // look-equality page, parity.html (WEB-02, D-33). The production, e2e and budget builds keep index.html as their
+        // only entry: the page never reaches wwwroot, and its imports never shape the chunks the budgets measure.
+        ...(settings.parityEntry
           ? {
               input: {
                 main: fileURLToPath(new URL('./index.html', import.meta.url)),

@@ -30,7 +30,7 @@ import { selectScenarios } from './reference/select.ts';
 import { loadScenarios } from './scenarios.ts';
 import { REFERENCE_DIST, REFERENCE_ORIGIN, routeDist } from './serve.ts';
 
-/** The implementation side's origin and its build (`vite build --mode e2e --outDir .parity-dist`, run by npm run parity). */
+/** The implementation side's origin and its build (`vite build --mode parity`, into .parity-dist, run by npm run parity). */
 export const APP_ORIGIN = 'https://app.parity.test';
 export const PARITY_DIST = fileURLToPath(new URL('../.parity-dist', import.meta.url));
 

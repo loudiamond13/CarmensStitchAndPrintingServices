@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T05:14:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-13T08:27:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -44,7 +44,7 @@ The only normalizations allowed are these:
 | `web/visual/serve.ts` | Serves a dist folder through Playwright's `page.route` on an `https://` origin, with the production `StrictCsp` read from `src/Csps.Server/Http/SecurityHeadersMiddleware.cs`. No port, no API host, no database. |
 | `web/visual/guard.ts` | Imported by every visual spec. It fails a test on console errors or warnings, page errors, CSP violations and failed requests, and `expectCases(page)` fails a page whose filter selected nothing. |
 | `web/visual/playwright.visual.config.ts` | The visual suite: chromium, firefox, webkit, no web server. |
-| `web/parity.html`, `web/src/dev/parity-main.tsx` | The implementation page. It reads the same `?theme`, `?group` and `?case` (through the same `select.ts`) and renders each selected scenario with the converted components in a `[data-case="<id>"]` frame with `pageRootClasses` and `data-theme`. It is an entry of the dev-route builds only (development, e2e, budget); the production build never contains it (D-20). |
+| `web/parity.html`, `web/src/dev/parity-main.tsx` | The implementation page. It reads the same `?theme`, `?group` and `?case` (through the same `select.ts`) and renders each selected scenario with the converted components in a `[data-case="<id>"]` frame with `pageRootClasses` and `data-theme`. It is an entry of the parity build (`--mode parity`) and the development server only; the production, e2e and budget builds never contain it (D-20, docs/web/budgets.md). |
 | `web/src/dev/kit.ts` | The converted components: every PascalCase function export of `web/src/ui/<area>/index.ts`, plus `web/src/dev/previews/*.tsx`. Two modules exporting the same name throw at load. |
 | `web/visual/compare.ts` | `collectCase` (the in-page walker), `normalizeRecord` (the allowed normalizations only), `diffCases` and `VISUAL_PROPERTIES` (the compared properties). Pinned by `compare.test.ts`. |
 | `web/visual/intentional-differences.ts` | `STRUCTURAL_EXCEPTIONS` (the D-27 Logout tag and the D-32 icon-drawing mask) and `TOLERANCE_OVERRIDES` (empty). Every entry needs a decision ID and a reason; `assertRegistry()` runs when the suite loads. |
@@ -76,7 +76,7 @@ For example, `--grep @reference` runs the reference smoke test, `--grep @parity`
 2. Runs the preflight report.
 3. Runs the spec extraction. If the owner edited an appendix of `CSPS-UI-SPEC.md`, the pin no longer matches, and the run **stops here** before anything is built. Re-pinning (`node web/visual/reference/extract-spec.mjs --repin`) is a manual step, done only after the owner's edit has been reviewed. No script passes `--repin`.
 4. Builds the reference into `web/.reference-dist/`.
-5. Builds the implementation (`vite build --mode e2e --outDir .parity-dist`) into `web/.parity-dist/`, its own folder, so a parity run never overwrites the build an E2E run may be serving.
+5. Builds the implementation (`vite build --mode parity`) into `web/.parity-dist/`, its own folder, so a parity run never overwrites the build an E2E run may be serving. The parity mode is the only build mode with `parity.html` as an entry.
 6. Runs the visual Playwright suite with your arguments.
 
 A `--grep` that matches no test fails the run (Playwright reports "No tests found" and exits 1), so a mistyped tag never passes.

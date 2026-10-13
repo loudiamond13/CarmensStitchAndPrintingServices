@@ -7,6 +7,7 @@ import {
   BARREL_SPLIT_TRIGGER,
   BUDGETS,
   evaluateBudgets,
+  PARITY_ENTRY,
   PUBLIC_ROUTE,
   routeInitialSize,
   type BudgetAsset,
@@ -72,19 +73,26 @@ function productionGraph(publicBytes: number, cssBytes = 15_000): BudgetGraph {
   };
 }
 
-/** The budget-mode graph: the production graph plus the parity entry and the admin route modules. */
+const PARITY_CHUNK = chunk('assets/parity-P0.js', 400_000, {
+  isEntry: true,
+  facadeModuleId: 'parity.html',
+  imports: [SHARED],
+  moduleIds: ['parity.html', 'src/dev/scenarios/index.ts', 'visual/parity/page.tsx'],
+});
+
+/** The parity-build graph: the e2e/budget graph plus the test-only parity entry. */
+function parityGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetGraph {
+  const base = devRoutesGraph(adminRouteBytes, publicBytes);
+  return { ...base, chunks: [...base.chunks, PARITY_CHUNK] };
+}
+
+/** The e2e/budget-build graph: the production graph plus the admin route modules (no parity entry). */
 function devRoutesGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetGraph {
   const base = productionGraph(publicBytes);
   const adminShared = 'assets/admin-shared-G7.js';
   return {
     chunks: [
       ...base.chunks,
-      chunk('assets/parity-P0.js', 400_000, {
-        isEntry: true,
-        facadeModuleId: 'parity.html',
-        imports: [SHARED],
-        moduleIds: ['parity.html', 'src/dev/scenarios/index.ts', 'visual/parity/page.tsx'],
-      }),
       chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes + 2_000 - 3_000, {
         isDynamicEntry: true,
         facadeModuleId: ADMIN_LAYOUT,
@@ -109,8 +117,9 @@ function devRoutesGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetG
   };
 }
 
-const production = { devRoutes: false } as const;
-const devRoutes = { devRoutes: true } as const;
+const production = { build: 'production' } as const;
+const devRoutes = { build: 'dev-routes' } as const;
+const parity = { build: 'parity' } as const;
 
 describe('BUDGETS (PERF-01)', () => {
   it('holds the three limits in bytes with 1 KB = 1000 B', () => {
@@ -276,22 +285,70 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
   });
 
   it('finds a route module that sits in a shared chunk (the parity entry imports it statically, so it is no facade)', () => {
-    const graph = devRoutesGraph(240_000);
+    const graph = parityGraph(240_000);
     const chunks = graph.chunks.map((c) =>
       c.facadeModuleId === ADMIN_LAYOUT || c.facadeModuleId === PUBLIC_PAGE
         ? { ...c, facadeModuleId: null, isDynamicEntry: false }
         : c,
     );
-    const report = evaluateBudgets({ ...graph, chunks }, devRoutes);
+    const report = evaluateBudgets({ ...graph, chunks }, parity);
     expect(report.errors).toEqual([]);
     expect(report.adminJs).toBe(240_000);
     expect(report.publicJs).toBe(120_000);
   });
 
-  it('never measures the parity entry as a route and allows dev-only modules', () => {
+  it('allows dev-only modules in the e2e and budget builds', () => {
     const report = evaluateBudgets(devRoutesGraph(200_000, 120_000), devRoutes);
     expect(report.ok).toBe(true);
+    expect(report.devRoutes).toBe(true);
+    expect(report.build).toBe('dev-routes');
+  });
+
+  it('fails public initial JS of 150.1 KB in the e2e and budget builds (the limits apply to every build)', () => {
+    const report = evaluateBudgets(devRoutesGraph(200_000, 150_100), devRoutes);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringMatching(/public JS.*150\.10 KB.*150\.00 KB/)]);
+  });
+
+  // The e2e and budget builds measure the shipped topology; the test-only parity page would reshape the shared chunks
+  // the public route loads (docs/web/budgets.md).
+  it('fails an e2e or budget build that has the parity entry', () => {
+    const graph = devRoutesGraph(200_000);
+    const report = evaluateBudgets({ ...graph, chunks: [...graph.chunks, PARITY_CHUNK] }, devRoutes);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringMatching(/dev-routes build has an unexpected entry parity\.html; only the parity build/),
+    ]);
+  });
+
+  it('fails an entry chunk with no facade module in any build', () => {
+    const graph = devRoutesGraph(200_000);
+    const stray = chunk('assets/stray-Z9.js', 10, { isEntry: true });
+    const report = evaluateBudgets({ ...graph, chunks: [...graph.chunks, stray] }, parity);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringContaining('unexpected entry assets/stray-Z9.js')]);
+  });
+});
+
+describe('evaluateBudgets: the parity build (test-only parity page)', () => {
+  it('names parity.html as the parity entry', () => {
+    expect(PARITY_ENTRY).toBe('parity.html');
+  });
+
+  it('allows the parity entry and dev-only modules, and never measures the parity entry as a route', () => {
+    const report = evaluateBudgets(parityGraph(200_000, 120_000), parity);
+    expect(report.errors).toEqual([]);
     expect(report.publicJs).toBe(120_000);
+    expect(report.adminJs).toBe(200_000);
+  });
+
+  it('still fails public initial JS of 150.1 KB and admin initial JS of 251 KB', () => {
+    expect(evaluateBudgets(parityGraph(200_000, 150_100), parity).errors).toEqual([
+      expect.stringMatching(/public JS.*150\.10 KB/),
+    ]);
+    expect(evaluateBudgets(parityGraph(251_000), parity).errors).toEqual([
+      expect.stringMatching(/admin JS.*251\.00 KB/),
+    ]);
   });
 });
 

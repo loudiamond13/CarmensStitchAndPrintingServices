@@ -6,8 +6,9 @@
 //   3. Extracts the pinned spec appendices (plan 02-38). A pin mismatch exits non-zero and stops the run before
 //      anything is built, so the reference never compiles an unreviewed copy of the approved design.
 //   4. Builds the reference app into web/.reference-dist (visual/vite.reference.config.ts).
-//   5. Builds the implementation side, the app in the e2e mode (dev routes on, so parity.html is an entry), into its own
-//      web/.parity-dist, never web/.e2e-dist, so a parity run cannot overwrite a build an E2E run is serving (plan 02-14).
+//   5. Builds the implementation side, the app in the parity mode (dev routes on, and the only mode with parity.html as
+//      an entry), into its own web/.parity-dist, never web/.e2e-dist, so a parity run cannot overwrite a build an E2E
+//      run is serving (plan 02-14) and its budget numbers go to budget.parity.json.
 //   6. Runs the visual Playwright suite with this script's arguments (for example --grep @reference --project webkit).
 // The suite opens no port: both sides are served by page.route (visual/serve.ts). Windows cannot spawn .cmd shims
 // without a shell, so Node tools run on this Node binary with their JS entry (L-22). Nothing is set at User or Machine
@@ -56,7 +57,7 @@ export function planSteps({ extraArgs = [], preflightAvailable = true }) {
     {
       name: 'build-app',
       command: process.execPath,
-      args: ['node_modules/vite/bin/vite.js', 'build', '--mode', 'e2e', '--outDir', '.parity-dist'],
+      args: ['node_modules/vite/bin/vite.js', 'build', '--mode', 'parity'],
       cwd: WEB_DIRECTORY,
     },
     {

@@ -23,6 +23,7 @@ const buildModes = [
   { mode: 'production', outDir: '../src/Csps.Server/wwwroot', devRoutes: 'false' },
   { mode: 'e2e', outDir: '.e2e-dist', devRoutes: 'true' },
   { mode: 'budget', outDir: '.budget-dist', devRoutes: 'true' },
+  { mode: 'parity', outDir: '.parity-dist', devRoutes: 'true' },
 ] as const;
 
 describe('vite.config.ts', () => {
@@ -47,18 +48,20 @@ describe('vite.config.ts', () => {
     expect((await load('build', mode)).define?.__DEV_ROUTES__).toBe(devRoutes);
   });
 
-  it.each(buildModes.filter(({ devRoutes }) => devRoutes === 'true'))(
-    'adds the parity page (parity.html) as a second entry in the $mode build, which has dev routes (WEB-02, D-33)',
-    async ({ mode }) => {
-      const input = (await load('build', mode)).build?.rolldownOptions?.input;
-      expect(input).toEqual({ main: join(webDir, 'index.html'), parity: join(webDir, 'parity.html') });
-      expect(existsSync(join(webDir, 'parity.html'))).toBe(true);
+  it('adds the parity page (parity.html) as a second entry only in the parity build (WEB-02, D-33)', async () => {
+    const input = (await load('build', 'parity')).build?.rolldownOptions?.input;
+    expect(input).toEqual({ main: join(webDir, 'index.html'), parity: join(webDir, 'parity.html') });
+    expect(existsSync(join(webDir, 'parity.html'))).toBe(true);
+  });
+
+  // The budget and e2e builds measure the shipped topology: the test-only parity page is not built into them, so its
+  // imports cannot pull components into the chunks the public route loads (docs/web/budgets.md).
+  it.each(['production', 'e2e', 'budget'])(
+    'keeps index.html as the only entry of the %s build, so the parity page never shapes it (D-20, CWE-489)',
+    async (mode) => {
+      expect((await load('build', mode)).build?.rolldownOptions?.input).toBeUndefined();
     },
   );
-
-  it('keeps index.html as the only entry of the production build, so the parity page never ships (D-20, CWE-489)', async () => {
-    expect((await load('build', 'production')).build?.rolldownOptions?.input).toBeUndefined();
-  });
 
   it.each(buildModes)(
     'ships no license file, no source map and no inlined asset in the $mode build',

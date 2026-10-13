@@ -140,7 +140,7 @@ async function flattenPlugins(options: readonly PluginOption[]): Promise<Plugin[
 
 describe('budgetPlugin (PERF-01)', () => {
   it('applies to builds only and runs after the other generateBundle hooks', () => {
-    const plugin = budgetPlugin({ devRoutes: false });
+    const plugin = budgetPlugin({ build: 'production' });
     expect(plugin.name).toBe('csps-budget');
     expect(plugin.apply).toBe('build');
     const hook = plugin.generateBundle;
@@ -149,7 +149,7 @@ describe('budgetPlugin (PERF-01)', () => {
 
   it('fails the build through this.error with the size table when public JS is over its limit', async () => {
     const reportDir = temporaryDirectory();
-    const plugin = budgetPlugin({ devRoutes: false, reportDir });
+    const plugin = budgetPlugin({ build: 'production', reportDir });
     const logged: Logged = { info: [] };
     const run = generate(plugin, 'production', bundle(incompressible(200_000)), logged);
     await expect(run).rejects.toThrow(/public JS[\s\S]*OVER[\s\S]*150\.00 KB/);
@@ -158,13 +158,14 @@ describe('budgetPlugin (PERF-01)', () => {
 
   it('writes the JSON summary and logs the table when every value is under its limit', async () => {
     const reportDir = temporaryDirectory();
-    const plugin = budgetPlugin({ devRoutes: false, reportDir });
+    const plugin = budgetPlugin({ build: 'production', reportDir });
     const logged: Logged = { info: [] };
     await generate(plugin, 'production', bundle('export const main = 1;'), logged);
 
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as Record<string, unknown>;
     expect(summary).toMatchObject({
       mode: 'production',
+      build: 'production',
       devRoutes: false,
       limits: { publicJs: 150_000, adminJs: 250_000, css: 35_000 },
       adminJs: null,
@@ -181,19 +182,19 @@ describe('budgetPlugin (PERF-01)', () => {
 
   it('writes the JSON summary before failing, so an over-budget build still leaves its numbers', async () => {
     const reportDir = temporaryDirectory();
-    const plugin = budgetPlugin({ devRoutes: false, reportDir });
+    const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
     expect(summary.errors).toHaveLength(1);
   });
   it('ignores a dev-only module that was tree-shaken to nothing (rendered length 0)', async () => {
-    const plugin = budgetPlugin({ devRoutes: false, reportDir: temporaryDirectory() });
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 0 });
     await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
   });
 
   it('fails the production build when a dev-only module ships code', async () => {
-    const plugin = budgetPlugin({ devRoutes: false, reportDir: temporaryDirectory() });
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 120 });
     await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
       /index-A1\.js contains the dev-only module src\/app\/admin\/routes\.tsx/,
@@ -201,14 +202,15 @@ describe('budgetPlugin (PERF-01)', () => {
   });
 });
 
-/** The budget-mode bundle: the production bundle plus the parity entry and the admin route chunks. */
+const PARITY_ENTRY_CHUNK = outputChunk('assets/parity-P0.js', 'export const p = 0;', {
+  isEntry: true,
+  facadeModuleId: `${ROOT}/parity.html`,
+  moduleIds: [`${ROOT}/parity.html`, `${ROOT}/src/dev/scenarios/index.ts`],
+});
+
+/** The e2e/budget-mode bundle: the production bundle plus the admin route chunks (no parity entry). */
 function devRoutesBundle(entryCode: string): Rollup.OutputBundle {
   const items = [
-    outputChunk('assets/parity-P0.js', 'export const p = 0;', {
-      isEntry: true,
-      facadeModuleId: `${ROOT}/parity.html`,
-      moduleIds: [`${ROOT}/parity.html`, `${ROOT}/src/dev/scenarios/index.ts`],
-    }),
     outputChunk('assets/AdminLayout-H8.js', 'export const l = 1;', {
       isDynamicEntry: true,
       facadeModuleId: `${ROOT}/src/app/admin/AdminLayout.tsx`,
@@ -253,7 +255,7 @@ describe('budgetPlugin: the admin topology and the web root (D-20)', () => {
     const reportDir = temporaryDirectory();
     const logged: Logged = { info: [] };
     await generate(
-      budgetPlugin({ devRoutes: true, reportDir }),
+      budgetPlugin({ build: 'dev-routes', reportDir }),
       'budget',
       devRoutesBundle(incompressible(185_000)),
       logged,
@@ -267,19 +269,43 @@ describe('budgetPlugin: the admin topology and the web root (D-20)', () => {
     expect(summary.notes).toHaveLength(1);
   });
 
+  it('fails the budget build through this.error when public JS is over its limit', async () => {
+    const plugin = budgetPlugin({ build: 'dev-routes', reportDir: temporaryDirectory() });
+    await expect(generate(plugin, 'budget', devRoutesBundle(incompressible(200_000)), { info: [] })).rejects.toThrow(
+      /public JS[\s\S]*OVER[\s\S]*150\.00 KB/,
+    );
+  });
+
+  it('fails the budget build when the parity page is one of its entries (it must measure the shipped topology)', async () => {
+    const plugin = budgetPlugin({ build: 'dev-routes', reportDir: temporaryDirectory() });
+    const output = { ...devRoutesBundle('export const main = 1;'), [PARITY_ENTRY_CHUNK.fileName]: PARITY_ENTRY_CHUNK };
+    await expect(generate(plugin, 'budget', output, { info: [] })).rejects.toThrow(/unexpected entry parity\.html/);
+  });
+
+  it('lets the parity build have the parity page as its second entry', async () => {
+    const reportDir = temporaryDirectory();
+    const output = { ...devRoutesBundle('export const main = 1;'), [PARITY_ENTRY_CHUNK.fileName]: PARITY_ENTRY_CHUNK };
+    await generate(budgetPlugin({ build: 'parity', reportDir }), 'parity', output, { info: [] });
+    const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.parity.json'), 'utf8')) as {
+      build: string;
+      errors: string[];
+    };
+    expect(summary).toMatchObject({ build: 'parity', errors: [] });
+  });
+
   it.each([['.reference-dist'], ['.reference-src']])(
     'fails the production build when the web root holds %s after writing',
     async (name) => {
       const root = temporaryDirectory();
       mkdirSync(path.join(root, 'out', name), { recursive: true });
-      await expect(writeBundleIn(budgetPlugin({ devRoutes: false }), root, 'out')).rejects.toThrow(name);
+      await expect(writeBundleIn(budgetPlugin({ build: 'production' }), root, 'out')).rejects.toThrow(name);
     },
   );
 
   it('passes when the production web root holds neither reference folder', async () => {
     const root = temporaryDirectory();
     mkdirSync(path.join(root, 'out', 'assets'), { recursive: true });
-    await expect(writeBundleIn(budgetPlugin({ devRoutes: false }), root, 'out')).resolves.toBeUndefined();
+    await expect(writeBundleIn(budgetPlugin({ build: 'production' }), root, 'out')).resolves.toBeUndefined();
   });
 });
 
@@ -289,13 +315,13 @@ describe('vite.config.ts (PERF-01)', () => {
     return flattenPlugins(loaded?.config.plugins ?? []);
   };
 
-  it('registers the budget plugin without dev routes for the production build', async () => {
-    const plugin = (await pluginsFor('production')).find((p) => p.name === 'csps-budget');
-    expect((plugin?.api as BudgetPluginApi | undefined)?.devRoutes).toBe(false);
-  });
-
-  it('registers the budget plugin with dev routes for the budget build', async () => {
-    const plugin = (await pluginsFor('budget')).find((p) => p.name === 'csps-budget');
-    expect((plugin?.api as BudgetPluginApi | undefined)?.devRoutes).toBe(true);
+  it.each([
+    ['production', 'production'],
+    ['budget', 'dev-routes'],
+    ['e2e', 'dev-routes'],
+    ['parity', 'parity'],
+  ])('registers the budget plugin for the %s mode as the %s build', async (mode, build) => {
+    const plugin = (await pluginsFor(mode)).find((p) => p.name === 'csps-budget');
+    expect((plugin?.api as BudgetPluginApi | undefined)?.build).toBe(build);
   });
 });

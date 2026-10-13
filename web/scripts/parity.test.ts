@@ -89,17 +89,11 @@ describe('planSteps', () => {
     ]);
   });
 
-  it('builds the implementation side (the e2e mode, so dev routes and parity.html are in) into its own .parity-dist', () => {
+  it('builds the implementation side in the parity mode (dev routes and parity.html in; output .parity-dist)', () => {
     const buildApp = planSteps({}).find((step) => step.name === 'build-app');
 
-    expect(buildApp?.args).toEqual([
-      'node_modules/vite/bin/vite.js',
-      'build',
-      '--mode',
-      'e2e',
-      '--outDir',
-      '.parity-dist',
-    ]);
+    // vite.config.ts sends the parity mode to its own .parity-dist folder (build-config.node.test.ts pins it).
+    expect(buildApp?.args).toEqual(['node_modules/vite/bin/vite.js', 'build', '--mode', 'parity']);
     // Never the E2E host's folder: a parity run must not overwrite a build an E2E run may be serving.
     expect(buildApp?.args).not.toContain('.e2e-dist');
   });
