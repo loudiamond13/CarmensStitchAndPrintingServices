@@ -2,7 +2,7 @@
 phase: 02-web-foundation-design-system
 lane: webui
 created: 2026-10-13T09:05:00-05:00
-updated: 2026-10-13T09:05:00-05:00
+updated: 2026-10-13T12:42:40-05:00
 fixed_at: 2026-10-13T09:05:00-05:00
 review_path: .planning/phases/02-web-foundation-design-system/02-REVIEW.md
 iteration: 1
@@ -152,7 +152,7 @@ status: partial
 
 **Files modified:** `web/src/ui/navigation/Topbar.tsx`, `web/src/ui/navigation/Topbar.test.tsx`, `.planning/phases/02-web-foundation-design-system/deferred-items.md`
 **Commit:** 112c89b
-**Status:** fixed in part (no visible change); the rest is an owner question
+**Status:** fixed (fully fixed by D-41 R2-04, quick-261013-g6s: the shortcut is now Ctrl+K / Cmd+K, a bare "/" does nothing, so WCAG 2.1.4 no longer applies; the guards below stay)
 **Applied fix:**
 
 - "/" is now ignored:
@@ -179,7 +179,7 @@ status: partial
 
 **Files modified:** `web/src/ui/entry/MoneyInput.tsx`, `web/src/ui/entry/MoneyInput.test.tsx`, `.planning/phases/02-web-foundation-design-system/deferred-items.md`
 **Commit:** 978f7df
-**Status:** fixed in part; the rest is an owner question
+**Status:** fixed (fully fixed by D-41 R2-18, quick-261013-g6s: a refused paste now shows and politely announces the amount hint until the next accepted edit)
 **Applied fix:**
 
 - One leading "₱" or "PHP" (any case), and the spaces around it, are removed before `normalizePastedMoney`. So "₱4,327.50" pastes as "4327.50".
@@ -256,8 +256,8 @@ status: partial
 ## Owner items added to deferred-items.md ("Owner decisions pending")
 
 1. **UI-WR-04 (FYI):** danger toasts are now read politely, once.
-2. **UI-WR-07:** a way to turn off the "/" shortcut, or to need a modifier (WCAG 2.1.4).
-3. **UI-WR-09:** whether a refused money paste should show the amount hint.
+2. ~~**UI-WR-07:** a way to turn off the "/" shortcut, or to need a modifier (WCAG 2.1.4).~~ Closed: the owner chose Ctrl+K / Cmd+K (D-41 R2-04), implemented in quick-261013-g6s.
+3. ~~**UI-WR-09:** whether a refused money paste should show the amount hint.~~ Closed: the owner chose to show it (D-41 R2-18), implemented in quick-261013-g6s.
 4. **UI-WR-14:** an overpaid order shows only "Fully Paid".
 
 ---

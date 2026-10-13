@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T10:05:00-05:00"
+updated: "2026-10-13T12:42:40-05:00"
 ---
 
 # Phase 02 deferred items
@@ -91,19 +91,22 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Question for the owner:** keep the names small and muted exactly as approved, or make the name 14px dark text (a ruling in `web/visual/reference/rulings.css` plus a two-class change in `lists.recipe.ts` and the Avatar context)?
 
 - Search box: no visible keyboard focus ring (plan 02-30, accessibility question, not blocking the build)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** the owner chose a subtler focus ring of its own (D-41 R2-03): while the input has focus, the box's own 1px border turns `--focus` (no outer ring, no size change). `--focus` is 9.01:1 (Blush) and 6.80:1 (Espresso) against the box fill and at least 3:1 against the toolbar and the page, proven by `web/src/ui/lists/search-focus-contrast.node.test.ts`; the rulings layer and the `toolbar-orders` focus-visible parity rows keep the proof equal.
   **What:** App. C gives the list search input `.s-search-box input { outline: none }` and, unlike the topbar search (`.csp-search:focus-within`), no focus style on the box. In the approved design a keyboard user who tabs into the list search therefore sees no focus indicator (WCAG 2.4.7 Focus Visible, level AA, which the project requires). axe cannot detect this. Plan 02-30 kept the approved look (the SearchBox matches App. E.7 exactly in three engines).
   **Before / after if the owner chooses to change it:** today the search box looks the same whether or not it has keyboard focus; the change would give it the same focus look as the other fields (the border and a 1px ring in the focus colour) while it has focus. Nothing changes at rest.
   **Question for the owner:** add the field focus look to the list search box (recommended for WCAG 2.4.7), or keep it exactly as approved?
 
 - Tablet list tables: the page can scroll sideways by 22px (plan 02-30, look/behaviour question)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** the table frame contains its paint from 768px up (`contain-paint`, `pg-phone:contain-none`; D-41 R2-02), with the same rule in the rulings layer; `web/visual/lists-overflow.spec.ts` now asserts the page does not scroll at 768px while the frame does.
   **What:** the visually hidden "Actions" column header text is absolutely positioned (App. B `.csp-sr`), and the table frame (`.s-rt-wrap`) is not positioned, so the text is placed against the page instead of the frame. When a table is wider than its frame on a tablet and scrolls inside it (UI-SPEC "overflow | ResponsiveTable at tablet"), that invisible text sits past the frame's right edge and lets the whole page scroll sideways a little (22px at 768px wide in the Users table). Nothing visible moves; the page just gains a small sideways scroll. The UI-SPEC says the page never scrolls sideways. Plan 02-30 tried containing the text in the frame (`contain: paint`); it changes no pixel, but the parity proof reports the hidden text's computed position as different from the approved CSS, so it needs the owner. `web/visual/lists-overflow.spec.ts` records today's result (only the hidden text reaches past the viewport).
   **Before / after if the owner chooses to change it:** today, on a tablet, a list page whose table scrolls sideways can also be nudged sideways by about 22px; after the change only the table scrolls and the page stays put. No visible change otherwise.
   **Question for the owner:** contain the hidden header text in the table frame (recorded as a new intentional difference in the rulings layer), or keep the approved behaviour?
 
 - Admin top bar: the page scrolls sideways on phones narrower than 398px (plan 02-31, look/behaviour question)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** the Topbar search box may shrink (`min-w-0`, D-41 R2-01, plus the matching rulings rule); `@responsive` now applies the plain no-sideways-scroll rule at every width in every engine (the per-engine allowance is gone), and the admin and showcase specs check 320px at page level.
   **What:** in the admin shell the approved Topbar holds the menu button, the search box, the theme toggle and the user button in one row. App. B lets the search box shrink only to its contents (about 234px, set by the search field's own width), so below a 398px-wide page the row is wider than the screen and the whole admin page scrolls sideways: by 8px at 390px (the approved phone frame) and by 78px at 320px. The approved CSS does the same (the 02-26 Topbar and the 02-31 shell parity cases are equal at 390 in three engines and at 320 in Chromium), so plan 02-31 kept it. The UI-SPEC says 320 to 1920px with no horizontal scroll (WCAG 1.4.10 Reflow). `web/e2e/admin.spec.ts` checks the boundary widths 767/768/1023/1024, not 320, for this reason.
   **Before / after if the owner chooses to change it:** today, on a phone under 398px wide, the admin page can be nudged sideways and the user button sits partly off screen; after the change the search box gets narrower on small phones (its placeholder is cut shorter) and everything fits. Nothing changes at 398px and wider.
   **Question for the owner:** let the admin search box shrink on small phones (recommended; a one-class change, `min-w-0`, on the search box in `web/src/ui/navigation/navigation.recipe.ts`, plus a matching rulings rule), or keep the approved behaviour?
@@ -131,7 +134,8 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Question for the owner (optional):** none needed.
 
 - Public footer headings jump from h1 to h4 (plan 02-35, accessibility structure question, not blocking)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** the three column titles are h2 with the same classes (D-41 R2-17); the parity proof records them as D-41 element exceptions in `web/visual/intentional-differences.ts` (reference h4, implementation h2) and stays equal.
   **What:** the approved public footer (App. E.1, `web/src/app/public/SiteFooter.tsx`) titles its three columns "Shop", "Visit" and the third one with `<h4>`, straight after the page's `<h1>`, so there is no h2 or h3 in between. Lighthouse's accessibility audit "Heading elements are not in a sequentially-descending order" flags it (accessibility score 0.98, still above the 0.95 gate). axe does not report it under the WCAG A/AA tags the project gates on, because it is a best-practice rule, but screen reader users who move by heading level hear a jump. Changing the level changes the page's heading structure (D-08), so plan 02-35 kept the approved markup.
   **Before / after if the owner chooses to change it:** today the footer column titles are level-4 headings; after the change they would be level-2 headings with the exact same look (the look comes from the classes, not the tag). Nothing visible changes.
   **Question for the owner:** make the footer column titles h2 (recommended; a three-tag change plus a matching rule on the reference side), or keep the approved h4?
@@ -165,14 +169,16 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Question for the owner (optional):** none needed; say so if a failed save should interrupt the screen reader.
 
 - Admin search shortcut "/": a way to turn it off, or to need a modifier key (code-review finding UI-WR-07, accessibility question, WCAG 2.1.4 level A)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** Ctrl+K or Cmd+K now focuses the search and a bare "/" does nothing (D-41 R2-04); every earlier guard stays. The hint reads "Ctrl K" ("⌘K" on Apple platforms) and the input carries `aria-keyshortcuts="Control+K Meta+K"`; the reference-only `Topbar` override (SPEC_OVERRIDES, D-41) writes the same hint into the frozen kbd. UI-WR-07 is closed.
   **Found by:** the phase 02 code review (lane webui, UI-WR-07). Fixed in part by the review fix.
   **What:** in the admin top bar (`web/src/ui/navigation/Topbar.tsx`, App. D.3 behaviour) pressing "/" anywhere outside a field jumps to the search box. WCAG 2.1.4 Character Key Shortcuts (level A) says a one-key shortcut must be one of: possible to turn off, possible to change so it needs a modifier key (Ctrl, Alt), or active only while its own control has focus. Speech-input users who dictate text are the ones it hurts: a dictated "slash" can move their focus. The review fix narrowed it with no visible change: "/" is now ignored with Ctrl, Cmd or Alt held, while typing in another language's input method, inside any text entry (fields, editable areas and text-entry widgets), when another handler already took the key, and while a dialog or the phone drawer is open. It still has no off switch and no modifier, so 2.1.4 is not fully met.
   **Before / after if the owner chooses to change it:** (a) need a modifier, for example Ctrl+K or Ctrl+/: the "/" hint in the search box would change to show the new keys (a look change to the approved top bar); or (b) a "Keyboard shortcuts" on/off switch, for example in My Profile (new screen content, Phase 4 or later); or (c) drop the shortcut (the "/" hint goes away).
   **Question for the owner:** which of (a), (b) or (c), or keep it as it is now (narrowed, but not fully 2.1.4)? The review recommends (b), which keeps the approved look.
 
 - Money boxes: say something when a paste is refused (code-review finding UI-WR-09, behaviour/copy question, not blocking)
-  status: open
+  status: resolved (D-41, quick-261013-g6s)
+  **Done:** a refused paste shows "Enter an amount like 1250.50 (numbers only, up to 2 decimals)." in the error look and announces it politely until the next accepted keystroke or paste (D-41 R2-18); a caller's error wins and a blank clipboard still changes nothing. UI-WR-09 is closed.
   **Found by:** the phase 02 code review (lane webui, UI-WR-09). Fixed in part by the review fix.
   **What:** a money box (`web/src/ui/entry/MoneyInput.tsx`, SPEC-GAP) ignored a pasted "₱4,327.50", the way the app itself writes every amount, so copying a balance into the amount box silently did nothing. The review fix now takes a pasted amount with a leading "₱" or "PHP". A paste that is still not an amount (a minus sign, three decimals, words) is still ignored without a word, as the UI-SPEC says ("a paste that is still not money text there is ignored").
   **Before / after if the owner chooses to change it:** today a refused paste leaves the box as it was and shows nothing; after the change the box would show the existing amount hint under it, "Enter an amount like 1250.50 (numbers only, up to 2 decimals).", in the error look until the next edit.
