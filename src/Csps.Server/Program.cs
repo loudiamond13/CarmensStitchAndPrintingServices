@@ -75,6 +75,12 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
 app.UseStatusCodePages(static context => CspsProblemDetails.WriteAsync(context.HttpContext, context.HttpContext.Response.StatusCode));
 
+// One completion event per request: method, path (no query string), status and elapsed time. It writes through this
+// host's own logger, never the process-wide static one, and never logs headers or bodies (FND-07). It runs before
+// static files, which end the request without calling the next middleware, so asset requests are logged too.
+var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
+app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
+
 // Compresses the static text below (and the shell) when the browser accepts it; the MIME list excludes JSON (PERF-02).
 app.UseResponseCompression();
 
@@ -84,11 +90,6 @@ app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply 
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
-
-// One completion event per request: method, path (no query string), status and elapsed time. It writes through this
-// host's own logger, never the process-wide static one, and never logs headers or bodies (FND-07).
-var requestLogger = app.Services.GetRequiredService<Serilog.ILogger>();
-app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
 
 // Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
 app.UseAuthentication();

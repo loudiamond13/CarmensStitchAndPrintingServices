@@ -29,6 +29,24 @@ public sealed class RequestLoggingTests
         logEvent.TraceId.ShouldNotBeNull("the request event must carry the W3C trace id").ToHexString().ShouldBe(traceId);
     }
 
+    // Static files end the pipeline without calling the next middleware, so request logging must run before them or
+    // asset traffic (including scanners probing real files) never reaches the log (NET-WR-04).
+    [Theory]
+    [InlineData("/assets/app-fixture.js")]
+    [InlineData("/robots.txt")]
+    public async Task AStaticFileRequestWritesItsCompletionEvent(string path)
+    {
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var logEvent = await LogEvents.RequestCompletionAsync(factory.Sink, path, TestContext.Current.CancellationToken);
+        Convert.ToInt32(LogEvents.Scalar(logEvent, "StatusCode"), CultureInfo.InvariantCulture).ShouldBe(200);
+        logEvent.TraceId.ShouldNotBeNull("the request event must carry the W3C trace id");
+    }
+
     [Fact]
     public async Task ParallelRequestsKeepTheirOwnIds()
     {
