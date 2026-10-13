@@ -33,6 +33,7 @@ const RULING_IDS = [
   'D-41 R2-01',
   'D-41 R2-02',
   'D-41 R2-03',
+  'D-42',
 ] as const;
 
 interface Group {
@@ -330,6 +331,28 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(groupsOfR203.map((group) => group.prelude)).toEqual(['.s-search-box:focus-within']);
     expect(normalize(groupsOfR203[0]?.body ?? '')).toBe('border-color: var(--focus);');
+  });
+
+  it('D-42: the Overlay region is a column whose ::before spacer (124px, 96px on phones) shrinks before the dialog does, and the backdrop scrolls', () => {
+    const groupsOfD42 = byRuling('D-42');
+    const phone = groupsOfD42.filter((group) => group.prelude === '@container pg (max-width: 767px)');
+    const phoneRules = phone.flatMap((group) => groupsOf(group.body));
+
+    expect(groupsOfD42.map((group) => group.prelude)).toEqual([
+      '.s-overlay',
+      '.s-overlay::before',
+      '.s-overlay > *',
+      '@container pg (max-width: 767px)',
+    ]);
+    expect(normalize(groupsOfD42[0]?.body ?? '')).toBe(
+      'flex-direction: column; justify-content: flex-start; align-items: center; padding-top: var(--space-4); overflow-y: auto;',
+    );
+    expect(normalize(groupsOfD42[1]?.body ?? '')).toBe('content: ""; flex: 0 1 124px;');
+    expect(normalize(groupsOfD42[2]?.body ?? '')).toBe('flex-shrink: 0;');
+    expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([
+      ['.s-overlay', 'padding-top: 0;'],
+      ['.s-overlay::before', 'flex-basis: 96px;'],
+    ]);
   });
 
   it('WEB-09: an aria-disabled button looks like the disabled button and never nudges or hovers', () => {

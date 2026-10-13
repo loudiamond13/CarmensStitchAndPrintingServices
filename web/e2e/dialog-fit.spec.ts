@@ -1,0 +1,283 @@
+// Dialogs on short windows (owner ruling D-42, UAT G-2-199, plan 02-41; WCAG 1.4.10 Reflow, A11Y-04, PERF-03). The
+// Delete Order dialog of /dev/components on the real host, in an Overlay region (App. C `.s-overlay`):
+//   - where it fits it keeps the approved place: 140px down and centred on the whole window on desktop (1440x900),
+//     96px down as a full-width sheet on phone pages (412x839);
+//   - on a shorter window the gap above it shrinks, down to the 16px edge gap (0 on phone pages), so the whole dialog
+//     shows without scrolling (the owner's 1274x585 window; a 393x659 phone page);
+//   - when even that is too short (1280x420; a 320x568 phone page) the backdrop scrolls, so the mouse wheel over the
+//     dialog and keyboard focus on Delete Order both bring the buttons fully into view, while the scrim still covers
+//     the whole window and the page stays axe-clean.
+// The desktop and phone-page sizes run in chromium, firefox and webkit; the pixel and iphone projects check their own
+// screen instead (touch scrolling cannot be driven by the wheel in mobile emulation, so they scroll Delete Order into
+// view directly). Every measurement waits for the dialog's entry animation to finish: its 0.2s rise moves its box.
+// Page scripts are strings: the e2e TypeScript program has no DOM types.
+import type { Locator, Page, TestInfo } from '@playwright/test';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+
+const DIALOG_NAME = 'Delete order ORD-2026-0148?';
+const ORDER = 'ORD-2026-0148';
+
+/** Desktop: the approved top (16px padding + 124px spacer) and the edge gap it may shrink to. */
+const DESKTOP_TOP = 140;
+const DESKTOP_EDGE = 16;
+/** Phone pages: the approved top (no padding + 96px spacer) and the edge gap it may shrink to. */
+const PHONE_TOP = 96;
+const PHONE_EDGE = 0;
+
+const DEVICE_PROJECTS = ['pixel', 'iphone'];
+const DESKTOP_ONLY = 'The pixel and iphone projects check their own screen in the device test.';
+const DEVICE_ONLY = 'The desktop engines check the phone-page sizes by setting the window size.';
+
+const isDevice = (testInfo: TestInfo): boolean => DEVICE_PROJECTS.includes(testInfo.project.name);
+
+/** The Overlay region that holds the Delete Order dialog. */
+const REGION = `[...document.querySelectorAll('[data-ui="s-overlay"]')].find((region) => [...region.querySelectorAll('[role="dialog"]')].some((dialog) => document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === ${JSON.stringify(DIALOG_NAME)}))`;
+
+/** Resolves once every animation inside the region (the overlay fade, the modal rise) has finished. */
+const SETTLE = `(async () => {
+  const region = ${REGION};
+  await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
+  return true;
+})()`;
+
+interface RegionMetrics {
+  readonly scrollHeight: number;
+  readonly clientHeight: number;
+  readonly clientWidth: number;
+  readonly overflowY: string;
+}
+
+const READ_REGION = `(() => {
+  const region = ${REGION};
+  return {
+    scrollHeight: region.scrollHeight,
+    clientHeight: region.clientHeight,
+    clientWidth: region.clientWidth,
+    overflowY: getComputedStyle(region).overflowY,
+  };
+})()`;
+
+/** True when Delete Order has the keyboard focus. */
+const CONFIRM_FOCUSED = `document.activeElement !== null && document.activeElement.closest('[role="dialog"]') !== null && document.activeElement.textContent.trim() === 'Delete Order'`;
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface OpenDialog {
+  readonly dialog: Locator;
+  readonly region: Locator;
+  readonly cancel: Locator;
+  readonly confirm: Locator;
+  /** The dialog panel (the phone sheet on phone pages). */
+  readonly box: Box;
+  readonly metrics: RegionMetrics;
+  readonly viewport: { readonly width: number; readonly height: number };
+}
+
+async function boxOf(locator: Locator, name: string): Promise<Box> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error(`Expected ${name} to have a box.`);
+  }
+  return box;
+}
+
+/** Opens /dev/components at the given window size (or the project's own), opens Delete Order and measures it. */
+async function openDeleteOrder(
+  page: Page,
+  size?: { readonly width: number; readonly height: number },
+): Promise<OpenDialog> {
+  test.setTimeout(120_000);
+  if (size !== undefined) {
+    await page.setViewportSize(size);
+  }
+  const response = await page.goto('/dev/components');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Component Showcase');
+
+  await page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }).click();
+  const dialog = page.getByRole('dialog', { name: DIALOG_NAME });
+  await expect(dialog).toBeVisible();
+  await page.evaluate(SETTLE);
+
+  const viewport = page.viewportSize();
+  if (viewport === null) {
+    throw new Error('Expected a viewport size.');
+  }
+  return {
+    dialog,
+    region: page.locator('[data-ui="s-overlay"]').filter({ has: dialog }),
+    cancel: dialog.getByRole('button', { name: 'Cancel' }),
+    confirm: dialog.getByRole('button', { name: 'Delete Order' }),
+    box: await boxOf(dialog, 'the dialog'),
+    metrics: await page.evaluate<RegionMetrics>(READ_REGION),
+    viewport,
+  };
+}
+
+const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+
+/** Within 1px (sub-pixel layout and rounding differ between engines). */
+function expectNear(actual: number, expected: number, what: string): void {
+  expect(Math.abs(actual - expected), `${what}: ${String(actual)}, expected ${String(expected)}`).toBeLessThanOrEqual(
+    1,
+  );
+}
+
+/** The scrim still covers the whole window, so nothing behind the dialog can be reached. */
+async function expectWholeWindow(fit: OpenDialog): Promise<void> {
+  const region = await boxOf(fit.region, 'the region');
+  expectNear(region.x, 0, 'region left');
+  expectNear(region.y, 0, 'region top');
+  expectNear(region.width, fit.viewport.width, 'region width');
+  expectNear(region.height, fit.viewport.height, 'region height');
+}
+
+/** Centred on the whole window (the region's client area, which a scrollbar would narrow). */
+function expectCentred(fit: OpenDialog): void {
+  expectNear(fit.box.x + fit.box.width / 2, fit.metrics.clientWidth / 2, 'dialog centre');
+}
+
+/** A full-width sheet on phone pages. */
+function expectFullWidthSheet(fit: OpenDialog): void {
+  expectNear(fit.box.x, 0, 'sheet left');
+  expectNear(fit.box.width, fit.metrics.clientWidth, 'sheet width');
+}
+
+function expectNoScrolling(fit: OpenDialog): void {
+  expect(fit.metrics.scrollHeight, 'the region does not scroll').toBeLessThanOrEqual(fit.metrics.clientHeight);
+}
+
+function expectScrolling(fit: OpenDialog): void {
+  expect(fit.metrics.overflowY).toBe('auto');
+  expect(fit.metrics.scrollHeight, 'the region scrolls').toBeGreaterThan(fit.metrics.clientHeight);
+}
+
+async function expectButtonsInView(fit: OpenDialog): Promise<void> {
+  await expect(fit.cancel).toBeInViewport({ ratio: 1 });
+  await expect(fit.confirm).toBeInViewport({ ratio: 1 });
+}
+
+/** Turns the mouse wheel over the dialog: the scrolling backdrop takes it. */
+async function wheelOverDialog(page: Page, fit: OpenDialog): Promise<void> {
+  const visibleBottom = Math.min(fit.box.y + fit.box.height, fit.viewport.height);
+  await page.mouse.move(fit.box.x + fit.box.width / 2, (fit.box.y + visibleBottom) / 2);
+  await page.mouse.wheel(0, 1000);
+}
+
+test('@dialog-fit 1440x900: the Delete Order dialog keeps the approved 140px top, centred on the whole window', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1440, height: 900 });
+
+  expectNear(fit.box.y, DESKTOP_TOP, 'dialog top');
+  expectCentred(fit);
+  await expectWholeWindow(fit);
+  expectNoScrolling(fit);
+});
+
+test("@dialog-fit 1274x585 (the owner's window): the dialog moves up until Cancel and Delete Order are inside the window", async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1274, height: 585 });
+  const height = fit.box.height;
+
+  expect(height + 2 * DESKTOP_EDGE, "the owner's window fits the dialog without scrolling").toBeLessThanOrEqual(585);
+  expectNear(fit.box.y, clamp(585 - DESKTOP_EDGE - height, DESKTOP_EDGE, DESKTOP_TOP), 'dialog top');
+  expect(fit.box.y).toBeLessThan(DESKTOP_TOP);
+  expect(fit.box.y + height).toBeLessThanOrEqual(585 - DESKTOP_EDGE + 1);
+  await expectButtonsInView(fit);
+  expectNoScrolling(fit);
+  expectCentred(fit);
+});
+
+test('@dialog-fit 1280x420 by mouse: the dialog sits 16px down and the wheel scrolls the backdrop to its buttons', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
+
+  expectNear(fit.box.y, DESKTOP_EDGE, 'dialog top');
+  expectScrolling(fit);
+  await wheelOverDialog(page, fit);
+  await expectButtonsInView(fit);
+  await expectWholeWindow(fit);
+  await expectNoAxeViolations(page);
+});
+
+test('@dialog-fit 1280x420 by keyboard: focus on Delete Order brings it fully into view', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
+  await expect(fit.dialog.getByRole('textbox')).toBeFocused();
+
+  await page.keyboard.type(ORDER);
+  for (let presses = 0; presses < 4 && !(await page.evaluate<boolean>(CONFIRM_FOCUSED)); presses += 1) {
+    await page.keyboard.press('Tab');
+  }
+
+  await expect(fit.confirm).toBeFocused();
+  await expect(fit.confirm).toBeInViewport({ ratio: 1 });
+});
+
+test('@dialog-fit 412x839 phone page: the sheet keeps the approved 96px top, full width, nothing scrolls', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 412, height: 839 });
+
+  expectNear(fit.box.y, clamp(839 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectNear(fit.box.y, PHONE_TOP, 'sheet top');
+  expectFullWidthSheet(fit);
+  expectNoScrolling(fit);
+});
+
+test('@dialog-fit 393x659 phone page: the sheet moves up until both buttons are inside the window', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 393, height: 659 });
+
+  expectNear(fit.box.y, clamp(659 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectFullWidthSheet(fit);
+  await expectButtonsInView(fit);
+  expectNoScrolling(fit);
+});
+
+test('@dialog-fit 320x568 phone page: the sheet starts at the top and the wheel scrolls the backdrop to its buttons', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 320, height: 568 });
+
+  expectNear(fit.box.y, clamp(568 - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectFullWidthSheet(fit);
+  expectScrolling(fit);
+  await wheelOverDialog(page, fit);
+  await expectButtonsInView(fit);
+});
+
+test("@dialog-fit on the phone's own screen: the sheet sits 96px down, moves up, or the backdrop scrolls to its buttons", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDevice(testInfo), DEVICE_ONLY);
+  const fit = await openDeleteOrder(page);
+  const { height } = fit.viewport;
+
+  expectNear(fit.box.y, clamp(height - fit.box.height, PHONE_EDGE, PHONE_TOP), 'sheet top');
+  expectFullWidthSheet(fit);
+  if (fit.box.height > height) {
+    expectScrolling(fit);
+    await fit.confirm.scrollIntoViewIfNeeded();
+  } else {
+    expectNoScrolling(fit);
+  }
+  await expectButtonsInView(fit);
+});
