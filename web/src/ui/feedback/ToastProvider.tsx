@@ -67,6 +67,8 @@ export function ToastProvider({ children, queue: injected }: ToastProviderProps)
   const layerRef = useRef<HTMLDivElement>(null);
   const pointerInside = useRef(false);
   const focusInside = useRef(false);
+  // UI-WR-05: where focus was before it entered the stack, so a Dismiss can hand it back.
+  const focusBefore = useRef<HTMLElement | null>(null);
 
   // O-7: the clock stops while the pointer is over the stack or focus is inside it, and runs again when neither is.
   useEffect(() => {
@@ -89,7 +91,10 @@ export function ToastProvider({ children, queue: injected }: ToastProviderProps)
       pointerInside.current = false;
       syncClock();
     };
-    const onFocusIn = () => {
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof HTMLElement && !layer.contains(event.relatedTarget)) {
+        focusBefore.current = event.relatedTarget;
+      }
       focusInside.current = true;
       syncClock();
     };
@@ -109,16 +114,40 @@ export function ToastProvider({ children, queue: injected }: ToastProviderProps)
     };
   }, [queue]);
 
-  // An empty stack has no size, and a removed Dismiss button takes focus with it without a focusout in some browsers,
-  // so once the last toast is gone nothing is over or inside the stack any more and the clock runs again.
-  const empty = toasts.length === 0;
+  // An empty stack has no size, and a removed toast takes focus with it without a focusout in some browsers, so after
+  // every change to the stack the focus flag is read again from the document (UI-WR-05: a stale flag kept the
+  // remaining timed toasts paused for good), and once the last toast is gone the pointer is no longer over it.
   useEffect(() => {
-    if (empty) {
+    const layer = layerRef.current;
+    focusInside.current = layer?.contains(document.activeElement) === true;
+    if (toasts.length === 0) {
       pointerInside.current = false;
-      focusInside.current = false;
+    }
+    if (pointerInside.current || focusInside.current) {
+      queue.pause();
+    } else {
       queue.resume();
     }
-  }, [empty, queue]);
+  }, [toasts, queue]);
+
+  /**
+   * UI-WR-05: closes a toast from its Dismiss button. When focus is inside the stack it goes back to where it was
+   * before the stack (WCAG 2.4.3), else to the next toast's Dismiss button, before the toast and its button go.
+   */
+  const close = (id: number) => {
+    const layer = layerRef.current;
+    if (layer?.contains(document.activeElement) === true) {
+      const before = focusBefore.current;
+      if (before?.isConnected === true) {
+        before.focus();
+      } else {
+        const index = toasts.findIndex((toast) => toast.id === id);
+        const next = layer.children.item(index + 1) ?? layer.children.item(index - 1);
+        next?.querySelector<HTMLElement>('button[aria-label="Dismiss"]')?.focus();
+      }
+    }
+    queue.dismiss(id);
+  };
 
   return (
     <ToastContext value={api}>
@@ -133,7 +162,7 @@ export function ToastProvider({ children, queue: injected }: ToastProviderProps)
             action={toast.action}
             announce={false}
             onClose={() => {
-              queue.dismiss(toast.id);
+              close(toast.id);
             }}
           />
         ))}

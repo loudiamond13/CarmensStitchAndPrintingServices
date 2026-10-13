@@ -318,6 +318,95 @@ describe('ToastProvider', () => {
   });
 });
 
+// UI-WR-05: a Dismiss that takes focus away with its toast must neither drop focus to the body (WCAG 2.4.3) nor leave the
+// "focus is inside" flag set, which kept the remaining timed toasts paused for good.
+describe('ToastProvider focus after a dismiss (UI-WR-05)', () => {
+  const INFO: ToastInput = { tone: 'info', title: 'Not available yet' };
+
+  it('returns focus to where it was before the stack when a Dismiss is pressed, and runs the clock again', async () => {
+    const user = userEvent.setup();
+    const { queue } = manualQueue();
+    render(
+      <ToastProvider queue={queue}>
+        <Trigger toasts={[PAYMENT, SAVE_FAILED]} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Show Payment added' }));
+    const trigger = screen.getByRole('button', { name: "Show Couldn't save order" });
+    await user.click(trigger);
+
+    // Newest first: the danger toast's Dismiss is the first one after the triggers.
+    await user.tab();
+    const [dangerDismiss] = screen.getAllByRole('button', { name: 'Dismiss' });
+    expect(dangerDismiss).toHaveFocus();
+    expect(queue.getSnapshot().paused).toBe(true);
+
+    await user.keyboard('{Enter}');
+    expect(queue.getSnapshot().toasts.map((toast) => toast.title)).toEqual(['Payment added']);
+    expect(trigger).toHaveFocus();
+    expect(queue.getSnapshot().paused).toBe(false);
+  });
+
+  it('moves focus to the next toast when there is nowhere to go back to', async () => {
+    const user = userEvent.setup();
+    const { queue } = manualQueue();
+    const { container } = render(
+      <ToastProvider queue={queue}>
+        <Trigger toasts={[INFO, SAVE_FAILED]} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Show Not available yet' }));
+    await user.click(screen.getByRole('button', { name: "Show Couldn't save order" }));
+    const dismissOf = (title: string) =>
+      toastIn(container, title).querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]');
+
+    act(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      dismissOf("Couldn't save order")?.focus();
+    });
+    await user.keyboard('{Enter}');
+
+    expect(dismissOf('Not available yet')).toHaveFocus();
+    expect(queue.getSnapshot().paused).toBe(true);
+  });
+
+  it('runs the clock again when a toast is closed by the screen while focus was on it', async () => {
+    const user = userEvent.setup();
+    const { queue } = manualQueue();
+    let shown: number[] = [];
+    function Screen() {
+      const toast = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            shown = [toast.show(PAYMENT), toast.show(SAVE_FAILED)];
+          }}
+        >
+          Save
+        </button>
+      );
+    }
+    const { container } = render(
+      <ToastProvider queue={queue}>
+        <Screen />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    act(() => {
+      toastIn(container, "Couldn't save order").querySelector<HTMLButtonElement>('button')?.focus();
+    });
+    expect(queue.getSnapshot().paused).toBe(true);
+
+    act(() => {
+      queue.dismiss(shown[1] ?? -1);
+    });
+
+    expect(queue.getSnapshot().toasts.map((toast) => toast.title)).toEqual(['Payment added']);
+    expect(queue.getSnapshot().paused).toBe(false);
+  });
+});
+
 describe('useToast', () => {
   it('returns show and dismiss; dismiss closes the toast that show returned', async () => {
     const user = userEvent.setup();
