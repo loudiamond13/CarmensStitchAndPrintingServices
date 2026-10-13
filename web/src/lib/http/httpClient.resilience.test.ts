@@ -295,6 +295,25 @@ describe('Idempotency-Key (WEB-09)', () => {
     expect(fake.calls.map((c) => c.headers.get('Idempotency-Key'))).toEqual(['k-2', 'k-2', 'k-2']);
   });
 
+  it('never retries a keyed FormData POST after a 503: its multipart body cannot be resent byte for byte (LIB-CR-02)', async () => {
+    const fake = createFakeFetch([unavailable, ok]);
+    const client = createHttpClient({ fetch: fake.fetch, sleep: instantRetry().sleep });
+
+    const error = await rejection(client.post('/orders/1/images', new FormData(), { idempotencyKey: 'k-img' }));
+
+    expect(error.status).toBe(503);
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it('still retries an unkeyed FormData PUT after a network error', async () => {
+    const fake = createFakeFetch([networkError, ok]);
+    const client = createHttpClient({ fetch: fake.fetch, sleep: instantRetry().sleep });
+
+    await client.put('/site/logo', new FormData());
+
+    expect(fake.calls).toHaveLength(2);
+  });
+
   it('never retries a POST without a key, and sends no key header', async () => {
     const fake = createFakeFetch([unavailable, ok]);
     const client = createHttpClient({ fetch: fake.fetch, sleep: instantRetry().sleep });

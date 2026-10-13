@@ -5,6 +5,11 @@
 // - while a submission is pending, every further trigger gets the same in-flight promise, so one request is in flight;
 // - a failed submission resubmitted with the same data (compared as JSON) is the same submission and keeps its key,
 //   including one that carries no data (a fixed sentinel, L-25: JSON.stringify(undefined) is undefined);
+// - only plain JSON data is compared (plain objects, arrays, strings, finite numbers, booleans, null). FormData, File,
+//   Blob, Map, Set, Date, class instances, symbols, BigInts and cycles are never "the same submission", because
+//   JSON.stringify turns many of them into "{}" and two different payloads would share a key (LIB-CR-02). Such a form
+//   passes the `identity` option (for an upload: the file's name, size and lastModified, plus its other fields) to get
+//   the retry and double-click protection back;
 // - a succeeded submission triggered again with the same data (a double-click whose second click lands after a fast
 //   response, LIB-CR-01) sends nothing: submit resolves with the same success outcome and onSuccess does not run again;
 // - reset() or changed data starts a new submission with a new key. Call reset() when the form is ready for a new
@@ -30,6 +35,12 @@ export interface SubmissionOptions<TData, TResult> {
    * fields: focus the first one with focusFirstInvalid) or when there is nothing to show (a 401, a cancelled request).
    */
   readonly onFailure?: (copy: ErrorCopy, error: unknown) => void;
+  /**
+   * Names a submission's data, for data that is not plain JSON (an upload's File or FormData). Two submits whose
+   * identities are equal are the same submission. Without it, only plain JSON data is compared. A throw counts as
+   * "cannot compare", so that submit gets a new key.
+   */
+  readonly identity?: (data: TData) => string;
 }
 
 /** `submit()` may leave the data out when the submission carries none (a confirm button such as Delete Order). */
@@ -53,16 +64,53 @@ const NO_DATA = '\u0000no-data';
 
 const noFieldErrors: FieldErrors = Object.freeze({});
 
-/** Text for comparing a retry with the failed attempt, or undefined when the data cannot be compared as JSON. */
-function serialize(data: unknown): string | undefined {
-  if (data === undefined) {
-    return NO_DATA;
+/**
+ * True for data whose JSON text holds all of it: null, strings, booleans, finite numbers, and plain objects and arrays
+ * of those (an undefined member is left out of the sent JSON as well). `ancestors` catches a cycle.
+ */
+function isPlainJson(value: unknown, ancestors: Set<object>): boolean {
+  switch (typeof value) {
+    case 'string':
+    case 'boolean':
+    case 'undefined':
+      return true;
+    case 'number':
+      return Number.isFinite(value);
+    case 'object':
+      break;
+    default:
+      // A function, a symbol or a BigInt.
+      return false;
   }
+  if (value === null) {
+    return true;
+  }
+  if (ancestors.has(value)) {
+    return false;
+  }
+  const prototype: unknown = Object.getPrototypeOf(value);
+  const plain = Array.isArray(value) || prototype === Object.prototype || prototype === null;
+  if (!plain || Object.getOwnPropertySymbols(value).length > 0) {
+    return false;
+  }
+  ancestors.add(value);
+  const members = Object.values(value).every((member) => isPlainJson(member, ancestors));
+  ancestors.delete(value);
+  return members;
+}
+
+/** Text for comparing a submission with the last one, or undefined when the data cannot be compared. */
+function serialize<TData>(data: TData, identity: ((data: TData) => string) | undefined): string | undefined {
   try {
-    // Undefined at run time for a function or a symbol, although the TypeScript typing says string.
-    return JSON.stringify(data);
+    if (identity !== undefined) {
+      return identity(data);
+    }
+    if (data === undefined) {
+      return NO_DATA;
+    }
+    return isPlainJson(data, new Set()) ? JSON.stringify(data) : undefined;
   } catch {
-    // A BigInt or a cycle: never the same submission, so a retry gets a new key.
+    // An identity option or a getter that throws: never the same submission, so the submit gets a new key.
     return undefined;
   }
 }
@@ -138,7 +186,7 @@ export function useSubmission<TData, TResult>(
     }
     // SubmitArgs leaves the data out only when TData admits undefined.
     const data = args[0] as TData;
-    const serialized = serialize(data);
+    const serialized = serialize(data, options?.identity);
     const last = lastRef.current;
     const same = last !== undefined && last.serialized === serialized;
     if (same && last.success !== undefined) {

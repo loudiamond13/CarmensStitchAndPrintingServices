@@ -274,13 +274,25 @@ describe('XMLHttpRequest upload transport', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('a keyed POST upload is retried after a network error with the same key', async () => {
+  it('never retries a keyed FormData upload: a new multipart boundary would change the body (LIB-CR-02)', async () => {
     const xhr = createFakeXhrFactory([{ outcome: 'error' }, created]);
     const client = createHttpClient({ xhrFactory: xhr.factory, sleep: () => Promise.resolve() });
 
-    await client.post('/images', new FormData(), { idempotencyKey: 'k-7', onUploadProgress: () => undefined });
+    const error = await rejection(
+      client.post('/images', new FormData(), { idempotencyKey: 'k-7', onUploadProgress: () => undefined }),
+    );
 
-    expect(xhr.instances.map((x) => x.requestHeaders['idempotency-key'])).toEqual(['k-7', 'k-7']);
+    expect(error.kind).toBe('network');
+    expect(xhr.instances.map((x) => x.requestHeaders['idempotency-key'])).toEqual(['k-7']);
+  });
+
+  it('retries a keyed JSON POST sent with upload progress, with the same key', async () => {
+    const xhr = createFakeXhrFactory([{ outcome: 'error' }, created]);
+    const client = createHttpClient({ xhrFactory: xhr.factory, sleep: () => Promise.resolve() });
+
+    await client.post('/notes', { text: 'Rush' }, { idempotencyKey: 'k-8', onUploadProgress: () => undefined });
+
+    expect(xhr.instances.map((x) => x.requestHeaders['idempotency-key'])).toEqual(['k-8', 'k-8']);
   });
 
   it('without onUploadProgress the XHR factory is never called', async () => {

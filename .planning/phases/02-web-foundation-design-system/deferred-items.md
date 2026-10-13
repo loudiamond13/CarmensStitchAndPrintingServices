@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T05:20:00-05:00"
+updated: "2026-10-13T06:45:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -59,6 +59,13 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` and `HealthEndpointTests.ReturnsHealthyWithAllChecks` failed (888 of 890 passed). Both passed when run on their own, and a second full run passed 890 of 890. Plan 02-35's only server change is the response compression level, which neither test reads (`/health` and the API answer JSON, which is never compressed, and `NeverCompressesJson` passed in both runs).
   **Why deferred:** not reproduced; it looks like a cold LocalDB or machine load on the first run.
   **Next step:** if either test fails again, capture its full output (`dotnet test --project tests/Csps.Server.IntegrationTests -- --filter-method <name>`) and check the health check's database timeout.
+
+- SEC-06 must hash multipart bodies independently of the boundary (code-review fix LIB-CR-02, for the Phase 4 SEC-06 plan)
+  status: open
+  **Found by:** the phase 02 code review (lane weblib, LIB-CR-02), fixed on the client side in `web/src/lib/forms/useSubmission.ts` and `web/src/lib/http/httpClient.ts`.
+  **What:** SEC-06 stores a SHA-256 hash of the request body and answers 422 when the same key arrives with a different body. A `multipart/form-data` body gets a new random boundary on every send, so the same upload resent with the same key never hashes the same. The client now never auto-retries a keyed `FormData` request, and `useSubmission` compares an upload only through its `identity` option (file name, size, `lastModified` and the other fields).
+  **Why deferred:** the idempotency store is server work in Phase 4 (SEC-06); nothing in phase 02 posts an upload yet.
+  **Next step:** when SEC-06 is built, hash a multipart request from its parsed parts (each part's name, file name, content type and bytes, in order), not from the raw bytes. Otherwise an upload form that passes `identity` gets a 422 on its first user retry after a network error, and the upload screens must not pass `identity` (losing the duplicate protection). Add an integration test that sends the same upload twice with the same key and two different boundaries and gets the stored response.
 
 ## Owner decisions pending
 

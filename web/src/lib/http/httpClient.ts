@@ -114,7 +114,10 @@ const maxRetries = 2;
 const defaultBaseDelayMs = 250;
 const defaultMaxDelayMs = 2_000;
 
-/** Methods retried after a network error or 503. A POST joins them only when it carries an Idempotency-Key (WEB-09). */
+/**
+ * Methods retried after a network error or 503. A POST joins them only when it carries an Idempotency-Key (WEB-09). A
+ * keyed request whose body is FormData is never retried (LIB-CR-02).
+ */
 const retryableMethods: ReadonlySet<HttpMethod> = new Set<HttpMethod>(['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS']);
 /** Safe methods never carry an Idempotency-Key header. */
 const safeMethods: ReadonlySet<HttpMethod> = new Set<HttpMethod>(['GET', 'HEAD', 'OPTIONS']);
@@ -421,6 +424,11 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
 
   function canRetry(requestConfig: RequestConfig, method: HttpMethod, error: unknown): boolean {
     if (!isHttpError(error) || !(error.kind === 'network' || error.status === 503)) {
+      return false;
+    }
+    // A multipart body gets a new boundary on every send, so a keyed retry would not be the same body and the server
+    // would answer 422 (SEC-06). The user retries through useSubmission instead (LIB-CR-02).
+    if (requestConfig.idempotencyKey !== undefined && requestConfig.body instanceof FormData) {
       return false;
     }
     return retryableMethods.has(method) || (method === 'POST' && requestConfig.idempotencyKey !== undefined);

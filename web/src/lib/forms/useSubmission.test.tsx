@@ -80,6 +80,23 @@ function SubmitButton<TData>({ send, data }: { readonly send: Send<TData>; reado
   );
 }
 
+/** An upload button whose submissions are told apart by the file's name, size and date (LIB-CR-02). */
+function UploadButton({ send, file }: { readonly send: Send<{ readonly file: File }>; readonly file: File }) {
+  const { submit } = useSubmission(send, {
+    identity: ({ file: picked }) => `${picked.name}|${String(picked.size)}|${String(picked.lastModified)}`,
+  });
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void submit({ file });
+      }}
+    >
+      Upload
+    </button>
+  );
+}
+
 /** A send spy answering from `outcomes` in order: 'ok' resolves, an Error rejects. Past the end it resolves. */
 function recordingSend(outcomes: readonly ('ok' | Error)[]) {
   const queue = [...outcomes];
@@ -293,13 +310,123 @@ describe('useSubmission: key per submission (WEB-09 idempotency)', () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
-  it.each([
+  const cyclic: { self?: unknown } = {};
+  cyclic.self = cyclic;
+  it.each<[string, unknown]>([
     ['a function', (): void => undefined],
     ['a BigInt', { amount: 1n }],
+    // JSON.stringify turns each of these into "{}" (or loses its content), so two different payloads would compare
+    // equal and share a key; the server would answer 422 for the changed body (LIB-CR-02).
+    ['FormData', new FormData()],
+    ['a File', new File(['a'], 'mockup.png', { type: 'image/png' })],
+    ['a Blob', new Blob(['a'])],
+    ['a Map', new Map([['amount', '1']])],
+    ['a Set', new Set(['1'])],
+    ['a Date', new Date(0)],
+    ['an object holding a File', { file: new File(['a'], 'mockup.png') }],
+    ['an array holding a Blob', [new Blob(['a'])]],
+    ['a number JSON cannot hold', { amount: Number.NaN }],
+    ['a symbol', { amount: Symbol('x') }],
+    ['a symbol key', { [Symbol('k')]: '1' }],
+    ['a cycle', cyclic],
+    [
+      'an object whose getter throws',
+      {
+        get amount(): string {
+          throw new Error('unreadable');
+        },
+      },
+    ],
   ])('never reuses a key for data JSON cannot compare (%s)', async (_case, data) => {
     const user = userEvent.setup();
     const spy = recordingSend([new Error('down'), new Error('down')]);
     render(<SubmitButton send={spy.send} data={data} />);
+    const button = screen.getByRole('button', { name: 'Submit' });
+
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(1);
+    });
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(2);
+    });
+
+    const [first, second] = spy.keys();
+    expect(second).not.toBe(first);
+  });
+
+  it('compares an upload by its identity option: same file keeps the key, another file gets a new one (LIB-CR-02)', async () => {
+    const user = userEvent.setup();
+    const spy = recordingSend([new Error('down'), new Error('down'), 'ok', 'ok']);
+    const first = new File(['front'], 'front.png', { lastModified: 1 });
+    const { rerender } = render(<UploadButton send={spy.send} file={first} />);
+    const button = screen.getByRole('button', { name: 'Upload' });
+    const calls = async (count: number): Promise<void> => {
+      await vi.waitFor(() => {
+        expect(spy.send).toHaveBeenCalledTimes(count);
+      });
+    };
+
+    await user.click(button);
+    await calls(1);
+    // The same file picked again is a new File object, and still the same submission.
+    rerender(<UploadButton send={spy.send} file={new File(['front'], 'front.png', { lastModified: 1 })} />);
+    await user.click(button);
+    await calls(2);
+    rerender(<UploadButton send={spy.send} file={new File(['back!'], 'back.png', { lastModified: 2 })} />);
+    await user.click(button);
+    await calls(3);
+    // After the success, the same file sends nothing more.
+    await user.click(button);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const keys = spy.keys();
+    expect(spy.send).toHaveBeenCalledTimes(3);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
+  it('treats an identity option that throws as data it cannot compare', async () => {
+    const user = userEvent.setup();
+    const spy = recordingSend([new Error('down'), new Error('down')]);
+    function Broken() {
+      const { submit } = useSubmission(spy.send, {
+        identity: () => {
+          throw new Error('no identity');
+        },
+      });
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            void submit('x');
+          }}
+        >
+          Submit
+        </button>
+      );
+    }
+    render(<Broken />);
+    const button = screen.getByRole('button', { name: 'Submit' });
+
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(1);
+    });
+    await user.click(button);
+    await vi.waitFor(() => {
+      expect(spy.send).toHaveBeenCalledTimes(2);
+    });
+
+    const [first, second] = spy.keys();
+    expect(second).not.toBe(first);
+  });
+
+  it('never repeats a success for data it cannot compare: the next submit is a new submission', async () => {
+    const user = userEvent.setup();
+    const spy = recordingSend(['ok', 'ok']);
+    render(<SubmitButton send={spy.send} data={new FormData()} />);
     const button = screen.getByRole('button', { name: 'Submit' });
 
     await user.click(button);

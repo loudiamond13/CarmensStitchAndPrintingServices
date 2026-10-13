@@ -113,9 +113,9 @@ create: (body: CreateOrderRequest, { idempotencyKey }: { idempotencyKey: string 
   client.post<OrderDto>('/orders', body, { idempotencyKey }),
 ```
 
-- **The key comes from the caller**, one per user submission. Screens get it from `useSubmission` (plan 02-16), which keeps the same key across a double click or a retry of the same submission. After a success, a trigger with the same data sends nothing and resolves with the same success (a double click that straddles a fast response, LIB-CR-01); changed data or `reset()` starts a new submission. Call `reset()` when the form is ready for a new entry, not inside `onSuccess`.
+- **The key comes from the caller**, one per user submission. Screens get it from `useSubmission` (plan 02-16), which keeps the same key across a double click or a retry of the same submission. After a success, a trigger with the same data sends nothing and resolves with the same success (a double click that straddles a fast response, LIB-CR-01); changed data or `reset()` starts a new submission. Call `reset()` when the form is ready for a new entry, not inside `onSuccess`. Only plain JSON data is compared; a form whose data holds a `File`, `Blob`, `FormData`, `Map`, `Set` or `Date` passes the `identity` option (for an upload, the file's name, size and `lastModified` plus its other fields), or every submit gets a new key (LIB-CR-02).
 - **The client never creates a key.** It sends the caller's key as the `Idempotency-Key` header and resends the same key on every retry and on the replay after a 401 refresh, so the server can recognise a repeat.
-- A keyed POST may be retried after a network error or a 503. A POST without a key is never retried.
+- A keyed POST may be retried after a network error or a 503. A POST without a key is never retried. A keyed request whose body is `FormData` is never retried by the client either: the browser picks a new multipart boundary on every send, so the retry would not be the same body (LIB-CR-02). The user retries it through `useSubmission`.
 
 ### One shared client
 
