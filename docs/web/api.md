@@ -100,7 +100,7 @@ const settings = await api.site.settings(signal); // GET /api/v1/site-settings, 
 3. Add the function to its group's type in `Api`, then implement it in `createApi`. Change the group from `PlannedGroup` to an object type when it gets its first call.
 4. Follow these rules:
    - **Reads take an optional `AbortSignal`** as their last argument and pass it to the client. TanStack Query hands in its own signal (`useListQuery` calls `fetcher(params, signal)`).
-   - **Query parameter names must not be secret-looking.** The client rejects `token`, `access_token`, `refresh_token`, `password`, `secret`, `otp` and `code` in a URL. Use, for example, `orderCode`, not `code`.
+   - **Query parameter names must not be secret-looking.** The client rejects `token`, `access_token`, `refresh_token`, `password`, `secret`, `otp` and `code` in a URL, whether they come from `params` or are written into the path (`'/auth/confirm?token=…'`, LIB-WR-08). Use, for example, `orderCode`, not `code`.
    - **An endpoint with no response body answers 204.** The client rejects any other 2xx that is empty, is not JSON or came through a redirect with an `HttpError` of kind `parse` (LIB-WR-05), so a captive portal or host page never resolves as the typed DTO. Type such a call as `Promise<void>`.
    - **Do not catch errors here.** Let `HttpError` reach the caller, which shows `error.message` (plain English) and the `traceId` for server errors.
 5. Add a test to `web/src/lib/api.test.ts` that drives the call through `createApi` and a fake fetch. Check the method, the URL and the typed result.

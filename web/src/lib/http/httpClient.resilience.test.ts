@@ -395,6 +395,42 @@ describe('secrets never go in a URL (PRD 8.2, 9.3)', () => {
     },
   );
 
+  it.each([
+    ['a GET path query', '/auth/confirm?token=abc', 'token'],
+    ['a mixed-case name after another param', '/orders?page=2&Code=123456', 'Code'],
+    ['a percent-encoded name', '/auth/confirm?%74oken=abc', 'token'],
+  ])(
+    'rejects a secret written into the URL itself (%s) before fetch is called (LIB-WR-08)',
+    async (_case, url, name) => {
+      const fake = createFakeFetch([ok]);
+      const client = createHttpClient({ fetch: fake.fetch });
+
+      await expect(client.get(url)).rejects.toThrow(
+        new TypeError(`The "${name}" parameter is not allowed: secrets never go in a URL. Send them in a header.`),
+      );
+      await expect(client.post(url, { a: 1 }, { idempotencyKey: 'k' })).rejects.toBeInstanceOf(TypeError);
+      expect(fake.calls).toHaveLength(0);
+    },
+  );
+
+  it('rejects a secret query added to the URL by an interceptor', async () => {
+    const fake = createFakeFetch([ok]);
+    const client = createHttpClient({ fetch: fake.fetch });
+    client.interceptors.request.use((request) => ({ ...request, url: `${request.url}?otp=123456` }));
+
+    await expect(client.get('/orders')).rejects.toBeInstanceOf(TypeError);
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  it('still allows a harmless query in the URL and a secret-looking word in a value or a fragment', async () => {
+    const fake = createFakeFetch([ok]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    await client.get('/orders?search=token#code=1');
+
+    expect(fake.calls[0]?.url).toBe('/orders?search=token#code=1');
+  });
+
   it('also rejects a secret param added by an interceptor, and does not retry', async () => {
     const fake = createFakeFetch([ok]);
     const client = createHttpClient({ fetch: fake.fetch, sleep: instantRetry().sleep });

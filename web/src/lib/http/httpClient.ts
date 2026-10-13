@@ -195,8 +195,13 @@ function serializeParams(params: Params | undefined): string {
   return search.toString();
 }
 
-function assertNoSecretParams(params: Params | undefined): void {
-  for (const name of Object.keys(params ?? {})) {
+/**
+ * Checks every parameter name: the `params` keys (even one whose value is skipped) and every name in the final URL's
+ * query, so a query written into the path (`/auth/confirm?token=…`) cannot bypass the rule (LIB-WR-08).
+ */
+function assertNoSecretParams(params: Params | undefined, url: string): void {
+  const queryNames = new URL(url, 'https://csps.invalid').searchParams.keys();
+  for (const name of [...Object.keys(params ?? {}), ...queryNames]) {
     if (secretParams.has(name.toLowerCase())) {
       throw new TypeError(`The "${name}" parameter is not allowed: secrets never go in a URL. Send them in a header.`);
     }
@@ -422,8 +427,8 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
   /** One attempt. Request interceptors run on every attempt, so a refreshed token applies to the retry. */
   async function attempt(requestConfig: RequestConfig, method: HttpMethod): Promise<HttpResponse> {
     const prepared = await intercept(initialRequest(requestConfig, method));
-    assertNoSecretParams(prepared.params);
     const url = buildUrl(baseURL, prepared);
+    assertNoSecretParams(prepared.params, url);
     const body = encodeBody(prepared);
     const caller = requestConfig.signal;
     const timeout = new AbortController();
