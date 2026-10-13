@@ -7,6 +7,11 @@
 // The caller wires `onPageChange` to the list hook's setPage (a push) and `onPageSizeChange` to setPageSize (a replace
 // that resets the page), so the WEB-10 history rules stay in createListParams. After a page change, focus moves to the
 // results heading or the table caption named by `focusTargetId` (it needs tabIndex -1).
+// UI-WR-15 (WCAG 2.4.3): focus is checked again once the new page has rendered. The button pressed may now be disabled
+// (Next onto the last page, Previous onto the first) and the heading may have been re-created, either of which drops
+// focus to the page. Then focus goes to the focus target, else to the first enabled button of the bar. The ends stay
+// natively `disabled` (no visual change).
+import { useEffect, useRef } from 'react';
 import { PAGE_SIZES, type PageSize } from '@/lib/url-state/parsers';
 import { Button } from '@/ui/actions';
 import { Select } from '@/ui/forms';
@@ -39,6 +44,17 @@ function toPageSize(value: string): PageSize | undefined {
   return PAGE_SIZES.find((size) => String(size) === value);
 }
 
+/** True when focus is nowhere useful: on the page itself, or on a control the page change disabled. */
+function focusLost(nav: HTMLElement): boolean {
+  const active = document.activeElement;
+  return (
+    active === null ||
+    active === document.body ||
+    !active.isConnected ||
+    (nav.contains(active) && active instanceof HTMLButtonElement && active.disabled)
+  );
+}
+
 export function Pagination({
   page,
   pageCount,
@@ -47,18 +63,35 @@ export function Pagination({
   pageSize,
   onPageSizeChange,
 }: PaginationProps) {
+  const navRef = useRef<HTMLElement>(null);
+  // Set by a page change from this bar; read once the new page has rendered.
+  const checkFocus = useRef(false);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!checkFocus.current || nav === null) {
+      return;
+    }
+    checkFocus.current = false;
+    if (!focusLost(nav)) {
+      return;
+    }
+    const target = focusTargetId === undefined ? null : document.getElementById(focusTargetId);
+    (target ?? nav.querySelector<HTMLElement>('button:not(:disabled)'))?.focus();
+  }, [page, focusTargetId]);
+
   if (pageCount <= 1) {
     return null;
   }
   const copy = LISTS_COPY.pagination;
   const goTo = (target: number): void => {
+    checkFocus.current = true;
     onPageChange(target);
     if (focusTargetId !== undefined) {
       document.getElementById(focusTargetId)?.focus();
     }
   };
   return (
-    <nav aria-label="Pagination" className={paginationClasses}>
+    <nav ref={navRef} aria-label="Pagination" className={paginationClasses}>
       <Button
         variant="secondary"
         size="md"

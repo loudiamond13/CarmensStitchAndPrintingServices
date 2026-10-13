@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
@@ -135,6 +136,78 @@ describe('Pagination (SPEC-GAP, WEB-06, WEB-10)', () => {
     expect(screen.getByRole('navigation')).toHaveTextContent('Page 2 of 5');
     rerender(<Pagination page={4} pageCount={9} onPageChange={onPageChange} />);
     expect(screen.getByRole('navigation')).toHaveTextContent('Page 4 of 9');
+  });
+});
+
+/** A list that really changes page, as the list hook does; the heading is re-created per page when `remount` is set. */
+function PagedList({
+  start,
+  focusTarget,
+  remount = false,
+}: {
+  start: number;
+  focusTarget?: boolean;
+  remount?: boolean;
+}) {
+  const [page, setPage] = useState(start);
+  return (
+    <>
+      <h2 key={remount ? page : 'heading'} id="users-results" tabIndex={-1}>
+        Users, page {page}
+      </h2>
+      <Pagination
+        page={page}
+        pageCount={5}
+        onPageChange={setPage}
+        focusTargetId={focusTarget === true ? 'users-results' : undefined}
+      />
+    </>
+  );
+}
+
+// UI-WR-15 (WCAG 2.4.3): the button pressed may be disabled by the page change it caused (Next onto the last page,
+// Previous onto the first), and the results heading may be re-created by it. Focus is checked again after the update.
+describe('Pagination focus after a page change (UI-WR-15)', () => {
+  it('moves focus to Previous when Next reaches the last page and there is no focus target', async () => {
+    const user = userEvent.setup();
+    render(<PagedList start={4} />);
+    screen.getByRole('button', { name: 'Next page' }).focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous page' })).toHaveFocus();
+  });
+
+  it('moves focus to Next when Previous reaches the first page and there is no focus target', async () => {
+    const user = userEvent.setup();
+    render(<PagedList start={2} />);
+    screen.getByRole('button', { name: 'Previous page' }).focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next page' })).toHaveFocus();
+  });
+
+  it('keeps focus on the button pressed when it stays enabled and there is no focus target', async () => {
+    const user = userEvent.setup();
+    render(<PagedList start={2} />);
+    screen.getByRole('button', { name: 'Next page' }).focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Next page' })).toHaveFocus();
+  });
+
+  it('focuses the results heading the page change re-created', async () => {
+    const user = userEvent.setup();
+    render(<PagedList start={4} focusTarget remount />);
+    screen.getByRole('button', { name: 'Next page' }).focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('heading', { name: 'Users, page 5' })).toHaveFocus();
   });
 });
 
