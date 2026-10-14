@@ -6,6 +6,7 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios as listsParity } from '@/dev/scenarios/groups/lists';
 import { scenarios as listsStates } from '@/dev/scenarios/groups/lists-states';
 import { expectNoAxeViolations } from '@/test/axe';
+import { STATES_COPY } from '@/components/states';
 import { WALK_IN_CUSTOMER } from '@/components/data';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import {
@@ -191,10 +192,21 @@ describe('ResponsiveTable tracer (WEB-06, spec §8.4, App. E.12)', () => {
     expect(container.innerHTML).not.toMatch(/opacity/);
   });
 
-  it('shows "-" for a missing value (spec §9.4)', () => {
+  it('shows the empty-value icon for a missing value (spec §9.4, OR-4)', () => {
     render(table());
-    expect(bodyRows()[1]?.querySelectorAll('td')[3]).toHaveTextContent(LISTS_COPY.missing);
-    expect(LISTS_COPY.missing).toBe('-');
+    const cell = bodyRows()[1]?.querySelectorAll('td')[3];
+    expect(cell?.textContent).toBe(STATES_COPY.emptyValue);
+    expect(cell?.querySelector('svg.lucide-minus[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('leaves an empty actions cell empty', () => {
+    const columns = COLUMNS.map((column) =>
+      column.actions === true ? { ...column, cell: (user: User) => (user.active ? 'Edit' : null) } : column,
+    );
+    render(table({ columns }));
+    const cell = bodyRows()[1]?.querySelectorAll('td')[5];
+    expect(cell?.textContent).toBe('');
+    expect(cell?.querySelector('svg')).toBeNull();
   });
 
   it('renders the optional tfoot as one labelled totals row', () => {

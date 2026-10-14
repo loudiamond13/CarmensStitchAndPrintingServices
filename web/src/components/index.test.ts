@@ -62,6 +62,7 @@ const SPEC_GAP_COMPONENTS = [
   'OtpInput',
   'LazyImage',
   'ErrorState',
+  'EmptyValue',
   'SkeletonText',
   'SkeletonCard',
   'SkeletonTable',

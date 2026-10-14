@@ -270,6 +270,26 @@ describe('OrderCard (App. D.3)', () => {
     expect(screen.getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
   });
 
+  it('shows the empty-value icon where the due date is missing, and keeps a valid order date (OR-4)', async () => {
+    const { container } = render(<OrderCard order={{ ...order0148, dueDate: '' }} />);
+    const due = screen.getByText(/^Due/);
+
+    expect(due.textContent).toBe('Due Not set');
+    expect(due.querySelector('svg.lucide-minus')).not.toBeNull();
+    expect(screen.getByText('Sep 28, 2026')).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows the empty-value icon where the order date is invalid (OR-4)', async () => {
+    const { container } = render(<OrderCard order={{ ...order0148, orderDate: 'garbage' }} />);
+    const orderDate = container.querySelector('svg.lucide-calendar')?.parentElement;
+
+    expect(orderDate?.textContent).toBe('Not set');
+    expect(orderDate?.querySelector('svg.lucide-minus')).not.toBeNull();
+    expect(screen.getByText('Due Oct 14, 2026')).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+
   it('counts a missing or non-numeric quantity as 0, as App. D.3 does', () => {
     const order: Order = {
       ...order0148,

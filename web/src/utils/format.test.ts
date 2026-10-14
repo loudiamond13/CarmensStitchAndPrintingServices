@@ -12,8 +12,6 @@ import {
   padMoneyOnBlur,
 } from './format';
 
-const EMPTY_TEXT = '-';
-
 // Machine zones on both sides of the business zone: the output must not move with the machine.
 const MACHINE_ZONES = ['America/Chicago', 'Pacific/Kiritimati', 'Pacific/Pago_Pago'] as const;
 
@@ -73,8 +71,8 @@ describe('formatBusinessDate', () => {
     '2026-10-05T24:00:00Z',
     '2026-10-05T16:60:00Z',
     'Oct 5, 2026 16:30 UTC',
-  ])('shows an em dash for %j', (value) => {
-    expect(formatBusinessDate(value)).toBe(EMPTY_TEXT);
+  ])('gives null for %j', (value) => {
+    expect(formatBusinessDate(value)).toBeNull();
   });
 
   it('throws a RangeError for an unknown zone', () => {
@@ -109,8 +107,8 @@ describe('formatCalendarDate', () => {
     ' 2026-10-06',
     '',
     'not a date',
-  ])('shows an em dash for %j', (value) => {
-    expect(formatCalendarDate(value)).toBe(EMPTY_TEXT);
+  ])('gives null for %j', (value) => {
+    expect(formatCalendarDate(value)).toBeNull();
   });
 });
 

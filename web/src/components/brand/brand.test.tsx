@@ -305,7 +305,7 @@ describe('the icon grid scenario (icons-all)', () => {
 
   it('renders all 56 spec icons, by name in ICONS order, at the default size, then the size, stroke and label variants', () => {
     const names = icons.map((icon) => icon.props?.name);
-    expect(names.slice(0, 56)).toEqual(Object.keys(ICONS));
+    expect(names.slice(0, 56)).toEqual(Object.keys(ICONS).slice(0, 56));
     expect(new Set(names.slice(0, 56)).size).toBe(56);
     expect(icons.slice(56)).toEqual([
       { kind: 'node', component: 'Icon', props: { name: 'search', size: 16 } },

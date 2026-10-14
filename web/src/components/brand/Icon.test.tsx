@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { Funnel, Trash } from 'lucide-react';
+import { Funnel, Minus, Trash } from 'lucide-react';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { Icon, type IconName } from '@/components/brand';
@@ -65,6 +65,9 @@ const SPEC_ICON_NAMES = [
   'x',
   'zap',
 ] as const;
+
+// Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14).
+const OWNER_ICON_NAMES = ['minus'] as const;
 
 /** The one svg an Icon renders. */
 function onlySvg(container: HTMLElement): SVGSVGElement {
@@ -155,13 +158,19 @@ describe('Icon (App. D.3 API over lucide-react, D-10)', () => {
 });
 
 describe('ICONS (App. D.5 names, D-32 aliases)', () => {
-  it('holds exactly the 56 spec icon names, no more and no fewer', () => {
+  it('holds the 56 spec icon names, then the owner icons, no more and no fewer', () => {
     expect(SPEC_ICON_NAMES).toHaveLength(56);
-    expect(Object.keys(ICONS).sort()).toEqual([...SPEC_ICON_NAMES]);
+    const keys = Object.keys(ICONS);
+    expect(keys.slice(0, 56).sort()).toEqual([...SPEC_ICON_NAMES]);
+    expect(keys.slice(56)).toEqual([...OWNER_ICON_NAMES]);
   });
 
-  it('types IconName as exactly the spec names, so an unknown name is a compile error', () => {
-    expectTypeOf<IconName>().toEqualTypeOf<(typeof SPEC_ICON_NAMES)[number]>();
+  it('types IconName as the spec names plus the owner icons, so an unknown name is a compile error', () => {
+    expectTypeOf<IconName>().toEqualTypeOf<(typeof SPEC_ICON_NAMES)[number] | (typeof OWNER_ICON_NAMES)[number]>();
+  });
+
+  it('draws minus with lucide’s Minus (OR-4)', () => {
+    expect(ICONS.minus).toBe(Minus);
   });
 
   it('draws trash-2 with lucide’s Trash and filter with lucide’s Funnel (D-32)', () => {
@@ -169,7 +178,7 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
     expect(ICONS.filter).toBe(Funnel);
   });
 
-  it.each(SPEC_ICON_NAMES)('renders %s as one lucide svg with a drawing', (name) => {
+  it.each([...SPEC_ICON_NAMES, ...OWNER_ICON_NAMES])('renders %s as one lucide svg with a drawing', (name) => {
     const svg = onlySvg(render(<Icon name={name} />).container);
     expect(svg.classList).toContain('lucide');
     expect(svg.childElementCount).toBeGreaterThan(0);
