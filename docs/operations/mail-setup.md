@@ -1,6 +1,6 @@
 ---
 created: 2026-10-14T18:00:00-05:00
-updated: 2026-10-14T18:00:00-05:00
+updated: 2026-10-14T18:30:00-05:00
 ---
 
 # Mail setup: the app's sender mailbox and the .NET security update
@@ -43,10 +43,10 @@ DKIM is a signature that lets Gmail and others trust the message really came fro
 
 ## Step 3. Store the mail settings on this computer
 
-Run this from the repository root. It asks questions and stores the answers in your private user-secrets store, never in git. Nothing you type is shown again, and the password is hidden while you type.
+Run this in a normal (not administrator) PowerShell window; the full path works from any folder. It asks questions and stores the answers in your private user-secrets store, never in git. Nothing you type is shown again, and the password is hidden while you type.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1 -Smtp
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Work\CarmensStitchAndPrintingServices\tools\scripts\Initialize-DevSecrets.ps1 -Smtp
 ```
 
 | Prompt | What to type |
