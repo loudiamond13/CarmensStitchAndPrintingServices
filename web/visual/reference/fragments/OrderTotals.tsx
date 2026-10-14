@@ -16,9 +16,7 @@ import { useEffect, type ComponentType } from 'react';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
-const spec = Object.values(
-  import.meta.glob<ModuleExports>('../../.reference-src/components/index.tsx', { eager: true }),
-)[0];
+const spec = Object.values(import.meta.glob<ModuleExports>('../../.reference-src/ui/index.tsx', { eager: true }))[0];
 
 /** The frozen App. D.3 props the scenarios pass (the frozen OrderTotals takes them as they are). */
 export interface OrderTotalsProps {
