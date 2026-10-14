@@ -126,10 +126,14 @@ function OpenModal({
     // click, so dragging or pressing the backdrop's scrollbar never closes the dialog, overlay scrollbars included (they
     // take no layout space, so the geometry cannot see them; Chromium and WebKit send no click after a scrollbar press,
     // and the scroll check covers any engine that does); a press that starts inside the dialog never closes it, as
-    // before.
+    // before. Only the primary button closes, so middle-click autoscroll and a right-click on the scrolling backdrop
+    // never close the dialog.
     let pendingPress: { positions: number[] } | null = null;
     const onMouseDown = (event: MouseEvent) => {
       pendingPress = null;
+      if (event.button !== 0) {
+        return;
+      }
       if (scrims.some((scrim) => scrim === event.target && !pressedOnScrollbar(scrim, event))) {
         pendingPress = { positions: readScrollPositions(scrims) };
       }
@@ -138,12 +142,32 @@ function OpenModal({
       // Consumed first, so the outer scrim's call for the same click (by bubbling) does nothing.
       const press = pendingPress;
       pendingPress = null;
+      if (event.button !== 0) {
+        return;
+      }
       if (
         press !== null &&
         scrims.some((scrim) => scrim === event.target) &&
         samePositions(press.positions, readScrollPositions(scrims))
       ) {
         requestClose();
+      }
+    };
+    // A scroll caused by focus moving during the press is not a scroll gesture: a press can focus the page or a
+    // scrollable backdrop, and the focus trap then pulls focus back into the dialog, which scrolls the backdrop to show
+    // the focused element. The positions are re-read at every focusin while the press is pending, and once more a task
+    // later, because WebKit applies that scroll just after the focusin (Chromium and Firefox apply it before).
+    const rereadPending = () => {
+      if (pendingPress !== null) {
+        pendingPress = { positions: readScrollPositions(scrims) };
+      }
+    };
+    let reread: ReturnType<typeof setTimeout> | undefined;
+    const onFocusIn = () => {
+      if (pendingPress !== null) {
+        rereadPending();
+        clearTimeout(reread);
+        reread = setTimeout(rereadPending, 0);
       }
     };
     // UI-WR-01: only the dialog on top (the newest focus trap) answers Esc, and it marks the key as handled, so one Esc
@@ -159,12 +183,15 @@ function OpenModal({
       scrim.addEventListener('mousedown', onMouseDown);
       scrim.addEventListener('click', onClick);
     }
+    document.addEventListener('focusin', onFocusIn);
     window.addEventListener('keydown', onKeyDown);
     return () => {
       for (const scrim of scrims) {
         scrim.removeEventListener('mousedown', onMouseDown);
         scrim.removeEventListener('click', onClick);
       }
+      document.removeEventListener('focusin', onFocusIn);
+      clearTimeout(reread);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [inline]);

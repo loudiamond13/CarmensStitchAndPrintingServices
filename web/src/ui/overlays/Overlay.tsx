@@ -3,8 +3,9 @@
 // full-width sheet on phone pages when it fits; on a short window it moves up to the 16px edge (0 on phone pages), and
 // the region scrolls when it is still taller than the window (D-42). App. D.3 has no component for it (screens wrote
 // the class), so under D-33 it is this region with the `data-ui="s-overlay"` marker, which the dialog's region looks
-// key off. It renders inside the page root like every overlay (never a portal), and a mousedown on it closes an inline
-// Modal, except a press on its own scrollbar (see Modal).
+// key off. It renders inside the page root like every overlay (never a portal), and a click on it closes an inline
+// Modal when the press started there with the primary button and did not scroll it, so its scrollbar, the wheel and the
+// middle and right buttons never close the dialog (D-42, see Modal).
 import type { ReactNode } from 'react';
 import { overlayRegionClasses } from './overlays.recipe';
 
