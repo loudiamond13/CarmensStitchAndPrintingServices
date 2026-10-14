@@ -6,10 +6,16 @@ reviewed_at: "2026-10-14T09:05:00-05:00"
 shadcn_initialized: false
 preset: none
 created: "2026-10-14T08:10:00-05:00"
-updated: "2026-10-14T09:05:00-05:00"
+updated: "2026-10-14T11:10:00-05:00"
 ---
 
 # Phase 4 — UI Design Contract
+
+> **Owner conventions (2026-10-14).** Set after this contract was approved (quick 261014-ctx). They apply to the build. Full rules: `.claude/CLAUDE.md` → Conventions.
+>
+> - Where this file names the old UI library folder, read `web/src/components/` (imports from `@/components`, except the `tw` marker). The old auth feature folder is replaced by `web/src/modules/admin/` (`pages/`, `components/`, `services/authService.ts`, `services/session.ts`, `guard.ts`, `authCopy.ts`). `AuthLayout` goes to `web/src/layouts/AuthLayout.tsx`.
+> - No em dash or en dash in client copy, `aria-label`, `alt` or `title` text (OR-4). The App. E.5 brand-panel quote and the logo name therefore read as written in § Copywriting below, not as in the frozen spec. Server-side email copy is not covered by this rule.
+> - Every auth form validates on the client with a zod schema that mirrors the API validator, and shows inline errors before any request is sent (OR-3).
 
 *Created: 2026-10-14T08:10:00-05:00 · Updated: 2026-10-14T09:05:00-05:00*
 
@@ -38,8 +44,8 @@ Section references such as "§8.2" and "App. E.5" point into `CSPS-UI-SPEC.md`. 
 |----------|-------|
 | Tool | none. shadcn and every UI kit are forbidden (spec §0 rule 1, CLAUDE.md "Forbidden: any UI kit"). The shadcn gate is answered "no" by upstream rules, as in Phase 2, and was not asked. |
 | Preset | not applicable |
-| Component library | none. The in-house `@/ui` library (spec App. D.3 converted to Tailwind utilities under D-33, plus the Phase 2 SPEC-GAP primitives). |
-| Icon library | `lucide-react` 1.53.0 through the `<Icon name size />` wrapper. **Phase 4 adds no icon.** It uses only names already in `web/src/ui/brand/icons.ts`: `arrow-right`, `chevron-left`, `circle-check`, `eye`, `eye-off`, `info`, `loader-circle`, `lock`, `log-out`, `shield-check`, `triangle-alert`, `user-round`. |
+| Component library | none. The in-house `@/components` library (spec App. D.3 converted to Tailwind utilities under D-33, plus the Phase 2 SPEC-GAP primitives). |
+| Icon library | `lucide-react` 1.53.0 through the `<Icon name size />` wrapper. **Phase 4 adds no icon.** It uses only names already in `web/src/components/brand/icons.ts`: `arrow-right`, `chevron-left`, `circle-check`, `eye`, `eye-off`, `info`, `loader-circle`, `lock`, `log-out`, `shield-check`, `triangle-alert`, `user-round`. |
 | Font | Barlow Condensed (display) and Archivo Variable (UI), self-hosted, as P2 § Typography. Emails use web-safe stacks only (§ Email Design Contract). |
 | Styling | Tailwind 4.3.3 utilities only, under the P2 § Tailwind Contract. No new CSS, `@utility`, `@apply` or class selector. App. C looks used for the first time here (`.s-login*`, `.s-note`, `.s-back`, `.s-link`, `.s-small`, `.s-muted`) are transcribed into recipes the same way. |
 | Themes | **All auth screens render Blush only (`data-theme="light"`)**, as App. E.5 draws them, whatever the admin theme saved in `localStorage['csps-theme']`. The signed-in admin shell, including S7 "Signed-in devices", keeps its D-13 theme (Blush or Espresso). |
@@ -49,47 +55,47 @@ Section references such as "§8.2" and "App. E.5" point into `CSPS-UI-SPEC.md`. 
 
 ## Component Inventory
 
-Enumerated by `grep -hE '^export \{' web/src/ui/*/index.ts | sed -E 's/ from .*//' | grep -oE '\b[A-Z][a-z][A-Za-z]*\b' | sort -u | wc -l` — 61 components — csps-web `@/ui` (web/package.json has no version field; source at commit 2dda6e7) — 2026-10-14.
+Enumerated by `grep -hE '^export \{' web/src/components/*/index.ts | sed -E 's/ from .*//' | grep -oE '\b[A-Z][a-z][A-Za-z]*\b' | sort -u | wc -l` — 61 components — csps-web `@/components` (web/package.json has no version field; source at commit 2dda6e7) — 2026-10-14.
 
-The command counts the PascalCase value exports of the 15 area barrels that `web/src/ui/index.ts` re-exports. `web/src/ui/index.test.ts` pins the full list. The table below is a **non-exhaustive** list of the components Phase 4 is known to need, and it is not a closed allowlist: the executor may use anything `@/ui` exports. Checking for a component outside this table is the expected path.
+The command counts the PascalCase value exports of the 15 area barrels that `web/src/components/index.ts` re-exports. `web/src/components/index.test.ts` pins the full list. The table below is a **non-exhaustive** list of the components Phase 4 is known to need, and it is not a closed allowlist: the executor may use anything `@/components` exports. Checking for a component outside this table is the expected path.
 
-### Reused from `@/ui` (no change to look or props unless noted)
+### Reused from `@/components` (no change to look or props unless noted)
 
 | Component | Import path | Use in Phase 4 |
 |-----------|-------------|----------------|
-| Logo | `@/ui` | `size="lg"` in the auth brand panel (App. E.5; phone sizes from App. C). |
-| Button | `@/ui` | Primary lg block submit on every auth form; secondary md block for "Resend Code" and "Use a Different Email"; secondary and primary md in the sign-out dialog. Pending state per WEB-09 (P2 Interaction Contract). |
-| ButtonLink | `@/ui` | Primary lg block "Request a New Link" on the expired reset-link state. |
-| UiLink | `@/ui` | "Forgot password?", the `.s-back` links. |
-| Icon | `@/ui` | Names listed under Design System. |
-| Field | `@/ui` | Email fields. |
-| PasswordField | `@/ui` | Sign-in password (`autoComplete="current-password"`), and New / Confirm new password (`autoComplete="new-password"`; New uses `showStrength`). Uses the existing `hint` and `error` props. |
-| Checkbox | `@/ui` | "Keep me signed in", **unchecked by default** (D-03), with the P2 D-03 checkbox look. |
-| OtpInput, `otpInputError` | `@/ui` | The code step (D-01). Its `label`, `hint` and `error` props take this phase's copy. |
-| ErrorState | `@/ui` | The danger banner on auth forms, with a caller `title` and `message` and **no** `onRetry`. Gets the `align` prop below. |
-| LoadingRegion, SkeletonText | `@/ui` | The "checking your link" state of the reset and invite screens. (S7 gets its loading state through ResponsiveTable.) |
-| Modal | `@/ui` | The "Sign out of other devices?" dialog and the S7 per-device "Sign out {device}?" dialog. Both are composed from Modal, not ConfirmDialog, because ConfirmDialog is hard-wired to the danger button and `trash-2` icon of a delete. |
-| ToastProvider / `useToast` | `@/ui` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7). Optional session-cap warning (OQ-4). |
-| UserMenu, Sidebar, Topbar | `@/ui` | Real sign-out wiring, plus the two new menu items below. |
-| ResponsiveTable | `@/ui` | The S7 device list: table on desktop, in-wrapper scroll on tablet, stacked cards on phones (spec §8.4, P2), with its `pending` (SkeletonTable), `failed` + `onRetry` (ErrorState) states. |
-| RowActions, RowAction | `@/ui` | The per-row `log-out` icon action on S7, the same 36px row-action pattern as the Users list (§8.9; P2 O-8). |
-| Badge | `@/ui` | S7: "This device" (`tone="info"`) and "Keep me signed in" (`tone="neutral"`). Both are text badges; colour is never the only cue. |
+| Logo | `@/components` | `size="lg"` in the auth brand panel (App. E.5; phone sizes from App. C). |
+| Button | `@/components` | Primary lg block submit on every auth form; secondary md block for "Resend Code" and "Use a Different Email"; secondary and primary md in the sign-out dialog. Pending state per WEB-09 (P2 Interaction Contract). |
+| ButtonLink | `@/components` | Primary lg block "Request a New Link" on the expired reset-link state. |
+| UiLink | `@/components` | "Forgot password?", the `.s-back` links. |
+| Icon | `@/components` | Names listed under Design System. |
+| Field | `@/components` | Email fields. |
+| PasswordField | `@/components` | Sign-in password (`autoComplete="current-password"`), and New / Confirm new password (`autoComplete="new-password"`; New uses `showStrength`). Uses the existing `hint` and `error` props. |
+| Checkbox | `@/components` | "Keep me signed in", **unchecked by default** (D-03), with the P2 D-03 checkbox look. |
+| OtpInput, `otpInputError` | `@/components` | The code step (D-01). Its `label`, `hint` and `error` props take this phase's copy. |
+| ErrorState | `@/components` | The danger banner on auth forms, with a caller `title` and `message` and **no** `onRetry`. Gets the `align` prop below. |
+| LoadingRegion, SkeletonText | `@/components` | The "checking your link" state of the reset and invite screens. (S7 gets its loading state through ResponsiveTable.) |
+| Modal | `@/components` | The "Sign out of other devices?" dialog and the S7 per-device "Sign out {device}?" dialog. Both are composed from Modal, not ConfirmDialog, because ConfirmDialog is hard-wired to the danger button and `trash-2` icon of a delete. |
+| ToastProvider / `useToast` | `@/components` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7). Optional session-cap warning (OQ-4). |
+| UserMenu, Sidebar, Topbar | `@/components` | Real sign-out wiring, plus the two new menu items below. |
+| ResponsiveTable | `@/components` | The S7 device list: table on desktop, in-wrapper scroll on tablet, stacked cards on phones (spec §8.4, P2), with its `pending` (SkeletonTable), `failed` + `onRetry` (ErrorState) states. |
+| RowActions, RowAction | `@/components` | The per-row `log-out` icon action on S7, the same 36px row-action pattern as the Users list (§8.9; P2 O-8). |
+| Badge | `@/components` | S7: "This device" (`tone="info"`) and "Keep me signed in" (`tone="neutral"`). Both are text badges; colour is never the only cue. |
 
 ### New or changed in Phase 4 (SPEC-GAP; each file carries `// SPEC-GAP: <name>`)
 
 | Component | Import path | Contract |
 |-----------|-------------|----------|
-| **AuthLayout** | `src/features/auth/AuthLayout.tsx` (planner may move it) | The App. E.5 page: the `.s-page` page root with `data-theme="light"` and `@container/pg`, then `SkipLink`, then the `.s-login` grid holding the brand panel (`.s-login-brand.s-mesh` look: slab, bands, outlined "C", `Logo size="lg"`, quote) and the form column (`.s-login-form` look) containing `<main id="main" tabIndex={-1}>` > the card (`.s-login-card` look) > `<Outlet/>`. Every auth screen renders inside it. **The brand panel is identical on every auth screen.** |
+| **AuthLayout** | `web/src/layouts/AuthLayout.tsx` (planner may move it) | The App. E.5 page: the `.s-page` page root with `data-theme="light"` and `@container/pg`, then `SkipLink`, then the `.s-login` grid holding the brand panel (`.s-login-brand.s-mesh` look: slab, bands, outlined "C", `Logo size="lg"`, quote) and the form column (`.s-login-form` look) containing `<main id="main" tabIndex={-1}>` > the card (`.s-login-card` look) > `<Outlet/>`. Every auth screen renders inside it. **The brand panel is identical on every auth screen.** |
 | **AuthHeader** | same folder | The card's header block from App. E.5: a flex column with gap 8 holding the eyebrow ("CSPS Admin", `.s-eyebrow` look), the `h1` (`.s-login-card h1` look) and the muted subline (`.s-small.s-muted` look). Props: `title`, `subline`, `headingRef` (for focus moves, below). |
-| **Note** | `@/ui` (area `states`) | The App. C `.s-note` look: flex, gap 8, padding 12, radius 8, `--surface-2`, 13px/18px `--ink-muted`, with an 18px icon in the current text colour. Props: `icon` (`shield-check`, `info` or `circle-check`), `children`, and `live?: boolean`. With `live`, it carries `role="status"`. Used for the App. E.5 staff-only note (verbatim) and for the sign-in notices (§ Copywriting). |
-| **ErrorState `align` prop** | `@/ui` | `align?: 'center' \| 'start'`, default `'center'` (App. E.8, unchanged). Auth forms pass `'start'`, which gives the App. E.5 banner its `.s-banner` default `align-items: flex-start`. Extending by a prop follows spec rule 3. |
+| **Note** | `@/components` (area `states`) | The App. C `.s-note` look: flex, gap 8, padding 12, radius 8, `--surface-2`, 13px/18px `--ink-muted`, with an 18px icon in the current text colour. Props: `icon` (`shield-check`, `info` or `circle-check`), `children`, and `live?: boolean`. With `live`, it carries `role="status"`. Used for the App. E.5 staff-only note (verbatim) and for the sign-in notices (§ Copywriting). |
+| **ErrorState `align` prop** | `@/components` | `align?: 'center' \| 'start'`, default `'center'` (App. E.8, unchanged). Auth forms pass `'start'`, which gives the App. E.5 banner its `.s-banner` default `align-items: flex-start`. Extending by a prop follows spec rule 3. |
 | **hitAreaClasses** | `@/ui/tw` or the actions recipe | A shared constant that enlarges a small inline link's touch target to at least 44px tall **without changing what is drawn**: `relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-['']`. The box is a fixed 44px tall and centred, so a 20px link and an ~18px `.s-back` link both get a 44px target. Applied per OQ-5 (default: applied). |
-| **SignOutOthersDialog** | `src/features/auth/` | A `Modal` (title, body, footer: secondary "Keep Others Signed In" + primary `log-out` "Sign Out Other Devices"), with the ConfirmDialog failure rule (P2 UI Considerations → error \| ConfirmDialog). Copy in § Copywriting. |
-| **UserMenu items** | `@/ui` | Two new items in the nav-item recipe with 20px icons. The menu order is "My Profile" (`user-round`) · **"Signed-in Devices"** (`shield-check`, a link to `/admin/sessions`, D-43) · **"Sign Out Other Devices"** (`lock`, opens SignOutOthersDialog; label per OQ-3) · "Logout" (`log-out`). New props `devicesPath?: string` and `onSignOutOthers?: () => void`. Each item renders only when its prop is given, so the Phase 2 showcase keeps its two-item menu. The arrow-key, Home/End and Esc behaviour is the existing P2 menu pattern over all items. |
-| **SessionsPage** (S7) | `src/features/auth/SessionsPage.tsx` (planner may move it) | The admin-shell page "Signed-in devices" (D-43). Contract in § Screen Contracts → S7. |
-| **SignOutDeviceDialog** | `src/features/auth/` | A `Modal` composed exactly like SignOutOthersDialog: title, body, footer with the secondary dismiss "Keep Signed In" (focused on open) and the primary `log-out` "Sign Out Device", plus the ConfirmDialog failure rule. Copy in § Copywriting. |
-| **Device summary formatter** | `src/features/auth/` | Turns a session row into its display strings: device label, "Signed in" absolute time, "Last active" relative-or-absolute time (rules in S7). All times use the business zone Asia/Manila (`BUSINESS_ZONE`) and en-PH through `@/lib/format`, never the browser zone. Phase 4 adds a date-and-time formatter next to the existing `formatBusinessDate` (e.g. "Oct 12, 2026, 3:42 PM"). |
-| **AUTH_COPY** | `src/features/auth/copy.ts` | Every string on the auth screens in one module (P2 rule: no wording in JSX). Email copy lives server-side in one templates module (§ Email Design Contract). |
+| **SignOutOthersDialog** | `web/src/modules/admin/components/` | A `Modal` (title, body, footer: secondary "Keep Others Signed In" + primary `log-out` "Sign Out Other Devices"), with the ConfirmDialog failure rule (P2 UI Considerations → error \| ConfirmDialog). Copy in § Copywriting. |
+| **UserMenu items** | `@/components` | Two new items in the nav-item recipe with 20px icons. The menu order is "My Profile" (`user-round`) · **"Signed-in Devices"** (`shield-check`, a link to `/admin/sessions`, D-43) · **"Sign Out Other Devices"** (`lock`, opens SignOutOthersDialog; label per OQ-3) · "Logout" (`log-out`). New props `devicesPath?: string` and `onSignOutOthers?: () => void`. Each item renders only when its prop is given, so the Phase 2 showcase keeps its two-item menu. The arrow-key, Home/End and Esc behaviour is the existing P2 menu pattern over all items. |
+| **SessionsPage** (S7) | `web/src/modules/admin/pages/SessionsPage.tsx` (planner may move it) | The admin-shell page "Signed-in devices" (D-43). Contract in § Screen Contracts → S7. |
+| **SignOutDeviceDialog** | `web/src/modules/admin/components/` | A `Modal` composed exactly like SignOutOthersDialog: title, body, footer with the secondary dismiss "Keep Signed In" (focused on open) and the primary `log-out` "Sign Out Device", plus the ConfirmDialog failure rule. Copy in § Copywriting. |
+| **Device summary formatter** | `web/src/modules/admin/components/` | Turns a session row into its display strings: device label, "Signed in" absolute time, "Last active" relative-or-absolute time (rules in S7). All times use the business zone Asia/Manila (`BUSINESS_ZONE`) and en-PH through `@/utils/format`, never the browser zone. Phase 4 adds a date-and-time formatter next to the existing `formatBusinessDate` (e.g. "Oct 12, 2026, 3:42 PM"). |
+| **AUTH_COPY** | `web/src/modules/admin/authCopy.ts` | Every string on the auth screens in one module (P2 rule: no wording in JSX). Email copy lives server-side in one templates module (§ Email Design Contract). |
 
 ---
 
@@ -202,7 +208,7 @@ Orange is never the only state cue. The submit buttons, the `.s-back` links, the
     <div>                                              the .s-login-brand.s-mesh look (not a landmark; Logo keeps its name)
       <div/> <div/>                                    slab + bands (decorative, aria-hidden)
       <span aria-hidden="true">C</span>                outlined numeral
-      <Logo size="lg"/>                                aria-label "CSPS — Carmen's Stitch & Printing Services"
+      <Logo size="lg"/>                                aria-label "CSPS: Carmen's Stitch & Printing Services"
       <div> eyebrow "Staff area" + <p> quote </div>    the .s-login-quote look; hidden on phones (App. C)
     </div>
     <div>                                              the .s-login-form look
@@ -436,7 +442,7 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | Element | Copy |
 |---|---|
 | Eyebrow (all screens) | "CSPS Admin" (App. E.5) |
-| Brand panel | Eyebrow "Staff area" · quote "Orders, payments and expenses — all in one place." (App. E.5) |
+| Brand panel | Eyebrow "Staff area" · quote "Orders, payments and expenses, all in one place." (App. E.5) |
 | S1 h1 / subline | "Sign in" / "Use the email and password your manager set up for you." (App. E.5) |
 | S1 fields | "Email" · "Password" · checkbox "Keep me signed in" · link "Forgot password?" (App. E.5) |
 | S1 staff note | "Staff only. Customer orders are placed through the public site or Messenger." (App. E.5) |
@@ -528,7 +534,7 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | Row action | Accessible name "Sign out {device}, signed in {Oct 12, 2026, 3:42 PM}" · pointer hint `title` "Sign out" |
 | Only-this-device note (`shield-check`) | "No other devices are signed in. When you sign in somewhere else, it shows up here." |
 | Loading (live region) | "Loading signed-in devices…" → "Signed-in devices loaded." (P2 pattern) |
-| Load error | "Couldn't load signed-in devices." / "Check your internet connection. Your data is safe — nothing was changed." + "Try Again" (P2 / App. E.8 pattern) |
+| Load error | "Couldn't load signed-in devices." / "Check your internet connection. Your data is safe. Nothing was changed." + "Try Again" (P2 / App. E.8 pattern) |
 | Sign-out-device dialog | Title "Sign out {device}?" · body "Signed in {Oct 12, 2026, 3:42 PM}. That device will have to sign in again with the password and an emailed code. If you don't recognize it, sign it out and tell a Manager." · buttons "Keep Signed In" (secondary, dismisses; Esc and the scrim do the same) / "Sign Out Device" (primary, `log-out`) |
 | Sign-out-device success toast (success) | "Device signed out" / "{device} will have to sign in again." |
 | Already signed out toast (info) | "Already signed out" / "That device was no longer signed in." |
