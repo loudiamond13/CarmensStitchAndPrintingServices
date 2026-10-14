@@ -709,6 +709,29 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // WebKit applies that scroll (revealing the newly focused element) in a task just after the focus move, not during
+  // the focusin, so the positions are read again once that task has run.
+  it('does not count the scroll the browser applies just after that focus move as a drag', () => {
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+      const region = renderInRegion(onClose);
+      stubGeometry(region, OVERFLOWING);
+      setScroll(region, 105, 0);
+
+      fireEvent.mouseDown(region, { clientX: 20, clientY: 210 });
+      fireEvent.focusIn(screen.getByRole('button', { name: 'Close' }));
+      setScroll(region, 0, 0);
+      vi.advanceTimersByTime(0);
+      fireEvent.mouseUp(region, { clientX: 20, clientY: 210 });
+      fireEvent.click(region, { clientX: 20, clientY: 210 });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('ignores a press and click on the scrim while loading, and closes on one once loading ends', () => {
     const onClose = vi.fn();
     const { container, rerender } = render(
