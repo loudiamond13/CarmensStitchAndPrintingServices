@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T17:31:12-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-13T20:10:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -35,6 +35,7 @@ npm --prefix web run e2e                                  # everything
 npm --prefix web run e2e -- --grep @smoke                 # one tag
 npm --prefix web run e2e -- --grep "@smoke|@fixture"      # several tags
 npm --prefix web run e2e -- --grep @smoke --project webkit
+npm --prefix web run e2e -- --grep @dialog-fit --project chromium-overlay-scrollbars
 ```
 
 Everything after `--` goes straight to `playwright test`. Always start through `npm run e2e`; don't call `playwright test` directly, because the runner does the safety steps below first.
@@ -68,8 +69,10 @@ The app's strict CSP ends with `upgrade-insecure-requests`. WebKit applies that 
 | `webkit` | Desktop Safari |
 | `pixel` | Pixel 7 (Chromium) |
 | `iphone` | iPhone 15 (WebKit) |
+| `chromium-classic-scrollbars` | Desktop Chrome with its scrollbars shown, classic: they take about 15px, as Chrome on Windows |
+| `chromium-overlay-scrollbars` | Desktop Chrome with overlay scrollbars, which take no layout space, as macOS with a trackpad and ChromeOS |
 
-The fixture self-tests (`fixture-selftest.spec.ts`) run on the three desktop engines only, because the phone projects use the same engines.
+The fixture self-tests (`fixture-selftest.spec.ts`) run on the three desktop engines only, because the phone projects use the same engines. Headless Chromium hides scrollbars, so the two scrollbar projects turn them back on, and they run only `dialog-scrollbars.spec.ts` (plan 02-42).
 
 ## 6. Writing a test
 
@@ -109,7 +112,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |
 | `@a11y-rulings` | The owner's accessibility rulings on computed styles (D-02, D-03, D-05, D-BL-02, O-3, O-6) | plan 02-35 |
-| `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls) | plan 02-41 (D-42) |
+| `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects) | plans 02-41, 02-42 (D-42) |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 

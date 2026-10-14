@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T15:50:36-05:00"
+updated: "2026-10-13T20:45:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -212,3 +212,9 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **What:** the paint containment you ruled in D-41 R2-02 (it stops the page scrolling sideways on tablets) has a side effect: anything with a fixed position inside the list-table frame is trapped in that frame. A delete or edit dialog placed inside a table row would get a dark backdrop that covers only the table, would be cut off at the table's edges and would scroll with the rows, while the rest of the page stayed clickable. Nothing does this today. A guard now makes such a dialog fail loudly in the first test (`web/src/ui/overlays/fixedLayerGuard.ts`), and row actions keep the dialog's open state on the page and show the dialog outside the table instead, which works today (focus moves into the dialog, no axe violations). Nothing visible changed.
   **Before / after if the owner chooses to change it:** today, a row's "Delete" button opens a dialog that the page shows; the developer cannot put the dialog inside the row. After either change the developer could, and the screen would look the same.
   **Question for the owner:** keep this rule, or allow in-cell dialogs through either (a) a portal into the layout's `.s-page` (spec §2.7 allows it, and it keeps the theme and the phone layout), or (b) `position: relative` on the table frame instead of paint containment (a D-08 ruling; the frozen reference would get the same rule)?
+
+- A page load in Firefox once hung for the whole 60s test timeout during the full seven-project E2E run (plan 02-42)
+  status: open
+  **Found by:** plan 02-42 Task 2, `npm --prefix web run e2e -- --grep "@dialog-fit|@showcase|@keyboard|@a11y-rulings"` (398 passed, 1 failed, 24 skipped).
+  **What:** `@a11y-rulings D-05 … /admin/users (dark) … while Tabbing` failed in `firefox` with `page.goto: Test timeout of 60000ms exceeded` at `a11y-rulings.spec.ts:55`, before any Tab press. Run alone, the test passed in 1.1s, and all 52 firefox `@a11y-rulings` tests passed. The page has no dialog, and nothing plan 02-42 changed runs there (the new Modal listeners exist only while a Modal is open), so it was not fixed here. It looks like load on the shared machine during a 15-minute run with many workers.
+  **Options:** (a) leave it and re-run on a recurrence; (b) give the non-showcase D-05 cases the same longer timeout the showcase has; (c) cap the E2E workers for the full run. Neither (b) nor (c) changes what is checked.

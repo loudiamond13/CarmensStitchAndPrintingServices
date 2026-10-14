@@ -1,6 +1,6 @@
 # Release gates: every check the web app must pass, and the order to run them
 
-*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-13T09:40:00-05:00*
+*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-13T20:10:00-05:00*
 
 This page lists every automated gate for the web app (Phase 2, plan 02-35), the command that runs it and the rule it passes on. Run them in the order of section 3 before `/gsd-verify-work`. A gate that fails is fixed in the code. **No gate is ever passed by loosening a limit, adding a tolerance or skipping a check.** If the only fix would change how an approved screen looks, its words or its accessibility structure, stop and take it to the owner (decision D-08).
 
@@ -24,7 +24,7 @@ This page lists every automated gate for the web app (Phase 2, plan 02-35), the 
 | Bundle budgets | `npm --prefix web run build` and `npm --prefix web run build:budget` | Public initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, CSS ≤ 35 KB gz; no admin, dev or parity code in production; exactly one CSS file. | [budgets.md](budgets.md) |
 | License gate | `npm --prefix web run license:check` | Every package's license is on the allow-list or an owner-approved, version-pinned exception. | `docs/dependencies.md` |
 | Third-party notices | `npm --prefix web run notices:check` | `web/THIRD-PARTY-NOTICES.txt` matches the production dependencies (run `npm --prefix web run notices` and commit it when they change). | — |
-| Browser tests (E2E) | `npm --prefix web run e2e` | Every Playwright test passes in all five projects (chromium, firefox, webkit, Pixel 7, iPhone 15) with no console, page-error, CSP, failed-response or axe finding. | [e2e.md](e2e.md) |
+| Browser tests (E2E) | `npm --prefix web run e2e` | Every Playwright test passes in all seven projects: the five (chromium, firefox, webkit, Pixel 7, iPhone 15) plus the two Chromium scrollbar projects (`chromium-classic-scrollbars` and `chromium-overlay-scrollbars`), which run only `dialog-scrollbars.spec.ts`, with no console, page-error, CSP, failed-response or axe finding. | [e2e.md](e2e.md) |
 | Look-equality proof | `npm --prefix web run parity` (no filter: every group, the reduced-motion pass and the touch pass) | Every case is equal to the approved design in Chromium, Firefox and WebKit: computed styles and boxes, pixels (0 differing), zero axe and zero CSP findings on both sides. | [parity.md](parity.md) |
 | Lighthouse | `npm --prefix web run lighthouse` | On the production build served by the real host, mobile profile: every category (performance, accessibility, best practices, SEO) ≥ 0.95, LCP < 2000 ms, CLS < 0.05, TBT < 200 ms (the lab stand-in for INP). | section 2 |
 | API contract drift | `npm --prefix tools/openapi-gen run check` | The generated `web/src/types/api.generated.ts` matches the committed OpenAPI snapshot. | [api.md](api.md) |
@@ -69,7 +69,7 @@ Run them one after another, not in parallel: they share CPU, and the E2E and Lig
 1. The **preflight** (above). Stop and wait if it shows another project's servers or tests.
 2. `npm --prefix web run verify`. This is the fastest way to catch most problems.
 3. `npm --prefix tools/openapi-gen run check` and `dotnet test --solution Csps.slnx`.
-4. `npm --prefix web run e2e`, all tags in all five projects.
+4. `npm --prefix web run e2e`, all tags in all seven projects: the five (chromium, firefox, webkit, Pixel 7, iPhone 15) plus the two Chromium scrollbar projects (`chromium-classic-scrollbars` and `chromium-overlay-scrollbars`), which run only `dialog-scrollbars.spec.ts`.
 5. `npm --prefix web run parity`, the full matrix in three engines (452 rows). This is the slowest gate, at about 30 minutes on this machine.
 6. `npm --prefix web run lighthouse` on an otherwise idle machine. The performance score is measured on this computer, so a busy CPU lowers it.
 
