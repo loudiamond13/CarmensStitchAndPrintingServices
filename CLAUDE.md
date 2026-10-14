@@ -1,5 +1,5 @@
 # CarmensStitchAndPrintingServices
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-07T18:50:51-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-14T08:43:04-05:00*
 
 ## Shared machine: do not collide with TheBETSLLC (C:\Work\TheBETSLLC)
 
@@ -26,4 +26,4 @@ Another project is developed on this machine at the same time, often by a separa
 - **DB:** no JSON columns. Compat level pinned at 160 until the host level is verified. The dev seed is an explicit `tools/` command that refuses any DB except `CSPS_Dev`/`CSPS_E2E`, and nothing seeds or migrates at startup.
 - **API surface:** OpenAPI + Scalar only in Development. `/health` is public with a minimal body. A production 500 returns "Something went wrong. Reference: <traceId>". Error text is plain English.
 - **Security/tooling:** Data Protection keys are encrypted with a certificate (host-secret PFX; dev PFX in user-secrets). Architecture tests use ArchUnitNET. Coverage uses coverlet.MTP + ReportGenerator. Release cool-down is 14 days.
-- **Audit/logs:** IPs truncated to /24 (IPv4) and /48 (IPv6), 2-year audit retention. Logs are JSON files in `{contentRoot}/logs`, kept 30 days.
+- **Audit/logs:** IPs truncated to /24 (IPv4) and /48 (IPv6), 8-month audit retention (D-32). Logs are JSON files in `{contentRoot}/logs`, kept 30 days.
