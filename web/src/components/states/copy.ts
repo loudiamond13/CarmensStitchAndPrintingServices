@@ -12,6 +12,8 @@ export const STATES_COPY = {
     reference: (traceId: string): string => `Reference: ${traceId}`,
     retry: 'Try Again',
   },
+  /** The hidden text of EmptyValue (spec §9.4 Empty, OR-4). */
+  emptyValue: 'Not set',
   /** LoadingRegion's polite announcements ("Loading announcement"). */
   loading: {
     loading: (things: string): string => `Loading ${things}…`,

@@ -172,14 +172,14 @@ export function formatPeso(n: number | string | null | undefined): string {
 
 /**
  * "Oct 6, 2026". Accepts a calendar date "2026-10-06" (no zone shift), an API instant with a zone, or a Date (both
- * shown in the business zone). Empty, a zone-less date-time and unparseable text → "-".
+ * shown in the business zone). Empty, a zone-less date-time and unparseable text → null (render EmptyValue).
  * SPEC-DEVIATION (LIB-WR-07): App. D.1 formatted with getMonth/getDate/getFullYear, so an instant showed the calendar
  * day of the machine's zone, not Asia/Manila. This is now a thin wrapper over @/utils/format, which never reads the
  * machine's zone. New screens call formatCalendarDate / formatBusinessDate directly.
  */
-export function formatDate(d: string | Date | null | undefined): string {
-  if (!d) return '-';
-  if (d instanceof Date) return Number.isNaN(d.getTime()) ? '-' : formatBusinessDate(d.toISOString());
+export function formatDate(d: string | Date | null | undefined): string | null {
+  if (!d) return null;
+  if (d instanceof Date) return Number.isNaN(d.getTime()) ? null : formatBusinessDate(d.toISOString());
   return d.length === 10 ? formatCalendarDate(d) : formatBusinessDate(d);
 }
 

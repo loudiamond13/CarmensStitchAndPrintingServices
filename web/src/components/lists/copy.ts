@@ -10,8 +10,6 @@ export function nounFor(count: number, thing: string, things: string): string {
 
 /** The copy of the list primitives (plan 02-30). */
 export const LISTS_COPY = {
-  /** A missing cell value (spec §9.4). */
-  missing: '-',
   /** The visually hidden actions column header (App. E.7/E.12). */
   actions: 'Actions',
   /** First-use empty state: "No orders yet" (App. E.8). */

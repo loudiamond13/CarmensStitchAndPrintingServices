@@ -21,7 +21,7 @@ import type { IconName } from '@/components/brand';
 import { EmptyState, type EmptyStateHeadingLevel } from '@/components/feedback';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { PaintContainmentContext } from '@/components/overlays/fixedLayerGuard';
-import { ErrorState, LoadingRegion, useDelayedFlag } from '@/components/states';
+import { EmptyValue, ErrorState, LoadingRegion, useDelayedFlag } from '@/components/states';
 import { LISTS_COPY } from './copy';
 import {
   bodyCellBorderClasses,
@@ -221,7 +221,7 @@ export function ResponsiveTable<T>({
                       const content = column.cell(row);
                       return (
                         <td key={column.key} data-label={labelOf(column)} className={bodyCellClasses(column, tone)}>
-                          {isMissing(content) ? LISTS_COPY.missing : content}
+                          {column.actions !== true && isMissing(content) ? <EmptyValue /> : content}
                         </td>
                       );
                     })}

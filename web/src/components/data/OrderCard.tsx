@@ -25,6 +25,7 @@ import { formatCalendarDate } from '@/utils/format';
 import { Button } from '@/components/actions';
 import { Icon, MediaPlaceholder } from '@/components/brand';
 import { OrderTotals } from '@/components/money';
+import { EmptyValue } from '@/components/states';
 import { isOrderStatus, StatusBadge } from '@/components/status';
 import { WALK_IN_CUSTOMER } from './copy';
 import {
@@ -100,11 +101,11 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
         <div className={orderDatesClasses}>
           <span className={orderDateClasses}>
             <Icon name="calendar" size={14} />
-            {formatCalendarDate(o.orderDate)}
+            {formatCalendarDate(o.orderDate) ?? <EmptyValue />}
           </span>
           <span className={clsx(orderDateClasses, o.overdue && orderOverdueClasses)}>
             <Icon name="clock" size={14} />
-            Due {formatCalendarDate(o.dueDate)}
+            Due {formatCalendarDate(o.dueDate) ?? <EmptyValue />}
           </span>
         </div>
         <OrderTotals order={o} totals={totals} variant="card" />

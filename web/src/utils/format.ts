@@ -6,8 +6,6 @@
 /** The default business zone (Phase 1 decision; SiteSettings overrides it later). */
 export const BUSINESS_ZONE = 'Asia/Manila';
 
-const EMPTY = '-';
-
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 /** One cached en-US "Oct 6, 2026" formatter per zone. An unknown zone throws a RangeError (a settings bug). */
@@ -42,17 +40,17 @@ function calendarParts(match: RegExpExecArray | null): readonly [number, number,
 
 /**
  * "Oct 6, 2026": the calendar date of a UTC instant from the API (an ISO timestamp with "Z" or an offset), as seen
- * in the business zone. Any other text gives "-".
+ * in the business zone. Any other text gives null (render EmptyValue).
  */
-export function formatBusinessDate(utcIso: string, zone: string = BUSINESS_ZONE): string {
-  if (calendarParts(INSTANT.exec(utcIso)) === null) return EMPTY;
+export function formatBusinessDate(utcIso: string, zone: string = BUSINESS_ZONE): string | null {
+  if (calendarParts(INSTANT.exec(utcIso)) === null) return null;
   return formatterFor(zone).format(new Date(utcIso));
 }
 
-/** "Oct 6, 2026" for a plain YYYY-MM-DD business date, with no zone shift. Any other text gives "-". */
-export function formatCalendarDate(ymd: string): string {
+/** "Oct 6, 2026" for a plain YYYY-MM-DD business date, with no zone shift. Any other text gives null (render EmptyValue). */
+export function formatCalendarDate(ymd: string): string | null {
   const parts = calendarParts(CALENDAR_DATE.exec(ymd));
-  if (parts === null) return EMPTY;
+  if (parts === null) return null;
   const [year, month, day] = parts;
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
