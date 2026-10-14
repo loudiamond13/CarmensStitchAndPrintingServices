@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T11:51:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T12:21:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -19,7 +19,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - **Stack (PRD §2):**
   - Backend: .NET 10 / C# 14 controller-based APIs (`[ApiController]` + attribute routes) under `/api/v1`, EF Core 10 code-first with Fluent config only, SQL Server 2025, Identity (`IdentityUser<Guid>`), FluentValidation, MailKit, Cloudinary, Serilog.
   - Frontend: React 19 + TS strict + Vite, Tailwind v4, React Router, TanStack Query, RHF + zod.
-- **Free only:** no paid licenses, tools or services, except the hosting and domain the owner already pays for. Licenses allowed: MIT, Apache-2.0, BSD and ISC, plus approved exceptions: MPL-2.0 for axe (dev/test only), OFL-1.1 for the @fontsource fonts, and two free Microsoft-licensed runtime parts of the SQL Server driver, pinned to exact versions in `docs/license-exceptions.json` (Microsoft.Data.SqlClient.SNI.runtime 6.0.2, Microsoft.Identity.Client.NativeInterop 0.20.6; any other version needs a new owner approval). Never GPL, AGPL, SSPL or commercial licenses.
+- **Free only:** no paid licenses, tools or services, except the hosting and domain the owner already pays for. Licenses allowed: MIT, Apache-2.0, BSD and ISC, plus approved exceptions: MPL-2.0 for axe (dev/test only), OFL-1.1 for the @fontsource fonts, and two free Microsoft-licensed runtime parts of the SQL Server driver, pinned to exact versions in `docs/license-exceptions.json` (Microsoft.Data.SqlClient.SNI.runtime 6.0.3, Microsoft.Identity.Client.NativeInterop 0.20.6; any other version needs a new owner approval). Never GPL, AGPL, SSPL or commercial licenses.
 - **Forbidden:** axios, MediatR, AutoMapper, FluentAssertions v8+, jQuery, any UI kit, `react-router-dom`, `coverlet.collector`, `Microsoft.Testing.Extensions.CodeCoverage`, Swashbuckle/NSwag, `FluentValidation.AspNetCore`, SpaProxy, and Serilog DB sinks.
 - **New dependencies** need their purpose, license, maintenance status and a legitimacy check recorded in the phase RESEARCH.md. The **release cool-down is 14 days**: adopt only versions at least 14 days old (security fixes may skip it, with a recorded reason).
 - **Architecture (PRD §3):**

@@ -15,9 +15,9 @@ Packages: 71
 | Azure.Core | 1.50.0 | MIT | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.50.0/sdk/core/Azure.Core/README.md |
 | Azure.Identity | 1.17.1 | MIT | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Identity_1.17.1/sdk/identity/Azure.Identity/README.md |
 | Humanizer.Core | 2.14.1 | MIT | https://github.com/Humanizr/Humanizer |
-| Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.12 | MIT | https://asp.net/ |
-| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.12 | MIT | https://asp.net/ |
-| Microsoft.AspNetCore.OpenApi | 10.0.12 | MIT | https://asp.net/ |
+| Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.13 | MIT | https://asp.net/ |
+| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.13 | MIT | https://asp.net/ |
+| Microsoft.AspNetCore.OpenApi | 10.0.13 | MIT | https://asp.net/ |
 | Microsoft.Bcl.AsyncInterfaces | 8.0.0 | MIT | https://dot.net/ |
 | Microsoft.Bcl.Cryptography | 10.0.2 | MIT | https://dot.net/ |
 | Microsoft.Build.Framework | 18.0.2 | MIT | http://go.microsoft.com/fwlink/?LinkId=624683 |
@@ -28,16 +28,16 @@ Packages: 71
 | Microsoft.CodeAnalysis.CSharp.Workspaces | 5.0.0 | MIT | https://github.com/dotnet/roslyn |
 | Microsoft.CodeAnalysis.Workspaces.Common | 5.0.0 | MIT | https://github.com/dotnet/roslyn |
 | Microsoft.CodeAnalysis.Workspaces.MSBuild | 5.0.0 | MIT | https://github.com/dotnet/roslyn |
-| Microsoft.Data.SqlClient | 6.1.6 | MIT | https://aka.ms/sqlclientproject |
-| Microsoft.Data.SqlClient.SNI.runtime | 6.0.2 | [Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library](https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.2/license) | https://aka.ms/sqlclientproject |
-| Microsoft.EntityFrameworkCore | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
-| Microsoft.EntityFrameworkCore.Abstractions | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
-| Microsoft.EntityFrameworkCore.Analyzers | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
-| Microsoft.EntityFrameworkCore.Design | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
-| Microsoft.EntityFrameworkCore.Relational | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
-| Microsoft.EntityFrameworkCore.SqlServer | 10.0.12 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.Data.SqlClient | 6.1.7 | MIT | https://aka.ms/sqlclientproject |
+| Microsoft.Data.SqlClient.SNI.runtime | 6.0.3 | [Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library](https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.3/license) | https://aka.ms/sqlclientproject |
+| Microsoft.EntityFrameworkCore | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.Abstractions | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.Analyzers | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.Design | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.Relational | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.SqlServer | 10.0.13 | MIT | https://docs.microsoft.com/ef/core/ |
 | Microsoft.Extensions.Caching.Hybrid | 10.10.0 | MIT | https://dot.net/ |
-| Microsoft.Extensions.DependencyModel | 10.0.12 | MIT | https://dot.net/ |
+| Microsoft.Extensions.DependencyModel | 10.0.13 | MIT | https://dot.net/ |
 | Microsoft.Identity.Client | 4.84.2 | MIT | https://go.microsoft.com/fwlink/?linkid=844761 |
 | Microsoft.Identity.Client.Broker | 4.84.2 | MIT | https://go.microsoft.com/fwlink/?linkid=844761 |
 | Microsoft.Identity.Client.Extensions.Msal | 4.78.0 | MIT | https://go.microsoft.com/fwlink/?linkid=844761 |
@@ -54,7 +54,7 @@ Packages: 71
 | Microsoft.IdentityModel.Protocols.OpenIdConnect | 8.19.2 | MIT | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | Microsoft.IdentityModel.Tokens | 7.7.1 | MIT | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | Microsoft.IdentityModel.Tokens | 8.19.2 | MIT | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.OpenApi | 2.12.0 | MIT | https://github.com/Microsoft/OpenAPI.NET |
+| Microsoft.OpenApi | 2.12.2 | MIT | https://github.com/Microsoft/OpenAPI.NET |
 | Microsoft.SqlServer.Server | 1.0.0 | MIT | https://aka.ms/sqlclientproject |
 | Microsoft.VisualStudio.SolutionPersistence | 1.0.52 | MIT | https://github.com/microsoft/vs-solutionpersistence |
 | Mono.TextTemplating | 3.0.0 | MIT | https://github.com/mono/t4 |
@@ -81,7 +81,7 @@ Packages: 71
 | System.IdentityModel.Tokens.Jwt | 7.7.1 | MIT | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | System.IdentityModel.Tokens.Jwt | 8.19.2 | MIT | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | System.Memory.Data | 8.0.1 | MIT | https://dot.net/ |
-| System.Security.Cryptography.Pkcs | 9.0.11 | MIT | https://dot.net/ |
+| System.Security.Cryptography.Pkcs | 10.0.13 | MIT | https://dot.net/ |
 | System.Security.Cryptography.ProtectedData | 9.0.11 | MIT | https://dot.net/ |
 
 ## Free Microsoft components that are not open source
@@ -93,5 +93,5 @@ exact version (docs/license-exceptions.json).
 
 | Package | Version | License | Brought in by | Approved |
 | --- | --- | --- | --- | --- |
-| Microsoft.Data.SqlClient.SNI.runtime | 6.0.2 | [Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library](https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.2/license) | Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12 | 2026-10-07 by the owner |
-| Microsoft.Identity.Client.NativeInterop | 0.20.6 | [Microsoft Software License Terms](https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license) | Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12 | 2026-10-07 by the owner |
+| Microsoft.Data.SqlClient.SNI.runtime | 6.0.3 | [Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library](https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.3/license) | Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13 | 2026-10-14 by the owner |
+| Microsoft.Identity.Client.NativeInterop | 0.20.6 | [Microsoft Software License Terms](https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license) | Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13 | 2026-10-07 by the owner |

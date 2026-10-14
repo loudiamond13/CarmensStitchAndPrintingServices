@@ -3,12 +3,12 @@
   "exceptions": [
     {
       "packageId": "Microsoft.Data.SqlClient.SNI.runtime",
-      "version": "6.0.2",
+      "version": "6.0.3",
       "license": "Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library",
-      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.2/license",
-      "pulledInBy": "Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.3/license",
+      "pulledInBy": "Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13",
       "reason": "Native SQL Server network library that the SQL Server driver needs on Windows. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
-      "approved": "2026-10-07",
+      "approved": "2026-10-14",
       "approvedBy": "owner"
     },
     {
@@ -16,7 +16,7 @@
       "version": "0.20.6",
       "license": "Microsoft Software License Terms",
       "licenseUrl": "https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license",
-      "pulledInBy": "Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "pulledInBy": "Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13",
       "reason": "Native sign-in helper that the SQL Server driver always brings along. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
       "approved": "2026-10-07",
       "approvedBy": "owner"

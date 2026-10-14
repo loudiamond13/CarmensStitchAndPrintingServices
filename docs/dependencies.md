@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-13T08:45:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T12:21:46-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -37,8 +37,8 @@ The SQL Server driver that the app uses to talk to its database brings along two
 
 | Part | Exact version | License | Why it is there |
 |------|---------------|---------|-----------------|
-| Microsoft.Data.SqlClient.SNI.runtime | 6.0.2 | Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library | The driver's network library on Windows. Pulled in by Microsoft.Data.SqlClient 6.1.6, which EF Core's SQL Server provider 10.0.12 uses. |
-| Microsoft.Identity.Client.NativeInterop | 0.20.6 | Microsoft Software License Terms | A sign-in helper the driver always brings along. Pulled in by Microsoft.Identity.Client.Broker 4.84.2, which Microsoft.Data.SqlClient 6.1.6 uses. |
+| Microsoft.Data.SqlClient.SNI.runtime | 6.0.3 | Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library | The driver's network library on Windows. Pulled in by Microsoft.Data.SqlClient 6.1.7, which EF Core's SQL Server provider 10.0.13 uses. |
+| Microsoft.Identity.Client.NativeInterop | 0.20.6 | Microsoft Software License Terms | A sign-in helper the driver always brings along. Pulled in by Microsoft.Identity.Client.Broker 4.84.2, which Microsoft.Data.SqlClient 6.1.7 uses. |
 
 The approval covers **only these exact versions**. They are listed in `docs/license-exceptions.json`, and the license gate (`tools/scripts/New-ThirdPartyNotices.ps1`) fails if either part changes version, or if any other package arrives under a license we do not allow. A new version needs a new owner approval. The approval is also recorded in `docs/dependencies.json` under `approvals`.
 
@@ -52,10 +52,14 @@ We adopt a new version of a package only after it has been public for **at least
 
 - Each entry records the date the version was published and the date we adopted it. The test checks that the gap is at least 14 days. Exactly 14 days is fine; 13 days is not.
 - A security fix may skip the wait. When that happens, the entry says `accepted:` followed by the reason, so the exception is always written down.
+- **The .NET security update of 2026-10-14 (quick task 261014-gqz).** On 2026-10-13 Microsoft published fixes for security problems in two of its parts that the app uses behind the scenes: System.Security.Cryptography.Pkcs, which the SQL Server driver brings along, and System.Security.Cryptography.Xml, which Data Protection uses to lock the sign-in key ring. We moved the seven .NET pins that were at 10.0.12, plus the dotnet-ef tool, to 10.0.13. We also pinned those two parts at 10.0.13 directly, so the fixed version is used even where another package asks for an older one. The owner approved skipping the 14-day wait on 2026-10-14 because these are security fixes. Each record says `accepted:` with the advisory numbers (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj and GHSA-r955-8q5j-3h83), and they reach 14 days on 2026-10-27.
+- **Three more parts moved along with it, and the owner approved them on 2026-10-14.** The 10.0.13 packages ask for newer versions of Microsoft.Data.SqlClient (6.1.6 to 6.1.7, published 2026-09-10), Microsoft.Data.SqlClient.SNI.runtime (6.0.2 to 6.0.3, published 2026-08-14, same Microsoft license terms as before) and Microsoft.OpenApi (2.12.0 to 2.12.2, published 2026-08-20, MIT). None has a known security advisory and all are well past 14 days old, so no cool-down exception is needed. SNI.runtime is the one that needed a new license approval, because the license exception is pinned to an exact version: `docs/license-exceptions.json` now names 6.0.3.
 
 ## Owner approval
 
 The owner approved the full Phase 1 list on **2026-10-07**, before anything was downloaded (plan 01-01, package legitimacy gate). The Phase 2 web packages were approved on **2026-10-07** (D-25, plus two security overrides) and **2026-10-08** (D-34 lucide-react 1.53.0, D-36 the two Tailwind tooling plugins). Each approval is recorded in `docs/dependencies.json` under `approvals`.
+
+On **2026-10-14** the owner approved the .NET 10.0.13 security update and the two crypto pins (quick task 261014-gqz), together with the SqlClient 6.1.7, SNI.runtime 6.0.3 and Microsoft.OpenApi 2.12.2 moves that come with it. It is recorded under `approvals`.
 
 ## The web app's packages (npm)
 
