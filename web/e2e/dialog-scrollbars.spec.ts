@@ -7,9 +7,20 @@
 // At 1280x420 the Delete Order dialog is taller than the window, so its backdrop (the Overlay region) scrolls. D-42:
 // pressing or dragging the backdrop's scrollbar scrolls it and never closes the dialog, so the typed order number is
 // never lost. A middle or a right press on the dark area does not close it either, and a left click there still does.
+// From a scrolled backdrop, a press that does not close leaves the caret in the confirm field and the backdrop where it
+// was (review WR-01/WR-02, plan 02-43).
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
-import { ORDER, openDeleteOrder, readRegion, type OpenDialog } from './deleteOrderDialog.ts';
+import {
+  ORDER,
+  openDeleteOrder,
+  readCaret,
+  readRegion,
+  waitForFramesAndTask,
+  waitForSettledScroll,
+  wheelOverDialog,
+  type OpenDialog,
+} from './deleteOrderDialog.ts';
 
 type ScrollbarMode = 'classic' | 'overlay';
 
@@ -70,6 +81,19 @@ async function openTyped(page: Page, mode: ScrollbarMode): Promise<OpenDialog> {
   return fit;
 }
 
+/**
+ * The dialog is still open and the confirm field kept what the person typed: its value, the focus and the caret after
+ * the last character. Waits first, so a focus move or a scroll that happens a task after the press is seen.
+ */
+async function expectKept(fit: OpenDialog, page: Page): Promise<void> {
+  await waitForFramesAndTask(page);
+  await expect(fit.dialog).toBeVisible();
+  const field = fit.dialog.getByRole('textbox');
+  await expect(field).toHaveValue(ORDER);
+  await expect(field).toBeFocused();
+  expect(await readCaret(page)).toEqual({ start: 13, end: 13 });
+}
+
 test("@dialog-fit scrollbars 1280x420: dragging the backdrop's scrollbar scrolls it and keeps the Delete Order dialog open with the typed order number", async ({
   page,
 }, testInfo) => {
@@ -83,11 +107,13 @@ test("@dialog-fit scrollbars 1280x420: dragging the backdrop's scrollbar scrolls
   const before = (await readRegion(page)).scrollTop;
 
   await page.mouse.down();
+  await waitForFramesAndTask(page);
+  await expect(field, 'the press on the scrollbar kept the focus in the field').toBeFocused();
+  expect((await readRegion(page)).scrollTop, 'the press did not move the backdrop').toBe(before);
   await page.mouse.move(WINDOW.width - 4, 300, { steps: 10 });
   await page.mouse.up();
 
-  await expect(fit.dialog).toBeVisible();
-  await expect(field).toHaveValue('ORD-2026-0148');
+  await expectKept(fit, page);
   const after = (await readRegion(page)).scrollTop;
   testInfo.annotations.push({
     type: 'dialog-scrollbars',
@@ -101,32 +127,38 @@ test("@dialog-fit scrollbars 1280x420: a press on the backdrop's scrollbar witho
 }, testInfo) => {
   const mode = scrollbarMode(testInfo);
   const fit = await openTyped(page, mode);
-  const field = fit.dialog.getByRole('textbox');
 
   await revealScrollbar(page, WINDOW.width - 4, 120);
+  const before = (await readRegion(page)).scrollTop;
   await page.mouse.down();
   await page.mouse.up();
-  await expect(fit.dialog).toBeVisible();
-  await expect(field).toHaveValue('ORD-2026-0148');
+  await expectKept(fit, page);
+  expect((await readRegion(page)).scrollTop, 'a press on the thumb did not move the backdrop').toBe(before);
 
   if (mode === 'classic') {
-    // The first scrollbar column: the client area ends just left of it.
+    // The first scrollbar column: the client area ends just left of it. On Windows-style scrollbars that column can be
+    // track, where a press legitimately pages the backdrop, so its scrollTop is recorded, not asserted.
     await page.mouse.click(fit.metrics.clientWidth, 120);
-    await expect(fit.dialog).toBeVisible();
-    await expect(field).toHaveValue('ORD-2026-0148');
+    await expectKept(fit, page);
+    testInfo.annotations.push({
+      type: 'dialog-scrollbars',
+      description: `${testInfo.project.name}: first scrollbar column press, scrollTop ${String(before)} -> ${String((await readRegion(page)).scrollTop)}`,
+    });
   }
 });
 
 test('@dialog-fit scrollbars 1280x420: a middle press on the dark area keeps the dialog open', async ({
   page,
 }, testInfo) => {
-  // Its own test: on the scrolling backdrop the middle press may start autoscroll.
+  // Its own test: on the scrolling backdrop the middle press may start autoscroll. It starts from a scrolled backdrop.
   const fit = await openTyped(page, scrollbarMode(testInfo));
+  await wheelOverDialog(page, fit);
+  const before = await waitForSettledScroll(page);
 
   await page.mouse.click(20, 60, { button: 'middle' });
 
-  await expect(fit.dialog).toBeVisible();
-  await expect(fit.dialog.getByRole('textbox')).toHaveValue('ORD-2026-0148');
+  await expectKept(fit, page);
+  expect((await readRegion(page)).scrollTop, 'the middle press did not move the backdrop').toBe(before);
 });
 
 test('@dialog-fit scrollbars 1280x420: a right press on the dark area keeps the dialog open, and a left click there closes it', async ({
@@ -134,10 +166,12 @@ test('@dialog-fit scrollbars 1280x420: a right press on the dark area keeps the 
 }, testInfo) => {
   const mode = scrollbarMode(testInfo);
   const fit = await openTyped(page, mode);
+  await wheelOverDialog(page, fit);
+  const before = await waitForSettledScroll(page);
 
   await page.mouse.click(20, 60, { button: 'right' });
-  await expect(fit.dialog).toBeVisible();
-  await expect(fit.dialog.getByRole('textbox')).toHaveValue('ORD-2026-0148');
+  await expectKept(fit, page);
+  expect((await readRegion(page)).scrollTop, 'the right press did not move the backdrop').toBe(before);
 
   // Classic: the last scrim column, next to the scrollbar.
   await page.mouse.click(mode === 'classic' ? fit.metrics.clientWidth - 1 : 20, 60);

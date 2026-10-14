@@ -11,13 +11,14 @@
 //     above the phone sheet), while a middle or a right press there does not (plan 02-42, D-42; the real-scrollbar
 //     cases are in dialog-scrollbars.spec.ts);
 //   - on a scrolled backdrop a press that does not close leaves the caret in the confirm field and the backdrop where it
-//     was (review WR-01, plan 02-43).
+//     was (review WR-01, plan 02-43); the phone screens, whose sheet fits without scrolling, check a right press above
+//     the sheet instead.
 // The desktop and phone-page sizes run in chromium, firefox and webkit; the pixel and iphone projects check their own
 // screen instead (touch scrolling cannot be driven by the wheel in mobile emulation, so they scroll Delete Order into
 // view directly). Every measurement waits for the dialog's entry animation to finish: its 0.2s rise moves its box.
 // Page scripts are strings: the e2e TypeScript program has no DOM types. The Delete Order helpers are shared with
 // dialog-scrollbars.spec.ts (deleteOrderDialog.ts).
-import type { TestInfo } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import {
   boxOf,
@@ -210,10 +211,17 @@ test('@dialog-fit 1440x900: a left click on the dark area above the dialog close
   test.skip(isDevice(testInfo), DESKTOP_ONLY);
   const fit = await openDeleteOrder(page, { width: 1440, height: 900 });
 
+  const field = fit.dialog.getByRole('textbox');
+  await expect(field, 'the field has the focus on open').toBeFocused();
+
   await page.mouse.click(720, 70, { button: 'middle' });
+  await waitForFramesAndTask(page);
   await expect(fit.dialog, 'after a middle press').toBeVisible();
+  await expect(field, 'after a middle press').toBeFocused();
   await page.mouse.click(720, 70, { button: 'right' });
+  await waitForFramesAndTask(page);
   await expect(fit.dialog, 'after a right press').toBeVisible();
+  await expect(field, 'after a right press').toBeFocused();
 
   await page.mouse.click(720, 70);
   await expect(fit.dialog).toHaveCount(0);
@@ -247,10 +255,17 @@ test("@dialog-fit on the phone's own screen: a click on the dark area above the 
   await expect(fit.dialog).toHaveCount(0);
 });
 
-test('@dialog-fit 1280x420 scrolled: a right press on the dark area keeps the dialog open, the caret in the confirm field and the backdrop where it was', async ({
-  page,
-}, testInfo) => {
-  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+/**
+ * Types the order number, wheels the backdrop to the buttons, then presses the dark area beside the dialog with the given
+ * button. The dialog stays open, the caret stays after the order number in the confirm field, and the backdrop's
+ * scrollTop is strictly what it was (review WR-01, plan 02-43).
+ */
+async function expectScrolledPressKept(
+  page: Page,
+  testInfo: TestInfo,
+  press: { readonly button: 'middle' | 'right' },
+): Promise<void> {
+  const { button } = press;
   const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
   const field = fit.dialog.getByRole('textbox');
   await expect(field).toBeFocused();
@@ -260,14 +275,61 @@ test('@dialog-fit 1280x420 scrolled: a right press on the dark area keeps the di
   const before = await waitForSettledScroll(page);
   expect(before, 'the wheel scrolled the backdrop').toBeGreaterThan(0);
 
-  await page.mouse.click(20, 210, { button: 'right' });
+  await page.mouse.click(20, 210, press);
   await waitForFramesAndTask(page);
 
   const after = (await readRegion(page)).scrollTop;
   const focused = await field.evaluate<boolean>('(element) => element === document.activeElement');
   testInfo.annotations.push({
     type: 'dialog-focus',
-    description: `${testInfo.project.name} right press: scrollTop ${String(before)} -> ${String(after)}, field focused ${String(focused)}`,
+    description: `${testInfo.project.name} ${button} press: scrollTop ${String(before)} -> ${String(after)}, field focused ${String(focused)}`,
+  });
+  await expect(fit.dialog).toBeVisible();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(ORDER);
+  expect(await readCaret(page)).toEqual({ start: 13, end: 13 });
+  // Known limit of Firefox, scoped to the middle press only: Firefox's own middle-button scroll moves the backdrop about
+  // 22 ms after the mouseup (scrollTop 105 -> 4 -> 0). It is not caused by a focus() call (the trap's only call uses
+  // preventScroll, and scrollTop stayed 105 through it); the dialog stays open and the field keeps its focus, value and
+  // caret, all asserted above. Owner decision 2026-10-14, plan 02-43. Every other press and project asserts it.
+  const firefoxMiddleScroll = button === 'middle' && testInfo.project.name === 'firefox';
+  if (!firefoxMiddleScroll) {
+    expect(after, `the ${button} press did not move the backdrop`).toBe(before);
+  }
+}
+
+test('@dialog-fit 1280x420 scrolled: a right press on the dark area keeps the dialog open, the caret in the confirm field and the backdrop where it was', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  await expectScrolledPressKept(page, testInfo, { button: 'right' });
+});
+
+test('@dialog-fit 1280x420 scrolled: a middle press on the dark area keeps the dialog open, the caret in the confirm field and the backdrop where it was', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  await expectScrolledPressKept(page, testInfo, { button: 'middle' });
+});
+
+test("@dialog-fit on the phone's own screen: a right press on the dark area above the sheet keeps it open with the caret in the confirm field", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDevice(testInfo), DEVICE_ONLY);
+  const fit = await openDeleteOrder(page);
+  expect(fit.box.y, 'there is dark area above the sheet').toBeGreaterThanOrEqual(16);
+  const field = fit.dialog.getByRole('textbox');
+  await expect(field).toBeFocused();
+  await page.keyboard.type(ORDER);
+  const before = (await readRegion(page)).scrollTop;
+
+  await page.mouse.click(fit.viewport.width / 2, fit.box.y / 2, { button: 'right' });
+  await waitForFramesAndTask(page);
+
+  const after = (await readRegion(page)).scrollTop;
+  testInfo.annotations.push({
+    type: 'dialog-focus',
+    description: `${testInfo.project.name} right press above the sheet: scrollTop ${String(before)} -> ${String(after)}`,
   });
   await expect(fit.dialog).toBeVisible();
   await expect(field).toBeFocused();
