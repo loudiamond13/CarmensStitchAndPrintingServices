@@ -3,7 +3,7 @@
 // takes its ids and role from getTabPanelProps, as every screen with tabs does. It adds no look of its own; the reference
 // side renders the same elements around the frozen App. D.3 Tabs (web/visual/reference/fragments/TabsWithPanel.tsx).
 import type { ReactNode } from 'react';
-import { getTabPanelProps } from '@/ui/choice';
+import { getTabPanelProps } from '@/components/choice';
 
 export interface TabsWithPanelProps {
   /** The Tabs node (its `idBase` must equal this one). */

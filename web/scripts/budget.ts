@@ -5,7 +5,7 @@
 // - Initial JS of a route = closure(entry chunk imports) ∪ closure(route chunk imports): the index.html entry chunk,
 //   every route module chunk that route renders, and every chunk they import statically, each counted once. Dynamic
 //   imports are not followed; they load later.
-// - Module ids and facade ids are paths relative to the web root, with forward slashes (`src/app/...`, `index.html`).
+// - Module ids and facade ids are paths relative to the web root, with forward slashes (`src/core/routes/...`, `index.html`).
 
 export interface BudgetChunk {
   readonly fileName: string;
@@ -83,19 +83,24 @@ export const MAIN_ENTRY = 'index.html';
 
 /** The route modules the public site renders on first load: the public layout and the placeholder page (02-29). */
 export const PUBLIC_ROUTE: readonly string[] = Object.freeze([
-  'src/app/public/PublicLayout.tsx',
-  'src/app/public/PublicPlaceholderPage.tsx',
+  'src/layouts/PublicLayout.tsx',
+  'src/modules/public/pages/PublicPlaceholderPage.tsx',
 ]);
 
 /** The route modules `/admin` renders on first load: the admin layout, the URL-state layout and the page (02-31). */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
-  'src/app/admin/AdminLayout.tsx',
+  'src/layouts/AdminLayout.tsx',
   'src/lib/url-state/UrlStateLayout.tsx',
-  'src/app/admin/AdminPreviewPage.tsx',
+  'src/modules/admin/pages/AdminPreviewPage.tsx',
 ]);
 
 /** Module path prefixes that must never reach a production build (D-20, CWE-489). */
-export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze(['src/app/admin/', 'src/dev/', 'visual/']);
+export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
+  'src/modules/admin/',
+  'src/layouts/AdminLayout',
+  'src/dev/',
+  'visual/',
+]);
 
 /** Output folders of the parity reference (web/.reference-dist, web/visual/.reference-src); never inside a build (02-13). */
 export const REFERENCE_FOLDERS: readonly string[] = Object.freeze(['.reference-dist', '.reference-src']);

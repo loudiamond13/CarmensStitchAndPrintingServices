@@ -3,7 +3,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { HttpError } from '@/lib/api';
+import { HttpError } from '@/core/api/errors';
 import { createDeferred } from '@/test/fakeFetch';
 import { useSubmission, type SubmissionOptions, type SubmissionOutcome } from './useSubmission';
 

@@ -4,9 +4,9 @@
 // the unstyled `main` wrapper with its min-height, and the toast layer. The parity page already provides the router.
 // With `header` and `footer` off it shows the page head alone. The reference side renders the App. E.1 header and
 // footer and the App. E.2 page head with the same copy (web/visual/reference/fragments/PublicShell.tsx).
-import { PublicPlaceholderPage } from '@/app/public/PublicPlaceholderPage';
-import { SiteFooter } from '@/app/public/SiteFooter';
-import { SiteHeader } from '@/ui/navigation';
+import { PublicPlaceholderPage } from '@/modules/public/pages/PublicPlaceholderPage';
+import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { SiteHeader } from '@/components/navigation';
 
 export interface PublicShellProps {
   /** The current header link's label. */

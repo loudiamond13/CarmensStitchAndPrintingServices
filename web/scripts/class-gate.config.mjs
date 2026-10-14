@@ -12,8 +12,8 @@
  * @property {string} decision The owner decision that allows it.
  */
 
-/** Paths matching `src/ui/media/ImageUploader*.{ts,tsx}`. */
-const imageUploaderFiles = /^src\/ui\/media\/ImageUploader[^/]*\.tsx?$/;
+/** Paths matching `src/components/media/ImageUploader*.{ts,tsx}`. */
+const imageUploaderFiles = /^src\/components\/media\/ImageUploader[^/]*\.tsx?$/;
 
 /** @type {readonly OpacityAllow[]} */
 export const OPACITY_ALLOW = Object.freeze([

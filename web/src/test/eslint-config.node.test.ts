@@ -24,11 +24,14 @@ async function resolvedRules(file: string): Promise<Partial<Linter.RulesRecord>>
 }
 
 describe('eslint.config.mjs', () => {
-  it.each(['src/components/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])('resolves no rule at warn level for %s', async (file) => {
-    const rules = Object.entries(await resolvedRules(file));
-    expect(rules.length).toBeGreaterThan(50);
-    expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
-  });
+  it.each(['src/components/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])(
+    'resolves no rule at warn level for %s',
+    async (file) => {
+      const rules = Object.entries(await resolvedRules(file));
+      expect(rules.length).toBeGreaterThan(50);
+      expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
+    },
+  );
 
   it('has no rule at warn level in any entry of the raw config', () => {
     const warnLevel = config.flatMap((entry) =>

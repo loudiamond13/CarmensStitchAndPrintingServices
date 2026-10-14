@@ -4,7 +4,7 @@
 // page would. It also renders the `main#main` target the link moves focus to (tabIndex -1, as the layouts render it).
 // SPEC-GAP primitives have no reference, so there is no reference fragment: that side shows its missing-component note.
 import { useEffect, useRef } from 'react';
-import { SkipLink } from '@/ui/entry';
+import { SkipLink } from '@/components/entry';
 
 export function FocusedSkipLink() {
   const frame = useRef<HTMLDivElement>(null);

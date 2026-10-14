@@ -1,7 +1,7 @@
 // Allow-list parsers for list state in the URL (WEB-10, CWE-20). A value a parser rejects falls back to its default,
 // and createListParams removes it from the URL with one replace. The server re-validates every value (SEC-03).
 import { createParser, parseAsStringLiteral } from 'nuqs';
-import { BUSINESS_ZONE } from '../format';
+import { BUSINESS_ZONE } from '@/utils/format';
 
 /** Plain base-10 digits with no sign, no leading zero, no spaces, no exponent and no fraction. */
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/;

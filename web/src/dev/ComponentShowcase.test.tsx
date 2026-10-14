@@ -6,11 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { adminRoutes } from '@/app/admin/routes';
-import { routes } from '@/app/router';
+import { adminRoutes } from '@/modules/admin/routes';
+import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
-import { ToastProvider } from '@/ui';
-import { ICONS } from '@/ui/brand/icons';
+import { ToastProvider } from '@/components';
+import { ICONS } from '@/components/brand/icons';
 import ComponentShowcase, { ShowcaseSection } from './ComponentShowcase';
 import { scenarios } from './scenarios';
 

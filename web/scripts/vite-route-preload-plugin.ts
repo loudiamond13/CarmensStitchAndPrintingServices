@@ -6,7 +6,7 @@
 // chunk of its own.
 import type { HtmlTagDescriptor, Plugin } from 'vite';
 
-/** The route modules to preload, as web-root-relative posix paths (e.g. `src/app/public/PublicLayout.tsx`). */
+/** The route modules to preload, as web-root-relative posix paths (e.g. `src/layouts/PublicLayout.tsx`). */
 export function routePreloadPlugin(modules: readonly string[]): Plugin {
   let base = '/';
   let root = '';

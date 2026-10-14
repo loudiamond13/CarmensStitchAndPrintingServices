@@ -3,8 +3,8 @@
 // the popover's containing block; the block is tall enough to show the popover under the bar. The user menu is a
 // SPEC-GAP primitive with no reference, so there is no reference fragment: that side shows its missing-component note.
 import { useEffect, useRef } from 'react';
-import type { Role } from '@/lib/csps';
-import { Topbar } from '@/ui/navigation';
+import type { Role } from '@/utils/csps';
+import { Topbar } from '@/components/navigation';
 
 const MANAGER: Role = 'manager';
 

@@ -6,7 +6,7 @@
 // from fragments/OrderTotals.tsx (typed there from the ruling, not imported from the app). This name shadows the frozen
 // OrderCard, which merge-kit.ts allows only through its SPEC_OVERRIDES entry (OrderCard → D-41). The existing
 // WalkInOrderCard wrapper pair keeps wrapping this override. The converted OrderCard renders the wording by itself
-// through the converted OrderTotals (web/src/ui/data/OrderCard.tsx).
+// through the converted OrderTotals (web/src/components/data/OrderCard.tsx).
 // The frozen component comes from the extracted spec module, loaded the way kit.ts loads it (import.meta.glob, so the
 // frozen code is never type-checked).
 import { useEffect, type ComponentType } from 'react';
@@ -14,7 +14,9 @@ import { writePrdTotalsWording } from './OrderTotals';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
-const spec = Object.values(import.meta.glob<ModuleExports>('../../.reference-src/ui/index.tsx', { eager: true }))[0];
+const spec = Object.values(
+  import.meta.glob<ModuleExports>('../../.reference-src/components/index.tsx', { eager: true }),
+)[0];
 
 /** The frozen App. D.3 props the scenarios pass (the frozen OrderCard takes them as they are). */
 export interface OrderCardProps {

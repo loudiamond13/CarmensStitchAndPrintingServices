@@ -23,7 +23,7 @@
     [GeneratedCode] members. Never reach a threshold with [ExcludeFromCodeCoverage] or --coverlet-exclude on
     production code; add unit tests instead.
 
-    The web thresholds in QUAL-03 (web/src/lib/http 100%, web 90%) apply once web/ exists (Phase 2); they are
+    The web thresholds in QUAL-03 (web/src/core/api 100%, web 90%) apply once web/ exists (Phase 2); they are
     enforced by Vitest, not by this script.
 
     Licenses: coverlet.MTP is MIT and ReportGenerator is Apache-2.0 (both free). The coverage packages

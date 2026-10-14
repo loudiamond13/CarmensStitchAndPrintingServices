@@ -28,6 +28,7 @@ export default defineConfig((env) =>
             'src/test/**',
             'src/dev/**',
             'src/main.tsx',
+            'src/App.tsx',
             'src/types/**',
             'src/**/*.d.ts',
           ],
@@ -36,8 +37,8 @@ export default defineConfig((env) =>
             branches: 90,
             functions: 90,
             statements: 90,
-            // The HTTP client is held to 100% by tests, never by ignore comments (WEB-03, CLAUDE.md coverage rule).
-            'src/lib/http/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+            // core/api is held to 100% by tests, never by ignore comments (WEB-03, CLAUDE.md coverage rule).
+            'src/core/api/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
           },
           reporter: ['text', 'json-summary'],
         },

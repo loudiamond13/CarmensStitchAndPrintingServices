@@ -1,5 +1,5 @@
-// The implementation kit (WEB-02, D-33; dev only, never shipped, D-20): every component the `@/ui` area barrels
-// export (`src/ui/<area>/index.ts`), plus the dev-only previews in ./previews (impl-only wrappers a scenario may need;
+// The implementation kit (WEB-02, D-33; dev only, never shipped, D-20): every component the `@/components` area barrels
+// export (`src/components/<area>/index.ts`), plus the dev-only previews in ./previews (impl-only wrappers a scenario may need;
 // the folder may be empty). The parity page renders the shared scenario list with it, and the reference app renders the
 // same list with the frozen App. D.3 kit (web/visual/reference/kit.ts), so both sides look up components by the same
 // App. D.3 names.
@@ -8,7 +8,7 @@ import type { Kit } from './renderScenario';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
-const uiModules = import.meta.glob<ModuleExports>('../ui/*/index.ts', { eager: true });
+const uiModules = import.meta.glob<ModuleExports>('../components/*/index.ts', { eager: true });
 const previewModules = import.meta.glob<ModuleExports>('./previews/*.tsx', { eager: true });
 
 /** Component exports only: PascalCase functions (the barrels also export recipes, constants and types). */

@@ -5,7 +5,7 @@
   "printWidth": 120,
   "endOfLine": "lf",
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "./src/styles/app.css",
+  "tailwindStylesheet": "./src/ui/app.css",
   "tailwindFunctions": ["clsx", "tw"],
   "overrides": [{ "files": "*.css", "options": { "singleQuote": false } }]
 }

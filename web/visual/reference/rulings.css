@@ -6,7 +6,7 @@
    - Unlayered, so each rule wins over the layered spec CSS whatever its specificity.
    - Every rule group starts with a comment naming its decision ID, and every selector names a spec class (.csp-* or
      .s-*), except the PERF-05 font faces and font-stack tokens.
-   - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. The rulings
+   - Values come from the reviewed overrides at 74621f5 (web/src/components/overrides.css, D-37); tokens only. The rulings
      made after it (D-31 O-3, O-6 and D-31 D-BL-02, 2026-10-08) follow UI-SPEC "Owner-ruled colour and state rulings",
      and D-39 (2026-10-08) follows 02-CONTEXT.md and the UI-SPEC D-02 row.
    - The phone list-card title separator has no rule here on purpose: the owner kept it exactly as the approved CSS
@@ -27,7 +27,7 @@
      reports a link's hand cursor as `auto`, the D-27 button reports `pointer`. It changes no look in any engine.
    - visual/reference/rulings.test.ts pins all of the above. */
 
-/* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */
+/* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/ui/base.css. */
 @font-face {
   font-family: "Archivo Fallback";
   src: local("Arial");
@@ -37,7 +37,7 @@
   line-gap-override: 0%;
 }
 
-/* PERF-05 metric-matched fallback for Barlow Condensed (display text), identical to web/src/styles/base.css. It skips
+/* PERF-05 metric-matched fallback for Barlow Condensed (display text), identical to web/src/ui/base.css. It skips
    U+20B1, so a peso in display text falls through to Archivo Variable (research Pitfall 17). */
 @font-face {
   font-family: "Barlow Condensed Fallback";
@@ -50,7 +50,7 @@
 }
 
 /* PERF-05 font stacks: the App. A token names with each fallback face right after its brand family, identical to
-   web/src/styles/base.css. */
+   web/src/ui/base.css. */
 :root {
   --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Archivo Variable", "Arial Narrow", sans-serif;
   --font-sans: "Archivo Variable", "Archivo Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -226,7 +226,7 @@ button.csp-nav {
 /* D-41 R2-03 (owner, 2026-10-13) the list search box shows a focus ring of its own, subtler than the shared field
    ring: while its input has focus, the box's own 1px border turns --focus (no outer ring, no change in size). App. B
    gave it none (its input has outline: none). --focus is at least 3:1 against --surface-2, --surface and --bg in both
-   themes (WCAG 1.4.11; web/src/ui/lists/search-focus-contrast.node.test.ts). */
+   themes (WCAG 1.4.11; web/src/components/lists/search-focus-contrast.node.test.ts). */
 .s-search-box:focus-within {
   border-color: var(--focus);
 }

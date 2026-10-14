@@ -127,7 +127,10 @@ describe('BUDGETS (PERF-01)', () => {
   });
 
   it('names the public route modules (layout and placeholder page) and the admin route modules', () => {
-    expect(PUBLIC_ROUTE).toEqual(['src/layouts/PublicLayout.tsx', 'src/modules/public/pages/PublicPlaceholderPage.tsx']);
+    expect(PUBLIC_ROUTE).toEqual([
+      'src/layouts/PublicLayout.tsx',
+      'src/modules/public/pages/PublicPlaceholderPage.tsx',
+    ]);
     expect(ADMIN_ROUTE).toEqual([
       'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
@@ -229,7 +232,7 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     );
     const report = evaluateBudgets({ ...graph, chunks: leaked }, production);
     expect(report.ok).toBe(false);
-    expect(report.errors).toEqual([expect.stringMatching(/shared-B2\.js.*src\/app\/admin\/AdminLayout\.tsx/)]);
+    expect(report.errors).toEqual([expect.stringMatching(/shared-B2\.js.*src\/layouts\/AdminLayout\.tsx/)]);
   });
 
   it('fails a production build with a second entry (the parity page must never ship)', () => {

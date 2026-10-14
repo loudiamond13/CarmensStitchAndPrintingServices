@@ -76,13 +76,13 @@ function bundle(entryCode: string, entryModules: Record<string, number> = {}): R
     }),
     outputChunk('assets/PublicLayout-C3.js', 'export const a = 1;', {
       isDynamicEntry: true,
-      facadeModuleId: 'C:\\Work\\app\\web\\src\\app\\public\\PublicLayout.tsx',
-      moduleIds: ['C:\\Work\\app\\web\\src\\app\\public\\PublicLayout.tsx'],
+      facadeModuleId: 'C:\\Work\\app\\web\\src\\layouts\\PublicLayout.tsx',
+      moduleIds: ['C:\\Work\\app\\web\\src\\layouts\\PublicLayout.tsx'],
     }),
     outputChunk('assets/PublicPlaceholderPage-D4.js', 'export const b = 2;', {
       isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/app/public/PublicPlaceholderPage.tsx?v=1`,
-      moduleIds: [`${ROOT}/src/app/public/PublicPlaceholderPage.tsx`],
+      facadeModuleId: `${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx?v=1`,
+      moduleIds: [`${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx`],
     }),
     outputAsset('assets/index-E5.css', 'body{color:red}'),
     outputAsset('index.html', '<!doctype html>'),
@@ -189,15 +189,15 @@ describe('budgetPlugin (PERF-01)', () => {
   });
   it('ignores a dev-only module that was tree-shaken to nothing (rendered length 0)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
-    const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 0 });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 0 });
     await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
   });
 
   it('fails the production build when a dev-only module ships code', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
-    const output = bundle('export const main = 1;', { [`${ROOT}/src/app/admin/routes.tsx`]: 120 });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 120 });
     await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
-      /index-A1\.js contains the dev-only module src\/app\/admin\/routes\.tsx/,
+      /index-A1\.js contains the dev-only module src\/modules\/admin\/routes\.tsx/,
     );
   });
 });
@@ -213,8 +213,8 @@ function devRoutesBundle(entryCode: string): Rollup.OutputBundle {
   const items = [
     outputChunk('assets/AdminLayout-H8.js', 'export const l = 1;', {
       isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/app/admin/AdminLayout.tsx`,
-      moduleIds: [`${ROOT}/src/app/admin/AdminLayout.tsx`],
+      facadeModuleId: `${ROOT}/src/layouts/AdminLayout.tsx`,
+      moduleIds: [`${ROOT}/src/layouts/AdminLayout.tsx`],
     }),
     outputChunk('assets/UrlStateLayout-I9.js', 'export const u = 2;', {
       isDynamicEntry: true,
@@ -223,8 +223,8 @@ function devRoutesBundle(entryCode: string): Rollup.OutputBundle {
     }),
     outputChunk('assets/AdminPreviewPage-J0.js', 'export const v = 3;', {
       isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/app/admin/AdminPreviewPage.tsx`,
-      moduleIds: [`${ROOT}/src/app/admin/AdminPreviewPage.tsx`],
+      facadeModuleId: `${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`,
+      moduleIds: [`${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`],
     }),
   ];
   return { ...bundle(entryCode), ...Object.fromEntries(items.map((item) => [item.fileName, item])) };

@@ -136,7 +136,7 @@ export const STRUCTURAL_EXCEPTIONS: readonly StructuralException[] = Object.free
   ),
   // D-32: the approved design draws its icons from App. D.5 node data; the app uses lucide-react 1.53.0 (D-34), whose
   // drawings the owner approved separately. Both render a 24 x 24 viewBox wrapper: App. D.3 `Icon` with class
-  // csp-icon, lucide-react with class lucide (src/ui/brand/Icon.test.tsx pins it).
+  // csp-icon, lucide-react with class lucide (src/components/brand/Icon.test.tsx pins it).
   {
     kind: 'icon-drawing',
     viewBox: '0 0 24 24',

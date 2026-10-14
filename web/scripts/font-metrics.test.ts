@@ -1,6 +1,6 @@
 // @vitest-environment node
 // PERF-05 metric-matched fallbacks (research Pattern 14, Pitfall 17). The metric reader works on the installed brand
-// woff2 files, the override formula is right, and the values committed in src/styles/base.css are the ones the brand
+// woff2 files, the override formula is right, and the values committed in src/ui/base.css are the ones the brand
 // fonts and the recorded Arial metrics produce, to within 0.01 percentage points. Arial is a system font, so its side
 // comes from the constants recorded in font-metrics.mjs: this test never reads a system font and runs the same on
 // Windows and ubuntu.
@@ -14,8 +14,8 @@ const archivoLatin = new URL('@fontsource-variable/archivo/files/archivo-latin-w
 const archivoLatinExt = new URL('@fontsource-variable/archivo/files/archivo-latin-ext-wght-normal.woff2', fonts);
 const barlowLatin = new URL('@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2', fonts);
 const barlowLatinExt = new URL('@fontsource/barlow-condensed/files/barlow-condensed-latin-ext-700-normal.woff2', fonts);
-const baseCss = readFileSync(new URL('../src/styles/base.css', import.meta.url), 'utf8');
-const appCss = readFileSync(new URL('../src/styles/app.css', import.meta.url), 'utf8');
+const baseCss = readFileSync(new URL('../src/ui/base.css', import.meta.url), 'utf8');
+const appCss = readFileSync(new URL('../src/ui/app.css', import.meta.url), 'utf8');
 
 const PESO = 0x20b1;
 

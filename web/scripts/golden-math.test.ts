@@ -1,6 +1,6 @@
 // @vitest-environment node
 // The exact-rational oracle behind tests/fixtures/order-math-golden-vectors.json (WEB-07, D-09). These are hand-worked
-// figures; the oracle shares no code with Csps.Domain.Orders.OrderMath or web/src/lib/csps.ts.
+// figures; the oracle shares no code with Csps.Domain.Orders.OrderMath or web/src/utils/csps.ts.
 import { describe, expect, it } from 'vitest';
 import { OPERATION_ORDER, computeExpected, formatCentavos, type VectorInput } from './golden-math.mjs';
 

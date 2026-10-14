@@ -87,7 +87,8 @@ describe('WEB-04: the HTTP transport stays in core/api and endpoint calls in mod
   });
 
   it('a relative core/api/http import outside core/api is an error', () => {
-    const code = "import { createHttpClient } from '../core/api/http/httpClient';\nexport const c = createHttpClient;\n";
+    const code =
+      "import { createHttpClient } from '../core/api/http/httpClient';\nexport const c = createHttpClient;\n";
     expect(lint(code, feature)).toEqual([restrictedPattern('../core/api/http/httpClient', transportOnly)]);
   });
 

@@ -1,6 +1,6 @@
 // @ts-check
 // PERF-05 fallback-font metrics (research Pattern 14, Pitfall 17). The metric-matched fallback faces in
-// src/styles/base.css ("Archivo Fallback", "Barlow Condensed Fallback") make the local Arial take the brand font's
+// src/ui/base.css ("Archivo Fallback", "Barlow Condensed Fallback") make the local Arial take the brand font's
 // width and line box, so the font swap does not shift the layout (CLS). scripts/font-metrics.test.ts recomputes the
 // committed values on every run from the installed brand woff2 files and the Arial metrics recorded below; it never
 // reads a system font, so it runs the same on Windows and ubuntu.

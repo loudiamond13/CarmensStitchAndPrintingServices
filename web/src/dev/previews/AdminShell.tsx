@@ -6,10 +6,10 @@
 // container queries read that width. The reference side transcribes App. E.6's shell
 // (web/visual/reference/fragments/AdminShell.tsx).
 import clsx from 'clsx';
-import { AdminFrame } from '@/app/admin/AdminLayout';
-import { AdminPreviewPage } from '@/app/admin/AdminPreviewPage';
-import { pageRootClasses } from '@/ui/layout/layout.recipe';
-import type { AdminSection } from '@/ui/navigation';
+import { AdminFrame } from '@/layouts/AdminLayout';
+import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
+import { pageRootClasses } from '@/components/layout/layout.recipe';
+import type { AdminSection } from '@/components/navigation';
 
 export interface AdminShellProps {
   section?: AdminSection;

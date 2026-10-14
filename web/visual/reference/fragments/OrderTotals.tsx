@@ -9,14 +9,16 @@
 // side shows up as a pixel difference. This name shadows the frozen OrderTotals, which merge-kit.ts allows only
 // through its SPEC_OVERRIDES entry (OrderTotals → D-41). The frozen OrderCard draws the frozen OrderTotals internally,
 // out of this override's reach, so fragments/OrderCard.tsx does the same for the card. The converted OrderTotals
-// renders the wording by itself (web/src/ui/money/OrderTotals.tsx).
+// renders the wording by itself (web/src/components/money/OrderTotals.tsx).
 // The frozen component comes from the extracted spec module, loaded the way kit.ts loads it (import.meta.glob, so the
 // frozen code is never type-checked).
 import { useEffect, type ComponentType } from 'react';
 
 type ModuleExports = Readonly<Record<string, unknown>>;
 
-const spec = Object.values(import.meta.glob<ModuleExports>('../../.reference-src/ui/index.tsx', { eager: true }))[0];
+const spec = Object.values(
+  import.meta.glob<ModuleExports>('../../.reference-src/components/index.tsx', { eager: true }),
+)[0];
 
 /** The frozen App. D.3 props the scenarios pass (the frozen OrderTotals takes them as they are). */
 export interface OrderTotalsProps {

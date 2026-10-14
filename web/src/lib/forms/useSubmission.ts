@@ -18,8 +18,8 @@
 // - reset() or changed data starts a new submission with a new key. Call reset() when the form is ready for a new
 //   entry (for example after clearing it), not inside onSuccess, or the double-click protection above is lost.
 import { useRef, useState } from 'react';
-import { isHttpError } from '@/lib/api';
-import { describeHttpError, type ErrorCopy } from '@/lib/errors/describeHttpError';
+import { isHttpError } from '@/core/api/errors';
+import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
 import { newIdempotencyKey } from './idempotencyKey';
 
 /** The server's validation messages per field, keyed in the server's casing (for example `Amount`). */

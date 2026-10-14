@@ -2,7 +2,7 @@
 // Class gate (D-33, WEB-02, D-02; research Pitfall 23). The CSPS theme clears every Tailwind default (`--*: initial`),
 // so a default-palette class (`bg-blue-500`) or a typo (`hover:bg-surfce`) compiles to no CSS at all, with no error.
 // This gate collects every class token in the app source with the TypeScript AST (the D-15 `typescript` alias) and
-// compiles each one against the real src/styles/app.css with tailwindcss's public compile(). A token that adds no CSS
+// compiles each one against the real src/ui/app.css with tailwindcss's public compile(). A token that adds no CSS
 // is `unknown`. A colour literal in a token is `colour-literal`, and an opacity token outside the D-02 allow-list in
 // class-gate.config.mjs is `opacity`.
 //
@@ -302,12 +302,12 @@ function loadStylesheet(id, base) {
 }
 
 /**
- * A fresh compiler over the real src/styles/app.css (the same theme and variants the build uses).
+ * A fresh compiler over the real src/ui/app.css (the same theme and variants the build uses).
  * @param {string} [webRoot]
  * @returns {Promise<Compiler>}
  */
 function createCompiler(webRoot = defaultWebRoot) {
-  const appCss = path.join(webRoot, 'src', 'styles', 'app.css');
+  const appCss = path.join(webRoot, 'src', 'ui', 'app.css');
   return compile(readFileSync(appCss, 'utf8'), { base: path.dirname(appCss), from: appCss, loadStylesheet });
 }
 
@@ -388,7 +388,7 @@ const opacityAllowed = (token, file) =>
  * Checks tokens from one file. Each token gets at most one finding: a colour literal first, then a stray opacity,
  * then a token that compiles to nothing.
  * @param {readonly ClassToken[]} tokens
- * @param {{ readonly file: string }} options `file` is relative to web/ with forward slashes (`src/ui/Button.tsx`).
+ * @param {{ readonly file: string }} options `file` is relative to web/ with forward slashes (`src/components/Button.tsx`).
  * @returns {Promise<ClassFinding[]>}
  */
 export async function checkClassTokens(tokens, options) {

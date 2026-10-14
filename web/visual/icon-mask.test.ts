@@ -1,6 +1,6 @@
 // @vitest-environment node
 // TOOL-WR-05: the D-32 icon-drawing mask covers only icon wrappers, marked per side: the App. D.3 `Icon` (class
-// csp-icon) on the reference side and the lucide-react wrapper (class lucide, pinned by src/ui/brand/Icon.test.tsx) on
+// csp-icon) on the reference side and the lucide-react wrapper (class lucide, pinned by src/components/brand/Icon.test.tsx) on
 // the implementation side. Any other 24 x 24 SVG (a spinner, a check mark, a chevron drawn in place) is still compared.
 import { afterEach, describe, expect, it } from 'vitest';
 import { collectInPage } from './compare.ts';

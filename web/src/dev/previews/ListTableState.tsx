@@ -3,8 +3,8 @@
 // screenshots, D-23). `loading` is the first load (SkeletonTable), `error` a failed load with the previous rows,
 // `empty` first use, `no-matches` a filtered search with no result, and `refetching` the spec seed while the next page
 // loads (dimmed after 200 ms).
-import { Button } from '@/ui/actions';
-import { ResponsiveTable } from '@/ui/lists';
+import { Button } from '@/components/actions';
+import { ResponsiveTable } from '@/components/lists';
 import { USER_COLUMNS, type ListTableUser } from './ListTable';
 
 export type ListTableStateName = 'loading' | 'error' | 'empty' | 'no-matches' | 'refetching';

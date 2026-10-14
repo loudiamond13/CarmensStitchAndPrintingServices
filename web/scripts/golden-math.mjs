@@ -1,6 +1,6 @@
 // @ts-check
 // Exact-rational oracle for the order-math golden vectors (WEB-07, D-09, C-25).
-// It shares no code with either implementation under test (Csps.Domain.Orders.OrderMath and web/src/lib/csps.ts):
+// It shares no code with either implementation under test (Csps.Domain.Orders.OrderMath and web/src/utils/csps.ts):
 // every amount is a decimal string parsed into a BigInt fraction, so no binary float is ever involved.
 //
 // Pinned operation order (the same text is the vector file's `operationOrder`):
