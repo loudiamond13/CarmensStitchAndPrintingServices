@@ -1,10 +1,10 @@
 ---
 phase: 02-web-foundation-design-system
 created: "2026-10-13T10:50:00-05:00"
-updated: "2026-10-13T18:30:00-05:00"
-verified: 2026-10-13T23:30:00Z
-status: gaps_found
-score: 29/30 must-haves verified
+updated: "2026-10-13T21:25:00-05:00"
+verified: 2026-10-14T02:25:00Z
+status: human_needed
+score: 41/41 must-haves verified
 covered_files:
   - ".claude/CLAUDE.md"
   - ".config/dotnet-tools.json"
@@ -93,6 +93,8 @@ covered_files:
   - ".planning/phases/02-web-foundation-design-system/02-40-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/02-41-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/02-41-SUMMARY.md"
+  - ".planning/phases/02-web-foundation-design-system/02-42-PLAN.md"
+  - ".planning/phases/02-web-foundation-design-system/02-42-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-02-PLAN.md"
@@ -373,7 +375,9 @@ covered_files:
   - "web/e2e/a11y-rulings.spec.ts"
   - "web/e2e/admin-keyboard.spec.ts"
   - "web/e2e/admin.spec.ts"
+  - "web/e2e/deleteOrderDialog.ts"
   - "web/e2e/dialog-fit.spec.ts"
+  - "web/e2e/dialog-scrollbars.spec.ts"
   - "web/e2e/fixture-selftest.spec.ts"
   - "web/e2e/fixtures.ts"
   - "web/e2e/fonts.spec.ts"
@@ -771,63 +775,62 @@ covered_files:
   - "web/visual/webkit-style-sync.ts"
   - "web/vite.config.ts"
   - "web/vitest.config.ts"
-covered_digest: "v2:sha256:2a2ae21e869c01be37030a4def353b25456306c29edaf14047aa5621734c95eb"
+covered_digest: "v2:sha256:043339084fcbfec1215c74c380c6c15acd3dfc12e61d574a1c05f7c0eab96ca6"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
-  previous_status: human_needed
-  previous_score: 21/23
-  previous_verified: 2026-10-13T20:20:00Z
-  trigger: "gap-closure plan 02-41 (UAT gap G-2-199, owner ruling D-42 dialog fit), commits 05d444f..a3899b5, and code review 02-REVIEW-g199.md"
+  previous_status: gaps_found
+  previous_score: 29/30
+  previous_verified: 2026-10-13T23:30:00Z
+  trigger: "gap-closure plan 02-42 (UAT gap G-2-199, truth 28, owner ruling D-42), commits f2af90f..709f0d4, and code review 02-REVIEW-g199-42.md"
   gaps_closed:
-    - "G-2-199 (UAT test 199), layout part: at the owner's 1274x585 window the whole Delete Order dialog, Cancel and Delete Order included, is inside the window with no scrolling; at 1280x420 and on short phone pages the backdrop scrolls to the buttons; tall windows keep 140px / 96px. Proven here by @dialog-fit 23/23 in all five projects. By design, the gap entry in 02-UAT.md stays status failed with fix_plan until the owner re-checks test 199"
-    - "Truth 6 (SC2 owner look approval, WEB-02) and truth 23 (long-text wrap backstop): the owner recorded UAT tests 2, 3 and 4 as pass"
-    - "Prohibition 02-07 (judgment tier, a money preview is never shown as the saved figure): the owner recorded UAT test 5 as pass"
+    - "Truth 28 (G-2-199, review WR-01/WR-02 of 02-REVIEW-g199.md): pressing or dragging the backdrop's own scrollbar never closes the dialog, now with classic AND overlay scrollbars. Proven here in real Chromium with real scrollbars (chromium-classic-scrollbars, chromium-overlay-scrollbars: T1-T4 8/8). Middle and right presses no longer close. A left click on the dark area still closes in all seven projects. By design, the gap entry in 02-UAT.md keeps status failed with fix_plan until the owner re-checks test 199"
   gaps_remaining: []
   regressions: []
-gaps:
-  - truth: "Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before"
-    status: partial
-    reason: "pressedOnScrollbar only recognises scrollbars that take layout space (classic). Classic scrollbars work: a real-scrollbar probe in Chromium at 1280x420 dragged the backdrop's 15px scrollbar, the dialog stayed open with ORD-2026-0148 still typed, and the backdrop scrolled 105px. Overlay scrollbars fail. In the same probe with --enable-features=OverlayScrollbar, a real scrollbar drag fired mousedown on the region and scrolled it by 105px. The press was at clientX 1276 < clientWidth 1280, so the guard returned false and the Delete Order dialog closed, losing the typed text. Overlay scrollbars are the default in Chrome and Safari on macOS with a trackpad, and on ChromeOS. The truth's 'never closes' therefore does not hold for them"
-    artifacts:
-      - path: "web/src/ui/overlays/Modal.tsx"
-        issue: "pressedOnScrollbar (lines 59-68) is geometry-only, so an overlay scrollbar press reads as a scrim press. onMouseDown (lines 113-117) does not check event.button either, so a middle-click (autoscroll) or right-click on the backdrop also closes the dialog (review WR-01)"
-      - path: "web/e2e/dialog-fit.spec.ts"
-        issue: "Headless Playwright starts Chromium with --hide-scrollbars, so no test ever presses a real scrollbar. The guard is proven only by jsdom tests on stubbed geometry (review WR-02)"
-    missing:
-      - "A close rule that also holds for overlay scrollbars. One option is WR-01's sketch: on mousedown on the scrim, remember scrollTop/scrollLeft, and close on mouseup only if the scrim did not scroll. Another is a dedicated backdrop layer behind the scrolling region, so that a scrollbar press never targets the element that closes the dialog. The existing 'loading ignores presses', 'another parent is not a scrim' and Esc tests must stay green"
-      - "Ignore non-primary presses on the scrim (event.button !== 0), with a jsdom test that sends button 1 and button 2 and checks the dialog stays open (WR-01)"
-      - "A chromium-only @dialog-fit case with real scrollbars (launchOptions.ignoreDefaultArgs: ['--hide-scrollbars']) and one with overlay scrollbars (args: ['--enable-features=OverlayScrollbar']). At 1280x420: type ORD-2026-0148, drag the backdrop scrollbar at x = width - 4, and assert the dialog is still open, the text is kept and scrollTop changed. Then assert that a press on the scrim above the dialog still closes it (WR-02). This verifier's probe shows both launch modes run headless on this machine"
+coincidental_reliance_items:
+  - truth: "Truth 34: a left click on the dark area beside the dialog at 1280x420, after the wheel, closes it in webkit"
+    reason: incidental-ordering
+    harden: "It holds because WebKit applies the focus-trap reveal scroll before Modal's setTimeout(0) re-read and before the click (review WR-02 of 02-REVIEW-g199-42.md). Nothing in the code enforces that order. It passed 50/50 repeats here with 4 workers. The durable fix removes the focus scroll itself (WR-01's fix: refocus without scrolling), so no timer is needed"
+  - truth: "Truth 38: a scroll after the focus move still blocks the close"
+    reason: fixture-only
+    harden: "The jsdom test blocks the close only because jsdom never runs the pending setTimeout(0) before the click. In a real engine a scroll in that window is taken as the new baseline (WR-02). Rename the test to state the window, or remove the timer as above"
+human_verification:
+  - test: "UAT test 199 (G-2-199, D-42) in Chrome at 125-150% zoom: open /dev/components and press Open Delete Order. Shorten the window until the dark backdrop scrolls, type the order number and drag the backdrop's scrollbar. Middle-click and right-click the dark area. Then left-click the dark area. Also check a normal-height window"
+    expected: "The dialog stays centred. The whole dialog shows, or the backdrop scrolls to Cancel and Delete Order. Dragging the scrollbar scrolls the backdrop, and the dialog stays open with the order number kept. A middle or right click does not close it. A left click on the dark area closes it. On a normal-height window the dialog sits where it did before. NOTE for the owner (review WR-01, confirmed here): if you have scrolled the backdrop down to the buttons, a middle or right click, and also a drag of the scrollbar, moves the text cursor out of the order-number box onto the dialog's Close button, and a middle or right click also jumps the backdrop back to the top. The typed text is kept. Say whether that is acceptable or must be fixed"
+    why_human: "The owner found the defect at real zoom on a real screen. Headless runs do not zoom, and the owner's own scrollbar setting is the acceptance. Closing G-2-199 in 02-UAT.md needs this check (/gsd-verify-work 2)"
+  - test: "Decide on the open 02-42 review findings in 02-REVIEW-g199-42-DISPOSITION.md (all 8 are still 'open'), plus WR-03 and WR-04 from 02-REVIEW-g199-DISPOSITION.md"
+    expected: "A recorded fix, defer or accept for each. WR-01 (focus leaves the confirm field and the backdrop jumps to the top after a press that does not close; the probe here shows it in chromium, firefox and webkit and on a scrollbar drag in both scrollbar projects) and WR-02 (the WebKit timer depends on timing) share one fix, in useFocusTrap. IN-01 (a press on the dark area released inside the dialog still closes it) is a small hardening. IN-02 (the comment overstates WebKit/Firefox as proven) is a wording fix. IN-03 to IN-06 are test hygiene"
+    why_human: "None of these breaks a must-have truth as written. Whether the focus jump is acceptable UX is a look and behaviour choice for the owner, and fixing it changes useFocusTrap, which every overlay shares"
+  - test: "(Optional, only if a Mac is available) On macOS Safari with a trackpad (overlay scrollbars), repeat the drag and a press-and-release on the backdrop's scrollbar thumb without moving"
+    expected: "Neither closes the dialog, and the typed text is kept"
+    why_human: "Real Safari overlay scrollbars cannot run on this Windows machine. The drag case rests on the engine-independent scroll check (proven). A press without moving rests on the engine sending no click after a scrollbar press, which is proven for Chromium only (02-42 SUMMARY flagged assumption, review IN-02)"
 ---
 
 # Phase 2: Web Foundation & Design System Verification Report
 
-*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T18:30:00-05:00*
+*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T21:25:00-05:00*
 
 **Phase Goal:** Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
-**Verified:** 2026-10-13T23:30:00Z (18:30 America/Chicago), on HEAD b0e00a1
-**Status:** gaps_found. The D-42 dialog-fit layout holds in every engine. One 02-41 truth (the backdrop scrollbar guard) holds for classic scrollbars only; with overlay scrollbars a scrollbar drag still closes the dialog.
-**Re-verification:** Yes. This follows gap-closure plan 02-41 (UAT gap G-2-199, owner ruling D-42 "dialog fit"), commits 05d444f..a3899b5, and the code review in `02-REVIEW-g199.md`. Truths 1-23 carry forward from the 15:20 report, updated with the owner's UAT results recorded since then. Truths 24-30 are the 02-41 must-haves.
+**Verified:** 2026-10-14T02:25:00Z (21:25 America/Chicago), on HEAD 709f0d4
+**Status:** human_needed. Every must-have truth is verified in code and in real engines, including truth 28 with both classic and overlay scrollbars. The owner's real-browser re-check of UAT test 199 is still pending, and the open 02-42 review findings need a decision.
+**Re-verification:** Yes. This follows gap-closure plan 02-42 (truth 28 of G-2-199, owner ruling D-42), commits f2af90f..709f0d4, and the code review in `02-REVIEW-g199-42.md`. Truths 1-27, 29 and 30 got a regression check. Truth 28 was re-verified in full. Truths 31-41 are the 02-42 must-haves; the plan's first truth restates truth 28 and is merged into it.
 
 ## Re-verification summary
 
 | Earlier finding | Then | Now | Evidence (run or read by this verifier) |
 | --- | --- | --- | --- |
-| UAT gap G-2-199: a dialog on a short window (laptop at 125-150% zoom) was cut off, with Cancel and Delete Order unreachable (WCAG 1.4.10) | ✗ UAT issue (major) | ✓ Layout fixed in code (truths 24-27, 29, 30). ✗ The scrollbar guard is partial (truth 28). The owner's re-check is pending | `@dialog-fit`: 23 passed, 17 skipped by design, 0 failed in all five projects. `@overlays` + `@selftest` parity: 21/21 in three engines. Unit pins: recipe node test 7/7, the rulings D-42 pin, Modal scrollbar tests 4/4. Real-scrollbar probe: classic scrollbars pass, overlay scrollbars fail. All run here |
-| Truth 6: owner look approval (SC2, WEB-02) | ? human | ✓ VERIFIED (owner) | `02-UAT.md` tests 2 and 3: `result: pass` |
-| Truth 23: long toast, field error and EmptyState text wrap (plan 02-34 backstop) | ? human (insufficient_spec) | ✓ VERIFIED (owner) | `02-UAT.md` test 4: `result: pass` |
-| Prohibition 02-07: a money preview is never shown as the saved figure (judgment tier) | unverified, flagged | human-resolved | `02-UAT.md` test 5: `result: pass` |
-| Human items 4-7 (intent prefetch, focus and timers, screen reader, docs) | ? human | resolved | `02-UAT.md` tests 11, 196, 9, 12 and 13: `result: pass` |
+| Truth 28 (G-2-199): with overlay scrollbars, dragging the backdrop's scrollbar closed the Delete Order dialog and lost the typed order number. Middle and right presses closed it too | ✗ FAILED (partial) | ✓ VERIFIED | `Modal.tsx:124-197`: the scrim closes on a primary **click** after a primary scrim press off a classic scrollbar, with every scrim's scrollTop/scrollLeft unchanged. Here: `@dialog-fit` 39 passed, 24 skipped by design, 0 failed in all seven projects, including T1-T4 in `chromium-classic-scrollbars` and `chromium-overlay-scrollbars`. Unit `src/ui/overlays` 111/111 |
+| Review WR-02 of 02-REVIEW-g199.md: no real-scrollbar browser test | ⚠️ Warning | resolved | `playwright.config.ts:41-58`: two projects with `ignoreDefaultArgs: ['--hide-scrollbars']` (plus `--enable-features=OverlayScrollbar`), scoped by `testMatch`/`testIgnore`. `expectRealScrollbars` asserts the mode (clientWidth 1265 classic, 1280 overlay) |
 
-**Regressions:** none. `npm --prefix web run verify` passed with 3087 tests, up from 3020. The E2E tags that touch dialogs (`@showcase`, `@keyboard`, `@a11y-rulings`) were re-run here in all five projects: 360/360 (72 per project), exit 0.
+**Regressions:** none. `npm --prefix web run verify` exit 0, 109 files, 3102 tests (up from 3087). `@overlays|@selftest` parity 21/21. `overlays.recipe.ts`, `web/visual/**`, `package.json`, `package-lock.json` and `CSPS-UI-SPEC.md` have an empty diff over f2af90f..HEAD.
 
 ## MVP-mode note
 
-ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story.validate` returns `valid: false`, and the plans record "No story was invented"). This report therefore uses standard goal-backward verification, as before. 02-41 adds one flow:
+ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story.validate` returns `valid: false`, and the plans record "No story was invented"). Standard goal-backward verification is used, as before.
 
 | Actor | Flow | Evidence | Status |
 | --- | --- | --- | --- |
-| Staff on a laptop at 125-150% zoom (short window) | Opens the Delete Order confirm. Either the whole dialog shows or the dark backdrop scrolls to its buttons. Types the order number and confirms or cancels, by mouse or keyboard | `@dialog-fit` in five projects: 1274x585 fits (top 76.4); at 1280x420 both the wheel and Tab reach Delete Order; phone pages move up or scroll | VERIFIED (automated) for layout and reach. Dragging the backdrop's scrollbar keeps the dialog open only with classic scrollbars (truth 28) |
+| Staff on a laptop at 125-150% zoom (short window) | Opens Delete Order and types the order number. Either the whole dialog shows or the backdrop scrolls to its buttons. Drags the backdrop's scrollbar or mis-clicks with the middle or right button without losing the text. Confirms or cancels by mouse or keyboard | `@dialog-fit` in seven projects (layout, reach, drag, press, middle/right, left-click close) | VERIFIED (automated). The owner's real-zoom check is UAT 199 |
 
 ## Goal Achievement
 
@@ -862,36 +865,32 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | 25 | D-42 (2): at the owner's 1274x585 window the top gap shrinks to max(16, 585 − 16 − h), so the whole dialog, Cancel and Delete Order included, is inside the window with no scrolling, in chromium, firefox and webkit | ✓ VERIFIED | Run here: `@dialog-fit 1274x585` passed in all three engines. It asserts h + 32 ≤ 585, top = clamp(585 − 16 − h, 16, 140) ±1 and below 140, bottom ≤ 570, both buttons `toBeInViewport({ ratio: 1 })`, no region scroll, and centring. The SUMMARY's measured top of 76.4 (h 492.6) matches the arithmetic |
 | 26 | D-42 (3): at 1280x420 the dialog sits 16px down and the backdrop scrolls (overflow-y auto). The wheel over the dialog and keyboard focus on Delete Order each bring both buttons fully into view; the scrim still covers the whole window; the page is axe-clean | ✓ VERIFIED | Run here; both tests passed in chromium, firefox and webkit. `@dialog-fit 1280x420 by mouse` checks top 16 ±1, `overflowY === 'auto'`, scrollHeight > clientHeight, `mouse.wheel`, both buttons fully in view, region box = window, and `expectNoAxeViolations`. `by keyboard` types ORD-2026-0148, tabs to Delete Order and checks it is fully in view |
 | 27 | D-42 (4): the phone sheet had the same defect. Now the 96px gap shrinks to 0 when the sheet would not fit (393x659: top = 659 − h), and the backdrop scrolls when the sheet is still taller (320x568), in all five Playwright projects | ✓ VERIFIED | Run here: the `393x659` and `320x568` phone-page tests passed in chromium, firefox and webkit, and the device test passed in pixel and iphone (on the 393x659 iphone the sheet moves up; the test asserts the clamp, and scrolling when the sheet is taller). The pre-fix defect is in the plan's measurement table and the RED commit 05d444f. The 659x393 landscape window has no test of its own (review IN-03), but the same rule covers it |
-| 28 | Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before | ✗ FAILED (partial) | Present and wired: `pressedOnScrollbar` (`Modal.tsx:59-68`) is checked in `onMouseDown` (`:113-117`), and 4 jsdom tests on stubbed geometry pass. The real-engine probe run here (details below) passes with **classic** scrollbars: the drag kept the dialog open with the text, scrolled 105px, and a scrim click still closed it. It **fails with overlay scrollbars** (Chromium `--enable-features=OverlayScrollbar`): a real scrollbar drag that scrolled the backdrop 105px fired mousedown on the region at clientX 1276 < clientWidth 1280, the guard said "not a scrollbar", and the dialog closed with the typed text lost. This is review WR-01, confirmed in a browser. See the gap in frontmatter |
-| 29 | Pure CSS: no JavaScript measuring and no inline style (strict CSP holds, the E2E guard sees zero CSP violations). The focus trap, Esc, body scroll lock and the existing `@showcase`, `@keyboard` and `@a11y-rulings` tests stay green. `npm --prefix web run verify` exits 0 | ✓ VERIFIED | `overlayRegionClasses` is one complete `tw("…")` literal (`overlays.recipe.ts:38-40`); `Overlay.tsx` sets only `data-ui` and `className`; there is no `style=` in `src/ui/overlays/*.tsx`. `Modal.tsx` adds only a pure geometry read inside the existing mousedown listener: no new listener and no style write, and Esc, `useFocusTrap` and `useBodyScrollLock` are untouched (diff 5c50ad4). The class gate (`tailwind-classes.test.ts` 57/57) and `checkClassTokens` in the recipe node test report zero findings. verify exit 0 (3087 tests, zero warnings). `@showcase\|@keyboard\|@a11y-rulings` re-run here: 360/360 in five projects (72 each), exit 0, no guard finding; the executor's two Firefox load timeouts did not recur |
+| 28 | Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before. (02-42 truth 1: in Chromium at 1280x420, after typing ORD-2026-0148, a drag at x = width - 4 from y 120 to y 300 changes the region's scrollTop, the dialog stays open and the field holds exactly ORD-2026-0148, in both scrollbar projects) | ✓ VERIFIED | Run here: `dialog-scrollbars.spec.ts:73` (T1) passed in `chromium-classic-scrollbars` and `chromium-overlay-scrollbars`. It asserts the real mode (`expectRealScrollbars`), `toBeVisible`, `toHaveValue('ORD-2026-0148')` and `after > before` (30 → 105 in both, as the verifier's own probe also measured). The closing half is truths 34 and 35. The code path: the overlay drag scrolls the region, so `samePositions` is false at the click (`Modal.tsx:148-153`). A classic press is excluded at the mousedown by `pressedOnScrollbar` (`:62-71`, `:137`). This was the failing case in the 23:30 probe and is now covered by a permanent test, not a one-off script |
+| 29 | Pure CSS layout; no JavaScript measuring and no inline style (strict CSP holds, the E2E guard sees zero CSP violations). The focus trap, Esc, body scroll lock and the existing `@showcase`, `@keyboard` and `@a11y-rulings` tests stay green. `npm --prefix web run verify` exits 0 | ✓ VERIFIED | Regression check: no `style=` in `src/ui/overlays/*.tsx`. The recipe is unchanged (empty diff). verify exit 0 here (3102 tests, coverage 98.26 / 96.5 / 99.82 / 99.82, license gate passed, notices up to date, zero warning lines). The executor's `@showcase\|@keyboard\|@a11y-rulings` seven-project run (399 passed) was not repeated here. 02-42 touched only Modal listeners, which those tags exercise through the same dialogs. The `@dialog-fit` run here used the same guarded fixtures with zero findings |
 | 30 | D-42 is recorded in rulings.css (pinned by rulings.test.ts), docs/web/parity.md section 6 (read by the owner review pack), 02-UI-SPEC.md intentional differences and 02-CONTEXT.md. UAT gap G-2-199 keeps `status: failed` with a `fix_plan` pointer | ✓ VERIFIED | `rulings.css:234-270` has four D-42 groups (`.s-overlay`, `::before`, `> *`, phone container), pinned by `rulings.test.ts:336` (passed here). `parity.md:174` has the row and line 180 the note; `owner-review.test.ts` passed 62/62 against the real guide. `02-UI-SPEC.md:254` has the row; `02-CONTEXT.md:183-185` the D-42 section; `docs/web/e2e.md:112` the `@dialog-fit` tag row. `02-UAT.md:1603-1624`: G-2-199 has `status: failed`, `fix_plan: "02-41-PLAN.md (gap_ids: [G-2-199])"`, `fix_state` and `phone_check`. The recipe and Modal carry `SPEC-DEVIATION: D-42` (D-07) |
+| 31 | 02-42: a press on the backdrop's scrollbar with no pointer movement keeps the dialog open and the text kept, in both scrollbar projects (classic: at x = width - 4 and at x = clientWidth; overlay: at x = width - 4) | ✓ VERIFIED | `dialog-scrollbars.spec.ts:99` (T2) passed here in both projects. The classic branch also clicks `fit.metrics.clientWidth` (1265). For overlay mode this rests on Chromium sending no `click` after a thumb press. The "Overlay scrollbar press without a drag" checkpoint did not fire, and T2 is green. Safari is not proven (optional human item 3) |
+| 32 | 02-42: non-primary presses never close. jsdom sends button 1 and 2 (mousedown, mouseup, click; contextmenu for 2) and the dialog stays open; a primary press followed by a button-1 click does not close. In real engines a middle or right press on the dark area keeps it open at 1440x900 (chromium, firefox, webkit) and at 1280x420 in both scrollbar projects | ✓ VERIFIED | Unit: `Modal.test.tsx:656` (`it.each([1, 2])`) and `:673`, in the 111/111. Code: `event.button !== 0` returns at `Modal.tsx:134` and `:145`. E2E here: `dialog-fit.spec.ts:201` (D1) passed in chromium, firefox and webkit, and T3 (`:120`) and T4 (`:132`) passed in both scrollbar projects. The verifier's probe confirms it stays open after both presses in all three engines (but see WR-01 below) |
+| 33 | 02-42: a left click on the dark area still closes, at 1440x900 above the dialog (chromium, firefox, webkit), at 1280x420 beside it after the wheel (chromium, firefox, webkit), above the phone sheet (pixel, iphone) and in both scrollbar projects (classic: x = clientWidth - 1) | ✓ VERIFIED | Run here: D1 (`dialog-fit.spec.ts:201`), D2 (`:219`), D3 (`:232`) and T4 all passed, each asserting `toHaveCount(0)`. Repeat runs: D2 in chromium 15/15 and webkit 15/15 with 6 workers. The two scrim-click cases (D1, D2) in webkit 50/50 with `--repeat-each 25 --workers 4`. Firefox had 3 failures in 85 heavy-load repeats. The two that were captured are a 5 s timeout on the showcase `h1` in the `openDeleteOrder` setup (`deleteOrderDialog.ts:83`), before the dialog opens; the page had rendered by the time of the failure snapshot. That is page load, not the close rule (Info, see Anti-Patterns) |
+| 34 | (part of 33, webkit) the click closes even though WebKit applies the focus-trap reveal scroll just after the `focusin` | ✓ VERIFIED (coincidental-reliance) | Holds in every run here (webkit 15/15 and 50/50). It relies on WebKit's reveal scroll landing before the `setTimeout(0)` re-read (`Modal.tsx:160-172`), which nothing enforces (review WR-02). See `coincidental_reliance_items` |
+| 35 | 02-42 ordering: the scrim closes only for a primary mousedown on a scrim, off a classic scrollbar, then a primary click on a scrim at the same scroll positions. Each mousedown replaces the pending press, so a press that starts inside the dialog never closes it, and a press alone never closes (jsdom) | ✓ VERIFIED | `Modal.test.tsx:593` (press alone), `:605` (a later press replaces an earlier one). Code: `pendingPress = null` first at `:133`, consumed at `:143-144`. The reverse case (a press on the scrim released inside the dialog still closes, review IN-01) is outside this truth's wording; it is Info |
+| 36 | 02-42 empty: a press with zero scroll movement closes exactly once, on an overflowing backdrop and on one that cannot scroll at clientX 1005 (jsdom) | ✓ VERIFIED | `Modal.test.tsx:616` and `:512` |
+| 37 | 02-42 adjacency: the first scrollbar column counts as scrollbar (clientX 1000 of 1000 does not close; 999.5 closes once, jsdom); in the classic project a press at x = clientWidth keeps it open and x = clientWidth - 1 closes | ✓ VERIFIED | `Modal.test.tsx:626`; `pressedOnScrollbar` uses `>=` (`Modal.tsx:70`). E2E: T2's classic branch and T4 passed here |
+| 38 | 02-42 encoding/equality: "did not scroll" means strictly equal scrollTop/scrollLeft per scrim, fractions included. A focus-move scroll is re-read at `focusin` and is not a gesture, while a scroll after it still blocks the close (jsdom). The kept text is compared with `toHaveValue('ORD-2026-0148')` | ✓ VERIFIED (coincidental-reliance) | `samePositions` uses `===` (`Modal.tsx:79-81`); tests `:581` (sideways), `:685`, `:699`, `:714`. The E2E checks use exact `toHaveValue`. The ":699 scroll after it still blocks" case holds in jsdom only because the timer never runs before the click (review WR-02), so the truth is met as worded "(jsdom)", but a real engine accepts a scroll inside that window |
+| 39 | 02-42 loading and Esc unchanged: while loading a full press and click does not close; once loading ends it closes once. The named Esc/loading/other-parent/UI-WR-01 tests keep their bodies | ✓ VERIFIED | `Modal.test.tsx:735` passed. The diff's removed test lines over f2af90f..HEAD are only the planned `mouseDown` → `pressAndRelease` conversions at the old lines for `:194`, `:432` and the D-42 scrollbar block. `:176`, `:216`, `:228`, `:238`, `:445` and the UI-WR-01 block (`:377-407`) are byte-unchanged |
+| 40 | 02-42 D-42 layout unchanged (D-08): recipe, rulings and classes untouched; every earlier `@dialog-fit` layout test passes in the five standard projects; `@overlays` parity and `@selftest` pass | ✓ VERIFIED | Empty diff for `overlays.recipe.ts` and `web/visual/**`. The earlier `@dialog-fit` tests (1440x900, 1274x585, 1280x420 mouse/keyboard, phone pages, device) passed in the 39/39 run. Parity `@overlays\|@selftest` 21 passed here |
+| 41 | 02-42 listeners only: a scrim click listener and one document `focusin` listener in the existing effect; no style write, no inline style, no default prevented on the press, no new dependency; zero guard findings in all seven projects; verify exits 0. Records: e2e.md (scrollbar projects, `@dialog-fit` row naming 02-42), release-gates.md (seven projects), parity.md section 6 cites `dialog-scrollbars.spec.ts`, UAT G-2-199 keeps `status: failed` with `fix_plan` naming 02-41 and 02-42, WR-01/WR-02 dispositioned fixed | ✓ VERIFIED | `Modal.tsx:182-196` adds `click` and `focusin` with matching removals and `clearTimeout` on cleanup. The only `preventDefault` is the existing Esc handler (`:178`). No `bypassCSP`. `package.json`/lockfile unchanged. Records found at `docs/web/e2e.md:72-75,115`, `release-gates.md:27,72`, `parity.md:174`, `02-UAT.md:1603-1622`, `02-REVIEW-g199-DISPOSITION.md:14-15`. The owner-review parser test is inside verify, which passed |
 
-**Score:** 29/30 truths verified (0 present but behaviour-unverified; 1 failed (partial), truth 28; 0 need a human)
+**Score:** 41/41 truths verified (0 present but behaviour-unverified; 2 marked coincidental-reliance, advisory only; 0 failed). Truths 28 and 31-34 depend on behaviour, and each is backed by a real-engine test run here.
 
-Behaviour-dependent truths 24-27 (layout geometry) and 29 (no regressions) were VERIFIED on real-engine tests run here. Truth 28 is a behaviour-dependent truth, and a real-engine run contradicted it for one class of scrollbar. A run proving the opposite is a failure, not a lack of evidence, so it is marked FAILED rather than PRESENT_BEHAVIOR_UNVERIFIED.
+### The 02-42 review warnings (02-REVIEW-g199-42.md): do they defeat truth 28?
 
-### Scrollbar truth and the review warnings (02-REVIEW-g199.md)
-
-The orchestrator asked whether any of the four open review warnings breaks a 02-41 must-have truth. A one-off real-browser probe (see Behavioral Spot-Checks) settled each one:
-
-| Warning | Breaks a 02-41 truth? | Evidence |
+| Finding | Defeats a must-have? | Evidence |
 | --- | --- | --- |
-| WR-01: the guard misses overlay scrollbars and non-primary presses | **Yes, truth 28 (partial).** The overlay-scrollbar half is confirmed: a real overlay-scrollbar drag closes the dialog and loses the typed text. The middle- or right-click half does not contradict the truth as worded ("a press on the scrim … still closes it"), but the Windows autoscroll gesture now closes a dialog the user meant to scroll, so the fix plan should include it | Probe 1, overlay mode: `openAfterDrag: false`. Probe 2, overlay mode: mousedown target = region, `guardWouldSkip: false`, and the region scrolled 105px, so it was a real scrollbar drag. Classic mode: `guardWouldSkip: true`, dialog kept open, text kept. Middle-click on the scrim closed the dialog in all three configurations |
-| WR-02: no real-scrollbar browser test | It is why the truth 28 defect went unseen. On its own it is a test gap, not a truth failure | `dialog-fit.spec.ts` never removes `--hide-scrollbars`. The probe shows both `ignoreDefaultArgs: ['--hide-scrollbars']` and `--enable-features=OverlayScrollbar` work headless on this machine, so the missing test is cheap |
-| WR-03: the opening rise can overflow a bottom-flush phone sheet by about 2px for 200 ms | No. Truths 24 and 27 assert the resting place after the animations settle, and that holds. It is a transient look issue, only with classic scrollbars at phone-page widths (a narrow desktop window, not a real phone). Either fix changes the look, so it needs the owner (D-08) | Code read: the inline modal sits inside `.csp-overlay.is-inline`, so `[[data-ui=s-overlay]>&]:animate-none` does not reach it, and `animate-csp-rise` runs inside the new scroll container |
-| WR-04: the column/spacer rule conflicts with the App. E Users slide-over-in-region mockup | No. Nothing in Phase 2 renders that mockup (parity equal), so it is a forward-looking constraint on the Users phase (ROADMAP Phase 5 user management). It is not yet written into the D-42 records, and it should be (recipe comment, parity.md, a deferred item) | `overlays.recipe.ts:38-40`, `rulings.css:242-270` |
+| WR-01: a press on the dark area that does not close still moves focus out of the confirm field and scrolls the backdrop to the top | **No.** Every truth asserts "stays open" and "text kept", and both hold. It is a real UX and keyboard-continuity defect, and it is **wider than the review states**: it also happens on a scrollbar drag | Verifier probe (a temporary spec under `web/e2e/verifier-tmp/`, run and then deleted). At 1280x420 after the wheel (scrollTop 105, focus on the INPUT), a right press gave scrollTop **0** with focus on **BUTTON[Close]**, in chromium, firefox and webkit. After a second wheel to 105, a middle press did the same. The value stayed ORD-2026-0148 and the dialog stayed open. In both scrollbar projects, a real scrollbar drag moved focus from the INPUT to BUTTON[Close] (scrollTop still 30 → 105), and a right press on the scrolled backdrop then reset it to 0. That conflicts with the owner's UAT step "a middle or right click … does nothing", so it is surfaced in human item 1 and 2 |
+| WR-02: the "one task later" re-read relies on WebKit timing | **No** in every observed run. The risk is a future flake or a missed close, which fails safe: the dialog stays open and a second click closes it | WebKit D1+D2 50/50 at 4 workers, D2 15/15 at 6 workers. Recorded as coincidental-reliance on truths 34 and 38 |
+| IN-01 … IN-06 | No | Info. IN-01 (press outside, release inside still closes) is the same as before 02-42 and outside the ordering truth's wording |
 
-On the owner's own setup (Chrome on Windows with classic scrollbars) truth 28 holds, which the probe confirmed in a real engine. Firefox headless on this Windows 11 machine reports overlay geometry (clientWidth 1280), but its edge press did not scroll the backdrop. That press was a plain scrim press, so closing was correct, and Firefox is not counted against the guard.
-
-**This may be intentional scope.** If the owner rules that staff use only Windows with classic scrollbars, accept the limit by adding this to the frontmatter (the status would then become `human_needed`):
-
-```yaml
-overrides:
-  - must_have: "Pressing the backdrop's own scrollbar scrolls it and never closes the dialog (no lost type-to-confirm text); a press on the scrim outside the scrollbar still closes it, as before"
-    reason: "Owner ruling: the guard covers classic (layout-taking) scrollbars, the staff's Windows setup; overlay scrollbars (macOS trackpad, ChromeOS) are out of scope"
-    accepted_by: "{owner}"
-    accepted_at: "{ISO timestamp}"
-```
+**Verdict:** WR-01 and WR-02 are follow-ups, not gaps. Truth 28 as written, and every 02-42 truth, is met in real engines. WR-01's fix (useFocusTrap restoring the last focused element with `preventScroll`) would also remove WR-02's timer. It changes a shared primitive, so it is the owner's call (human item 2).
 
 ### Prohibitions (`must_haves.prohibitions`)
 
@@ -907,28 +906,32 @@ overrides:
 | 02-27 | Never silently change typed money digits | test | `MoneyInput.test.tsx` in verify | verified |
 | 02-31 | No admin, `/dev` or parity code in a production build | test | Budget plugin and guard in verify; production public JS unchanged at 126.18 KB | verified |
 | 02-36 | Never commit or upload the design exports or their renders | test | No `.planning/design/` or `_local/` path in 6272a79..HEAD | verified |
+| 02-42 | MUST NOT close a destructive dialog, or drop its typed text, on a backdrop-scroll gesture or a non-primary button | test | T1-T4 (both scrollbar projects), D1 (three engines), `Modal.test.tsx:568,581,656,673`; all run here and green | verified |
+| 02-42 | MUST NOT stop the close by making the backdrop harder to scroll or reach (no default prevented on the press, no hidden or narrowed scrollbar, no pointer-events or overflow change) | test | No `preventDefault` on mouse events (`Modal.tsx` only at `:178`, Esc). Recipe unchanged. T1 proves the scrollbar drags, and the wheel/keyboard `@dialog-fit` tests prove reach. WR-01's scroll-to-top after a non-closing press is not one of the forbidden mechanisms, but it is noted | verified |
+| 02-42 | MUST NOT change the look or D-42 layout, or loosen a check | test | Empty frozen-file diff. Removed assertion lines are only the conversions (unit) and the helper move (`deleteOrderDialog.ts:82-87` keeps the same three expects). No tolerance, no `--update-snapshots`, no `bypassCSP`. Parity 21/21 | verified |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | --- | --- | --- | --- |
-| (phase-wide areas) | SPA hosting, order math, HTTP/API, forms/URL state/query, UI kit, layouts/router, parity proof, gates | ✓ VERIFIED | Carried from the 15:20 report |
-| `web/src/ui/overlays/overlays.recipe.ts` | `overlayRegionClasses` D-42 transcription with `SPEC-DEVIATION: D-42` | ✓ VERIFIED | Lines 24-40: the exact token string; the doc comment carries the marker (count 1) |
-| `web/src/ui/overlays/overlays.recipe.node.test.ts` | Pins the tokens and the compiled CSS | ✓ VERIFIED | 7/7 run here: column, flex-start, centre, overflow-y auto, `> *` shrink 0, `::before` 124px, phone 96px with padding 0, no 140px |
-| `web/visual/reference/rulings.css` | D-42 rule groups for the frozen reference | ✓ VERIFIED | Four groups, each with a D-42 comment. They are unlayered, so they beat App. C's layered row rule |
-| `web/e2e/dialog-fit.spec.ts` | `@dialog-fit` short-window geometry and reachability | ✓ VERIFIED | 297 lines, 8 tests, imports only from `./fixtures.ts`; here 23 passed, 17 skipped (by design), 0 failed. It has no real-scrollbar case (gap) |
-| `web/src/ui/overlays/Modal.tsx` | The scrim mousedown ignores a press on the scrim's own scrollbar | ⚠️ PARTIAL | `pressedOnScrollbar` is declared at line 59 and used in `onMouseDown` at line 115, with the `SPEC-DEVIATION: D-42` marker. It is substantive and wired, but it covers classic scrollbars only (truth 28) |
-| `docs/web/parity.md` | Section 6 D-42 row | ✓ VERIFIED | Line 174 has three cells with decision `D-42`; the owner-review parser test passes |
+| (phase-wide areas and 02-41 artifacts) | as in the 23:30 report | ✓ VERIFIED | Regression check: present, unchanged where frozen, gates green |
+| `web/src/ui/overlays/Modal.tsx` | Click-based scrim close rule with `pendingPress`; `SPEC-DEVIATION: D-42` | ✓ VERIFIED | `pendingPress` at `:131`, `:133`, `:138`, `:143-144`, `:161-162`; marker at `:124`. Substantive (70 lines changed), wired in the existing effect. Modal.tsx coverage 100% lines in verify |
+| `web/src/ui/overlays/Modal.test.tsx` | jsdom tests incl. `OVERLAY_SCROLLBAR` | ✓ VERIFIED | Describe at `:558` with 15 cases; 111/111 here |
+| `web/playwright.config.ts` | Two scrollbar projects | ✓ VERIFIED | `chromium-classic-scrollbars`, `chromium-overlay-scrollbars`; `scrollbarSpecs` in `testMatch`/`testIgnore` |
+| `web/e2e/deleteOrderDialog.ts` | Shared helpers `DIALOG_NAME`, `ORDER`, `openDeleteOrder`, `readRegion`, `boxOf`, `topOf` | ✓ VERIFIED | Imported by both dialog specs |
+| `web/e2e/dialog-scrollbars.spec.ts` | `@dialog-fit` T1-T4 | ✓ VERIFIED | 145 lines, 4 tests, 8/8 here |
+| `web/e2e/dialog-fit.spec.ts` | D1-D3 on the shared helpers | ✓ VERIFIED | Imports `./deleteOrderDialog.ts`; D1-D3 green here |
+| `docs/web/e2e.md` | Scrollbar projects and the `@dialog-fit` row | ✓ VERIFIED | `:72-75`, `:115` |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | --- | --- | --- | --- | --- |
-| (phase-wide links) | | | WIRED | Carried from the 15:20 report |
-| `web/src/ui/overlays/Overlay.tsx` | `overlays.recipe.ts` | `className={overlayRegionClasses}` on the `data-ui="s-overlay"` region | WIRED | `Overlay.tsx:17-21` |
-| `web/visual/reference/rulings.css` | `reference.css` `.s-overlay` | Unlayered D-42 groups on the spec class | WIRED | `@overlays` parity 21/21 proves equal computed styles on both sides |
-| `web/e2e/dialog-fit.spec.ts` | `web/src/dev/ShowcaseDemos.tsx` | `[data-case="confirm-delete-order"]` → "Open Delete Order" → `<Overlay><ConfirmDialog inline …/></Overlay>` (`ShowcaseDemos.tsx:158-161`) | WIRED | Runs on the real host at https://localhost:5199 |
-| `web/src/ui/overlays/Modal.tsx` | the Overlay region scrim | `scrims = [overlay, region]` when the dialog is inline in `data-ui="s-overlay"`; `onMouseDown` checks `pressedOnScrollbar` before `requestClose()` | WIRED | `Modal.tsx:107-117`. The probe confirmed that a press on the region's scrollbar reaches this listener (target = region) in Chromium |
+| (phase-wide and 02-41 links) | | | WIRED | Carried; 02-41's Overlay → recipe and Modal → region links still hold (`Modal.tsx:122-123`) |
+| `web/playwright.config.ts` | `dialog-scrollbars.spec.ts` | `testMatch: scrollbarSpecs` on the two projects; `testIgnore` on the five | WIRED | The run here listed T1-T4 only under the scrollbar projects, and D1-D3 only under the five |
+| `Modal.tsx` | region scrim + fixed `.csp-overlay` | mousedown → `pendingPress`; `addEventListener('click', onClick)` → `requestClose()` | WIRED | `:182-185`; proven by D1-D3, T4 and `Modal.test.tsx:638` (fixed scrim) |
+| `Modal.tsx` | `useFocusTrap.ts` | document `focusin` re-reads positions after the trap pulls focus back | WIRED | `:166-172`, `:186`; without it D2 fails (the 6989fa3 RED), and with it D2 passes in three engines |
+| `dialog-scrollbars.spec.ts` | `deleteOrderDialog.ts` | `import { ORDER, openDeleteOrder, readRegion, … } from './deleteOrderDialog.ts'` | WIRED | `:12` |
 
 ### Data-Flow Trace (Level 4)
 
@@ -936,114 +939,131 @@ overrides:
 | --- | --- | --- | --- | --- |
 | Public/admin pages | Placeholder copy and nav | Static copy modules (D-21, D-20) | Phase 2 deliberately has no data screens | N/A (carried) |
 | `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` | Real endpoint | ✓ FLOWING at the API level (carried) |
-| Delete Order demo dialog | ORD-2026-0148 cascade | `src/dev/scenarios` seed (dev-only) | Showcase fixture by design; 02-41 changes only the layout | N/A |
+| Delete Order demo dialog | ORD-2026-0148 cascade | `src/dev/scenarios` seed (dev-only) | Showcase fixture by design; 02-42 changes only the close rule | N/A |
 
-### Behavioral Spot-Checks (run by this verifier on HEAD b0e00a1)
+### Behavioral Spot-Checks (run by this verifier on HEAD 709f0d4)
 
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
-| Shared-machine preflight (before every server or Playwright run, and after) | `preflight.ps1 -Ports 5180,5115,7028,5199` | 5 runs: all four ports free, no dev/test processes, no TheBETSLLC test processes | ✓ PASS |
-| 02-41 unit pins | `npm --prefix web run test -- --run src/ui/overlays visual/reference/rulings scripts/tailwind-classes.test.ts scripts/owner-review.test.ts` | 8 files, 256 tests passed: recipe node 7/7, Modal 36 (including the 4 D-42 scrollbar tests), rulings 41 (including the D-42 pin), class gate 57, owner-review 62 | ✓ PASS |
-| `@dialog-fit`, all five projects | `npm --prefix web run e2e -- --grep @dialog-fit` | 23 passed, 17 skipped, 0 failed, 56 s. The skips are by design: desktop tests skip on the device projects, and the device test skips on the desktop engines | ✓ PASS |
-| Overlays parity and self-test | `npm --prefix web run parity -- --grep "@overlays\|@selftest"` | 21 passed in chromium, firefox and webkit, exit 0 | ✓ PASS |
-| Web gate chain | `npm --prefix web run verify` | exit 0; 109 files, 3087 tests; coverage 98.25 / 96.52 / 99.81 / 99.82; budgets ok; license gate 0 problems; notices up to date; no warning lines | ✓ PASS |
-| Dialog-adjacent E2E, all five projects | `npm --prefix web run e2e -- --grep "@showcase\|@keyboard\|@a11y-rulings"` | 360 passed (19.1 min), exit 0: 72 each in chromium, firefox, webkit, pixel and iphone, with 0 failed and 0 flaky | ✓ PASS |
-| Real-scrollbar probe 1. A one-off script in the session scratchpad, run against this project's own Vite dev server on 5180, which the verifier started and then stopped | Playwright at 1280x420 in three configurations: Chromium without `--hide-scrollbars` (classic), Chromium with `--enable-features=OverlayScrollbar`, and Firefox default. Steps: type ORD-2026-0148, drag at x = 1276 from y 120 to 300, click the scrim at (20, 60), middle-click the scrim | Classic: clientWidth 1265 of 1280; dialog **open**, text kept, scrollTop 0 → 105; the scrim click closed it. Overlay: clientWidth 1280; dialog **closed** by the drag. Firefox: clientWidth 1280; dialog closed. Middle-click closed it in all three | ✓ classic / ✗ overlay |
-| Real-scrollbar probe 2: was the edge press a real scrollbar press? | As probe 1, but a capturing window listener records the mousedown, evaluates the guard's arithmetic and stops the event before the Modal sees it | Classic: target = region, `guardWouldSkip: true`, scrolled 105. **Overlay: target = region, `guardWouldSkip: false`, scrolled 105**, so it was a real scrollbar drag that the guard misses. Firefox: target = region, `guardWouldSkip: false`, scrolled 0, so it was not a scrollbar press | ✗ FAIL (overlay scrollbars), confirms the truth 28 gap |
-| Debt markers in the 8 non-planning files changed by 02-41 | grep `TBD\|FIXME\|XXX\|TODO\|HACK\|PLACEHOLDER` | none | ✓ PASS |
-| Inline styles in the overlays | grep `style=` in `src/ui/overlays/*.tsx` (non-test) | none | ✓ PASS |
+| Shared-machine preflight (before every Playwright or parity run) | `preflight.ps1 -Ports 5180,5115,7028,5199` | Each time: all four ports free, no dev/test processes, no TheBETSLLC test processes | ✓ PASS |
+| Overlay unit tests | `npx vitest run src/ui/overlays` (in `web/`) | 5 files, 111 passed | ✓ PASS |
+| `@dialog-fit`, all seven projects | `npm --prefix web run e2e -- --grep @dialog-fit` | 39 passed, 24 skipped (by design), 0 failed, 1.4 min | ✓ PASS |
+| D2 under parallel load | `… --grep "left click on the dark area beside the dialog" --project webkit --project chromium --project firefox --repeat-each 15 --workers 6 --retries 0` | 44/45: chromium 15/15, webkit 15/15, firefox 14/15 (failure cause not captured; the rerun below captured the same setup timeout) | ✓ PASS (close rule) |
+| D2 in Firefox | `… --project firefox --repeat-each 20 --workers 6 --retries 0` | 19/20; the failure is `expect(locator('h1')).toHaveText('Component Showcase')` timing out at 5 s in `deleteOrderDialog.ts:83`, before the dialog opens | ✓ PASS (close rule) / ℹ️ setup flake |
+| WR-02 stress (review's suggested run) | `… --grep "left click on the dark area" --project webkit --project firefox --repeat-each 25 --workers 4 --retries 0` | 99/100: **webkit 50/50**; firefox 49/50, again the `h1` setup timeout | ✓ PASS |
+| WR-01 probe (temporary spec, deleted afterwards) | Five standard and two scrollbar projects at 1280x420: wheel to the buttons, right press, wheel, middle press; and a real scrollbar drag | Dialog open and text kept everywhere. **Focus moved INPUT → Close and scrollTop 105 → 0** after a non-primary press (chromium, firefox, webkit). **Focus moved INPUT → Close on a scrollbar drag** (both scrollbar projects) | ⚠️ WR-01 confirmed (not a truth failure) |
+| Overlays parity and self-test | `npm --prefix web run parity -- --grep "@overlays\|@selftest"` | 21 passed | ✓ PASS |
+| Web gate chain | `npm --prefix web run verify` | exit 0; 109 files, 3102 tests; coverage 98.26 / 96.5 / 99.82 / 99.82; budgets ok (public 126.18 KB, dev-route admin 157.34 KB, CSS 13.04 KB); license gate passed; notices up to date (16 packages); zero warning lines | ✓ PASS |
+| Debt markers in the 10 non-planning files changed by 02-42 | grep `TBD\|FIXME\|XXX\|TODO\|HACK\|PLACEHOLDER` | none | ✓ PASS |
+| Frozen files | `git diff --stat f2af90f..HEAD -- overlays.recipe.ts web/visual web/package.json web/package-lock.json CSPS-UI-SPEC.md` | empty | ✓ PASS |
 
 ### Probe Execution
 
-Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one, so this step is SKIPPED. The "real-scrollbar probes" above are one-off verifier spot-checks, not declared probes.
+Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one, so this step is SKIPPED. The WR-01 probe above is a one-off verifier spot-check, not a declared probe.
 
 ### Requirements Coverage
 
 | Requirement | Source plans | Status | Evidence |
 | --- | --- | --- | --- |
 | WEB-01 | 02-01, 02, 03, 06, 37 | ✓ SATISFIED | Truths 1-3 |
-| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40, **41** | ✓ SATISFIED | Parity proof; owner look approval (UAT 2-3 pass); D-42 registered and parity-equal (truths 24, 30). The owner's re-check of the short-window look is UAT 199 |
+| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40, 41 | ✓ SATISFIED | Parity proof; owner look approval (UAT 2-3); D-42 registered, parity 21/21 |
 | WEB-03 | 02-10 | ✓ SATISFIED | Truth 12 |
 | WEB-04 | 02-04, 15, 16 | ✓ SATISFIED | Truth 14 |
 | WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Carried |
-| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34, **41** | ⚠️ SATISFIED with gap | Truth 9; ConfirmDialog is usable on short windows (truths 25-27). Its scrollbar guard is partial (truth 28, gap): with overlay scrollbars, dragging the backdrop can still drop the typed confirm text |
+| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34, 41, **42** | ✓ SATISFIED | Truth 9; ConfirmDialog usable on short windows (24-27); the backdrop scrollbar and non-primary presses never close it (28, 31-33). Owner re-check is UAT 199 |
 | WEB-07 | 02-07 | ✓ SATISFIED | Truth 11 |
-| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15; the owner confirmed the meaning of intent prefetch (UAT 11) |
+| WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15 |
 | WEB-09 | 02-10, 16, 17 | ✓ SATISFIED | Truth 13 |
 | WEB-10 | 02-11, 30, 31 | ✓ SATISFIED | Truth 19 |
 | ORD-09 | 02-08, 23, 27 | ✓ SATISFIED | Truth 10 |
 | QUAL-02 | 02-02, 04, 37 | ✓ SATISFIED | Truth 3 |
-| QUAL-04 | 02-09, 35 | ✓ SATISFIED | Truth 16 |
-| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe violations in components and pages; `@dialog-fit 1280x420` is axe-clean with the backdrop scrolling |
-| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35, **41** | ✓ SATISFIED | Delete Order is reachable by keyboard on a short window (truth 26); focus trap and Esc are unchanged (truth 29) |
-| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36, **41** | ✓ SATISFIED | Truth 18; D-42 is the owner ruling for the WCAG 1.4.10 dialog conflict (truth 30) |
-| PERF-01 | 02-33 | ✓ SATISFIED | Truth 4 |
-| PERF-02 | 02-03, 35 | ✓ SATISFIED | Truth 17 |
-| PERF-03 | 02-20, 27, 30, 35, **41** | ✓ SATISFIED | Truth 7, plus dialog reflow on short windows (truths 25-27) |
+| QUAL-04 | 02-09, 35, **42** | ✓ SATISFIED | Truth 16; seven projects under the same guard and strict CSP (truth 41) |
+| A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe violations; `@dialog-fit` axe-clean |
+| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35, 41, **42** | ✓ SATISFIED (with warning) | Focus trap, Esc and keyboard reach unchanged (truths 26, 29, 39). WR-01: after a non-closing press, focus is pulled to Close rather than back to the field. It stays trapped in the dialog, so the requirement holds, but keyboard continuity is worse (human item 2) |
+| A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36, 41 | ✓ SATISFIED | Truth 18; D-42 |
+| PERF-01 | 02-33 | ✓ SATISFIED | Truth 4 (budgets re-measured in verify) |
+| PERF-02 | 02-03, 35 | ✓ SATISFIED | Truth 17 (02-42 changed no public-route code) |
+| PERF-03 | 02-20, 27, 30, 35, 41 | ✓ SATISFIED | Truth 7; dialog reflow (25-27) |
 | PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 |
 
-All 20 phase requirement IDs are accounted for, and `.planning/REQUIREMENTS.md` maps exactly these 20 to Phase 2, so none is orphaned. **Bookkeeping for the orchestrator:** the REQUIREMENTS.md traceability table still shows "Gaps Found" for 18 of them and "Pending" for WEB-02 and A11Y-04. Once the truth 28 gap is closed or overridden, the evidence above supports updating them.
+All 20 phase requirement IDs are accounted for. `.planning/REQUIREMENTS.md` maps exactly these 20 to Phase 2, so none is orphaned. **Bookkeeping for the orchestrator:** the traceability table now shows WEB-06 and A11Y-02 as Complete (02-42 commit a8081da), WEB-02 and A11Y-04 as Pending, and the other 16 as "Gaps Found". The evidence above supports moving all 20 to Complete once the owner passes UAT 199.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| (the 8 non-planning files changed by 02-41) | — | TBD / FIXME / XXX / TODO / HACK / PLACEHOLDER | — | None found |
-| `web/src/ui/overlays/Modal.tsx` | 59-68, 113-117 | The scrollbar guard is geometry-only and does not check `event.button` (review WR-01) | 🛑 Blocker (truth 28) | A real overlay-scrollbar drag closes the Delete Order dialog and loses the typed text (probe 2) |
-| `web/e2e/dialog-fit.spec.ts` | whole spec | Headless runs hide scrollbars, so the suite never exercises the scrollbar path (review WR-02) | ⚠️ Warning | This is why the truth 28 defect went unseen; it is part of the gap's `missing` list |
-| `web/src/ui/overlays/overlays.recipe.ts` | 39, with `modalBase` | The modal's 0.2 s rise can overflow the scrolling region by about 2px for a bottom-flush phone sheet, so a classic scrollbar may flash (review WR-03) | ⚠️ Warning | Transient. It does not happen on real phones (overlay scrollbars) or in the resting geometry. Either fix changes the look, so it needs the owner (D-08) |
-| `overlays.recipe.ts` / `rulings.css` D-42 | 38-40 / 242-270 | The unconditional column + `::before` spacer will clash with the App. E Users slide-over-in-region mockup (review WR-04) | ⚠️ Warning (forward-looking) | Nothing in Phase 2 renders that mockup. The Users phase will need a region variant, and the D-42 records do not yet say so |
+| (the 10 non-planning files changed by 02-42) | — | TBD / FIXME / XXX / TODO / HACK / PLACEHOLDER | — | None found |
+| `web/src/ui/overlays/useFocusTrap.ts` (with `Modal.tsx:132-172`) | trap `focusFirst()` | A non-closing scrim press, or a scrollbar drag, lets the browser move focus out, and the trap pulls it to the first tabbable element (Close) without `preventScroll` (review WR-01, confirmed and widened here) | ⚠️ Warning | The caret leaves the confirm field, and after a middle/right press the scrolled backdrop jumps to the top. Nothing is lost and the dialog stays open. Owner decision (human item 2) |
+| `web/src/ui/overlays/Modal.tsx` | 156-172 | `setTimeout(0)` re-read depends on WebKit task order and accepts any scroll in that window (review WR-02) | ⚠️ Warning | It fails safe (the dialog stays open). 50/50 green here. Removed by WR-01's fix |
+| `web/src/ui/overlays/Modal.tsx` | 141-155 | Press on the scrim, release inside the dialog → the click targets the scrim → it closes (IN-01) | ℹ️ Info | Same as before 02-42; small hardening available |
+| `web/src/ui/overlays/Modal.tsx` | 124-130 | Comment says WebKit sends no click after a scrollbar press; that is proven for Chromium only (IN-02) | ℹ️ Info | Wording |
+| `web/playwright.config.ts` | 55 | `--enable-features=OverlayScrollbar` may replace Playwright's own `--enable-features` list (IN-03) | ℹ️ Info | Affects only screenshot capture in that project |
+| `web/e2e/deleteOrderDialog.ts` | 83 | The 5 s `h1` wait after `goto` timed out 2 times in 85 Firefox repeats under 4-6 workers (the showcase is the heaviest page) | ℹ️ Info | Setup flake, not the close rule. The same family as the deferred-items entry on Firefox page-load hangs (plan 02-42). It did not occur in the normal 39/39 run |
 | `web/src/ui/overlays/Modal.tsx` / `ConfirmDialog.tsx` | — | The page behind an open dialog is not `inert` | ⚠️ Warning (owner-ruled) | Carried: R2-10 ruled to Phase 4 |
+| `overlays.recipe.ts` / `rulings.css` | — | 02-41 review WR-03 (2px rise flash) and WR-04 (Users slide-over region variant) still `open` in `02-REVIEW-g199-DISPOSITION.md` | ⚠️ Warning | Carried; owner decision (human item 2) |
 | `web/visual/parity-matrix.ts` | 92 | Focus-visible parity rows run in Chromium only | ℹ️ Info | Carried |
 | Lighthouse LCP | — | 1884 ms against a 2000 ms limit | ℹ️ Info | Carried (R2-28 FYI) |
 
 ### Advisory (New Scope, Unevidenced)
 
-None. Every new finding above has deterministic evidence (the probe or a code read with line numbers), or it is a review warning already tracked in `02-REVIEW-g199-DISPOSITION.md`.
+None. The new observation (WR-01 also fires on a scrollbar drag) has deterministic evidence from the probe run here. It is a warning, not a blocker: it contradicts no must-have truth.
 
 ### Human Verification Required
 
-The owner has passed every hands-on item from the 15:20 report (UAT tests 2-5, 9, 11-13 and 196). After the truth 28 gap is closed or overridden, these two remain:
-
 #### 1. Re-check UAT test 199 (G-2-199, D-42) in Chrome at 125-150% zoom
 
-**Test:** Open `/dev/components` and press "Open Delete Order". Shorten the window until the dialog no longer fits, type the order number, and drag the dark backdrop's scrollbar. Then click the dark area outside the dialog.
-**Expected:** The dialog is centred on the window. The whole dialog shows, Cancel and Delete Order included, or the backdrop scrolls to them. On a normal-height window it sits where it did before. Dragging the scrollbar scrolls without closing the dialog or clearing the typed text. A click on the dark area still closes it.
-**Why human:** The owner found the defect at real zoom on a real screen, and headless tests hide scrollbars and do not zoom. Closing G-2-199 in `02-UAT.md` needs this check (`/gsd-verify-work 2`).
+**Test:** Open `/dev/components` and press "Open Delete Order". Shorten the window until the dark backdrop scrolls, then type the order number. Drag the backdrop's scrollbar. Middle-click and right-click the dark area, then left-click it. Also check a normal-height window.
+**Expected:**
+- The dialog stays centred.
+- The whole dialog shows, or the backdrop scrolls to Cancel and Delete Order.
+- Dragging the scrollbar scrolls the backdrop and keeps the dialog open with the text.
+- A middle or right click does not close it.
+- A left click on the dark area closes it.
+- On a normal-height window the dialog sits where it did before.
 
-#### 2. Decide on the remaining 02-41 review warnings (`02-REVIEW-g199-DISPOSITION.md`)
+**Watch for (WR-01, confirmed here):** after you scroll down to the buttons, a middle or right click moves the cursor out of the order-number box and jumps the backdrop back to the top. Dragging the scrollbar also moves the cursor to the Close button. The typed text is kept. Say whether this is acceptable.
+**Why human:** You found the defect at real zoom on a real screen, and your own browser and scrollbar setting are the acceptance. Closing G-2-199 in `02-UAT.md` needs this check (`/gsd-verify-work 2`).
 
-**Test:** Mark WR-03 and WR-04 as fix, defer or accept. WR-01 and WR-02 are covered by the gap, or by the override if the owner chooses it.
-**Expected:** A recorded decision for each. WR-03 is a possible 200 ms scrollbar flash on phone-width desktop windows; it is a look change, so D-08 applies. WR-04 says the later Users slide-in panel needs its own region variant; record it as a deferred item.
-**Why human:** These are look and scope choices that only the owner can make.
+#### 2. Decide on the open review findings
+
+**Test:** In `02-REVIEW-g199-42-DISPOSITION.md`, mark WR-01, WR-02 and IN-01 to IN-06 as fix, defer or accept. All 8 are still `open`. Do the same for WR-03 and WR-04 in `02-REVIEW-g199-DISPOSITION.md`.
+**Expected:** A recorded decision for each.
+- WR-01 and WR-02 have one shared fix in `useFocusTrap`, which every overlay uses: return focus to where it was, without scrolling.
+- IN-01 is a small hardening.
+- IN-02 is a comment fix.
+
+**Why human:** None of these breaks a must-have. Whether the focus jump is acceptable is a behaviour choice for you, and the fix touches a shared primitive.
+
+#### 3. (Optional) macOS Safari with a trackpad
+
+**Test:** Do the drag, and a press-and-release on the scrollbar thumb without moving.
+**Expected:** Neither closes the dialog.
+**Why human:** Safari cannot run on this Windows machine. The no-movement case is proven for Chromium only.
 
 ### Gaps Summary
 
-**One gap: truth 28, the backdrop-scrollbar guard (partial).** Plan 02-41 promised that pressing the backdrop's own scrollbar never closes the dialog. The guard decides this from layout geometry, which works only for scrollbars that take up space.
+**No gaps.** Truth 28, the last open gap, is closed. Plan 02-42 replaced the geometry-only mousedown close with a click-based rule. The scrim closes only on a primary-button click that follows a primary press on the dark area, with the backdrop not scrolled in between. Runs made here prove it, rather than the SUMMARY's claims:
 
-- **Classic scrollbars (Chrome on Windows, the owner's setup):** a real-browser probe confirmed the guard works.
-- **Overlay scrollbars (Chrome and Safari on macOS with a trackpad, ChromeOS):** a real scrollbar drag still closes the Delete Order dialog and throws away the typed order number. This is review warning WR-01, confirmed here in a browser.
-- **Why nothing caught it:** the automated suite never presses a real scrollbar, because headless Playwright hides scrollbars (WR-02).
+- **Overlay and classic scrollbars:** dragging or pressing the backdrop's scrollbar keeps the Delete Order dialog open with ORD-2026-0148 in real Chromium. Two new permanent Playwright projects cover this, so the defect cannot slip back unseen.
+- **Middle and right presses:** they no longer close the dialog, in any engine.
+- **Left click:** a click on the dark area still closes the dialog in all seven projects.
+- **No regressions:** layout, parity, the focus trap, Esc, loading and the strict CSP are unchanged. verify passed with 3102 tests.
 
-The fix is small and local to `Modal.tsx` and `dialog-fit.spec.ts`, as the `missing` list describes. Alternatively, if overlay-scrollbar platforms are out of scope for staff, the owner can accept the limit with the override above, and the status becomes `human_needed`.
+**The review warnings are follow-ups, not gaps.**
+- **WR-01** is real and wider than the review says. A non-closing press, and also a scrollbar drag, moves focus from the confirm field to Close. After a middle or right press, the scrolled backdrop also jumps back to the top. No truth asserts focus or scroll preservation, and the text is never lost. It does weaken the owner's "does nothing" expectation, so it is surfaced for the owner's decision.
+- **WR-02** is a timing dependence that held 50/50 in WebKit here and fails safe. It is recorded as coincidental reliance.
 
-Everything else in 02-41 holds, and runs made here prove it rather than the SUMMARY's claims:
+The phase is therefore `human_needed`. Every automated must-have passes, and the owner's UAT 199 re-check and the review decisions remain.
 
-- The Delete Order dialog keeps its approved place where it fits (140px desktop, 96px phone), and the `@overlays` parity rows stay equal.
-- At the owner's 1274x585 window it moves up and fits whole.
-- On shorter windows and short phone pages the dark backdrop scrolls, and both the wheel and the keyboard reach Delete Order. This holds in Chromium, Firefox and WebKit and on the Pixel 7 and iPhone 15 screens.
-- The fix is pure CSS and follows the D-42 ruling, which is recorded where every look ruling lives.
-- Nothing regressed: verify passed 3087/3087, the dialog-adjacent E2E passed 360/360 in five projects, and parity passed 21/21.
-
-Step 9b: no later ROADMAP phase covers the Modal scrim close rule, so the gap is not deferred. WR-04 alone points at the Users phase (Phase 5), and it is a warning, not a gap.
+Step 9b: there are no gaps to defer.
 
 ### Verifier side effects (disclosed)
 
-- The E2E and parity runs overwrote the git-ignored `web/test-results/` folder, including `parity-results.json`. The verify run rewrote the git-ignored `src/Csps.Server/wwwroot` and `.budget-dist`.
-- For the probes, the verifier ran a clear preflight, then started this project's own Vite dev server on 5180 (`npx vite --port 5180 --strictPort` in `web/`). Afterwards it stopped that process (PID 12240, command line `web\node_modules\.bin\..\vite\bin\vite.js --port 5180 --strictPort`), and a final preflight showed all four ports free. No other process was touched. The probe scripts live in the session scratchpad, not in the repository.
-- No tracked file was changed apart from this report (`git status`: only the pre-existing untracked `.claude/launch.json`). `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` in-process over the 765 covered paths; that function is behind `gsd-tools query verification.fingerprint`. The list adds the 02-41 PLAN and SUMMARY, `dialog-fit.spec.ts`, `overlays.recipe.node.test.ts` and `fixedLayerGuard.ts`.
+- The E2E, parity and verify runs overwrote the git-ignored `web/test-results/`, `web/.e2e-dist`, `.budget-dist` and `src/Csps.Server/wwwroot`, and re-seeded `CSPS_E2E` on `(localdb)\CSPS` (idempotent, `SiteSettings: unchanged`).
+- The WR-01 probe was three temporary files under `web/e2e/verifier-tmp/`, run through `npm run e2e` and then deleted. `git status` afterwards showed only the pre-existing untracked `.claude/launch.json`. No dev server was started, and no process was stopped.
+- `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` in-process (the function behind `gsd-tools query verification.fingerprint`) over 769 paths. That is the 765 from the 23:30 report plus `02-42-PLAN.md`, `02-42-SUMMARY.md`, `web/e2e/deleteOrderDialog.ts` and `web/e2e/dialog-scrollbars.spec.ts`. The fingerprint script is in the session scratchpad.
 
 ---
 
-_Verified: 2026-10-13T23:30:00Z_
+_Verified: 2026-10-14T02:25:00Z_
 _Verifier: Claude (gsd-verifier)_
