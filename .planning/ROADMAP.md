@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T05:57:52-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T17:56:00-05:00*
 
 ## Overview
 
@@ -398,7 +398,79 @@ Plans:
 - the refresh grace-window design
 - timing-parity tests
 
-**Plans**: TBD
+**Plans**: 35 plans in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+
+**Wave 1**
+- [ ] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md — Owner-approved packages (D-36) with registry, notices and the npm legitimacy checkpoint; MSW test harness
+- [ ] 04-03-PLAN.md — Audit write path hardening (WR-01/02/03/05/06), unit of work, AUDIT-01 action catalog
+- [ ] 04-04-PLAN.md — Owner password rule (D-11, D-15) in the Domain and the browser mirror on shared cases; AUTH-11 amended
+- [ ] 04-05-PLAN.md — Emailed-code challenge rules (AUTH-02/03/04) as a pure Domain state machine
+- [ ] 04-06-PLAN.md — Session rotation rules R1-R5 and the coarse device label (D-32, D-43)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-07-PLAN.md — Controllers under the owner's rules, 401/429 error contract with machine codes, 1 MB body limit and list caps (SEC-03)
+- [ ] 04-08-PLAN.md — Identity accounts on schema v2 with the two roles and the account port
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 04-09-PLAN.md — Email outbox and dispatcher with the code email, SMTP over required TLS and the Debug-only Testing sink
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 04-10-PLAN.md — Testing-only email and staff-fixture endpoints, Testing E2E host (D-37), Release proof (QUAL-05)
+- [ ] 04-11-PLAN.md — Two-factor persistence with HMAC-bound codes and secure random values
+- [ ] 04-17-PLAN.md — Breach checks: HIBP k-anonymity, common-password floor, fail-open and fail-closed modes (D-12, D-14)
+- [ ] 04-33-PLAN.md — The other six auth emails with the UI-SPEC copy, and D-33 retries, expiry, single send and no secrets in logs
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 04-12-PLAN.md — Sign-in endpoint: ticket cookie and code email, generic failures with timing parity, lockout (AUTH-01/07/10)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 04-13-PLAN.md — Sessions, typed access tokens and immediate revocation; database-backed authorization matrix
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 04-14-PLAN.md — Code verify and resend, cross-ticket cap, must-change hand-off, anti-CSRF header
+- [ ] 04-34-PLAN.md — Session store lookups and bulk revocation for rotation and sign-out-others (D-05), and the caller's session id
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 04-15-PLAN.md — Rotating refresh with grace and reuse detection, sign-out, sign-out-others (AUTH-05/06, D-05, D-44)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 04-16-PLAN.md — Signed-in devices API: list my sessions, sign out one (D-43)
+- [ ] 04-25-PLAN.md — Web session client, route guard with safe return path, multi-tab refresh, admin behind sign-in (D-20 reversal)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 04-18-PLAN.md — Forgot password: hashed fragment-only reset links, same answer for every email (AUTH-08, D-20)
+- [ ] 04-26-PLAN.md — AuthLayout and the S1 sign-in screen (App. E.5) with Note, banner alignment and tap areas
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 04-19-PLAN.md — Reset password: link check, full rule with breach floor, every session ended (AUTH-09, D-19)
+- [ ] 04-27-PLAN.md — S2 code step, end-to-end sign-in in every browser, refresh-cookie spike in three engines
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 04-20-PLAN.md — Idempotency-Key on every state-changing POST with the written allow-list (SEC-06, D-40)
+- [ ] 04-28-PLAN.md — S4 and S5 reset screens with mirrored validation
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 04-21-PLAN.md — Must-change gate and late breach re-check (D-13, D-18, D-22)
+- [ ] 04-29-PLAN.md — S7 Signed-in devices page with per-device and other-devices sign-out
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [ ] 04-22-PLAN.md — First-Manager bootstrap handler and invite acceptance with a fail-closed breach check (AUTH-12, D-29)
+- [ ] 04-30-PLAN.md — User-menu session items, inert page behind dialogs (R2-10), 12-hour cap warning, two-tab proof
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [ ] 04-24-PLAN.md — Per-IP rate limits on every auth endpoint (SEC-03, D-39)
+- [ ] 04-31-PLAN.md — S3 must-change and S6 invite screens
+- [ ] 04-35-PLAN.md — The guarded bootstrap-manager command and the first-Manager runbook (AUTH-12, CWE-214)
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [ ] 04-23-PLAN.md — Branded auth emails with the inline logo and the owner's preview tool (D-30)
+
+**Wave 18** *(blocked on Wave 17 completion)*
+- [ ] 04-32-PLAN.md — S1 look-equality proof, SPEC-GAP review pack, overflow sweep, auth API guide, Phase 3 checks, full local gate
+
 **UI hint**: yes
 
 ### Phase 5: Profile & User Management
