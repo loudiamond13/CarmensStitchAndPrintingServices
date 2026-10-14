@@ -1,5 +1,5 @@
 {
-  "model_profile": "quality",
+  "model_profile": "balanced",
   "commit_docs": true,
   "parallelization": true,
   "search_gitignored": false,
@@ -89,7 +89,19 @@
     "source_grounding": true,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
+  "resolve_model_ids": false,
   "mode": "yolo",
-  "granularity": "fine"
+  "granularity": "fine",
+  "model_overrides": {
+    "gsd-planner": "opus",
+    "gsd-roadmapper": "opus",
+    "gsd-eval-planner": "opus",
+    "gsd-phase-researcher": "opus",
+    "gsd-project-researcher": "opus",
+    "gsd-research-synthesizer": "opus",
+    "gsd-ui-researcher": "opus",
+    "gsd-advisor-researcher": "opus",
+    "gsd-ai-researcher": "opus",
+    "gsd-domain-researcher": "opus"
+  }
 }
