@@ -93,7 +93,8 @@ export function PublicShell({ active = 'Home', header = true, footer = true }: P
                   </li>
                   <li>
                     <Icon name="clock" size={16} />
-                    <span>Mon–Sat · 9:00 AM – 6:00 PM</span>
+                    {/* Mirrors siteContact.ts under the owner's 2026-10-14 no-long-dash rule. */}
+                    <span>Mon-Sat · 9:00 AM - 6:00 PM</span>
                   </li>
                 </ul>
               </div>

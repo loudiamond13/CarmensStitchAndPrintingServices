@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-13T08:21:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-14T10:28:00-05:00*
 
 ## What This Is
 
@@ -117,7 +117,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 - **Quality gates (PRD §14, §17)**:
   - TDD for every behavior (red → green → refactor); `workflow.tdd_mode` is on.
   - Zero warnings in build, analyzers, lint, types, tests and the browser console.
-  - Coverage: 100% Domain, ≥ 95% Application, 100% `lib/http`, ≥ 90% web overall.
+  - Coverage: 100% Domain, ≥ 95% Application, 100% `core/api`, ≥ 90% web overall.
   - Authorization matrix tests cover every endpoint × {anonymous, Admin, Manager}.
 - **Security (PRD §11)**: MITRE CWE Top 25 / ATT&CK / CAPEC drive each phase's security review. Every phase lists the CWE IDs it touches and the tests that prove each mitigation. Strict CSP (no `unsafe-inline` or `unsafe-eval`), default-deny policies, append-only audit log, no secrets or data in git.
 - **Accessibility (PRD §12)**: WCAG 2.2 AA. axe must report zero violations at the component level (vitest-axe) and page level (Playwright). Keyboard and screen-reader passes are recorded for critical flows.
@@ -131,7 +131,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 - **Shared machine (CLAUDE.md, binding)**:
   - Ports: Vite 5180, API 5115 / 7028, Playwright host 5199 (`reuseExistingServer: false`).
   - Never use 5173, 5023 or 5099. Avoid 49152–65535.
-  - LocalDB databases use the `CSPS_` prefix. Never touch `BetsLLC_*`.
+  - LocalDB is the default `(localdb)\MSSQLLocalDB` (owner, 2026-10-14), shared with TheBETSLLC. CSPS databases use the `CSPS_` prefix. Never touch `BetsLLC_*`.
   - Run `C:\Work\dev-tools\preflight.ps1 -Ports 5180,5115,7028,5199` before any dev server, Playwright run or full test run. Never kill another project's processes.
   - Never set `ASPNETCORE_*` / `DEV_SERVER_PORT` env vars at User or Machine level.
   - One session per folder.
@@ -143,7 +143,8 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 |---|---|---|
 | SQL Server 2025 is the production target; compatibility level stays pinned at 160 until the 2025 database exists (D-33) | SmarterASP.NET offers 2025 only as a new database plus `.bak` restore, not an in-place upgrade; the Basic plan has 1 database. The move happens at the Phase 17 cutover | — Pending |
 | Two free Microsoft runtime parts of the SQL Server driver ship under an exact-version license exception (`docs/license-exceptions.json`) | They are free but not open source; Microsoft.Data.SqlClient needs them on Windows. Any other version needs a new owner approval | ✓ Good (Phase 1) |
-| The dev seed runs only on `(localdb)\CSPS` or a loopback test container (code review WR-04) | Keeps sample data and `--reset` away from the live host and TheBETSLLC's databases | ✓ Good (quick 261007-p98) |
+| The dev seed runs only on `(localdb)\MSSQLLocalDB` or a loopback test container, and only against `CSPS_Dev` or `CSPS_E2E` (code review WR-04; instance changed by the owner, 2026-10-14, quick 261014-ctx) | Keeps sample data and `--reset` away from the live host and TheBETSLLC's databases. The database name is now the guard, because TheBETSLLC shares the instance | ✓ Good (quick 261007-p98, 261014-ctx) |
+| Owner conventions 2026-10-14 (OR-1..OR-6): default `MSSQLLocalDB` with separate `CSPS_*` databases; minimal comments; client-side (zod) validation of every backend rule before any request; no long dash in the client; API calls per module in `modules/*/services` with the shared client in `core/api`; the owner's `web/src` layout | Standing rules set before Phase 4. Recorded in `.claude/CLAUDE.md` Conventions, the PRD (§9) and REQUIREMENTS (WEB-02/03/04/09, QUAL-03) | ✓ Adopted (quick 261014-ctx) |
 | API style is controller-based (`[ApiController]`, attribute routes under `/api/v1`), not Minimal APIs (owner, 2026-10-07) | Owner preference. Conventions: thin actions → one handler; default-deny fallback policy with explicit `[Authorize(Policy)]`/`[AllowAnonymous]`; automatic model-state 400s suppressed, FluentValidation in handlers → `Result<T>` → ProblemDetails. The one existing Minimal API endpoint (`GET /api/v1/site-settings`) converts when a later phase touches it | — Pending |
 | Follow the PRD's 12-phase vertical-slice roadmap as the baseline (Fine granularity) | The PRD §20 phases are already dependency-ordered vertical slices. Phases 1–9 run on an empty DB, and only 10–12 touch legacy data | — Pending |
 | Replace the VS template scaffold with the PRD §3.1 layout and keep its port config | The template layout (`*.Server` + `*.client` + SpaProxy) doesn't match the onion layout or the build-into-`wwwroot` model | — Pending |

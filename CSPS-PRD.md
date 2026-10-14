@@ -1,4 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-14T10:25:00-05:00*
+
 ## Product Requirements & Engineering Contract (for GSD Core)
 
 > **How to use this file**
@@ -23,7 +25,7 @@ These rules override every other instruction, convenience, or "quick fix".
 5. **Follow `CSPS-UI-SPEC.md` strictly.** Do not invent layouts, colors, spacing, typography, or components that contradict it. If the spec is silent, follow its existing patterns and record the gap. If the spec conflicts with accessibility (§12) or security (§11), stop and ask the owner.
 6. **Respect the onion.** Dependencies point inward only (§3). Architecture tests enforce it.
 7. **Security and accessibility are features, not phases.** Every phase is checked against §11 (MITRE) and §12 (WCAG).
-8. **No axios.** All HTTP goes through the in-house `httpClient`, and every endpoint call lives in `api.ts` (§9.3).
+8. **No axios.** All HTTP goes through the in-house `httpClient`, and every endpoint call lives in a per-module service file (owner, 2026-10-14; §9.3).
 9. **Ask, don't assume,** for every **[OWNER DECISION]** item (§21) and for every one-way-door action (schema/data migration, deletions, cutover).
 10. **Responsive, optimized, and modern — everywhere.** Every screen must work beautifully on a phone first, load fast, and use current platform features (§7.1). Performance budgets are enforced in CI; a regression is a failed build.
 11. **The app owns its database schema — no dependency on the `.bak`.** GSD designs and creates every table and column from the domain model (§5) using EF Core code-first migrations (§5.6). The app MUST build, run, pass every test, and deploy against a brand-new empty database with no `.bak` present. The `.bak` is used only for a one-time data import at the end (§16), and the legacy data is reshaped to fit the new schema — never the other way around.
@@ -62,7 +64,7 @@ These rules override every other instruction, convenience, or "quick fix".
 | Styling | **Tailwind CSS v4** | Design tokens taken from `CSPS-UI-SPEC.md`. |
 | Icons | `lucide-react` only | |
 | Routing | React Router | Route-level code splitting with `React.lazy`. |
-| Server state | TanStack Query | Uses `api.ts` functions as query/mutation functions. |
+| Server state | TanStack Query | Uses the module service functions as query/mutation functions (owner, 2026-10-14). |
 | Forms | react-hook-form + zod | |
 | Tests (.NET) | xUnit v3, NSubstitute, Shouldly, Testcontainers (MsSql), Respawn, NetArchTest | |
 | Tests (web) | Vitest + React Testing Library + vitest-axe, MSW (component tests only) | |
@@ -412,15 +414,23 @@ Each requirement has an ID for GSD traceability. Every requirement needs unit + 
 ## 9. Frontend Standards
 
 ### 9.1 Structure
+The layout is the owner's (2026-10-14):
 ```
 web/src
-  /app            router, providers, layouts (Public, Admin), error boundary
-  /components/ui  reusable primitives (the shared component library)
-  /features       orders, expenses, users, site-content, analytics, auth, profile (feature UI only)
-  /lib/http       httpClient.ts (+ tests)
-  /lib/api.ts     THE ONLY file containing API endpoint calls
-  /lib            formatters (money/date), consent, query keys, utils
+  App.tsx, main.tsx
+  /assets
+  /components     reusable primitives (the shared component library), barrel `@/components`
+  /core/api       http/ (httpClient.ts + tests, private), apiClient.ts (services only), errors.ts (for UI)
+  /core/routes    router, Root route, error boundaries
+  /hooks          global reusable hooks
+  /layouts        PublicLayout, AdminLayout (and AuthLayout)
+  /lib            TanStack Query, nuqs and form-submission wrappers
+  /modules/public {components, hooks, services, pages}
+  /modules/admin  {components, hooks, services, pages} (orders, expenses, users, site-content, analytics, auth, profile)
   /types          DTO types (mirroring the OpenAPI contract)
+  /ui             theme: app.css, base.css, tw.ts
+  /utils          formatters (money/date), validators, csps.ts previews
+  /dev, /test     dev-only modules (D-20) and the test harness, outside the owner tree
 ```
 
 ### 9.2 Reusable component library (build first, reuse everywhere)
@@ -429,7 +439,7 @@ Implement as generic, accessible, fully typed primitives styled per `CSPS-UI-SPE
 **Rule:** if a UI pattern appears twice, it becomes a shared component. Feature code MUST NOT re-implement a primitive.
 
 ### 9.3 HTTP layer (no axios)
-**`web/src/lib/http/httpClient.ts`** — an axios-like, reusable, fetch-based client:
+**`web/src/core/api/http/httpClient.ts`** — an axios-like, reusable, fetch-based client:
 - `createHttpClient(config)` returns an instance with `get/post/put/patch/delete<T>()` and `request<T>(config)`.
 - Config: `baseURL`, default headers, `timeout` (AbortController), `params` serialization, `signal` for cancellation.
 - Automatic JSON serialization/parsing; `FormData` passthrough for uploads; optional `onUploadProgress` (uses an XHR transport only when progress is requested).
@@ -440,12 +450,14 @@ Implement as generic, accessible, fully typed primitives styled per `CSPS-UI-SPE
 - `credentials: 'same-origin'`; no tokens in URLs.
 - 100% unit test coverage.
 
-**`web/src/lib/api.ts`** — the single file that defines every API call as a typed function grouped by area (`api.auth.*`, `api.orders.*`, `api.expenses.*`, `api.users.*`, `api.site.*`, `api.analytics.*`, `api.profile.*`). Components and hooks MUST call these functions, never `fetch`/`httpClient` directly (enforced with an ESLint `no-restricted-imports`/`no-restricted-globals` rule).
+**Per-module services (owner, 2026-10-14)** — API calls are not in one file. Each module holds its own typed call functions in `web/src/modules/{public,admin}/services/` (for example `siteSettingsService.ts`, later `authService.ts`, `ordersService.ts`). The shared client and its interceptors live in `web/src/core/api/` (`apiClient.ts`, `errors.ts`, and the private transport in `http/`). Components and hooks MUST call the service functions, never `fetch`/`httpClient` directly. ESLint `no-restricted-imports`/`no-restricted-globals` rules keep the transport inside `core/api` and `apiClient` inside the services.
 
 ### 9.4 UX rules
 - Optimistic UI only where safe; financial mutations wait for the server response.
 - Every destructive action uses `ConfirmDialog` naming the item being deleted.
 - Forms: inline validation on blur + submit, focus moves to the first error, errors announced to screen readers.
+- **Client-side validation first (owner, 2026-10-14):** each form has a zod schema covering every rule the backend validates, checked in the browser before any request is sent. Only server-only checks (uniqueness, the breached-password lookup, rate limits, concurrency) wait for the server.
+- **No long dash in the client (owner, 2026-10-14):** no em dash or en dash in `web/src` code, copy or comments. The minus sign (U+2212) in money stays.
 - Unsaved-changes guard on long forms (order create/edit).
 
 ---
@@ -557,7 +569,7 @@ Sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/ch
 | Integration (Infrastructure) | Testcontainers SQL Server 2025 + Respawn | EF mappings, migrations apply cleanly, concurrency, cascade rules, sequences | All migrations tested up from empty DB |
 | Integration (API) | `WebApplicationFactory` + Testcontainers | Every endpoint: happy path, validation errors, authorization matrix, rate limits, ProblemDetails shape | 100% endpoint coverage |
 | Architecture | NetArchTest | Layer rules in §3.2, endpoint policy presence, naming | Must pass |
-| Frontend unit/component | Vitest + RTL + vitest-axe (+ MSW) | `httpClient` (100%), `api.ts`, every shared component, forms, formatters | ≥ 90% overall, 100% for `lib/http` |
+| Frontend unit/component | Vitest + RTL + vitest-axe (+ MSW) | `httpClient` (100%), the module services, every shared component, forms, formatters | ≥ 90% overall, 100% for `core/api` (owner, 2026-10-14) |
 | **E2E** | **Playwright** + axe | Critical journeys (below) on Chromium/Firefox/WebKit + Pixel/iPhone viewports | All green, zero axe violations, **zero console errors/warnings** |
 | Security | CodeQL, ZAP baseline, dependency audits | §11.5 | No high/critical findings |
 | Performance | Lighthouse CI on public pages | §7 targets | Budgets enforced |
@@ -619,7 +631,7 @@ Sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/ch
 
 ### 17.2 TypeScript/React
 - `tsconfig`: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`.
-- ESLint (flat config): `typescript-eslint` strict-type-checked + stylistic-type-checked, `react-hooks`, `jsx-a11y` (strict), custom restrictions (no `axios`, no direct `fetch` outside `lib/http`, no `dangerouslySetInnerHTML`, no `any`, no non-null assertions, no `console` in app code). Run with `--max-warnings 0`.
+- ESLint (flat config): `typescript-eslint` strict-type-checked + stylistic-type-checked, `react-hooks`, `jsx-a11y` (strict), custom restrictions (no `axios`, no direct `fetch` outside `core/api/http` (owner, 2026-10-14), no `dangerouslySetInnerHTML`, no `any`, no non-null assertions, no `console` in app code). Run with `--max-warnings 0`.
 - Prettier check in CI. Vite build must produce no warnings (chunk-size budget set explicitly).
 - Playwright fails a test on any browser console error or warning, and on React key/act warnings in Vitest.
 
@@ -720,7 +732,7 @@ Phases 1–9 deliver the complete, working app on an empty database. Phases 10�
 - [ ] Architecture tests pass; no layer violations.
 - [ ] Matches `CSPS-UI-SPEC.md` at 320px, 768px, and 1280px (screenshots attached); skeletons for every loading state; images lazy and optimized.
 - [ ] Responsive at every breakpoint in §7.1 (portrait + landscape); performance budgets and Lighthouse scores met; no bundle-size regressions.
-- [ ] All API calls go through `api.ts` → `httpClient`; no axios; shared components reused.
+- [ ] All API calls go through the module services (`modules/*/services`) → the shared `core/api` client; no axios; shared components reused (owner, 2026-10-14).
 - [ ] WCAG 2.2 AA: axe zero violations + keyboard pass.
 - [ ] Security: relevant CWE rows mitigated and tested; authorization matrix updated; no secrets committed; CodeQL clean.
 - [ ] Comments short and purposeful; no dead code; no unexplained suppressions.

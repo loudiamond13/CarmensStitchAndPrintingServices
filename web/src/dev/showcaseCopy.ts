@@ -24,7 +24,7 @@ export const SHOWCASE_COPY = {
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */
-  markAlt: "CSPS — Carmen's Stitch & Printing Services",
+  markAlt: "CSPS: Carmen's Stitch & Printing Services",
   /** Spec §9.3 success toast after a delete. */
   deletedToast: {
     title: 'Order ORD-2026-0148 deleted',

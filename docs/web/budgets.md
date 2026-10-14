@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-13T08:28:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-14T10:45:00-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -29,8 +29,8 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 
 | Route | Route modules |
 |---|---|
-| Public (`/`) | `src/app/public/PublicLayout.tsx`, `src/app/public/PublicPlaceholderPage.tsx` |
-| Admin (`/admin`) | `src/app/admin/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/app/admin/AdminPreviewPage.tsx` |
+| Public (`/`) | `src/layouts/PublicLayout.tsx`, `src/modules/public/pages/PublicPlaceholderPage.tsx` |
+| Admin (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/AdminPreviewPage.tsx` |
 
 A route module is usually the start of its own lazy chunk. In the parity build the parity page imports some of them directly, so they end up inside a shared chunk; the plugin then measures that shared chunk, because it is what the router downloads.
 
@@ -53,9 +53,9 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 
 ## Rules that fail the build besides the limits
 
-- **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/styles/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
-- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/app/admin/`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. These rules follow the mode, never a flag.
-- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example `src/app/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
+- **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
+- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/modules/admin/`, `src/layouts/AdminLayout`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. These rules follow the mode, never a flag.
+- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example `src/modules/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 
 ## The numbers file
@@ -73,7 +73,7 @@ In the dev-route builds the public number is the **admin-included topology**: wh
 
 > Note: public JS in the admin-included topology is … KB, past the 135.00 KB trigger for the Phase 4 barrel split (research Flag 4).
 
-It tells Phase 4 to split the component barrels (`src/ui/*/index.ts`), so that public pages stop pulling admin-only components into the shared chunks. The 150 KB limit still applies to this number.
+It tells Phase 4 to split the component barrels (`src/components/*/index.ts`), so that public pages stop pulling admin-only components into the shared chunks. The 150 KB limit still applies to this number.
 
 Measured at plan 02-33 (2026-10-09):
 
@@ -96,7 +96,7 @@ Since plan 02-34 the dev-only showcase (`/dev/components`) also imports nearly e
 
 ## Public route imports
 
-The public layout (`src/app/public/PublicLayout.tsx`) imports `SiteHeader`, `SkipLink` and `ToastProvider` from their own modules, never from the `@/ui/navigation`, `@/ui/entry` or `@/ui/feedback` barrels. A barrel re-exports admin-only components (Sidebar, Topbar, UserMenu, MobileNavDrawer, MoneyInput, ...). In a build that uses them (the admin routes, the showcase, the parity page) the bundler cannot drop them, so a public module that imports the barrel pulled them, and the forms, overlays and HTTP-client modules they need, into the chunks the public route loads. In production it also kept about 4 KB of their module-level code. Keep new public-route imports on the component modules; the Phase 4 barrel split (research Flag 4) makes this the rule for every barrel.
+The public layout (`src/layouts/PublicLayout.tsx`) imports `SiteHeader`, `SkipLink` and `ToastProvider` from their own modules, never from the `@/components/navigation`, `@/components/entry` or `@/components/feedback` barrels. A barrel re-exports admin-only components (Sidebar, Topbar, UserMenu, MobileNavDrawer, MoneyInput, ...). In a build that uses them (the admin routes, the showcase, the parity page) the bundler cannot drop them, so a public module that imports the barrel pulled them, and the forms, overlays and HTTP-client modules they need, into the chunks the public route loads. In production it also kept about 4 KB of their module-level code. Keep new public-route imports on the component modules; the Phase 4 barrel split (research Flag 4) makes this the rule for every barrel.
 
 Measured after that change (2026-10-13, code-review fix):
 

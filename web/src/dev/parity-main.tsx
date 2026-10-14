@@ -5,18 +5,18 @@
 // in a `[data-case]` frame that carries the page-root look (pageRootClasses, the `.s-page` transcription) and
 // `data-theme`; an empty selection renders the `data-parity-empty` marker, which fails the visual spec.
 //
-// Fonts and the stylesheet: the same imports as src/main.tsx (PERF-05, D-33), allowed here by a recorded lint exception
+// Fonts and the stylesheet: the same imports as src/App.tsx (PERF-05, D-33), allowed here by a recorded lint exception
 // (eslint.config.mjs, csps/restrictions/main).
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
 import '@fontsource/barlow-condensed/800.css';
 import '@fontsource/barlow-condensed/800-italic.css';
 import '@fontsource-variable/archivo';
-import '@/styles/app.css';
+import '@/ui/app.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
-import { pageRootClasses } from '@/ui/layout/layout.recipe';
+import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { selectScenarios } from '../../visual/reference/select';
 import { kit } from './kit';
 import { renderNode } from './renderScenario';

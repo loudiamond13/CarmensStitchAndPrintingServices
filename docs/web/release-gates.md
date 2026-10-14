@@ -1,6 +1,6 @@
 # Release gates: every check the web app must pass, and the order to run them
 
-*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-13T20:10:00-05:00*
+*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-14T10:45:00-05:00*
 
 This page lists every automated gate for the web app (Phase 2, plan 02-35), the command that runs it and the rule it passes on. Run them in the order of section 3 before `/gsd-verify-work`. A gate that fails is fixed in the code. **No gate is ever passed by loosening a limit, adding a tolerance or skipping a check.** If the only fix would change how an approved screen looks, its words or its accessibility structure, stop and take it to the owner (decision D-08).
 
@@ -16,7 +16,7 @@ This page lists every automated gate for the web app (Phase 2, plan 02-35), the 
 
 | Gate | Command | Passes when | Guide |
 |---|---|---|---|
-| Full web check | `npm --prefix web run verify` | Every step below exits 0, with zero warnings: `typecheck` (three TS programs), `lint` (`--max-warnings 0`), `format:check`, `test:coverage` (thresholds: 90% overall, 100% for `src/lib/http`), `build` (production into wwwroot, with the budget gate), `build:budget` (the dev-route topology), `license:check`, `notices:check`. | [budgets.md](budgets.md), [styling.md](styling.md) |
+| Full web check | `npm --prefix web run verify` | Every step below exits 0, with zero warnings: `typecheck` (three TS programs), `lint` (`--max-warnings 0`), `format:check`, `test:coverage` (thresholds: 90% overall, 100% for `src/core/api`), `build` (production into wwwroot, with the budget gate), `build:budget` (the dev-route topology), `license:check`, `notices:check`. | [budgets.md](budgets.md), [styling.md](styling.md) |
 | Type check | `npm --prefix web run typecheck` | `tsc` passes for the app, node and reference programs. | — |
 | Lint | `npm --prefix web run lint` | ESLint reports nothing (errors and warnings both fail). | [styling.md](styling.md) |
 | Formatting | `npm --prefix web run format:check` | Prettier finds no file to change. | — |

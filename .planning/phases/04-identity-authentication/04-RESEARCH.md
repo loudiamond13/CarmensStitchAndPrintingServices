@@ -1,6 +1,6 @@
 ---
 created: "2026-10-14T06:18:50-05:00"
-updated: "2026-10-14T06:18:50-05:00"
+updated: "2026-10-14T10:55:00-05:00"
 phase: 04-identity-authentication
 kind: research
 ---
@@ -10,6 +10,13 @@ kind: research
 **Researched:** 2026-10-14 (before `/gsd-discuss-phase 4`; no CONTEXT.md exists yet)
 **Domain:** ASP.NET Core 10 Identity (`AddIdentityCore`) + custom JWT/refresh-family sessions, emailed 6-digit second factor, outbox + MailKit SMTP, NIST SP 800-63B-4 passwords with HIBP, SEC-06 idempotency, SEC-03 rate limiting, append-only auth audit, and the React sign-in / 2FA / reset screens.
 **Confidence:** HIGH for the codebase facts, package versions, publish dates, advisories and the Identity/SignInManager/PasswordHasher source behaviour (read this session). MEDIUM for browser cookie behaviour on localhost and for the HIBP and NIST rules (official pages read this session). LOW for SmarterASP.NET SMTP specifics, which were not found anywhere public.
+
+> **Owner conventions (2026-10-14).** Set after this research was written (quick 261014-ctx). They win where this text disagrees. Full rules: `.claude/CLAUDE.md` → Conventions.
+>
+> - Frontend paths below follow the owner layout. The old auth feature folder becomes `web/src/modules/admin/` (pages in `pages/`, dialogs and the device summary formatter in `components/`, calls in `services/authService.ts`, `session.ts` in `services/`, `guard.ts` and `authCopy.ts` at the module root), and `AuthLayout` goes to `web/src/layouts/`.
+> - Imports from the old UI library folder move to `@/components` (only the `tw` marker and the stylesheets stay in `ui`). The single `api.ts` is gone: calls live in per-module services over the shared client in `web/src/core/api/`. Coverage is keyed to `core/api`.
+> - Local SQL is `(localdb)\MSSQLLocalDB` (version from `sqllocaldb info MSSQLLocalDB`: 17.0.4025.3) with `CSPS_*` databases. TheBETSLLC shares the instance, so database names are the guard.
+> - Every auth form gets a zod schema that mirrors the API validator (OR-3), and no em or en dash goes into client code, copy or comments (OR-4).
 
 > **How this was researched.** No Context7 or MCP search provider is configured (all `*_search` flags are false in `.planning/config.json`), so official sources were read through WebFetch/WebSearch: source.dot.net (Identity, SignInManager, PasswordHasher), learn.microsoft.com (rate limiting), pages.nist.gov (SP 800-63B-4), haveibeenpwned.com (API v3), WebKit Bugzilla and the httpwg issue tracker (cookies on localhost). Package facts come from the NuGet registration/flat-container/vulnerability APIs, the npm registry and the npm bulk-advisory endpoint, and `dotnet list package --vulnerable` run against this repo. Codebase claims come from files opened this session.
 
@@ -37,7 +44,7 @@ kind: research
   - **R2-10:** the page behind a dialog becomes `inert` in Phase 4.
   - **D-20:** admin routes are excluded from production builds *until Phase 4 adds sign-in*.
   `[VERIFIED: 02-CONTEXT.md:84,178; deferred-items.md:72-77]`
-- **Ports and machine rules:** Vite 5180, API 5115/7028, E2E 5199, `(localdb)\CSPS`, the `CSPS_` DB prefix, no Docker locally, and preflight before servers or full runs (root `CLAUDE.md`).
+- **Ports and machine rules:** Vite 5180, API 5115/7028, E2E 5199, `(localdb)\MSSQLLocalDB` (owner, 2026-10-14), the `CSPS_` DB prefix, no Docker locally, and preflight before servers or full runs (root `CLAUDE.md`).
 
 ### Open owner decisions for this phase (NOT decided; briefs in "Owner Decision Briefs")
 OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-17, C-19, C-23, C-33, OD-14. Research also surfaces a few new items, AD-1 to AD-7, that need a ruling, listed in the same section.
@@ -99,7 +106,7 @@ These directives come from the root `CLAUDE.md` and `.claude/CLAUDE.md`. The pla
 - **Quality:**
   - TDD (red → green → refactor).
   - **Zero warnings** in build, analyzers, lint, types, tests and the browser console.
-  - Coverage: Domain 100% line + branch, Application ≥95% line, `lib/http` 100%, web ≥90%.
+  - Coverage: Domain 100% line + branch, Application ≥95% line, `core/api` 100%, web ≥90%.
   - The authorization matrix covers every endpoint × {anonymous, Admin, Manager}.
 - **Security:**
   - Strict CSP (no `unsafe-inline`/`unsafe-eval`).
@@ -212,7 +219,7 @@ Built in (no package): `AddRateLimiter`/`[EnableRateLimiting]`, `HybridCache` (a
 | react-hook-form | **7.89.0** (7.90.0 is inside the cool-down) | 2026-09-26 | MIT | Form state (CLAUDE.md stack) |
 | zod | **4.6.5** (4.6.6 and 4.6.7 are inside the cool-down) | 2026-09-13 | MIT | Client UX validation mirroring the validators |
 | @hookform/resolvers | **5.9.1** | 2026-08-17 | MIT | zod ↔ RHF bridge (peer `react-hook-form ^7.55.0`, `zod ^3.25.0 \|\| ^4.0.0`) |
-| msw | **3.0.1** (exactly 14 days old today; 3.0.2 and 3.0.3 are too new) | 2026-09-30 | MIT | `msw/node` component tests of `api.ts` (Phase 2 deferred MSW to "the first phase with real endpoints"). Engines `node >=22.12.0`, peer `typescript >=5.9.x` |
+| msw | **3.0.1** (exactly 14 days old today; 3.0.2 and 3.0.3 are too new) | 2026-09-30 | MIT | `msw/node` component tests of the module services, `siteSettingsService.ts` now and `authService.ts` next (Phase 2 deferred MSW to "the first phase with real endpoints"). Engines `node >=22.12.0`, peer `typescript >=5.9.x` |
 
 `[VERIFIED: npm registry time/license/peerDependencies; npm bulk advisory endpoint returned {} for these four versions]`. At install time, re-pick the newest version that is at least 14 days old and get the owner's OK (user memory).
 
@@ -300,8 +307,11 @@ src/Csps.Server/Controllers/       AuthController (one per resource), TestingEma
 src/Csps.Server/Security/          AccessTokenIssuer (JsonWebTokenHandler), SessionValidation (OnTokenValidated), AuthCookies,
                                    CsrfHeaderFilter, RateLimitingRegistration, IdempotencyMiddleware + attributes
 tools/Csps.BootstrapManager/       CLI (Pattern 13)
-web/src/features/auth/             SignInPage, VerifyCodePage, ForgotPasswordPage, ResetPasswordPage, session.ts, guard.ts
-web/src/lib/api.ts                 api.auth.* group filled in
+web/src/modules/admin/pages/       SignInPage, VerifyCodePage, ForgotPasswordPage, ResetPasswordPage, SessionsPage
+web/src/modules/admin/components/  SignOutOthersDialog, SignOutDeviceDialog, the device summary formatter
+web/src/modules/admin/services/    authService.ts (the auth calls), session.ts (registers refresh/onUnauthorized on the shared client)
+web/src/modules/admin/             guard.ts, authCopy.ts (AUTH_COPY)
+web/src/layouts/AuthLayout.tsx
 ```
 
 ### Pattern 1: Controllers with suppressed automatic 400 and a null-tolerant body
@@ -520,7 +530,7 @@ services.AddIdentityCore<ApplicationUser>(o =>
   - The password comes from a hidden prompt with confirmation. It runs the full policy and HIBP, honouring the C-33 fail mode.
 - **Guards:**
   - Refuse when **any** user exists.
-  - Refuse `MSSQLLocalDB`, any `BetsLLC_*` catalog, and `CSPS_Legacy_Restore`.
+  - Refuse any `BetsLLC_*` catalog and `CSPS_Legacy_Restore`. The instance is no longer a refusal reason: `(localdb)\MSSQLLocalDB` is the normal local instance and database names are the guard.
   - Require `--confirm-database <name>` to equal the connection's Initial Catalog.
   - Never migrate (production gets reviewed scripts).
 - **The user:** created `EmailConfirmed = true` in role Manager, with audit `user.bootstrap-manager-created` (actor null = "System").
@@ -528,9 +538,9 @@ services.AddIdentityCore<ApplicationUser>(o =>
 
 ### Pattern 14: Web client
 
-- **14a Session module** (`features/auth/session.ts`, admin chunk only, **never imported by public pages**, PERF-01 budget):
+- **14a Session module** (`web/src/modules/admin/services/session.ts`, admin chunk only, **never imported by public pages**, PERF-01 budget):
   - The access token lives in a module variable.
-  - Plug `refresh()` (`POST /api/v1/auth/refresh`, `skipAuthRefresh: true`, header `X-CSPS-CSRF`) and `onUnauthorized` (clear, then redirect to `/admin/login`, with R2-09 "Your session ended. Sign in again.") into `createHttpClient` in `api.ts`.
+  - Plug `refresh()` (`POST /api/v1/auth/refresh`, `skipAuthRefresh: true`, header `X-CSPS-CSRF`) and `onUnauthorized` (clear, then redirect to `/admin/login`, with R2-09 "Your session ended. Sign in again.") on the shared client in `web/src/core/api/`.
   - Wrap refresh in `navigator.locks.request('csps-refresh', …)`. Inside the lock, re-check whether another tab already refreshed: a `BroadcastChannel('csps-auth')` message carries the new expiry, but never the token. `[ASSUMED: Web Locks baseline, Safari ≥15.4]`
   - Use the same channel to broadcast sign-out to other tabs.
   - A module-level boot promise de-duplicates React StrictMode's double effect (PITFALLS 9).
@@ -546,7 +556,7 @@ services.AddIdentityCore<ApplicationUser>(o =>
   - Errors use `role="alert"` banners and field errors, and focus moves to the first invalid field (`focusFirstInvalid`).
 - **14d A11Y-03 / WCAG 2.2:**
   - Email `type="email" autocomplete="username"`. Password `autocomplete="current-password"`. New password `autocomplete="new-password"`, plus a read-only `autocomplete="username"` field on the reset page so password managers save the pair.
-  - OTP: the first box gets `autocomplete="one-time-code"` and `inputmode="numeric"`. This exists already: `FIRST_BOX_AUTOCOMPLETE = 'one-time-code'`, and paste is always allowed. `[VERIFIED: web/src/ui/entry/OtpInput.tsx:46]`
+  - OTP: the first box gets `autocomplete="one-time-code"` and `inputmode="numeric"`. This exists already: `FIRST_BOX_AUTOCOMPLETE = 'one-time-code'`, and paste is always allowed. `[VERIFIED: web/src/components/entry/OtpInput.tsx:46]`
   - No CAPTCHA or puzzle (3.3.8).
   - **No auto-submit on the 6th digit.** That would be a change of context on input (3.2.2) unless announced. Use an explicit Verify button.
   - The resend countdown is announced politely only at its start and end, not every second.
@@ -742,7 +752,7 @@ var jwt = handler.CreateToken(new SecurityTokenDescriptor
 
 ### 7. Cross-tab refresh (web)
 ```ts
-// [ASSUMED] Web Locks API; api.ts owns the call (PRD §9.3).
+// [ASSUMED] Web Locks API; the auth service in `modules/admin/services` owns the call (PRD §9.3).
 export async function refreshSession(): Promise<void> {
   await navigator.locks.request('csps-refresh', async () => {
     if (accessTokenStillFresh()) return;                 // another tab refreshed while we waited (BroadcastChannel)
@@ -911,7 +921,7 @@ Each brief is plain English with neutral options and one recommendation.
 |------------|------------|-----------|---------|----------|
 | .NET SDK | build/test | ✓ | 10.0.401 | Install 10.0.402 (AD-1) |
 | ASP.NET Core runtime | run/test | ✓ | 10.0.12 (8.0.31 also present) | Install 10.0.13 (AD-1) |
-| LocalDB `(localdb)\CSPS` | integration tests, E2E DB | ✓ (Phase 1 verified 17.0) | — | none (Docker forbidden locally) |
+| LocalDB `(localdb)\MSSQLLocalDB` (version 17.0.4025.3, shared with TheBETSLLC) | integration tests, E2E DB | ✓ (Phase 1 verified 17.0) | — | none (Docker forbidden locally) |
 | Node / npm | web | ✓ (engines `>=24.15 <25`, npm `>=11.19`) | per `web/package.json` | — |
 | Playwright browsers (chromium/firefox/webkit) | E2E | ✓ (Phase 2 ran all three) | @playwright/test 1.63.0 | — |
 | SmarterASP SMTP mailbox credentials | real email (AD-4a, D2) | ✗ (owner prerequisite) | — | Testing sink (automated) + dev file drop |
@@ -930,7 +940,7 @@ Each brief is plain English with neutral options and one recommendation.
 | .NET | xunit.v3 4.0.1 on Microsoft.Testing.Platform, Shouldly 4.3.0, NSubstitute 6.2.0, FakeTimeProvider, Respawn 7.0.0, ArchUnitNET 0.13.4, coverlet.MTP 10.0.1 `[VERIFIED: Directory.Packages.props:22-34]` |
 | Web | Vitest 5.0.1 + RTL + jsdom + in-house axe matcher; Playwright 1.63.0 + @axe-core/playwright; MSW 3.0.1 (new) |
 | Config | `global.json` (MTP runner), `web/vitest.config.ts`, `web/playwright.config.ts` |
-| Quick run | `dotnet test --project tests/Csps.Domain.UnitTests` · `dotnet test --project tests/Csps.Application.UnitTests` · `npm --prefix web run test -- --run src/features/auth` |
+| Quick run | `dotnet test --project tests/Csps.Domain.UnitTests` · `dotnet test --project tests/Csps.Application.UnitTests` · `npm --prefix web run test -- --run src/modules/admin` |
 | Full suite | Preflight, then `dotnet test --solution Csps.slnx` (with `CSPS_TEST_SQL=localdb` per process), `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Invoke-CoverageGate.ps1`, `npm --prefix web run verify`, `npm --prefix web run e2e` |
 
 ### Phase Requirements → Test Map
@@ -948,7 +958,7 @@ Each brief is plain English with neutral options and one recommendation.
 | QUAL-05 | Sink only in Testing+Debug; Release assembly has no sink types/routes | architecture (slow) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*ReleaseHasNoEmailSinkTests"` | ❌ |
 | SEC-03 | 429 + Retry-After ProblemDetails per IP prefix; JSON >1 MB → 413; account counters | integration | `"*RateLimitTests"`, `"*RequestBodyLimitTests"` | ❌ |
 | SEC-06 | 400 missing/malformed, 409 in-flight, 422 different body, replay returns stored response and creates one row/one email, 24 h expiry, discovery test + allow-list | integration + discovery | `"*IdempotencyTests"`, `"*IdempotencyCoverageTests"` | ❌ |
-| A11Y-03 | autocomplete attrs, paste into password/OTP, no auto-submit, axe clean | component (Vitest+axe) + E2E (axe page-level, 3 engines + phones) | `npm --prefix web run test -- --run src/features/auth`; `npm --prefix web run e2e -- --grep @auth` | ❌ |
+| A11Y-03 | autocomplete attrs, paste into password/OTP, no auto-submit, axe clean | component (Vitest+axe) + E2E (axe page-level, 3 engines + phones) | `npm --prefix web run test -- --run src/modules/admin`; `npm --prefix web run e2e -- --grep @auth` | ❌ |
 | AUDIT-01 | Each auth event writes exactly its action code, no PII/secrets; WR-02/03/06 fixed | unit (IpPrefix 6to4/NAT64) + integration | `--filter-class "*AuthAuditTests"`, `"*IpPrefixTests"` | partial (IpPrefixTests exists) |
 | SEC-02 (ongoing) | Every new endpoint in matrix × 3 callers with seeded sessions | integration | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*AuthorizationMatrixTests"` | ✅ (extend) |
 
@@ -1008,7 +1018,7 @@ Each brief is plain English with neutral options and one recommendation.
 ## Sources
 
 ### Primary (HIGH)
-- Codebase files opened this session: `src/Csps.Server/Composition/SecurityRegistration.cs`, `Program.cs`, `Http/CorrelationId.cs`, `Logging/SensitiveDataMasking.cs`, `src/Csps.Domain/Common/ErrorKind.cs`, `Auditing/AuditEntry.cs`, `Auditing/IpPrefix.cs`, `src/Csps.Application/Security/Policies.cs`, `Roles.cs`, `Ports/IAuditTrail.cs`, `src/Csps.Infrastructure/Auditing/AuditTrail.cs`, `Persistence/CspsDbContext.cs`, `tests/.../AuthorizationMatrix.cs`, `Directory.Packages.props`, `global.json`, `web/vite.config.ts`, `web/playwright.config.ts`, `web/src/ui/entry/OtpInput.tsx`, `CSPS-UI-SPEC.md` §8.2/E.5/D.1, PRD §8/§11/§14, ROADMAP Phase 4, REQUIREMENTS, STATE, HOSTING-RECORD, 01-REVIEW(+DISPOSITION), 02 deferred-items/CONTEXT, 999.1 DECISIONS
+- Codebase files opened this session: `src/Csps.Server/Composition/SecurityRegistration.cs`, `Program.cs`, `Http/CorrelationId.cs`, `Logging/SensitiveDataMasking.cs`, `src/Csps.Domain/Common/ErrorKind.cs`, `Auditing/AuditEntry.cs`, `Auditing/IpPrefix.cs`, `src/Csps.Application/Security/Policies.cs`, `Roles.cs`, `Ports/IAuditTrail.cs`, `src/Csps.Infrastructure/Auditing/AuditTrail.cs`, `Persistence/CspsDbContext.cs`, `tests/.../AuthorizationMatrix.cs`, `Directory.Packages.props`, `global.json`, `web/vite.config.ts`, `web/playwright.config.ts`, `web/src/components/entry/OtpInput.tsx`, `CSPS-UI-SPEC.md` §8.2/E.5/D.1, PRD §8/§11/§14, ROADMAP Phase 4, REQUIREMENTS, STATE, HOSTING-RECORD, 01-REVIEW(+DISPOSITION), 02 deferred-items/CONTEXT, 999.1 DECISIONS
 - NuGet registration, flat-container nuspec, search and vulnerability APIs (versions, dates, licenses, advisories); `dotnet list package --vulnerable --include-transitive` on this repo
 - builds.dotnet.microsoft.com `10.0/releases.json` (10.0.13 = security, 2026-10-13); api.github.com advisory GHSA-846f-f764-76mx
 - npm registry (`npm view … time/license/peerDependencies/scripts.postinstall`), npm bulk advisory endpoint, api.npmjs.org downloads

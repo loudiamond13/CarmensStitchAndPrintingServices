@@ -15,7 +15,7 @@
 // The D-27 Logout `<button>` pairs with the approved `<a href="#">` through the registry
 // (web/visual/intentional-differences.ts): `[data-case] > aside > foot > Logout` is path 0/0/2/1 with the user chip
 // before it, and 0/0/2/0 on the collapsed sidebar, which shows no chip.
-import type { Role } from '../../../lib/csps';
+import type { Role } from '../../../utils/csps';
 import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
 
 const MANAGER: Role = 'manager';

@@ -4,7 +4,7 @@
 // stops its `load` event in the capture phase on the frame, before it reaches the image. The image therefore stays in
 // its loading state for as long as the case is on screen. Nothing in LazyImage changes for this.
 // SPEC-GAP primitives have no reference, so there is no reference fragment: that side shows its missing-component note.
-import { LazyImage } from '@/ui/states';
+import { LazyImage } from '@/components/states';
 
 /** A 1×1 transparent GIF, inline, so no request leaves the page (CSP img-src allows data:). */
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';

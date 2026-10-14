@@ -11,7 +11,7 @@
 // The held snapshot is read-only: it only feeds the query key, is never shown or edited, and is never written back.
 // The URL stays the one source of the list state.
 import { useState } from 'react';
-import { useDebouncedValue } from './useDebouncedValue';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /** Parsed list values; `q` is the free-text search, if the list has one. */
 export type ListValues = Readonly<Record<string, unknown>> & { readonly q?: string | null };

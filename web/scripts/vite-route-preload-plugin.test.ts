@@ -49,12 +49,12 @@ function productionBundle(): Rollup.OutputBundle {
   return bundleOf(
     chunk('assets/index-A1.js', { isEntry: true, facadeModuleId: `${ROOT}/index.html` }),
     chunk('assets/PublicLayout-B2.js', {
-      facadeModuleId: `${ROOT}/src/app/public/PublicLayout.tsx`,
+      facadeModuleId: `${ROOT}/src/layouts/PublicLayout.tsx`,
       imports: ['assets/index-A1.js', 'assets/shared-C3.js'],
     }),
     chunk('assets/shared-C3.js', { imports: ['assets/index-A1.js'] }),
     chunk('assets/PublicPlaceholderPage-D4.js', {
-      facadeModuleId: `${ROOT}/src/app/public/PublicPlaceholderPage.tsx`,
+      facadeModuleId: `${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx`,
       imports: ['assets/index-A1.js', 'assets/shared-C3.js'],
     }),
     { type: 'asset', fileName: 'assets/index-E5.css', source: '' } as unknown as Rollup.OutputAsset,
@@ -130,9 +130,9 @@ describe('routePreloadPlugin (PERF-02)', () => {
   it('matches route modules by their web-root-relative path, with Windows separators too', async () => {
     const bundle = bundleOf(
       chunk('assets/index-A1.js', { isEntry: true }),
-      chunk('assets/PublicLayout-B2.js', { facadeModuleId: 'C:\\Work\\web\\src\\app\\public\\PublicLayout.tsx' }),
+      chunk('assets/PublicLayout-B2.js', { facadeModuleId: 'C:\\Work\\web\\src\\layouts\\PublicLayout.tsx' }),
     );
-    expect(await run(routePreloadPlugin(['src/app/public/PublicLayout.tsx']), bundle)).toEqual([
+    expect(await run(routePreloadPlugin(['src/layouts/PublicLayout.tsx']), bundle)).toEqual([
       preload('/assets/PublicLayout-B2.js'),
     ]);
   });
@@ -144,7 +144,7 @@ describe('routePreloadPlugin (PERF-02)', () => {
 
   it('fails the build through this.error, naming the module, when a route module has no chunk of its own', async () => {
     const bundle = bundleOf(chunk('assets/index-A1.js', { isEntry: true }));
-    await expect(run(routePreloadPlugin(PUBLIC_ROUTE), bundle)).rejects.toThrow(/src\/app\/public\/PublicLayout\.tsx/);
+    await expect(run(routePreloadPlugin(PUBLIC_ROUTE), bundle)).rejects.toThrow(/src\/layouts\/PublicLayout\.tsx/);
   });
 
   it('fails when the hook runs without a bundle', async () => {

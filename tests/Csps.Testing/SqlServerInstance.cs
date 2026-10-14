@@ -7,16 +7,16 @@ namespace Csps.Testing;
 /// The SQL Server every integration test in the process shares (D-05, D-07, FND-11). Created lazily once per
 /// process through <see cref="GetSharedAsync"/>, so no assembly-fixture declaration is needed in any test project.
 /// <list type="bullet">
-/// <item><c>CSPS_TEST_SQL</c> unset or <c>localdb</c>: the dedicated <c>(localdb)\CSPS</c> instance. Never the
-/// shared <c>MSSQLLocalDB</c> instance.</item>
+/// <item><c>CSPS_TEST_SQL</c> unset or <c>localdb</c>: the default <c>(localdb)\MSSQLLocalDB</c> instance, shared
+/// with TheBETSLLC, so the fixture only creates and drops <c>CSPS_Test_&lt;guid&gt;</c> databases.</item>
 /// <item><c>CSPS_TEST_SQL=container</c> (CI only): a Testcontainers SQL Server 2025 container. Docker is never
 /// touched unless this value is set for the test process.</item>
 /// </list>
 /// </summary>
 public sealed class SqlServerInstance
 {
-    /// <summary>Master-database connection string of the dedicated LocalDB instance (integrated security, no secret).</summary>
-    public const string LocalDbMasterConnectionString = @"Server=(localdb)\CSPS;Database=master;Integrated Security=true";
+    /// <summary>Master-database connection string of the default LocalDB instance (integrated security, no secret).</summary>
+    public const string LocalDbMasterConnectionString = @"Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=true";
 
     /// <summary>The explicit SQL Server image the CI container uses (never <c>latest</c>).</summary>
     public const string ContainerImage = "mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04";

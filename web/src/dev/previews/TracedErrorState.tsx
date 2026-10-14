@@ -3,8 +3,8 @@
 // and an HttpError is a class instance, so this wrapper builds the 500 from the plain `traceId` prop. The server title
 // and detail are deliberately leaky text the banner must never show (T-02-62).
 // SPEC-GAP primitives have no reference, so there is no reference fragment: that side shows its missing-component note.
-import { HttpError } from '@/lib/api';
-import { ErrorState } from '@/ui/states';
+import { HttpError } from '@/core/api/errors';
+import { ErrorState } from '@/components/states';
 
 export interface TracedErrorStateProps {
   /** The plural noun of the list, like "orders". */

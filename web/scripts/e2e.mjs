@@ -6,7 +6,7 @@
 //      project's ports in use by another program, or another project's test processes listed), up to 15 minutes, then
 //      exits 1. It never stops any process (CLAUDE.md shared machine).
 //   3. Refuses to start when port 5199 is in use.
-//   4. Migrates and seeds CSPS_E2E on (localdb)\CSPS through the guarded dev-seed tool (idempotent).
+//   4. Migrates and seeds CSPS_E2E on (localdb)\MSSQLLocalDB through the guarded dev-seed tool (idempotent).
 //   5. Builds the e2e bundle into web/.e2e-dist (vite build --mode e2e).
 //   6. Runs `playwright test` with this script's arguments (for example --grep @smoke --project webkit).
 // Every child inherits this terminal's environment unchanged; nothing is set at User or Machine level. The API host's
@@ -61,7 +61,7 @@ export function planSteps({ portBusy, extraArgs = [] }) {
   /** @type {RunStep[]} */
   const steps = [];
   steps.push(
-    // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\CSPS before any connection opens (T-02-24).
+    // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\MSSQLLocalDB before any connection opens (T-02-24).
     {
       kind: 'run',
       name: 'seed',

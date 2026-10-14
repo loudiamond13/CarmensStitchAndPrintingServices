@@ -25,7 +25,7 @@ public class CspsApiFactory : WebApplicationFactory<Program>
 
     /// <summary>
     /// Creates the factory with an https://localhost base address and a connection string to a fresh
-    /// <c>CSPS_Test_&lt;guid&gt;</c> name on <c>(localdb)\CSPS</c> that is never created or opened. Use it for
+    /// <c>CSPS_Test_&lt;guid&gt;</c> name on <c>(localdb)\MSSQLLocalDB</c> that is never created or opened. Use it for
     /// tests that do not touch the database; nothing connects at startup. Its Data Protection key ring is kept in
     /// memory (still certificate-encrypted), because the database key store would try the missing database.
     /// </summary>

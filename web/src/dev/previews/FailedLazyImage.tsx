@@ -5,7 +5,7 @@
 // `error` event once after mount, as the browser would. Nothing in LazyImage changes for this.
 // SPEC-GAP primitives have no reference, so there is no reference fragment: that side shows its missing-component note.
 import { useEffect, useRef } from 'react';
-import { LazyImage } from '@/ui/states';
+import { LazyImage } from '@/components/states';
 
 /** A 1×1 transparent GIF, inline, so no request leaves the page (CSP img-src allows data:). */
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';

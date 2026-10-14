@@ -5,7 +5,7 @@ import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } fro
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../query/queryClient';
-import { useDebouncedValue } from '../query/useDebouncedValue';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useListQuery } from '../query/useListQuery';
 import { createListParams } from './createListParams';
 import { orderSearchParams, URL_STATE_DEFAULTS } from './defaultOptions';

@@ -2,8 +2,8 @@
 // user (UI-SPEC "UI Considerations" long-text: Sidebar user chip, Topbar user menu): the Sidebar, as the phone drawer
 // shows it, and the Topbar in a `data-ui="s-admin-main"` column, as the shell shows it. The table lead cell has its
 // own long-name case (rt-long-name, plan 02-30). Nothing here is compared (no reference); the overflow spec measures it.
-import type { Role } from '@/lib/csps';
-import { Sidebar, Topbar } from '@/ui/navigation';
+import type { Role } from '@/utils/csps';
+import { Sidebar, Topbar } from '@/components/navigation';
 
 const MANAGER: Role = 'manager';
 

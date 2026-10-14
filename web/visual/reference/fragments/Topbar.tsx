@@ -5,7 +5,7 @@
 // a text node, so after mount this side writes the hint into every frozen `.csp-search kbd` that still reads "/". The
 // hint text is typed here from the ruling, not imported from the app, so a wording slip on either side shows up as a
 // pixel difference. This name shadows the frozen Topbar, which merge-kit.ts allows only through its SPEC_OVERRIDES
-// entry (Topbar → D-41). The converted Topbar renders the hint by itself (web/src/ui/navigation/Topbar.tsx).
+// entry (Topbar → D-41). The converted Topbar renders the hint by itself (web/src/components/navigation/Topbar.tsx).
 // The frozen component comes from the extracted spec module, loaded the way kit.ts loads it (import.meta.glob, so the
 // frozen code is never type-checked).
 import { useEffect, type ComponentType } from 'react';

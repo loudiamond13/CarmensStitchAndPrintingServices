@@ -6,11 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { adminRoutes } from '@/app/admin/routes';
-import { routes } from '@/app/router';
+import { adminRoutes } from '@/modules/admin/routes';
+import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
-import { ToastProvider } from '@/ui';
-import { ICONS } from '@/ui/brand/icons';
+import { ToastProvider } from '@/components';
+import { ICONS } from '@/components/brand/icons';
 import ComponentShowcase, { ShowcaseSection } from './ComponentShowcase';
 import { scenarios } from './scenarios';
 
@@ -139,11 +139,11 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 56 icons in a grid with their names', () => {
+  it('shows all 57 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(56);
+    expect(names).toHaveLength(57);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();

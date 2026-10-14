@@ -1,14 +1,14 @@
 <#
 .SYNOPSIS
-    Creates (when missing) and starts the dedicated CSPS LocalDB instance, (localdb)\CSPS.
+    Creates (when missing) and starts the default LocalDB instance, (localdb)\MSSQLLocalDB.
 
 .DESCRIPTION
-    CSPS uses its own LocalDB instance named CSPS (D-05). The shared MSSQLLocalDB instance belongs
-    to another project on this machine and is never created, started, stopped or changed here.
+    CSPS uses the default MSSQLLocalDB instance, which it shares with TheBETSLLC. CSPS touches only its
+    own CSPS_* databases on it. This script never stops, deletes or recreates the instance.
 
     Safe to run any number of times:
-      - instance missing  -> sqllocaldb create CSPS -s  (create and start)
-      - instance present  -> sqllocaldb start CSPS      (a no-op when it is already running)
+      - instance missing  -> sqllocaldb create MSSQLLocalDB -s  (create and start)
+      - instance present  -> sqllocaldb start MSSQLLocalDB      (a no-op when it is already running)
 
     LocalDB talks over named pipes, so no TCP port is opened. Compatible with Windows PowerShell 5.1.
 
@@ -21,7 +21,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$instanceName = 'CSPS'
+$instanceName = 'MSSQLLocalDB'
 
 if (-not (Get-Command -Name 'sqllocaldb' -ErrorAction SilentlyContinue)) {
     throw 'sqllocaldb was not found. Install SQL Server Express LocalDB (free), then run this script again.'

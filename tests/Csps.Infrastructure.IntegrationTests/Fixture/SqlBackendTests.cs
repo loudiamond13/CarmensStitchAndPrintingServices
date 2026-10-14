@@ -46,10 +46,10 @@ public sealed class SqlBackendTests
     }
 
     [Fact]
-    public void LocalDbTargetsTheDedicatedInstanceOnly()
+    public void LocalDbTargetsTheDefaultInstance()
     {
-        SqlServerInstance.LocalDbMasterConnectionString.ShouldContain(@"(localdb)\CSPS;");
-        SqlServerInstance.LocalDbMasterConnectionString.ShouldNotContain("MSSQLLocalDB", Case.Insensitive);
+        SqlServerInstance.LocalDbMasterConnectionString.ShouldContain(@"(localdb)\MSSQLLocalDB;");
+        SqlServerInstance.LocalDbMasterConnectionString.ShouldNotContain(@"(localdb)\CSPS", Case.Insensitive);
     }
 
     [Fact]

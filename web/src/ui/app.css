@@ -1,0 +1,131 @@
+/* CSPS stylesheet entry, the only one (D-33). It holds the Tailwind entry and scan scope, the exact spec variants
+   and the CSPS token theme. Tokens per theme, layout tokens and the global element rules are in base.css. */
+/* Scan web/src only (research Pitfall 19). Paths are relative to this file (web/src/ui), so web/src is
+   "../../src"; the research skeleton's "../src" assumed a stylesheet one folder higher. */
+@import "tailwindcss" source("../../src");
+@source not "../../src/**/*.test.{ts,tsx}";
+@source not "../../src/test";
+@import "./base.css" layer(base);
+
+/* Exact spec queries (App. A.2/B/C). Never the built-in max-* / @max-* / @min-* forms (research Pitfall 22). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant hover (&:hover);
+@custom-variant pg-phone (@container pg (max-width: 767px));
+@custom-variant pg-tablet (@container pg (min-width: 768px) and (max-width: 1023px));
+@custom-variant pg-md-up (@container pg (min-width: 768px));
+@custom-variant pg-lt-lg (@container pg (max-width: 1023px));
+@custom-variant pg-lt-xl (@container pg (max-width: 1279px));
+@custom-variant pg-xs (@container pg (max-width: 420px));
+@custom-variant vp-lt-sm (@media (max-width: 639px));
+@custom-variant vp-lt-md (@media (max-width: 767px));
+@custom-variant vp-xs (@media (max-width: 420px));
+@custom-variant no-hover (@media (hover: none));
+
+@theme {
+  /* No Tailwind default palette, radius, shadow, size, font or weight (spec §0 rule 1). */
+  --*: initial;
+  /* The CSPS 4px step in px, like the spec: p-4 = 16px at any root font size. */
+  --spacing: 4px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-button: 650;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --animate-csp-spin: csp-spin 0.8s linear infinite;
+  --animate-csp-fade: csp-fade 0.15s ease;
+  --animate-csp-rise: csp-rise 0.2s ease;
+  --animate-csp-slide: csp-slide 0.2s ease;
+  --animate-csp-shimmer: csp-shimmer 1.4s ease-in-out infinite;
+
+  /* Copied from App. B unchanged. */
+  @keyframes csp-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes csp-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes csp-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes csp-slide {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+  @keyframes csp-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+}
+
+/* Utilities read the live token, so they switch with data-theme. The colour names are the App. A.2 names. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-nav-bg: var(--nav-bg);
+  --color-nav-ink: var(--nav-ink);
+  --color-sand: var(--sand);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-mockup: var(--mockup);
+  --color-mockup-soft: var(--mockup-soft);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-chart-income: var(--chart-income);
+  --color-chart-expense: var(--chart-expense);
+  --color-scrim: var(--scrim);
+  --color-link: var(--link);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  /* Read the tokens, so the font stacks (and later the PERF-05 fallbacks) apply. */
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --shadow-level-1: var(--shadow-1);
+  --shadow-level-2: var(--shadow-2);
+  --shadow-level-3: var(--shadow-3);
+}

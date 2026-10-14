@@ -5,15 +5,10 @@ namespace Csps.Infrastructure.Seeding;
 
 /// <summary>
 /// Decides whether the dev seed may touch the database a connection string names (D-08, CLAUDE.md, T-01-13, WR-04).
-/// Pure: it never opens a connection and never reads the environment. The server comes first: only the dedicated
-/// <c>(localdb)\CSPS</c> instance, or a SQL Server container on this machine addressed as <c>127.0.0.1,&lt;port&gt;</c>
-/// or <c>localhost,&lt;port&gt;</c>, is allowed. Every other server is refused, including the shared
-/// <c>(localdb)\MSSQLLocalDB</c> instance, named-pipe and <c>tcp:</c> addresses, named instances and hosted servers.
-/// The allow-list covers every server the connection could reach, so a <c>Failover Partner</c> is refused too. Then
-/// only <see cref="DevDatabase"/> and <see cref="E2EDatabase"/> are allowed, compared case-insensitively because SQL
-/// Server names are case-insensitive under the default collation. That keeps every other database out of reach:
-/// another project's <c>BetsLLC_*</c> databases, the read-only <c>CSPS_Legacy_Restore</c> (D-06), test databases and
-/// any hosted database.
+/// Pure: it never opens a connection. Server first: only <c>(localdb)\MSSQLLocalDB</c> or a loopback container
+/// (<c>127.0.0.1,&lt;port&gt;</c> or <c>localhost,&lt;port&gt;</c>) is allowed, so a <c>Failover Partner</c> is refused
+/// too. Then only <see cref="DevDatabase"/> and <see cref="E2EDatabase"/> pass, compared case-insensitively. That keeps
+/// every other database out of reach, such as the other project's <c>BetsLLC_*</c> on the shared instance.
 /// </summary>
 public static class DevSeedTargetGuard
 {
@@ -23,14 +18,14 @@ public static class DevSeedTargetGuard
     /// <summary>The end-to-end test database.</summary>
     public const string E2EDatabase = "CSPS_E2E";
 
-    // CSPS's own LocalDB instance (D-05). TheBETSLLC uses the shared MSSQLLocalDB instance, which is refused.
-    private const string DedicatedLocalDbInstance = @"(localdb)\CSPS";
+    // The default instance, shared with TheBETSLLC: the database-name allow-list keeps BetsLLC_* out of reach.
+    private const string LocalDbInstance = @"(localdb)\MSSQLLocalDB";
 
     // Fixed text: it never repeats the data source, which could name a hosted server.
     private const string ServerRefusal =
-        @"The dev seed runs only on the dedicated (localdb)\CSPS instance, or on a SQL Server container on this machine "
-        + "addressed as 127.0.0.1,<port> or localhost,<port>. Every other server is refused, including the shared "
-        + @"(localdb)\MSSQLLocalDB instance, named-pipe and tcp: addresses, named instances and hosted servers.";
+        @"The dev seed runs only on the (localdb)\MSSQLLocalDB instance, or on a SQL Server container on this machine "
+        + "addressed as 127.0.0.1,<port> or localhost,<port>. Every other server is refused, including other LocalDB "
+        + "instances, named-pipe and tcp: addresses, named instances and hosted servers.";
 
     // The hosts a loopback SQL Server container is addressed by (Testcontainers, CSPS_TEST_SQL=container).
     private static readonly string[] ContainerHosts = ["127.0.0.1", "localhost"];
@@ -89,7 +84,7 @@ public static class DevSeedTargetGuard
     private static bool IsAllowedServer(string dataSource)
     {
         var server = dataSource.Trim();
-        if (string.Equals(server, DedicatedLocalDbInstance, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(server, LocalDbInstance, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

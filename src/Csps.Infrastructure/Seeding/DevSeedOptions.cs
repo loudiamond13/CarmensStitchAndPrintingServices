@@ -8,8 +8,8 @@ namespace Csps.Infrastructure.Seeding;
 /// </summary>
 public sealed class DevSeedOptions
 {
-    /// <summary>The default target: <c>CSPS_Dev</c> on the dedicated <c>(localdb)\CSPS</c> instance.</summary>
-    public const string DefaultConnectionString = @"Server=(localdb)\CSPS;Database=CSPS_Dev;Integrated Security=true";
+    /// <summary>The default target: <c>CSPS_Dev</c> on <c>(localdb)\MSSQLLocalDB</c>.</summary>
+    public const string DefaultConnectionString = @"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true";
 
     /// <summary>One-line usage text.</summary>
     public const string Usage =

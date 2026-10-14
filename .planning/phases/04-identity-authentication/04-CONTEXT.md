@@ -1,6 +1,6 @@
 ---
 created: "2026-10-14T07:55:00-05:00"
-updated: "2026-10-14T08:25:00-05:00"
+updated: "2026-10-14T11:05:00-05:00"
 phase: 04-identity-authentication
 kind: context
 ---
@@ -140,11 +140,11 @@ Two rulings below **pull small pieces into Phase 4** that were not in the origin
 ## Existing Code Insights
 
 ### Reusable Assets
-- `web/src/ui/entry/OtpInput.tsx`: the 6-box code entry for D-01.
-- `web/src/ui/forms/PasswordField.tsx`: password field with reveal, for sign-in, reset, set-new-password and invite acceptance. The strength meter (D-12) is added next to it.
-- `web/src/lib/http/httpClient.ts`: has the `refresh`, `onUnauthorized` and `skipAuthRefresh` hooks plus the secret-query-param guard (rejects `code`). Phase 4 wires the real single-flight refresh.
+- `web/src/components/entry/OtpInput.tsx`: the 6-box code entry for D-01.
+- `web/src/components/forms/PasswordField.tsx`: password field with reveal, for sign-in, reset, set-new-password and invite acceptance. The strength meter (D-12) is added next to it.
+- `web/src/core/api/http/httpClient.ts` (shared client in `web/src/core/api/apiClient.ts`): has the `refresh`, `onUnauthorized` and `skipAuthRefresh` hooks plus the secret-query-param guard (rejects `code`). Phase 4 wires the real single-flight refresh.
 - `web/src/lib/forms/useSubmission.ts`: one `Idempotency-Key` per submission, reused on retry (WEB-09, R2-08). It pairs with D-40.
-- `web/src/app/admin/AdminLayout.tsx`, `web/src/app/router.tsx`: route guard, `/admin/login` and `/admin/login/verify`, and the user-menu "Sign out of all devices" item (D-04).
+- `web/src/layouts/AdminLayout.tsx`, `web/src/core/routes/router.tsx`: route guard, `/admin/login` and `/admin/login/verify`, and the user-menu "Sign out of all devices" item (D-04).
 - `src/Csps.Application/Ports/IAuditTrail.cs`, `src/Csps.Domain/Auditing/AuditEntry.cs`, `src/Csps.Infrastructure/Auditing/AuditTrail.cs`: the audit write path for AUDIT-01 auth events.
 - `src/Csps.Domain/Auditing/IpPrefix.cs`: /24 and /48 truncation. **WR-02 must be fixed first** (RESEARCH Wave 0).
 - `src/Csps.Domain/Common/Result.cs`, `src/Csps.Application/Ports/IRequestContext.cs`: handler results → ProblemDetails, and the current user/IP.

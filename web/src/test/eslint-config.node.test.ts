@@ -24,11 +24,14 @@ async function resolvedRules(file: string): Promise<Partial<Linter.RulesRecord>>
 }
 
 describe('eslint.config.mjs', () => {
-  it.each(['src/ui/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])('resolves no rule at warn level for %s', async (file) => {
-    const rules = Object.entries(await resolvedRules(file));
-    expect(rules.length).toBeGreaterThan(50);
-    expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
-  });
+  it.each(['src/components/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])(
+    'resolves no rule at warn level for %s',
+    async (file) => {
+      const rules = Object.entries(await resolvedRules(file));
+      expect(rules.length).toBeGreaterThan(50);
+      expect(rules.filter(([, rule]) => severityOf(rule) === 1 || severityOf(rule) === 'warn')).toEqual([]);
+    },
+  );
 
   it('has no rule at warn level in any entry of the raw config', () => {
     const warnLevel = config.flatMap((entry) =>
@@ -41,7 +44,7 @@ describe('eslint.config.mjs', () => {
 
   it('escalates react-hooks exhaustive-deps (shipped at warn) to error', async () => {
     expect(severityOf(reactHooks.configs.flat.recommended.rules['react-hooks/exhaustive-deps'])).toBe('warn');
-    const rules = await resolvedRules('src/ui/x.tsx');
+    const rules = await resolvedRules('src/components/x.tsx');
     expect(severityOf(rules['react-hooks/exhaustive-deps'])).toBe(2);
     expect(severityOf(rules['react-hooks/incompatible-library'])).toBe(2);
     expect(severityOf(rules['react-hooks/unsupported-syntax'])).toBe(2);
@@ -60,7 +63,7 @@ describe('eslint.config.mjs', () => {
   });
 
   it('keeps || on string, number and boolean fallbacks (research Pitfall 6) and bans deprecated APIs', async () => {
-    const rules = await resolvedRules('src/ui/x.tsx');
+    const rules = await resolvedRules('src/components/x.tsx');
     expect(rules['@typescript-eslint/prefer-nullish-coalescing']).toEqual([
       2,
       expect.objectContaining({ ignorePrimitives: { string: true, number: true, boolean: true } }),
@@ -69,7 +72,7 @@ describe('eslint.config.mjs', () => {
   });
 
   it('applies jsx-a11y-x strict, type-aware rules, the bans and the Tailwind rules to app TSX', async () => {
-    const rules = await resolvedRules('src/ui/x.tsx');
+    const rules = await resolvedRules('src/components/x.tsx');
     expect(severityOf(rules['jsx-a11y-x/alt-text'])).toBe(2);
     expect(severityOf(rules['@typescript-eslint/no-unsafe-assignment'])).toBe(2);
     expect(severityOf(rules['no-restricted-syntax'])).toBe(2);
@@ -110,7 +113,7 @@ describe('eslint.config.mjs', () => {
 
 describe('Prettier with prettier-plugin-tailwindcss (D-36)', () => {
   async function format(code: string): Promise<string> {
-    const filepath = path.join(webRoot, 'src/ui/x.tsx');
+    const filepath = path.join(webRoot, 'src/components/x.tsx');
     const options = await prettier.resolveConfig(filepath, { editorconfig: true });
     return prettier.format(code, { ...options, filepath });
   }

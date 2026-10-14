@@ -14,8 +14,13 @@
 //   - the extra cases no scenario has: the icon names, the toast triggers, dates and a loaded LazyImage.
 // The seed data is spec §12's (Carmen Reyes, Jomar Santos inactive, ORD-2026-0148, ORD-2026-0151), from the scenarios.
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { Button, overlineClasses } from '@/ui';
-import { pageHeadClasses, pageHeadTitleClasses, pageSublineClasses, pageTitleClasses } from '@/ui/layout/layout.recipe';
+import { Button, overlineClasses } from '@/components';
+import {
+  pageHeadClasses,
+  pageHeadTitleClasses,
+  pageSublineClasses,
+  pageTitleClasses,
+} from '@/components/layout/layout.recipe';
 import { kit } from './kit';
 import { renderNode } from './renderScenario';
 import { scenarios } from './scenarios';

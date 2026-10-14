@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Class gate (D-33, WEB-02, D-02, A11Y-04, T-02-15): every class token in src compiles to CSS against the real CSPS
-// theme in src/styles/app.css, carries no colour literal, and uses opacity only from the D-02 allow-list. The cleared
+// theme in src/ui/app.css, carries no colour literal, and uses opacity only from the D-02 allow-list. The cleared
 // theme makes a default-palette class or a typo emit nothing, silently (research Pitfall 23); this gate makes it fail.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,7 +23,7 @@ const jsx = (classes: string): string => `export const A = () => <div className=
 describe('collectClassTokens', () => {
   it('reads a className string literal, one token per class, with its line', () => {
     const source = 'export const A = () => (\n  <div className="bg-surface p-4" />\n);\n';
-    expect(collectClassTokens('src/ui/A.tsx', source)).toEqual([
+    expect(collectClassTokens('src/components/A.tsx', source)).toEqual([
       { token: 'bg-surface', line: 2 },
       { token: 'p-4', line: 2 },
     ]);
@@ -31,7 +31,7 @@ describe('collectClassTokens', () => {
 
   it('reads both branches of a conditional className, never the condition', () => {
     const source = "export const A = (o: { on: boolean }) => <div className={o.on ? 'bg-ink' : 'bg-line'} />;";
-    expect(tokensOf('src/ui/A.tsx', source)).toEqual(['bg-ink', 'bg-line']);
+    expect(tokensOf('src/components/A.tsx', source)).toEqual(['bg-ink', 'bg-line']);
   });
 
   it('reads clsx and tw arguments: strings, arrays, object keys and conditionals', () => {
@@ -42,7 +42,7 @@ describe('collectClassTokens', () => {
       "  clsx('flex gap-2', ['p-4', on && 'bg-ink'], { hidden: on, 'text-ink-muted underline': !on }, on ? 'm-1' : 'm-2');",
       "export const g = tw('rounded-pill');",
     ].join('\n');
-    expect(tokensOf('src/ui/f.ts', source)).toEqual([
+    expect(tokensOf('src/components/f.ts', source)).toEqual([
       'flex',
       'gap-2',
       'p-4',
@@ -63,7 +63,7 @@ describe('collectClassTokens', () => {
       'export const A = () => <button aria-label="Close dialog" type="button">{label}</button>;',
       'void useState;',
     ].join('\n');
-    expect(tokensOf('src/ui/A.tsx', source)).toEqual([]);
+    expect(tokensOf('src/components/A.tsx', source)).toEqual([]);
   });
 
   it('reads every string literal in a *.recipe.ts file except imports, exports, property names and types', () => {
@@ -79,7 +79,7 @@ describe('collectClassTokens', () => {
       '} as const satisfies Record<Tone, string>;',
       'export const toneClasses = (t: Tone) => clsx(base, tone[t]);',
     ].join('\n');
-    expect(collectClassTokens('src/ui/button.recipe.ts', source)).toEqual([
+    expect(collectClassTokens('src/components/button.recipe.ts', source)).toEqual([
       { token: 'inline-flex', line: 5 },
       { token: 'gap-2', line: 5 },
       { token: 'bg-primary', line: 7 },
@@ -90,7 +90,7 @@ describe('collectClassTokens', () => {
 
   it('gives each token of a multi-line string its own line', () => {
     const source = 'export const c = tw(`flex\n  gap-2\n  p-4`);';
-    expect(collectClassTokens('src/ui/c.ts', source)).toEqual([
+    expect(collectClassTokens('src/components/c.ts', source)).toEqual([
       { token: 'flex', line: 1 },
       { token: 'gap-2', line: 2 },
       { token: 'p-4', line: 3 },
@@ -100,53 +100,55 @@ describe('collectClassTokens', () => {
 
 describe('checkClassTokens', () => {
   it('passes CSPS utilities', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('bg-surface p-4'))).toEqual([]);
+    expect(await findingsOf('src/components/A.tsx', jsx('bg-surface p-4'))).toEqual([]);
   });
 
   it('passes the CSPS theme names that replace the defaults', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('font-bold font-button rounded-pill bg-surface-2'))).toEqual([]);
+    expect(await findingsOf('src/components/A.tsx', jsx('font-bold font-button rounded-pill bg-surface-2'))).toEqual(
+      [],
+    );
   });
 
   it('reports a cleared-theme default as unknown', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('bg-blue-500'))).toEqual([['bg-blue-500', 'unknown']]);
+    expect(await findingsOf('src/components/A.tsx', jsx('bg-blue-500'))).toEqual([['bg-blue-500', 'unknown']]);
   });
 
   it('reports every cleared default and a typo as unknown', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('rounded-xl shadow-lg text-gray-600 hover:bg-surfce csp-btn'))).toEqual(
-      [
-        ['rounded-xl', 'unknown'],
-        ['shadow-lg', 'unknown'],
-        ['text-gray-600', 'unknown'],
-        ['hover:bg-surfce', 'unknown'],
-        ['csp-btn', 'unknown'],
-      ],
-    );
+    expect(
+      await findingsOf('src/components/A.tsx', jsx('rounded-xl shadow-lg text-gray-600 hover:bg-surfce csp-btn')),
+    ).toEqual([
+      ['rounded-xl', 'unknown'],
+      ['shadow-lg', 'unknown'],
+      ['text-gray-600', 'unknown'],
+      ['hover:bg-surfce', 'unknown'],
+      ['csp-btn', 'unknown'],
+    ]);
   });
 
   it('passes the group and peer marker classes, which emit no CSS by design, and their variants', async () => {
     const markers = 'group group/nav peer peer/check group-aria-[current=page]/nav:hidden peer-checked:underline';
-    expect(await findingsOf('src/ui/A.tsx', jsx(markers))).toEqual([]);
-    expect(await findingsOf('src/ui/A.tsx', jsx('group/ peergroup'))).toEqual([
+    expect(await findingsOf('src/components/A.tsx', jsx(markers))).toEqual([]);
+    expect(await findingsOf('src/components/A.tsx', jsx('group/ peergroup'))).toEqual([
       ['group/', 'unknown'],
       ['peergroup', 'unknown'],
     ]);
   });
 
   it('reports a repeated unknown token every time, and a repeated known token never', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('p-4 bg-blue-500 p-4 bg-blue-500'))).toEqual([
+    expect(await findingsOf('src/components/A.tsx', jsx('p-4 bg-blue-500 p-4 bg-blue-500'))).toEqual([
       ['bg-blue-500', 'unknown'],
       ['bg-blue-500', 'unknown'],
     ]);
   });
 
   it('reports a hex colour literal even though it compiles', async () => {
-    expect(await findingsOf('src/ui/a.ts', "export const a = tw('bg-[#ff6600]');")).toEqual([
+    expect(await findingsOf('src/components/a.ts', "export const a = tw('bg-[#ff6600]');")).toEqual([
       ['bg-[#ff6600]', 'colour-literal'],
     ]);
   });
 
   it('reports rgb( and oklch( colour literals', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('bg-[rgb(0,0,0)] text-[oklch(50%_0.1_10)]'))).toEqual([
+    expect(await findingsOf('src/components/A.tsx', jsx('bg-[rgb(0,0,0)] text-[oklch(50%_0.1_10)]'))).toEqual([
       ['bg-[rgb(0,0,0)]', 'colour-literal'],
       ['text-[oklch(50%_0.1_10)]', 'colour-literal'],
     ]);
@@ -154,7 +156,9 @@ describe('checkClassTokens', () => {
 
   // TOOL-WR-07: every CSS colour syntax, not only hex, rgb() and oklch().
   it('reports hsl(), the other colour functions and named colours as colour literals', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('bg-[hsl(0_0%_50%)] text-[color:tomato] border-[red]'))).toEqual([
+    expect(
+      await findingsOf('src/components/A.tsx', jsx('bg-[hsl(0_0%_50%)] text-[color:tomato] border-[red]')),
+    ).toEqual([
       ['bg-[hsl(0_0%_50%)]', 'colour-literal'],
       ['text-[color:tomato]', 'colour-literal'],
       ['border-[red]', 'colour-literal'],
@@ -162,26 +166,28 @@ describe('checkClassTokens', () => {
   });
 
   it('reports an opacity token that is not allow-listed', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('opacity-60'))).toEqual([['opacity-60', 'opacity']]);
+    expect(await findingsOf('src/components/A.tsx', jsx('opacity-60'))).toEqual([['opacity-60', 'opacity']]);
   });
 
   it('reports opacity under any variant, and the arbitrary opacity property', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('hover:opacity-80 [opacity:.5]'))).toEqual([
+    expect(await findingsOf('src/components/A.tsx', jsx('hover:opacity-80 [opacity:.5]'))).toEqual([
       ['hover:opacity-80', 'opacity'],
       ['[opacity:.5]', 'opacity'],
     ]);
   });
 
   it('allows the disabled and pending opacity in any file (D-02)', async () => {
-    expect(await findingsOf('src/ui/A.tsx', jsx('disabled:opacity-45 aria-disabled:opacity-45'))).toEqual([]);
+    expect(await findingsOf('src/components/A.tsx', jsx('disabled:opacity-45 aria-disabled:opacity-45'))).toEqual([]);
   });
 
   it('allows the thumb reveal opacity only in the ImageUploader files (D-05)', async () => {
     const reveal =
       'group/thumb opacity-0 group-hover/thumb:opacity-100 group-focus-within/thumb:opacity-100 no-hover:opacity-100';
-    expect(await findingsOf('src/ui/media/ImageUploader.tsx', jsx(reveal))).toEqual([]);
-    expect(await findingsOf('src/ui/media/ImageUploader.recipe.ts', `export const r = '${reveal}';`)).toEqual([]);
-    expect(await findingsOf('src/ui/Other.tsx', jsx(reveal))).toEqual([
+    expect(await findingsOf('src/components/media/ImageUploader.tsx', jsx(reveal))).toEqual([]);
+    expect(await findingsOf('src/components/media/ImageUploader.recipe.ts', `export const r = '${reveal}';`)).toEqual(
+      [],
+    );
+    expect(await findingsOf('src/components/Other.tsx', jsx(reveal))).toEqual([
       ['opacity-0', 'opacity'],
       ['group-hover/thumb:opacity-100', 'opacity'],
       ['group-focus-within/thumb:opacity-100', 'opacity'],
@@ -190,7 +196,7 @@ describe('checkClassTokens', () => {
   });
 
   it('names the file, line, token and reason in each finding', async () => {
-    const file = 'src/ui/A.tsx';
+    const file = 'src/components/A.tsx';
     const findings = await checkClassTokens(collectClassTokens(file, jsx('p-4 bg-blue-500')), { file });
     expect(findings).toEqual([
       {
@@ -208,7 +214,7 @@ describe('checkClassTokens', () => {
 describe('class strings held in variables (TOOL-WR-06)', () => {
   it('reads a same-file const used as a className', () => {
     const source = "const x = 'bg-blue-500';\nexport const A = () => <div className={x} />;\n";
-    expect(collectClassTokens('src/ui/A.tsx', source)).toEqual([{ token: 'bg-blue-500', line: 1 }]);
+    expect(collectClassTokens('src/components/A.tsx', source)).toEqual([{ token: 'bg-blue-500', line: 1 }]);
   });
 
   it('reads consts in both branches of a conditional className and in clsx arguments', () => {
@@ -219,7 +225,7 @@ describe('class strings held in variables (TOOL-WR-06)', () => {
       'export const A = (o: { on: boolean }) => <div className={o.on ? on : off} />;',
       "export const B = (o: { on: boolean }) => <div className={clsx('flex', o.on && on)} />;",
     ].join('\n');
-    expect(tokensOf('src/ui/A.tsx', source)).toEqual(['p-4', 'bg-blue-500', 'flex']);
+    expect(tokensOf('src/components/A.tsx', source)).toEqual(['p-4', 'bg-blue-500', 'flex']);
   });
 
   it('follows a const that names another const, and stops on a cycle', () => {
@@ -231,17 +237,17 @@ describe('class strings held in variables (TOOL-WR-06)', () => {
       'export const A = () => <div className={alias} />;',
       'export const B = () => <div className={a} />;',
     ].join('\n');
-    expect(tokensOf('src/ui/A.tsx', source)).toEqual(['m-1']);
+    expect(tokensOf('src/components/A.tsx', source)).toEqual(['m-1']);
   });
 
   it('reads nothing for a prop or parameter passed through', () => {
     const source = 'export const A = ({ className }: { className: string }) => <div className={className} />;';
-    expect(tokensOf('src/ui/A.tsx', source)).toEqual([]);
+    expect(tokensOf('src/components/A.tsx', source)).toEqual([]);
   });
 
   it('fails an unknown class held in a const', async () => {
     const source = "const x = 'p-4 bg-blue-500';\nexport const A = () => <div className={x} />;\n";
-    expect(await findingsOf('src/ui/A.tsx', source)).toEqual([['bg-blue-500', 'unknown']]);
+    expect(await findingsOf('src/components/A.tsx', source)).toEqual([['bg-blue-500', 'unknown']]);
   });
 });
 
@@ -265,25 +271,25 @@ describe('runClassGate: class strings imported from another module (TOOL-WR-06)'
 
   it('reads a class const exported by a plain module (through a barrel) and reports it in that module', async () => {
     const webRoot = project({
-      'src/ui/copy.ts': "export const panelClasses = 'p-4 bg-blue-500';\n",
-      'src/ui/index.ts': "export { panelClasses } from './copy';\n",
-      'src/app/Page.tsx':
-        "import { panelClasses } from '@/ui';\nexport const Page = () => <div className={panelClasses} />;\n",
+      'src/components/copy.ts': "export const panelClasses = 'p-4 bg-blue-500';\n",
+      'src/components/index.ts': "export { panelClasses } from './copy';\n",
+      'src/modules/public/pages/Page.tsx':
+        "import { panelClasses } from '@/components';\nexport const Page = () => <div className={panelClasses} />;\n",
     });
     const findings = await runClassGate(webRoot);
     expect(findings.map((finding) => [finding.file, finding.line, finding.token, finding.kind])).toEqual([
-      ['src/ui/copy.ts', 1, 'bg-blue-500', 'unknown'],
+      ['src/components/copy.ts', 1, 'bg-blue-500', 'unknown'],
     ]);
   });
 
   it('does not read a recipe const twice', async () => {
     const webRoot = project({
-      'src/ui/a.recipe.ts': "export const aClasses = 'p-4 bg-blue-500';\n",
-      'src/app/Page.tsx':
+      'src/components/a.recipe.ts': "export const aClasses = 'p-4 bg-blue-500';\n",
+      'src/modules/public/pages/Page.tsx':
         "import { aClasses } from '../ui/a.recipe';\nexport const Page = () => <div className={aClasses} />;\n",
     });
     expect((await runClassGate(webRoot)).map((finding) => [finding.file, finding.token])).toEqual([
-      ['src/ui/a.recipe.ts', 'bg-blue-500'],
+      ['src/components/a.recipe.ts', 'bg-blue-500'],
     ]);
   });
 });
@@ -369,7 +375,7 @@ describe('the real source', () => {
   it('lists src files without tests, src/test or declaration files', () => {
     const files = listSourceFiles();
     expect(files).toContain('src/main.tsx');
-    expect(files).toContain('src/app/public/PublicPlaceholderPage.tsx');
+    expect(files).toContain('src/modules/public/pages/PublicPlaceholderPage.tsx');
     expect(files.filter((file) => /\.test\.tsx?$|^src\/test\/|\.d\.ts$/.test(file))).toEqual([]);
   });
 

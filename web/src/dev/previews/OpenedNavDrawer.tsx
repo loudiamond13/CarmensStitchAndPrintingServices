@@ -3,8 +3,8 @@
 // pages only, but a script click works at any width). The real AdminFrame owns the drawer, so this is exactly the
 // shell's drawer. The drawer is a SPEC-GAP primitive with no reference, so there is no reference fragment.
 import { useEffect, useRef } from 'react';
-import { AdminFrame } from '@/app/admin/AdminLayout';
-import { AdminPreviewPage } from '@/app/admin/AdminPreviewPage';
+import { AdminFrame } from '@/layouts/AdminLayout';
+import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
 
 function noop(): undefined {
   return undefined;

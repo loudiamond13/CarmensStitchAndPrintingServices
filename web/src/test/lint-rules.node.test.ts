@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Proves that each architecture, D-33 and Tailwind lint rule fires (WEB-04, WEB-10, QUAL-02, D-33, D-36), and stays
 // quiet where it must. The rules run through ESLint's Linter on virtual file names, with no type information, exactly
-// as eslint.config.mjs exports them; the Tailwind rules resolve classes against the real src/styles/app.css theme.
+// as eslint.config.mjs exports them; the Tailwind rules resolve classes against the real src/ui/app.css theme.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Linter } from 'eslint';
@@ -29,13 +29,14 @@ function lint(code: string, file: string): Finding[] {
     .map((m): Finding => [m.ruleId, m.severity, m.message]);
 }
 
-const feature = 'src/features/x.ts';
-const featureTsx = 'src/features/x.tsx';
+const feature = 'src/modules/public/pages/x.ts';
+const featureTsx = 'src/modules/public/pages/x.tsx';
 
-const callApi = 'Call an api.ts function instead (WEB-04).';
-const httpOnlyApi = 'Only src/lib/api.ts may use the HTTP client (WEB-04).';
+const callApi = 'Call a module service (src/modules/*/services) instead (WEB-04).';
+const transportOnly = 'Only src/core/api may import the HTTP transport (WEB-04).';
+const apiClientOnly = 'Only module services (src/modules/*/services) may import apiClient (WEB-04).';
 const cssImport =
-  'D-33: no stylesheet imports; style with utilities. Only main.tsx and the dev parity entry import @/styles/app.css.';
+  'D-33: no stylesheet imports; style with utilities. Only App.tsx and the dev parity entry import @/ui/app.css.';
 const rawHtml = 'Raw HTML injection is forbidden (CWE-79).';
 const styleObject = 'D-33: style may only set CSS custom properties (--*); use a utility for everything else.';
 const styleValue = 'D-33: style must be an inline object of --* custom properties.';
@@ -67,70 +68,93 @@ const restrictedName = (importName: string, source: string, message: string): Fi
 ];
 
 const httpImport =
-  "import { createHttpClient } from '@/lib/http/httpClient';\nexport const client = createHttpClient;\n";
+  "import { createHttpClient } from '@/core/api/http/httpClient';\nexport const client = createHttpClient;\n";
+const apiClientImport = "import { apiClient } from '@/core/api/apiClient';\nexport const client = apiClient;\n";
 const rawHtmlJsx = "export const Html = () => <div dangerouslySetInnerHTML={{ __html: '<b>x</b>' }} />;\n";
 const classNameTemplateJsx = 'export const A = (tone: string) => <div className={`bg-${tone}`} />;\n';
+const fetchCall = "export const load = () => fetch('/x');\n";
 
-describe('WEB-04: the HTTP client stays behind api.ts', () => {
-  it('an @/lib/http import outside api.ts is exactly one no-restricted-imports error', () => {
-    expect(lint(httpImport, feature)).toEqual([restrictedPattern('@/lib/http/httpClient', httpOnlyApi)]);
+describe('WEB-04: the HTTP transport stays in core/api and endpoint calls in module services', () => {
+  it.each([[feature], ['src/modules/admin/services/x.ts'], ['src/components/x.ts']])(
+    'a transport import in %s is exactly one no-restricted-imports error',
+    (file) => {
+      expect(lint(httpImport, file)).toEqual([restrictedPattern('@/core/api/http/httpClient', transportOnly)]);
+    },
+  );
+
+  it('the same import in src/core/api/apiClient.ts is clean', () => {
+    expect(lint(httpImport, 'src/core/api/apiClient.ts')).toEqual([]);
   });
 
-  it('the same import in src/lib/api.ts is clean', () => {
-    expect(lint(httpImport, 'src/lib/api.ts')).toEqual([]);
+  it('a relative core/api/http import outside core/api is an error', () => {
+    const code =
+      "import { createHttpClient } from '../core/api/http/httpClient';\nexport const c = createHttpClient;\n";
+    expect(lint(code, feature)).toEqual([restrictedPattern('../core/api/http/httpClient', transportOnly)]);
   });
 
-  it('a relative lib/http import outside api.ts is an error', () => {
-    const code = "import { createHttpClient } from '../lib/http/httpClient';\nexport const c = createHttpClient;\n";
-    expect(lint(code, feature)).toEqual([restrictedPattern('../lib/http/httpClient', httpOnlyApi)]);
+  it('a core/api/http module may import its own modules', () => {
+    const code = "import { HttpError } from '@/core/api/http/HttpError';\nexport { HttpError };\n";
+    expect(lint(code, 'src/core/api/http/httpClient.ts')).toEqual([]);
   });
 
-  it('a lib/http module may import its own modules', () => {
-    const code = "import { HttpError } from '@/lib/http/httpError';\nexport { HttpError };\n";
-    expect(lint(code, 'src/lib/http/httpClient.ts')).toEqual([]);
+  it.each([['src/modules/admin/services/x.ts'], ['src/modules/public/services/x.ts']])(
+    'an apiClient import in %s is clean',
+    (file) => {
+      expect(lint(apiClientImport, file)).toEqual([]);
+    },
+  );
+
+  it.each([['src/modules/admin/pages/x.ts'], ['src/components/x.ts']])(
+    'an apiClient import in %s is one error',
+    (file) => {
+      expect(lint(apiClientImport, file)).toEqual([restrictedPattern('@/core/api/apiClient', apiClientOnly)]);
+    },
+  );
+
+  it('an HttpError import from @/core/api/errors is clean anywhere', () => {
+    const code = "import { HttpError } from '@/core/api/errors';\nexport { HttpError };\n";
+    expect(lint(code, feature)).toEqual([]);
+    expect(lint(code, 'src/components/x.ts')).toEqual([]);
+    expect(lint(code, 'src/modules/admin/services/x.ts')).toEqual([]);
   });
 
-  it('bare fetch outside lib/http is an error', () => {
-    expect(lint("export const load = () => fetch('/x');\n", feature)).toEqual([restrictedGlobal('fetch')]);
+  it.each([[feature], ['src/core/api/apiClient.ts'], ['src/modules/admin/services/x.ts']])(
+    'bare fetch in %s is an error',
+    (file) => {
+      expect(lint(fetchCall, file)).toEqual([restrictedGlobal('fetch')]);
+    },
+  );
+
+  it('bare fetch inside core/api/http is clean', () => {
+    expect(lint(fetchCall, 'src/core/api/http/httpClient.ts')).toEqual([]);
   });
 
-  it('bare fetch inside lib/http is clean', () => {
-    expect(lint("export const load = () => fetch('/x');\n", 'src/lib/http/httpClient.ts')).toEqual([]);
+  it.each([['window'], ['globalThis'], ['self']])('%s.fetch outside core/api/http is an error', (object) => {
+    const code = `export const load = () => ${object}.fetch('/x');\n`;
+    expect(lint(code, feature)).toEqual([syntax(callApi)]);
+    expect(lint(code, 'src/core/api/apiClient.ts')).toEqual([syntax(callApi)]);
+    expect(lint(code, 'src/modules/admin/services/x.ts')).toEqual([syntax(callApi)]);
   });
 
-  it('window.fetch outside lib/http is an error', () => {
-    expect(lint("export const load = () => window.fetch('/x');\n", feature)).toEqual([syntax(callApi)]);
+  it('globalThis.fetch inside core/api/http is clean', () => {
+    expect(lint("export const load = () => globalThis.fetch('/x');\n", 'src/core/api/http/httpClient.ts')).toEqual([]);
   });
 
-  it('globalThis.fetch outside lib/http is an error', () => {
-    expect(lint("export const load = () => globalThis.fetch('/x');\n", feature)).toEqual([syntax(callApi)]);
-  });
-
-  it('self.fetch outside lib/http is an error', () => {
-    expect(lint("export const load = () => self.fetch('/x');\n", feature)).toEqual([syntax(callApi)]);
-  });
-
-  it('globalThis.fetch inside lib/http is clean', () => {
-    expect(lint("export const load = () => globalThis.fetch('/x');\n", 'src/lib/http/httpClient.ts')).toEqual([]);
-  });
-
-  it('new XMLHttpRequest() outside lib/http is an error', () => {
-    expect(lint('export const create = () => new XMLHttpRequest();\n', feature)).toEqual([
-      restrictedGlobal('XMLHttpRequest'),
-    ]);
-  });
-
-  it('new XMLHttpRequest() inside lib/http is clean', () => {
-    expect(lint('export const create = () => new XMLHttpRequest();\n', 'src/lib/http/xhr.ts')).toEqual([]);
+  it('new XMLHttpRequest() is an error everywhere except core/api/http', () => {
+    const code = 'export const create = () => new XMLHttpRequest();\n';
+    expect(lint(code, feature)).toEqual([restrictedGlobal('XMLHttpRequest')]);
+    expect(lint(code, 'src/core/api/apiClient.ts')).toEqual([restrictedGlobal('XMLHttpRequest')]);
+    expect(lint(code, 'src/modules/admin/services/x.ts')).toEqual([restrictedGlobal('XMLHttpRequest')]);
+    expect(lint(code, 'src/core/api/http/xhr.ts')).toEqual([]);
   });
 });
 
 describe('forbidden packages and deprecated paths', () => {
-  it('an axios import is an error, even in api.ts', () => {
+  it('an axios import is an error, even in a module service', () => {
     const code = "import axios from 'axios';\nexport default axios;\n";
-    const finding = restrictedPath('axios', 'Forbidden (PRD Prime Directive 8). Use api.ts.');
+    const finding = restrictedPath('axios', 'Forbidden (PRD Prime Directive 8). Use a module service.');
     expect(lint(code, feature)).toEqual([finding]);
-    expect(lint(code, 'src/lib/api.ts')).toEqual([finding]);
+    expect(lint(code, 'src/modules/admin/services/x.ts')).toEqual([finding]);
   });
 
   it('a react-router-dom import is an error (D-19)', () => {
@@ -315,27 +339,24 @@ describe('D-33 stylesheet imports', () => {
     expect(lint(code, featureTsx)).toEqual([]);
   });
 
-  it("'@/styles/app.css' outside main.tsx is an error", () => {
-    expect(lint("import '@/styles/app.css';\n", 'src/app/App.tsx')).toEqual([
-      restrictedPattern('@/styles/app.css', cssImport),
+  it("'@/ui/app.css' outside App.tsx is an error", () => {
+    expect(lint("import '@/ui/app.css';\n", 'src/main.tsx')).toEqual([restrictedPattern('@/ui/app.css', cssImport)]);
+  });
+
+  it("App.tsx may import '@/ui/app.css' and nothing else", () => {
+    expect(lint("import '@/ui/app.css';\n", 'src/App.tsx')).toEqual([]);
+    expect(lint("import '@/ui/base.css';\n", 'src/App.tsx')).toEqual([restrictedPattern('@/ui/base.css', cssImport)]);
+    expect(lint("import './reference.css';\n", 'src/App.tsx')).toEqual([
+      restrictedPattern('./reference.css', cssImport),
     ]);
   });
 
-  it("main.tsx may import '@/styles/app.css' and nothing else", () => {
-    expect(lint("import '@/styles/app.css';\n", 'src/main.tsx')).toEqual([]);
-    expect(lint("import '@/styles/base.css';\n", 'src/main.tsx')).toEqual([
-      restrictedPattern('@/styles/base.css', cssImport),
+  it("the dev parity entry may import '@/ui/app.css' and nothing else; other dev files may not (recorded 02-14 exception)", () => {
+    expect(lint("import '@/ui/app.css';\n", 'src/dev/parity-main.tsx')).toEqual([]);
+    expect(lint("import '@/ui/base.css';\n", 'src/dev/parity-main.tsx')).toEqual([
+      restrictedPattern('@/ui/base.css', cssImport),
     ]);
-  });
-
-  it("the dev parity entry may import '@/styles/app.css' and nothing else; other dev files may not (recorded 02-14 exception)", () => {
-    expect(lint("import '@/styles/app.css';\n", 'src/dev/parity-main.tsx')).toEqual([]);
-    expect(lint("import '@/styles/base.css';\n", 'src/dev/parity-main.tsx')).toEqual([
-      restrictedPattern('@/styles/base.css', cssImport),
-    ]);
-    expect(lint("import '@/styles/app.css';\n", 'src/dev/kit.ts')).toEqual([
-      restrictedPattern('@/styles/app.css', cssImport),
-    ]);
+    expect(lint("import '@/ui/app.css';\n", 'src/dev/kit.ts')).toEqual([restrictedPattern('@/ui/app.css', cssImport)]);
   });
 
   it("only the parity reference entry may import './reference.css', and nothing else (recorded 02-13 exception)", () => {
@@ -346,7 +367,7 @@ describe('D-33 stylesheet imports', () => {
     expect(lint("import './reference.css';\n", 'visual/reference/kit.ts')).toEqual([
       restrictedPattern('./reference.css', cssImport),
     ]);
-    expect(lint("import './reference.css';\n", 'src/main.tsx')).toEqual([
+    expect(lint("import './reference.css';\n", 'src/App.tsx')).toEqual([
       restrictedPattern('./reference.css', cssImport),
     ]);
   });
@@ -375,37 +396,37 @@ describe('QUAL-02 language bans', () => {
 });
 
 describe('Pitfall 33: every ban still fires inside each override block', () => {
-  it('dangerouslySetInnerHTML is an error in src/lib/http/x.tsx', () => {
-    expect(lint(rawHtmlJsx, 'src/lib/http/x.tsx')).toEqual([syntax(rawHtml)]);
+  it('dangerouslySetInnerHTML is an error in src/core/api/http/x.tsx', () => {
+    expect(lint(rawHtmlJsx, 'src/core/api/http/x.tsx')).toEqual([syntax(rawHtml)]);
   });
 
-  it('a className template literal is an error in src/lib/http/x.tsx', () => {
-    expect(lint(classNameTemplateJsx, 'src/lib/http/x.tsx')).toEqual([syntax(classNameTemplate)]);
+  it('a className template literal is an error in src/core/api/http/x.tsx', () => {
+    expect(lint(classNameTemplateJsx, 'src/core/api/http/x.tsx')).toEqual([syntax(classNameTemplate)]);
   });
 
-  it('the class-call, cssText and nuqs bans fire in src/lib/api.ts (a .ts file cannot hold JSX)', () => {
+  it('the class-call, cssText and nuqs bans fire in src/core/api/apiClient.ts (a .ts file cannot hold JSX)', () => {
     const code =
       "import clsx from 'clsx';\nexport const c = (y: string) => clsx(`x-${y}`);\n" +
       "export const options = { shallow: false };\nexport const f = (el: HTMLElement) => { el.style.cssText = ''; };\n";
-    expect(lint(code, 'src/lib/api.ts').map(([ruleId]) => ruleId)).toEqual([
+    expect(lint(code, 'src/core/api/apiClient.ts').map(([ruleId]) => ruleId)).toEqual([
       'no-restricted-syntax',
       'no-restricted-syntax',
       'no-restricted-syntax',
     ]);
   });
 
-  it('dangerouslySetInnerHTML is an error in src/main.tsx', () => {
-    expect(lint(rawHtmlJsx, 'src/main.tsx')).toEqual([syntax(rawHtml)]);
+  it('dangerouslySetInnerHTML is an error in src/App.tsx', () => {
+    expect(lint(rawHtmlJsx, 'src/App.tsx')).toEqual([syntax(rawHtml)]);
   });
 
-  it('a className template literal is an error in src/main.tsx', () => {
-    expect(lint(classNameTemplateJsx, 'src/main.tsx')).toEqual([syntax(classNameTemplate)]);
+  it('a className template literal is an error in src/App.tsx', () => {
+    expect(lint(classNameTemplateJsx, 'src/App.tsx')).toEqual([syntax(classNameTemplate)]);
   });
 
-  it('the fetch member ban still fires in src/main.tsx and src/lib/api.ts', () => {
+  it('the fetch member ban still fires in src/App.tsx and src/core/api/apiClient.ts', () => {
     const code = "export const load = () => window.fetch('/x');\n";
-    expect(lint(code, 'src/main.tsx')).toEqual([syntax(callApi)]);
-    expect(lint(code, 'src/lib/api.ts')).toEqual([syntax(callApi)]);
+    expect(lint(code, 'src/App.tsx')).toEqual([syntax(callApi)]);
+    expect(lint(code, 'src/core/api/apiClient.ts')).toEqual([syntax(callApi)]);
   });
 
   it('visual/reference keeps the frozen markup but still bans raw HTML', () => {

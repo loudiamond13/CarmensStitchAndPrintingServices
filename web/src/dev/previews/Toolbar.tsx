@@ -3,10 +3,10 @@
 // recent", Order date "Last 90 days", Product type "All products", Sort by "Due date (soonest)", Grid view). The
 // controls are held at those values and every change is a no-op here. The reference side transcribes App. E.7's
 // toolbar (web/visual/reference/fragments/Toolbar.tsx).
-import { PRODUCT_TYPES } from '@/lib/csps';
-import { SegmentedControl, type SegmentOption } from '@/ui/choice';
-import { Select, type SelectOption } from '@/ui/forms';
-import { FilterBar, SearchBox } from '@/ui/lists';
+import { PRODUCT_TYPES } from '@/utils/csps';
+import { SegmentedControl, type SegmentOption } from '@/components/choice';
+import { Select, type SelectOption } from '@/components/forms';
+import { FilterBar, SearchBox } from '@/components/lists';
 
 const STATUS: readonly SelectOption[] = [
   { value: 'active', label: 'Active + recent' },

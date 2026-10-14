@@ -176,7 +176,7 @@ describe('woff2OnlyPlugin (PERF-05)', () => {
   });
 
   it('leaves files outside the Fontsource packages untouched', async () => {
-    expect(await transform(woff2OnlyPlugin(), FONTSOURCE_CSS, 'C:/Work/web/src/styles/app.css')).toBeNull();
+    expect(await transform(woff2OnlyPlugin(), FONTSOURCE_CSS, 'C:/Work/web/src/ui/app.css')).toBeNull();
     expect(await transform(woff2OnlyPlugin(), FONTSOURCE_CSS, 'C:/Work/web/node_modules/other/800.css')).toBeNull();
   });
 

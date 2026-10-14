@@ -183,7 +183,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
   }
   /** @type {Step[]} */
   const steps = [];
-  // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\CSPS before any connection opens (T-02-24).
+  // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\MSSQLLocalDB before any connection opens (T-02-24).
   steps.push({
     kind: 'run',
     name: 'seed',
@@ -223,7 +223,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       // certificate from this developer's user-secrets; no secret is passed or written here.
       env: {
         ASPNETCORE_ENVIRONMENT: 'Development',
-        ConnectionStrings__Csps: 'Server=(localdb)\\CSPS;Database=CSPS_E2E;Integrated Security=true',
+        ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
       },
       healthUrl: `${ORIGIN}/health`,
     },

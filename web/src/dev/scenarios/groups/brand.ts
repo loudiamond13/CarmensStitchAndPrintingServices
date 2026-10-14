@@ -22,7 +22,7 @@ function brandCase(id: string, node: ScenarioNode, responsive = false): Scenario
   };
 }
 
-/** The 56 App. D.5 icon names, in the order of the ICONS map (src/ui/brand/icons.ts), as plain data for both builds. */
+/** The 56 App. D.5 icon names, in the order of the ICONS map (src/components/brand/icons.ts), as plain data for both builds. */
 const ICON_NAMES = [
   'plus',
   'x',

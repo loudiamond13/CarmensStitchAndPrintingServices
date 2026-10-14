@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T05:05:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T10:05:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -12,11 +12,11 @@ This page explains how to run the browser tests in `web/e2e/` (requirements QUAL
 |---|---|---|
 | The ASP.NET Core HTTPS development certificate is trusted | `dotnet dev-certs https --check --trust` exits 0 | `dotnet dev-certs https --trust` |
 | User-secrets hold the JWT signing key and the dev Data Protection certificate | `dotnet user-secrets list --project src/Csps.Server` lists `Jwt:SigningKey` and `DataProtection:*` (don't paste the values anywhere) | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1` |
-| The dedicated LocalDB instance `(localdb)\CSPS` exists | `sqllocaldb info CSPS` | `sqllocaldb create CSPS` (see [First-time setup](../development.md#first-time-setup)) |
+| The default LocalDB instance `(localdb)\MSSQLLocalDB` can start | `sqllocaldb info MSSQLLocalDB` | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-LocalDb.ps1` (see [First-time setup](../development.md#first-time-setup)) |
 | `web/node_modules` is installed | the folder exists | `npm --prefix web ci` (installs exactly the committed lockfile) |
 | The Playwright browsers for the pinned Playwright version | `npx --prefix web playwright install --list` | `npx --prefix web playwright install chromium firefox webkit` (a download only, not a package change) |
 
-The tests use the `CSPS_E2E` database only. It is created, migrated and seeded through the guarded dev-seed tool, which refuses every database except `CSPS_Dev` and `CSPS_E2E` on `(localdb)\CSPS`.
+The tests use the `CSPS_E2E` database only. It is created, migrated and seeded through the guarded dev-seed tool, which refuses every database except `CSPS_Dev` and `CSPS_E2E` on `(localdb)\MSSQLLocalDB`.
 
 ## 2. Run the preflight, then the tests
 

@@ -4,8 +4,8 @@
 // types the confirm text and presses the danger button, as a person would. The dialog keeps the typed text and shows
 // the mapped error with the reference above its buttons (UI-SPEC "UI Considerations" → error | ConfirmDialog).
 import { useEffect, useRef } from 'react';
-import { HttpError } from '@/lib/api';
-import { ConfirmDialog, type ConfirmDialogProps } from '@/ui/overlays';
+import { HttpError } from '@/core/api/errors';
+import { ConfirmDialog, type ConfirmDialogProps } from '@/components/overlays';
 import { typeInto } from './typeInto';
 
 export interface FailedConfirmDialogProps extends Omit<ConfirmDialogProps, 'onConfirm'> {

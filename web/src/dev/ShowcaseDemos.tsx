@@ -5,7 +5,7 @@
 // cases show what no scenario does: the 56 icons with their names, the toast triggers for every tone, formatted
 // dates and a loaded LazyImage.
 import { useId, useState, type ComponentType } from 'react';
-import { formatCalendarDate } from '@/lib/format';
+import { formatCalendarDate } from '@/utils/format';
 import {
   Button,
   ConfirmDialog,
@@ -22,8 +22,8 @@ import {
   type Role,
   type ToastInput,
   type ToastTone,
-} from '@/ui';
-import { ICONS, type IconName } from '@/ui/brand/icons';
+} from '@/components';
+import { ICONS, type IconName } from '@/components/brand/icons';
 import { FailedConfirmDialog } from './previews/FailedConfirmDialog';
 import { OpenedDialog } from './previews/OpenedDialog';
 import { scenarioById } from './scenarios';

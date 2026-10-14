@@ -2,9 +2,9 @@
 // the real ResponsiveTable and list cells. The scenario passes the users as plain data (spec §12.1 seed); this side
 // builds the columns (render functions are not scenario data). The reference side transcribes App. E.12's table with
 // the same users (web/visual/reference/fragments/ListTable.tsx). Every row action is a no-op here.
-import { formatCalendarDate } from '@/lib/format';
-import { RowAction, RowActions, ResponsiveTable, UserCell, type ResponsiveTableColumn } from '@/ui/lists';
-import { Badge } from '@/ui/status';
+import { formatCalendarDate } from '@/utils/format';
+import { RowAction, RowActions, ResponsiveTable, UserCell, type ResponsiveTableColumn } from '@/components/lists';
+import { Badge } from '@/components/status';
 
 export interface ListTableUser {
   first: string;

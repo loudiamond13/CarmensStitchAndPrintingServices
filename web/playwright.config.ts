@@ -71,7 +71,7 @@ export default defineConfig({
     // Protection certificate from this developer's user-secrets (D-30); no secret is passed or written here (T-02-25).
     env: {
       ASPNETCORE_ENVIRONMENT: 'Development',
-      ConnectionStrings__Csps: 'Server=(localdb)\\CSPS;Database=CSPS_E2E;Integrated Security=true',
+      ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
     },
   },
 });

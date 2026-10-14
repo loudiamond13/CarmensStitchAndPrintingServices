@@ -54,7 +54,7 @@ export function toBudgetGraph(bundle: Rollup.OutputBundle, root: string): Budget
         facadeModuleId: output.facadeModuleId === null ? null : relativeId(output.facadeModuleId, root),
         imports: output.imports,
         // Only modules that ship code: Rolldown also lists modules tree-shaken to nothing (renderedLength 0), such as
-        // src/app/admin/routes.tsx behind the production build's literal-false __DEV_ROUTES__.
+        // src/modules/admin/routes.tsx behind the production build's literal-false __DEV_ROUTES__.
         moduleIds: output.moduleIds
           .filter((id) => (output.modules[id]?.renderedLength ?? 1) > 0)
           .map((id) => relativeId(id, root)),

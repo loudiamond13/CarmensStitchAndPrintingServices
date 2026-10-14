@@ -43,13 +43,14 @@ export function escalate(config) {
   };
 }
 
-const callApiMessage = 'Call an api.ts function instead (WEB-04).';
-const httpClientMessage = 'Only src/lib/api.ts may use the HTTP client (WEB-04).';
+const callApiMessage = 'Call a module service (src/modules/*/services) instead (WEB-04).';
+const transportMessage = 'Only src/core/api may import the HTTP transport (WEB-04).';
+const apiClientMessage = 'Only module services (src/modules/*/services) may import apiClient (WEB-04).';
 const cssImportMessage =
-  'D-33: no stylesheet imports; style with utilities. Only main.tsx and the dev parity entry import @/styles/app.css.';
+  'D-33: no stylesheet imports; style with utilities. Only App.tsx and the dev parity entry import @/ui/app.css.';
 
-// The ban on direct fetch/XMLHttpRequest member access. src/lib/http/** (the HTTP client itself) drops only this
-// entry, so every other ban still fires there.
+// The ban on direct fetch/XMLHttpRequest member access. src/core/api/http/** (the HTTP transport itself) drops only
+// this entry, so every other ban still fires there.
 const fetchMemberBan = {
   selector: 'MemberExpression[property.name=/^(fetch|XMLHttpRequest)$/][object.name=/^(window|globalThis|self)$/]',
   message: callApiMessage,
@@ -159,7 +160,7 @@ export const syntaxBans = [
 
 /** @type {Array<{ name: string, importNames?: string[], message: string }>} */
 const restrictedImportPaths = [
-  { name: 'axios', message: 'Forbidden (PRD Prime Directive 8). Use api.ts.' },
+  { name: 'axios', message: 'Forbidden (PRD Prime Directive 8). Use a module service.' },
   { name: 'react-router-dom', message: 'Removed in React Router 8 (D-19). Import from react-router.' },
   { name: 'nuqs/adapters/react-router', message: 'Deprecated. Use nuqs/adapters/react-router/v8.' },
   { name: 'nuqs/adapters/react-router/v6', message: 'Use nuqs/adapters/react-router/v8.' },
@@ -173,25 +174,32 @@ const restrictedImportPaths = [
 ];
 
 /**
- * The no-restricted-imports entry. `http` keeps the lib/http ban (off only in api.ts and lib/http itself); `appCss`
- * lets the one stylesheet entry through (main.tsx only); `referenceCss` lets the parity reference entry import its
- * test-only stylesheet (visual/reference/main.tsx only). Fontsource weight files are always allowed (PERF-05).
- * @param {{ http: boolean, appCss: boolean, referenceCss?: boolean }} allow
+ * The no-restricted-imports entry. `transport` lifts the core/api/http ban (core/api only) and `apiClient` lifts the
+ * apiClient ban (module services only); `appCss` lets the one stylesheet entry through (App.tsx only); `referenceCss`
+ * lets the parity reference entry import its test-only stylesheet (visual/reference/main.tsx only). Fontsource weight
+ * files are always allowed (PERF-05).
+ * @param {{ transport: boolean, apiClient: boolean, appCss: boolean, referenceCss?: boolean }} allow
  * @returns {import('eslint').Linter.RuleEntry}
  */
 function importBans(allow) {
   const cssGroup = ['*.css', '!@fontsource/**', '!@fontsource-variable/**'];
   if (allow.appCss) {
-    cssGroup.push('!@/styles/app.css');
+    cssGroup.push('!@/ui/app.css');
   }
   if (allow.referenceCss === true) {
     cssGroup.push('!./reference.css');
   }
   const patterns = [{ group: cssGroup, message: cssImportMessage }];
-  if (!allow.http) {
+  if (!allow.apiClient) {
     patterns.unshift({
-      group: ['**/lib/http', '**/lib/http/**', '@/lib/http', '@/lib/http/**'],
-      message: httpClientMessage,
+      group: ['**/core/api/apiClient', '@/core/api/apiClient'],
+      message: apiClientMessage,
+    });
+  }
+  if (!allow.transport) {
+    patterns.unshift({
+      group: ['**/core/api/http', '**/core/api/http/**', '@/core/api/http', '@/core/api/http/**'],
+      message: transportMessage,
     });
   }
   return ['error', { paths: restrictedImportPaths, patterns }];
@@ -210,7 +218,7 @@ export const architectureRules = [
     files: appFiles,
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {
-      'no-restricted-imports': importBans({ http: false, appCss: false }),
+      'no-restricted-imports': importBans({ transport: false, apiClient: false, appCss: false }),
       'no-restricted-globals': [
         'error',
         { name: 'fetch', message: callApiMessage },
@@ -223,33 +231,41 @@ export const architectureRules = [
     },
   },
   {
-    // The HTTP client itself is the one place that may touch fetch and XMLHttpRequest, and import its own modules.
-    name: 'csps/restrictions/http-client',
-    files: ['src/lib/http/**'],
+    // core/api owns the transport and the shared client (WEB-04), so it may import both.
+    name: 'csps/restrictions/core-api',
+    files: ['src/core/api/**'],
     rules: {
-      'no-restricted-imports': importBans({ http: true, appCss: false }),
+      'no-restricted-imports': importBans({ transport: true, apiClient: true, appCss: false }),
+      'no-restricted-syntax': ['error', ...syntaxBans],
+    },
+  },
+  {
+    // The HTTP transport itself is the one place that may touch fetch and XMLHttpRequest.
+    name: 'csps/restrictions/http-client',
+    files: ['src/core/api/http/**'],
+    rules: {
+      'no-restricted-imports': importBans({ transport: true, apiClient: true, appCss: false }),
       'no-restricted-globals': 'off',
       'no-restricted-syntax': ['error', ...syntaxBans.filter((ban) => ban !== fetchMemberBan)],
     },
   },
   {
-    // api.ts is the only consumer of the HTTP client (WEB-04). Its test builds the client over a fake fetch to drive
-    // createApi (plan 02-15), so it shares the exception.
-    name: 'csps/restrictions/api',
-    files: ['src/lib/api.ts', 'src/lib/api.test.ts'],
+    // Module services are the only importers of the shared client (WEB-04); the transport stays behind core/api.
+    name: 'csps/restrictions/services',
+    files: ['src/modules/*/services/**'],
     rules: {
-      'no-restricted-imports': importBans({ http: true, appCss: false }),
+      'no-restricted-imports': importBans({ transport: false, apiClient: true, appCss: false }),
       'no-restricted-syntax': ['error', ...syntaxBans],
     },
   },
   {
-    // main.tsx imports the single stylesheet entry (D-33). Recorded exception (plan 02-14): the dev-only parity entry
+    // App.tsx imports the single stylesheet entry (D-33). Recorded exception (plan 02-14): the dev-only parity entry
     // (src/dev/parity-main.tsx, never in the production build, D-20) imports the same fonts and stylesheet, so the
     // implementation side of the look-equality proof renders with exactly the app's CSS.
     name: 'csps/restrictions/main',
-    files: ['src/main.tsx', 'src/dev/parity-main.tsx'],
+    files: ['src/App.tsx', 'src/dev/parity-main.tsx'],
     rules: {
-      'no-restricted-imports': importBans({ http: false, appCss: true }),
+      'no-restricted-imports': importBans({ transport: false, apiClient: false, appCss: true }),
       'no-restricted-syntax': ['error', ...syntaxBans],
     },
   },
@@ -265,7 +281,7 @@ export const architectureRules = [
     name: 'csps/restrictions/visual-reference-entry',
     files: ['visual/reference/main.tsx'],
     rules: {
-      'no-restricted-imports': importBans({ http: false, appCss: false, referenceCss: true }),
+      'no-restricted-imports': importBans({ transport: false, apiClient: false, appCss: false, referenceCss: true }),
     },
   },
   {
@@ -297,7 +313,7 @@ export const tailwindRules = [
     settings: {
       'better-tailwindcss': {
         cwd: fileURLToPath(new URL('.', import.meta.url)),
-        entryPoint: fileURLToPath(new URL('./src/styles/app.css', import.meta.url)),
+        entryPoint: fileURLToPath(new URL('./src/ui/app.css', import.meta.url)),
         messageStyle: 'compact',
         selectors: [
           { kind: 'attribute', name: '^className$' },

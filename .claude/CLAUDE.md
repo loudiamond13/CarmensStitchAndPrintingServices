@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-07T19:05:08-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T12:21:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -19,7 +19,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - **Stack (PRD §2):**
   - Backend: .NET 10 / C# 14 controller-based APIs (`[ApiController]` + attribute routes) under `/api/v1`, EF Core 10 code-first with Fluent config only, SQL Server 2025, Identity (`IdentityUser<Guid>`), FluentValidation, MailKit, Cloudinary, Serilog.
   - Frontend: React 19 + TS strict + Vite, Tailwind v4, React Router, TanStack Query, RHF + zod.
-- **Free only:** no paid licenses, tools or services, except the hosting and domain the owner already pays for. Licenses allowed: MIT, Apache-2.0, BSD and ISC, plus approved exceptions: MPL-2.0 for axe (dev/test only), OFL-1.1 for the @fontsource fonts, and two free Microsoft-licensed runtime parts of the SQL Server driver, pinned to exact versions in `docs/license-exceptions.json` (Microsoft.Data.SqlClient.SNI.runtime 6.0.2, Microsoft.Identity.Client.NativeInterop 0.20.6; any other version needs a new owner approval). Never GPL, AGPL, SSPL or commercial licenses.
+- **Free only:** no paid licenses, tools or services, except the hosting and domain the owner already pays for. Licenses allowed: MIT, Apache-2.0, BSD and ISC, plus approved exceptions: MPL-2.0 for axe (dev/test only), OFL-1.1 for the @fontsource fonts, and two free Microsoft-licensed runtime parts of the SQL Server driver, pinned to exact versions in `docs/license-exceptions.json` (Microsoft.Data.SqlClient.SNI.runtime 6.0.3, Microsoft.Identity.Client.NativeInterop 0.20.6; any other version needs a new owner approval). Never GPL, AGPL, SSPL or commercial licenses.
 - **Forbidden:** axios, MediatR, AutoMapper, FluentAssertions v8+, jQuery, any UI kit, `react-router-dom`, `coverlet.collector`, `Microsoft.Testing.Extensions.CodeCoverage`, Swashbuckle/NSwag, `FluentValidation.AspNetCore`, SpaProxy, and Serilog DB sinks.
 - **New dependencies** need their purpose, license, maintenance status and a legitimacy check recorded in the phase RESEARCH.md. The **release cool-down is 14 days**: adopt only versions at least 14 days old (security fixes may skip it, with a recorded reason).
 - **Architecture (PRD §3):**
@@ -37,7 +37,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - **Quality:**
   - TDD (red → green → refactor).
   - Zero warnings everywhere: build, analyzers, lint, types, tests and the browser console.
-  - Coverage: Domain 100%, Application ≥ 95%, `lib/http` 100%, web ≥ 90%.
+  - Coverage: Domain 100%, Application ≥ 95%, `core/api` 100%, web ≥ 90%.
   - Authorization-matrix tests cover every endpoint × {anonymous, Admin, Manager}.
 - **Security:**
   - CWE Top 25 drives each phase's security review.
@@ -77,7 +77,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - Tailwind 4.3 via `@tailwindcss/vite`. vite-plugin-pwa with `injectRegister: null`.
 - TypeScript alias pair: `typescript` → `@typescript/typescript6` (API for tooling), `@typescript/native` → `typescript@7` (fast `tsc --noEmit`).
 - ESLint 10 flat config: typescript-eslint `strictTypeChecked`, react-hooks 7, `eslint-plugin-jsx-a11y-x`, Prettier.
-- HTTP: in-house `lib/http/httpClient.ts` over `fetch`. Charts: hand-rolled SVG. Icons: decide C-10 (in-house `icons.ts` vs `lucide-react`).
+- HTTP: in-house `core/api/http/httpClient.ts` over `fetch`, with calls in per-module services (`modules/*/services`). Charts: hand-rolled SVG. Icons: decide C-10 (in-house `icons.ts` vs `lucide-react`).
 
 **Tests:**
 - .NET: xunit.v3 4.x (MTP v2), NSubstitute, Shouldly 4.3, Testcontainers.MsSql (explicit image `mssql/server:2025-CU9-ubuntu-24.04`, **CI only**), Respawn (ignore `__EFMigrationsHistory`), ArchUnitNET + xUnitV3 adapter, `FakeTimeProvider`, `FakeLogger`, coverlet.MTP + ReportGenerator (thresholds).
@@ -95,7 +95,42 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the root `CLAUDE.md`; this is the full detail.
+
+- **LocalDB (OR-1):** the default instance `(localdb)\MSSQLLocalDB` with separate `CSPS_*` databases (`CSPS_Dev`, `CSPS_E2E`, `CSPS_Test_<guid>`, `CSPS_Legacy_Restore`). The dedicated CSPS instance is retired. TheBETSLLC shares the instance, so never create, reset, restore over or drop a `BetsLLC_*` database. Cleanup may drop only `^CSPS_Test_[0-9a-f-]{36}$`.
+- **Comments (OR-2):** minimal, concise and on point. They say what the code does, enough for the owner to follow it in review. No history narration.
+- **Client-side validation first (OR-3):** each form has a zod schema that mirrors the API validator, so every rule the backend validates is also checked in the browser before any request is sent. Errors show inline before submit. Checks only the server can make stay server-side: uniqueness, the breached-password lookup, rate limits and concurrency.
+- **No long dash in the client (OR-4):** no em dash (U+2014), en dash or similar in `web/src`: code, copy and comments. Use a colon or period for an aside, "to" for a range in prose, a hyphen for a compact range (`Mon-Sat`, `9:00 AM - 6:00 PM`). Where a long dash would be used as a symbol, use an icon: an empty or missing value renders `EmptyValue` from `@/components` (the `minus` icon, hidden from assistive technology, plus visually hidden "Not set"), and formatters return `null` for it, never a dash string (owner, 2026-10-14; quick 261014-g0q). The minus sign U+2212 in money stays. UI-SPEC copy that contains a dash is rewritten in the client.
+- **API calls per module (OR-5):** calls live in `modules/{public,admin}/services/`, not in one file. The shared client and interceptors live in `core/api/`. Only `core/api/http` touches `fetch`.
+- **Layout (OR-6):** `web/src` follows the owner tree:
+
+  ```
+  web/src/
+    App.tsx, main.tsx
+    assets/
+    components/            shared low-level UI, barrel `@/components`
+    core/
+      api/                 http/ (transport, private), apiClient.ts (services only), errors.ts (for UI)
+      routes/              router, Root route, error boundaries
+    hooks/                 global reusable hooks
+    layouts/               PublicLayout, AdminLayout (and later AuthLayout)
+    lib/                   TanStack Query, nuqs and form-submission wrappers
+    modules/
+      public/ {components, hooks, services, pages}
+      admin/  {components, hooks, services, pages}, plus module-wide files (routes.tsx, copy.ts)
+    types/
+    ui/                    theme: app.css, base.css, tw.ts
+    utils/                 formatters, validators, csps.ts previews
+    dev/, test/            outside the owner tree (D-20 dev-only code, test harness)
+  ```
+
+- **Placement:**
+  - `components` is shared low-level UI, imported from the barrel `@/components`.
+  - `ui` is the theme: `app.css` is the one stylesheet entry and only `App.tsx` imports it; `base.css`; `tw.ts` (the class-string marker).
+  - `core/api`: `http/` is the transport, `apiClient.ts` holds the shared client for services only, `errors.ts` is what UI code imports for errors.
+  - `modules/*`: module-wide files such as `routes.tsx` and `copy.ts` sit at the module root.
+- **Imports:** `@/` across folders and `./` within one. `dev/scenarios` files use relative imports.
+- **Enforcement:** `source-layout.node.test.ts` (layout), `no-long-dash.node.test.ts` (OR-4), `EmptyValue.test.tsx` (OR-4 empty value) and the ESLint WEB-04 rules (transport and `apiClient` boundaries).
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

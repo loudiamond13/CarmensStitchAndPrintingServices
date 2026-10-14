@@ -5,7 +5,7 @@
 //   - D-38 has nothing here (the phone list-card separator stays exactly as the approved CSS renders it);
 //   - every selector names a spec class (.csp-* or .s-*), except inside the O-6 reduced-motion block and the PERF-05
 //     font faces and font-stack tokens, so the layer can only ever restyle the frozen reference;
-//   - the PERF-05 faces and stacks are identical to the shipped web/src/styles/base.css;
+//   - the PERF-05 faces and stacks are identical to the shipped web/src/ui/base.css;
 //   - nothing in the app imports it.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rulingsCss = readFileSync(path.join(here, 'rulings.css'), 'utf8');
-const baseCss = readFileSync(path.resolve(here, '../../src/styles/base.css'), 'utf8');
+const baseCss = readFileSync(path.resolve(here, '../../src/ui/base.css'), 'utf8');
 
 /** The rulings the layer must carry, as the leading words of their group comments. */
 const RULING_IDS = [
@@ -189,7 +189,7 @@ describe('rulings.css: the layer can only restyle the frozen reference', () => {
   });
 });
 
-describe('rulings.css: the PERF-05 faces and stacks are identical to web/src/styles/base.css', () => {
+describe('rulings.css: the PERF-05 faces and stacks are identical to web/src/ui/base.css', () => {
   const tokenOf = (css: string, name: string): string =>
     normalize(new RegExp(`${name}:\\s*([^;]+);`).exec(css)?.[1] ?? `missing ${name}`);
   const facesOf = (css: string): string[] =>

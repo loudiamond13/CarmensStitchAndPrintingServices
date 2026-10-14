@@ -2,7 +2,7 @@
 // form tiles, thumbnails and the LazyImage fallback show. The reference side renders the approved look of the same
 // thing: App. D.3's MediaPlaceholder with its chip hidden by a parent rule
 // (web/visual/reference/fragments/MediaPlaceholderNoChip.tsx).
-import { MediaPlaceholder } from '@/ui/brand';
+import { MediaPlaceholder } from '@/components/brand';
 
 export interface MediaPlaceholderNoChipProps {
   ratio?: string;

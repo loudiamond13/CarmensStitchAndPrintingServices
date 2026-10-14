@@ -3,7 +3,7 @@ namespace Csps.Testing;
 /// <summary>Which SQL Server the integration tests run against (D-07).</summary>
 public enum SqlBackend
 {
-    /// <summary>The dedicated <c>(localdb)\CSPS</c> instance. The default, and the only local option.</summary>
+    /// <summary>The default <c>(localdb)\MSSQLLocalDB</c> instance, shared with TheBETSLLC. The only local option.</summary>
     LocalDb,
 
     /// <summary>A Testcontainers SQL Server 2025 container. CI only (<c>CSPS_TEST_SQL=container</c>).</summary>

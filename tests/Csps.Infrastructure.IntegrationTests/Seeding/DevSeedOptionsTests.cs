@@ -12,7 +12,7 @@ public sealed class DevSeedOptionsTests
         var options = DevSeedOptions.Parse([]);
 
         options.Reset.ShouldBeFalse();
-        options.ConnectionString.ShouldBe(@"Server=(localdb)\CSPS;Database=CSPS_Dev;Integrated Security=true");
+        options.ConnectionString.ShouldBe(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true");
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class DevSeedOptionsTests
         options.Reset.ShouldBeTrue();
         var builder = new SqlConnectionStringBuilder(options.ConnectionString);
         builder.InitialCatalog.ShouldBe("CSPS_E2E");
-        builder.DataSource.ShouldBe(@"(localdb)\CSPS");
+        builder.DataSource.ShouldBe(@"(localdb)\MSSQLLocalDB");
         builder.IntegratedSecurity.ShouldBeTrue();
     }
 

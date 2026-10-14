@@ -3,8 +3,8 @@
 // group headings the `.s-card-h h2` look, variant labels the `.csp-overline` look (overlineClasses) and icon names the
 // `.csp-label` look (labelClasses). Every string here is a class list (the class gate compiles each one).
 import clsx from 'clsx';
-import { cardClasses, labelClasses } from '@/ui';
-import { pageRootClasses } from '@/ui/layout/layout.recipe';
+import { cardClasses, labelClasses } from '@/components';
+import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { tw } from '@/ui/tw';
 
 /** `.s-card`: one section per group. */
