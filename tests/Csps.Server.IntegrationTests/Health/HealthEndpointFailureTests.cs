@@ -92,7 +92,7 @@ public sealed class HealthEndpointFailureTests(CspsDatabase database) : IClassFi
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
         ShouldNotBeCacheable(response);
         var body = await ReadBodyAsync(response);
         HealthBody.Parse(body).Status.ShouldBe("Healthy");

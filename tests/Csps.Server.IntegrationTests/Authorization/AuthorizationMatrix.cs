@@ -52,7 +52,9 @@ public static class AuthorizationMatrix
     /// <summary>The matrix rows.</summary>
     public static IReadOnlyList<MatrixRow> Rows { get; } =
     [
-        new("*", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
+        // /health answers GET and HEAD only, so it has two keys like the SPA shell. Other methods: HealthEndpointTests.
+        new("GET", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("*", "/api/{**path}", "/api/v1/does-not-exist", Anonymous: 404, Admin: 404, Manager: 404),
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
 
@@ -71,7 +73,8 @@ public static class AuthorizationMatrix
     public static IReadOnlySet<string> AnonymousAllowList { get; } =
         new[]
         {
-            "* /health",
+            "GET /health",
+            "HEAD /health",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

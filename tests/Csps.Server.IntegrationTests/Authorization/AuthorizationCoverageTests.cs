@@ -112,12 +112,20 @@ public sealed class AuthorizationCoverageTests
     {
         RouteEndpoint[] endpoints =
         [
-            Endpoint("/health", null, new AllowAnonymousAttribute()),
+            MultiMethodEndpoint("/health", ["GET", "HEAD"], new AllowAnonymousAttribute()),
+            Endpoint("/api/{**path}", null, new AllowAnonymousAttribute()),
             Endpoint("/api/v1/site-settings", "GET", new AuthorizeAttribute(Policies.Staff)),
             Endpoint("/api/v1/users", "POST", new AuthorizeAttribute(Policies.Manager)),
         ];
-        var allowList = new HashSet<string>(StringComparer.Ordinal) { "* /health" };
-        MatrixRow[] matrix = [Row("*", "/health"), Row("GET", "/api/v1/site-settings"), Row("POST", "/api/v1/users")];
+        var allowList = new HashSet<string>(StringComparer.Ordinal) { "GET /health", "HEAD /health", "* /api/{**path}" };
+        MatrixRow[] matrix =
+        [
+            Row("GET", "/health"),
+            Row("HEAD", "/health"),
+            Row("*", "/api/{**path}"),
+            Row("GET", "/api/v1/site-settings"),
+            Row("POST", "/api/v1/users"),
+        ];
 
         AuthorizationCoverage.FindViolations(endpoints, matrix, allowList).ShouldBeEmpty();
     }
@@ -125,7 +133,8 @@ public sealed class AuthorizationCoverageTests
     [Fact]
     public void KeysUseTheMethodOrAStar()
     {
-        AuthorizationCoverage.KeysOf(Endpoint("/health", null)).ShouldBe(["* /health"]);
+        AuthorizationCoverage.KeysOf(Endpoint("/api/{**path}", null)).ShouldBe(["* /api/{**path}"]);
+        AuthorizationCoverage.KeysOf(MultiMethodEndpoint("/health", ["GET", "HEAD"])).ShouldBe(["GET /health", "HEAD /health"]);
         AuthorizationCoverage.KeysOf(MultiMethodEndpoint("/api/v1/items", ["GET", "POST"])).ShouldBe(["GET /api/v1/items", "POST /api/v1/items"]);
     }
 
