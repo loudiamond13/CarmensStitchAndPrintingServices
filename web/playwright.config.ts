@@ -22,6 +22,9 @@ const origin = 'https://localhost:5199';
 // The fixture self-tests prove the guards once per engine; the phone projects reuse those engines.
 const engineOnly = ['**/fixture-selftest.spec.ts'];
 
+// The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
+const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];
+
 export default defineConfig({
   testDir: 'e2e',
   forbidOnly: true,
@@ -30,11 +33,29 @@ export default defineConfig({
   // No CSP bypass anywhere: the tests run under the same strict CSP as production.
   use: { baseURL: 'https://localhost:5199', ignoreHTTPSErrors: true, trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'pixel', use: { ...devices['Pixel 7'] }, testIgnore: engineOnly },
-    { name: 'iphone', use: { ...devices['iPhone 15'] }, testIgnore: engineOnly },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: scrollbarSpecs },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: scrollbarSpecs },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: scrollbarSpecs },
+    { name: 'pixel', use: { ...devices['Pixel 7'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
+    { name: 'iphone', use: { ...devices['iPhone 15'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
+    // Headless Chromium starts with --hide-scrollbars, so no project above ever presses a real scrollbar. These two show
+    // them again: classic scrollbars, which take about 15px of the window as in Chrome on Windows (the owner's setup),
+    // and overlay scrollbars, which take no space as on macOS with a trackpad and on ChromeOS. They run only
+    // dialog-scrollbars.spec.ts, under the same base URL, HTTPS host and guard as every other project (plan 02-42,
+    // review WR-02).
+    {
+      name: 'chromium-classic-scrollbars',
+      use: { ...devices['Desktop Chrome'], launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } },
+      testMatch: scrollbarSpecs,
+    },
+    {
+      name: 'chromium-overlay-scrollbars',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--enable-features=OverlayScrollbar'] },
+      },
+      testMatch: scrollbarSpecs,
+    },
   ],
   webServer: {
     // The real ASP.NET Core host. Its working directory is the server project, so the content root (appsettings, logs)

@@ -41,6 +41,13 @@ function firstChild(parent: Element): Element {
   return child;
 }
 
+/** A full press on the target: mousedown, mouseup and click, all with the same init (button, position). */
+function pressAndRelease(target: Element, init?: MouseEventInit): void {
+  fireEvent.mouseDown(target, init);
+  fireEvent.mouseUp(target, init);
+  fireEvent.click(target, init);
+}
+
 afterEach(() => {
   document.body.className = '';
 });
@@ -184,15 +191,15 @@ describe('Modal (App. D.3, WEB-02)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('closes on a mousedown on the scrim, but not on one inside the dialog', () => {
+  it('closes on a press and click on the scrim, but not on one inside the dialog', () => {
     const onClose = vi.fn();
     const { container } = render(<AddPayment onClose={onClose} />);
 
-    fireEvent.mouseDown(screen.getByRole('dialog'));
-    fireEvent.mouseDown(screen.getByRole('textbox', { name: 'Amount' }));
+    pressAndRelease(screen.getByRole('dialog'));
+    pressAndRelease(screen.getByRole('textbox', { name: 'Amount' }));
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.mouseDown(firstChild(container));
+    pressAndRelease(firstChild(container));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -422,7 +429,7 @@ describe('Overlay (App. C .s-overlay)', () => {
     expect(container.textContent).toBe('second');
   });
 
-  it('closes an inline Modal on a mousedown on the region scrim', () => {
+  it('closes an inline Modal on a press and click on the region scrim', () => {
     const onClose = vi.fn();
     const { container } = render(
       <Overlay>
@@ -430,7 +437,7 @@ describe('Overlay (App. C .s-overlay)', () => {
       </Overlay>,
     );
 
-    fireEvent.mouseDown(firstChild(container));
+    pressAndRelease(firstChild(container));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -495,10 +502,10 @@ describe("scrim presses on the backdrop's own scrollbar (D-42)", () => {
     const region = renderInRegion(onClose);
     stubGeometry(region, OVERFLOWING);
 
-    fireEvent.mouseDown(region, { clientX: 1005, clientY: 100 });
+    pressAndRelease(region, { clientX: 1005, clientY: 100 });
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    pressAndRelease(region, { clientX: 500, clientY: 100 });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -507,7 +514,7 @@ describe("scrim presses on the backdrop's own scrollbar (D-42)", () => {
     const region = renderInRegion(onClose);
     stubGeometry(region, { clientWidth: 1000, clientHeight: 400, scrollWidth: 1000, scrollHeight: 400 });
 
-    fireEvent.mouseDown(region, { clientX: 1005, clientY: 100 });
+    pressAndRelease(region, { clientX: 1005, clientY: 100 });
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -517,7 +524,7 @@ describe("scrim presses on the backdrop's own scrollbar (D-42)", () => {
     const region = renderInRegion(onClose);
     stubGeometry(region, { clientWidth: 1000, clientHeight: 385, scrollWidth: 1200, scrollHeight: 385 });
 
-    fireEvent.mouseDown(region, { clientX: 500, clientY: 395 });
+    pressAndRelease(region, { clientX: 500, clientY: 395 });
 
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -528,10 +535,119 @@ describe("scrim presses on the backdrop's own scrollbar (D-42)", () => {
     const scrim = firstChild(container);
     stubGeometry(scrim, OVERFLOWING);
 
-    fireEvent.mouseDown(scrim, { clientX: 1005, clientY: 100 });
+    pressAndRelease(scrim, { clientX: 1005, clientY: 100 });
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.mouseDown(scrim, { clientX: 500, clientY: 100 });
+    pressAndRelease(scrim, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+// D-42 / G-2-199 (review WR-01): overlay scrollbars take no layout space (macOS with a trackpad, ChromeOS), so the
+// geometry above cannot tell a press on them from a press on the scrim. The scrim therefore closes only on a click that
+// follows a press on the scrim, with the backdrop at the same scroll position as at that press: a drag on the scrollbar
+// scrolled it. jsdom does not scroll, so each test sets the positions the engine would report.
+/** Overflows downwards with an overlay scrollbar: the client area is the whole 1015px box. */
+const OVERLAY_SCROLLBAR: ScrimGeometry = { clientWidth: 1015, clientHeight: 400, scrollWidth: 1015, scrollHeight: 600 };
+
+function setScroll(scrim: Element, top: number, left: number): void {
+  Object.defineProperty(scrim, 'scrollTop', { configurable: true, value: top });
+  Object.defineProperty(scrim, 'scrollLeft', { configurable: true, value: left });
+}
+
+describe('scrim close rule: only a press and click on the scrim that does not scroll it closes (D-42, G-2-199)', () => {
+  function renderInRegion(onClose: () => void): Element {
+    const { container } = render(
+      <Overlay>
+        <AddPayment inline onClose={onClose} />
+      </Overlay>,
+    );
+    return firstChild(container);
+  }
+
+  it('keeps the dialog open after a drag on an overlay scrollbar that scrolled the backdrop', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERLAY_SCROLLBAR);
+
+    fireEvent.mouseDown(region, { clientX: 1011, clientY: 120 });
+    setScroll(region, 105, 0);
+    fireEvent.mouseUp(region, { clientX: 1011, clientY: 300 });
+    fireEvent.click(region, { clientX: 1011, clientY: 300 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('counts a sideways scroll during the press as a scroll too', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, { ...OVERLAY_SCROLLBAR, scrollWidth: 1200 });
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 200 });
+    setScroll(region, 0, 40);
+    fireEvent.click(region, { clientX: 500, clientY: 200 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('never closes on a press alone; the click that follows it closes', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.mouseUp(region, { clientX: 500, clientY: 100 });
+    fireEvent.click(region, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a later press replace an earlier one, so a press inside the dialog never closes it', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    fireEvent.mouseDown(screen.getByRole('textbox', { name: 'Amount' }));
+    fireEvent.click(region, { clientX: 500, clientY: 100 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes on a press and click that did not scroll the backdrop', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERFLOWING);
+
+    pressAndRelease(region, { clientX: 500, clientY: 100 });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts the first scrollbar column as scrollbar and the scrim just left of it as scrim', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERFLOWING);
+
+    pressAndRelease(region, { clientX: 1000, clientY: 100 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    pressAndRelease(region, { clientX: 999.5, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the fixed Modal's own scrim the same rule", () => {
+    const onClose = vi.fn();
+    const { container } = render(<AddPayment onClose={onClose} />);
+    const scrim = firstChild(container);
+    stubGeometry(scrim, OVERLAY_SCROLLBAR);
+
+    fireEvent.mouseDown(scrim, { clientX: 1011, clientY: 120 });
+    setScroll(scrim, 105, 0);
+    fireEvent.mouseUp(scrim, { clientX: 1011, clientY: 300 });
+    fireEvent.click(scrim, { clientX: 1011, clientY: 300 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    pressAndRelease(scrim, { clientX: 500, clientY: 100 });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
