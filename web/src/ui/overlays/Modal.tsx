@@ -128,6 +128,9 @@ function OpenModal({
     // and the scroll check covers any engine that does); a press that starts inside the dialog never closes it, as
     // before. Only the primary button closes, so middle-click autoscroll and a right-click on the scrolling backdrop
     // never close the dialog.
+    // Focus that leaves the dialog during a press comes back to where it was without scrolling (useFocusTrap, review
+    // WR-01), so any scroll between the press and the click is a scroll gesture and blocks the close (review WR-02,
+    // plan 02-43).
     let pendingPress: { positions: number[] } | null = null;
     const onMouseDown = (event: MouseEvent) => {
       pendingPress = null;
@@ -153,23 +156,6 @@ function OpenModal({
         requestClose();
       }
     };
-    // A scroll caused by focus moving during the press is not a scroll gesture: a press can focus the page or a
-    // scrollable backdrop, and the focus trap then pulls focus back into the dialog, which scrolls the backdrop to show
-    // the focused element. The positions are re-read at every focusin while the press is pending, and once more a task
-    // later, because WebKit applies that scroll just after the focusin (Chromium and Firefox apply it before).
-    const rereadPending = () => {
-      if (pendingPress !== null) {
-        pendingPress = { positions: readScrollPositions(scrims) };
-      }
-    };
-    let reread: ReturnType<typeof setTimeout> | undefined;
-    const onFocusIn = () => {
-      if (pendingPress !== null) {
-        rereadPending();
-        clearTimeout(reread);
-        reread = setTimeout(rereadPending, 0);
-      }
-    };
     // UI-WR-01: only the dialog on top (the newest focus trap) answers Esc, and it marks the key as handled, so one Esc
     // never closes a dialog together with the dialog or drawer it was opened from.
     const dialog = dialogRef.current;
@@ -183,15 +169,12 @@ function OpenModal({
       scrim.addEventListener('mousedown', onMouseDown);
       scrim.addEventListener('click', onClick);
     }
-    document.addEventListener('focusin', onFocusIn);
     window.addEventListener('keydown', onKeyDown);
     return () => {
       for (const scrim of scrims) {
         scrim.removeEventListener('mousedown', onMouseDown);
         scrim.removeEventListener('click', onClick);
       }
-      document.removeEventListener('focusin', onFocusIn);
-      clearTimeout(reread);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [inline]);
