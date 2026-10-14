@@ -4,13 +4,17 @@
 // - on activation, focus moves to `initialFocus`, else the first field (input, select, textarea), else the first
 //   focusable element, else the container itself (given tabIndex -1 if it has no tabindex);
 // - Tab on the last focusable element moves to the first, Shift+Tab on the first moves to the last, and focus that
-//   lands outside the container (a click elsewhere, a script) comes back to the first focusable element;
+//   lands outside the container (a click elsewhere, a script, a press on a dialog's dark area that focuses the page's
+//   `main`) comes back to the element inside that last had it, without scrolling, so the caret stays in a confirm field
+//   and a scrolled backdrop does not jump (review WR-01, plan 02-43); if nothing inside had focus yet, or that element
+//   is gone or cannot take focus, it goes to the first focusable element;
 // - when the trap ends, focus returns to the element that had it on activation (the trigger), if it is still there.
 // UI-WR-02: traps stack. Overlays render in place, never in a portal, so a dialog opened from the phone drawer is the
 // drawer's DOM sibling, and two traps that both pulled focus into their own root would fight over it. Only the newest
 // active trap (the top of the stack) acts on Tab and on focus that leaves it; the ones below wait. A trap joins the
 // stack before it moves focus. When the top trap ends, focus returns to its trigger and, if that leaves focus outside
-// the trap now on top, moves into that trap; a trap that ends below another changes nothing about focus.
+// the trap now on top, moves into that trap; a trap that ends below another changes nothing about focus. Every trap
+// remembers its own last element, and only the top one returns focus.
 // UI-WR-03: the toast layer (`data-ui="s-toast-layer"`, outside every dialog) is the one region outside the trap that
 // focus may visit, because danger and warning toasts stay until they are closed (D-04, D-31 O-7) and a failed save is
 // reported there. Tab goes from the dialog's last element to the toasts' first and from their last back to the
@@ -114,6 +118,28 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
     initial.focus();
   }
 
+  // The element inside that last had focus (review WR-01, plan 02-43), seeded with the one the trap just focused: a
+  // person who types into it and never moves focus has seen no focus-in inside to record. Plain state in this function,
+  // not hook state.
+  const active = document.activeElement;
+  let lastInside: HTMLElement | SVGElement | null =
+    (active instanceof HTMLElement || active instanceof SVGElement) && root.contains(active) ? active : null;
+
+  /**
+   * Sends focus that left the trap back to where it was, without scrolling the backdrop. When there is nothing usable to
+   * return to (it is gone, or focus did not land on it, for example a button that became disabled), the first focusable
+   * element takes it, which may scroll it into view so the person sees where focus went.
+   */
+  const returnInside = () => {
+    if (lastInside?.isConnected === true && root.contains(lastInside)) {
+      lastInside.focus({ preventScroll: true });
+      if (document.activeElement === lastInside) {
+        return;
+      }
+    }
+    focusFirst();
+  };
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== 'Tab' || !isTop()) {
       return;
@@ -150,8 +176,14 @@ function activateTrap(root: HTMLElement, initialFocus: HTMLElement | null, retur
   };
 
   const onFocusIn = (event: FocusEvent) => {
-    if (isTop() && event.target instanceof Node && !root.contains(event.target) && !inToastLayer(root, event.target)) {
-      focusFirst();
+    const target = event.target;
+    if ((target instanceof HTMLElement || target instanceof SVGElement) && root.contains(target)) {
+      // Every trap records where its own focus is, the top one or not.
+      lastInside = target;
+      return;
+    }
+    if (isTop() && target instanceof Node && !root.contains(target) && !inToastLayer(root, target)) {
+      returnInside();
     }
   };
 
