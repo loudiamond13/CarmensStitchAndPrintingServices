@@ -69,11 +69,11 @@ export const ORDER_0148: ScenarioProps = {
   items: [
     {
       productType: 'Basketball Jersey',
-      description: 'Jersey top — sublimated, names & numbers',
+      description: 'Jersey top, sublimated, names & numbers',
       quantity: 15,
       unitPrice: 650,
     },
-    { productType: 'Basketball Jersey', description: 'Shorts — matching colorway', quantity: 15, unitPrice: 300 },
+    { productType: 'Basketball Jersey', description: 'Shorts, matching colorway', quantity: 15, unitPrice: 300 },
     { productType: 'Polo Shirt', description: 'Coach polo, embroidered logo', quantity: 2, unitPrice: 550 },
     { productType: 'Long Sleeves', description: 'Warm-up shooting shirt', quantity: 15, unitPrice: 420 },
     { productType: 'Custom Design', description: 'Team logo redraw & vector cleanup', quantity: 1, unitPrice: 800 },

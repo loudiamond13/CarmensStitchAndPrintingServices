@@ -13,7 +13,7 @@ import { ICONS } from './icons';
 // `--grep @brand`); these tests pin the markup, the JSX drawing (no raw HTML string, WEB-02), the theme colour hooks,
 // the props API and the brand scenario set the parity suite compares.
 
-const LOGO_NAME = "CSPS — Carmen's Stitch & Printing Services";
+const LOGO_NAME = "CSPS: Carmen's Stitch & Printing Services";
 const RING = 'var(--csp-mark-ring, #572e2b)';
 const STITCH = 'var(--csp-mark-stitch, #f6dfd1)';
 const MARK_SIZE = { sm: 36, md: 56, lg: 104 } as const;

@@ -27,7 +27,7 @@ export interface SiteContact {
 /** The footer's contact details (App. E.1 copy; the brackets mark values the owner has not given yet). */
 export const SITE_CONTACT: SiteContact = {
   address: '[Shop address], [City], Philippines',
-  hours: 'Mon–Sat · 9:00 AM – 6:00 PM',
+  hours: 'Mon-Sat · 9:00 AM - 6:00 PM',
   phone: { text: '[0917 000 0000]', href: '#' },
   messenger: { text: 'Message us on Messenger', href: '#' },
   email: { text: '[hello@yourdomain.ph]', href: '#' },

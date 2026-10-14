@@ -9,7 +9,7 @@ export interface ResponsiveTableColumn<T> {
   header: string;
   /** The phone card label (`data-label`) when it differs from the header ("Customer / team" → "Customer"). */
   label?: string | undefined;
-  /** The cell content. null, undefined, false or '' renders "—" (spec §9.4). */
+  /** The cell content. null, undefined, false or '' renders "-" (spec §9.4). */
   cell: (row: T) => ReactNode;
   /** The card title on phones (`td.is-lead`). */
   lead?: boolean | undefined;

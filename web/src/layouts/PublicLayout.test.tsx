@@ -174,7 +174,7 @@ describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
     );
     expect(within(footer).getByRole('link', { name: SITE_CONTACT.messenger.text })).toBeInTheDocument();
     expect(within(footer).getByRole('link', { name: SITE_CONTACT.email.text })).toBeInTheDocument();
-    expect(within(footer).getByRole('img', { name: "CSPS — Carmen's Stitch & Printing Services" })).toBeInTheDocument();
+    expect(within(footer).getByRole('img', { name: "CSPS: Carmen's Stitch & Printing Services" })).toBeInTheDocument();
     expect(
       within(footer).getByText("© 2026 Carmen's Stitch & Printing Services. All rights reserved."),
     ).toBeInTheDocument();

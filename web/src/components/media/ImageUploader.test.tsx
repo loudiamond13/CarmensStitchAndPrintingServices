@@ -37,7 +37,7 @@ const REVEAL = [
   'opacity-0',
 ];
 
-const THUMBS_NAME = 'Order images — drag to reorder; the first is the cover';
+const THUMBS_NAME = 'Order images: drag to reorder; the first is the cover';
 
 function tokens(classes: string): string[] {
   return classes.split(/\s+/).filter(Boolean).sort();

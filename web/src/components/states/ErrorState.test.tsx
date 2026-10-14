@@ -28,7 +28,7 @@ const BANNER =
 // Again stays inside the banner at 320px (the parity run's axe pass caught the overflow).
 const BANNER_TEXT = 'min-w-0 flex-1 wrap-anywhere';
 
-const BODY = 'Check your internet connection. Your data is safe — nothing was changed.';
+const BODY = 'Check your internet connection. Your data is safe. Nothing was changed.';
 const TRACE = '00-4bf92f3577b34da6a3ce929d0e0e4736-01';
 
 function httpError(status: number, traceId?: string, errors: Record<string, string[]> = {}): HttpError {

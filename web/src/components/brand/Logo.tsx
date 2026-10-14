@@ -41,13 +41,13 @@ export interface LogoProps {
   className?: string;
 }
 
-/** [C]SPS — the mark stands in for the C. One image named for the business; its parts are hidden. */
+/** [C]SPS: the mark stands in for the C. One image named for the business; its parts are hidden. */
 export function Logo({ size = 'md', tagline = true, variant = 'full', context = 'default', className }: LogoProps) {
   return (
     <span
       className={clsx(logoClasses, logoContextClasses[context], logoGapClasses[size], className)}
       role="img"
-      aria-label="CSPS — Carmen's Stitch & Printing Services"
+      aria-label="CSPS: Carmen's Stitch & Printing Services"
     >
       {variant === 'mark' && <Mark size={MARK_SIZE[size]} />}
       {variant === 'full' && (

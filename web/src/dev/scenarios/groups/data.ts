@@ -6,8 +6,8 @@
 //     wrapper pair; Mockup, overdue, no images yet);
 //   - DataTable with the §12.2 orders (money columns right-aligned, two columns sized through `--col-w`; also with the
 //     first row hovered), loading (4 skeleton rows), empty and error, each in the KeyboardScrollTable wrapper pair;
-//   - IncomeExpenseChart at rest with the spec §12.4 six months (May–Oct 2026; axis ₱0 / ₱100k / ₱200k) and twelve
-//     months (Nov 2025–Oct 2026: the six §12.4 months after six demo months chosen below the same axis top).
+//   - IncomeExpenseChart at rest with the spec §12.4 six months (May to Oct 2026; axis ₱0 / ₱100k / ₱200k) and twelve
+//     months (Nov 2025 to Oct 2026: the six §12.4 months after six demo months chosen below the same axis top).
 // The OrderCard figures are never typed here: both sides compute them from the seed order with orderTotals (the
 // reference with App. D.1, the implementation with the D-09 centavo math). The table's figures are the §12.2 results
 // (Total = Subtotal − Discount, PRD §5.1, D-41 R2-06; Balance = Total − Paid), which data.test.tsx checks against
@@ -135,7 +135,7 @@ function table(props: ScenarioProps): ScenarioNode {
   });
 }
 
-/** Spec §12.4 chart data (income / expenses), May–Oct 2026. `label` names each month for assistive technology. */
+/** Spec §12.4 chart data (income / expenses), May to Oct 2026. `label` names each month for assistive technology. */
 export const CHART_6_MONTHS: readonly ScenarioProps[] = [
   { month: 'May', label: 'May 2026', income: 98400, expenses: 61200 },
   { month: 'Jun', label: 'Jun 2026', income: 132650, expenses: 70350 },
@@ -146,7 +146,7 @@ export const CHART_6_MONTHS: readonly ScenarioProps[] = [
 ];
 
 /**
- * Twelve months: six demo months (Nov 2025–Apr 2026; the spec gives only six, so these are chosen, each below the
+ * Twelve months: six demo months (Nov 2025 to Apr 2026; the spec gives only six, so these are chosen, each below the
  * §12.4 maximum of ₱145,900, keeping the axis at ₱200k), then the §12.4 six.
  */
 export const CHART_12_MONTHS: readonly ScenarioProps[] = [

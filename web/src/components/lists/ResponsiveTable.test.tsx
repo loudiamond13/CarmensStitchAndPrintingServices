@@ -191,10 +191,10 @@ describe('ResponsiveTable tracer (WEB-06, spec §8.4, App. E.12)', () => {
     expect(container.innerHTML).not.toMatch(/opacity/);
   });
 
-  it('shows "—" for a missing value (spec §9.4)', () => {
+  it('shows "-" for a missing value (spec §9.4)', () => {
     render(table());
     expect(bodyRows()[1]?.querySelectorAll('td')[3]).toHaveTextContent(LISTS_COPY.missing);
-    expect(LISTS_COPY.missing).toBe('—');
+    expect(LISTS_COPY.missing).toBe('-');
   });
 
   it('renders the optional tfoot as one labelled totals row', () => {

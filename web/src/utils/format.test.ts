@@ -12,7 +12,7 @@ import {
   padMoneyOnBlur,
 } from './format';
 
-const EM_DASH = '—';
+const EMPTY_TEXT = '-';
 
 // Machine zones on both sides of the business zone: the output must not move with the machine.
 const MACHINE_ZONES = ['America/Chicago', 'Pacific/Kiritimati', 'Pacific/Pago_Pago'] as const;
@@ -74,7 +74,7 @@ describe('formatBusinessDate', () => {
     '2026-10-05T16:60:00Z',
     'Oct 5, 2026 16:30 UTC',
   ])('shows an em dash for %j', (value) => {
-    expect(formatBusinessDate(value)).toBe(EM_DASH);
+    expect(formatBusinessDate(value)).toBe(EMPTY_TEXT);
   });
 
   it('throws a RangeError for an unknown zone', () => {
@@ -110,7 +110,7 @@ describe('formatCalendarDate', () => {
     '',
     'not a date',
   ])('shows an em dash for %j', (value) => {
-    expect(formatCalendarDate(value)).toBe(EM_DASH);
+    expect(formatCalendarDate(value)).toBe(EMPTY_TEXT);
   });
 });
 

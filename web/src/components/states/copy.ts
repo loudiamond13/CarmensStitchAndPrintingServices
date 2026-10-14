@@ -7,7 +7,7 @@ export const STATES_COPY = {
   /** ErrorState (App. E.8 "Couldn't load"). */
   error: {
     loadFailedTitle: (things: string): string => `Couldn't load ${things}.`,
-    loadFailedBody: 'Check your internet connection. Your data is safe — nothing was changed.',
+    loadFailedBody: 'Check your internet connection. Your data is safe. Nothing was changed.',
     /** The one server value the banner shows (T-02-62, CWE-209). */
     reference: (traceId: string): string => `Reference: ${traceId}`,
     retry: 'Try Again',

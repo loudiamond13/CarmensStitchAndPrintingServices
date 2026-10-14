@@ -89,7 +89,7 @@ describe('formatting', () => {
     expect(formatPeso(38226.95)).toBe('₱38,226.95');
     expect(formatPeso(0)).toBe('₱0.00');
     expect(formatDate('2026-10-06')).toBe('Oct 6, 2026');
-    expect(formatDate(undefined)).toBe('—');
+    expect(formatDate(undefined)).toBe('-');
     expect(orderNumber(2026, 148)).toBe('ORD-2026-0148');
   });
   it('builds the cascade sentence', () => {
@@ -183,14 +183,14 @@ describe('formatDate never reads the machine zone', () => {
 describe('App. D.1 characterization', () => {
   // SPEC-DEVIATION (LIB-WR-07): D.1 read a Date or a timestamp in the machine's zone, read a zone-less date-time as
   // machine-local and echoed unparseable text. formatDate now goes through @/utils/format: instants in the business zone,
-  // and "—" for anything that is neither a calendar date nor an instant with a zone.
+  // and "-" for anything that is neither a calendar date nor an instant with a zone.
   it('formats a Date in the business zone, and refuses a zone-less date-time and unparseable text', () => {
     expect(formatDate(new Date('2026-10-05T16:30:00Z'))).toBe('Oct 6, 2026');
-    expect(formatDate(new Date(Number.NaN))).toBe('—');
-    expect(formatDate('2026-10-06T08:00:00')).toBe('—');
-    expect(formatDate('garbage')).toBe('—');
-    expect(formatDate('')).toBe('—');
-    expect(formatDate(null)).toBe('—');
+    expect(formatDate(new Date(Number.NaN))).toBe('-');
+    expect(formatDate('2026-10-06T08:00:00')).toBe('-');
+    expect(formatDate('garbage')).toBe('-');
+    expect(formatDate('')).toBe('-');
+    expect(formatDate(null)).toBe('-');
   });
 
   it('treats a missing order as empty', () => {

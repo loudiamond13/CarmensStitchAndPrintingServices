@@ -222,7 +222,7 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
         />
       </div>
       {list.length > 0 && (
-        <ul className={thumbsClasses} aria-label="Order images — drag to reorder; the first is the cover">
+        <ul className={thumbsClasses} aria-label="Order images: drag to reorder; the first is the cover">
           {list.map((img, i) => (
             <li
               key={img.id}
