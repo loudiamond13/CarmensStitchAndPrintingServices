@@ -1,16 +1,17 @@
 <#
 .SYNOPSIS
-    Drops leftover CSPS test databases (CSPS_Test_<guid>) from the dedicated (localdb)\CSPS instance.
+    Drops leftover CSPS test databases (CSPS_Test_<guid>) from the (localdb)\MSSQLLocalDB instance.
 
 .DESCRIPTION
     Test fixtures drop their own databases on dispose. A crashed or killed test run can leave some behind;
     this script removes them (FND-11, D-05, T-01-15).
 
     Safety rules:
-      - It connects ONLY to (localdb)\CSPS. It never connects to the shared MSSQLLocalDB instance, which
-        belongs to another project on this machine.
+      - It connects ONLY to (localdb)\MSSQLLocalDB, which TheBETSLLC shares, so only exact CSPS_Test_<guid>
+        names are ever dropped.
       - It drops ONLY names matching ^CSPS_Test_[0-9a-f-]{36}$ exactly (checked here in PowerShell, not only
-        with SQL LIKE). CSPS_Dev, CSPS_E2E, CSPS_Legacy_Restore and every other database are never touched.
+        with SQL LIKE). CSPS_Dev, CSPS_E2E, CSPS_Legacy_Restore, every BetsLLC_* and every other database
+        are never touched.
       - It drops ONLY databases older than -OlderThanMinutes (default 120), so a database that a test run is
         using right now is left alone.
       - -WhatIf lists what would be dropped without dropping anything.
@@ -36,12 +37,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # The only server this script ever talks to (D-05).
-$connectionString = 'Server=(localdb)\CSPS;Database=master;Integrated Security=true'
+$connectionString = 'Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=true'
 $namePattern = '^CSPS_Test_[0-9a-f-]{36}$'
 $nameLength = 46
 
-if ($connectionString -match 'MSSQLLocalDB') {
-    throw 'Refusing to run: the connection string names the shared MSSQLLocalDB instance.'
+if (-not $connectionString.StartsWith('Server=(localdb)\MSSQLLocalDB;')) {
+    throw 'Refusing to run: the connection string must name (localdb)\MSSQLLocalDB.'
 }
 
 function Test-DisposableName([string]$name) {
@@ -78,7 +79,7 @@ ORDER BY name;
     }
 
     if ($candidates.Count -eq 0) {
-        Write-Host "No CSPS_Test_ databases older than $OlderThanMinutes minutes on (localdb)\CSPS."
+        Write-Host "No CSPS_Test_ databases older than $OlderThanMinutes minutes on (localdb)\MSSQLLocalDB."
         return
     }
 
@@ -88,7 +89,7 @@ ORDER BY name;
             throw "Refusing to drop '$name': it does not match $namePattern."
         }
 
-        if ($PSCmdlet.ShouldProcess("(localdb)\CSPS", "Drop database $name")) {
+        if ($PSCmdlet.ShouldProcess("(localdb)\MSSQLLocalDB","Drop database $name")) {
             $drop = $connection.CreateCommand()
             $drop.CommandText = "ALTER DATABASE [$name] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$name];"
             [void]$drop.ExecuteNonQuery()

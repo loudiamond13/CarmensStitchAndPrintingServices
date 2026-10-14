@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-08T09:57:52-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-14T10:05:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -11,7 +11,7 @@ This page takes a new developer from `git clone` to a running, tested CSPS API o
 | Tool | Version | Notes |
 |------|---------|-------|
 | .NET SDK | 10.0.401 | Pinned in `global.json` with `rollForward: latestPatch`, so any later 10.0.4xx patch works. Tests run on Microsoft.Testing.Platform (`dotnet test --project ...`). |
-| SQL Server 2025 Express LocalDB | 2025 | Provides `sqllocaldb`. CSPS uses its own instance, `(localdb)\CSPS`. |
+| SQL Server 2025 Express LocalDB | 2025 | Provides `sqllocaldb`. CSPS uses the default instance, `(localdb)\MSSQLLocalDB`, shared with TheBETSLLC. |
 | Windows PowerShell | 5.1 | Every script in `tools/scripts` runs on 5.1 (and on PowerShell 7). |
 | Git | any recent | |
 
@@ -34,7 +34,7 @@ The license gate (`New-ThirdPartyNotices.ps1`) looks package metadata up on nuge
 
 Run these once, in this order.
 
-1. **Create and start the CSPS LocalDB instance.** Safe to re-run. It never touches the shared `MSSQLLocalDB` instance.
+1. **Start the default LocalDB instance.** Safe to re-run. It never stops, deletes or recreates `MSSQLLocalDB`, which TheBETSLLC shares.
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-LocalDb.ps1
@@ -58,12 +58,12 @@ Run these once, in this order.
    dotnet ef database update --project src/Csps.Infrastructure --startup-project src/Csps.Server
    ```
 
-   This targets `CSPS_Dev` on `(localdb)\CSPS`. To target the E2E database instead, add
-   `--connection "Server=(localdb)\CSPS;Database=CSPS_E2E;Integrated Security=true"`.
+   This targets `CSPS_Dev` on `(localdb)\MSSQLLocalDB`. To target the E2E database instead, add
+   `--connection "Server=(localdb)\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true"`.
 
    When this command creates a new database, SQL Server gives it the server's default compatibility level (170 on SQL Server 2025). The seed in step 5 pins it to 160, the level the app's SQL is generated for, so always run step 5 after creating a database.
 
-5. **Seed development data.** The seed is an explicit command. Nothing seeds or migrates when the API starts. It only accepts `CSPS_Dev` (the default) or `CSPS_E2E`, and only on the dedicated `(localdb)\CSPS` instance or on a SQL Server container on this machine addressed as `127.0.0.1,<port>` or `localhost,<port>` (the container the CI tests use). It refuses every other database and every other server, including the shared `MSSQLLocalDB` instance, named-pipe (`np:`) and `tcp:` addresses, named instances, hosted servers such as the SmarterASP.NET database, and any connection string with a `Failover Partner`. A refusal exits with code 2 before anything connects. It also applies any pending migrations before seeding, and is safe to re-run.
+5. **Seed development data.** The seed is an explicit command. Nothing seeds or migrates when the API starts. It only accepts `CSPS_Dev` (the default) or `CSPS_E2E`, and only on the `(localdb)\MSSQLLocalDB` instance or on a SQL Server container on this machine addressed as `127.0.0.1,<port>` or `localhost,<port>` (the container the CI tests use). It refuses every other database (including every `BetsLLC_*` database on the shared instance) and every other server, including other LocalDB instances, named-pipe (`np:`) and `tcp:` addresses, named instances, hosted servers such as the SmarterASP.NET database, and any connection string with a `Failover Partner`. A refusal exits with code 2 before anything connects. It also applies any pending migrations before seeding, and is safe to re-run.
 
    ```powershell
    dotnet run --project tools/Csps.DevSeed -- --reset
@@ -114,7 +114,7 @@ Run the preflight check (above) before a full test run.
 | One test class | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*SolutionLayoutTests"` |
 | Everything | `dotnet test --solution Csps.slnx` |
 
-- **Database tests** create their own `CSPS_Test_<guid>` database on `(localdb)\CSPS` and drop it when they finish.
+- **Database tests** create their own `CSPS_Test_<guid>` database on `(localdb)\MSSQLLocalDB` and drop it when they finish.
 - **`CSPS_TEST_SQL`** picks the SQL backend for integration tests: unset or `localdb` uses LocalDB (the only local option), and `container` uses a SQL Server 2025 container (CI only). Set it only for a single process or terminal, for example `$env:CSPS_TEST_SQL = 'localdb'` in one PowerShell window. Never set it at User or Machine level.
 - **Leftover test databases** from a crashed run can be listed, and then removed, with:
 
@@ -123,7 +123,14 @@ Run the preflight check (above) before a full test run.
   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Remove-StaleTestDatabases.ps1
   ```
 
-  It drops only names matching `^CSPS_Test_[0-9a-f-]{36}$` that are older than two hours, and only on `(localdb)\CSPS`.
+  It drops only names matching `^CSPS_Test_[0-9a-f-]{36}$` that are older than two hours, and only on `(localdb)\MSSQLLocalDB`.
+
+### Moving off the retired CSPS instance
+
+CSPS used to have its own LocalDB instance named `CSPS`. It now uses the default instance only.
+
+- Recreate `CSPS_Dev` with `dotnet run --project tools/Csps.DevSeed`. `npm --prefix web run e2e` recreates `CSPS_E2E`.
+- You can remove the old instance by hand with `sqllocaldb stop CSPS` and then `sqllocaldb delete CSPS`. This removes only that instance. Its `.mdf` files stay in your user profile. Nothing in this repository runs these commands.
 
 ## Quality gates
 
@@ -164,8 +171,8 @@ Never reach a gate by lowering a threshold, excluding production code from cover
 
 ## Shared-machine rules
 
-- **Databases:** use only the `CSPS_` databases on `(localdb)\CSPS` (`CSPS_Dev`, `CSPS_E2E`, `CSPS_Test_<guid>`, `CSPS_Legacy_Restore`). Never use the shared `MSSQLLocalDB` instance, and never create, reset, restore over or drop any `BetsLLC_*` database.
+- **Databases:** use only the `CSPS_` databases on `(localdb)\MSSQLLocalDB` (`CSPS_Dev`, `CSPS_E2E`, `CSPS_Test_<guid>`, `CSPS_Legacy_Restore`). TheBETSLLC shares that instance, so never create, reset, restore over or drop any `BetsLLC_*` database.
 - **Ports:** see [Ports](#ports). Run the preflight check before a dev server, Playwright or a full test run, and wait if another project is busy.
 - **Environment variables:** never set `ASPNETCORE_URLS`, `ASPNETCORE_HTTPS_PORT`, `ASPNETCORE_ENVIRONMENT`, `CSPS_TEST_SQL` or any other variable at User or Machine level, and never change system settings. Set them only inside one terminal or process.
-- **`_local/`** holds a production database backup. Never commit, upload or deploy it, and never open it outside the legacy-discovery phase. It is restored only into `(localdb)\CSPS` as `CSPS_Legacy_Restore`, never over `CSPS_Dev`.
+- **`_local/`** holds a production database backup. Never commit, upload or deploy it, and never open it outside the legacy-discovery phase. It is restored only into `(localdb)\MSSQLLocalDB` as `CSPS_Legacy_Restore`, never over `CSPS_Dev`.
 - **One session per folder.** Never work in `C:\Work\TheBETSLLC` from a CSPS session.
