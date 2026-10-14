@@ -1,6 +1,6 @@
 # Styling the web app: Tailwind utilities and the CSPS tokens
 
-*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-13T09:20:00-05:00*
+*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-14T10:45:00-05:00*
 
 This page explains how to style anything in `web/` (decision D-33, requirement WEB-02). It is written for every later phase. The short version: **all styling is Tailwind utility classes in the markup, built only from the CSPS tokens.** No hand-written CSS rules, no inline styles, and no colour or size picked by eye. Two automated gates enforce this, so a mistake fails the tests instead of quietly changing the look.
 
@@ -8,16 +8,16 @@ The binding source is `.planning/phases/02-web-foundation-design-system/02-UI-SP
 
 ## 1. What CSS is allowed to hold
 
-There are exactly two stylesheets, both in `web/src/styles/`:
+There are exactly two stylesheets, both in `web/src/ui/` (the theme folder):
 
 | File | What it holds |
 |---|---|
 | `app.css` | The Tailwind entry (`@import "tailwindcss" source("../../src")`), the `@source not …` lines that keep tests out of the scan, the `base.css` layer import, the custom variants (`@custom-variant`), and the token theme (`@theme`, `@theme inline`, with the `@keyframes` inside `@theme`). Nothing else: no selector blocks at all. |
 | `base.css` | The token custom properties for each theme (`:root, [data-theme="light"]`, `[data-theme="dark"]`, the `:root` layout tokens), `@font-face` for the font fallbacks, and the global element rules: `body`, `:focus-visible`, the reduced-motion `*` rule inside `@media (prefers-reduced-motion: reduce)`, and `main[tabindex="-1"]:focus`. |
 
-Never add a class selector (`.x { … }`), `@utility`, `@apply`, `@layer`, `@plugin`, another `@media`, or a third stylesheet. The **stylesheet-contract test** (`web/src/styles/stylesheet-contract.node.test.ts`) fails on any of them and names the offending selector or at-rule.
+Never add a class selector (`.x { … }`), `@utility`, `@apply`, `@layer`, `@plugin`, another `@media`, or a third stylesheet. The **stylesheet-contract test** (`web/src/ui/stylesheet-contract.node.test.ts`) fails on any of them and names the offending selector or at-rule.
 
-Note the source path: `app.css` lives in `web/src/styles/`, so the app source folder is `../../src`. The older research skeleton wrote `../src`, which would point at a folder that doesn't exist.
+Note the source path: `app.css` lives in `web/src/ui/`, so the app source folder is `../../src`. The older research skeleton wrote `../src`, which would point at a folder that doesn't exist.
 
 ## 2. Tokens come only through `@theme`
 
@@ -52,14 +52,14 @@ Rules from the UI spec that trip people up:
 - **Transitions always carry a duration and easing:** `transition-[background-color,border-color,color] duration-150 ease-[ease]`. A bare `transition` has zero duration under the cleared theme.
 - **State comes from the attribute that already states it:** `aria-selected:`, `aria-[current=page]:`, `aria-invalid:`, `aria-disabled:`, `data-*:`.
 - **Class names are complete literals.** `'bg-' + tone` or `` `bg-${tone}` `` produce no CSS, because Tailwind finds classes by reading the source text. Lint bans template literals and `+` inside `className`, `clsx(…)` and `tw(…)`. Use a map of full strings instead.
-- **No opacity on text (D-02).** Nothing that shows text may sit below opacity 1. Inactive or dimmed states use colour tokens (`bg-surface-2`, `text-ink-subtle`). The only opacity utilities allowed are `disabled:opacity-45` and `aria-disabled:opacity-45` (any file), and the ImageUploader thumb's `opacity-0` with its reveal variants `group-hover/thumb:opacity-100`, `group-focus-within/thumb:opacity-100` and `no-hover:opacity-100` (only in `src/ui/media/ImageUploader*`). A new entry in that allow-list (`web/scripts/class-gate.config.mjs`) needs a decision ID in its comment.
+- **No opacity on text (D-02).** Nothing that shows text may sit below opacity 1. Inactive or dimmed states use colour tokens (`bg-surface-2`, `text-ink-subtle`). The only opacity utilities allowed are `disabled:opacity-45` and `aria-disabled:opacity-45` (any file), and the ImageUploader thumb's `opacity-0` with its reveal variants `group-hover/thumb:opacity-100`, `group-focus-within/thumb:opacity-100` and `no-hover:opacity-100` (only in `src/components/media/ImageUploader*`). A new entry in that allow-list (`web/scripts/class-gate.config.mjs`) needs a decision ID in its comment.
 
 ## 4. Recipes: shared looks as maps of complete tokens
 
 A component with variants keeps its classes in a recipe file next to it, named `*.recipe.ts`. A recipe is a set of **module-level `as const` maps of complete class tokens**, each string wrapped in `tw('…')`, joined with `clsx`:
 
 ```ts
-// web/src/ui/button.recipe.ts
+// web/src/components/actions/button.recipe.ts
 import clsx from 'clsx';
 import { tw } from '@/ui/tw';
 
@@ -122,7 +122,7 @@ The `pg-*` variants need an ancestor with `@container/pg` (the page root). A 767
 
 | Gate | What it catches | Where |
 |---|---|---|
-| Stylesheet contract | A third stylesheet, a class selector, `@utility`, `@apply`, any construct outside section 1 | `web/src/styles/stylesheet-contract.node.test.ts` |
+| Stylesheet contract | A third stylesheet, a class selector, `@utility`, `@apply`, any construct outside section 1 | `web/src/ui/stylesheet-contract.node.test.ts` |
 | Class gate | A class token that compiles to no CSS (a cleared default such as `bg-blue-500`, or a typo such as `hover:bg-surfce`), a colour literal in a token, an `opacity-*` token outside the D-02 allow-list; also checks that the custom variants emit the exact query text | `web/scripts/class-gate.mjs` (library), `web/scripts/class-gate.config.mjs` (allow-list), `web/scripts/tailwind-classes.test.ts` (runs it over every `src/**/*.{ts,tsx}` file except tests and `src/test`) |
 | ESLint (`eslint-plugin-better-tailwindcss` and syntax bans) | Unknown and conflicting classes, colour literals and banned variants in `className`/`clsx`/`tw`, template or `+` class names, `style` other than `--*`, `cssText`, `setAttribute('style')`, stylesheet imports | `web/eslint.config.mjs` |
 | Prettier (`prettier-plugin-tailwindcss`) | Class order in `className`, `clsx(…)` and `tw(…)` | `web/.prettierrc.json` |
@@ -133,7 +133,7 @@ The class gate collects tokens from `className` string literals (including both 
 Run them from the repository root:
 
 ```powershell
-npm --prefix web run test -- --run src/styles/stylesheet-contract.node.test.ts scripts/tailwind-classes.test.ts
+npm --prefix web run test -- --run src/ui/stylesheet-contract.node.test.ts scripts/tailwind-classes.test.ts
 npm --prefix web run lint
 npm --prefix web run verify    # the full web gate: typecheck, lint, format, tests with coverage, build
 ```

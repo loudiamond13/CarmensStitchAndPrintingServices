@@ -1,6 +1,6 @@
 ---
 created: 2026-10-08T13:35:00-05:00
-updated: 2026-10-09T01:20:00-05:00
+updated: 2026-10-14T10:45:00-05:00
 ---
 
 # List state in the URL, and the list query
@@ -158,7 +158,7 @@ const orders = useListQuery({
 ```
 
 - The query key is `listKey('orders', params)`, which is `['orders', 'list', params]`. It holds only parsed, defaulted values, never a raw string or `location.search`. A hostile URL therefore never becomes a query key or a request.
-- **The debounce rule:** the search box writes the URL after 300 ms (`setSearch`), and the query key uses `useSettledListParams(values, 300)` (`web/src/lib/query/useSettledListParams.ts`, plan 02-30), never the immediate values. While the typed search has not settled (it uses `useDebouncedValue` inside), the query keeps the values it last ran with; then it runs once for the settled text. Typing "jersey" sends one request, not six. Debouncing only `q` (the earlier advice) is not enough: `setSearch` resets the page at once, so the key changed twice and an extra, unfiltered page-1 request went out at the first keystroke (found by `web/src/ui/lists/listState.integration.test.tsx`). A page, filter or size change still reaches the query at once.
+- **The debounce rule:** the search box writes the URL after 300 ms (`setSearch`), and the query key uses `useSettledListParams(values, 300)` (`web/src/lib/query/useSettledListParams.ts`, plan 02-30), never the immediate values. While the typed search has not settled (it uses `useDebouncedValue` inside), the query keeps the values it last ran with; then it runs once for the settled text. Typing "jersey" sends one request, not six. Debouncing only `q` (the earlier advice) is not enough: `setSearch` resets the page at once, so the key changed twice and an extra, unfiltered page-1 request went out at the first keystroke (found by `web/src/components/lists/listState.integration.test.tsx`). A page, filter or size change still reaches the query at once.
 - Always pass `signal` on to `api.ts`. The query aborts a request that is no longer needed (the screen closed, or the search changed while it was loading).
 - While the next page loads, the previous page's rows stay on screen (`isPlaceholderData` is true).
 - `api.ts` turns the params into the request (WEB-04). A query parameter named `code` is rejected there; rename it (for example `orderCode`).
@@ -174,4 +174,4 @@ const orders = useListQuery({
 - user-event and axe hang on fake timers. Use real timers, except for debounce tests, which fire one input event per character with `fireEvent` on fake timers.
 - Every list screen adds a Playwright test: list, open a row, Back, and the filters and rows are restored.
 - nuqs patches `window.history` once, on its first mount, and marks it as patched. A test that spies on `history.replaceState` or `pushState` before that first mount loses the patch when the spy is restored, and later tests in the file read stale list state. Mount the list once in a `beforeAll` first (as `listState.integration.test.tsx` does).
-- The list toolkit (`@/ui/lists`, plan 02-30) wires straight to the hook: `SearchBox onSearch={setters.setSearch}`, each filter `Select` and `FilterChip onClear` to `setFilter`, `Pagination onPageChange={setters.setPage}` and `onPageSizeChange={setters.setPageSize}`.
+- The list toolkit (`@/components/lists`, plan 02-30) wires straight to the hook: `SearchBox onSearch={setters.setSearch}`, each filter `Select` and `FilterChip onClear` to `setFilter`, `Pagination onPageChange={setters.setPage}` and `onPageSizeChange={setters.setPageSize}`.

@@ -1,5 +1,5 @@
 // Test doubles for the HTTP client (plan 02-10). Tests inject these instead of touching the network, so nothing in
-// Vitest ever calls a real fetch (research Pitfall 14) and every branch of lib/http is reachable on purpose.
+// Vitest ever calls a real fetch (research Pitfall 14) and every branch of core/api/http is reachable on purpose.
 
 /** One planned answer from the fake fetch. */
 export type PlannedResponse =

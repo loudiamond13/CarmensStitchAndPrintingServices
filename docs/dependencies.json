@@ -638,7 +638,7 @@
       "kind": "npm",
       "manifest": "web",
       "scope": "test",
-      "purpose": "Coverage for Vitest (thresholds: web 90%, lib/http 100%).",
+      "purpose": "Coverage for Vitest (thresholds: web 90%, core/api 100%).",
       "license": "MIT",
       "publisher": "Vitest team (npm owners antfu, ariperkkio, hiogawa)",
       "legitimacy": "50.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
