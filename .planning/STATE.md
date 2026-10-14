@@ -4,10 +4,10 @@ current_phase: 4
 current_phase_name: Identity & Authentication
 status: "Phases 01+02 shipped — PR #1"
 stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-10-14T13:44:19.392Z"
+last_updated: "2026-10-14T17:23:31.810Z"
 last_activity: 2026-10-14
 last_activity_desc: "Completed quick task 261014-g0q: icon in place of the long dash"
-state_head: 651afd2cf1fb2fddd229be5b4ba6a301f9e21c4d
+state_head: 190fc19f329f9239b9a0106d34f182ab5865384b
 progress:
   total_phases: 17
   completed_phases: 2
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 4 — Identity & Authentication
 Plan: Not started
 Status: Phases 01+02 shipped — PR #1
-Last activity: 2026-10-14 - Completed quick task 261014-g0q: icon in place of the long dash
+Last activity: 2026-10-14 - Completed quick task 261014-gqz: fix NuGetAudit restore failure (.NET 10.0.13 security bump)
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -325,6 +325,7 @@ None yet.
 | 261014-bxi | Resolve Copilot review on PR #1 (accept 1,2,3,5,6; reject 0 per D-32, 4 per D-21), merge to dev, dev to main, retire dev | 2026-10-14 | 9bb1c9c | [261014-bxi-resolve-copilot-review-on-pr-1-merge-to-](./quick/261014-bxi-resolve-copilot-review-on-pr-1-merge-to-/) |
 | 261014-ctx | Adopt owner conventions 2026-10-14: MSSQLLocalDB with CSPS_* DBs, web/src modules layout + per-module services, no long dash in client, rules recorded | 2026-10-14 | 3b2daf6 | [261014-ctx-adopt-2026-10-14-conventions-switch-loca](./quick/261014-ctx-adopt-2026-10-14-conventions-switch-loca/) |
 | 261014-g0q | Show a minus icon (EmptyValue) wherever a long dash would mark an empty value; OR-4 amended | 2026-10-14 | 5bb3879 | [261014-g0q-show-an-icon-wherever-a-long-dash-would-](./quick/261014-g0q-show-an-icon-wherever-a-long-dash-would-/) |
+| 261014-gqz | Fix NuGetAudit restore failure: bump .NET 10.0.12 packages to 10.0.13 and pin patched System.Security.Cryptography.Pkcs/Xml | 2026-10-14 | 190fc19 | [261014-gqz-fix-nugetaudit-restore-failure-bump-net-](./quick/261014-gqz-fix-nugetaudit-restore-failure-bump-net-/) |
 
 ## Deferred Items
 
