@@ -8,9 +8,10 @@
 // - focus moves into the dialog on open (the first field, else the first focusable element, else the dialog itself),
 //   Tab and Shift+Tab are trapped through useFocusTrap on the dialog's own ref (no wrapper element), and focus returns
 //   to the trigger on close;
-// - Esc and a mousedown on the scrim close it, except while `loading`; the scrim listener is attached through a ref and
-//   an effect (Pitfall 7), and in an Overlay region the region is the scrim; with dialogs stacked, Esc closes only the
-//   one on top (UI-WR-01);
+// - Esc and a click on the scrim close it, except while `loading`, under the D-42 press-and-click rule (the press
+//   starts on the scrim and the backdrop does not scroll before the click); the scrim listeners are attached through a
+//   ref and an effect (Pitfall 7), and in an Overlay region the region is the scrim; with dialogs stacked, Esc closes
+//   only the one on top (UI-WR-01);
 // - body scroll is locked with the `overflow-hidden` class while it is open (useBodyScrollLock).
 // It renders where it is placed, inside the page root, never in a portal, and never inside a ResponsiveTable frame,
 // whose paint containment would trap the fixed scrim: an open Modal there throws (code review WR-05, see
@@ -55,6 +56,8 @@ export interface ModalProps {
 /**
  * True when a mousedown on a scrim landed on the scrim's own scrollbar: the scrim overflows and the press lies outside
  * its client area (right of it, or below it). Browsers fire mousedown on an element for a press on its scrollbar.
+ * The geometry finds only classic scrollbars, which take layout space; overlay scrollbars (no layout space) are handled
+ * by the click rule in the scrim effect: a press that scrolled the backdrop never closes the dialog.
  */
 function pressedOnScrollbar(scrim: HTMLElement, event: MouseEvent): boolean {
   const overflows = scrim.scrollHeight > scrim.clientHeight || scrim.scrollWidth > scrim.clientWidth;
@@ -65,6 +68,16 @@ function pressedOnScrollbar(scrim: HTMLElement, event: MouseEvent): boolean {
   const x = event.clientX - box.left - scrim.clientLeft;
   const y = event.clientY - box.top - scrim.clientTop;
   return x >= scrim.clientWidth || y >= scrim.clientHeight;
+}
+
+/** The scroll position of each scrim, in order: scrollTop, then scrollLeft. */
+function readScrollPositions(scrims: readonly HTMLElement[]): number[] {
+  return scrims.flatMap((scrim) => [scrim.scrollTop, scrim.scrollLeft]);
+}
+
+/** True when both lists hold the same positions (strict equality, fractional values included). */
+function samePositions(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 export function Modal({ open = true, ...props }: ModalProps) {
@@ -108,10 +121,28 @@ function OpenModal({
     // In an Overlay region the inline overlay is only as tall as the dialog, so the region is the scrim around it.
     const region = overlay.parentElement;
     const scrims = inline && region?.dataset.ui === 's-overlay' ? [overlay, region] : [overlay];
-    // SPEC-DEVIATION: D-42 a press on the backdrop's own scrollbar scrolls it; it never closes the dialog (App. D.3
-    // closed on any mousedown whose target was the scrim, and the D-42 backdrop scrolls on a short window).
+    // SPEC-DEVIATION: D-42 the scrim closes on a click, not on a mousedown (App. D.3 closed on any mousedown on the
+    // scrim). The press must start on the scrim and off a classic scrollbar, and the backdrop must not scroll before the
+    // click, so dragging or pressing the backdrop's scrollbar never closes the dialog, overlay scrollbars included (they
+    // take no layout space, so the geometry cannot see them; Chromium and WebKit send no click after a scrollbar press,
+    // and the scroll check covers any engine that does); a press that starts inside the dialog never closes it, as
+    // before.
+    let pendingPress: { positions: number[] } | null = null;
     const onMouseDown = (event: MouseEvent) => {
+      pendingPress = null;
       if (scrims.some((scrim) => scrim === event.target && !pressedOnScrollbar(scrim, event))) {
+        pendingPress = { positions: readScrollPositions(scrims) };
+      }
+    };
+    const onClick = (event: MouseEvent) => {
+      // Consumed first, so the outer scrim's call for the same click (by bubbling) does nothing.
+      const press = pendingPress;
+      pendingPress = null;
+      if (
+        press !== null &&
+        scrims.some((scrim) => scrim === event.target) &&
+        samePositions(press.positions, readScrollPositions(scrims))
+      ) {
         requestClose();
       }
     };
@@ -126,11 +157,13 @@ function OpenModal({
     };
     for (const scrim of scrims) {
       scrim.addEventListener('mousedown', onMouseDown);
+      scrim.addEventListener('click', onClick);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => {
       for (const scrim of scrims) {
         scrim.removeEventListener('mousedown', onMouseDown);
+        scrim.removeEventListener('click', onClick);
       }
       window.removeEventListener('keydown', onKeyDown);
     };
