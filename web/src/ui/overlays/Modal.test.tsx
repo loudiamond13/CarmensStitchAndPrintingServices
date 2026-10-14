@@ -680,9 +680,9 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  // Firefox can focus a scrollable backdrop on a press; the focus trap then pulls focus back into the dialog, and that
-  // can scroll the backdrop. That scroll is not a gesture of the person pressing.
-  it('does not count a scroll caused by focus moving during the press as a drag', () => {
+  // The trap returns focus without scrolling (review WR-01, plan 02-43), so every scroll between the press and the click
+  // is a scroll gesture: no re-read at a focus move and no timing window (review WR-02).
+  it('counts a scroll during the press as a scroll, even with a focus move inside it (review WR-02)', () => {
     const onClose = vi.fn();
     const region = renderInRegion(onClose);
     stubGeometry(region, OVERFLOWING);
@@ -693,7 +693,7 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     fireEvent.mouseUp(region, { clientX: 500, clientY: 100 });
     fireEvent.click(region, { clientX: 500, clientY: 100 });
 
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('still counts a scroll after that focus move as a scroll', () => {
@@ -709,9 +709,7 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  // WebKit applies that scroll (revealing the newly focused element) in a task just after the focus move, not during
-  // the focusin, so the positions are read again once that task has run.
-  it('does not count the scroll the browser applies just after that focus move as a drag', () => {
+  it('counts a scroll a task after a focus move as a scroll too: no timing window (review WR-02)', () => {
     vi.useFakeTimers();
     try {
       const onClose = vi.fn();
@@ -726,7 +724,7 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
       fireEvent.mouseUp(region, { clientX: 20, clientY: 210 });
       fireEvent.click(region, { clientX: 20, clientY: 210 });
 
-      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
@@ -764,6 +762,56 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     pressAndRelease(firstChild(container), { clientX: 500, clientY: 100 });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('a press on the dark area that moves focus to the page (review WR-01, plan 02-43)', () => {
+  function renderInMain(onClose: () => void): { main: HTMLElement; amount: HTMLElement } {
+    render(
+      <main tabIndex={-1} data-testid="main">
+        <Overlay>
+          <AddPayment inline onClose={onClose} />
+        </Overlay>
+      </main>,
+    );
+    const amount = screen.getByRole('textbox', { name: 'Amount' });
+    expect(amount).toHaveFocus();
+    return { main: screen.getByTestId('main'), amount };
+  }
+
+  it('keeps the caret in the field and the dialog open after a right press that focuses main', () => {
+    const onClose = vi.fn();
+    const { main, amount } = renderInMain(onClose);
+    const region = firstChild(main);
+    const focus = vi.spyOn(amount, 'focus');
+    const at = { button: 2, clientX: 500, clientY: 100 };
+
+    fireEvent.mouseDown(region, at);
+    main.focus();
+    fireEvent.mouseUp(region, at);
+    fireEvent.click(region, at);
+    fireEvent.contextMenu(region, at);
+
+    expect(amount).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('has the field focused again, without scrolling, before the click of a primary press that focuses main, and then closes', () => {
+    const onClose = vi.fn();
+    const { main, amount } = renderInMain(onClose);
+    const region = firstChild(main);
+    const focus = vi.spyOn(amount, 'focus');
+    const at = { clientX: 500, clientY: 100 };
+
+    fireEvent.mouseDown(region, at);
+    main.focus();
+    expect(amount).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    fireEvent.mouseUp(region, at);
+    fireEvent.click(region, at);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
