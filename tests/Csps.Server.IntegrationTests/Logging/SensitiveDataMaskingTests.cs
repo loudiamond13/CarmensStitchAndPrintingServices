@@ -34,6 +34,9 @@ public sealed class SensitiveDataMaskingTests
     [InlineData("ClientSecret")]
     [InlineData("Token")]
     [InlineData("RefreshToken")]
+    [InlineData("PasswordHash")]
+    [InlineData("passwordhash")]
+    [InlineData("SecurityStamp")]
     public void SecretNamesAreSensitive(string name) => SensitiveDataMasking.IsSensitive(name).ShouldBeTrue();
 
     [Theory]

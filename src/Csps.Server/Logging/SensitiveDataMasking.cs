@@ -5,7 +5,8 @@ namespace Csps.Server.Logging;
 /// <summary>
 /// Decides which log property names hold secrets (FND-07, CWE-532). The rule is an exact name or a suffix, both
 /// case-insensitive, and never a substring: <c>StatusCode</c> contains "code" but is not a secret, while
-/// <c>Code</c> (a one-time code) is.
+/// <c>Code</c> (a one-time code) is. The exact names include the Identity user's <c>PasswordHash</c> and
+/// <c>SecurityStamp</c>, which no suffix catches.
 /// </summary>
 public static class SensitiveDataMasking
 {
@@ -15,6 +16,8 @@ public static class SensitiveDataMasking
     private static readonly FrozenSet<string> ExactNames = new[]
     {
         "Password",
+        "PasswordHash",
+        "SecurityStamp",
         "Code",
         "Otp",
         "ApiKey",
