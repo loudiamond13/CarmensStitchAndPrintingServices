@@ -279,10 +279,10 @@ async function expectScrolledPressKept(
   await waitForFramesAndTask(page);
 
   const after = (await readRegion(page)).scrollTop;
-  const focused = await field.evaluate<boolean>('(element) => element === document.activeElement');
+  const caret = await readCaret(page);
   testInfo.annotations.push({
     type: 'dialog-focus',
-    description: `${testInfo.project.name} ${button} press: scrollTop ${String(before)} -> ${String(after)}, field focused ${String(focused)}`,
+    description: `${testInfo.project.name} ${button} press: scrollTop ${String(before)} -> ${String(after)}, caret ${JSON.stringify(caret)}`,
   });
   await expect(fit.dialog).toBeVisible();
   await expect(field).toBeFocused();
