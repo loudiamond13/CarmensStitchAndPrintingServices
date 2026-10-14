@@ -6,16 +6,18 @@
 //     shows without scrolling (the owner's 1274x585 window; a 393x659 phone page);
 //   - when even that is too short (1280x420; a 320x568 phone page) the backdrop scrolls, so the mouse wheel over the
 //     dialog and keyboard focus on Delete Order both bring the buttons fully into view, while the scrim still covers
-//     the whole window and the page stays axe-clean.
+//     the whole window and the page stays axe-clean;
+//   - a left click on the dark area still closes it (above the dialog, beside it after the wheel scrolled the backdrop,
+//     above the phone sheet), while a middle or a right press there does not (plan 02-42, D-42; the real-scrollbar
+//     cases are in dialog-scrollbars.spec.ts).
 // The desktop and phone-page sizes run in chromium, firefox and webkit; the pixel and iphone projects check their own
 // screen instead (touch scrolling cannot be driven by the wheel in mobile emulation, so they scroll Delete Order into
 // view directly). Every measurement waits for the dialog's entry animation to finish: its 0.2s rise moves its box.
-// Page scripts are strings: the e2e TypeScript program has no DOM types.
-import type { Locator, Page, TestInfo } from '@playwright/test';
+// Page scripts are strings: the e2e TypeScript program has no DOM types. The Delete Order helpers are shared with
+// dialog-scrollbars.spec.ts (deleteOrderDialog.ts).
+import type { Page, TestInfo } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-
-const DIALOG_NAME = 'Delete order ORD-2026-0148?';
-const ORDER = 'ORD-2026-0148';
+import { boxOf, openDeleteOrder, ORDER, topOf, type OpenDialog } from './deleteOrderDialog.ts';
 
 /** Desktop: the approved top (16px padding + 124px spacer) and the edge gap it may shrink to. */
 const DESKTOP_TOP = 140;
@@ -30,108 +32,8 @@ const DEVICE_ONLY = 'The desktop engines check the phone-page sizes by setting t
 
 const isDevice = (testInfo: TestInfo): boolean => DEVICE_PROJECTS.includes(testInfo.project.name);
 
-/** The Overlay region that holds the Delete Order dialog. */
-const REGION = `[...document.querySelectorAll('[data-ui="s-overlay"]')].find((region) => [...region.querySelectorAll('[role="dialog"]')].some((dialog) => document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === ${JSON.stringify(DIALOG_NAME)}))`;
-
-/** Resolves once every animation inside the region (the overlay fade, the modal rise) has finished. */
-const SETTLE = `(async () => {
-  const region = ${REGION};
-  await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
-  return true;
-})()`;
-
-interface RegionMetrics {
-  readonly scrollHeight: number;
-  readonly scrollTop: number;
-  readonly clientHeight: number;
-  readonly clientWidth: number;
-  readonly overflowY: string;
-}
-
-const READ_REGION = `(() => {
-  const region = ${REGION};
-  return {
-    scrollHeight: region.scrollHeight,
-    scrollTop: region.scrollTop,
-    clientHeight: region.clientHeight,
-    clientWidth: region.clientWidth,
-    overflowY: getComputedStyle(region).overflowY,
-  };
-})()`;
-
 /** True when Delete Order has the keyboard focus. */
 const CONFIRM_FOCUSED = `document.activeElement !== null && document.activeElement.closest('[role="dialog"]') !== null && document.activeElement.textContent.trim() === 'Delete Order'`;
-
-interface Box {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-interface OpenDialog {
-  readonly dialog: Locator;
-  readonly region: Locator;
-  readonly cancel: Locator;
-  readonly confirm: Locator;
-  /** The dialog panel (the phone sheet on phone pages). */
-  readonly box: Box;
-  readonly metrics: RegionMetrics;
-  readonly viewport: { readonly width: number; readonly height: number };
-}
-
-async function boxOf(locator: Locator, name: string): Promise<Box> {
-  const box = await locator.boundingBox();
-  if (box === null) {
-    throw new Error(`Expected ${name} to have a box.`);
-  }
-  return box;
-}
-
-/** Opens /dev/components at the given window size (or the project's own), opens Delete Order and measures it. */
-async function openDeleteOrder(
-  page: Page,
-  size?: { readonly width: number; readonly height: number },
-): Promise<OpenDialog> {
-  test.setTimeout(120_000);
-  if (size !== undefined) {
-    await page.setViewportSize(size);
-  }
-  const response = await page.goto('/dev/components');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
-
-  await page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }).click();
-  const dialog = page.getByRole('dialog', { name: DIALOG_NAME });
-  await expect(dialog).toBeVisible();
-  await page.evaluate(SETTLE);
-
-  const viewport = page.viewportSize();
-  if (viewport === null) {
-    throw new Error('Expected a viewport size.');
-  }
-  const fit: OpenDialog = {
-    dialog,
-    region: page.locator('[data-ui="s-overlay"]').filter({ has: dialog }),
-    cancel: dialog.getByRole('button', { name: 'Cancel' }),
-    confirm: dialog.getByRole('button', { name: 'Delete Order' }),
-    box: await boxOf(dialog, 'the dialog'),
-    metrics: await page.evaluate<RegionMetrics>(READ_REGION),
-    viewport,
-  };
-  // The measured place, in the report (plan 02-41 records the post-fix tops per window).
-  test.info().annotations.push({
-    type: 'dialog-fit',
-    description: `${String(viewport.width)}x${String(viewport.height)}: top ${String(topOf(fit))}, height ${String(fit.box.height)}, region ${String(fit.metrics.scrollHeight)}/${String(fit.metrics.clientHeight)} ${fit.metrics.overflowY}`,
-  });
-  return fit;
-}
-
-/**
- * Where the layout puts the dialog: its top with the backdrop scrolled back to the start. Opening it moves focus to its
- * first field, and on a window shorter than the dialog the browser may scroll the backdrop to show that field.
- */
-const topOf = (fit: OpenDialog): number => fit.box.y + fit.metrics.scrollTop;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
