@@ -1,10 +1,10 @@
 ---
 phase: 02-web-foundation-design-system
 created: "2026-10-13T10:50:00-05:00"
-updated: "2026-10-13T21:25:00-05:00"
-verified: 2026-10-14T02:25:00Z
+updated: "2026-10-14T05:35:00-05:00"
+verified: 2026-10-14T10:35:00Z
 status: human_needed
-score: 41/41 must-haves verified
+score: 51/51 must-haves verified
 covered_files:
   - ".claude/CLAUDE.md"
   - ".config/dotnet-tools.json"
@@ -95,6 +95,8 @@ covered_files:
   - ".planning/phases/02-web-foundation-design-system/02-41-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/02-42-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/02-42-SUMMARY.md"
+  - ".planning/phases/02-web-foundation-design-system/02-43-PLAN.md"
+  - ".planning/phases/02-web-foundation-design-system/02-43-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-PLAN.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-01-SUMMARY.md"
   - ".planning/phases/02-web-foundation-design-system/superseded-2026-10-08/02-02-PLAN.md"
@@ -775,45 +777,45 @@ covered_files:
   - "web/visual/webkit-style-sync.ts"
   - "web/vite.config.ts"
   - "web/vitest.config.ts"
-covered_digest: "v2:sha256:043339084fcbfec1215c74c380c6c15acd3dfc12e61d574a1c05f7c0eab96ca6"
+covered_digest: "v2:sha256:89810dc7cdc6db5dc8390bcd598f686b6b60b0c4237e186fd7f7a58afdcfad06"
 behavior_unverified: 0
-overrides_applied: 0
+overrides_applied: 1
+overrides:
+  - must_have: "Real engines, scrolled backdrop (02-43 truth 5): a middle press and a right press on the dark area keep the dialog open, keep the confirm field focused with its value and caret 13/13, and leave the region's scrollTop strictly equal to the settled value, in chromium, firefox and webkit"
+    reason: "Firefox only, middle button only, and only the scrollTop assertion: Firefox's own middle-button scroll moves the scrolled backdrop about 22 ms after the mouseup (scrollTop 105 -> 4 -> 0). The executor's probe shows the trap's only focus() call uses preventScroll and that no code in web/src scrolls, so it is the engine, not a focus() call. In Firefox the dialog still has to stay open, the field focused, the value exact and the caret 13/13; chromium, webkit, both scrollbar projects and Firefox's right press still assert scrollTop is unchanged. No retry, tolerance or timing window was added (dialog-fit.spec.ts:291-298)"
+    accepted_by: "owner (checkpoint decision, option a, recorded in 02-43-SUMMARY.md and the 02-42 disposition)"
+    accepted_at: "2026-10-14 (date only; the SUMMARY records no time)"
 re_verification:
-  previous_status: gaps_found
-  previous_score: 29/30
-  previous_verified: 2026-10-13T23:30:00Z
-  trigger: "gap-closure plan 02-42 (UAT gap G-2-199, truth 28, owner ruling D-42), commits f2af90f..709f0d4, and code review 02-REVIEW-g199-42.md"
+  previous_status: human_needed
+  previous_score: 41/41
+  previous_verified: 2026-10-14T02:25:00Z
+  trigger: "review follow-up plan 02-43 (WR-01/WR-02 of 02-REVIEW-g199-42.md), commits f24f437..fb98704, its code review 02-REVIEW-g199-43.md, and the owner's UAT 199 pass (199 passed, 0 issues)"
   gaps_closed:
-    - "Truth 28 (G-2-199, review WR-01/WR-02 of 02-REVIEW-g199.md): pressing or dragging the backdrop's own scrollbar never closes the dialog, now with classic AND overlay scrollbars. Proven here in real Chromium with real scrollbars (chromium-classic-scrollbars, chromium-overlay-scrollbars: T1-T4 8/8). Middle and right presses no longer close. A left click on the dark area still closes in all seven projects. By design, the gap entry in 02-UAT.md keeps status failed with fix_plan until the owner re-checks test 199"
+    - "02-REVIEW-g199-42 WR-01 (focus left the confirm field and a scrolled backdrop jumped to the top after a non-closing press or a scrollbar drag): useFocusTrap now returns focus to the element inside that last had it, with preventScroll. Proven here in chromium and webkit by a mutation run against the plan-base trap (4 of 4 scrolled-press cases fail) and green on HEAD in all seven projects"
+    - "02-REVIEW-g199-42 WR-02 and the two coincidental-reliance items (truths 34 and 38): Modal's focusin re-read and its setTimeout(0) are deleted; the close rule compares the press with the click only"
+    - "Prior human items 1 and 2: UAT 199 passed (02-UAT.md, G-2-199 resolved); the owner dispositioned the 02-42 review findings (WR-01, WR-02 fixed by 02-43, six others deferred)"
   gaps_remaining: []
   regressions: []
-coincidental_reliance_items:
-  - truth: "Truth 34: a left click on the dark area beside the dialog at 1280x420, after the wheel, closes it in webkit"
-    reason: incidental-ordering
-    harden: "It holds because WebKit applies the focus-trap reveal scroll before Modal's setTimeout(0) re-read and before the click (review WR-02 of 02-REVIEW-g199-42.md). Nothing in the code enforces that order. It passed 50/50 repeats here with 4 workers. The durable fix removes the focus scroll itself (WR-01's fix: refocus without scrolling), so no timer is needed"
-  - truth: "Truth 38: a scroll after the focus move still blocks the close"
-    reason: fixture-only
-    harden: "The jsdom test blocks the close only because jsdom never runs the pending setTimeout(0) before the click. In a real engine a scroll in that window is taken as the new baseline (WR-02). Rename the test to state the window, or remove the timer as above"
 human_verification:
-  - test: "UAT test 199 (G-2-199, D-42) in Chrome at 125-150% zoom: open /dev/components and press Open Delete Order. Shorten the window until the dark backdrop scrolls, type the order number and drag the backdrop's scrollbar. Middle-click and right-click the dark area. Then left-click the dark area. Also check a normal-height window"
-    expected: "The dialog stays centred. The whole dialog shows, or the backdrop scrolls to Cancel and Delete Order. Dragging the scrollbar scrolls the backdrop, and the dialog stays open with the order number kept. A middle or right click does not close it. A left click on the dark area closes it. On a normal-height window the dialog sits where it did before. NOTE for the owner (review WR-01, confirmed here): if you have scrolled the backdrop down to the buttons, a middle or right click, and also a drag of the scrollbar, moves the text cursor out of the order-number box onto the dialog's Close button, and a middle or right click also jumps the backdrop back to the top. The typed text is kept. Say whether that is acceptable or must be fixed"
-    why_human: "The owner found the defect at real zoom on a real screen. Headless runs do not zoom, and the owner's own scrollbar setting is the acceptance. Closing G-2-199 in 02-UAT.md needs this check (/gsd-verify-work 2)"
-  - test: "Decide on the open 02-42 review findings in 02-REVIEW-g199-42-DISPOSITION.md (all 8 are still 'open'), plus WR-03 and WR-04 from 02-REVIEW-g199-DISPOSITION.md"
-    expected: "A recorded fix, defer or accept for each. WR-01 (focus leaves the confirm field and the backdrop jumps to the top after a press that does not close; the probe here shows it in chromium, firefox and webkit and on a scrollbar drag in both scrollbar projects) and WR-02 (the WebKit timer depends on timing) share one fix, in useFocusTrap. IN-01 (a press on the dark area released inside the dialog still closes it) is a small hardening. IN-02 (the comment overstates WebKit/Firefox as proven) is a wording fix. IN-03 to IN-06 are test hygiene"
-    why_human: "None of these breaks a must-have truth as written. Whether the focus jump is acceptable UX is a look and behaviour choice for the owner, and fixing it changes useFocusTrap, which every overlay shares"
+  - test: "Plan 02-43 end-of-phase check (the plan's own human-check, owner, optional but not yet done): in Chrome at 125-150% zoom, open /dev/components, press Open Delete Order, shorten the window until the dark backdrop scrolls, type the order number, wheel down to Cancel and Delete Order, then middle-click and right-click the dark area. Drag the backdrop's scrollbar. Then left-click the dark area"
+    expected: "The dialog stays open, the backdrop does not jump, typing continues in the field, and the scrollbar drag scrolls it with typing still going to the field. A left click on the dark area closes the dialog. (In Firefox a middle-click may scroll the backdrop: the documented engine limit)"
+    why_human: "The UAT 199 pass (2026-10-13 21:35) was given on the plan 02-42 behaviour, before 02-43 changed the shared focus trap. Automation covers the behaviour in seven projects, but how it feels at real zoom with the owner's scrollbar setting is the owner's call"
+  - test: "Rule on the seven findings of 02-REVIEW-g199-43-DISPOSITION.md (all 7 rows are still 'open'). WR-01: keep the focusFirst() fallback that may scroll the backdrop (the plan chose it on purpose) or pass preventScroll on it too. WR-02: reword the docs/web/e2e.md @dialog-fit row, which says a scrollbar drag leaves scrollTop unchanged while the test asserts the drag scrolls it. IN-01 to IN-05 are test and comment hygiene"
+    expected: "A recorded fix, defer or accept for each row"
+    why_human: "None breaks a must-have truth as written (see the 02-43 review section). WR-01 is a design choice in a primitive every overlay shares, and the 02-43 plan fixed that behaviour on purpose, so the owner decides"
   - test: "(Optional, only if a Mac is available) On macOS Safari with a trackpad (overlay scrollbars), repeat the drag and a press-and-release on the backdrop's scrollbar thumb without moving"
     expected: "Neither closes the dialog, and the typed text is kept"
-    why_human: "Real Safari overlay scrollbars cannot run on this Windows machine. The drag case rests on the engine-independent scroll check (proven). A press without moving rests on the engine sending no click after a scrollbar press, which is proven for Chromium only (02-42 SUMMARY flagged assumption, review IN-02)"
+    why_human: "Real Safari overlay scrollbars cannot run on this Windows machine. The drag case rests on the engine-independent scroll check (proven). A press without moving rests on the engine sending no click after a scrollbar press, which is proven for Chromium only"
 ---
 
 # Phase 2: Web Foundation & Design System Verification Report
 
-*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-13T21:25:00-05:00*
+*Created: 2026-10-13T10:50:00-05:00 · Updated: 2026-10-14T05:35:00-05:00*
 
 **Phase Goal:** Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
-**Verified:** 2026-10-14T02:25:00Z (21:25 America/Chicago), on HEAD 709f0d4
-**Status:** human_needed. Every must-have truth is verified in code and in real engines, including truth 28 with both classic and overlay scrollbars. The owner's real-browser re-check of UAT test 199 is still pending, and the open 02-42 review findings need a decision.
-**Re-verification:** Yes. This follows gap-closure plan 02-42 (truth 28 of G-2-199, owner ruling D-42), commits f2af90f..709f0d4, and the code review in `02-REVIEW-g199-42.md`. Truths 1-27, 29 and 30 got a regression check. Truth 28 was re-verified in full. Truths 31-41 are the 02-42 must-haves; the plan's first truth restates truth 28 and is merged into it.
+**Verified:** 2026-10-14T10:35:00Z (05:35 America/Chicago), on HEAD f303d78
+**Status:** human_needed. Every must-have truth is verified in code and in real engines (51/51, one owner override). UAT 199 passed, so the earlier human item is closed. Three human items remain: the owner's optional real-zoom look at the new 02-43 behaviour (the UAT pass was given before the focus trap changed), a ruling on the seven open 02-43 review findings (none defeats a must-have), and the optional macOS Safari check.
+**Re-verification:** Yes. This follows review follow-up plan 02-43 (WR-01/WR-02 of `02-REVIEW-g199-42.md`), commits f24f437..fb98704, and its code review `02-REVIEW-g199-43.md` (0 critical, 2 warnings, 5 info). Truths 1-33, 35-37, 39, 40 and the unaffected parts of 34, 38 and 41 got a regression check; truths 34, 38 and 41 are amended where 02-43 changed them; truths 42-51 are the ten 02-43 must-haves, verified in full.
 
 ## Re-verification summary
 
@@ -821,8 +823,11 @@ human_verification:
 | --- | --- | --- | --- |
 | Truth 28 (G-2-199): with overlay scrollbars, dragging the backdrop's scrollbar closed the Delete Order dialog and lost the typed order number. Middle and right presses closed it too | ✗ FAILED (partial) | ✓ VERIFIED | `Modal.tsx:124-197`: the scrim closes on a primary **click** after a primary scrim press off a classic scrollbar, with every scrim's scrollTop/scrollLeft unchanged. Here: `@dialog-fit` 39 passed, 24 skipped by design, 0 failed in all seven projects, including T1-T4 in `chromium-classic-scrollbars` and `chromium-overlay-scrollbars`. Unit `src/ui/overlays` 111/111 |
 | Review WR-02 of 02-REVIEW-g199.md: no real-scrollbar browser test | ⚠️ Warning | resolved | `playwright.config.ts:41-58`: two projects with `ignoreDefaultArgs: ['--hide-scrollbars']` (plus `--enable-features=OverlayScrollbar`), scoped by `testMatch`/`testIgnore`. `expectRealScrollbars` asserts the mode (clientWidth 1265 classic, 1280 overlay) |
+| 02-42 review WR-01: a press on the dark area that does not close, or a scrollbar drag, moved focus from the confirm field to Close, and a middle or right press on a scrolled backdrop jumped it to the top | ⚠️ Warning (not a truth failure) | ✓ FIXED | `useFocusTrap.ts:121-141,178-188`: the trap remembers the element inside that last had focus (seeded at activation) and returns focus there with `focus({ preventScroll: true })`. Here: `@dialog-fit` 47 passed, 31 skipped by design, 0 failed in all seven projects (D4/D5 scrolled right and middle presses, D6, T1-T4 now assert focus, caret 13/13 and scrollTop). Mutation reproduced here: against the plan-base trap the four scrolled-press cases fail in chromium and webkit on `toBeFocused` (4 failed); the file was restored (`git diff --quiet HEAD` clean) |
+| 02-42 review WR-02 and the two coincidental-reliance flags (truths 34, 38): the close rule relied on WebKit task order and a `setTimeout(0)` re-read | ⚠️ Warning / advisory | ✓ FIXED | `Modal.tsx`: no `focusin` listener, no timer, no re-read; the press snapshot is compared with the click (`:134-158`). Grep outside comments for `setTimeout`, `clearTimeout`, `rereadPending`: 0; `'focusin'`: 0; `preventDefault`: 1 (Esc). The left click that closes still passes in chromium, firefox and webkit (D1, D2) and both scrollbar projects (T4) here |
+| Prior human item 1 (UAT 199 re-check) and item 2 (open 02-42 review findings) | 🔶 Human | ✓ Closed | `02-UAT.md`: 199 passed, 0 issues, G-2-199 `status: resolved`. `02-REVIEW-g199-42-DISPOSITION.md`: WR-01 and WR-02 `fixed`, six `deferred` (IN-01..IN-06). The UAT pass is dated 2026-10-13 21:35, before 02-43's first commit, so the new behaviour has no owner look yet (human item 1) |
 
-**Regressions:** none. `npm --prefix web run verify` exit 0, 109 files, 3102 tests (up from 3087). `@overlays|@selftest` parity 21/21. `overlays.recipe.ts`, `web/visual/**`, `package.json`, `package-lock.json` and `CSPS-UI-SPEC.md` have an empty diff over f2af90f..HEAD.
+**Regressions:** none found. `npm --prefix web run verify` exit 0 (orchestrator run, 2026-10-14): 109 files, 3110 tests (up from 3102), coverage 98.26 statements / 96.51 branches, zero warnings, build ok, notices current. Here: `vitest run src/ui/overlays src/ui/navigation` 10 files, 286 passed. `git diff abea9db -- playwright.config.ts Overlay.tsx MobileNavDrawer.tsx overlays.recipe.ts rulings.css rulings.test.ts package.json package-lock.json` is empty. Plan 02-43 changed only `web/`, `docs/` and planning files, so the phase 1 .NET suites are unaffected.
 
 ## MVP-mode note
 
@@ -830,7 +835,7 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 
 | Actor | Flow | Evidence | Status |
 | --- | --- | --- | --- |
-| Staff on a laptop at 125-150% zoom (short window) | Opens Delete Order and types the order number. Either the whole dialog shows or the backdrop scrolls to its buttons. Drags the backdrop's scrollbar or mis-clicks with the middle or right button without losing the text. Confirms or cancels by mouse or keyboard | `@dialog-fit` in seven projects (layout, reach, drag, press, middle/right, left-click close) | VERIFIED (automated). The owner's real-zoom check is UAT 199 |
+| Staff on a laptop at 125-150% zoom (short window) | Opens Delete Order and types the order number. Either the whole dialog shows or the backdrop scrolls to its buttons. Drags the backdrop's scrollbar or mis-clicks with the middle or right button without losing the text. Confirms or cancels by mouse or keyboard | `@dialog-fit` in seven projects (layout, reach, drag, press, middle/right, left-click close) | VERIFIED (automated, seven projects, including a scrolled backdrop with the caret kept). UAT 199 passed on the 02-42 behaviour; the owner has not yet looked at the 02-43 behaviour (human item 1) |
 
 ## Goal Achievement
 
@@ -871,26 +876,46 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | 31 | 02-42: a press on the backdrop's scrollbar with no pointer movement keeps the dialog open and the text kept, in both scrollbar projects (classic: at x = width - 4 and at x = clientWidth; overlay: at x = width - 4) | ✓ VERIFIED | `dialog-scrollbars.spec.ts:99` (T2) passed here in both projects. The classic branch also clicks `fit.metrics.clientWidth` (1265). For overlay mode this rests on Chromium sending no `click` after a thumb press. The "Overlay scrollbar press without a drag" checkpoint did not fire, and T2 is green. Safari is not proven (optional human item 3) |
 | 32 | 02-42: non-primary presses never close. jsdom sends button 1 and 2 (mousedown, mouseup, click; contextmenu for 2) and the dialog stays open; a primary press followed by a button-1 click does not close. In real engines a middle or right press on the dark area keeps it open at 1440x900 (chromium, firefox, webkit) and at 1280x420 in both scrollbar projects | ✓ VERIFIED | Unit: `Modal.test.tsx:656` (`it.each([1, 2])`) and `:673`, in the 111/111. Code: `event.button !== 0` returns at `Modal.tsx:134` and `:145`. E2E here: `dialog-fit.spec.ts:201` (D1) passed in chromium, firefox and webkit, and T3 (`:120`) and T4 (`:132`) passed in both scrollbar projects. The verifier's probe confirms it stays open after both presses in all three engines (but see WR-01 below) |
 | 33 | 02-42: a left click on the dark area still closes, at 1440x900 above the dialog (chromium, firefox, webkit), at 1280x420 beside it after the wheel (chromium, firefox, webkit), above the phone sheet (pixel, iphone) and in both scrollbar projects (classic: x = clientWidth - 1) | ✓ VERIFIED | Run here: D1 (`dialog-fit.spec.ts:201`), D2 (`:219`), D3 (`:232`) and T4 all passed, each asserting `toHaveCount(0)`. Repeat runs: D2 in chromium 15/15 and webkit 15/15 with 6 workers. The two scrim-click cases (D1, D2) in webkit 50/50 with `--repeat-each 25 --workers 4`. Firefox had 3 failures in 85 heavy-load repeats. The two that were captured are a 5 s timeout on the showcase `h1` in the `openDeleteOrder` setup (`deleteOrderDialog.ts:83`), before the dialog opens; the page had rendered by the time of the failure snapshot. That is page load, not the close rule (Info, see Anti-Patterns) |
-| 34 | (part of 33, webkit) the click closes even though WebKit applies the focus-trap reveal scroll just after the `focusin` | ✓ VERIFIED (coincidental-reliance) | Holds in every run here (webkit 15/15 and 50/50). It relies on WebKit's reveal scroll landing before the `setTimeout(0)` re-read (`Modal.tsx:160-172`), which nothing enforces (review WR-02). See `coincidental_reliance_items` |
+| 34 | (part of 33, webkit) the click closes even though WebKit applies the focus-trap reveal scroll just after the `focusin` | ✓ VERIFIED | Re-verified after 02-43, and no longer coincidental. The reliance on WebKit's reveal scroll landing before Modal's `setTimeout(0)` re-read is gone: `Modal.tsx` has no timer and no `focusin` listener, and the trap returns focus with `preventScroll`, so there is no reveal scroll to wait for. The order is enforced by the code (the trap's `focusin` handler runs inside the browser's mousedown focus change, before the click). Run here: D1 and D2 closed the dialog in chromium, firefox and webkit. The executor's 25-repeat webkit run (125 passed, 0 flaky) was not repeated here |
 | 35 | 02-42 ordering: the scrim closes only for a primary mousedown on a scrim, off a classic scrollbar, then a primary click on a scrim at the same scroll positions. Each mousedown replaces the pending press, so a press that starts inside the dialog never closes it, and a press alone never closes (jsdom) | ✓ VERIFIED | `Modal.test.tsx:593` (press alone), `:605` (a later press replaces an earlier one). Code: `pendingPress = null` first at `:133`, consumed at `:143-144`. The reverse case (a press on the scrim released inside the dialog still closes, review IN-01) is outside this truth's wording; it is Info |
 | 36 | 02-42 empty: a press with zero scroll movement closes exactly once, on an overflowing backdrop and on one that cannot scroll at clientX 1005 (jsdom) | ✓ VERIFIED | `Modal.test.tsx:616` and `:512` |
 | 37 | 02-42 adjacency: the first scrollbar column counts as scrollbar (clientX 1000 of 1000 does not close; 999.5 closes once, jsdom); in the classic project a press at x = clientWidth keeps it open and x = clientWidth - 1 closes | ✓ VERIFIED | `Modal.test.tsx:626`; `pressedOnScrollbar` uses `>=` (`Modal.tsx:70`). E2E: T2's classic branch and T4 passed here |
-| 38 | 02-42 encoding/equality: "did not scroll" means strictly equal scrollTop/scrollLeft per scrim, fractions included. A focus-move scroll is re-read at `focusin` and is not a gesture, while a scroll after it still blocks the close (jsdom). The kept text is compared with `toHaveValue('ORD-2026-0148')` | ✓ VERIFIED (coincidental-reliance) | `samePositions` uses `===` (`Modal.tsx:79-81`); tests `:581` (sideways), `:685`, `:699`, `:714`. The E2E checks use exact `toHaveValue`. The ":699 scroll after it still blocks" case holds in jsdom only because the timer never runs before the click (review WR-02), so the truth is met as worded "(jsdom)", but a real engine accepts a scroll inside that window |
+| 38 | 02-42 encoding/equality: "did not scroll" means strictly equal scrollTop/scrollLeft per scrim, fractions included. The kept text is compared with `toHaveValue('ORD-2026-0148')`. (The 02-42 sentence that a focus-move scroll is re-read at `focusin` and is not a gesture is superseded by 02-43: the re-read is deleted, see truth 45) | ✓ VERIFIED | `samePositions` uses `===` (`Modal.tsx:79-81`); jsdom tests `Modal.test.tsx:581` (sideways), `:685`, `:699`, `:712`; the E2E checks use exact `toHaveValue`. The coincidental-reliance flag is resolved: the jsdom case no longer depends on a pending timer, because the timer no longer exists (review IN-03: the fake timers left in the `:712` test are inert) |
 | 39 | 02-42 loading and Esc unchanged: while loading a full press and click does not close; once loading ends it closes once. The named Esc/loading/other-parent/UI-WR-01 tests keep their bodies | ✓ VERIFIED | `Modal.test.tsx:735` passed. The diff's removed test lines over f2af90f..HEAD are only the planned `mouseDown` → `pressAndRelease` conversions at the old lines for `:194`, `:432` and the D-42 scrollbar block. `:176`, `:216`, `:228`, `:238`, `:445` and the UI-WR-01 block (`:377-407`) are byte-unchanged |
 | 40 | 02-42 D-42 layout unchanged (D-08): recipe, rulings and classes untouched; every earlier `@dialog-fit` layout test passes in the five standard projects; `@overlays` parity and `@selftest` pass | ✓ VERIFIED | Empty diff for `overlays.recipe.ts` and `web/visual/**`. The earlier `@dialog-fit` tests (1440x900, 1274x585, 1280x420 mouse/keyboard, phone pages, device) passed in the 39/39 run. Parity `@overlays\|@selftest` 21 passed here |
-| 41 | 02-42 listeners only: a scrim click listener and one document `focusin` listener in the existing effect; no style write, no inline style, no default prevented on the press, no new dependency; zero guard findings in all seven projects; verify exits 0. Records: e2e.md (scrollbar projects, `@dialog-fit` row naming 02-42), release-gates.md (seven projects), parity.md section 6 cites `dialog-scrollbars.spec.ts`, UAT G-2-199 keeps `status: failed` with `fix_plan` naming 02-41 and 02-42, WR-01/WR-02 dispositioned fixed | ✓ VERIFIED | `Modal.tsx:182-196` adds `click` and `focusin` with matching removals and `clearTimeout` on cleanup. The only `preventDefault` is the existing Esc handler (`:178`). No `bypassCSP`. `package.json`/lockfile unchanged. Records found at `docs/web/e2e.md:72-75,115`, `release-gates.md:27,72`, `parity.md:174`, `02-UAT.md:1603-1622`, `02-REVIEW-g199-DISPOSITION.md:14-15`. The owner-review parser test is inside verify, which passed |
+| 41 | 02-42 listeners only: a scrim click listener in the existing effect (02-42 also added one document `focusin` listener; 02-43 removed it again, truth 45); no style write, no inline style, no default prevented on the press, no new dependency; zero guard findings in all seven projects; verify exits 0. Records: e2e.md (scrollbar projects, `@dialog-fit` row naming 02-42), release-gates.md (seven projects), parity.md section 6 cites `dialog-scrollbars.spec.ts`, UAT G-2-199 keeps `status: failed` with `fix_plan` naming 02-41 and 02-42, WR-01/WR-02 dispositioned fixed | ✓ VERIFIED | `Modal.tsx:168-171` adds `mousedown` and `click` with matching removals (02-42's `focusin` and `clearTimeout` are gone, truth 45). The only `preventDefault` is the existing Esc handler (`:164`). No `bypassCSP`. `package.json`/lockfile unchanged. Records found at `docs/web/e2e.md:72-75,115`, `release-gates.md:27,72`, `parity.md:174`, `02-UAT.md:1603-1622`, `02-REVIEW-g199-DISPOSITION.md:14-15`. The owner-review parser test is inside verify, which passed |
+| 42 | 02-43 WR-01: while a trap is the top trap, focus that moves outside it (not the toast layer) comes back to the element inside that last had focus, through `focus({ preventScroll: true })`; the remembered element is seeded with the element the trap focused on activation (so a person who typed in the confirm field and never moved focus gets it back with the caret) | ✓ VERIFIED | `useFocusTrap.ts:121-126` seeds `lastInside` after the initial focus; `:178-184` records every focus-in inside the root in every trap; `:185-187` calls `returnInside()` only for the top trap and outside the toast layer; `:133-141` calls `lastInside.focus({ preventScroll: true })`. Unit: `useFocusTrap.test.tsx:220` (Amount, the seeded field, `toHaveBeenLastCalledWith({ preventScroll: true })`, Close not focused), `:550` (last element), `:563` (toast round trip), `:574` (SVG); all pass here. Real engines: truths 46-48 |
+| 43 | 02-43 fallback: when nothing inside has had focus yet, the remembered element is gone, or it cannot take focus any more (focus() leaves it unfocused), focus goes to the first focusable element through `focusFirst()` (which may scroll); focus never stays outside the dialog | ✓ VERIFIED | `useFocusTrap.ts:134-140`: checks `isConnected`, `root.contains`, and `document.activeElement === lastInside` after the call, else `focusFirst()`. Unit `:585` (initial focus did not land), `:594` (element removed), `:604` (button became disabled; a plain refocus would leave focus outside). All pass here. That the fallback may scroll is the plan's explicit design (Design point 2) and is review WR-01 of 02-REVIEW-g199-43: a warning for the owner, not a failure of this truth (see the 02-43 review section) |
+| 44 | 02-43 unchanged trap behaviour: initial focus, Tab and Shift+Tab wrap including the toast layer, no pull-back from a toast, focus returns to the trigger on close (not when `returnFocus` is false), only the top trap acts. Every existing test body is byte-identical except the two named expectations | ✓ VERIFIED | `git diff ac30238..HEAD` of `useFocusTrap.ts` adds only `lastInside`, `returnInside` and the rewritten `onFocusIn`; `focusFirst`, `onKeyDown`, activation, registration and cleanup are untouched. In `useFocusTrap.test.tsx` the removed lines are exactly: the `vitest` import line (adds `vi`), the old title and Close expectation of the "brings focus back" test, and the comment plus `Dialog first` expectation of the first UI-WR-02 test. The three named untouched tests each match once (grep). The overlay and navigation unit run is green here (286/286) |
+| 45 | 02-43 WR-02 (no timing window): the scrim close rule compares the press snapshot with the click and nothing re-reads in between: no document focus listener, no re-read helper, no deferred timer in `Modal.tsx`; any scroll between press and click blocks the close, including around a focus move and a task after it; other edges unchanged | ✓ VERIFIED | `Modal.tsx:134-158`: `pendingPress` set at mousedown, consumed at click, `samePositions(press.positions, readScrollPositions(scrims))`. Grep outside comments: `setTimeout`, `clearTimeout`, `rereadPending` 0, `'focusin'` 0, `preventDefault` 1 (Esc), `SPEC-DEVIATION: D-42` kept, `review WR-02` present. Unit `Modal.test.tsx:685` and `:712` (the two inverted tests, onClose NOT called), `:699` (byte-identical), `:768-816` (trap plus Modal with a focusable `main`: a right press keeps the field focused with `preventScroll`; a primary press closes once). All pass here |
+| 46 | 02-43 real engines, scrolled backdrop: at 1280x420, after typing ORD-2026-0148 and wheel-scrolling the backdrop to the buttons, a middle press and (separately) a right press on the dark area keep the dialog open, the field focused with value `ORD-2026-0148` and caret 13/13, and leave scrollTop strictly equal to the settled value two frames and a task later, in chromium, firefox, webkit and (T3, T4) both scrollbar projects | ✓ VERIFIED (override: Firefox middle-press scrollTop only) | Run here: `dialog-fit.spec.ts:301` (D4 right) and `:308` (D5 middle) passed in chromium, firefox and webkit; `dialog-scrollbars.spec.ts` T3 (`:150`) and T4 (`:164`) passed in both scrollbar projects, each starting from `waitForSettledScroll` > 0 and asserting `toBe(before)`. In Firefox the middle press asserts open, focused, exact value and caret, but not scrollTop: Firefox's own middle-button scroll, owner-approved 2026-10-14 (frontmatter `overrides`), scoped to `button === 'middle' && project === 'firefox'` (`dialog-fit.spec.ts:291-298`), reason written beside the assertion. No retry, tolerance or timing window |
+| 47 | 02-43 real engines, scrollbar and phone: pressing the backdrop's scrollbar thumb leaves scrollTop unchanged at the press and keeps the field focused; the drag then scrolls it with the field still focused and the caret 13/13 (T1); a press without moving keeps focus and caret (T2); at 1440x900 middle and right presses keep the field focused (D1); on the phone screens a right press above the sheet keeps the sheet open, the caret 13/13 and scrollTop unchanged (D6) | ✓ VERIFIED | Run here, all passed: T1 (`dialog-scrollbars.spec.ts:97`) and T2 (`:125`) in both scrollbar projects (`before` read after `page.mouse.down()`, `toBe(before)`; drag `after > before`; `expectKept` checks value, focus and caret); D1 (`dialog-fit.spec.ts:208`) in chromium, firefox, webkit with `toBeFocused` after each press; D6 (`:315`) in pixel and iphone. So all seven projects prove the caret stays in the confirm field |
+| 48 | 02-43 mutation-proven: the strengthened cases fail against the pre-fix `useFocusTrap.ts`, which is never committed | ✓ VERIFIED | Reproduced here: the plan-base file (`git show abea9db:...`) was written over the working copy and `--grep "@dialog-fit 1280x420 scrolled" --project chromium --project webkit` gave 4 failed (D4 and D5 in each), all on `await expect(field).toBeFocused()` (`dialog-fit.spec.ts:288`). The file was restored with `git checkout HEAD --` and `git diff --quiet HEAD` exited 0; `git status` shows only the pre-existing untracked `.claude/launch.json`. The SUMMARY's full table (19 failed, 28 passed, 31 skipped across seven projects, with the reason for each passing case) is consistent with this |
+| 49 | 02-43 a left click on the dark area still closes the dialog after the re-read is gone: D1, D2 (chromium, firefox, webkit), D3 (pixel, iphone), T4 (both scrollbar projects); webkit `@dialog-fit 1280x420` 25 repeats, 0 retries | ✓ VERIFIED | D1 (`:208`), D2 (`:233`), D3 (`:246`) and T4 (`:164`) each end in `toHaveCount(0)` and passed here in the right projects. The 25-repeat webkit run (125 passed, 0 flaky, `--repeat-each 25 --workers 4`) is the executor's evidence in the SUMMARY and was not repeated here; with the mechanism now synchronous (truth 34) it is corroborating, not load-bearing |
+| 50 | 02-43 constraints: no new dependency, no inline style or style write (D-33), no markup or class change and the `@overlays` parity rows equal (D-08), D-42 layout unchanged, zero guard findings in all seven projects, `verify` exit 0 with zero warnings; `playwright.config.ts`, `Overlay.tsx`, `MobileNavDrawer.tsx`, `overlays.recipe.ts` and the frozen reference files unchanged | ✓ VERIFIED | The frozen-file diff against `abea9db` is empty (run here), `package.json` and `package-lock.json` included. `Modal.tsx` changed by 3 insertions and 20 deletions (the removed effect block plus one comment): no JSX, class or attribute line touched. No `style=` or `.style.` in `useFocusTrap.ts` or `Modal.tsx`. No `TBD/FIXME/XXX/TODO/HACK/PLACEHOLDER` in the changed source and e2e files or `docs/web/e2e.md`. The seven-project run here reported 0 failed under the guarded fixtures. `verify` exit 0 is the orchestrator's run (not repeated here). The parity run (21 passed) is the executor's; with the look files and markup unchanged its rows cannot move, so it was not repeated |
+| 51 | 02-43 records: `02-REVIEW-g199-42-DISPOSITION.md` marks WR-01 and WR-02 `fixed` naming 02-43 and leaves the others; `docs/web/e2e.md`'s `@dialog-fit` row describes the scrolled-backdrop focus cases and cites 02-43; edited `.md` files carry `updated:` timestamps | ✓ VERIFIED (with a wording warning) | Disposition: the two rows read `fixed` with 02-43 notes; the `| deferred |` count is 6. `docs/web/e2e.md:115` cites `plans 02-41, 02-42, 02-43 (D-42)`, keeps 3 cells, and carries the Firefox exception. Wording defect: the row says a "press or drag on the backdrop's scrollbar" leaves scrollTop unchanged, but the drag test asserts it scrolls (`after > before`). That is review WR-02 of 02-REVIEW-g199-43 (the wording came from the plan's own step 6). It does not make the row miss the cases it must describe, so it is a warning (human item 2) |
 
-**Score:** 41/41 truths verified (0 present but behaviour-unverified; 2 marked coincidental-reliance, advisory only; 0 failed). Truths 28 and 31-34 depend on behaviour, and each is backed by a real-engine test run here.
+**Score:** 51/51 truths verified (1 of them by owner override, Firefox middle-press scrollTop only; 0 present but behaviour-unverified; 0 coincidental-reliance; 0 failed). Truths 28, 31-34 and 42-49 depend on behaviour, and each is backed by a real-engine test run here (plus the mutation run for 42, 46-48).
 
-### The 02-42 review warnings (02-REVIEW-g199-42.md): do they defeat truth 28?
+### The 02-42 review warnings (02-REVIEW-g199-42.md): did they defeat truth 28, and are they fixed?
 
 | Finding | Defeats a must-have? | Evidence |
 | --- | --- | --- |
-| WR-01: a press on the dark area that does not close still moves focus out of the confirm field and scrolls the backdrop to the top | **No.** Every truth asserts "stays open" and "text kept", and both hold. It is a real UX and keyboard-continuity defect, and it is **wider than the review states**: it also happens on a scrollbar drag | Verifier probe (a temporary spec under `web/e2e/verifier-tmp/`, run and then deleted). At 1280x420 after the wheel (scrollTop 105, focus on the INPUT), a right press gave scrollTop **0** with focus on **BUTTON[Close]**, in chromium, firefox and webkit. After a second wheel to 105, a middle press did the same. The value stayed ORD-2026-0148 and the dialog stayed open. In both scrollbar projects, a real scrollbar drag moved focus from the INPUT to BUTTON[Close] (scrollTop still 30 → 105), and a right press on the scrolled backdrop then reset it to 0. That conflicts with the owner's UAT step "a middle or right click … does nothing", so it is surfaced in human item 1 and 2 |
-| WR-02: the "one task later" re-read relies on WebKit timing | **No** in every observed run. The risk is a future flake or a missed close, which fails safe: the dialog stays open and a second click closes it | WebKit D1+D2 50/50 at 4 workers, D2 15/15 at 6 workers. Recorded as coincidental-reliance on truths 34 and 38 |
+| WR-01: a press on the dark area that does not close still moves focus out of the confirm field and scrolls the backdrop to the top | **No** (then). **Fixed** by 02-43 | Then: every truth asserted "stays open" and "text kept", and both held; the focus and scroll jump was a UX and keyboard-continuity defect, wider than the review stated (it also fired on a scrollbar drag). Now: `useFocusTrap` returns focus with `preventScroll` (truths 42, 46-48). The 02-42-round probe numbers (scrollTop 105 to 0, focus INPUT to Close) are the pre-fix behaviour the mutation run in truth 48 reproduces as `toBeFocused` failures |
+| WR-02: the "one task later" re-read relies on WebKit timing | **No** (then). **Fixed** by 02-43 | The re-read and the timer are deleted (truth 45); the two coincidental-reliance flags on truths 34 and 38 are resolved |
 | IN-01 … IN-06 | No | Info. IN-01 (press outside, release inside still closes) is the same as before 02-42 and outside the ordering truth's wording |
 
-**Verdict:** WR-01 and WR-02 are follow-ups, not gaps. Truth 28 as written, and every 02-42 truth, is met in real engines. WR-01's fix (useFocusTrap restoring the last focused element with `preventScroll`) would also remove WR-02's timer. It changes a shared primitive, so it is the owner's call (human item 2).
+**Verdict:** WR-01 and WR-02 were follow-ups, not gaps, and plan 02-43 has now fixed both at the root (one change in the shared trap, then the workaround it made redundant removed). The owner locked that design before the plan was written, and the code matches it.
+
+### The 02-43 review (02-REVIEW-g199-43.md): does it defeat a must-have?
+
+The review found 0 critical, 2 warnings and 5 info, all `open` in `02-REVIEW-g199-43-DISPOSITION.md`. I read the code each finding cites and weighed it against the 02-43 must-haves. None defeats one.
+
+| Finding | Defeats a must-have? | Evidence |
+| --- | --- | --- |
+| WR-01: the `focusFirst()` fallback in `returnInside` still scrolls the backdrop (when the remembered element is gone, disabled, or never existed), so a later left click can be ignored without the old re-read | **No.** Warning for the owner | The fallback is the plan's own Design point 2 and truth 43 ("focusFirst, which may scroll it into view so the person sees where focus went"), so the code meets the must-have as written. The truths about the caret and scrollTop (46, 47) are about presses while the confirm field has focus, and that path uses `preventScroll`. The reach is narrow: it needs a press on the dark area while the last focused control is disabled or gone. In the Delete Order dialog the confirm field is not disabled while a delete is pending (`ConfirmDialog.tsx` disables only the danger button), so the field case is covered; the Delete button case (it takes focus back after a failure, and is in its pending state during a delete) is where the fallback could run. It fails safe: the dialog stays open and a second click closes it, and while `loading` the close is blocked anyway. The review's fix (pass `preventScroll` to the fallback too) is small, but it changes what the plan deliberately specified and what the unit tests pin, so it is the owner's call (human item 2). No test covers the fallback together with the scrim close, which is the gap the review names |
+| WR-02: `docs/web/e2e.md:115` says a drag on the scrollbar leaves scrollTop unchanged, but the drag test asserts it scrolls | **No.** Warning (documentation accuracy) | Confirmed: `dialog-scrollbars.spec.ts` T1 asserts `after > before` for the drag and `toBe(before)` only for the press without moving. The wording came from the plan's step 6, so the executor followed the plan. The row still names the cases and cites 02-43 (truth 51). Reword as the review suggests |
+| IN-01 (magic `13`), IN-02 (`revealScrollbar` duplicates `waitForSettledScroll`), IN-03 (inert fake timers in the `:712` test), IN-04 (no test fails if recording in a lower trap were gated), IN-05 (ragged header comment) | No | Info and test hygiene. IN-04 is the one with a behaviour angle: `lastInside = target` in a trap below the top is exercised only indirectly. The stacked-trap behaviour that the plan promises (only the top trap pulls focus) is covered by the four UI-WR-02 tests, which pass |
 
 ### Prohibitions (`must_haves.prohibitions`)
 
@@ -909,19 +934,27 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | 02-42 | MUST NOT close a destructive dialog, or drop its typed text, on a backdrop-scroll gesture or a non-primary button | test | T1-T4 (both scrollbar projects), D1 (three engines), `Modal.test.tsx:568,581,656,673`; all run here and green | verified |
 | 02-42 | MUST NOT stop the close by making the backdrop harder to scroll or reach (no default prevented on the press, no hidden or narrowed scrollbar, no pointer-events or overflow change) | test | No `preventDefault` on mouse events (`Modal.tsx` only at `:178`, Esc). Recipe unchanged. T1 proves the scrollbar drags, and the wheel/keyboard `@dialog-fit` tests prove reach. WR-01's scroll-to-top after a non-closing press is not one of the forbidden mechanisms, but it is noted | verified |
 | 02-42 | MUST NOT change the look or D-42 layout, or loosen a check | test | Empty frozen-file diff. Removed assertion lines are only the conversions (unit) and the helper move (`deleteOrderDialog.ts:82-87` keeps the same three expects). No tolerance, no `--update-snapshots`, no `bypassCSP`. Parity 21/21 | verified |
+| 02-43 / A11Y-02 | MUST NOT let focus escape an open modal; MUST NOT change initial focus, Tab wrap, the toast exemption, restore-on-close or stacking | test | After a focus event outside the top trap, focus is on the remembered element or, by `returnInside`'s fallback, the first focusable one (`useFocusTrap.ts:133-141`; unit `:220`, `:585`, `:594`, `:604`). The diff of the trap touches only the new state and `onFocusIn`. The older trap, toast and stacking tests pass (286/286 across overlays and navigation) | verified |
+| 02-43 / WEB-06 | MUST NOT turn a red check green by loosening or timing: no skipped, deleted or weakened assertion, no retries, no scrollTop tolerance, no new timer or deferred re-read in Modal or the trap | test | `Modal.tsx` and `useFocusTrap.ts` have no `setTimeout`. `toBe(before)` is strict in D4/D5/D6/T1-T4; the only scoped assertion is Firefox's middle-press scrollTop, by the recorded owner decision (frontmatter `overrides`), with the reason beside it. The mutation run (truth 48) shows the checks fail when they should. Retries are 0 (`playwright.config.ts` unchanged) | verified (one owner-approved scope) |
+| 02-43 / WEB-06 | MUST NOT implement the deferred review items (02-REVIEW-g199-42 IN-01..IN-06; 02-REVIEW-g199 WR-03, WR-04, IN-01..IN-04) | test | `playwright.config.ts` and the recipe are unchanged; no mouseup tracking or context-menu listener was added to `Modal.tsx`; the SPEC-DEVIATION D-42 paragraph is untouched; the disposition file still shows six `deferred` rows | verified |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | --- | --- | --- | --- |
 | (phase-wide areas and 02-41 artifacts) | as in the 23:30 report | ✓ VERIFIED | Regression check: present, unchanged where frozen, gates green |
-| `web/src/ui/overlays/Modal.tsx` | Click-based scrim close rule with `pendingPress`; `SPEC-DEVIATION: D-42` | ✓ VERIFIED | `pendingPress` at `:131`, `:133`, `:138`, `:143-144`, `:161-162`; marker at `:124`. Substantive (70 lines changed), wired in the existing effect. Modal.tsx coverage 100% lines in verify |
+| `web/src/ui/overlays/Modal.tsx` | Click-based scrim close rule with `pendingPress`; `SPEC-DEVIATION: D-42`; no focus re-read or timer after 02-43 | ✓ VERIFIED | `pendingPress` at `:134-158`; marker at `:124`; `review WR-02` comment at `:131-133`. 3 insertions, 20 deletions in 02-43. Substantive and wired in the existing effect |
 | `web/src/ui/overlays/Modal.test.tsx` | jsdom tests incl. `OVERLAY_SCROLLBAR` | ✓ VERIFIED | Describe at `:558` with 15 cases; 111/111 here |
 | `web/playwright.config.ts` | Two scrollbar projects | ✓ VERIFIED | `chromium-classic-scrollbars`, `chromium-overlay-scrollbars`; `scrollbarSpecs` in `testMatch`/`testIgnore` |
 | `web/e2e/deleteOrderDialog.ts` | Shared helpers `DIALOG_NAME`, `ORDER`, `openDeleteOrder`, `readRegion`, `boxOf`, `topOf` | ✓ VERIFIED | Imported by both dialog specs |
 | `web/e2e/dialog-scrollbars.spec.ts` | `@dialog-fit` T1-T4 | ✓ VERIFIED | 145 lines, 4 tests, 8/8 here |
 | `web/e2e/dialog-fit.spec.ts` | D1-D3 on the shared helpers | ✓ VERIFIED | Imports `./deleteOrderDialog.ts`; D1-D3 green here |
 | `docs/web/e2e.md` | Scrollbar projects and the `@dialog-fit` row | ✓ VERIFIED | `:72-75`, `:115` |
+| `web/src/ui/overlays/useFocusTrap.ts` | `lastInside`, `returnInside`, `preventScroll: true`, first-focusable fallback | ✓ VERIFIED | 3 `focusFirst()` call sites kept (activation, fallback, trap below); 5 `lastInside` references; `preventScroll: true` once. Used by Modal, ConfirmDialog (through Modal) and MobileNavDrawer |
+| `web/src/ui/overlays/useFocusTrap.test.tsx` | Return-without-scroll tests (a)-(f), two updated expectations | ✓ VERIFIED | Describe at `:549` with six tests; `preventScroll: true` 3 times, `review WR-01` twice; the three named untouched tests match once each |
+| `web/src/ui/overlays/Modal.test.tsx` | Inverted WR-02 tests and the trap-plus-Modal describe | ✓ VERIFIED | `:685`, `:712` inverted; `:699` byte-identical; describe at `:768` with a focusable `main` |
+| `web/e2e/deleteOrderDialog.ts` | `wheelOverDialog`, `waitForSettledScroll`, `waitForFramesAndTask`, `readCaret` | ✓ VERIFIED | Four exports; `wheelOverDialog` no longer defined in `dialog-fit.spec.ts` |
+| `web/e2e/dialog-fit.spec.ts` and `web/e2e/dialog-scrollbars.spec.ts` | D1 focus checks, D4/D5/D6, T1-T4 with focus, caret and scrollTop | ✓ VERIFIED | `1280x420 scrolled` twice; `readCaret` and `toBeFocused` used in both specs. The plan's grep for `button: 'right'` at least 3 times in `dialog-fit.spec.ts` gives 2, because D4/D5 share `expectScrolledPressKept` with a `button` argument (D1 and D6 hold the literal right presses); coverage is complete, so this is an acceptance-grep miss, not a gap |
 
 ### Key Link Verification
 
@@ -930,8 +963,9 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | (phase-wide and 02-41 links) | | | WIRED | Carried; 02-41's Overlay → recipe and Modal → region links still hold (`Modal.tsx:122-123`) |
 | `web/playwright.config.ts` | `dialog-scrollbars.spec.ts` | `testMatch: scrollbarSpecs` on the two projects; `testIgnore` on the five | WIRED | The run here listed T1-T4 only under the scrollbar projects, and D1-D3 only under the five |
 | `Modal.tsx` | region scrim + fixed `.csp-overlay` | mousedown → `pendingPress`; `addEventListener('click', onClick)` → `requestClose()` | WIRED | `:182-185`; proven by D1-D3, T4 and `Modal.test.tsx:638` (fixed scrim) |
-| `Modal.tsx` | `useFocusTrap.ts` | document `focusin` re-reads positions after the trap pulls focus back | WIRED | `:166-172`, `:186`; without it D2 fails (the 6989fa3 RED), and with it D2 passes in three engines |
-| `dialog-scrollbars.spec.ts` | `deleteOrderDialog.ts` | `import { ORDER, openDeleteOrder, readRegion, … } from './deleteOrderDialog.ts'` | WIRED | `:12` |
+| `Modal.tsx` | `useFocusTrap.ts` | the close rule relies on the trap not scrolling the backdrop: the press snapshot is compared with the click with no re-read (02-43; the 02-42 `focusin` re-read link is gone) | WIRED | `Modal.tsx:131-158`; D2 and T4 pass without the re-read, and `Modal.test.tsx:768-816` runs both together |
+| `useFocusTrap.ts` | every overlay (Modal, ConfirmDialog through Modal, MobileNavDrawer) | `activateTrap`'s document `focusin` handler records `lastInside` and refocuses it with `preventScroll` when the top trap loses focus (pattern `lastInside`) | WIRED | `useFocusTrap.ts:178-188`; `Modal.tsx:106` calls `useFocusTrap(dialogRef, …)`; the drawer's journeys in `@keyboard` and its unit tests pass (286/286 includes `src/ui/navigation`) |
+| `dialog-scrollbars.spec.ts` | `deleteOrderDialog.ts` | `import { ORDER, openDeleteOrder, readRegion, wheelOverDialog, waitForSettledScroll, waitForFramesAndTask, readCaret, … } from './deleteOrderDialog.ts'` | WIRED | all four 02-43 helpers are used by T1-T4 and `expectKept` |
 
 ### Data-Flow Trace (Level 4)
 
@@ -941,7 +975,7 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | `api.site.settings` | SiteSettingsDto | `GET /api/v1/site-settings` | Real endpoint | ✓ FLOWING at the API level (carried) |
 | Delete Order demo dialog | ORD-2026-0148 cascade | `src/dev/scenarios` seed (dev-only) | Showcase fixture by design; 02-42 changes only the close rule | N/A |
 
-### Behavioral Spot-Checks (run by this verifier on HEAD 709f0d4)
+### Behavioral Spot-Checks (02-42 round on HEAD 709f0d4, then the 02-43 round at the end of the table on HEAD f303d78)
 
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
@@ -956,6 +990,13 @@ ROADMAP marks Phase 2 `Mode: mvp`, but its goal is not a user story (`user-story
 | Web gate chain | `npm --prefix web run verify` | exit 0; 109 files, 3102 tests; coverage 98.26 / 96.5 / 99.82 / 99.82; budgets ok (public 126.18 KB, dev-route admin 157.34 KB, CSS 13.04 KB); license gate passed; notices up to date (16 packages); zero warning lines | ✓ PASS |
 | Debt markers in the 10 non-planning files changed by 02-42 | grep `TBD\|FIXME\|XXX\|TODO\|HACK\|PLACEHOLDER` | none | ✓ PASS |
 | Frozen files | `git diff --stat f2af90f..HEAD -- overlays.recipe.ts web/visual web/package.json web/package-lock.json CSPS-UI-SPEC.md` | empty | ✓ PASS |
+| **02-43 round:** shared-machine preflight | `preflight.ps1 -Ports 5180,5115,7028,5199` | all four ports free, no dev/test processes, no TheBETSLLC test processes, no machine-level variables | ✓ PASS |
+| 02-43: overlay and navigation unit tests | `npx vitest run src/ui/overlays src/ui/navigation` (in `web/`) | 10 files, 286 passed | ✓ PASS |
+| 02-43: `@dialog-fit`, all seven projects, trap on HEAD | `npm --prefix web run e2e -- --grep @dialog-fit` | 47 passed, 31 skipped (by design), 0 failed, 1.6 min; D4, D5, D1, D2 in chromium, firefox, webkit; D3, D6 in pixel, iphone; T1-T4 in both scrollbar projects | ✓ PASS |
+| 02-43: mutation (pre-fix trap over the working copy) | `git show abea9db:web/src/ui/overlays/useFocusTrap.ts > …; npm --prefix web run e2e -- --grep "@dialog-fit 1280x420 scrolled" --project chromium --project webkit; git checkout HEAD -- …` | 4 failed (D4, D5 in each engine) on `toBeFocused`; restored, `git diff --quiet HEAD` exit 0 | ✓ PASS (checks see WR-01) |
+| 02-43: Modal and trap acceptance greps | grep outside comments for `setTimeout\|clearTimeout\|rereadPending`, `'focusin'`, `preventDefault`, `preventScroll: true`, `lastInside`, `focusFirst()` | 0, 0, 1, 1, 5, 3 | ✓ PASS |
+| 02-43: frozen files | `git diff --name-only abea9db -- playwright.config.ts Overlay.tsx MobileNavDrawer.tsx overlays.recipe.ts rulings.css rulings.test.ts package.json package-lock.json` | empty | ✓ PASS |
+| 02-43: `verify`, parity, 25-repeat webkit | not re-run here | `verify` exit 0 is the orchestrator's run; parity 21 passed and webkit 125/125 are the executor's (SUMMARY) | ℹ️ Carried, evidence cited |
 
 ### Probe Execution
 
@@ -966,11 +1007,11 @@ Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one, so thi
 | Requirement | Source plans | Status | Evidence |
 | --- | --- | --- | --- |
 | WEB-01 | 02-01, 02, 03, 06, 37 | ✓ SATISFIED | Truths 1-3 |
-| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40, 41 | ✓ SATISFIED | Parity proof; owner look approval (UAT 2-3); D-42 registered, parity 21/21 |
+| WEB-02 | 02-02, 05, 13, 14, 17-26, 34, 36, 38, 40, 41, **43** | ✓ SATISFIED | Parity proof; owner look approval (UAT 2-3); D-42 registered, parity 21/21 |
 | WEB-03 | 02-10 | ✓ SATISFIED | Truth 12 |
 | WEB-04 | 02-04, 15, 16 | ✓ SATISFIED | Truth 14 |
 | WEB-05 | 02-26, 29, 31, 32 | ✓ SATISFIED | Carried |
-| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34, 41, **42** | ✓ SATISFIED | Truth 9; ConfirmDialog usable on short windows (24-27); the backdrop scrollbar and non-primary presses never close it (28, 31-33). Owner re-check is UAT 199 |
+| WEB-06 | 02-20, 21, 22, 27, 28, 30, 34, 41, **42, 43** | ✓ SATISFIED | Truth 9; ConfirmDialog usable on short windows (24-27); the backdrop scrollbar and non-primary presses never close it (28, 31-33). Owner re-check is UAT 199 |
 | WEB-07 | 02-07 | ✓ SATISFIED | Truth 11 |
 | WEB-08 | 02-11, 30, 39 | ✓ SATISFIED | Truth 15 |
 | WEB-09 | 02-10, 16, 17 | ✓ SATISFIED | Truth 13 |
@@ -979,22 +1020,25 @@ Step 7c: no `scripts/*/tests/probe-*.sh` exists and no plan declares one, so thi
 | QUAL-02 | 02-02, 04, 37 | ✓ SATISFIED | Truth 3 |
 | QUAL-04 | 02-09, 35, **42** | ✓ SATISFIED | Truth 16; seven projects under the same guard and strict CSP (truth 41) |
 | A11Y-01 | 02-04, 09, 29, 34, 35, 40 | ✓ SATISFIED | Zero axe violations; `@dialog-fit` axe-clean |
-| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35, 41, **42** | ✓ SATISFIED (with warning) | Focus trap, Esc and keyboard reach unchanged (truths 26, 29, 39). WR-01: after a non-closing press, focus is pulled to Close rather than back to the field. It stays trapped in the dialog, so the requirement holds, but keyboard continuity is worse (human item 2) |
+| A11Y-02 | 02-19, 22, 27, 29, 31, 32, 35, 41, **42, 43** | ✓ SATISFIED | Focus trap, Esc and keyboard reach unchanged (truths 26, 29, 39, 44). The 02-42 warning (focus pulled to Close after a non-closing press) is fixed: focus goes back to the field that had it, with the caret, and falls back to the first focusable element only when it must (truths 42, 43). Focus never stays outside the dialog |
 | A11Y-04 | 02-05, 14, 17, 19, 20, 21, 25, 26, 35, 36, 41 | ✓ SATISFIED | Truth 18; D-42 |
 | PERF-01 | 02-33 | ✓ SATISFIED | Truth 4 (budgets re-measured in verify) |
 | PERF-02 | 02-03, 35 | ✓ SATISFIED | Truth 17 (02-42 changed no public-route code) |
 | PERF-03 | 02-20, 27, 30, 35, 41 | ✓ SATISFIED | Truth 7; dialog reflow (25-27) |
 | PERF-05 | 02-12, 35 | ✓ SATISFIED | Truth 5 |
 
-All 20 phase requirement IDs are accounted for. `.planning/REQUIREMENTS.md` maps exactly these 20 to Phase 2, so none is orphaned. **Bookkeeping for the orchestrator:** the traceability table now shows WEB-06 and A11Y-02 as Complete (02-42 commit a8081da), WEB-02 and A11Y-04 as Pending, and the other 16 as "Gaps Found". The evidence above supports moving all 20 to Complete once the owner passes UAT 199.
+All 20 phase requirement IDs are accounted for: every ID appears in at least one Phase 2 PLAN's `requirements` frontmatter (02-43 declares WEB-02, WEB-06, A11Y-02), and `.planning/REQUIREMENTS.md` maps exactly these 20 to Phase 2, so none is orphaned. **Bookkeeping for the orchestrator:** the traceability table shows WEB-02, WEB-06 and A11Y-02 as Complete, A11Y-04 as Pending, and the other 16 as "Gaps Found". The evidence above supports Complete for all 20 (UAT 199 has passed, so the condition set in the earlier report is met); updating the table and checkboxes is the orchestrator's step, not mine.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| (the 10 non-planning files changed by 02-42) | — | TBD / FIXME / XXX / TODO / HACK / PLACEHOLDER | — | None found |
-| `web/src/ui/overlays/useFocusTrap.ts` (with `Modal.tsx:132-172`) | trap `focusFirst()` | A non-closing scrim press, or a scrollbar drag, lets the browser move focus out, and the trap pulls it to the first tabbable element (Close) without `preventScroll` (review WR-01, confirmed and widened here) | ⚠️ Warning | The caret leaves the confirm field, and after a middle/right press the scrolled backdrop jumps to the top. Nothing is lost and the dialog stays open. Owner decision (human item 2) |
-| `web/src/ui/overlays/Modal.tsx` | 156-172 | `setTimeout(0)` re-read depends on WebKit task order and accepts any scroll in that window (review WR-02) | ⚠️ Warning | It fails safe (the dialog stays open). 50/50 green here. Removed by WR-01's fix |
+| (the 10 non-planning files changed by 02-42, and the 7 source, test and e2e files plus `docs/web/e2e.md` changed by 02-43) | — | TBD / FIXME / XXX / TODO / HACK / PLACEHOLDER | — | None found |
+| `web/src/ui/overlays/useFocusTrap.ts` (with `Modal.tsx`) | trap `focusFirst()` after a non-closing press | The 02-42 finding (focus pulled to Close without `preventScroll`) | ✓ Resolved by 02-43 | Truths 42, 46-48 |
+| `web/src/ui/overlays/Modal.tsx` | (was 156-172) | `setTimeout(0)` re-read depending on WebKit task order (02-42 review WR-02) | ✓ Resolved by 02-43 | Deleted; truth 45 |
+| `web/src/ui/overlays/useFocusTrap.ts` | 133-141 | The `focusFirst()` fallback may scroll the backdrop (02-43 review WR-01) | ⚠️ Warning (owner decision) | Plan-specified and narrow; fails safe. Human item 2 |
+| `docs/web/e2e.md` | 115 | The `@dialog-fit` row says a scrollbar drag leaves scrollTop unchanged; the test asserts the drag scrolls (02-43 review WR-02) | ⚠️ Warning | Wording only. Human item 2 |
+| `web/e2e/*.ts`, `Modal.test.tsx`, `useFocusTrap.ts` comments | various | 02-43 review IN-01..IN-05 (magic 13, duplicated settle loop, inert fake timers, untested lower-trap recording, ragged header comment) | ℹ️ Info | Hygiene. Human item 2 |
 | `web/src/ui/overlays/Modal.tsx` | 141-155 | Press on the scrim, release inside the dialog → the click targets the scrim → it closes (IN-01) | ℹ️ Info | Same as before 02-42; small hardening available |
 | `web/src/ui/overlays/Modal.tsx` | 124-130 | Comment says WebKit sends no click after a scrollbar press; that is proven for Chromium only (IN-02) | ℹ️ Info | Wording |
 | `web/playwright.config.ts` | 55 | `--enable-features=OverlayScrollbar` may replace Playwright's own `--enable-features` list (IN-03) | ℹ️ Info | Affects only screenshot capture in that project |
@@ -1006,33 +1050,25 @@ All 20 phase requirement IDs are accounted for. `.planning/REQUIREMENTS.md` maps
 
 ### Advisory (New Scope, Unevidenced)
 
-None. The new observation (WR-01 also fires on a scrollbar drag) has deterministic evidence from the probe run here. It is a warning, not a blocker: it contradicts no must-have truth.
+None. No new-scope finding without evidence was raised this round. The 02-43 review's findings are not advisory in that sense: each cites a file and line I read, so they are listed as warnings and info above and in human item 2.
 
 ### Human Verification Required
 
-#### 1. Re-check UAT test 199 (G-2-199, D-42) in Chrome at 125-150% zoom
+#### 1. Look at the 02-43 behaviour at real zoom (the plan's own end-of-phase check; optional but not yet done)
 
-**Test:** Open `/dev/components` and press "Open Delete Order". Shorten the window until the dark backdrop scrolls, then type the order number. Drag the backdrop's scrollbar. Middle-click and right-click the dark area, then left-click it. Also check a normal-height window.
-**Expected:**
-- The dialog stays centred.
-- The whole dialog shows, or the backdrop scrolls to Cancel and Delete Order.
-- Dragging the scrollbar scrolls the backdrop and keeps the dialog open with the text.
-- A middle or right click does not close it.
-- A left click on the dark area closes it.
-- On a normal-height window the dialog sits where it did before.
+**Test:** In Chrome at 125-150% zoom, open `/dev/components` and press "Open Delete Order". Shorten the window until the dark backdrop scrolls, type the order number, wheel down to Cancel and Delete Order, then middle-click and right-click the dark area. Drag the backdrop's scrollbar. Then left-click the dark area.
+**Expected:** The dialog stays open, the backdrop does not jump, and typing continues in the order-number field. The scrollbar drag scrolls and typing still goes to the field. A left click on the dark area closes the dialog. (In Firefox a middle-click may scroll the backdrop: the documented engine limit.)
+**Why human:** The UAT 199 pass (2026-10-13 21:35) was given on the plan 02-42 behaviour, before 02-43 changed the shared focus trap. Automation covers this in seven projects, but the felt result with your scrollbar setting is yours to confirm. This is the former "UAT 199 re-check" item, narrowed to what changed.
 
-**Watch for (WR-01, confirmed here):** after you scroll down to the buttons, a middle or right click moves the cursor out of the order-number box and jumps the backdrop back to the top. Dragging the scrollbar also moves the cursor to the Close button. The typed text is kept. Say whether this is acceptable.
-**Why human:** You found the defect at real zoom on a real screen, and your own browser and scrollbar setting are the acceptance. Closing G-2-199 in `02-UAT.md` needs this check (`/gsd-verify-work 2`).
+#### 2. Rule on the seven findings in `02-REVIEW-g199-43-DISPOSITION.md`
 
-#### 2. Decide on the open review findings
+**Test:** Mark each row fix, defer or accept.
+- **WR-01** (the one with a design choice): keep the first-focusable fallback that may scroll, as the plan chose, or pass `preventScroll` on it too and add a Modal-level test with a disabled confirm button.
+- **WR-02:** reword the `docs/web/e2e.md` `@dialog-fit` row: a press on the scrollbar leaves scrollTop unchanged, a drag scrolls it, and a middle or right press on the dark area leaves it unchanged (Firefox middle is the exception).
+- **IN-01 to IN-05:** test and comment hygiene.
 
-**Test:** In `02-REVIEW-g199-42-DISPOSITION.md`, mark WR-01, WR-02 and IN-01 to IN-06 as fix, defer or accept. All 8 are still `open`. Do the same for WR-03 and WR-04 in `02-REVIEW-g199-DISPOSITION.md`.
 **Expected:** A recorded decision for each.
-- WR-01 and WR-02 have one shared fix in `useFocusTrap`, which every overlay uses: return focus to where it was, without scrolling.
-- IN-01 is a small hardening.
-- IN-02 is a comment fix.
-
-**Why human:** None of these breaks a must-have. Whether the focus jump is acceptable is a behaviour choice for you, and the fix touches a shared primitive.
+**Why human:** None breaks a must-have truth as written. WR-01 changes a primitive every overlay shares and reverses a choice the plan made on purpose, so it is the owner's call.
 
 #### 3. (Optional) macOS Safari with a trackpad
 
@@ -1042,18 +1078,16 @@ None. The new observation (WR-01 also fires on a scrollbar drag) has determinist
 
 ### Gaps Summary
 
-**No gaps.** Truth 28, the last open gap, is closed. Plan 02-42 replaced the geometry-only mousedown close with a click-based rule. The scrim closes only on a primary-button click that follows a primary press on the dark area, with the backdrop not scrolled in between. Runs made here prove it, rather than the SUMMARY's claims:
+**No gaps.** All 51 truths hold, one by a recorded owner override (Firefox's own middle-button scroll). Plan 02-43 did what the owner locked: one fix in the shared focus trap (return to the last focused element inside, with `preventScroll`), and the Modal workaround it made redundant is gone. Runs made here prove it, rather than the SUMMARY's claims:
 
-- **Overlay and classic scrollbars:** dragging or pressing the backdrop's scrollbar keeps the Delete Order dialog open with ORD-2026-0148 in real Chromium. Two new permanent Playwright projects cover this, so the defect cannot slip back unseen.
-- **Middle and right presses:** they no longer close the dialog, in any engine.
-- **Left click:** a click on the dark area still closes the dialog in all seven projects.
-- **No regressions:** layout, parity, the focus trap, Esc, loading and the strict CSP are unchanged. verify passed with 3102 tests.
+- **Seven projects green:** `@dialog-fit` 47 passed, 31 skipped by design, 0 failed. The new scrolled-backdrop cases, the phone case and T1-T4 now assert the field stays focused, the caret stays at 13/13, and scrollTop stays put.
+- **The checks can see the defect:** against the plan-base trap the four scrolled-press cases fail in chromium and webkit; restored cleanly.
+- **No timing window:** `Modal.tsx` has no timer and no `focusin` listener; a left click on the dark area still closes in every project. The two earlier coincidental-reliance flags are resolved.
+- **Nothing else moved:** the trap diff touches only the new state and `onFocusIn`; frozen look files, `package.json` and the lockfile have an empty diff; 286 overlay and navigation unit tests pass.
 
-**The review warnings are follow-ups, not gaps.**
-- **WR-01** is real and wider than the review says. A non-closing press, and also a scrollbar drag, moves focus from the confirm field to Close. After a middle or right press, the scrolled backdrop also jumps back to the top. No truth asserts focus or scroll preservation, and the text is never lost. It does weaken the owner's "does nothing" expectation, so it is surfaced for the owner's decision.
-- **WR-02** is a timing dependence that held 50/50 in WebKit here and fails safe. It is recorded as coincidental reliance.
+**The 02-43 review warnings are follow-ups, not gaps.** The fallback that may scroll (WR-01) is the plan's stated design and fails safe. The docs wording on the scrollbar drag (WR-02) is a wording error that does not hide the cases the row must name. Both are in human item 2.
 
-The phase is therefore `human_needed`. Every automated must-have passes, and the owner's UAT 199 re-check and the review decisions remain.
+The phase stays `human_needed`: the owner has not yet looked at the 02-43 behaviour (item 1), the seven review rows are open (item 2), and the Safari check is optional (item 3). Every automated must-have passes.
 
 Step 9b: there are no gaps to defer.
 
@@ -1061,9 +1095,10 @@ Step 9b: there are no gaps to defer.
 
 - The E2E, parity and verify runs overwrote the git-ignored `web/test-results/`, `web/.e2e-dist`, `.budget-dist` and `src/Csps.Server/wwwroot`, and re-seeded `CSPS_E2E` on `(localdb)\CSPS` (idempotent, `SiteSettings: unchanged`).
 - The WR-01 probe was three temporary files under `web/e2e/verifier-tmp/`, run through `npm run e2e` and then deleted. `git status` afterwards showed only the pre-existing untracked `.claude/launch.json`. No dev server was started, and no process was stopped.
-- `covered_digest` was computed by calling `verification.cjs` `cmdVerificationFingerprint` in-process (the function behind `gsd-tools query verification.fingerprint`) over 769 paths. That is the 765 from the 23:30 report plus `02-42-PLAN.md`, `02-42-SUMMARY.md`, `web/e2e/deleteOrderDialog.ts` and `web/e2e/dialog-scrollbars.spec.ts`. The fingerprint script is in the session scratchpad.
+- `covered_digest` was recomputed in the 02-43 round by calling `verification.cjs` `cmdVerificationFingerprint` in-process (the function behind `gsd-tools query verification.fingerprint`, which hit the Windows argument-length limit with 771 paths) over 771 paths: the earlier 769 plus `02-43-PLAN.md` and `02-43-SUMMARY.md` (the 02-43 source and e2e files were already covered). Earlier note: the 02-42 digest used the same call over 769 paths.
+- 02-43 round: the E2E runs overwrote the git-ignored `web/test-results/`, `web/.e2e-dist` and `src/Csps.Server/wwwroot`, and re-seeded `CSPS_E2E` on `(localdb)\CSPS`. The mutation run replaced `web/src/ui/overlays/useFocusTrap.ts` in the working copy for one run and restored it with `git checkout HEAD --` (`git diff --quiet HEAD` exit 0). `git status` afterwards showed only the untracked `.claude/launch.json`. No server was left running and no process was stopped. Nothing was committed.
 
 ---
 
-_Verified: 2026-10-14T02:25:00Z_
+_Verified: 2026-10-14T10:35:00Z_
 _Verifier: Claude (gsd-verifier)_
