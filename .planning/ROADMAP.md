@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T05:16:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T05:57:52-05:00*
 
 ## Overview
 
@@ -55,7 +55,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
-- [ ] **Phase 3: CI/CD & Staging Deploy** - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
+- [ ] **Phase 3: CI/CD & Staging Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
 - [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
@@ -308,7 +308,7 @@ Plans:
 
 **Goal**: Every pull request is gated by the full pipeline. Every merge to `main` deploys to a SmarterASP.NET staging site that passes a smoke test, and production deploys wait for manual approval.
 **Mode:** mvp
-**Depends on**: Phase 2, because the pipeline runs the web gates. If owner prerequisites arrive late, this phase can run alongside Phase 4.
+**Depends on**: Phase 2, because the pipeline runs the web gates. **Owner decision (2026-10-14): deferred; runs after Phase 4.**
 **Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, OPS-05
 **Success Criteria** (what must be TRUE):
   1. **Merge gate.** A pull request to `main` can't merge until every check passes, in this order:
@@ -347,7 +347,7 @@ Plans:
 
 **Goal**: Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Mode:** mvp
-**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. Run Phase 3 first if possible so auth ships through CI and staging.
+**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. **Owner decision (2026-10-14): runs before Phase 3**, so auth is gated by the local build/test/lint run until the Phase 3 pipeline exists, and its first staging deploy happens in Phase 3.
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01
 **Success Criteria** (what must be TRUE):
   1. **Sign-in with the emailed code.** A staff member enters email and password, receives a 6-digit code by email, pastes or types it (`autocomplete="one-time-code"`) and reaches the admin portal. An unknown email, a wrong password and a deactivated or locked account all get the same generic error with similar timing, and none gets a session.

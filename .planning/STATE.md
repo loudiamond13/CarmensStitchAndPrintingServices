@@ -1,12 +1,13 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 3
-current_phase_name: CI/CD & Staging Deploy
+current_phase: 4
+current_phase_name: Identity & Authentication
 status: "Phases 01+02 shipped — PR #1"
-stopped_at: Phase 2 complete, ready to plan Phase 3
-last_updated: "2026-10-14T10:55:20.606Z"
+stopped_at: Phase 3 deferred by owner; ready to research and plan Phase 4
+last_updated: "2026-10-14T10:58:18.909Z"
 last_activity: 2026-10-14
-state_head: 02157f141115929a1a27ec81a5e4875515016ae8
+last_activity_desc: "Completed quick task 261014-8a7: Reorder roadmap: run Phase 4 before Phase 3"
+state_head: 6cf7c962eaa641b3b9d69374e058d828566bc13a
 progress:
   total_phases: 17
   completed_phases: 2
@@ -14,7 +15,7 @@ progress:
   completed_plans: 56
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-14T05:49:45-05:00"
+updated: "2026-10-14T05:57:52-05:00"
 ---
 
 # Project State
@@ -24,14 +25,14 @@ updated: "2026-10-14T05:49:45-05:00"
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 03 — CI/CD & Staging Deploy
+**Current focus:** Phase 04 — Identity & Authentication (Phase 3 deferred until after Phase 4)
 
 ## Current Position
 
-Phase: 3 — CI/CD & Staging Deploy
+Phase: 4 — Identity & Authentication
 Plan: Not started
 Status: Phases 01+02 shipped — PR #1
-Last activity: 2026-10-14
+Last activity: 2026-10-14 - Completed quick task 261014-8a7: Reorder roadmap: run Phase 4 before Phase 3
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -302,6 +303,7 @@ None yet.
 - [Phase 2+]: API style is now controller-based (owner, 2026-10-07); `GET /api/v1/site-settings` converts to a controller when a phase touches it.
 - [Phase 2 → follow-up]: Fix 02-43 review items WR-02 (docs/web/e2e.md @dialog-fit row says a scrollbar drag leaves scrollTop unchanged; the test asserts it scrolls) and IN-01..IN-05 (test/comment hygiene). UI review 02-UI-REVIEW.md (18/24) lists 3 priority warnings (admin sidebar height at 1440x900, undocumented arbitrary px literals, no measured contrast table) for owner triage.
 - [Phase 3]: GitHub repo exists (private, default branch `dev`; PRs target `dev`). The owner must still provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
+- [Owner 2026-10-14]: Phase 3 (CI/CD & staging) deferred; Phase 4 runs first, then Phase 3. Phase 4 ships on local gates; its first staging deploy and the host probe facts come with Phase 3.
 - [Phase 4]: Send the security batch (OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33) before the phase starts. Email delivery is a hard dependency for sign-in.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
@@ -319,6 +321,7 @@ None yet.
 | 261013-g6s | Implement D-41 approved Phase 2 fixes R2-01 R2-02 R2-03 R2-04 R2-12 R2-17 R2-18 | 2026-10-13 | 6568eed | [261013-g6s-implement-d-41-approved-phase-2-fixes-r2](./quick/261013-g6s-implement-d-41-approved-phase-2-fixes-r2/) |
 | 261013-ihp | Rename order math to PRD names Subtotal before discount Total after discount D-41 R2-06 | 2026-10-13 | 46e7662 | [261013-ihp-rename-order-math-to-prd-names-subtotal-](./quick/261013-ihp-rename-order-math-to-prd-names-subtotal-/) |
 | 261013-lgi | Fix the five D-41 code-review warnings in phase 2 (WR-01..WR-05) | 2026-10-13 | c21ea0a | [261013-lgi-fix-the-five-d-41-code-review-warnings-i](./quick/261013-lgi-fix-the-five-d-41-code-review-warnings-i/) |
+| 261014-8a7 | Reorder roadmap: run Phase 4 before Phase 3 (owner deferred Phase 3) | 2026-10-14 | 6cf7c96 | [261014-8a7-reorder-roadmap-run-phase-4-before-phase](./quick/261014-8a7-reorder-roadmap-run-phase-4-before-phase/) |
 
 ## Deferred Items
 
@@ -330,6 +333,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T05:49:45-05:00
-Stopped at: Phase 2 complete, ready to plan Phase 3
+Last session: 2026-10-14T05:57:52-05:00
+Stopped at: Phase 3 deferred by owner; ready to research and plan Phase 4
 Resume file: None
