@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-14T10:05:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-14T18:05:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -46,11 +46,13 @@ Run these once, in this order.
    dotnet tool restore
    ```
 
-3. **Create your development secrets.** This writes the JWT signing key and the Data Protection certificate to *your* user-secrets store (`%APPDATA%\Microsoft\UserSecrets\...`), never to git, environment variables or machine settings. The API refuses to start without them. Safe to re-run, because existing values are kept.
+3. **Create your development secrets.** This writes the JWT signing key, the sign-in code key and the Data Protection certificate to *your* user-secrets store (`%APPDATA%\Microsoft\UserSecrets\...`), never to git, environment variables or machine settings. Every value goes in through standard input, so none shows on a command line. The API refuses to start without them. Safe to re-run, because existing values are kept.
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1
    ```
+
+   Sign-in emails need the mail settings too. Add `-Smtp` and follow [docs/operations/mail-setup.md](operations/mail-setup.md). Local sign-in always sends a real email to the address you sign in with (D-27); automated tests never send mail.
 
 4. **Build the schema from the migrations.** Every table comes from EF Core migrations, so an empty database becomes the full schema with no backup file.
 
