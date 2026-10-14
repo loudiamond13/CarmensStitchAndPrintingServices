@@ -1,15 +1,19 @@
 ---
-status: complete
+status: testing
 phase: 02-web-foundation-design-system
-source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md]
+source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md, 02-41-SUMMARY.md, 02-42-SUMMARY.md, 02-43-SUMMARY.md, 02-VERIFICATION.md]
 started: 2026-10-13T10:53:22-05:00
 created: 2026-10-13T10:53:22-05:00
-updated: 2026-10-13T21:35:00-05:00
+updated: 2026-10-14T05:50:00-05:00
 ---
 
 ## Current Test
 
-[testing complete]
+number: 200
+name: Delete Order dialog keeps the typing and the backdrop after a mis-click (plan 02-43)
+expected: |
+  In Chrome at 125-150% zoom, open /dev/components, press Open Delete Order, and shorten the window until the dark backdrop scrolls. Type the order number and wheel down to Cancel and Delete Order. Then middle-click and right-click the dark area, drag the backdrop's scrollbar, and left-click the dark area. The dialog stays open, the backdrop does not jump, and typing continues in the field. The scrollbar drag scrolls the backdrop while typing still goes to the field. A left click on the dark area closes the dialog. In Firefox a middle-click may scroll the backdrop; this is the documented engine limit.
+awaiting: user response
 
 ## Tests
 
@@ -1591,13 +1595,32 @@ found_during: test 196
 diagnosis_note: |
   Measured in the browser pane. Horizontal: the dialog is centred on the whole window (centre 720 of 1440; in the owner's screenshot 952 of 1911), as App. C .s-overlay draws it (fixed inset-0, justify-center). It looks left of centre because the admin sidebar takes the left part of the screen and the dialog is not centred on the content area. Vertical: the overlay pins the dialog 140px from the top (pt-[140px], items-start), has overflow-y visible, and the page scroll is locked, while the dialog has no max-height. At 1274x585 CSS px (the owner's window) the dialog runs from 140 to 630 and its Cancel / Delete Order buttons end at 613, below the 585px window, with no way to scroll to them. A mouse user cannot reach them; WCAG 1.4.10 Reflow (400% zoom) fails the same way.
 
+### 200. Delete Order dialog keeps the typing and the backdrop after a mis-click (plan 02-43)
+expected: In Chrome at 125-150% zoom, open /dev/components, press Open Delete Order, and shorten the window until the dark backdrop scrolls. Type the order number and wheel down to Cancel and Delete Order. Then middle-click and right-click the dark area, drag the backdrop's scrollbar, and left-click the dark area. The dialog stays open, the backdrop does not jump, and typing continues in the field. The scrollbar drag scrolls the backdrop while typing still goes to the field. A left click on the dark area closes the dialog. In Firefox a middle-click may scroll the backdrop; this is the documented engine limit (owner decision 2026-10-14).
+result: [pending]
+source: 02-VERIFICATION.md (human item 1)
+source_plans: [02-43]
+why_human: The UAT 199 pass (2026-10-13 21:35) came before plan 02-43 changed the shared focus trap. Automation covers this behaviour in seven projects, but how it feels at real zoom with your own scrollbar setting is your call.
+
+### 201. Rule on the plan 02-43 code review findings
+expected: Each of the seven rows in 02-REVIEW-g199-43-DISPOSITION.md gets a recorded fix, defer or accept. WR-01: keep the focusFirst() fallback, which may scroll the backdrop (the plan chose it on purpose), or pass preventScroll on it too. WR-02: reword the docs/web/e2e.md @dialog-fit row. It says a scrollbar drag leaves scrollTop unchanged, but the test asserts that the drag scrolls. IN-01 to IN-05 are test and comment hygiene.
+result: [pending]
+source: 02-VERIFICATION.md (human item 2)
+why_human: None of the findings breaks a must-have truth. WR-01 is a design choice in a primitive that every overlay shares, so you decide.
+
+### 202. (Optional, only if a Mac is available) macOS Safari overlay scrollbar
+expected: On macOS Safari with a trackpad (overlay scrollbars), drag the backdrop's scrollbar thumb, then press and release on it without moving. Neither closes the dialog, and the typed text is kept.
+result: [pending]
+source: 02-VERIFICATION.md (human item 3)
+why_human: Real Safari overlay scrollbars cannot run on this Windows machine. The press-without-moving case relies on the browser sending no click after a scrollbar press, which is proven for Chromium only.
+
 
 ## Summary
 
-total: 199
+total: 202
 passed: 199
 issues: 0
-pending: 0
+pending: 3
 skipped: 0
 blocked: 0
 
