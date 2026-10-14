@@ -37,11 +37,12 @@ All existing production data is migrated in without loss. The API is client-agno
 
 - ✓ **Foundation:** onion solution, zero-warning builds, architecture tests, EF Core code-first schema with a guarded dev seed, ProblemDetails, `/health`, Serilog JSON logs, business calendar, SiteSettings core, append-only AuditLog, SQL test fixture, idempotent migration scripts, hosting record, coverage and license gates, security headers, default-deny authorization, Data Protection key ring (FND-01..13, QUAL-01/03/06, SEC-01/02/04) — Phase 1 (2026-10-07: UAT 11/11, 526 tests, threats_open 0)
 
+- ✓ **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system converted to Tailwind and proven visually equal to the approved design (parity in 3 engines), `httpClient.ts` and `api.ts`, shared primitives, URL state, order-math preview with 220 shared golden vectors, lint/axe/budget/Lighthouse/E2E gates (WEB-01..10, ORD-09, QUAL-02/04, A11Y-01/02/04, PERF-01/02/03/05) — Phase 2 (2026-10-14: UAT 202/202, 3110 web + 908 .NET tests, threats_open 0, Nyquist-compliant, UI review 18/24)
+
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system copied verbatim, `httpClient.ts` (no axios) and `api.ts`, shared primitives, skeletons (PRD §9, UI-SPEC §2)
 - [ ] **Authentication:** email + password, mandatory 6-digit email second factor, remember me (90 days), rotating refresh tokens with reuse detection, lockout, rate limits, forgot/reset password, sign out everywhere (AUTH-01..10, PRD §8)
 - [ ] **Profile:** name, email change with confirmation, password change (PROF-01..03)
 - [ ] **User management (Manager only):** list, invite, edit, role, lock, deactivate, delete, with guard rules and audit (USER-01..06)
@@ -227,4 +228,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-07 after Phase 1 (Hosting Verification & Backend Foundation)*
+*Last updated: 2026-10-14 after Phase 2 (Web Foundation & Design System)*

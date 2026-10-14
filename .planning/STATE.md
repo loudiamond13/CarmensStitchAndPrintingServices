@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: Web Foundation & Design System
-status: executing
-stopped_at: Completed 02-43-PLAN.md
-last_updated: "2026-10-14T10:15:31.433Z"
+current_phase: 3
+current_phase_name: CI/CD & Staging Deploy
+status: planning
+stopped_at: Phase 2 complete, ready to plan Phase 3
+last_updated: "2026-10-14T10:49:15.201Z"
 last_activity: 2026-10-14
-last_activity_desc: Completed review follow-up plan 02-43 (WR-01/WR-02 focus trap)
-state_head: fb9870473c2d76c73a7449fe865c51727a3863c9
+last_activity_desc: Phase 2 complete, transitioned to Phase 3
+state_head: c4327a411278512e8cce6ffba72c06d1f19d9e9c
 progress:
   total_phases: 17
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 56
   completed_plans: 56
-  percent: 6
+  percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-14T05:16:00-05:00"
+updated: "2026-10-14T05:49:45-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-07)
+See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 02 — Web Foundation & Design System
+**Current focus:** Phase 03 — CI/CD & Staging Deploy
 
 ## Current Position
 
-Phase: 02 (Web Foundation & Design System) — EXECUTING
-Plan: 42 of 42 (all plans have a SUMMARY)
-Status: Plans complete; awaiting /gsd-verify-work 2 (G-2-199 re-check, owner UAT test 199)
-Last activity: 2026-10-13 — Completed gap-closure plan 02-42 (G-2-199 truth 28, owner ruling D-42: the backdrop closes on a primary click that did not scroll it)
+Phase: 3 — CI/CD & Staging Deploy
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-14 — Phase 2 complete, transitioned to Phase 3
 
-Progress: [█░░░░░░░░░] 6%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 56
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 13 | - | - |
+| 2 | 43 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -287,6 +288,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-43: useFocusTrap returns focus to the element inside that last had it (preventScroll, first focusable fallback); Modal's focus re-read and timer removed
 - [Phase 02]: 02-43 owner decision 2026-10-14: Firefox's own middle-button scroll of a scrolled backdrop is a known engine limit; only D5's scrollTop assertion is scoped out for firefox
 
+- [Phase 02]: Phase close (2026-10-14): UAT 202/202 passed; owner accepted 02-43 WR-01 (focusFirst() fallback may scroll the backdrop) and ruled WR-02 + IN-01..IN-05 to be fixed in a follow-up quick task (02-REVIEW-g199-43-DISPOSITION.md)
+- [Phase 02]: Dialogs follow D-42: centred on the whole window, the 140px top gap shrinks on short windows and the backdrop scrolls as a last resort; non-primary presses and scrollbar drags never close
+- [Phase 02]: Order math uses the PRD names (Subtotal before discount, Total after discount; D-41 R2-06); browser totals are preview-only, saved orders show server figures
+
 ### Pending Todos
 
 None yet.
@@ -296,6 +301,7 @@ None yet.
 - [Phase 1 → 3/4/17]: Hosting record still has Unverified facts: probe facts (runtime patch, content root, logs, client IP, HTTPS, Manila/en-PH, PFX, memory) verified on the Phase 3 first deploy; Gmail SPF/DKIM/DMARC pass (D2) before Phase 4. SmarterASP.NET confirmed SQL Server 2025 is offered (new DB + `.bak` restore, no in-place upgrade); still ask whether a temporary second database is allowed at no cost (Phase 17 prerequisite, D-33).
 - [Phase 4]: Code review WR-02 (IpPrefix 6to4/NAT64 → IPv4 before truncation) is owner-deferred and MUST be fixed before any code path writes audit rows. Also triage the remaining open review items (WR-01, WR-03, WR-05..WR-09, IN-*) before shipping.
 - [Phase 2+]: API style is now controller-based (owner, 2026-10-07); `GET /api/v1/site-settings` converts to a controller when a phase touches it.
+- [Phase 2 → follow-up]: Fix 02-43 review items WR-02 (docs/web/e2e.md @dialog-fit row says a scrollbar drag leaves scrollTop unchanged; the test asserts it scrolls) and IN-01..IN-05 (test/comment hygiene). UI review 02-UI-REVIEW.md (18/24) lists 3 priority warnings (admin sidebar height at 1440x900, undocumented arbitrary px literals, no measured contrast table) for owner triage.
 - [Phase 3]: GitHub repo exists (private, default branch `dev`; PRs target `dev`). The owner must still provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
 - [Phase 4]: Send the security batch (OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33) before the phase starts. Email delivery is a hard dependency for sign-in.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
@@ -325,6 +331,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T10:15:30.719Z
-Stopped at: Completed 02-43-PLAN.md
+Last session: 2026-10-14T05:49:45-05:00
+Stopped at: Phase 2 complete, ready to plan Phase 3
 Resume file: None

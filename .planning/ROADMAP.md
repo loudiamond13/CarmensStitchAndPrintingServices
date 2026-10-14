@@ -54,7 +54,7 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
-- [ ] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates
+- [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
 - [ ] **Phase 3: CI/CD & Staging Deploy** - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
@@ -226,7 +226,7 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: 43/43 plans executed: 40/40 executed in 13 waves, plus gap-closure plans 02-41 and 02-42 (UAT G-2-199) executed; review follow-up plan 02-43 (02-REVIEW-g199-42 WR-01/WR-02: the focus trap returns focus without scrolling, the scrim close rule loses its timing window) planned 2026-10-13 (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+**Plans**: 43/43 plans complete: 40/40 executed in 13 waves, plus gap-closure plans 02-41 and 02-42 (UAT G-2-199) executed; review follow-up plan 02-43 (02-REVIEW-g199-42 WR-01/WR-02: the focus trap returns focus without scrolling, the scrim close rule loses its timing window) planned 2026-10-13 (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
 
 Plans:
 **Wave 1**
@@ -926,7 +926,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
-| 2. Web Foundation & Design System | 43/43 | In Progress|  |
+| 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
