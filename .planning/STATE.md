@@ -1,21 +1,21 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 02
-current_phase_name: web-foundation-design-system
+current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-41-PLAN.md
-last_updated: "2026-10-14T00:00:00.544Z"
+stopped_at: Completed 02-42-PLAN.md
+last_updated: "2026-10-14T01:47:28.974Z"
 last_activity: 2026-10-13
-last_activity_desc: Phase 02 execution started
-state_head: 937b3c3d0c70c998a02a9fd49575732d6a01f823
+last_activity_desc: Completed gap-closure plan 02-42 (G-2-199 backdrop scrollbar close rule)
+state_head: bb0ce7e62847e5cea4f7308e7cba9535accd159a
 progress:
   total_phases: 17
   completed_phases: 1
   total_plans: 55
-  completed_plans: 54
+  completed_plans: 55
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-13T17:49:00-05:00"
+updated: "2026-10-13T20:50:00-05:00"
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 
 ## Current Position
 
-Phase: 02 (web-foundation-design-system) — READY TO EXECUTE
-Plan: 41 of 41
-Status: Ready to execute
-Last activity: 2026-10-13 — Completed gap-closure plan 02-41 (UAT G-2-199, owner ruling D-42: dialog fit on short windows)
+Phase: 02 (Web Foundation & Design System) — EXECUTING
+Plan: 42 of 42 (all plans have a SUMMARY)
+Status: Plans complete; awaiting /gsd-verify-work 2 (G-2-199 re-check, owner UAT test 199)
+Last activity: 2026-10-13 — Completed gap-closure plan 02-42 (G-2-199 truth 28, owner ruling D-42: the backdrop closes on a primary click that did not scroll it)
 
 Progress: [█░░░░░░░░░] 6%
 
@@ -112,6 +112,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P35 | 3h 11m | 3 tasks | 21 files |
 | Phase 02 P36 | 70 min | 2 tasks | 9 files |
 | Phase 02 P41 | 40 min | 3 tasks | 13 files |
+| Phase 02 P42 | 89 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -279,6 +280,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-36: owner review reads parity results from a Playwright JSON reporter (web/test-results/parity-results.json); the review never runs parity itself
 - [Phase 02]: 02-36: the owner's phase 2 look review is complete as a local pack (artifacts/owner-review) and pending, never auto-approved
 - [Phase 02]: D-42 (02-41): the Overlay region is a flex column with a shrinkable ::before spacer (124px, 96px on phone pages) and a scrolling backdrop; dialogs keep 140px/96px where they fit, move up to the 16px/0 edge gap, then scroll; backdrop-scrollbar presses never close the dialog
+- [Phase 02]: 02-42 D-42 close rule: the scrim closes on a primary click after a primary scrim press with unchanged scroll positions; middle and right buttons never close (WR-01)
+- [Phase 02]: 02-42: focus-move scrolls are re-read at focusin and once more one task later (WebKit applies the reveal scroll after the focusin)
+- [Phase 02]: 02-42: real-scrollbar E2E projects chromium-classic-scrollbars and chromium-overlay-scrollbars (ignoreDefaultArgs --hide-scrollbars, plus --enable-features=OverlayScrollbar) run only dialog-scrollbars.spec.ts; T1/T2 reveal the overlay scrollbar before pressing
 
 ### Pending Todos
 
@@ -318,6 +322,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-13T22:47:23.819Z
-Stopped at: Completed 02-41-PLAN.md
+Last session: 2026-10-14T01:47:28.727Z
+Stopped at: Completed 02-42-PLAN.md
 Resume file: None
