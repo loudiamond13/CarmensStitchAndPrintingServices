@@ -1,5 +1,5 @@
 {
-  "model_profile": "quality",
+  "model_profile": "balanced",
   "commit_docs": true,
   "parallelization": true,
   "search_gitignored": false,
@@ -11,7 +11,7 @@
   "perplexity": false,
   "jina": false,
   "git": {
-    "branching_strategy": "none",
+    "branching_strategy": "phase",
     "create_tag": true,
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
     "milestone_branch_template": "gsd/{milestone}-{slug}",
@@ -22,7 +22,7 @@
     "plan_check": true,
     "verifier": true,
     "nyquist_validation": true,
-    "auto_advance": true,
+    "auto_advance": false,
     "node_repair": true,
     "node_repair_budget": 2,
     "ui_phase": true,
@@ -49,7 +49,7 @@
     "security_asvs_level": 1,
     "security_block_on": "high",
     "tdd_mode": true,
-    "_auto_chain_active": true
+    "_auto_chain_active": false
   },
   "ship": {
     "pr_body_sections": [
@@ -89,7 +89,19 @@
     "source_grounding": true,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
+  "resolve_model_ids": false,
   "mode": "yolo",
-  "granularity": "fine"
+  "granularity": "fine",
+  "model_overrides": {
+    "gsd-planner": "opus",
+    "gsd-roadmapper": "opus",
+    "gsd-eval-planner": "opus",
+    "gsd-phase-researcher": "opus",
+    "gsd-project-researcher": "opus",
+    "gsd-research-synthesizer": "opus",
+    "gsd-ui-researcher": "opus",
+    "gsd-advisor-researcher": "opus",
+    "gsd-ai-researcher": "opus",
+    "gsd-domain-researcher": "opus"
+  }
 }

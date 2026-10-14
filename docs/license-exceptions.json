@@ -1,0 +1,152 @@
+{
+  "description": "Owner-approved license exceptions for the two license gates (D-00, D-18, D-26). `exceptions` is for the NuGet license gate in tools/scripts/New-ThirdPartyNotices.ps1: a package is exempt only when BOTH its id and its exact version match an entry. Any other version of these packages, and any other package outside docs/allowed-licenses.json, still fails the gate. A new version needs a new owner approval. `npmLicenseExceptions` is for the npm license gate in web/scripts/license-gate.mjs: those exceptions are license-level (any package under that license) and apply only to the dev/build/tool trees of web/ and tools/openapi-gen/, each only for the scopes it lists (build, test or tool, from the docs/dependencies.json scope of the direct dependencies that pull a package in). They never apply to the production tree that ships to the browser, which allows only docs/allowed-licenses.json plus OFL-1.1 for the @fontsource fonts. In both gates, an entry that no longer matches a package also fails (for npm, so does a listed scope that no package needs), so the lists cannot go stale. Never widen this file to make a gate pass: a new license needs the owner's approval first.",
+  "exceptions": [
+    {
+      "packageId": "Microsoft.Data.SqlClient.SNI.runtime",
+      "version": "6.0.2",
+      "license": "Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library",
+      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.2/license",
+      "pulledInBy": "Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "reason": "Native SQL Server network library that the SQL Server driver needs on Windows. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "packageId": "Microsoft.Identity.Client.NativeInterop",
+      "version": "0.20.6",
+      "license": "Microsoft Software License Terms",
+      "licenseUrl": "https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license",
+      "pulledInBy": "Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.6 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.12",
+      "reason": "Native sign-in helper that the SQL Server driver always brings along. Free of charge from Microsoft, not open source. It ships unmodified inside the app only, and Microsoft's notices are kept.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    }
+  ],
+  "npmLicenseExceptions": [
+    {
+      "license": "MPL-2.0",
+      "scopes": [
+        "build",
+        "test"
+      ],
+      "examplePackages": [
+        "lightningcss",
+        "lightningcss-win32-x64-msvc",
+        "axe-core",
+        "@axe-core/playwright"
+      ],
+      "pulledInBy": "lightningcss: Vite 8 and Tailwind 4 (the CSS engine; Vitest runs it too). axe-core: the accessibility test helper and @axe-core/playwright; eslint-plugin-jsx-a11y-x and lighthouse use the same axe-core.",
+      "reason": "Free. It only asks that changes to those files stay open. Used to build and test the site; never shipped to the browser. D-26 (MPL-2.0 widened from test to build).",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC-BY-4.0",
+      "scopes": [
+        "build",
+        "tool"
+      ],
+      "examplePackages": [
+        "caniuse-lite"
+      ],
+      "pulledInBy": "@babel/core -> browserslist (the React Compiler pass, and eslint-plugin-react-hooks, which also runs Babel).",
+      "reason": "Free data license (browser support tables); it asks us to credit the authors. Used only while building and linting; never shipped to the browser. D-26.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC0-1.0",
+      "scopes": [
+        "test",
+        "tool"
+      ],
+      "examplePackages": [
+        "language-subtag-registry",
+        "mdn-data",
+        "spdx-license-ids"
+      ],
+      "pulledInBy": "language-subtag-registry: eslint-plugin-jsx-a11y-x -> language-tags. mdn-data: jsdom -> css-tree (test) and eslint-plugin-better-tailwindcss -> @eslint/css-tree (tool). spdx-license-ids: license-checker-rseidelsohn (the license list itself).",
+      "reason": "Public domain: no conditions at all. Used only by the test, lint and license tools; never shipped to the browser. D-26 (mdn-data through the D-36 lint plugin is covered, research R-3).",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "BlueOak-1.0.0",
+      "scopes": [
+        "test",
+        "tool"
+      ],
+      "examplePackages": [
+        "minimatch",
+        "glob",
+        "lru-cache",
+        "isexe",
+        "yallist",
+        "path-scurry",
+        "minipass",
+        "minipass-flush",
+        "tar",
+        "chownr",
+        "common-ancestor-path"
+      ],
+      "pulledInBy": "The ESLint stack (minimatch), jsdom (lru-cache), and license-checker-rseidelsohn through @npmcli/arborist (glob, tar and the rest). All written by the same npm maintainers.",
+      "reason": "Free and permissive, like MIT. Used only by the test, lint and license tools; never shipped to the browser. D-26.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "0BSD",
+      "scopes": [
+        "tool"
+      ],
+      "examplePackages": [
+        "tslib"
+      ],
+      "pulledInBy": "lighthouse -> intl-messageformat (the Lighthouse performance gate).",
+      "reason": "Free and permissive, with no conditions. Used only by the performance tool; never shipped to the browser. D-26.",
+      "approved": "2026-10-07",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "MIT-0",
+      "scopes": [
+        "test"
+      ],
+      "examplePackages": [
+        "@csstools/color-helpers",
+        "@csstools/css-syntax-patches-for-csstree"
+      ],
+      "pulledInBy": "jsdom (the test DOM; its CSS helpers).",
+      "reason": "Free: the MIT license without even the keep-the-notice condition. Used only by the tests; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "CC-BY-3.0",
+      "scopes": [
+        "tool"
+      ],
+      "examplePackages": [
+        "spdx-exceptions",
+        "spdx-ranges"
+      ],
+      "pulledInBy": "license-checker-rseidelsohn (the license gate tool itself; its SPDX data).",
+      "reason": "Free data license; it asks us to credit the authors (an older version of the approved CC-BY-4.0). Used only by the license tool; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
+    },
+    {
+      "license": "Python-2.0",
+      "scopes": [
+        "tool"
+      ],
+      "examplePackages": [
+        "argparse"
+      ],
+      "pulledInBy": "openapi-typescript -> @redocly/openapi-core -> js-yaml (tools/openapi-gen, the API type generator).",
+      "reason": "Free and permissive like BSD (the Python Software Foundation license); keep the notice. Used only by the API type generator; never shipped to the browser. D-26 addendum, decision D-BL-01.",
+      "approved": "2026-10-08",
+      "approvedBy": "owner"
+    }
+  ]
+}

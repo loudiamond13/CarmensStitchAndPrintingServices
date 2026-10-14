@@ -1,0 +1,15 @@
+// UI-SPEC "UI Considerations" (error | Form submit, PRD 9.4): after a failed save with field errors, focus moves to the
+// first invalid field, so keyboard and screen-reader users land on the message that needs them.
+
+/**
+ * Focuses the first element inside `root` (in DOM order) that has aria-invalid="true".
+ * @returns true when an element was focused; false, with focus left alone, when nothing is invalid.
+ */
+export function focusFirstInvalid(root: HTMLElement): boolean {
+  const first = root.querySelector<HTMLElement>('[aria-invalid="true"]');
+  if (first === null) {
+    return false;
+  }
+  first.focus();
+  return true;
+}

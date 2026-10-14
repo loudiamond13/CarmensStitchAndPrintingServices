@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Throwaway FND-13 host probe (D-09, D-28). It answers GET /probe only with a valid X-Probe-Key header.
+    It runs only on a SEPARATE site the owner creates for the check and deletes afterwards. It is never part of the
+    CSPS site deploy, and no src/ project may reference it. No package references (supply-chain threat T-01-SC).
+    Owner steps: README.md.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Csps.HostProbe</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,1 @@
+fixture: a file nested in a generic dot folder, must never be served

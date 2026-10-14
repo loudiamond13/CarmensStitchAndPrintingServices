@@ -1,5 +1,7 @@
 # CSPS — Carmen's Stitch & Printing Services
 
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-13T08:21:00-05:00*
+
 ## What This Is
 
 CSPS replaces the current production system of Carmen's Stitch & Printing Services, a Philippine shop that makes custom full-sublimation jerseys and does tailoring. It has two faces:
@@ -26,20 +28,21 @@ All existing production data is migrated in without loss. The API is client-agno
 |---|---|---|
 | `CSPS-PRD.md` | Product requirements & engineering contract | MUST/MUST NOT are non-negotiable; §0 Prime Directives override everything; §21 lists `[OWNER DECISION]` items that MUST be asked, never assumed. |
 | `CSPS-UI-SPEC.md` | Strict UI implementation spec | Prose is lines 1–1578. Appendices A–E (lines 1579+) hold verbatim CSS, TS components (`src/ui/index.tsx`), order math (`src/lib/csps.ts` + tests), and reference markup for every screen. Precedence: Appendix › tables › prose. Gaps are marked `// SPEC-GAP:`. |
+| `.planning/design/` (local-only, git-ignored) | Visual UI reference: the owner's Claude Design exports `CSPS Website Public Face.html` and `CSPS Website Admin and Manager.html`, from which `CSPS-UI-SPEC.md` was derived | Never commit, upload or deploy (owner, 2026-10-07). The UI researcher, planner, executors and UI auditor open it next to `CSPS-UI-SPEC.md` for look and feel and to resolve `// SPEC-GAP:` items. `CSPS-UI-SPEC.md` stays the source of truth (Appendix › tables › prose); where the two disagree the spec wins unless the owner rules otherwise. Missing on fresh clones and in CI: ask the owner, never recreate it. The files are large (4.2 MB and 1.5 MB), so search them rather than reading them whole. |
 | `CLAUDE.md` (repo root) | Shared-machine rules | Ports, DB prefixes, preflight script, no machine-level env vars. Binding on every session. |
 
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ **Foundation:** onion solution, zero-warning builds, architecture tests, EF Core code-first schema with a guarded dev seed, ProblemDetails, `/health`, Serilog JSON logs, business calendar, SiteSettings core, append-only AuditLog, SQL test fixture, idempotent migration scripts, hosting record, coverage and license gates, security headers, default-deny authorization, Data Protection key ring (FND-01..13, QUAL-01/03/06, SEC-01/02/04) — Phase 1 (2026-10-07: UAT 11/11, 526 tests, threats_open 0)
+
+- ✓ **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system converted to Tailwind and proven visually equal to the approved design (parity in 3 engines), `httpClient.ts` and `api.ts`, shared primitives, URL state, order-math preview with 220 shared golden vectors, lint/axe/budget/Lighthouse/E2E gates (WEB-01..10, ORD-09, QUAL-02/04, A11Y-01/02/04, PERF-01/02/03/05) — Phase 2 (2026-10-14: UAT 202/202, 3110 web + 908 .NET tests, threats_open 0, Nyquist-compliant, UI review 18/24)
 
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Foundation:** Onion solution (`Csps.slnx`, 4 `src/` projects plus test projects), strict zero-warning builds, architecture tests, EF Core code-first schema with a dev seed, ProblemDetails, logging, `/health`, security headers, CI, staging deploy (PRD §3, §5.6, §17, §18)
-- [ ] **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system copied verbatim, `httpClient.ts` (no axios) and `api.ts`, shared primitives, skeletons (PRD §9, UI-SPEC §2)
 - [ ] **Authentication:** email + password, mandatory 6-digit email second factor, remember me (90 days), rotating refresh tokens with reuse detection, lockout, rate limits, forgot/reset password, sign out everywhere (AUTH-01..10, PRD §8)
 - [ ] **Profile:** name, email change with confirmation, password change (PROF-01..03)
 - [ ] **User management (Manager only):** list, invite, edit, role, lock, deactivate, delete, with guard rules and audit (USER-01..06)
@@ -47,6 +50,8 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 - [ ] **Order images:** Cloudinary signed server-side upload, a per-order limit, cover image, reorder, alt text, lazy responsive delivery, cleanup job (ORD-04, PRD §10)
 - [ ] **Company expenses:** CRUD with filters, search and period totals (CEXP-01..02)
 - [ ] **Admin dashboard:** KPIs, income vs expenses chart, orders by status, recent orders (UI-SPEC §8.3)
+- [ ] **Staff money (owner addition, 2026-10-07):** every payment names the staff member who received it ("Received by", the owner's "PaidTo"), and every company and order expense names the staff member who paid it ("Paid by"); each staff member has a server-computed money on hand (payments received + transfers in − transfers out − expenses paid); staff can transfer money to coworkers. An Admin sees only their own money and a Manager sees everyone's; only a Manager can delete a transfer, and every delete is audited (ORD-22, ORD-23, CEXP-05, MONEY-01..08, MIG-09, MIG-10; open rulings OD-15..OD-18, OD-20, OD-21). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover it yet and need a later update
+- [ ] **Record attribution (owner addition, 2026-10-07):** every record staff create or edit stores and shows who entered it and who last changed it, with UTC times, set by the server and never by the client ("Recorded by" / "Last changed by", SEC-08; MIG-10 for migrated records). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` need a later update
 - [ ] **Public site:** Home, Products, Gallery and Contact/Get a Quote per the UI spec, with database-managed content, prices and business info, SEO and JSON-LD (PUB-01..04, UI-SPEC §7)
 - [ ] **Site content management (Manager only):** site settings, price list, public content (PUB-03)
 - [ ] **Consent & analytics:** cookie banner (accept, reject, customize), GPC, clear-my-data, consented analytics, cookieless aggregates, Manager metrics dashboard, retention (ANL-01..09)
@@ -103,7 +108,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 ## Constraints
 
 - **Tech stack (pinned, PRD §2)**:
-  - Backend: .NET 10 LTS / C# 14 Minimal APIs under `/api/v1`, EF Core 10 code-first with Fluent configuration only, SQL Server 2025, ASP.NET Core Identity (`IdentityUser<Guid>`), FluentValidation, MailKit SMTP via SmarterASP.NET, Cloudinary, Serilog.
+  - Backend: .NET 10 LTS / C# 14 controller-based APIs (`[ApiController]` + attribute routes) under `/api/v1`, EF Core 10 code-first with Fluent configuration only, SQL Server 2025, ASP.NET Core Identity (`IdentityUser<Guid>`), FluentValidation, MailKit SMTP via SmarterASP.NET, Cloudinary, Serilog.
   - Frontend: React 19 + TypeScript strict + Vite, Tailwind v4, React Router, TanStack Query, react-hook-form + zod.
   - Tests: xUnit v3, NSubstitute, Shouldly, Testcontainers, Respawn, NetArchTest, Vitest + RTL + vitest-axe + MSW, Playwright + axe.
 - **Forbidden libraries**: axios (and wrappers), MediatR, AutoMapper, FluentAssertions v8+, jQuery, any UI kit conflicting with the UI spec, and any GPL/AGPL/SSPL/commercial license. Only MIT, Apache-2.0, BSD and ISC are allowed. Every new dependency needs its purpose, license, maintenance status and a legitimacy check recorded in the phase RESEARCH.md.
@@ -136,12 +141,19 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 
 | Decision | Rationale | Outcome |
 |---|---|---|
+| SQL Server 2025 is the production target; compatibility level stays pinned at 160 until the 2025 database exists (D-33) | SmarterASP.NET offers 2025 only as a new database plus `.bak` restore, not an in-place upgrade; the Basic plan has 1 database. The move happens at the Phase 17 cutover | — Pending |
+| Two free Microsoft runtime parts of the SQL Server driver ship under an exact-version license exception (`docs/license-exceptions.json`) | They are free but not open source; Microsoft.Data.SqlClient needs them on Windows. Any other version needs a new owner approval | ✓ Good (Phase 1) |
+| The dev seed runs only on `(localdb)\CSPS` or a loopback test container (code review WR-04) | Keeps sample data and `--reset` away from the live host and TheBETSLLC's databases | ✓ Good (quick 261007-p98) |
+| API style is controller-based (`[ApiController]`, attribute routes under `/api/v1`), not Minimal APIs (owner, 2026-10-07) | Owner preference. Conventions: thin actions → one handler; default-deny fallback policy with explicit `[Authorize(Policy)]`/`[AllowAnonymous]`; automatic model-state 400s suppressed, FluentValidation in handlers → `Result<T>` → ProblemDetails. The one existing Minimal API endpoint (`GET /api/v1/site-settings`) converts when a later phase touches it | — Pending |
 | Follow the PRD's 12-phase vertical-slice roadmap as the baseline (Fine granularity) | The PRD §20 phases are already dependency-ordered vertical slices. Phases 1–9 run on an empty DB, and only 10–12 touch legacy data | — Pending |
 | Replace the VS template scaffold with the PRD §3.1 layout and keep its port config | The template layout (`*.Server` + `*.client` + SpaProxy) doesn't match the onion layout or the build-into-`wwwroot` model | — Pending |
 | `CSPS-UI-SPEC.md` governs visuals, copy and component markup. The PRD governs behavior, security, a11y and data rules | PRD Prime Directive 5. Where they conflict on security or a11y, stop and ask the owner | — Pending |
 | Server is authoritative for all money math. The client uses the UI-spec `orderTotals()` only for live previews | PRD §3.3 and UI-SPEC §9.2 both require it, and both must produce identical figures | — Pending |
 | Legacy `.bak` is opened only in the legacy-discovery phase | Prime Directive 11 and PRD §16 | — Pending |
 | TDD mode on for every phase | PRD Prime Directive 3 and §14 | ✓ Good |
+| **OD-19 resolved** and owner answers (2026-10-07): only the Manager role deletes money transfers (Admin 403); an Admin sees only their own money on hand and transfers, a Manager sees everyone's; every state-changing form post is idempotent (SEC-06, WEB-09); concurrency guarantees are explicit (SEC-07) | The owner answered in chat. The rulings match PRD §4, where the Manager is the senior role. Duplicate posts and lost updates would break the Core Value of correct, server-computed money | ✓ Owner decided (2026-10-07) |
+| Owner answers on expenses and record attribution (2026-10-07): (1) an expense's "Paid by" reduces that staff member's money on hand, so the balance is payments received + transfers in − transfers out − expenses paid, computed server-side (MONEY-01); (2) every record staff create or edit stores and shows `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock and never from the client, with "Legacy import" for migrated records whose creator is unknown (SEC-08, MIG-10); (3) company and order expenses both have a required, server-validated "Paid by" naming an active Admin or Manager, and a payer change is audited (CEXP-05, ORD-23) | The owner asked that a payment show who received it and who entered it, and that expenses record who paid them, then answered three follow-up questions in chat. Received by (ORD-22) and Recorded by (SEC-08) are separate fields. Attribution that the client can't forge, plus audited payer changes, keeps staff balances explainable (Core Value) | ✓ Owner decided (2026-10-07) |
+| URL query-string state with nuqs (owner, 2026-10-07): (1) list and page view state (filters, search, sort, page, page size, tab, view mode) lives in the URL query string through nuqs 2.10.1 (MIT, free), approved after a check for security advisories, deprecation and the 14-day cool-down; switching to any newer version, such as a stable 2.10.2, needs the owner's approval at the Phase 2 install; (2) free-text search goes in the URL too, chosen over the privacy-conservative default of keeping it out, with mitigations: no query string in analytics, Core Web Vitals, client error reports or server logs, the strict Referrer-Policy, a 100-character server cap and no tokens or secrets in URLs; (3) the public gallery keeps its category filter in the URL as well, about 5.6 KB gz within the 150 KB public budget (WEB-10, ORD-10, GAL-01, ANL-05, SEC-03) | The owner asked for query-string URLs using nuqs. URL state lets Back, refresh, bookmarks and shared links reopen the same list view. Usage rules in WEB-10 avoid three known nuqs bugs (#1567, #1563, #1245), and ORD-10's saved view becomes the fallback when the URL has no valid view | ✓ Owner decided (2026-10-07) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -152,7 +164,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-1 | Currency & locale | PHP `₱`, en-PH | Phase 1 (formatters) |
 | OD-2 | Business time zone | Asia/Manila | Phase 1 |
 | OD-3 | Order statuses & allowed transitions | Pending → Mockup → In Production → Ready → Completed, plus Cancelled. Transitions aren't defined | Orders phase |
-| OD-4 | Overpayments allowed? | PRD default: no. The UI spec treats Balance ≤ 0 as "Fully Paid" | Orders phase |
+| OD-4 | Overpayments allowed? | **Ruled by the owner, 2026-10-13: no.** The system never accepts an overpayment: the server refuses a payment above the remaining balance with a plain-English error, and the payment form warns while the amount is typed that it exceeds the balance. Default reading (confirm at the Orders discuss step, C-38): the same rule blocks any other change (removing an item, lowering a quantity, adding or raising a discount) that would leave the balance below zero. Open: how legacy orders that are already overpaid are imported and shown | Orders phase |
 | OD-5 | Delete semantics (hard vs soft) for orders and company expenses | The UI spec says "permanently deleted… can't be undone" with type-to-confirm. The PRD recommends soft delete with a Manager purge | Orders phase |
 | OD-6 | Can Admins delete orders? | Yes (PRD and UI spec agree) | Orders phase |
 | OD-7 | Reusable `Customer` entity vs customer fields on each order | The UI spec puts the fields on the order. The PRD recommends a reusable entity. Decide before the Orders phase | Orders phase |
@@ -163,6 +175,12 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-12 | System sender email/domain; SPF/DKIM/DMARC feasibility | Footer placeholder `[hello@yourdomain.ph]` | Auth phase (email) |
 | OD-13 | OpenAPI in production: Managers only, or disabled | — | Foundation / hardening |
 | OD-14 | UI-spec items that conflict with WCAG | See C-16 below | Every UI phase |
+| OD-15 | Legacy payments' "Received by" and legacy expenses' "Paid by": a designated "Legacy / unassigned" holder that can't sign in, or an owner-chosen staff user. Also: do migrated payments and expenses count toward money on hand; does a legacy record that names its creator keep that creator as a migrated user (MIG-06); and do staff start with opening balances at go-live? | Neither document covers it (owner additions, 2026-10-07). Legacy payments and expenses probably name no receiver or payer, and ORD-22, CEXP-05 and ORD-23 make those fields required. Ruled 2026-10-07: a migrated record with an unknown creator is attributed to "Legacy import" (SEC-08, MIG-10). A migrated payment or expense is never dropped or changed | Phase 7 (import shape), Phase 15 (final) |
+| OD-16 | Staff balance rules: may a transfer exceed the sender's balance; may paying an expense take the payer's balance below zero; what happens when a payment correction or order deletion pushes a balance below zero; do refunds paid from a staff member's cash count; how is money still held by a deactivated or deleted staff member handed over? | Not covered. Ruled 2026-10-07: expenses a staff member paid always count (MONEY-01). Defaults: refuse transfers above the balance; let an expense take the payer below zero, because refusing would leave a real expense unrecorded; refunds don't count; the sender is always the signed-in user | Phase 10 |
+| OD-17 | Can a money transfer be edited? | Not covered. Default: no edit; delete and re-create | Phase 10 |
+| OD-18 | Money-transfer delete: soft or hard | Not covered. Recommended: soft, so history stays and past balances stay explainable. A hard delete changes past balances, and its audit copy is purged after 8 months (D-32) | Phase 10 |
+| OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP) | Phase 8 |
+| OD-21 | Can an expense (company or order) be paid by the company, e.g. from the business bank or GCash account, instead of a staff member? | Not covered (owner addition, 2026-10-07). Default: no; Paid by must name an active Admin or Manager, matching the payment's Received by (ORD-22). A "yes" adds a company payer that holds no staff balance, and raises the same question for payments received into a company account | Phase 6 (company expenses), Phase 7 (order expenses) |
 
 ## PRD ↔ UI-Spec Conflicts (found at initialization; the owner rules at the relevant phase)
 
@@ -210,4 +228,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-06 after initialization*
+*Last updated: 2026-10-14 after Phase 2 (Web Foundation & Design System)*

@@ -1,0 +1,6 @@
+P:System.DateTime.Now;Use TimeProvider / IBusinessCalendar
+P:System.DateTime.UtcNow;Use TimeProvider
+P:System.DateTime.Today;Use IBusinessCalendar
+P:System.DateTimeOffset.Now;Use TimeProvider
+P:System.DateTimeOffset.UtcNow;Use TimeProvider
+T:System.Random;Use RandomNumberGenerator (CWE-330/338)

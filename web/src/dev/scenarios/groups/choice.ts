@@ -1,0 +1,128 @@
+// Choice group (App. D.3 "Forms": SegmentedControl and Tabs; CSPS-UI-SPEC.md §6.3). Every scenario here has group
+// 'choice'. Plan 02-19:
+//   - SegmentedControl with text options (the discount type), icon-only options (the orders view switch) and icon plus
+//     label options (the user role), in both themes;
+//   - Tabs on the order detail (Items 3, Payments 2, Discounts 1, Expenses 0; the first selected), and a longer strip at
+//     every width (`responsive`), which scrolls sideways inside itself at 320 and 390 px. Each Tabs case renders the
+//     selected tab's panel after the strip (the dev-only TabsWithPanel wrapper pair), so `aria-controls` points at a
+//     real tabpanel on the implementation side.
+// The implementation uses a roving tabIndex (only the selected option is in the Tab order, arrow keys move the
+// selection), so a focus-visible case targets the selected option: Tab reaches it on both sides. Hover on an
+// unselected option (its ink darkens) is a case of its own, with that option as the target.
+import type { Scenario, ScenarioNode, ScenarioProps, ScenarioState } from '../types';
+
+const SELECTED_RADIO = '[role="radio"][aria-checked="true"]';
+const UNSELECTED_RADIO = '[role="radio"][aria-checked="false"]';
+const SELECTED_TAB = '[role="tab"][aria-selected="true"]';
+const UNSELECTED_TAB = '[role="tab"][aria-selected="false"]';
+
+const ORDER_TABS = [
+  { id: 'items', label: 'Items', count: 3 },
+  { id: 'payments', label: 'Payments', count: 2 },
+  { id: 'discounts', label: 'Discounts', count: 1 },
+  { id: 'expenses', label: 'Expenses', count: 0 },
+];
+
+interface ChoiceCase {
+  readonly id: string;
+  readonly node: ScenarioNode;
+  readonly target: string;
+  readonly states: readonly ScenarioState[];
+  readonly responsive?: boolean;
+}
+
+/** A choice case compared in both themes; the harness drives `states` on `target`. */
+function choiceCase({ id, node, target, states, responsive = false }: ChoiceCase): Scenario {
+  return {
+    id,
+    group: 'choice',
+    node,
+    themes: ['light', 'dark'],
+    responsive,
+    states,
+    parity: true,
+    handlers: ['onChange'],
+    target,
+  };
+}
+
+function segmented(props: ScenarioProps): ScenarioNode {
+  return { kind: 'node', component: 'SegmentedControl', props };
+}
+
+/** Tabs with the first tab (`items`) selected, followed by its panel (TabsWithPanel). */
+function tabsWithPanel(idBase: string, items: readonly ScenarioProps[], panel: string): ScenarioNode {
+  return {
+    kind: 'node',
+    component: 'TabsWithPanel',
+    props: {
+      idBase,
+      selected: 'items',
+      panel,
+      children: { kind: 'node', component: 'Tabs', props: { idBase, items } },
+    },
+  };
+}
+
+export const scenarios: readonly Scenario[] = [
+  choiceCase({
+    id: 'segmented-text',
+    node: segmented({
+      label: 'Discount type',
+      options: [
+        { value: 'fixed', label: 'Fixed ₱' },
+        { value: 'percentage', label: 'Percent %' },
+      ],
+    }),
+    target: SELECTED_RADIO,
+    states: ['rest', 'hover', 'focus-visible'],
+  }),
+  choiceCase({
+    id: 'segmented-icons',
+    node: segmented({
+      label: 'View',
+      options: [
+        { value: 'grid', label: 'Grid view', icon: 'layout-grid' },
+        { value: 'table', label: 'Table view', icon: 'list' },
+      ],
+    }),
+    target: SELECTED_RADIO,
+    states: ['rest', 'hover', 'focus-visible'],
+  }),
+  choiceCase({
+    id: 'segmented-icon-labels',
+    node: segmented({
+      label: 'Role',
+      value: 'manager',
+      options: [
+        { value: 'admin', label: 'Admin', icon: 'user-round', showLabel: true },
+        { value: 'manager', label: 'Manager', icon: 'shield-check', showLabel: true },
+      ],
+    }),
+    target: UNSELECTED_RADIO,
+    states: ['rest', 'hover'],
+  }),
+  choiceCase({
+    id: 'tabs-orders',
+    node: tabsWithPanel('order', ORDER_TABS, 'Three line items, 120 pieces.'),
+    target: SELECTED_TAB,
+    states: ['rest', 'hover', 'focus-visible'],
+  }),
+  choiceCase({
+    id: 'tabs-orders-other',
+    node: tabsWithPanel('order-other', ORDER_TABS, 'Three line items, 120 pieces.'),
+    target: UNSELECTED_TAB,
+    states: ['rest', 'hover'],
+  }),
+  choiceCase({
+    id: 'tabs-overflow',
+    node: tabsWithPanel(
+      'order-all',
+      [...ORDER_TABS, { id: 'images', label: 'Images', count: 4 }, { id: 'history', label: 'History' }],
+      'Three line items, 120 pieces.',
+    ),
+    target: SELECTED_TAB,
+    states: ['rest'],
+    responsive: true,
+  }),
+];

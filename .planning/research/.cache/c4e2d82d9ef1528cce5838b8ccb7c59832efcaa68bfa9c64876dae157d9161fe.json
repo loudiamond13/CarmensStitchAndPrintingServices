@@ -1,0 +1,1 @@
+{"content":"Respawn SqlServerDbAdapter.BuildDeleteCommandText emits DELETE <table> statements (not TRUNCATE), so DELETE triggers fire; tables with append-only triggers must be in TablesToIgnore.","source":"web","provider":"webfetch","confidence":"MEDIUM","fetched_at":"2026-10-07T12:07:20.815Z","ttl":86400000,"kind":"docs"}

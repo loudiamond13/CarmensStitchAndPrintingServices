@@ -1,0 +1,8026 @@
+{
+  "version": 2,
+  "operationOrder": "round the items total; round each discount; sum the discounts and round the sum; subtract (D-09)",
+  "cases": [
+    {
+      "id": "midpoint-7-5-percent-of-17",
+      "category": "midpoint",
+      "note": "7.5% of 17.00 = 1.275 rounds away from zero to 1.28 (D-09 example)",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "17.00",
+        "discount": "1.28",
+        "total": "15.72",
+        "paid": "0.00",
+        "balance": "15.72",
+        "expenses": "0.00",
+        "profit": "15.72",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-001",
+      "category": "midpoint",
+      "note": "7.5% of 3 x 17.00 = 3.825 rounds away from zero to 3.83",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "3.83",
+        "total": "47.17",
+        "paid": "0.00",
+        "balance": "47.17",
+        "expenses": "0.00",
+        "profit": "47.17",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-002",
+      "category": "midpoint",
+      "note": "2.5% of 23.00 = 0.575 rounds away from zero to 0.58",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "23.00",
+        "discount": "0.58",
+        "total": "22.42",
+        "paid": "0.00",
+        "balance": "22.42",
+        "expenses": "0.00",
+        "profit": "22.42",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-003",
+      "category": "midpoint",
+      "note": "12.5% of 1.16 = 0.145 rounds away from zero to 0.15",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.16",
+        "discount": "0.15",
+        "total": "1.01",
+        "paid": "0.00",
+        "balance": "1.01",
+        "expenses": "0.00",
+        "profit": "1.01",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-004",
+      "category": "midpoint",
+      "note": "fixed 1.005 rounds away from zero to 1.01",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "100.00",
+        "discount": "1.01",
+        "total": "98.99",
+        "paid": "0.00",
+        "balance": "98.99",
+        "expenses": "0.00",
+        "profit": "98.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-005",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 41.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "41.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "41.00",
+        "discount": "1.03",
+        "total": "39.97",
+        "paid": "0.00",
+        "balance": "39.97",
+        "expenses": "0.00",
+        "profit": "39.97",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-006",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 51.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "51.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "1.28",
+        "total": "49.72",
+        "paid": "0.00",
+        "balance": "49.72",
+        "expenses": "0.00",
+        "profit": "49.72",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-007",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 87.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "87.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "87.00",
+        "discount": "2.18",
+        "total": "84.82",
+        "paid": "0.00",
+        "balance": "84.82",
+        "expenses": "0.00",
+        "profit": "84.82",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-008",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 97.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "97.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "97.00",
+        "discount": "2.43",
+        "total": "94.57",
+        "paid": "0.00",
+        "balance": "94.57",
+        "expenses": "0.00",
+        "profit": "94.57",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-009",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 169.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "169.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "169.00",
+        "discount": "4.23",
+        "total": "164.77",
+        "paid": "0.00",
+        "balance": "164.77",
+        "expenses": "0.00",
+        "profit": "164.77",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-010",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 179.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "179.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "179.00",
+        "discount": "4.48",
+        "total": "174.52",
+        "paid": "0.00",
+        "balance": "174.52",
+        "expenses": "0.00",
+        "profit": "174.52",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-011",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 189.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "189.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "189.00",
+        "discount": "4.73",
+        "total": "184.27",
+        "paid": "0.00",
+        "balance": "184.27",
+        "expenses": "0.00",
+        "profit": "184.27",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-012",
+      "category": "midpoint",
+      "note": "2.5% of whole-peso 199.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "199.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "199.00",
+        "discount": "4.98",
+        "total": "194.02",
+        "paid": "0.00",
+        "balance": "194.02",
+        "expenses": "0.00",
+        "profit": "194.02",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-013",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 29.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "29.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "29.00",
+        "discount": "2.18",
+        "total": "26.82",
+        "paid": "0.00",
+        "balance": "26.82",
+        "expenses": "0.00",
+        "profit": "26.82",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-014",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 63.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "63.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "63.00",
+        "discount": "4.73",
+        "total": "58.27",
+        "paid": "0.00",
+        "balance": "58.27",
+        "expenses": "0.00",
+        "profit": "58.27",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-015",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 111.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "111.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "111.00",
+        "discount": "8.33",
+        "total": "102.67",
+        "paid": "0.00",
+        "balance": "102.67",
+        "expenses": "0.00",
+        "profit": "102.67",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-016",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 121.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "121.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "121.00",
+        "discount": "9.08",
+        "total": "111.92",
+        "paid": "0.00",
+        "balance": "111.92",
+        "expenses": "0.00",
+        "profit": "111.92",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-017",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 131.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "131.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "131.00",
+        "discount": "9.83",
+        "total": "121.17",
+        "paid": "0.00",
+        "balance": "121.17",
+        "expenses": "0.00",
+        "profit": "121.17",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-018",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 217.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "217.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "217.00",
+        "discount": "16.28",
+        "total": "200.72",
+        "paid": "0.00",
+        "balance": "200.72",
+        "expenses": "0.00",
+        "profit": "200.72",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-019",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 227.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "227.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "227.00",
+        "discount": "17.03",
+        "total": "209.97",
+        "paid": "0.00",
+        "balance": "209.97",
+        "expenses": "0.00",
+        "profit": "209.97",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-020",
+      "category": "midpoint",
+      "note": "7.5% of whole-peso 237.00 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "237.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "237.00",
+        "discount": "17.78",
+        "total": "219.22",
+        "paid": "0.00",
+        "balance": "219.22",
+        "expenses": "0.00",
+        "profit": "219.22",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-021",
+      "category": "midpoint",
+      "note": "5% of centavo subtotal 2.90 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "2.90"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "2.90",
+        "discount": "0.15",
+        "total": "2.75",
+        "paid": "0.00",
+        "balance": "2.75",
+        "expenses": "0.00",
+        "profit": "2.75",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-022",
+      "category": "midpoint",
+      "note": "5% of centavo subtotal 5.70 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "5.70"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "5.70",
+        "discount": "0.29",
+        "total": "5.41",
+        "paid": "0.00",
+        "balance": "5.41",
+        "expenses": "0.00",
+        "profit": "5.41",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-023",
+      "category": "midpoint",
+      "note": "5% of centavo subtotal 11.30 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "11.30"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "11.30",
+        "discount": "0.57",
+        "total": "10.73",
+        "paid": "0.00",
+        "balance": "10.73",
+        "expenses": "0.00",
+        "profit": "10.73",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-024",
+      "category": "midpoint",
+      "note": "10% of centavo subtotal 1.45 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "0.15",
+        "total": "1.30",
+        "paid": "0.00",
+        "balance": "1.30",
+        "expenses": "0.00",
+        "profit": "1.30",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-025",
+      "category": "midpoint",
+      "note": "10% of centavo subtotal 2.85 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "2.85"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "2.85",
+        "discount": "0.29",
+        "total": "2.56",
+        "paid": "0.00",
+        "balance": "2.56",
+        "expenses": "0.00",
+        "profit": "2.56",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-026",
+      "category": "midpoint",
+      "note": "10% of centavo subtotal 5.65 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "5.65"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "5.65",
+        "discount": "0.57",
+        "total": "5.08",
+        "paid": "0.00",
+        "balance": "5.08",
+        "expenses": "0.00",
+        "profit": "5.08",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-027",
+      "category": "midpoint",
+      "note": "12.5% of centavo subtotal 2.28 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "2.28"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "2.28",
+        "discount": "0.29",
+        "total": "1.99",
+        "paid": "0.00",
+        "balance": "1.99",
+        "expenses": "0.00",
+        "profit": "1.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-028",
+      "category": "midpoint",
+      "note": "12.5% of centavo subtotal 4.52 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "4.52"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "4.52",
+        "discount": "0.57",
+        "total": "3.95",
+        "paid": "0.00",
+        "balance": "3.95",
+        "expenses": "0.00",
+        "profit": "3.95",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-029",
+      "category": "midpoint",
+      "note": "12.5% of centavo subtotal 4.60 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "4.60"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "4.60",
+        "discount": "0.58",
+        "total": "4.02",
+        "paid": "0.00",
+        "balance": "4.02",
+        "expenses": "0.00",
+        "profit": "4.02",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-030",
+      "category": "midpoint",
+      "note": "15% of centavo subtotal 1.90 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.90"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.90",
+        "discount": "0.29",
+        "total": "1.61",
+        "paid": "0.00",
+        "balance": "1.61",
+        "expenses": "0.00",
+        "profit": "1.61",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-031",
+      "category": "midpoint",
+      "note": "15% of centavo subtotal 4.10 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "4.10"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "4.10",
+        "discount": "0.62",
+        "total": "3.48",
+        "paid": "0.00",
+        "balance": "3.48",
+        "expenses": "0.00",
+        "profit": "3.48",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-032",
+      "category": "midpoint",
+      "note": "15% of centavo subtotal 6.70 is a half centavo; rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "6.70"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "6.70",
+        "discount": "1.01",
+        "total": "5.69",
+        "paid": "0.00",
+        "balance": "5.69",
+        "expenses": "0.00",
+        "profit": "5.69",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-033",
+      "category": "midpoint",
+      "note": "fixed 10.075 rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "100.00",
+        "discount": "10.08",
+        "total": "89.92",
+        "paid": "0.00",
+        "balance": "89.92",
+        "expenses": "0.00",
+        "profit": "89.92",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-034",
+      "category": "midpoint",
+      "note": "fixed 0.145 rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "0.145"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "100.00",
+        "discount": "0.15",
+        "total": "99.85",
+        "paid": "0.00",
+        "balance": "99.85",
+        "expenses": "0.00",
+        "profit": "99.85",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-035",
+      "category": "midpoint",
+      "note": "fixed 0.285 rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "100.00",
+        "discount": "0.29",
+        "total": "99.71",
+        "paid": "0.00",
+        "balance": "99.71",
+        "expenses": "0.00",
+        "profit": "99.71",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-036",
+      "category": "midpoint",
+      "note": "fixed 1.255 rounds away from zero",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1.255"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "100.00",
+        "discount": "1.26",
+        "total": "98.74",
+        "paid": "0.00",
+        "balance": "98.74",
+        "expenses": "0.00",
+        "profit": "98.74",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-037",
+      "category": "midpoint",
+      "note": "items total 3 x 0.335 = 1.005 rounds away from zero to 1.01 before any discount",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "0.335"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.01",
+        "discount": "0.10",
+        "total": "0.91",
+        "paid": "0.00",
+        "balance": "0.91",
+        "expenses": "0.00",
+        "profit": "0.91",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "midpoint-038",
+      "category": "midpoint",
+      "note": "items total 1 x 10.075 rounds away from zero to 10.08",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "10.075"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "10.08"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "10.08",
+        "discount": "0.00",
+        "total": "10.08",
+        "paid": "10.08",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "10.08",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "ord-2026-0148",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0148 (spec seed): balance 9,327.50, profit 15,262.50",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "550.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "420.00"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "800.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [
+        "10000.00",
+        "2000.00"
+      ],
+      "expenses": [
+        "3825.00",
+        "1640.00",
+        "600.00"
+      ],
+      "expected": {
+        "subtotal": "22450.00",
+        "discount": "1122.50",
+        "total": "21327.50",
+        "paid": "12000.00",
+        "balance": "9327.50",
+        "expenses": "6065.00",
+        "profit": "15262.50",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-2026-0151",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0151 (spec seed): subtotal 23,000 - discount 500 = total 22,500; - paid 22,500 = 0, fully paid",
+      "items": [
+        {
+          "quantity": 20,
+          "unitPrice": "1150.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "500.00"
+        }
+      ],
+      "payments": [
+        "12000.00",
+        "10500.00"
+      ],
+      "expenses": [
+        "7200.00",
+        "2100.00"
+      ],
+      "expected": {
+        "subtotal": "23000.00",
+        "discount": "500.00",
+        "total": "22500.00",
+        "paid": "22500.00",
+        "balance": "0.00",
+        "expenses": "9300.00",
+        "profit": "13200.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "ord-2026-0153",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0153 (spec seed)",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "3000.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "0.00",
+        "total": "9360.00",
+        "paid": "3000.00",
+        "balance": "6360.00",
+        "expenses": "0.00",
+        "profit": "9360.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-2026-0155",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0155 (spec seed)",
+      "items": [
+        {
+          "quantity": 14,
+          "unitPrice": "720.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "10080.00",
+        "discount": "0.00",
+        "total": "10080.00",
+        "paid": "0.00",
+        "balance": "10080.00",
+        "expenses": "0.00",
+        "profit": "10080.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-2026-0157",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0157 (spec seed)",
+      "items": [
+        {
+          "quantity": 40,
+          "unitPrice": "450.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "9000.00"
+      ],
+      "expenses": [
+        "6400.00"
+      ],
+      "expected": {
+        "subtotal": "18000.00",
+        "discount": "0.00",
+        "total": "18000.00",
+        "paid": "9000.00",
+        "balance": "9000.00",
+        "expenses": "6400.00",
+        "profit": "11600.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-2026-0159",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0159 (spec seed)",
+      "items": [
+        {
+          "quantity": 25,
+          "unitPrice": "1150.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "5000.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "28750.00",
+        "discount": "0.00",
+        "total": "28750.00",
+        "paid": "5000.00",
+        "balance": "23750.00",
+        "expenses": "0.00",
+        "profit": "28750.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "ord-2026-0142",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0142 (spec seed): fully paid",
+      "items": [
+        {
+          "quantity": 30,
+          "unitPrice": "690.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1000.00"
+        }
+      ],
+      "payments": [
+        "10000.00",
+        "9700.00"
+      ],
+      "expenses": [
+        "8900.00"
+      ],
+      "expected": {
+        "subtotal": "20700.00",
+        "discount": "1000.00",
+        "total": "19700.00",
+        "paid": "19700.00",
+        "balance": "0.00",
+        "expenses": "8900.00",
+        "profit": "10800.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "ord-2026-0139",
+      "category": "ord-fixture",
+      "note": "ORD-2026-0139 (spec seed)",
+      "items": [
+        {
+          "quantity": 10,
+          "unitPrice": "850.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8500.00",
+        "discount": "0.00",
+        "total": "8500.00",
+        "paid": "0.00",
+        "balance": "8500.00",
+        "expenses": "0.00",
+        "profit": "8500.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "percent-100-001",
+      "category": "percent-100",
+      "note": "100% of 17.00: discount equals subtotal, total 0, fully paid",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "17.00",
+        "discount": "17.00",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "percent-100-002",
+      "category": "percent-100",
+      "note": "100% with a payment: balance is 0 minus paid",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        }
+      ],
+      "payments": [
+        "20.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "51.00",
+        "total": "0.00",
+        "paid": "20.00",
+        "balance": "-20.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "percent-100-003",
+      "category": "percent-100",
+      "note": "100% of ORD-2026-0151 items with a payment",
+      "items": [
+        {
+          "quantity": 20,
+          "unitPrice": "1150.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        }
+      ],
+      "payments": [
+        "12000.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "23000.00",
+        "discount": "23000.00",
+        "total": "0.00",
+        "paid": "12000.00",
+        "balance": "-12000.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "percent-100-004",
+      "category": "percent-100",
+      "note": "100% with expenses: profit is minus expenses",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "5.00"
+      ],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "8.12",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "5.00",
+        "profit": "-5.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "percent-100-005",
+      "category": "percent-100",
+      "note": "100% of the largest items total",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "9999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9999999999.99",
+        "discount": "9999999999.99",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "percent-100-006",
+      "category": "percent-100",
+      "note": "100% plus a fixed 50.00: discount above the subtotal",
+      "items": [
+        {
+          "quantity": 2,
+          "unitPrice": "100.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "100"
+        },
+        {
+          "kind": "fixed",
+          "value": "50.00"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "200.00",
+        "discount": "250.00",
+        "total": "-50.00",
+        "paid": "0.00",
+        "balance": "-50.00",
+        "expenses": "0.00",
+        "profit": "-50.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "zero-items",
+      "category": "zero-items",
+      "note": "an empty order is not fully paid",
+      "items": [],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "0.00",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "zero-items-001",
+      "category": "zero-items",
+      "note": "a fixed discount with no items",
+      "items": [],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "100.00",
+        "total": "-100.00",
+        "paid": "0.00",
+        "balance": "-100.00",
+        "expenses": "0.00",
+        "profit": "-100.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "zero-items-002",
+      "category": "zero-items",
+      "note": "a percentage discount of nothing is 0.00",
+      "items": [],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "0.00",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "zero-items-003",
+      "category": "zero-items",
+      "note": "a payment with no items is not fully paid",
+      "items": [],
+      "discounts": [],
+      "payments": [
+        "500.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "0.00",
+        "total": "0.00",
+        "paid": "500.00",
+        "balance": "-500.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "zero-items-004",
+      "category": "zero-items",
+      "note": "an expense with no items",
+      "items": [],
+      "discounts": [],
+      "payments": [],
+      "expenses": [
+        "250.00"
+      ],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "0.00",
+        "total": "0.00",
+        "paid": "0.00",
+        "balance": "0.00",
+        "expenses": "250.00",
+        "profit": "-250.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "zero-items-005",
+      "category": "zero-items",
+      "note": "zero-quantity lines add nothing",
+      "items": [
+        {
+          "quantity": 0,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [
+        "100.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "0.00",
+        "discount": "0.00",
+        "total": "0.00",
+        "paid": "100.00",
+        "balance": "-100.00",
+        "expenses": "0.00",
+        "profit": "0.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-001",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "102.55",
+        "total": "-51.55",
+        "paid": "5.00",
+        "balance": "-56.55",
+        "expenses": "0.00",
+        "profit": "-51.55",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-002",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "5.11",
+        "total": "45.89",
+        "paid": "5.00",
+        "balance": "40.89",
+        "expenses": "0.00",
+        "profit": "45.89",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-003",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "7.39",
+        "total": "43.61",
+        "paid": "5.00",
+        "balance": "38.61",
+        "expenses": "0.00",
+        "profit": "43.61",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-004",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "15.47",
+        "total": "35.53",
+        "paid": "5.00",
+        "balance": "30.53",
+        "expenses": "0.00",
+        "profit": "35.53",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-005",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "17.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "51.00",
+        "discount": "0.00",
+        "total": "51.00",
+        "paid": "5.00",
+        "balance": "46.00",
+        "expenses": "0.00",
+        "profit": "51.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-006",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "115.00",
+        "discount": "105.75",
+        "total": "9.25",
+        "paid": "5.00",
+        "balance": "4.25",
+        "expenses": "0.00",
+        "profit": "9.25",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-007",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "115.00",
+        "discount": "11.51",
+        "total": "103.49",
+        "paid": "5.00",
+        "balance": "98.49",
+        "expenses": "0.00",
+        "profit": "103.49",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-008",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "115.00",
+        "discount": "15.39",
+        "total": "99.61",
+        "paid": "5.00",
+        "balance": "94.61",
+        "expenses": "0.00",
+        "profit": "99.61",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-009",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "115.00",
+        "discount": "21.87",
+        "total": "93.13",
+        "paid": "5.00",
+        "balance": "88.13",
+        "expenses": "0.00",
+        "profit": "93.13",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-010",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "115.00",
+        "discount": "0.00",
+        "total": "115.00",
+        "paid": "5.00",
+        "balance": "110.00",
+        "expenses": "0.00",
+        "profit": "115.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-011",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "100.41",
+        "total": "-92.29",
+        "paid": "5.00",
+        "balance": "-97.29",
+        "expenses": "0.00",
+        "profit": "-92.29",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-012",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "0.81",
+        "total": "7.31",
+        "paid": "5.00",
+        "balance": "2.31",
+        "expenses": "0.00",
+        "profit": "7.31",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-013",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "2.03",
+        "total": "6.09",
+        "paid": "5.00",
+        "balance": "1.09",
+        "expenses": "0.00",
+        "profit": "6.09",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-014",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "11.18",
+        "total": "-3.06",
+        "paid": "5.00",
+        "balance": "-8.06",
+        "expenses": "0.00",
+        "profit": "-3.06",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-015",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "1.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "8.12",
+        "discount": "0.00",
+        "total": "8.12",
+        "paid": "5.00",
+        "balance": "3.12",
+        "expenses": "0.00",
+        "profit": "8.12",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-016",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "14250.00",
+        "discount": "812.50",
+        "total": "13437.50",
+        "paid": "5.00",
+        "balance": "13432.50",
+        "expenses": "0.00",
+        "profit": "13437.50",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-017",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "14250.00",
+        "discount": "1425.00",
+        "total": "12825.00",
+        "paid": "5.00",
+        "balance": "12820.00",
+        "expenses": "0.00",
+        "profit": "12825.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-018",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "14250.00",
+        "discount": "1782.26",
+        "total": "12467.74",
+        "paid": "5.00",
+        "balance": "12462.74",
+        "expenses": "0.00",
+        "profit": "12467.74",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-019",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "14250.00",
+        "discount": "1435.37",
+        "total": "12814.63",
+        "paid": "5.00",
+        "balance": "12809.63",
+        "expenses": "0.00",
+        "profit": "12814.63",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-020",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "650.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "300.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "14250.00",
+        "discount": "0.00",
+        "total": "14250.00",
+        "paid": "5.00",
+        "balance": "14245.00",
+        "expenses": "0.00",
+        "profit": "14250.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-021",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "568.00",
+        "total": "8792.00",
+        "paid": "5.00",
+        "balance": "8787.00",
+        "expenses": "0.00",
+        "profit": "8792.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-022",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "936.00",
+        "total": "8424.00",
+        "paid": "5.00",
+        "balance": "8419.00",
+        "expenses": "0.00",
+        "profit": "8424.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-023",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "1171.01",
+        "total": "8188.99",
+        "paid": "5.00",
+        "balance": "8183.99",
+        "expenses": "0.00",
+        "profit": "8188.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-024",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "946.37",
+        "total": "8413.63",
+        "paid": "5.00",
+        "balance": "8408.63",
+        "expenses": "0.00",
+        "profit": "8413.63",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-025",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "780.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9360.00",
+        "discount": "0.00",
+        "total": "9360.00",
+        "paid": "5.00",
+        "balance": "9355.00",
+        "expenses": "0.00",
+        "profit": "9360.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "multi-discount-026",
+      "category": "multi-discount",
+      "note": "5% and fixed 100.00, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "100.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "100.07",
+        "total": "-98.62",
+        "paid": "5.00",
+        "balance": "-103.62",
+        "expenses": "0.00",
+        "profit": "-98.62",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-027",
+      "category": "multi-discount",
+      "note": "2.5% and 7.5%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "0.15",
+        "total": "1.30",
+        "paid": "5.00",
+        "balance": "-3.70",
+        "expenses": "0.00",
+        "profit": "1.30",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-028",
+      "category": "multi-discount",
+      "note": "12.5% and fixed 1.005, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "1.19",
+        "total": "0.26",
+        "paid": "5.00",
+        "balance": "-4.74",
+        "expenses": "0.00",
+        "profit": "0.26",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-029",
+      "category": "multi-discount",
+      "note": "fixed 10.075, fixed 0.285 and 10%, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "10.075"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.285"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "10.52",
+        "total": "-9.07",
+        "paid": "5.00",
+        "balance": "-14.07",
+        "expenses": "0.00",
+        "profit": "-9.07",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "multi-discount-030",
+      "category": "multi-discount",
+      "note": "0% and fixed 0.00 add nothing, each rounded before the sum",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "0"
+        },
+        {
+          "kind": "fixed",
+          "value": "0.00"
+        }
+      ],
+      "payments": [
+        "5.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.45",
+        "discount": "0.00",
+        "total": "1.45",
+        "paid": "5.00",
+        "balance": "-3.55",
+        "expenses": "0.00",
+        "profit": "1.45",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-001",
+      "category": "negative-balance",
+      "note": "a fixed discount above the subtotal",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "500.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "600.00"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "500.00",
+        "discount": "600.00",
+        "total": "-100.00",
+        "paid": "0.00",
+        "balance": "-100.00",
+        "expenses": "0.00",
+        "profit": "-100.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-002",
+      "category": "negative-balance",
+      "note": "ORD-2026-0151 overpaid",
+      "items": [
+        {
+          "quantity": 20,
+          "unitPrice": "1150.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "500.00"
+        }
+      ],
+      "payments": [
+        "12000.00",
+        "12000.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "23000.00",
+        "discount": "500.00",
+        "total": "22500.00",
+        "paid": "24000.00",
+        "balance": "-1500.00",
+        "expenses": "0.00",
+        "profit": "22500.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-003",
+      "category": "negative-balance",
+      "note": "paid the full subtotal despite a 2.5% discount",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "23.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "23.00"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "23.00",
+        "discount": "0.58",
+        "total": "22.42",
+        "paid": "23.00",
+        "balance": "-0.58",
+        "expenses": "0.00",
+        "profit": "22.42",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-004",
+      "category": "negative-balance",
+      "note": "a rounded fixed 1.005 above a 1.00 subtotal",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "1.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1.005"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "1.00",
+        "discount": "1.01",
+        "total": "-0.01",
+        "paid": "0.00",
+        "balance": "-0.01",
+        "expenses": "0.00",
+        "profit": "-0.01",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-005",
+      "category": "negative-balance",
+      "note": "three payments above the total",
+      "items": [
+        {
+          "quantity": 2,
+          "unitPrice": "99.99"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "100.00",
+        "50.00",
+        "75.25"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "199.98",
+        "discount": "0.00",
+        "total": "199.98",
+        "paid": "225.25",
+        "balance": "-25.27",
+        "expenses": "0.00",
+        "profit": "199.98",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "negative-balance-006",
+      "category": "negative-balance",
+      "note": "fixed 50.00 and 10% above a 40.00 subtotal, expenses above it too",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "40.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "50.00"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "60.00"
+      ],
+      "expected": {
+        "subtotal": "40.00",
+        "discount": "54.00",
+        "total": "-14.00",
+        "paid": "0.00",
+        "balance": "-14.00",
+        "expenses": "60.00",
+        "profit": "-74.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "large-value-001",
+      "category": "large-value",
+      "note": "the largest items total",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "9999999999.99"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9999999999.99",
+        "discount": "0.00",
+        "total": "9999999999.99",
+        "paid": "0.00",
+        "balance": "9999999999.99",
+        "expenses": "0.00",
+        "profit": "9999999999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-002",
+      "category": "large-value",
+      "note": "7.5% of 9,999,999,999.99, paid and spent in full",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "9999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "9999999999.99"
+      ],
+      "expenses": [
+        "9999999999.99"
+      ],
+      "expected": {
+        "subtotal": "9999999999.99",
+        "discount": "750000000.00",
+        "total": "9249999999.99",
+        "paid": "9999999999.99",
+        "balance": "-750000000.00",
+        "expenses": "9999999999.99",
+        "profit": "-750000000.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "large-value-003",
+      "category": "large-value",
+      "note": "7.5% of 999,999,999.99",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "75000000.00",
+        "total": "924999999.99",
+        "paid": "0.00",
+        "balance": "924999999.99",
+        "expenses": "0.00",
+        "profit": "924999999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-004",
+      "category": "large-value",
+      "note": "2.5% of 999,999,999.99",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "25000000.00",
+        "total": "974999999.99",
+        "paid": "0.00",
+        "balance": "974999999.99",
+        "expenses": "0.00",
+        "profit": "974999999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-005",
+      "category": "large-value",
+      "note": "12.5% of 999,999,999.99",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "125000000.00",
+        "total": "874999999.99",
+        "paid": "0.00",
+        "balance": "874999999.99",
+        "expenses": "0.00",
+        "profit": "874999999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-006",
+      "category": "large-value",
+      "note": "3 x 333,333,333.33 at 33.33%",
+      "items": [
+        {
+          "quantity": 3,
+          "unitPrice": "333333333.33"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "333300000.00",
+        "total": "666699999.99",
+        "paid": "0.00",
+        "balance": "666699999.99",
+        "expenses": "0.00",
+        "profit": "666699999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-007",
+      "category": "large-value",
+      "note": "9 x 111,111,111.11 paid in full",
+      "items": [
+        {
+          "quantity": 9,
+          "unitPrice": "111111111.11"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "999999999.99"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "0.00",
+        "total": "999999999.99",
+        "paid": "999999999.99",
+        "balance": "0.00",
+        "expenses": "0.00",
+        "profit": "999999999.99",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "large-value-008",
+      "category": "large-value",
+      "note": "100,000 x 9,999.99 at 15%",
+      "items": [
+        {
+          "quantity": 100000,
+          "unitPrice": "9999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999000.00",
+        "discount": "149999850.00",
+        "total": "849999150.00",
+        "paid": "0.00",
+        "balance": "849999150.00",
+        "expenses": "0.00",
+        "profit": "849999150.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-009",
+      "category": "large-value",
+      "note": "99,999 x 10,000.00 with a fixed 0.005",
+      "items": [
+        {
+          "quantity": 99999,
+          "unitPrice": "10000.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "0.005"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999990000.00",
+        "discount": "0.01",
+        "total": "999989999.99",
+        "paid": "0.00",
+        "balance": "999989999.99",
+        "expenses": "0.00",
+        "profit": "999989999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-010",
+      "category": "large-value",
+      "note": "a 999,999,999.985 line rounds to 999,999,999.99",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "999999999.985"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "999999999.99",
+        "discount": "0.00",
+        "total": "999999999.99",
+        "paid": "0.00",
+        "balance": "999999999.99",
+        "expenses": "0.00",
+        "profit": "999999999.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "large-value-011",
+      "category": "large-value",
+      "note": "two large lines, three discounts, payments and expenses",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "5000000000.00"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "4999999999.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1000000.00"
+        }
+      ],
+      "payments": [
+        "9000000000.00"
+      ],
+      "expenses": [
+        "500000000.00"
+      ],
+      "expected": {
+        "subtotal": "9999999999.99",
+        "discount": "1251000000.00",
+        "total": "8748999999.99",
+        "paid": "9000000000.00",
+        "balance": "-251000000.01",
+        "expenses": "500000000.00",
+        "profit": "8248999999.99",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "large-value-012",
+      "category": "large-value",
+      "note": "paid twice the largest items total",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "9999999999.99"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "9999999999.99",
+        "9999999999.99"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "9999999999.99",
+        "discount": "0.00",
+        "total": "9999999999.99",
+        "paid": "19999999999.98",
+        "balance": "-9999999999.99",
+        "expenses": "0.00",
+        "profit": "9999999999.99",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-001",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 1)",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "2498.00"
+        },
+        {
+          "quantity": 18,
+          "unitPrice": "3704.00"
+        },
+        {
+          "quantity": 58,
+          "unitPrice": "1836.35"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "1518.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        },
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "262358.30",
+        "discount": "131179.16",
+        "total": "131179.14",
+        "paid": "0.00",
+        "balance": "131179.14",
+        "expenses": "0.00",
+        "profit": "131179.14",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-002",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 2)",
+      "items": [
+        {
+          "quantity": 18,
+          "unitPrice": "3815.84"
+        },
+        {
+          "quantity": 21,
+          "unitPrice": "3989.00"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "2750.92"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "391.87"
+        }
+      ],
+      "payments": [
+        "21985.31",
+        "15578.26"
+      ],
+      "expenses": [
+        "3413.84",
+        "7324.93",
+        "5582.68"
+      ],
+      "expected": {
+        "subtotal": "223978.04",
+        "discount": "391.87",
+        "total": "223586.17",
+        "paid": "37563.57",
+        "balance": "186022.60",
+        "expenses": "16321.45",
+        "profit": "207264.72",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-003",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 3)",
+      "items": [
+        {
+          "quantity": 10,
+          "unitPrice": "4530.00"
+        },
+        {
+          "quantity": 6,
+          "unitPrice": "4182.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "4617.41"
+        },
+        {
+          "quantity": 51,
+          "unitPrice": "3698.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [
+        "28341.12",
+        "10493.83",
+        "11241.13"
+      ],
+      "expenses": [
+        "2874.06",
+        "9099.38"
+      ],
+      "expected": {
+        "subtotal": "268224.82",
+        "discount": "89399.33",
+        "total": "178825.49",
+        "paid": "50076.08",
+        "balance": "128749.41",
+        "expenses": "11973.44",
+        "profit": "166852.05",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-004",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 4)",
+      "items": [
+        {
+          "quantity": 47,
+          "unitPrice": "4398.00"
+        },
+        {
+          "quantity": 54,
+          "unitPrice": "3716.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "9817.28"
+      ],
+      "expected": {
+        "subtotal": "407370.00",
+        "discount": "142579.50",
+        "total": "264790.50",
+        "paid": "0.00",
+        "balance": "264790.50",
+        "expenses": "9817.28",
+        "profit": "254973.22",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-005",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 5)",
+      "items": [
+        {
+          "quantity": 52,
+          "unitPrice": "1945.00"
+        },
+        {
+          "quantity": 60,
+          "unitPrice": "1100.04"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "3888.70"
+      ],
+      "expected": {
+        "subtotal": "167142.40",
+        "discount": "20892.80",
+        "total": "146249.60",
+        "paid": "0.00",
+        "balance": "146249.60",
+        "expenses": "3888.70",
+        "profit": "142360.90",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-006",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 6)",
+      "items": [
+        {
+          "quantity": 16,
+          "unitPrice": "3163.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "2167.04"
+      ],
+      "expenses": [
+        "2260.00",
+        "6089.46"
+      ],
+      "expected": {
+        "subtotal": "50608.00",
+        "discount": "0.00",
+        "total": "50608.00",
+        "paid": "2167.04",
+        "balance": "48440.96",
+        "expenses": "8349.46",
+        "profit": "42258.54",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-007",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 7)",
+      "items": [
+        {
+          "quantity": 37,
+          "unitPrice": "513.14"
+        },
+        {
+          "quantity": 53,
+          "unitPrice": "1091.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1941.65"
+        }
+      ],
+      "payments": [
+        "24590.37",
+        "20301.33"
+      ],
+      "expenses": [
+        "1325.16"
+      ],
+      "expected": {
+        "subtotal": "76809.18",
+        "discount": "11542.80",
+        "total": "65266.38",
+        "paid": "44891.70",
+        "balance": "20374.68",
+        "expenses": "1325.16",
+        "profit": "63941.22",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-008",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 8)",
+      "items": [
+        {
+          "quantity": 59,
+          "unitPrice": "2492.46"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [
+        "22981.55",
+        "26685.60"
+      ],
+      "expenses": [
+        "9569.59"
+      ],
+      "expected": {
+        "subtotal": "147055.14",
+        "discount": "147055.14",
+        "total": "0.00",
+        "paid": "49667.15",
+        "balance": "-49667.15",
+        "expenses": "9569.59",
+        "profit": "-9569.59",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-009",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 9)",
+      "items": [
+        {
+          "quantity": 49,
+          "unitPrice": "2694.00"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "552.82"
+        },
+        {
+          "quantity": 37,
+          "unitPrice": "4693.54"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "12574.48",
+        "20425.34"
+      ],
+      "expenses": [
+        "6822.07",
+        "6406.45",
+        "165.43"
+      ],
+      "expected": {
+        "subtotal": "329991.06",
+        "discount": "8249.78",
+        "total": "321741.28",
+        "paid": "32999.82",
+        "balance": "288741.46",
+        "expenses": "13393.95",
+        "profit": "308347.33",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-010",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 10)",
+      "items": [
+        {
+          "quantity": 58,
+          "unitPrice": "2040.00"
+        },
+        {
+          "quantity": 35,
+          "unitPrice": "3583.00"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "3001.00"
+        },
+        {
+          "quantity": 46,
+          "unitPrice": "1209.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "fixed",
+          "value": "35.31"
+        }
+      ],
+      "payments": [
+        "16525.48",
+        "22280.24",
+        "21571.51"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "320346.00",
+        "discount": "48087.21",
+        "total": "272258.79",
+        "paid": "60377.23",
+        "balance": "211881.56",
+        "expenses": "0.00",
+        "profit": "272258.79",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-011",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 11)",
+      "items": [
+        {
+          "quantity": 54,
+          "unitPrice": "1951.94"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "335.00"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "750.02"
+        },
+        {
+          "quantity": 27,
+          "unitPrice": "3020.40"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1159.93"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "8481.42",
+        "2135.63"
+      ],
+      "expected": {
+        "subtotal": "222301.44",
+        "discount": "1159.93",
+        "total": "221141.51",
+        "paid": "0.00",
+        "balance": "221141.51",
+        "expenses": "10617.05",
+        "profit": "210524.46",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-012",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 12)",
+      "items": [
+        {
+          "quantity": 25,
+          "unitPrice": "3607.42"
+        },
+        {
+          "quantity": 23,
+          "unitPrice": "2066.96"
+        },
+        {
+          "quantity": 56,
+          "unitPrice": "2166.28"
+        },
+        {
+          "quantity": 11,
+          "unitPrice": "1099.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "651.31"
+        }
+      ],
+      "payments": [
+        "8218.81",
+        "28666.87"
+      ],
+      "expenses": [
+        "8154.45",
+        "8186.03",
+        "4205.32"
+      ],
+      "expected": {
+        "subtotal": "271126.26",
+        "discount": "651.31",
+        "total": "270474.95",
+        "paid": "36885.68",
+        "balance": "233589.27",
+        "expenses": "20545.80",
+        "profit": "249929.15",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-013",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 13)",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "1498.00"
+        },
+        {
+          "quantity": 45,
+          "unitPrice": "842.00"
+        },
+        {
+          "quantity": 24,
+          "unitPrice": "4758.53"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "3504.75",
+        "12891.23"
+      ],
+      "expenses": [
+        "2577.48",
+        "991.51"
+      ],
+      "expected": {
+        "subtotal": "174564.72",
+        "discount": "0.00",
+        "total": "174564.72",
+        "paid": "16395.98",
+        "balance": "158168.74",
+        "expenses": "3568.99",
+        "profit": "170995.73",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-014",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 14)",
+      "items": [
+        {
+          "quantity": 13,
+          "unitPrice": "734.68"
+        },
+        {
+          "quantity": 41,
+          "unitPrice": "3339.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [
+        "4955.93",
+        "24536.59"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "146449.84",
+        "discount": "48811.73",
+        "total": "97638.11",
+        "paid": "29492.52",
+        "balance": "68145.59",
+        "expenses": "0.00",
+        "profit": "97638.11",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-015",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 15)",
+      "items": [
+        {
+          "quantity": 10,
+          "unitPrice": "4155.73"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "3948.00"
+        },
+        {
+          "quantity": 47,
+          "unitPrice": "2889.42"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "20"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "9826.38",
+        "215.06",
+        "7374.06"
+      ],
+      "expected": {
+        "subtotal": "303696.04",
+        "discount": "68331.61",
+        "total": "235364.43",
+        "paid": "0.00",
+        "balance": "235364.43",
+        "expenses": "17415.50",
+        "profit": "217948.93",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-016",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 16)",
+      "items": [
+        {
+          "quantity": 39,
+          "unitPrice": "1133.00"
+        },
+        {
+          "quantity": 30,
+          "unitPrice": "3187.00"
+        },
+        {
+          "quantity": 14,
+          "unitPrice": "2734.65"
+        },
+        {
+          "quantity": 33,
+          "unitPrice": "256.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "12915.35",
+        "14291.40",
+        "18541.87"
+      ],
+      "expenses": [
+        "6660.54",
+        "5218.06",
+        "4741.09"
+      ],
+      "expected": {
+        "subtotal": "186530.10",
+        "discount": "13989.76",
+        "total": "172540.34",
+        "paid": "45748.62",
+        "balance": "126791.72",
+        "expenses": "16619.69",
+        "profit": "155920.65",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-017",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 17)",
+      "items": [
+        {
+          "quantity": 40,
+          "unitPrice": "1124.00"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "3603.42"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "3332.00"
+        },
+        {
+          "quantity": 31,
+          "unitPrice": "648.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1596.11"
+        }
+      ],
+      "payments": [
+        "3334.05",
+        "7817.76"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "215259.42",
+        "discount": "12359.08",
+        "total": "202900.34",
+        "paid": "11151.81",
+        "balance": "191748.53",
+        "expenses": "0.00",
+        "profit": "202900.34",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-018",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 18)",
+      "items": [
+        {
+          "quantity": 24,
+          "unitPrice": "4310.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "1385.08"
+        },
+        {
+          "quantity": 27,
+          "unitPrice": "3650.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [
+        "8896.54"
+      ],
+      "expected": {
+        "subtotal": "204760.16",
+        "discount": "0.00",
+        "total": "204760.16",
+        "paid": "0.00",
+        "balance": "204760.16",
+        "expenses": "8896.54",
+        "profit": "195863.62",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-019",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 19)",
+      "items": [
+        {
+          "quantity": 36,
+          "unitPrice": "81.36"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "3997.19"
+        },
+        {
+          "quantity": 3,
+          "unitPrice": "4009.84"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1222.30"
+        }
+      ],
+      "payments": [
+        "19074.65"
+      ],
+      "expenses": [
+        "8929.76",
+        "7999.06"
+      ],
+      "expected": {
+        "subtotal": "118885.42",
+        "discount": "10138.71",
+        "total": "108746.71",
+        "paid": "19074.65",
+        "balance": "89672.06",
+        "expenses": "16928.82",
+        "profit": "91817.89",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-020",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 20)",
+      "items": [
+        {
+          "quantity": 56,
+          "unitPrice": "3582.00"
+        },
+        {
+          "quantity": 51,
+          "unitPrice": "1833.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1036.345"
+        }
+      ],
+      "payments": [
+        "23007.62"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "294125.49",
+        "discount": "1036.35",
+        "total": "293089.14",
+        "paid": "23007.62",
+        "balance": "270081.52",
+        "expenses": "0.00",
+        "profit": "293089.14",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-021",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 21)",
+      "items": [
+        {
+          "quantity": 49,
+          "unitPrice": "2435.00"
+        },
+        {
+          "quantity": 23,
+          "unitPrice": "2037.68"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "4268.88"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1401.25"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "25958.61"
+      ],
+      "expenses": [
+        "7070.65",
+        "7803.26",
+        "6897.02"
+      ],
+      "expected": {
+        "subtotal": "230214.84",
+        "discount": "35933.48",
+        "total": "194281.36",
+        "paid": "25958.61",
+        "balance": "168322.75",
+        "expenses": "21770.93",
+        "profit": "172510.43",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-022",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 22)",
+      "items": [
+        {
+          "quantity": 14,
+          "unitPrice": "2916.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "733.87"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [
+        "7267.95",
+        "6987.17",
+        "26008.44"
+      ],
+      "expenses": [
+        "1307.59"
+      ],
+      "expected": {
+        "subtotal": "40824.00",
+        "discount": "5836.87",
+        "total": "34987.13",
+        "paid": "40263.56",
+        "balance": "-5276.43",
+        "expenses": "1307.59",
+        "profit": "33679.54",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-023",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 23)",
+      "items": [
+        {
+          "quantity": 13,
+          "unitPrice": "3143.00"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "1132.81"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "3113.59",
+        "24396.11",
+        "5420.13"
+      ],
+      "expenses": [
+        "1713.67"
+      ],
+      "expected": {
+        "subtotal": "40859.00",
+        "discount": "6128.85",
+        "total": "34730.15",
+        "paid": "32929.83",
+        "balance": "1800.32",
+        "expenses": "1713.67",
+        "profit": "33016.48",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-024",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 24)",
+      "items": [
+        {
+          "quantity": 37,
+          "unitPrice": "1959.00"
+        },
+        {
+          "quantity": 18,
+          "unitPrice": "185.78"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "17066.09"
+      ],
+      "expenses": [
+        "3201.93"
+      ],
+      "expected": {
+        "subtotal": "75827.04",
+        "discount": "0.00",
+        "total": "75827.04",
+        "paid": "17066.09",
+        "balance": "58760.95",
+        "expenses": "3201.93",
+        "profit": "72625.11",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-025",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 25)",
+      "items": [
+        {
+          "quantity": 17,
+          "unitPrice": "3875.00"
+        },
+        {
+          "quantity": 16,
+          "unitPrice": "1522.74"
+        },
+        {
+          "quantity": 14,
+          "unitPrice": "527.27"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        },
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "97620.62",
+        "discount": "68334.44",
+        "total": "29286.18",
+        "paid": "0.00",
+        "balance": "29286.18",
+        "expenses": "0.00",
+        "profit": "29286.18",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-026",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 26)",
+      "items": [
+        {
+          "quantity": 19,
+          "unitPrice": "1506.00"
+        },
+        {
+          "quantity": 12,
+          "unitPrice": "3234.00"
+        },
+        {
+          "quantity": 57,
+          "unitPrice": "921.73"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "27562.08",
+        "996.99",
+        "9184.67"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "119960.61",
+        "discount": "0.00",
+        "total": "119960.61",
+        "paid": "37743.74",
+        "balance": "82216.87",
+        "expenses": "0.00",
+        "profit": "119960.61",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-027",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 27)",
+      "items": [
+        {
+          "quantity": 44,
+          "unitPrice": "1245.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1553.82"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "14589.89"
+      ],
+      "expenses": [
+        "9992.46",
+        "3801.86"
+      ],
+      "expected": {
+        "subtotal": "54780.00",
+        "discount": "11140.32",
+        "total": "43639.68",
+        "paid": "14589.89",
+        "balance": "29049.79",
+        "expenses": "13794.32",
+        "profit": "29845.36",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-028",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 28)",
+      "items": [
+        {
+          "quantity": 53,
+          "unitPrice": "1394.00"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "2995.39"
+        },
+        {
+          "quantity": 20,
+          "unitPrice": "3505.25"
+        },
+        {
+          "quantity": 41,
+          "unitPrice": "743.09"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1404.90"
+        },
+        {
+          "kind": "fixed",
+          "value": "1569.065"
+        }
+      ],
+      "payments": [
+        "9104.24",
+        "715.31"
+      ],
+      "expenses": [
+        "394.30",
+        "6918.94",
+        "8614.34"
+      ],
+      "expected": {
+        "subtotal": "252333.83",
+        "discount": "2973.97",
+        "total": "249359.86",
+        "paid": "9819.55",
+        "balance": "239540.31",
+        "expenses": "15927.58",
+        "profit": "233432.28",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-029",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 29)",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "846.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "335.79"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "28129.97",
+        "8360.99",
+        "23162.65"
+      ],
+      "expenses": [
+        "1748.46",
+        "5151.35"
+      ],
+      "expected": {
+        "subtotal": "4901.58",
+        "discount": "0.00",
+        "total": "4901.58",
+        "paid": "59653.61",
+        "balance": "-54752.03",
+        "expenses": "6899.81",
+        "profit": "-1998.23",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-030",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 30)",
+      "items": [
+        {
+          "quantity": 60,
+          "unitPrice": "1675.72"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "9830.31"
+      ],
+      "expected": {
+        "subtotal": "100543.20",
+        "discount": "48592.53",
+        "total": "51950.67",
+        "paid": "0.00",
+        "balance": "51950.67",
+        "expenses": "9830.31",
+        "profit": "42120.36",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-031",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 31)",
+      "items": [
+        {
+          "quantity": 55,
+          "unitPrice": "2541.93"
+        },
+        {
+          "quantity": 4,
+          "unitPrice": "3960.42"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "4535.12",
+        "14196.88"
+      ],
+      "expenses": [
+        "8843.77",
+        "6700.97",
+        "2560.26"
+      ],
+      "expected": {
+        "subtotal": "155647.83",
+        "discount": "0.00",
+        "total": "155647.83",
+        "paid": "18732.00",
+        "balance": "136915.83",
+        "expenses": "18105.00",
+        "profit": "137542.83",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-032",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 32)",
+      "items": [
+        {
+          "quantity": 53,
+          "unitPrice": "1798.58"
+        },
+        {
+          "quantity": 41,
+          "unitPrice": "3081.30"
+        },
+        {
+          "quantity": 21,
+          "unitPrice": "2737.59"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "27374.71"
+      ],
+      "expenses": [
+        "4751.89",
+        "3022.00"
+      ],
+      "expected": {
+        "subtotal": "279147.43",
+        "discount": "0.00",
+        "total": "279147.43",
+        "paid": "27374.71",
+        "balance": "251772.72",
+        "expenses": "7773.89",
+        "profit": "271373.54",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-033",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 33)",
+      "items": [
+        {
+          "quantity": 30,
+          "unitPrice": "4911.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "4997.72"
+      ],
+      "expected": {
+        "subtotal": "147330.00",
+        "discount": "14733.00",
+        "total": "132597.00",
+        "paid": "0.00",
+        "balance": "132597.00",
+        "expenses": "4997.72",
+        "profit": "127599.28",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-034",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 34)",
+      "items": [
+        {
+          "quantity": 39,
+          "unitPrice": "2173.11"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "4165.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1604.35"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [
+        "12496.85",
+        "6667.77"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "147233.04",
+        "discount": "75220.87",
+        "total": "72012.17",
+        "paid": "19164.62",
+        "balance": "52847.55",
+        "expenses": "0.00",
+        "profit": "72012.17",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-035",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 35)",
+      "items": [
+        {
+          "quantity": 60,
+          "unitPrice": "1998.00"
+        },
+        {
+          "quantity": 27,
+          "unitPrice": "3587.97"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "3191.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "12380.86"
+      ],
+      "expenses": [
+        "2811.51",
+        "3312.76"
+      ],
+      "expected": {
+        "subtotal": "318867.19",
+        "discount": "111603.52",
+        "total": "207263.67",
+        "paid": "12380.86",
+        "balance": "194882.81",
+        "expenses": "6124.27",
+        "profit": "201139.40",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-036",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 36)",
+      "items": [
+        {
+          "quantity": 33,
+          "unitPrice": "266.60"
+        },
+        {
+          "quantity": 17,
+          "unitPrice": "4486.10"
+        },
+        {
+          "quantity": 9,
+          "unitPrice": "254.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "91.01"
+        },
+        {
+          "kind": "fixed",
+          "value": "399.985"
+        },
+        {
+          "kind": "fixed",
+          "value": "1251.10"
+        }
+      ],
+      "payments": [
+        "10679.16",
+        "8682.19",
+        "24011.39"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "87347.50",
+        "discount": "1742.10",
+        "total": "85605.40",
+        "paid": "43372.74",
+        "balance": "42232.66",
+        "expenses": "0.00",
+        "profit": "85605.40",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-037",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 37)",
+      "items": [
+        {
+          "quantity": 7,
+          "unitPrice": "2266.00"
+        },
+        {
+          "quantity": 38,
+          "unitPrice": "2058.00"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "4600.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "16997.47",
+        "15944.86",
+        "3255.80"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "213666.00",
+        "discount": "0.00",
+        "total": "213666.00",
+        "paid": "36198.13",
+        "balance": "177467.87",
+        "expenses": "0.00",
+        "profit": "213666.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-038",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 38)",
+      "items": [
+        {
+          "quantity": 59,
+          "unitPrice": "3731.00"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "3394.43"
+        },
+        {
+          "quantity": 5,
+          "unitPrice": "783.64"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "820.27"
+        },
+        {
+          "kind": "fixed",
+          "value": "1473.31"
+        }
+      ],
+      "payments": [
+        "733.32",
+        "10232.00",
+        "17095.41"
+      ],
+      "expenses": [
+        "1198.96"
+      ],
+      "expected": {
+        "subtotal": "356429.97",
+        "discount": "2293.58",
+        "total": "354136.39",
+        "paid": "28060.73",
+        "balance": "326075.66",
+        "expenses": "1198.96",
+        "profit": "352937.43",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-039",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 39)",
+      "items": [
+        {
+          "quantity": 8,
+          "unitPrice": "3810.00"
+        },
+        {
+          "quantity": 29,
+          "unitPrice": "3304.47"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "3717.56"
+        },
+        {
+          "quantity": 5,
+          "unitPrice": "2509.56"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "fixed",
+          "value": "645.20"
+        },
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [
+        "27970.05"
+      ],
+      "expenses": [
+        "9333.75",
+        "5012.42",
+        "939.77"
+      ],
+      "expected": {
+        "subtotal": "138857.43",
+        "discount": "60812.12",
+        "total": "78045.31",
+        "paid": "27970.05",
+        "balance": "50075.26",
+        "expenses": "15285.94",
+        "profit": "62759.37",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-040",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 40)",
+      "items": [
+        {
+          "quantity": 31,
+          "unitPrice": "971.83"
+        },
+        {
+          "quantity": 27,
+          "unitPrice": "1048.25"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "556.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "2399.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1459.335"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "132.72"
+        }
+      ],
+      "payments": [
+        "14770.13",
+        "3810.52",
+        "25416.02"
+      ],
+      "expenses": [
+        "5706.14"
+      ],
+      "expected": {
+        "subtotal": "63227.48",
+        "discount": "3172.75",
+        "total": "60054.73",
+        "paid": "43996.67",
+        "balance": "16058.06",
+        "expenses": "5706.14",
+        "profit": "54348.59",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-041",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 41)",
+      "items": [
+        {
+          "quantity": 58,
+          "unitPrice": "850.15"
+        },
+        {
+          "quantity": 8,
+          "unitPrice": "2825.50"
+        },
+        {
+          "quantity": 14,
+          "unitPrice": "348.90"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "26436.92",
+        "2566.85"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "76797.30",
+        "discount": "0.00",
+        "total": "76797.30",
+        "paid": "29003.77",
+        "balance": "47793.53",
+        "expenses": "0.00",
+        "profit": "76797.30",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-042",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 42)",
+      "items": [
+        {
+          "quantity": 59,
+          "unitPrice": "1675.00"
+        },
+        {
+          "quantity": 13,
+          "unitPrice": "1570.40"
+        },
+        {
+          "quantity": 49,
+          "unitPrice": "4236.20"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "13475.56",
+        "18080.75",
+        "20239.46"
+      ],
+      "expenses": [
+        "9676.32",
+        "6650.31"
+      ],
+      "expected": {
+        "subtotal": "326814.00",
+        "discount": "24511.05",
+        "total": "302302.95",
+        "paid": "51795.77",
+        "balance": "250507.18",
+        "expenses": "16326.63",
+        "profit": "285976.32",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-043",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 43)",
+      "items": [
+        {
+          "quantity": 8,
+          "unitPrice": "775.00"
+        },
+        {
+          "quantity": 28,
+          "unitPrice": "2787.00"
+        },
+        {
+          "quantity": 35,
+          "unitPrice": "192.23"
+        },
+        {
+          "quantity": 35,
+          "unitPrice": "2826.56"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "29943.86"
+      ],
+      "expenses": [
+        "6272.00"
+      ],
+      "expected": {
+        "subtotal": "189893.65",
+        "discount": "194641.00",
+        "total": "-4747.35",
+        "paid": "29943.86",
+        "balance": "-34691.21",
+        "expenses": "6272.00",
+        "profit": "-11019.35",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-044",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 44)",
+      "items": [
+        {
+          "quantity": 41,
+          "unitPrice": "261.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "4316.89"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "10701.00",
+        "discount": "0.00",
+        "total": "10701.00",
+        "paid": "4316.89",
+        "balance": "6384.11",
+        "expenses": "0.00",
+        "profit": "10701.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-045",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 45)",
+      "items": [
+        {
+          "quantity": 59,
+          "unitPrice": "2690.00"
+        },
+        {
+          "quantity": 13,
+          "unitPrice": "4010.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "453.20"
+        },
+        {
+          "kind": "percentage",
+          "value": "20"
+        }
+      ],
+      "payments": [
+        "25464.12",
+        "7370.73",
+        "11738.32"
+      ],
+      "expenses": [
+        "1021.79",
+        "8902.18"
+      ],
+      "expected": {
+        "subtotal": "210840.00",
+        "discount": "42621.20",
+        "total": "168218.80",
+        "paid": "44573.17",
+        "balance": "123645.63",
+        "expenses": "9923.97",
+        "profit": "158294.83",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-046",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 46)",
+      "items": [
+        {
+          "quantity": 25,
+          "unitPrice": "1038.94"
+        },
+        {
+          "quantity": 11,
+          "unitPrice": "53.51"
+        },
+        {
+          "quantity": 57,
+          "unitPrice": "1418.27"
+        },
+        {
+          "quantity": 21,
+          "unitPrice": "222.49"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "2843.27"
+      ],
+      "expected": {
+        "subtotal": "112075.79",
+        "discount": "11207.58",
+        "total": "100868.21",
+        "paid": "0.00",
+        "balance": "100868.21",
+        "expenses": "2843.27",
+        "profit": "98024.94",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-047",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 47)",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "4478.00"
+        },
+        {
+          "quantity": 30,
+          "unitPrice": "4505.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        }
+      ],
+      "payments": [
+        "22980.39",
+        "26577.32"
+      ],
+      "expenses": [
+        "4898.73",
+        "1547.76"
+      ],
+      "expected": {
+        "subtotal": "139628.00",
+        "discount": "27925.60",
+        "total": "111702.40",
+        "paid": "49557.71",
+        "balance": "62144.69",
+        "expenses": "6446.49",
+        "profit": "105255.91",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-048",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 48)",
+      "items": [
+        {
+          "quantity": 31,
+          "unitPrice": "2978.00"
+        },
+        {
+          "quantity": 51,
+          "unitPrice": "2183.64"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "3558.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [
+        "20957.29"
+      ],
+      "expenses": [
+        "825.69"
+      ],
+      "expected": {
+        "subtotal": "203683.64",
+        "discount": "50920.91",
+        "total": "152762.73",
+        "paid": "20957.29",
+        "balance": "131805.44",
+        "expenses": "825.69",
+        "profit": "151937.04",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-049",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 49)",
+      "items": [
+        {
+          "quantity": 14,
+          "unitPrice": "3090.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "761.02"
+        },
+        {
+          "kind": "fixed",
+          "value": "1512.81"
+        },
+        {
+          "kind": "fixed",
+          "value": "895.15"
+        }
+      ],
+      "payments": [
+        "9242.41"
+      ],
+      "expenses": [
+        "413.69",
+        "3434.15",
+        "2740.03"
+      ],
+      "expected": {
+        "subtotal": "43260.00",
+        "discount": "3168.98",
+        "total": "40091.02",
+        "paid": "9242.41",
+        "balance": "30848.61",
+        "expenses": "6587.87",
+        "profit": "33503.15",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-050",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 50)",
+      "items": [
+        {
+          "quantity": 47,
+          "unitPrice": "4613.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [
+        "11749.31"
+      ],
+      "expenses": [
+        "6466.64",
+        "3872.44",
+        "9556.34"
+      ],
+      "expected": {
+        "subtotal": "216811.00",
+        "discount": "54202.75",
+        "total": "162608.25",
+        "paid": "11749.31",
+        "balance": "150858.94",
+        "expenses": "19895.42",
+        "profit": "142712.83",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-051",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 51)",
+      "items": [
+        {
+          "quantity": 29,
+          "unitPrice": "3154.50"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "1539.10"
+        },
+        {
+          "quantity": 8,
+          "unitPrice": "1703.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "20368.26"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "172824.90",
+        "discount": "17282.49",
+        "total": "155542.41",
+        "paid": "20368.26",
+        "balance": "135174.15",
+        "expenses": "0.00",
+        "profit": "155542.41",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-052",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 52)",
+      "items": [
+        {
+          "quantity": 40,
+          "unitPrice": "2561.00"
+        },
+        {
+          "quantity": 52,
+          "unitPrice": "2672.00"
+        },
+        {
+          "quantity": 46,
+          "unitPrice": "2873.86"
+        },
+        {
+          "quantity": 33,
+          "unitPrice": "3304.92"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1081.735"
+        }
+      ],
+      "payments": [
+        "12584.28",
+        "17327.01"
+      ],
+      "expenses": [
+        "242.95",
+        "9510.23"
+      ],
+      "expected": {
+        "subtotal": "482643.92",
+        "discount": "1081.74",
+        "total": "481562.18",
+        "paid": "29911.29",
+        "balance": "451650.89",
+        "expenses": "9753.18",
+        "profit": "471809.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-053",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 53)",
+      "items": [
+        {
+          "quantity": 58,
+          "unitPrice": "225.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1209.60"
+        },
+        {
+          "kind": "fixed",
+          "value": "1850.46"
+        }
+      ],
+      "payments": [
+        "12197.21",
+        "23508.47",
+        "9063.77"
+      ],
+      "expenses": [
+        "5821.77"
+      ],
+      "expected": {
+        "subtotal": "13050.00",
+        "discount": "3060.06",
+        "total": "9989.94",
+        "paid": "44769.45",
+        "balance": "-34779.51",
+        "expenses": "5821.77",
+        "profit": "4168.17",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-054",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 54)",
+      "items": [
+        {
+          "quantity": 45,
+          "unitPrice": "3946.40"
+        },
+        {
+          "quantity": 3,
+          "unitPrice": "224.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "896.46"
+        }
+      ],
+      "payments": [
+        "27894.32",
+        "21406.89",
+        "4679.10"
+      ],
+      "expenses": [
+        "427.94",
+        "3504.00"
+      ],
+      "expected": {
+        "subtotal": "178260.00",
+        "discount": "896.46",
+        "total": "177363.54",
+        "paid": "53980.31",
+        "balance": "123383.23",
+        "expenses": "3931.94",
+        "profit": "173431.60",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-055",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 55)",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "423.00"
+        },
+        {
+          "quantity": 24,
+          "unitPrice": "4336.35"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "4882.00"
+        },
+        {
+          "quantity": 35,
+          "unitPrice": "2744.45"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "9749.02",
+        "23045.96"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "361428.15",
+        "discount": "81321.33",
+        "total": "280106.82",
+        "paid": "32794.98",
+        "balance": "247311.84",
+        "expenses": "0.00",
+        "profit": "280106.82",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-056",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 56)",
+      "items": [
+        {
+          "quantity": 45,
+          "unitPrice": "981.00"
+        },
+        {
+          "quantity": 60,
+          "unitPrice": "3174.00"
+        },
+        {
+          "quantity": 43,
+          "unitPrice": "4079.00"
+        },
+        {
+          "quantity": 23,
+          "unitPrice": "3234.46"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1692.96"
+        },
+        {
+          "kind": "fixed",
+          "value": "27.90"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [
+        "21264.50",
+        "6225.96"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "484374.58",
+        "discount": "25939.59",
+        "total": "458434.99",
+        "paid": "27490.46",
+        "balance": "430944.53",
+        "expenses": "0.00",
+        "profit": "458434.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-057",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 57)",
+      "items": [
+        {
+          "quantity": 57,
+          "unitPrice": "3498.00"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "4446.41"
+        },
+        {
+          "quantity": 11,
+          "unitPrice": "1219.43"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "2376.06"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "316.47"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "2468.51",
+        "7613.57",
+        "683.33"
+      ],
+      "expected": {
+        "subtotal": "341273.44",
+        "discount": "316.47",
+        "total": "340956.97",
+        "paid": "0.00",
+        "balance": "340956.97",
+        "expenses": "10765.41",
+        "profit": "330191.56",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-058",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 58)",
+      "items": [
+        {
+          "quantity": 57,
+          "unitPrice": "2337.40"
+        },
+        {
+          "quantity": 13,
+          "unitPrice": "1399.00"
+        },
+        {
+          "quantity": 29,
+          "unitPrice": "323.00"
+        },
+        {
+          "quantity": 13,
+          "unitPrice": "4163.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1203.45"
+        }
+      ],
+      "payments": [
+        "133.88",
+        "24519.54"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "214904.80",
+        "discount": "1203.45",
+        "total": "213701.35",
+        "paid": "24653.42",
+        "balance": "189047.93",
+        "expenses": "0.00",
+        "profit": "213701.35",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-059",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 59)",
+      "items": [
+        {
+          "quantity": 35,
+          "unitPrice": "3094.00"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "4061.00"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "253.51"
+        },
+        {
+          "quantity": 47,
+          "unitPrice": "830.38"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "11348.74",
+        "21374.01",
+        "24215.37"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "157204.75",
+        "discount": "0.00",
+        "total": "157204.75",
+        "paid": "56938.12",
+        "balance": "100266.63",
+        "expenses": "0.00",
+        "profit": "157204.75",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-060",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 60)",
+      "items": [
+        {
+          "quantity": 43,
+          "unitPrice": "318.00"
+        },
+        {
+          "quantity": 28,
+          "unitPrice": "3036.51"
+        },
+        {
+          "quantity": 38,
+          "unitPrice": "4773.55"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "4953.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "2935.10",
+        "17806.69",
+        "26760.20"
+      ],
+      "expenses": [
+        "14.25",
+        "2755.81",
+        "5045.38"
+      ],
+      "expected": {
+        "subtotal": "285044.18",
+        "discount": "135395.99",
+        "total": "149648.19",
+        "paid": "47501.99",
+        "balance": "102146.20",
+        "expenses": "7815.44",
+        "profit": "141832.75",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-061",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 61)",
+      "items": [
+        {
+          "quantity": 14,
+          "unitPrice": "3698.00"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "1638.00"
+        },
+        {
+          "quantity": 6,
+          "unitPrice": "1341.00"
+        },
+        {
+          "quantity": 56,
+          "unitPrice": "962.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "182.05"
+        },
+        {
+          "kind": "fixed",
+          "value": "963.22"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "6811.69",
+        "6888.50",
+        "1292.43"
+      ],
+      "expected": {
+        "subtotal": "125156.00",
+        "discount": "1145.27",
+        "total": "124010.73",
+        "paid": "0.00",
+        "balance": "124010.73",
+        "expenses": "14992.62",
+        "profit": "109018.11",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-062",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 62)",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "2996.00"
+        },
+        {
+          "quantity": 52,
+          "unitPrice": "2712.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "24169.41"
+      ],
+      "expenses": [
+        "5027.85",
+        "5793.46"
+      ],
+      "expected": {
+        "subtotal": "144020.00",
+        "discount": "0.00",
+        "total": "144020.00",
+        "paid": "24169.41",
+        "balance": "119850.59",
+        "expenses": "10821.31",
+        "profit": "133198.69",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-063",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 63)",
+      "items": [
+        {
+          "quantity": 44,
+          "unitPrice": "3193.37"
+        },
+        {
+          "quantity": 31,
+          "unitPrice": "73.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "fixed",
+          "value": "1517.66"
+        }
+      ],
+      "payments": [
+        "13333.20",
+        "12333.09"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "142771.28",
+        "discount": "58626.18",
+        "total": "84145.10",
+        "paid": "25666.29",
+        "balance": "58478.81",
+        "expenses": "0.00",
+        "profit": "84145.10",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-064",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 64)",
+      "items": [
+        {
+          "quantity": 45,
+          "unitPrice": "1831.27"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [
+        "10135.31",
+        "16657.12",
+        "18446.62"
+      ],
+      "expenses": [
+        "734.11",
+        "9718.94",
+        "1383.67"
+      ],
+      "expected": {
+        "subtotal": "82407.15",
+        "discount": "24722.14",
+        "total": "57685.01",
+        "paid": "45239.05",
+        "balance": "12445.96",
+        "expenses": "11836.72",
+        "profit": "45848.29",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-065",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 65)",
+      "items": [
+        {
+          "quantity": 47,
+          "unitPrice": "4197.00"
+        },
+        {
+          "quantity": 60,
+          "unitPrice": "1133.00"
+        },
+        {
+          "quantity": 49,
+          "unitPrice": "871.00"
+        },
+        {
+          "quantity": 49,
+          "unitPrice": "1137.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "4951.73"
+      ],
+      "expenses": [
+        "9020.03",
+        "8705.45"
+      ],
+      "expected": {
+        "subtotal": "363631.00",
+        "discount": "0.00",
+        "total": "363631.00",
+        "paid": "4951.73",
+        "balance": "358679.27",
+        "expenses": "17725.48",
+        "profit": "345905.52",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-066",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 66)",
+      "items": [
+        {
+          "quantity": 8,
+          "unitPrice": "124.00"
+        },
+        {
+          "quantity": 12,
+          "unitPrice": "3677.00"
+        },
+        {
+          "quantity": 16,
+          "unitPrice": "2823.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "21313.39",
+        "19064.50"
+      ],
+      "expenses": [
+        "2591.93",
+        "9025.05"
+      ],
+      "expected": {
+        "subtotal": "90284.00",
+        "discount": "0.00",
+        "total": "90284.00",
+        "paid": "40377.89",
+        "balance": "49906.11",
+        "expenses": "11616.98",
+        "profit": "78667.02",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-067",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 67)",
+      "items": [
+        {
+          "quantity": 26,
+          "unitPrice": "4038.00"
+        },
+        {
+          "quantity": 58,
+          "unitPrice": "3368.00"
+        },
+        {
+          "quantity": 59,
+          "unitPrice": "3195.26"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [
+        "8545.37",
+        "24049.88",
+        "6015.73"
+      ],
+      "expenses": [
+        "5096.71",
+        "4409.44",
+        "8678.72"
+      ],
+      "expected": {
+        "subtotal": "488852.34",
+        "discount": "162934.48",
+        "total": "325917.86",
+        "paid": "38610.98",
+        "balance": "287306.88",
+        "expenses": "18184.87",
+        "profit": "307732.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-068",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 68)",
+      "items": [
+        {
+          "quantity": 6,
+          "unitPrice": "667.00"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "2385.40"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "4344.64"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "1084.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [
+        "10514.67",
+        "9754.99",
+        "8895.81"
+      ],
+      "expenses": [
+        "8096.93",
+        "7431.39"
+      ],
+      "expected": {
+        "subtotal": "320676.56",
+        "discount": "56118.39",
+        "total": "264558.17",
+        "paid": "29165.47",
+        "balance": "235392.70",
+        "expenses": "15528.32",
+        "profit": "249029.85",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-069",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 69)",
+      "items": [
+        {
+          "quantity": 32,
+          "unitPrice": "514.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "1542.55"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "8265.28",
+        "6698.59",
+        "8803.07"
+      ],
+      "expected": {
+        "subtotal": "16448.00",
+        "discount": "2364.95",
+        "total": "14083.05",
+        "paid": "0.00",
+        "balance": "14083.05",
+        "expenses": "23766.94",
+        "profit": "-9683.89",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-070",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 70)",
+      "items": [
+        {
+          "quantity": 22,
+          "unitPrice": "3348.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "3887.80"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [
+        "28250.08"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "81431.60",
+        "discount": "20357.90",
+        "total": "61073.70",
+        "paid": "28250.08",
+        "balance": "32823.62",
+        "expenses": "0.00",
+        "profit": "61073.70",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-071",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 71)",
+      "items": [
+        {
+          "quantity": 54,
+          "unitPrice": "3269.70"
+        },
+        {
+          "quantity": 46,
+          "unitPrice": "3993.00"
+        },
+        {
+          "quantity": 10,
+          "unitPrice": "4590.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "4968.69",
+        "3160.66"
+      ],
+      "expenses": [
+        "4239.22",
+        "4067.81"
+      ],
+      "expected": {
+        "subtotal": "406141.80",
+        "discount": "91381.91",
+        "total": "314759.89",
+        "paid": "8129.35",
+        "balance": "306630.54",
+        "expenses": "8307.03",
+        "profit": "306452.86",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-072",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 72)",
+      "items": [
+        {
+          "quantity": 2,
+          "unitPrice": "3213.00"
+        },
+        {
+          "quantity": 29,
+          "unitPrice": "2774.24"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [
+        "3050.31",
+        "6174.46",
+        "7130.57"
+      ],
+      "expected": {
+        "subtotal": "86878.96",
+        "discount": "0.00",
+        "total": "86878.96",
+        "paid": "0.00",
+        "balance": "86878.96",
+        "expenses": "16355.34",
+        "profit": "70523.62",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-073",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 73)",
+      "items": [
+        {
+          "quantity": 50,
+          "unitPrice": "1530.67"
+        },
+        {
+          "quantity": 21,
+          "unitPrice": "1393.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "5648.08"
+      ],
+      "expenses": [
+        "726.17"
+      ],
+      "expected": {
+        "subtotal": "105786.50",
+        "discount": "0.00",
+        "total": "105786.50",
+        "paid": "5648.08",
+        "balance": "100138.42",
+        "expenses": "726.17",
+        "profit": "105060.33",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-074",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 74)",
+      "items": [
+        {
+          "quantity": 18,
+          "unitPrice": "4864.54"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [
+        "497.28"
+      ],
+      "expected": {
+        "subtotal": "87561.72",
+        "discount": "0.00",
+        "total": "87561.72",
+        "paid": "0.00",
+        "balance": "87561.72",
+        "expenses": "497.28",
+        "profit": "87064.44",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-075",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 75)",
+      "items": [
+        {
+          "quantity": 36,
+          "unitPrice": "1772.00"
+        },
+        {
+          "quantity": 52,
+          "unitPrice": "4864.00"
+        },
+        {
+          "quantity": 44,
+          "unitPrice": "260.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [
+        "8520.09",
+        "1143.84",
+        "63.15"
+      ],
+      "expected": {
+        "subtotal": "328160.00",
+        "discount": "0.00",
+        "total": "328160.00",
+        "paid": "0.00",
+        "balance": "328160.00",
+        "expenses": "9727.08",
+        "profit": "318432.92",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-076",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 76)",
+      "items": [
+        {
+          "quantity": 41,
+          "unitPrice": "3461.47"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1878.87"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "141920.27",
+        "discount": "72839.01",
+        "total": "69081.26",
+        "paid": "0.00",
+        "balance": "69081.26",
+        "expenses": "0.00",
+        "profit": "69081.26",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-077",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 77)",
+      "items": [
+        {
+          "quantity": 4,
+          "unitPrice": "3602.00"
+        },
+        {
+          "quantity": 5,
+          "unitPrice": "1350.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "percentage",
+          "value": "10"
+        }
+      ],
+      "payments": [
+        "15894.14"
+      ],
+      "expenses": [
+        "6468.82",
+        "5018.15"
+      ],
+      "expected": {
+        "subtotal": "21158.00",
+        "discount": "16926.40",
+        "total": "4231.60",
+        "paid": "15894.14",
+        "balance": "-11662.54",
+        "expenses": "11486.97",
+        "profit": "-7255.37",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-078",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 78)",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "3858.73"
+        },
+        {
+          "quantity": 10,
+          "unitPrice": "133.11"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "539.00"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "1272.14"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "11770.62",
+        "24126.10",
+        "24058.90"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "52681.00",
+        "discount": "0.00",
+        "total": "52681.00",
+        "paid": "59955.62",
+        "balance": "-7274.62",
+        "expenses": "0.00",
+        "profit": "52681.00",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-079",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 79)",
+      "items": [
+        {
+          "quantity": 15,
+          "unitPrice": "2251.16"
+        },
+        {
+          "quantity": 49,
+          "unitPrice": "1260.99"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "26217.98",
+        "15495.29"
+      ],
+      "expenses": [
+        "7382.80"
+      ],
+      "expected": {
+        "subtotal": "95555.91",
+        "discount": "2388.90",
+        "total": "93167.01",
+        "paid": "41713.27",
+        "balance": "51453.74",
+        "expenses": "7382.80",
+        "profit": "85784.21",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-080",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 80)",
+      "items": [
+        {
+          "quantity": 25,
+          "unitPrice": "4227.21"
+        },
+        {
+          "quantity": 31,
+          "unitPrice": "4371.04"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "1340.00"
+        },
+        {
+          "quantity": 53,
+          "unitPrice": "1906.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "fixed",
+          "value": "355.30"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "8020.27",
+        "9619.82"
+      ],
+      "expenses": [
+        "1858.78",
+        "3798.48",
+        "7584.97"
+      ],
+      "expected": {
+        "subtotal": "362300.49",
+        "discount": "45642.86",
+        "total": "316657.63",
+        "paid": "17640.09",
+        "balance": "299017.54",
+        "expenses": "13242.23",
+        "profit": "303415.40",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-081",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 81)",
+      "items": [
+        {
+          "quantity": 46,
+          "unitPrice": "3399.00"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "1171.30"
+        },
+        {
+          "quantity": 1,
+          "unitPrice": "3498.00"
+        },
+        {
+          "quantity": 4,
+          "unitPrice": "2641.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1973.415"
+        },
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        }
+      ],
+      "payments": [
+        "16084.39",
+        "26006.29"
+      ],
+      "expenses": [
+        "5364.48",
+        "4844.23",
+        "8556.94"
+      ],
+      "expected": {
+        "subtotal": "178615.10",
+        "discount": "15369.55",
+        "total": "163245.55",
+        "paid": "42090.68",
+        "balance": "121154.87",
+        "expenses": "18765.65",
+        "profit": "144479.90",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-082",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 82)",
+      "items": [
+        {
+          "quantity": 2,
+          "unitPrice": "188.18"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "24.02"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "4610.17"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        },
+        {
+          "kind": "fixed",
+          "value": "1039.80"
+        }
+      ],
+      "payments": [
+        "7446.59"
+      ],
+      "expenses": [
+        "1253.61",
+        "1674.48"
+      ],
+      "expected": {
+        "subtotal": "148838.58",
+        "discount": "65531.56",
+        "total": "83307.02",
+        "paid": "7446.59",
+        "balance": "75860.43",
+        "expenses": "2928.09",
+        "profit": "80378.93",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-083",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 83)",
+      "items": [
+        {
+          "quantity": 40,
+          "unitPrice": "1343.00"
+        },
+        {
+          "quantity": 2,
+          "unitPrice": "3962.00"
+        },
+        {
+          "quantity": 4,
+          "unitPrice": "4973.69"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "8277.31",
+        "3793.73",
+        "3563.04"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "81538.76",
+        "discount": "0.00",
+        "total": "81538.76",
+        "paid": "15634.08",
+        "balance": "65904.68",
+        "expenses": "0.00",
+        "profit": "81538.76",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-084",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 84)",
+      "items": [
+        {
+          "quantity": 49,
+          "unitPrice": "104.69"
+        },
+        {
+          "quantity": 41,
+          "unitPrice": "1347.98"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "60396.99",
+        "discount": "36238.20",
+        "total": "24158.79",
+        "paid": "0.00",
+        "balance": "24158.79",
+        "expenses": "0.00",
+        "profit": "24158.79",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-085",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 85)",
+      "items": [
+        {
+          "quantity": 20,
+          "unitPrice": "4459.00"
+        },
+        {
+          "quantity": 20,
+          "unitPrice": "2704.66"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "237.32"
+        },
+        {
+          "kind": "fixed",
+          "value": "963.60"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [
+        "2130.88"
+      ],
+      "expenses": [
+        "1977.67",
+        "8881.86",
+        "5759.19"
+      ],
+      "expected": {
+        "subtotal": "143273.20",
+        "discount": "19110.07",
+        "total": "124163.13",
+        "paid": "2130.88",
+        "balance": "122032.25",
+        "expenses": "16618.72",
+        "profit": "107544.41",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-086",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 86)",
+      "items": [
+        {
+          "quantity": 17,
+          "unitPrice": "1719.64"
+        },
+        {
+          "quantity": 28,
+          "unitPrice": "4602.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "436.27"
+        },
+        {
+          "kind": "fixed",
+          "value": "264.56"
+        }
+      ],
+      "payments": [
+        "20173.32",
+        "12840.87",
+        "16013.69"
+      ],
+      "expenses": [
+        "7148.22"
+      ],
+      "expected": {
+        "subtotal": "158089.88",
+        "discount": "700.83",
+        "total": "157389.05",
+        "paid": "49027.88",
+        "balance": "108361.17",
+        "expenses": "7148.22",
+        "profit": "150240.83",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-087",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 87)",
+      "items": [
+        {
+          "quantity": 33,
+          "unitPrice": "4078.00"
+        },
+        {
+          "quantity": 35,
+          "unitPrice": "3210.86"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "5858.82",
+        "531.71",
+        "6451.57"
+      ],
+      "expected": {
+        "subtotal": "246954.10",
+        "discount": "113179.06",
+        "total": "133775.04",
+        "paid": "0.00",
+        "balance": "133775.04",
+        "expenses": "12842.10",
+        "profit": "120932.94",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-088",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 88)",
+      "items": [
+        {
+          "quantity": 10,
+          "unitPrice": "1428.82"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1994.60"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [
+        "9589.19",
+        "15736.50",
+        "2272.91"
+      ],
+      "expenses": [
+        "4168.76",
+        "9394.48"
+      ],
+      "expected": {
+        "subtotal": "14288.20",
+        "discount": "3780.63",
+        "total": "10507.57",
+        "paid": "27598.60",
+        "balance": "-17091.03",
+        "expenses": "13563.24",
+        "profit": "-3055.67",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-089",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 89)",
+      "items": [
+        {
+          "quantity": 51,
+          "unitPrice": "2015.00"
+        },
+        {
+          "quantity": 54,
+          "unitPrice": "1699.00"
+        },
+        {
+          "quantity": 29,
+          "unitPrice": "1660.47"
+        },
+        {
+          "quantity": 40,
+          "unitPrice": "4926.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "7.5"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [
+        "25766.39"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "439704.63",
+        "discount": "274815.40",
+        "total": "164889.23",
+        "paid": "25766.39",
+        "balance": "139122.84",
+        "expenses": "0.00",
+        "profit": "164889.23",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-090",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 90)",
+      "items": [
+        {
+          "quantity": 59,
+          "unitPrice": "3980.26"
+        },
+        {
+          "quantity": 42,
+          "unitPrice": "3789.80"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "fixed",
+          "value": "1391.565"
+        }
+      ],
+      "payments": [
+        "16799.68",
+        "12834.41",
+        "19385.57"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "394006.94",
+        "discount": "198395.04",
+        "total": "195611.90",
+        "paid": "49019.66",
+        "balance": "146592.24",
+        "expenses": "0.00",
+        "profit": "195611.90",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-091",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 91)",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "3871.48"
+        },
+        {
+          "quantity": 5,
+          "unitPrice": "3602.92"
+        },
+        {
+          "quantity": 60,
+          "unitPrice": "4608.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        },
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        },
+        {
+          "kind": "fixed",
+          "value": "1587.345"
+        }
+      ],
+      "payments": [
+        "17609.18"
+      ],
+      "expenses": [
+        "9634.09"
+      ],
+      "expected": {
+        "subtotal": "298366.08",
+        "discount": "175624.28",
+        "total": "122741.80",
+        "paid": "17609.18",
+        "balance": "105132.62",
+        "expenses": "9634.09",
+        "profit": "113107.71",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-092",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 92)",
+      "items": [
+        {
+          "quantity": 57,
+          "unitPrice": "1364.00"
+        },
+        {
+          "quantity": 30,
+          "unitPrice": "2894.00"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "2969.00"
+        },
+        {
+          "quantity": 12,
+          "unitPrice": "3045.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "33.33"
+        }
+      ],
+      "payments": [
+        "11274.98",
+        "20149.06"
+      ],
+      "expenses": [
+        "2457.91",
+        "8432.56"
+      ],
+      "expected": {
+        "subtotal": "221891.00",
+        "discount": "73956.27",
+        "total": "147934.73",
+        "paid": "31424.04",
+        "balance": "116510.69",
+        "expenses": "10890.47",
+        "profit": "137044.26",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-093",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 93)",
+      "items": [
+        {
+          "quantity": 51,
+          "unitPrice": "1909.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "838.56"
+        },
+        {
+          "kind": "fixed",
+          "value": "1549.16"
+        },
+        {
+          "kind": "fixed",
+          "value": "899.44"
+        }
+      ],
+      "payments": [
+        "5966.84"
+      ],
+      "expenses": [
+        "3302.99",
+        "3924.67"
+      ],
+      "expected": {
+        "subtotal": "97359.00",
+        "discount": "3287.16",
+        "total": "94071.84",
+        "paid": "5966.84",
+        "balance": "88105.00",
+        "expenses": "7227.66",
+        "profit": "86844.18",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-094",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 94)",
+      "items": [
+        {
+          "quantity": 5,
+          "unitPrice": "4495.00"
+        },
+        {
+          "quantity": 24,
+          "unitPrice": "3538.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "20"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "605.90",
+        "5508.71"
+      ],
+      "expected": {
+        "subtotal": "107387.00",
+        "discount": "21477.40",
+        "total": "85909.60",
+        "paid": "0.00",
+        "balance": "85909.60",
+        "expenses": "6114.61",
+        "profit": "79794.99",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-095",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 95)",
+      "items": [
+        {
+          "quantity": 9,
+          "unitPrice": "2329.47"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "1743.17"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "5577.41"
+      ],
+      "expected": {
+        "subtotal": "88948.86",
+        "discount": "11118.61",
+        "total": "77830.25",
+        "paid": "0.00",
+        "balance": "77830.25",
+        "expenses": "5577.41",
+        "profit": "72252.84",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-096",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 96)",
+      "items": [
+        {
+          "quantity": 22,
+          "unitPrice": "2928.00"
+        },
+        {
+          "quantity": 40,
+          "unitPrice": "2715.16"
+        },
+        {
+          "quantity": 11,
+          "unitPrice": "383.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1991.57"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [
+        "9034.52",
+        "18124.58",
+        "2088.20"
+      ],
+      "expenses": [
+        "6707.94"
+      ],
+      "expected": {
+        "subtotal": "177235.40",
+        "discount": "19715.11",
+        "total": "157520.29",
+        "paid": "29247.30",
+        "balance": "128272.99",
+        "expenses": "6707.94",
+        "profit": "150812.35",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-097",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 97)",
+      "items": [
+        {
+          "quantity": 18,
+          "unitPrice": "1182.00"
+        },
+        {
+          "quantity": 51,
+          "unitPrice": "2688.61"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1505.84"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "158395.11",
+        "discount": "1505.84",
+        "total": "156889.27",
+        "paid": "0.00",
+        "balance": "156889.27",
+        "expenses": "0.00",
+        "profit": "156889.27",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-098",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 98)",
+      "items": [
+        {
+          "quantity": 51,
+          "unitPrice": "2194.00"
+        },
+        {
+          "quantity": 56,
+          "unitPrice": "363.85"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "25335.20"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "132269.60",
+        "discount": "0.00",
+        "total": "132269.60",
+        "paid": "25335.20",
+        "balance": "106934.40",
+        "expenses": "0.00",
+        "profit": "132269.60",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-099",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 99)",
+      "items": [
+        {
+          "quantity": 31,
+          "unitPrice": "4586.59"
+        },
+        {
+          "quantity": 29,
+          "unitPrice": "4268.00"
+        },
+        {
+          "quantity": 45,
+          "unitPrice": "564.14"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "10"
+        },
+        {
+          "kind": "percentage",
+          "value": "12.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "450.525"
+        }
+      ],
+      "payments": [
+        "13745.03"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "291342.59",
+        "discount": "66002.61",
+        "total": "225339.98",
+        "paid": "13745.03",
+        "balance": "211594.95",
+        "expenses": "0.00",
+        "profit": "225339.98",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-100",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 100)",
+      "items": [
+        {
+          "quantity": 11,
+          "unitPrice": "4862.00"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "3289.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1495.235"
+        },
+        {
+          "kind": "fixed",
+          "value": "723.13"
+        }
+      ],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "158730.00",
+        "discount": "2218.37",
+        "total": "156511.63",
+        "paid": "0.00",
+        "balance": "156511.63",
+        "expenses": "0.00",
+        "profit": "156511.63",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-101",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 101)",
+      "items": [
+        {
+          "quantity": 28,
+          "unitPrice": "1896.00"
+        },
+        {
+          "quantity": 7,
+          "unitPrice": "2016.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "11726.07",
+        "28128.37"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "67200.00",
+        "discount": "0.00",
+        "total": "67200.00",
+        "paid": "39854.44",
+        "balance": "27345.56",
+        "expenses": "0.00",
+        "profit": "67200.00",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-102",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 102)",
+      "items": [
+        {
+          "quantity": 28,
+          "unitPrice": "1979.55"
+        },
+        {
+          "quantity": 21,
+          "unitPrice": "2407.00"
+        },
+        {
+          "quantity": 9,
+          "unitPrice": "3235.04"
+        },
+        {
+          "quantity": 58,
+          "unitPrice": "2101.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        },
+        {
+          "kind": "fixed",
+          "value": "541.065"
+        },
+        {
+          "kind": "percentage",
+          "value": "5"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "1060.71",
+        "3161.60",
+        "7691.46"
+      ],
+      "expected": {
+        "subtotal": "256947.76",
+        "discount": "19812.15",
+        "total": "237135.61",
+        "paid": "0.00",
+        "balance": "237135.61",
+        "expenses": "11913.77",
+        "profit": "225221.84",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-103",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 103)",
+      "items": [
+        {
+          "quantity": 43,
+          "unitPrice": "961.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1537.41"
+        }
+      ],
+      "payments": [
+        "3747.24",
+        "26604.68"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "41323.00",
+        "discount": "1537.41",
+        "total": "39785.59",
+        "paid": "30351.92",
+        "balance": "9433.67",
+        "expenses": "0.00",
+        "profit": "39785.59",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-104",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 104)",
+      "items": [
+        {
+          "quantity": 47,
+          "unitPrice": "2637.55"
+        },
+        {
+          "quantity": 16,
+          "unitPrice": "67.52"
+        },
+        {
+          "quantity": 15,
+          "unitPrice": "1542.80"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "50"
+        },
+        {
+          "kind": "percentage",
+          "value": "2.5"
+        }
+      ],
+      "payments": [
+        "11591.13",
+        "18309.44"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "148187.17",
+        "discount": "77798.27",
+        "total": "70388.90",
+        "paid": "29900.57",
+        "balance": "40488.33",
+        "expenses": "0.00",
+        "profit": "70388.90",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-105",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 105)",
+      "items": [
+        {
+          "quantity": 14,
+          "unitPrice": "44.86"
+        },
+        {
+          "quantity": 26,
+          "unitPrice": "485.00"
+        },
+        {
+          "quantity": 39,
+          "unitPrice": "649.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "51.34"
+        }
+      ],
+      "payments": [],
+      "expenses": [
+        "2359.86",
+        "1198.90"
+      ],
+      "expected": {
+        "subtotal": "38549.04",
+        "discount": "51.34",
+        "total": "38497.70",
+        "paid": "0.00",
+        "balance": "38497.70",
+        "expenses": "3558.76",
+        "profit": "34938.94",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-106",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 106)",
+      "items": [
+        {
+          "quantity": 4,
+          "unitPrice": "4288.83"
+        },
+        {
+          "quantity": 4,
+          "unitPrice": "1500.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "1662.08"
+        },
+        {
+          "kind": "percentage",
+          "value": "20"
+        }
+      ],
+      "payments": [
+        "14285.87",
+        "3902.97"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "23155.32",
+        "discount": "6293.14",
+        "total": "16862.18",
+        "paid": "18188.84",
+        "balance": "-1326.66",
+        "expenses": "0.00",
+        "profit": "16862.18",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-107",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 107)",
+      "items": [
+        {
+          "quantity": 21,
+          "unitPrice": "1554.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "404.31"
+        },
+        {
+          "kind": "percentage",
+          "value": "50"
+        }
+      ],
+      "payments": [
+        "25978.42",
+        "15869.65"
+      ],
+      "expenses": [
+        "5626.54",
+        "9190.58",
+        "2359.75"
+      ],
+      "expected": {
+        "subtotal": "32634.00",
+        "discount": "16721.31",
+        "total": "15912.69",
+        "paid": "41848.07",
+        "balance": "-25935.38",
+        "expenses": "17176.87",
+        "profit": "-1264.18",
+        "fullyPaid": true
+      }
+    },
+    {
+      "id": "seeded-random-108",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 108)",
+      "items": [
+        {
+          "quantity": 1,
+          "unitPrice": "2845.27"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "407.00"
+        },
+        {
+          "quantity": 48,
+          "unitPrice": "2422.60"
+        },
+        {
+          "quantity": 32,
+          "unitPrice": "3147.16"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "15"
+        }
+      ],
+      "payments": [
+        "22837.41",
+        "1342.09"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "232863.19",
+        "discount": "34929.48",
+        "total": "197933.71",
+        "paid": "24179.50",
+        "balance": "173754.21",
+        "expenses": "0.00",
+        "profit": "197933.71",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-109",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 109)",
+      "items": [
+        {
+          "quantity": 18,
+          "unitPrice": "1615.43"
+        }
+      ],
+      "discounts": [],
+      "payments": [],
+      "expenses": [],
+      "expected": {
+        "subtotal": "29077.74",
+        "discount": "0.00",
+        "total": "29077.74",
+        "paid": "0.00",
+        "balance": "29077.74",
+        "expenses": "0.00",
+        "profit": "29077.74",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-110",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 110)",
+      "items": [
+        {
+          "quantity": 57,
+          "unitPrice": "3940.82"
+        },
+        {
+          "quantity": 19,
+          "unitPrice": "695.14"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "percentage",
+          "value": "25"
+        }
+      ],
+      "payments": [
+        "1253.88",
+        "8768.16",
+        "25853.80"
+      ],
+      "expenses": [
+        "4420.64",
+        "6969.59",
+        "7497.92"
+      ],
+      "expected": {
+        "subtotal": "237834.40",
+        "discount": "59458.60",
+        "total": "178375.80",
+        "paid": "35875.84",
+        "balance": "142499.96",
+        "expenses": "18888.15",
+        "profit": "159487.65",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-111",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 111)",
+      "items": [
+        {
+          "quantity": 46,
+          "unitPrice": "802.00"
+        },
+        {
+          "quantity": 0,
+          "unitPrice": "3803.00"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "29113.96"
+      ],
+      "expenses": [
+        "2417.07",
+        "2545.20"
+      ],
+      "expected": {
+        "subtotal": "36892.00",
+        "discount": "0.00",
+        "total": "36892.00",
+        "paid": "29113.96",
+        "balance": "7778.04",
+        "expenses": "4962.27",
+        "profit": "31929.73",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-112",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 112)",
+      "items": [
+        {
+          "quantity": 51,
+          "unitPrice": "1555.34"
+        }
+      ],
+      "discounts": [],
+      "payments": [
+        "625.32"
+      ],
+      "expenses": [],
+      "expected": {
+        "subtotal": "79322.34",
+        "discount": "0.00",
+        "total": "79322.34",
+        "paid": "625.32",
+        "balance": "78697.02",
+        "expenses": "0.00",
+        "profit": "79322.34",
+        "fullyPaid": false
+      }
+    },
+    {
+      "id": "seeded-random-113",
+      "category": "seeded-random",
+      "note": "seeded random case (mulberry32 seed 20261008, draw 113)",
+      "items": [
+        {
+          "quantity": 12,
+          "unitPrice": "1948.09"
+        },
+        {
+          "quantity": 19,
+          "unitPrice": "2466.72"
+        },
+        {
+          "quantity": 42,
+          "unitPrice": "3015.00"
+        },
+        {
+          "quantity": 55,
+          "unitPrice": "4341.00"
+        }
+      ],
+      "discounts": [
+        {
+          "kind": "fixed",
+          "value": "596.67"
+        }
+      ],
+      "payments": [
+        "13982.84",
+        "28404.53",
+        "18883.71"
+      ],
+      "expenses": [
+        "272.23"
+      ],
+      "expected": {
+        "subtotal": "435629.76",
+        "discount": "596.67",
+        "total": "435033.09",
+        "paid": "61271.08",
+        "balance": "373762.01",
+        "expenses": "272.23",
+        "profit": "434760.86",
+        "fullyPaid": false
+      }
+    }
+  ]
+}
