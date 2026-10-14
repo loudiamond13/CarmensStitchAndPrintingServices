@@ -1,10 +1,10 @@
 ---
-status: diagnosed
+status: complete
 phase: 02-web-foundation-design-system
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md, 02-06-SUMMARY.md, 02-07-SUMMARY.md, 02-08-SUMMARY.md, 02-09-SUMMARY.md, 02-10-SUMMARY.md, 02-11-SUMMARY.md, 02-12-SUMMARY.md, 02-13-SUMMARY.md, 02-14-SUMMARY.md, 02-15-SUMMARY.md, 02-16-SUMMARY.md, 02-17-SUMMARY.md, 02-18-SUMMARY.md, 02-19-SUMMARY.md, 02-20-SUMMARY.md, 02-21-SUMMARY.md, 02-22-SUMMARY.md, 02-23-SUMMARY.md, 02-24-SUMMARY.md, 02-25-SUMMARY.md, 02-26-SUMMARY.md, 02-27-SUMMARY.md, 02-28-SUMMARY.md, 02-29-SUMMARY.md, 02-30-SUMMARY.md, 02-31-SUMMARY.md, 02-32-SUMMARY.md, 02-33-SUMMARY.md, 02-34-SUMMARY.md, 02-35-SUMMARY.md, 02-36-SUMMARY.md, 02-37-SUMMARY.md, 02-38-SUMMARY.md, 02-39-SUMMARY.md, 02-40-SUMMARY.md]
 started: 2026-10-13T10:53:22-05:00
 created: 2026-10-13T10:53:22-05:00
-updated: 2026-10-13T20:10:00-05:00
+updated: 2026-10-13T21:35:00-05:00
 ---
 
 ## Current Test
@@ -1581,7 +1581,10 @@ why_human: What a real screen reader announces cannot be tested in jsdom. The sc
 
 ### 199. Dialogs fit and can be used in a short browser window
 expected: Any dialog (e.g. Open Delete Order on /dev/components) sits centred on the screen and, when the browser window is short (a laptop at 125-150% zoom), the whole dialog, including its Cancel and Delete buttons, can be seen or scrolled to.
-result: issue
+result: pass
+retest_result: "pass" (owner, 2026-10-13, Chrome at 125-150% zoom; no objection raised to the WR-01 focus/scroll jump)
+retest: "re-check after gap-closure plans 02-41 and 02-42 (G-2-199, D-42); started 2026-10-13T21:29:10-05:00"
+previous_result: issue
 reported: "pass, but the \"Open Delete Order\" isnt dialog isnt showing center horizontally" (owner screenshot: Chrome, 1911x880 screen px at about 150% zoom; the Delete Order dialog's buttons are cut off at the bottom)
 severity: major
 found_during: test 196
@@ -1592,8 +1595,8 @@ diagnosis_note: |
 ## Summary
 
 total: 199
-passed: 198
-issues: 1
+passed: 199
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -1601,8 +1604,10 @@ blocked: 0
 ## Gaps
 
 - gap_id: G-2-199
+  status: resolved
+  resolved_by: 02-41-PLAN.md, 02-42-PLAN.md
+  resolved_at: 2026-10-13
   truth: "Any dialog is fully visible or scrollable in a short window (laptop at 125-150% zoom, WCAG 1.4.10), and its horizontal position matches what the owner expects"
-  status: failed
   reason: "User reported: pass, but the \"Open Delete Order\" isnt dialog isnt showing center horizontally"
   severity: major
   test: 199
