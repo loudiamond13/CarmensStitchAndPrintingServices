@@ -32,11 +32,11 @@ function css(fileName: string, gzipSize: number): BudgetAsset {
   return { fileName, gzipSize };
 }
 
-const PUBLIC_LAYOUT = 'src/app/public/PublicLayout.tsx';
-const PUBLIC_PAGE = 'src/app/public/PublicPlaceholderPage.tsx';
-const ADMIN_LAYOUT = 'src/app/admin/AdminLayout.tsx';
+const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
+const PUBLIC_PAGE = 'src/modules/public/pages/PublicPlaceholderPage.tsx';
+const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
-const ADMIN_PAGE = 'src/app/admin/AdminPreviewPage.tsx';
+const ADMIN_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
 const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
 
@@ -51,7 +51,7 @@ function productionGraph(publicBytes: number, cssBytes = 15_000): BudgetGraph {
         isEntry: true,
         facadeModuleId: 'index.html',
         imports: [SHARED],
-        moduleIds: ['index.html', 'src/main.tsx', 'src/app/router.tsx'],
+        moduleIds: ['index.html', 'src/main.tsx', 'src/core/routes/router.tsx'],
       }),
       chunk(SHARED, 1_000, { moduleIds: ['node_modules/react/index.js'] }),
       chunk('assets/PublicLayout-C3.js', 1_500, {
@@ -97,7 +97,7 @@ function devRoutesGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetG
         isDynamicEntry: true,
         facadeModuleId: ADMIN_LAYOUT,
         imports: [SHARED, adminShared],
-        moduleIds: [ADMIN_LAYOUT, 'src/app/admin/TabBar.tsx'],
+        moduleIds: [ADMIN_LAYOUT, 'src/modules/admin/components/TabBar.tsx'],
       }),
       chunk(adminShared, 1_000),
       chunk('assets/UrlStateLayout-I9.js', 1_000, {
@@ -127,11 +127,11 @@ describe('BUDGETS (PERF-01)', () => {
   });
 
   it('names the public route modules (layout and placeholder page) and the admin route modules', () => {
-    expect(PUBLIC_ROUTE).toEqual(['src/app/public/PublicLayout.tsx', 'src/app/public/PublicPlaceholderPage.tsx']);
+    expect(PUBLIC_ROUTE).toEqual(['src/layouts/PublicLayout.tsx', 'src/modules/public/pages/PublicPlaceholderPage.tsx']);
     expect(ADMIN_ROUTE).toEqual([
-      'src/app/admin/AdminLayout.tsx',
+      'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
-      'src/app/admin/AdminPreviewPage.tsx',
+      'src/modules/admin/pages/AdminPreviewPage.tsx',
     ]);
   });
 });
@@ -210,7 +210,7 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
     expect(report.publicJs).toBeNull();
-    expect(report.errors).toEqual([expect.stringContaining('src/app/public/PublicPlaceholderPage.tsx')]);
+    expect(report.errors).toEqual([expect.stringContaining('src/modules/public/pages/PublicPlaceholderPage.tsx')]);
   });
 
   it('fails closed when the index.html entry chunk is missing', () => {
@@ -222,10 +222,10 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     expect(report.errors).toEqual([expect.stringContaining('index.html')]);
   });
 
-  it('fails a production chunk whose modules include src/app/admin/AdminLayout.tsx (D-20, CWE-489)', () => {
+  it('fails a production chunk whose modules include src/layouts/AdminLayout.tsx (D-20, CWE-489)', () => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
-      c.fileName === SHARED ? { ...c, moduleIds: [...c.moduleIds, 'src/app/admin/AdminLayout.tsx'] } : c,
+      c.fileName === SHARED ? { ...c, moduleIds: [...c.moduleIds, 'src/layouts/AdminLayout.tsx'] } : c,
     );
     const report = evaluateBudgets({ ...graph, chunks: leaked }, production);
     expect(report.ok).toBe(false);
@@ -281,7 +281,7 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
     const report = evaluateBudgets({ ...graph, chunks }, devRoutes);
     expect(report.ok).toBe(false);
     expect(report.adminJs).toBeNull();
-    expect(report.errors).toEqual([expect.stringContaining('src/app/admin/AdminLayout.tsx')]);
+    expect(report.errors).toEqual([expect.stringContaining('src/layouts/AdminLayout.tsx')]);
   });
 
   it('finds a route module that sits in a shared chunk (the parity entry imports it statically, so it is no facade)', () => {
@@ -357,7 +357,8 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     ['src/dev/scenarios/groups/money.ts'],
     ['visual/parity/page.tsx'],
     ['visual/.reference-src/ui/index.tsx'],
-    ['src/app/admin/routes.tsx'],
+    ['src/modules/admin/routes.tsx'],
+    ['src/layouts/AdminLayout.tsx'],
   ])('fails a production chunk that contains %s', (moduleId) => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
