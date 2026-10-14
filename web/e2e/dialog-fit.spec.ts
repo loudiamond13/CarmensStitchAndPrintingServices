@@ -17,7 +17,7 @@
 // view directly). Every measurement waits for the dialog's entry animation to finish: its 0.2s rise moves its box.
 // Page scripts are strings: the e2e TypeScript program has no DOM types. The Delete Order helpers are shared with
 // dialog-scrollbars.spec.ts (deleteOrderDialog.ts).
-import type { Page, TestInfo } from '@playwright/test';
+import type { TestInfo } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import {
   boxOf,
@@ -29,6 +29,7 @@ import {
   waitForFramesAndTask,
   waitForSettledScroll,
   type OpenDialog,
+  wheelOverDialog,
 } from './deleteOrderDialog.ts';
 
 /** Desktop: the approved top (16px padding + 124px spacer) and the edge gap it may shrink to. */
@@ -88,13 +89,6 @@ function expectScrolling(fit: OpenDialog): void {
 async function expectButtonsInView(fit: OpenDialog): Promise<void> {
   await expect(fit.cancel).toBeInViewport({ ratio: 1 });
   await expect(fit.confirm).toBeInViewport({ ratio: 1 });
-}
-
-/** Turns the mouse wheel over the dialog: the scrolling backdrop takes it. */
-async function wheelOverDialog(page: Page, fit: OpenDialog): Promise<void> {
-  const visibleBottom = Math.min(fit.box.y + fit.box.height, fit.viewport.height);
-  await page.mouse.move(fit.box.x + fit.box.width / 2, (fit.box.y + visibleBottom) / 2);
-  await page.mouse.wheel(0, 1000);
 }
 
 test('@dialog-fit 1440x900: the Delete Order dialog keeps the approved 140px top, centred on the whole window', async ({

@@ -115,6 +115,13 @@ export async function readCaret(
   })()`);
 }
 
+/** Turns the mouse wheel over the dialog: the scrolling backdrop takes it. */
+export async function wheelOverDialog(page: Page, fit: OpenDialog): Promise<void> {
+  const visibleBottom = Math.min(fit.box.y + fit.box.height, fit.viewport.height);
+  await page.mouse.move(fit.box.x + fit.box.width / 2, (fit.box.y + visibleBottom) / 2);
+  await page.mouse.wheel(0, 1000);
+}
+
 /** Opens /dev/components at the given window size (or the project's own), opens Delete Order and measures it. */
 export async function openDeleteOrder(
   page: Page,
