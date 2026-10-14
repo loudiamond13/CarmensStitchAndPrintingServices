@@ -86,12 +86,18 @@ public sealed class CspsProblemDetailsTests
     }
 
     [Fact]
-    public void WithoutAnActivityTheTraceIdentifierIsUsed()
+    public void WithoutAnActivityAStableW3CTraceIdIsUsed()
     {
         Activity.Current = null;
         var context = new DefaultHttpContext { TraceIdentifier = "fallback-id" };
 
-        CorrelationId.For(context).ShouldBe("fallback-id");
+        var first = CorrelationId.For(context);
+        var second = CorrelationId.For(context);
+
+        first.ShouldMatch("^[0-9a-f]{32}$");
+        first.ShouldNotBe(new string('0', 32), "an all-zero trace id is invalid in W3C");
+        second.ShouldBe(first, "one request keeps one correlation id");
+        CorrelationId.For(new DefaultHttpContext()).ShouldNotBe(first, "each request gets its own id");
     }
 
     [Theory]
