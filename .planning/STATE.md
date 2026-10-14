@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Web Foundation & Design System
 status: executing
-stopped_at: Completed 02-42-PLAN.md
-last_updated: "2026-10-14T01:47:28.974Z"
-last_activity: 2026-10-13
-last_activity_desc: Completed gap-closure plan 02-42 (G-2-199 backdrop scrollbar close rule)
-state_head: bb0ce7e62847e5cea4f7308e7cba9535accd159a
+stopped_at: Completed 02-43-PLAN.md
+last_updated: "2026-10-14T10:15:31.433Z"
+last_activity: 2026-10-14
+last_activity_desc: Completed review follow-up plan 02-43 (WR-01/WR-02 focus trap)
+state_head: fb9870473c2d76c73a7449fe865c51727a3863c9
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 55
-  completed_plans: 55
+  total_plans: 56
+  completed_plans: 56
   percent: 6
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-13T20:50:00-05:00"
+updated: "2026-10-14T05:16:00-05:00"
 ---
 
 # Project State
@@ -113,6 +113,7 @@ Progress: [█░░░░░░░░░] 6%
 | Phase 02 P36 | 70 min | 2 tasks | 9 files |
 | Phase 02 P41 | 40 min | 3 tasks | 13 files |
 | Phase 02 P42 | 89 min | 3 tasks | 13 files |
+| Phase 02 P43 | ~7h elapsed | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -283,6 +284,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: 02-42 D-42 close rule: the scrim closes on a primary click after a primary scrim press with unchanged scroll positions; middle and right buttons never close (WR-01)
 - [Phase 02]: 02-42: focus-move scrolls are re-read at focusin and once more one task later (WebKit applies the reveal scroll after the focusin)
 - [Phase 02]: 02-42: real-scrollbar E2E projects chromium-classic-scrollbars and chromium-overlay-scrollbars (ignoreDefaultArgs --hide-scrollbars, plus --enable-features=OverlayScrollbar) run only dialog-scrollbars.spec.ts; T1/T2 reveal the overlay scrollbar before pressing
+- [Phase 02]: 02-43: useFocusTrap returns focus to the element inside that last had it (preventScroll, first focusable fallback); Modal's focus re-read and timer removed
+- [Phase 02]: 02-43 owner decision 2026-10-14: Firefox's own middle-button scroll of a scrolled backdrop is a known engine limit; only D5's scrollTop assertion is scoped out for firefox
 
 ### Pending Todos
 
@@ -322,6 +325,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T01:47:28.727Z
-Stopped at: Completed 02-42-PLAN.md
+Last session: 2026-10-14T10:15:30.719Z
+Stopped at: Completed 02-43-PLAN.md
 Resume file: None
