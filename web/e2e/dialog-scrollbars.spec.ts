@@ -6,8 +6,8 @@
 //   - chromium-overlay-scrollbars: overlay scrollbars that take no space (macOS with a trackpad, ChromeOS).
 // At 1280x420 the Delete Order dialog is taller than the window, so its backdrop (the Overlay region) scrolls. D-42:
 // pressing or dragging the backdrop's scrollbar scrolls it and never closes the dialog, so the typed order number is
-// never lost.
-import type { TestInfo } from '@playwright/test';
+// never lost. A middle or a right press on the dark area does not close it either, and a left click there still does.
+import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import { ORDER, openDeleteOrder, readRegion, type OpenDialog } from './deleteOrderDialog.ts';
 
@@ -29,6 +29,16 @@ function expectRealScrollbars(fit: OpenDialog, mode: ScrollbarMode): void {
   } else {
     expect(fit.metrics.clientWidth, 'classic scrollbars take space').toBeLessThan(WINDOW.width);
   }
+}
+
+/** Opens Delete Order at 1280x420, checks the scrollbar mode is real and types the order number. */
+async function openTyped(page: Page, mode: ScrollbarMode): Promise<OpenDialog> {
+  const fit = await openDeleteOrder(page, WINDOW);
+  expectRealScrollbars(fit, mode);
+  const field = fit.dialog.getByRole('textbox');
+  await expect(field).toBeFocused();
+  await page.keyboard.type(ORDER);
+  return fit;
 }
 
 test("@dialog-fit scrollbars 1280x420: dragging the backdrop's scrollbar scrolls it and keeps the Delete Order dialog open with the typed order number", async ({
@@ -55,4 +65,50 @@ test("@dialog-fit scrollbars 1280x420: dragging the backdrop's scrollbar scrolls
     description: `${testInfo.project.name}: clientWidth ${String(fit.metrics.clientWidth)}/${String(WINDOW.width)}, scrollTop ${String(before)} -> ${String(after)}`,
   });
   expect(after, 'the drag scrolled the backdrop').toBeGreaterThan(before);
+});
+
+test("@dialog-fit scrollbars 1280x420: a press on the backdrop's scrollbar without moving keeps the dialog open", async ({
+  page,
+}, testInfo) => {
+  const mode = scrollbarMode(testInfo);
+  const fit = await openTyped(page, mode);
+  const field = fit.dialog.getByRole('textbox');
+
+  await page.mouse.click(WINDOW.width - 4, 120);
+  await expect(fit.dialog).toBeVisible();
+  await expect(field).toHaveValue('ORD-2026-0148');
+
+  if (mode === 'classic') {
+    // The first scrollbar column: the client area ends just left of it.
+    await page.mouse.click(fit.metrics.clientWidth, 120);
+    await expect(fit.dialog).toBeVisible();
+    await expect(field).toHaveValue('ORD-2026-0148');
+  }
+});
+
+test('@dialog-fit scrollbars 1280x420: a middle press on the dark area keeps the dialog open', async ({
+  page,
+}, testInfo) => {
+  // Its own test: on the scrolling backdrop the middle press may start autoscroll.
+  const fit = await openTyped(page, scrollbarMode(testInfo));
+
+  await page.mouse.click(20, 60, { button: 'middle' });
+
+  await expect(fit.dialog).toBeVisible();
+  await expect(fit.dialog.getByRole('textbox')).toHaveValue('ORD-2026-0148');
+});
+
+test('@dialog-fit scrollbars 1280x420: a right press on the dark area keeps the dialog open, and a left click there closes it', async ({
+  page,
+}, testInfo) => {
+  const mode = scrollbarMode(testInfo);
+  const fit = await openTyped(page, mode);
+
+  await page.mouse.click(20, 60, { button: 'right' });
+  await expect(fit.dialog).toBeVisible();
+  await expect(fit.dialog.getByRole('textbox')).toHaveValue('ORD-2026-0148');
+
+  // Classic: the last scrim column, next to the scrollbar.
+  await page.mouse.click(mode === 'classic' ? fit.metrics.clientWidth - 1 : 20, 60);
+  await expect(fit.dialog).toHaveCount(0);
 });

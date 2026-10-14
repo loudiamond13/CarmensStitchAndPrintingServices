@@ -650,6 +650,98 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
     pressAndRelease(scrim, { clientX: 500, clientY: 100 });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // Review WR-01: a middle press starts autoscroll on Windows and a right press opens the context menu; neither is a
+  // press on the dark area.
+  it.each([1, 2])('never closes on a press with mouse button %i; a primary press and click then closes', (button) => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    const at = { button, clientX: 500, clientY: 100 };
+
+    fireEvent.mouseDown(region, at);
+    fireEvent.mouseUp(region, at);
+    fireEvent.click(region, at);
+    if (button === 2) {
+      fireEvent.contextMenu(region, at);
+    }
+    expect(onClose).not.toHaveBeenCalled();
+
+    pressAndRelease(region, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('never closes on a primary press followed by a click with another button', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    fireEvent.click(region, { button: 1, clientX: 500, clientY: 100 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // Firefox can focus a scrollable backdrop on a press; the focus trap then pulls focus back into the dialog, and that
+  // can scroll the backdrop. That scroll is not a gesture of the person pressing.
+  it('does not count a scroll caused by focus moving during the press as a drag', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERFLOWING);
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    setScroll(region, 40, 0);
+    fireEvent.focusIn(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.mouseUp(region, { clientX: 500, clientY: 100 });
+    fireEvent.click(region, { clientX: 500, clientY: 100 });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('still counts a scroll after that focus move as a scroll', () => {
+    const onClose = vi.fn();
+    const region = renderInRegion(onClose);
+    stubGeometry(region, OVERFLOWING);
+
+    fireEvent.mouseDown(region, { clientX: 500, clientY: 100 });
+    fireEvent.focusIn(screen.getByRole('button', { name: 'Close' }));
+    setScroll(region, 60, 0);
+    fireEvent.click(region, { clientX: 500, clientY: 100 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('ignores a press and click on the scrim while loading, and closes on one once loading ends', () => {
+    const onClose = vi.fn();
+    const { container, rerender } = render(
+      <Overlay>
+        <AddPayment inline loading onClose={onClose} />
+      </Overlay>,
+    );
+    const region = firstChild(container);
+
+    pressAndRelease(region, { clientX: 500, clientY: 100 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    rerender(
+      <Overlay>
+        <AddPayment inline loading={false} onClose={onClose} />
+      </Overlay>,
+    );
+    pressAndRelease(region, { clientX: 500, clientY: 100 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat a press and click on another parent as a scrim press', () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <div data-testid="plain">
+        <AddPayment inline onClose={onClose} />
+      </div>,
+    );
+
+    pressAndRelease(firstChild(container), { clientX: 500, clientY: 100 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
 
 describe('overlay scenarios (the overlays parity group)', () => {

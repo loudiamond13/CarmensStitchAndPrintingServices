@@ -197,3 +197,46 @@ test("@dialog-fit on the phone's own screen: the sheet sits 96px down, moves up,
   }
   await expectButtonsInView(fit);
 });
+
+test('@dialog-fit 1440x900: a left click on the dark area above the dialog closes it; a middle or a right press there does not', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1440, height: 900 });
+
+  await page.mouse.click(720, 70, { button: 'middle' });
+  await expect(fit.dialog, 'after a middle press').toBeVisible();
+  await page.mouse.click(720, 70, { button: 'right' });
+  await expect(fit.dialog, 'after a right press').toBeVisible();
+
+  await page.mouse.click(720, 70);
+  await expect(fit.dialog).toHaveCount(0);
+  await expect(
+    page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }),
+  ).toBeVisible();
+});
+
+test('@dialog-fit 1280x420: after the wheel scrolls the backdrop to the buttons, a left click on the dark area beside the dialog still closes it', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
+
+  await wheelOverDialog(page, fit);
+  await expectButtonsInView(fit);
+  await page.mouse.click(20, 210);
+
+  await expect(fit.dialog).toHaveCount(0);
+});
+
+test("@dialog-fit on the phone's own screen: a click on the dark area above the sheet closes it", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDevice(testInfo), DEVICE_ONLY);
+  const fit = await openDeleteOrder(page);
+  expect(fit.box.y, 'there is dark area above the sheet').toBeGreaterThanOrEqual(16);
+
+  await page.mouse.click(fit.viewport.width / 2, fit.box.y / 2);
+
+  await expect(fit.dialog).toHaveCount(0);
+});
