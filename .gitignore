@@ -3,10 +3,16 @@ _local/
 *.bak
 *.mdf
 *.ldf
+# Claude Design exports: local-only visual UI reference behind CSPS-UI-SPEC.md (owner, 2026-10-07). Never commit.
+.planning/design/
 
 # Secrets and local configuration
 appsettings.*.local.json
 .env*
+# D-20: the e2e and budget builds read their non-secret dev-route switch from these committed files. No other .env
+# file is ever committed (no .env, .env.local or .env.production; T-02-79).
+!web/.env.e2e
+!web/.env.budget
 secrets.json
 
 # IDE / tooling
@@ -27,6 +33,18 @@ coverage*/
 node_modules/
 dist/
 **/wwwroot/assets/
+# The web build writes the whole API web root, so the folder is ignored as a whole (research Pitfall 1). Hand-written
+# public files belong in web/public/.
+src/Csps.Server/wwwroot/
+# Dev-route builds and the visual-parity / budget / test tooling output (WEB-01 concurrency edge, L-28).
+web/.e2e-dist/
+web/.budget-dist/
+web/.reference-dist/
+web/visual/.reference-src/
+web/.vitest/
+web/.parity/
+web/.parity-dist/
+web/.locks/
 
 # Playwright
 playwright-report/
@@ -37,3 +55,14 @@ playwright/.cache/
 # OS
 Thumbs.db
 .DS_Store
+
+# Runtime output and key material (T-01-02)
+logs/
+artifacts/
+*.pfx
+*.pem
+*.key
+
+# GSD tool runtime state (session locks, dispatch sentinels)
+.gsd/
+.planning/milestone.lock

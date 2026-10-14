@@ -1,0 +1,12 @@
+/* The parity reference stylesheet (WEB-02, D-33; test only, never shipped).
+   1. App. A.2 globals.css, verbatim from the pinned spec extraction: it imports tailwindcss, tokens.css and compat.css
+      (layer base), components.css and screens.css (layer components), exactly as the approved design wires them.
+   2. The owner-rulings layer (rulings.css). It is unlayered, so each ruling wins over the layered spec CSS whatever its
+      specificity, the same way the old overrides.css did (D-37).
+   Tailwind skips git-ignored folders during automatic source detection, so the frozen spec copy and the layout
+   fragments are named as sources explicitly. */
+@import "../.reference-src/styles/globals.css";
+@import "./rulings.css";
+
+@source "../.reference-src";
+@source "./fragments";

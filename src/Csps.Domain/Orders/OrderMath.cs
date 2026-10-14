@@ -1,0 +1,80 @@
+namespace Csps.Domain.Orders;
+
+/// <summary>
+/// The authoritative order math (PRD section 5.1, D-09, WEB-07). Every figure staff see for a saved order comes from
+/// here; the browser's preview (web/src/lib/csps.ts <c>orderTotals</c>) must agree to the centavo, which the shared
+/// golden vectors in tests/fixtures/order-math-golden-vectors.json prove on both sides.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Pinned operation order (the vector file's <c>operationOrder</c>): "round the items total; round each discount; sum
+/// the discounts and round the sum; subtract (D-09)". Every rounding is to the centavo, half away from zero, never
+/// banker's rounding: 7.5% of 17.00 = 1.275 gives 1.28.
+/// </para>
+/// <para>
+/// The names are PRD section 5.1's (owner ruling D-41 R2-06, 2026-10-13): D-09's "items total" is the
+/// <c>Subtotal</c>, <c>Total = Subtotal - Discount</c>, <c>Balance = Total - Paid</c> and
+/// <c>Profit = Total - Expenses</c>.
+/// </para>
+/// </remarks>
+public static class OrderMath
+{
+    /// <summary>Computes the order figures in the pinned operation order (D-09).</summary>
+    /// <param name="items">The order lines.</param>
+    /// <param name="discounts">The order discounts. A percentage applies to the rounded subtotal.</param>
+    /// <param name="payments">The payment amounts.</param>
+    /// <param name="expenses">The order expense amounts.</param>
+    /// <returns>
+    /// The figures, each rounded to the centavo. The total and the balance may be negative (a discount above the
+    /// subtotal, or payments above what is owed); this is arithmetic only and implies no business rule.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">A list is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A discount has a kind that is not defined.</exception>
+    public static OrderMathResult Compute(
+        IReadOnlyList<OrderMathItem> items,
+        IReadOnlyList<OrderMathDiscount> discounts,
+        IReadOnlyList<decimal> payments,
+        IReadOnlyList<decimal> expenses)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(discounts);
+        ArgumentNullException.ThrowIfNull(payments);
+        ArgumentNullException.ThrowIfNull(expenses);
+
+        // 1. Round the items total (the PRD Subtotal).
+        var subtotal = Round(items.Sum(item => item.Quantity * item.UnitPrice));
+
+        // 2. Round each discount. 3. Sum the discounts and round the sum.
+        var discount = Round(discounts.Sum(d => DiscountAmount(d, subtotal)));
+
+        var paid = Round(payments.Sum());
+        var expenseTotal = Round(expenses.Sum());
+
+        // 4. Subtract (PRD section 5.1).
+        var total = subtotal - discount;
+        var balance = total - paid;
+        var profit = total - expenseTotal;
+
+        // D-41 R2-06 (NET-IN-01 ruled keep): fully paid needs a subtotal above zero, not a total above zero.
+        return new OrderMathResult(
+            subtotal,
+            discount,
+            total,
+            paid,
+            balance,
+            expenseTotal,
+            profit,
+            FullyPaid: subtotal > 0m && balance <= 0m);
+    }
+
+    // An undefined kind (out of range, or the unset value 0) fails loudly: guessing "fixed" would turn a mis-mapped
+    // 10 percent into 10 pesos on the authoritative money path (NET-WR-01).
+    private static decimal DiscountAmount(OrderMathDiscount discount, decimal subtotal) => Round(discount.Kind switch
+    {
+        DiscountKind.Fixed => discount.Value,
+        DiscountKind.Percentage => subtotal * discount.Value / 100m,
+        _ => throw new ArgumentOutOfRangeException(nameof(discount), discount.Kind, "Unknown discount kind."),
+    });
+
+    private static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+}

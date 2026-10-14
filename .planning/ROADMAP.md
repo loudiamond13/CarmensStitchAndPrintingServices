@@ -1,5 +1,7 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T05:57:52-05:00*
+
 ## Overview
 
 CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + React 19 app. The work runs in four stretches:
@@ -14,24 +16,29 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
 - **Requirement mapping.** Each v1 requirement maps to exactly one phase: the one that establishes it. Cross-cutting QUAL/SEC/A11Y/PERF requirements map to the phase where their gate is first built. **From then on, every later phase enforces them through the PRD §22 Definition of Done:**
   - zero warnings, coverage gates and architecture tests
   - authorization-matrix rows for every new endpoint
+  - an `Idempotency-Key` on every new POST, or a written allow-list entry (SEC-06)
+  - `rowversion` 409s and a two-writer test for every new mutable aggregate (SEC-07)
+  - `CreatedBy`/`CreatedAt`/`UpdatedBy`/`UpdatedAt` set server-side on every record a phase makes creatable or editable, plus a test proving client-sent values are ignored (SEC-08)
+  - every list page keeps its filters, search, sort and page in the URL via the shared WEB-10 parsers
   - axe at zero violations, plus a keyboard pass
   - bundle budgets and Lighthouse scores
   - a UI-spec match at 320/768/1280 px
   - CWE rows mitigated and tested
   - production data untouched
-- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow and ORD-08's conflict UX, against IDs that stay mapped to Phase 7.
+- **Orders split.** Phase 7 builds the whole order API, including the server side of list/search (ORD-01, ORD-02) and delete (ORD-06). Those three IDs map to Phase 8, where they become true end to end. Phase 8 also delivers ORD-03's UI flow, ORD-08's conflict UX, ORD-22's "Received by" field and ORD-23's "Paid by" field, against IDs that stay mapped to Phase 7.
 - **Pieces that grow.** Each of these is set up once, then extended by every later phase for its own entities and endpoints:
   - the dev seed (FND-04)
   - the audit event catalog (AUDIT-01)
   - rate-limit policies (SEC-03)
   - maintenance jobs (JOB-01)
   - the authorization matrix (SEC-02)
+  - the idempotency allow-list (SEC-06)
 - **Per-phase workflow:**
   1. `/gsd-discuss-phase N` closes the listed owner decisions before the first test.
   2. `/gsd-plan-phase N --tdd`.
   3. Phases with a UI hint run `/gsd-ui-phase N`, with `CSPS-UI-SPEC.md` as the source of truth.
   4. `/gsd-secure-phase N`, `/gsd-ui-review N` and `/gsd-verify-work` all complete before `/gsd-ship N`.
-- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-14 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
+- **Owner decisions** are [OWNER DECISION] items: ask, never assume. They come from two places: OD-1…OD-21 and C-1…C-21 in PROJECT.md, and C-22…C-45 and S-1…S-12 in research/SUMMARY.md. See the Decision Calendar below.
 - **Shared machine.** CLAUDE.md binds every phase:
   - Run the preflight before any dev server, Playwright run or full test run.
   - Use only ports 5180, 5115, 7028 and 5199.
@@ -46,16 +53,16 @@ CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives
-- [ ] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates
-- [ ] **Phase 3: CI/CD & Staging Deploy** - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
+- [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
+- [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
+- [ ] **Phase 3: CI/CD & Staging Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
 - [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
 - [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
 - [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
-- [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders
+- [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
 - [ ] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
@@ -126,42 +133,42 @@ If access lags, the hosting-spike plan runs last. The other plans then proceed o
 - The sources contradict each other on EF compatibility level and the `json` type (C-31).
 - MapStaticAssets cache headers and `AllowAnonymous` on static files and the SPA fallback need a spike.
 
-**Plans**: 13 plans in 7 waves
+**Plans**: 13/13 plans complete in 7 waves
 
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Owner package-legitimacy gate, strict onion solution (scaffold removed), /health liveness, architecture/build/registry tests (W1)
+- [x] 01-01-PLAN.md — Owner package-legitimacy gate, strict onion solution (scaffold removed), /health liveness, architecture/build/registry tests (W1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Empty-DB schema from InitialCreate, SiteSettings singleton + cached port, LocalDB `CSPS_Test_` fixture, zone fallback chain (W2)
+- [x] 01-02-PLAN.md — Empty-DB schema from InitialCreate, SiteSettings singleton + cached port, LocalDB `CSPS_Test_` fixture, zone fallback chain (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-03-PLAN.md — /health database + time-zone checks over IBusinessCalendar; Manila day/month/year boundaries; health failure modes (W3)
-- [ ] 01-04-PLAN.md — Guarded `tools/Csps.DevSeed`, migration verification (idempotent ×2 at 160/170), startup-safety rule, Respawn + isolation, stale-DB cleanup (W3)
-- [ ] 01-05-PLAN.md — AuditEntry domain record with /24 and /48 IP truncation and regex-free UA family (W3)
-- [ ] 01-06-PLAN.md — ProblemDetails contract + /api 404 fallback, Result/Error mapping, strict security headers, web.config, Development-only OpenAPI/Scalar (W3)
+- [x] 01-03-PLAN.md — /health database + time-zone checks over IBusinessCalendar; Manila day/month/year boundaries; health failure modes (W3)
+- [x] 01-04-PLAN.md — Guarded `tools/Csps.DevSeed`, migration verification (idempotent ×2 at 160/170), startup-safety rule, Respawn + isolation, stale-DB cleanup (W3)
+- [x] 01-05-PLAN.md — AuditEntry domain record with /24 and /48 IP truncation and regex-free UA family (W3)
+- [x] 01-06-PLAN.md — ProblemDetails contract + /api 404 fallback, Result/Error mapping, strict security headers, web.config, Development-only OpenAPI/Scalar (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-07-PLAN.md — Serilog compact JSON with correlation id, secret masking, D-21 file retention, IRequestContext without forwarded headers (W4)
-- [ ] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
+- [x] 01-07-PLAN.md — Serilog compact JSON with correlation id, secret masking, D-21 file retention, IRequestContext without forwarded headers (W4)
+- [x] 01-12-PLAN.md — Owner D-28 decision, key-protected HostProbe, HOSTING-RECORD checklist + doc-lint test (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-08-PLAN.md — JWT validation, default-deny + Staff/Manager policies, GET /api/v1/site-settings, discovery-driven authorization matrix, 401/403/500 paths (W5)
-- [ ] 01-09-PLAN.md — Owner D-25 decision, append-only AuditLog (trigger, truncate guard, EF interceptor), IAuditTrail (W5)
+- [x] 01-08-PLAN.md — JWT validation, default-deny + Staff/Manager policies, GET /api/v1/site-settings, discovery-driven authorization matrix, 401/403/500 paths (W5)
+- [x] 01-09-PLAN.md — Owner D-25 decision, append-only AuditLog (trigger, truncate guard, EF interceptor), IAuditTrail (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-10-PLAN.md — Data Protection keys in DB encrypted by certificate, rotation runbook, local full-stack run (W6)
+- [x] 01-10-PLAN.md — Data Protection keys in DB encrypted by certificate, rotation runbook, local full-stack run (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
-- [ ] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level re-pinned and re-proven (W7)
+- [x] 01-11-PLAN.md — Coverage gate, third-party notices + license gate, exact solution layout, developer guide, clean-clone proof (W7)
+- [x] 01-13-PLAN.md — Owner runs the approved host checks; record completed; compatibility level kept at 160, provisional (D-33; re-pin at Phase 17 cutover) (W7)
 
 ### Phase 2: Web Foundation & Design System
 
 **Goal**: Visitors and staff see the approved UI-spec design system in working public and admin layouts, served from `wwwroot` by a strict TypeScript app. Its primitives, formatters, HTTP client and quality gates are all in place, so feature phases only compose. The gates are lint, axe, bundle budgets, Lighthouse and the Playwright host.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
+**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06, WEB-07, WEB-08, WEB-09, WEB-10, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05
 **Success Criteria** (what must be TRUE):
   1. **Build and dev server:**
      - `npm run build` emits the app into `src/Csps.Server/wwwroot`.
@@ -169,7 +176,7 @@ Plans:
      - Typecheck, ESLint and Prettier pass at `--max-warnings 0`.
      - The build fails if public initial JS exceeds 150 KB gz, admin initial JS 250 KB gz or total CSS 35 KB gz.
      - The self-hosted fonts render the ₱ glyph in the brand font.
-  2. **Layouts.** Public and admin layouts render the verbatim Appendix D markup (DOM-snapshot equal), with every reconciliation marked `// SPEC-DEVIATION`. They work from 320 to 1920 px with no horizontal scroll and have:
+  2. **Layouts.** Public and admin layouts render the approved Appendix D design styled with Tailwind utilities (D-33, 2026-10-08: replaces "verbatim markup, DOM-snapshot equal"), proven visually equal to the approved design in both themes, with every reconciliation marked `// SPEC-DEVIATION`. They work from 320 to 1920 px with no horizontal scroll and have:
      - a skip link
      - labelled landmarks
      - focus-trapped dialogs
@@ -185,12 +192,14 @@ Plans:
   4. **Money math, HTTP and data fetching:**
      - The shared golden-vector file (≥ 200 cases, including half-centavo values) passes identically in xUnit and Vitest.
      - `httpClient.ts` has 100% coverage, including the single-flight 401 refresh.
+     - Every POST carries an `Idempotency-Key` created once per form submission and reused on retry, and submit buttons stay disabled while a request is pending (WEB-09).
      - Lint rejects `fetch`, `httpClient` or `axios` imports outside `api.ts`.
      - TanStack Query defaults are in place: stale time, keep-previous pagination, and a 300 ms debounced search that can be cancelled.
   5. **E2E, Lighthouse and WCAG rulings:**
      - After the preflight, Playwright runs on 5199 across Chromium, Firefox, WebKit and phone viewports. It fails on any console error, CSP violation or axe violation.
      - Lighthouse CI scores the public shell ≥ 95 on mobile.
      - Every UI-spec item that conflicts with WCAG 2.2 AA has an owner ruling applied.
+  6. **URL state.** List state lives in the URL query string through nuqs (WEB-10). The shared hook and parsers pass their unit and component tests: `?size=9999`, `?page=0` and `?status=bogus` fall back to their defaults and the URL is rewritten once; a page change adds a history entry, while a filter, search, sort, tab or view change replaces it and returns to page 1; defaults never appear in the URL; date filters stay `YYYY-MM-DD` in Manila time; and the search query key waits 300 ms. `NuqsAdapter` from `nuqs/adapters/react-router/v8` sits inside the router around `<Outlet/>`, and ESLint rejects the deprecated adapter paths, the nuqs `startTransition` option and `shallow: false`. The installed version is 2.10.1, or a newer stable version at least 14 days old that the owner approved at install.
 
 **Owner decisions to close at discuss step:**
 - **OD-14** UI-spec items that conflict with WCAG
@@ -217,14 +226,89 @@ Plans:
 - CSP behaviour of JSON-LD data blocks
 - the public bundle budget with a monolithic `ui/index.tsx`
 
-**Plans**: TBD
+**Plans**: 43/43 plans complete: 40/40 executed in 13 waves, plus gap-closure plans 02-41 and 02-42 (UAT G-2-199) executed; review follow-up plan 02-43 (02-REVIEW-g199-42 WR-01/WR-02: the focus trap returns focus without scrolling, the scrim close rule loses its timing window) planned 2026-10-13 (from-scratch replan under D-33, 2026-10-08; superseded plans in `superseded-2026-10-08/`; the 2026-10-08 checker revision split 02-02, 02-11, 02-13 and 02-14 into the new 02-37 to 02-40 to keep every plan within the per-plan budget, with no renumbering)
+
+Plans:
+**Wave 1**
+- [x] 02-01-PLAN.md — Tracer: anonymous SPA shell (GET/HEAD) from a committed fixture web root, file and D-29 404s, L-03 probe moves, matrix rows
+- [x] 02-02-PLAN.md — Tracer: owner-approved npm toolchain installed, Vite + Tailwind token theme build the D-21 placeholder into the ignored wwwroot; LF and editor rules (conditional package-drift stop)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 02-03-PLAN.md — HiddenSegmentFileProvider (dot/tilde/backslash/8.3 paths 404), static-text compression and caching, hosting docs
+- [x] 02-37-PLAN.md — Tracer: strict TS 7 / TS 6 alias pair, per-mode Vite config test, dev-route env files, robots.txt; isolated tools/openapi-gen install (conditional package-drift stop)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 02-04-PLAN.md — ESLint with every architecture and D-33 ban (one syntaxBans array), Tailwind lint, Prettier class sorting, console guard, axe helper, `verify`
+- [x] 02-05-PLAN.md — Stylesheet contract and class gate (every token compiles, no colour literals, D-02 opacity allow-list), styling guide
+- [x] 02-38-PLAN.md — Parity inputs: shared data-only scenario list and renderNode; spec appendices extracted byte-exact and hash-pinned
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 02-06-PLAN.md — npm kind in the dependency registry, npm license gate (D-26 + addendum), repository notices (D-35)
+- [x] 02-07-PLAN.md — Golden vectors (>= 200) in xUnit OrderMath and Vitest csps.ts with D-09 rounding; App. D.1 reconciled
+- [x] 02-08-PLAN.md — Business-zone date formatting and exact money-text helpers (ORD-09)
+- [x] 02-09-PLAN.md — Playwright on HTTPS 5199 across five projects with console/CSP/axe guards and self-tests
+- [x] 02-10-PLAN.md — fetch-based httpClient: single-flight refresh, capped retries, Idempotency-Key reuse, 100% coverage
+- [x] 02-12-PLAN.md — Self-hosted fonts with one preload and metric-matched fallbacks (₱ never in Barlow or a system font)
+- [x] 02-13-PLAN.md — Look-equality reference: frozen spec app with the test-pinned owner-rulings layer, route-served under the real CSP
+- [x] 02-39-PLAN.md — TanStack Query defaults, keep-previous cancellable list query, 300 ms debounced search key, intent prefetch (WEB-08)
+- [x] 02-40-PLAN.md — `tw` class marker, page-root and visually-hidden recipes, and the spec Icon API over lucide-react 1.53.0
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 02-11-PLAN.md — nuqs URL list state (parsers, push/replace, privacy, UrlStateLayout) wired to the 02-39 list query; URL-state guide
+- [x] 02-14-PLAN.md — Look-equality harness live: comparator (styles, boxes, pixels, axe, CSP) with self-test; Button proven in three engines
+- [x] 02-15-PLAN.md — OpenAPI snapshot → generated types → api.ts, with the drift chain
+- [x] 02-16-PLAN.md — useSubmission (one Idempotency-Key per submission), focusFirstInvalid, describeHttpError copy
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 02-17-PLAN.md — Button family, pending state (WEB-09), ButtonLink/UiLink proven equal
+- [x] 02-18-PLAN.md — Mark (JSX), Logo, motifs, MediaPlaceholder and the 56-icon wrapper proven equal
+- [x] 02-19-PLAN.md — Badges, Avatar (O-1), SegmentedControl, Tabs ARIA with the D-03 cue
+- [x] 02-20-PLAN.md — Field, PasswordField, Select with D-01 phone 16px
+- [x] 02-21-PLAN.md — EmptyState, Skeleton, Toast and the D-04/O-5/O-7 toast queue
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 02-22-PLAN.md — Focus-trapped Modal and ConfirmDialog (cascade, type-to-confirm, stay-open failure)
+- [x] 02-23-PLAN.md — Money, KpiCard, OrderTotals on the spec seed orders
+- [x] 02-24-PLAN.md — OrderCard, DataTable, keyboard-accessible IncomeExpenseChart
+- [x] 02-25-PLAN.md — ImageUploader (D-05) and marketing cards (O-2)
+- [x] 02-26-PLAN.md — SiteHeader (O-3), Sidebar (D-27, D-BL-02), Topbar
+- [x] 02-27-PLAN.md — SPEC-GAP MoneyInput, OtpInput, Checkbox (D-03), SkipLink
+- [x] 02-28-PLAN.md — SPEC-GAP ErrorState, skeleton family, LoadingRegion, LazyImage
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 02-29-PLAN.md — React Router 8 data router, public layout and footer, error boundaries, public parity and E2E
+- [x] 02-30-PLAN.md — ResponsiveTable with every list state, Pagination, SearchBox, FilterBar, URL-state integration
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 02-31-PLAN.md — Dev-only admin shell: theme toggle (D-13), rail/tab bar, preview pages, absent from production (D-20)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 02-32-PLAN.md — SPEC-GAP MobileNavDrawer and UserMenu with keyboard E2E
+- [x] 02-33-PLAN.md — Build-enforced budgets (150/250/35 KB gz), one-CSS and no-dev-code rules in verify
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 02-34-PLAN.md — `@/ui` barrel and the /dev/components showcase in both themes, page-level axe
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 02-35-PLAN.md — Lighthouse >= 95 on the real host, responsive sweep, ₱ proof, WCAG rulings, keyboard journeys, full parity matrix
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [x] 02-36-PLAN.md — Local owner visual review (D-23) and the guarded side-by-side with the design exports (D-24)
+
+**Gap closure** *(UAT G-2-199, planned 2026-10-13; run with `/gsd-execute-phase 2 --gaps-only`)*
+- [x] 02-41-PLAN.md — Dialogs fit a short window (owner ruling D-42): the 140px top gap shrinks to 16px (96px to 0 on phones), the backdrop scrolls, its scrollbar never closes the dialog; same rule in the parity reference
+- [x] 02-42-PLAN.md — Backdrop close rule (D-42, re-verification gap truth 28): the scrim closes on a primary click that did not scroll it, so classic and overlay scrollbar drags and middle/right presses never close the dialog; two real-scrollbar Chromium projects prove it
+
+**Review follow-up** *(02-REVIEW-g199-42 WR-01/WR-02, owner 2026-10-13; run with `/gsd-execute-phase 2 --gaps-only`)*
+- [x] 02-43-PLAN.md — Focus that leaves a dialog comes back to where it was without scrolling (useFocusTrap, WR-01), so a non-closing press keeps the caret in the confirm field and the backdrop in place in all seven projects; the scrim close rule drops its focus re-read and timing window (WR-02)
+
 **UI hint**: yes
 
 ### Phase 3: CI/CD & Staging Deploy
 
 **Goal**: Every pull request is gated by the full pipeline. Every merge to `main` deploys to a SmarterASP.NET staging site that passes a smoke test, and production deploys wait for manual approval.
 **Mode:** mvp
-**Depends on**: Phase 2, because the pipeline runs the web gates. If owner prerequisites arrive late, this phase can run alongside Phase 4.
+**Depends on**: Phase 2, because the pipeline runs the web gates. **Owner decision (2026-10-14): deferred; runs after Phase 4.**
 **Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, OPS-05
 **Success Criteria** (what must be TRUE):
   1. **Merge gate.** A pull request to `main` can't merge until every check passes, in this order:
@@ -263,8 +347,8 @@ Plans:
 
 **Goal**: Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Mode:** mvp
-**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. Run Phase 3 first if possible so auth ships through CI and staging.
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, A11Y-03, AUDIT-01
+**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. **Owner decision (2026-10-14): runs before Phase 3**, so auth is gated by the local build/test/lint run until the Phase 3 pipeline exists, and its first staging deploy happens in Phase 3.
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01
 **Success Criteria** (what must be TRUE):
   1. **Sign-in with the emailed code.** A staff member enters email and password, receives a 6-digit code by email, pastes or types it (`autocomplete="one-time-code"`) and reaches the admin portal. An unknown email, a wrong password and a deactivated or locked account all get the same generic error with similar timing, and none gets a session.
   2. **Code and lockout limits:**
@@ -289,6 +373,7 @@ Plans:
      - Auth emails go out through the outbox, from the business sender over TLS.
      - E2E reads codes from the Testing-only sink, and a test proves the sink is absent from Release.
      - Sign-in, 2FA, lockout and reset events appear in the audit log.
+  6. **Idempotent form posts.** Every state-changing POST needs an `Idempotency-Key` (SEC-06). Replaying a request returns the first response and creates nothing new; for example, a repeated forgot-password post queues one email. Reusing a key with a different body gets 422, a duplicate that arrives mid-request gets 409 and a missing key gets 400. The endpoint discovery test fails on any POST that is neither covered nor on the written allow-list (e.g. sign-in, 2FA verify, refresh, sign-out). Keys expire after 24 hours.
 
 **Owner decisions to close at discuss step:** Send these as one security batch before the phase starts.
 - **OD-12** sender address/domain, SPF/DKIM/DMARC
@@ -321,7 +406,7 @@ Plans:
 **Goal**: Every staff member can manage their own name, email, password and theme. Managers can run the staff roster safely: invite, edit, lock, deactivate and delete users under guard rules. Every action is audited and can be reviewed.
 **Mode:** mvp
 **Depends on**: Phase 4
-**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02
+**Requirements**: PROF-01, PROF-02, PROF-03, PROF-04, USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, USER-08, AUDIT-02, SEC-07, SEC-08
 **Success Criteria** (what must be TRUE):
   1. **Own profile.** A signed-in user can:
      - change their name
@@ -337,9 +422,11 @@ Plans:
   3. **Guard rules.** A Manager can't delete, deactivate or demote themselves. Two simultaneous attempts can never remove the last active Manager. A role or status change signs the affected user out at once.
   4. **Manager-only access.** An Admin never sees the Users navigation item. Opening `/admin/users` redirects to `/admin`, and the API answers 403.
   5. **Audit-log viewer.** A Manager can open the audit log, filter it by actor, action, target and date range, and find every user-management action.
+  6. **Conflict-safe edits.** Two people saving the same record never both succeed (SEC-07). The stale save gets 409 with "This was changed by someone else. Reload and try again.", and the screen shows that message and reloads the latest version. A two-writer integration test proves it, and the same rule applies to every later aggregate.
+  7. **Who entered it.** Every user a Manager creates or edits, and every profile change, records who did it and when (SEC-08): `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock. Values a client sends for them are ignored, and an integration test proves it. Users created before this phase, such as the bootstrap Manager, show "System". The user detail shows "Recorded by" and "Last changed by" read-only (SPEC-GAP), and the names survive deactivation and deletion. The same rule applies to every later record staff create or edit.
 
 **Owner decisions to close at discuss step:**
-- **C-41** soft-delete users: scramble the email, block sign-in, keep the name
+- **C-41** soft-delete users: scramble the email, block sign-in, keep the name. The ruling also decides how "Recorded by" and "Last changed by" (SEC-08) keep a deleted user's name: the soft-deleted user's kept name, or a stored name snapshot
 - **C-4 and C-9** apply the Phase 4 rulings, or ask now if still open
 - **C-35** apply the Phase 2 ruling on inactive-row contrast
 - **C-17** spec-gap screens: email-change confirmation, audit log
@@ -355,18 +442,20 @@ Plans:
 **Goal**: Staff can record, find and total the shop's company expenses, with month KPIs that are correct in Manila time. This is the simplest aggregate, so it proves the slice pattern before the order aggregate: rowversion 409s, filters, period totals, query-count guards and ConfirmDialog.
 **Mode:** mvp
 **Depends on**: Phase 5, because "Recorded by" must survive user deletion
-**Requirements**: CEXP-01, CEXP-02, CEXP-03, CEXP-04, PERF-04
+**Requirements**: CEXP-01, CEXP-02, CEXP-03, CEXP-04, CEXP-05, PERF-04
 **Success Criteria** (what must be TRUE):
   1. **List and filter.** Staff can list company expenses (last 30 days by default, newest first), filter by date range and category, search by description or staff name, page through results and see the period total.
   2. **Edit with conflict protection.** Staff can add, edit and delete (after confirmation) an expense with a date, category, description and an amount above zero. Saving over someone else's newer change shows a 409 conflict instead of overwriting it. Deletion follows the OD-5 ruling.
   3. **Month KPIs.** KPI cards show this month, the last full month and this month's top category with its share. Month boundaries are in Asia/Manila, so an expense at 07:00 Manila time on the 1st counts in the new month.
-  4. **Attribution.** Each expense shows a read-only "Recorded by", and it still shows the name after that user is deleted.
+  4. **Attribution.** Each expense shows a read-only "Recorded by", which is its creator even in the Edit modal, and, once edited, a read-only "Last changed by" (SEC-08). Both still show the name after that user is deleted, and values a client sends for them are ignored.
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
+  6. **Paid by.** Every expense names who paid it (CEXP-05): a required, server-validated reference to an active Admin or Manager on create and edit, chosen from a staff lookup that both roles can use, with a plain-English field error otherwise. The list shows it, the staff-name search matches it, and a change of payer is audited because it moves money between staff balances (MONEY-01).
 
 **Owner decisions to close at discuss step:**
 - **OD-5** hard vs soft delete for company expenses
 - **OD-8** fixed vs Manager-editable categories, for both the company and the order expense lists
 - **C-43** whether the categories fit, e.g. SSS, PhilHealth, Pag-IBIG, BIR
+- **OD-21** whether an expense can be paid by the company (e.g. from the business bank or GCash account) instead of a staff member (default: no, a staff member is required)
 - **OD-14**
 - **Sequencing check:** research recommends this slice before Orders. If the owner prefers Orders first, Phase 7 becomes the slice that sets the pattern.
 
@@ -380,7 +469,7 @@ Plans:
 **Goal**: The order aggregate and its full API enforce every owner-ruled business rule and always return correct, server-computed totals. The API covers create, read, list/search, update, child mutations, status and delete. Fixtures, invariant tests and race tests prove the Core Value before Phase 8 builds on it.
 **Mode:** mvp
 **Depends on**: Phase 6 (the proven slice pattern), Phase 4 (staff policies)
-**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21
+**Requirements**: ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22, ORD-23
 **Success Criteria** (what must be TRUE):
   1. **Atomic create and numbering.** One API call creates an order atomically: customer details, dates, status, notes and one or more items, plus optional payments, discounts and expenses.
      - The order gets the next `ORD-{YYYY}-{NNNN}` number, with no duplicates under 20 parallel creates and the correct year across New Year in Manila.
@@ -389,10 +478,12 @@ Plans:
   3. **Concurrency.** Two concurrent edits to the same order never both succeed; the stale one gets 409. This holds for child-only edits too, such as two payments against one balance.
   4. **Status rules.** Status changes follow only the ruled transitions, and each one is recorded: from, to, who and when. Payments on cancelled orders and refunds follow the ruled policy, so collected-cash figures stay correct.
   5. **Legacy import path.** `Order.Import` accepts legacy-shaped data (preserved order numbers, lenient rules) through configurable rule constants. An owner ruling then becomes a constant change rather than a schema change.
+  6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
+  7. **Expense payer.** Every order expense names who paid it (ORD-23): a required, server-validated reference to an active Admin or Manager on order-expense create, order-expense edit and full-aggregate create, with a plain-English field error otherwise. A change of payer is audited because it moves money between staff balances (MONEY-01).
 
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
-- **OD-4 + C-38** overpayments, including via removed items or added discounts
+- **OD-4 + C-38** overpayments, including via removed items or added discounts. *OD-4 ruled by the owner, 2026-10-13: no overpayment; the server refuses a payment above the balance and the payment form warns during input. Still to confirm here: C-38 (other mutations that would push the balance below zero) and how already-overpaid legacy orders import and display.*
 - **OD-5** order delete semantics (affects the schema)
 - **OD-6** whether Admins can delete orders
 - **OD-7** reusable Customer entity vs customer fields on each order
@@ -405,6 +496,8 @@ Plans:
 - **C-42** optional early read-only legacy fit check. If approved, insert it as Phase 7.1, and never derive the schema from it.
 - **C-43** payment methods, e.g. cheque
 - **C-44** fixed `ProductType` enum with no price-item FK
+- **OD-15** (shape only; the final rule is a Phase 15 ruling) how legacy payments get a receiver and legacy order expenses a payer: `Order.Import` must be able to accept both, e.g. a "Legacy / unassigned" holder that can't sign in
+- **OD-21** apply the Phase 6 ruling on company payers to order expenses, or ask now if still open
 
 **Research flag:** Needs research:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
@@ -429,12 +522,16 @@ Plans:
   3. **Detail page.** The detail page shows the customer card, the live OrderTotals panel and tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals.
      - After every save, the figures come from the server.
      - A 409 conflict explains itself, keeps the user's input and offers a reload.
+     - The payment modal has a required "Received by" picker of active staff (ORD-22, label per OD-20). The UI spec's modal lacks this field, so it is marked SPEC-GAP.
+     - The order-expense modal has a required "Paid by" picker of active staff (ORD-23), and the Expenses tab shows it. The UI spec's modal and tab lack this field, so they are marked SPEC-GAP.
+     - The order header and every add/edit modal show a read-only "Recorded by" and, once changed, "Last changed by" (SEC-08). On a payment, Received by is who took the money and Recorded by is who entered it.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
 - **C-18** where Estimated Profit appears
+- **OD-20** payment field label: "Received by" or the owner's "Paid to"
 - **OD-14**
 - The Phase 7 rulings (C-3 flow, OD-5, OD-6) apply.
 
@@ -459,7 +556,7 @@ Plans:
   4. **Phone camera.** On a phone, staff can take a photo with the camera, and it's downscaled before upload.
   5. **Cleanup jobs.** Deleting an image or an order queues the Cloudinary deletion in the same transaction. The secret-protected maintenance endpoint, triggered on a schedule:
      - processes that queue with leases and retries
-     - purges expired tokens and 2FA codes
+     - purges expired tokens, 2FA codes and idempotency keys
 
      A weekly orphan sweep reconciles storage.
 **Owner decisions to close at discuss step:**
@@ -482,10 +579,10 @@ Plans:
 
 ### Phase 10: Admin Dashboard
 
-**Goal**: Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent.
+**Goal**: Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent. Each staff member also sees the money they hold and can hand it to a coworker (owner addition, 2026-10-07).
 **Mode:** mvp
 **Depends on**: Phase 6, Phase 8. Until this phase ships, `/admin` redirects to Orders.
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, MONEY-01, MONEY-02, MONEY-03, MONEY-04, MONEY-05, MONEY-06, MONEY-07, MONEY-08
 **Success Criteria** (what must be TRUE):
   1. **Landing.** After sign-in, staff land on the dashboard. They see "Good morning/afternoon/evening, {firstName}", today's date in Manila time, and View Orders and New Order actions.
   2. **KPI cards,** per the C-40 definitions:
@@ -498,6 +595,8 @@ Plans:
      - "Orders by status" shows the active total.
      - The 6 most recent orders link to their detail pages.
   4. **Card states.** Every card shows a skeleton while loading, an empty state when there's no data and an error state with retry.
+  5. **Money on hand.** Each staff member sees their own server-computed money on hand (payments they received + transfers in − transfers out − expenses they paid) and its ledger, plus a dashboard card. An Admin sees only their own figures and transfers and gets 403 for anyone else's. A Manager sees every staff member's balance and all transfers.
+  6. **Coworker transfers.** A staff member can transfer part of their money on hand to another active staff member: above zero, not to themselves, not future-dated in Manila time and, by default, never more than they hold, even under two concurrent attempts. A double-click records one transfer. Transfers can't be edited. Only a Manager can delete one (an Admin gets 403), and every delete lands in the audit log with the full record. Every new endpoint has authorization-matrix rows for anonymous, Admin and Manager.
 
 **Owner decisions to close at discuss step:**
 - **C-40** metric definitions:
@@ -506,6 +605,10 @@ Plans:
   - whether cancelled orders appear in "Orders by status"
   - whether receivables include overdue orders
 - **C-18** confirm the dashboard scope
+- **OD-16** staff balance rules: transfers above the sender's balance (default: refuse); whether paying an expense may take the payer's balance below zero (default: allow it, because refusing would leave a real expense unrecorded); a payment correction or order deletion that pushes a balance below zero; whether refunds paid from a staff member's cash count (default: no). Expenses a staff member paid always count (owner ruling, 2026-10-07). Also: how money still held by a deactivated or deleted staff member is handed over (otherwise the sender is always the signed-in user)
+- **OD-17** transfer edits (default: none; delete and re-create)
+- **OD-18** soft vs hard delete for transfers (recommended: soft)
+- **OD-19** apply the 2026-10-07 ruling: only Managers delete transfers, an Admin sees only their own money and transfers, and a Manager sees everyone's
 - **OD-14**
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
@@ -677,12 +780,13 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - value shapes, without real customer data
      - data-quality anomalies, with counts
      - image storage and user accounts
-  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress.
+  3. **Mapping.** `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model, or to "not migrated — reason". It proposes any new columns or tables and revisits the rulings that real data may stress. It includes the rules that give every migrated payment a Received by (MIG-09, OD-15), and every migrated expense a Paid by and every migrated record its creator attribution (MIG-10, OD-15).
   4. **Approval gate.** The owner has approved `LEGACY-MAPPING.md`, and no ETL code was written before that approval.
 
 **Owner decisions to close at discuss step:**
 - **C-28** final name of the legacy-restore database
 - the rulings real data may break: **C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7**. Examples: multiple discounts, overpayments, more than 5 images, missing due dates, unknown statuses, local-time timestamps.
+- **OD-15** (final) how migrated payments get a Received by and migrated company and order expenses a Paid by; whether those payments and expenses count toward money on hand; whether a legacy record that names its creator keeps that creator as a migrated user (a record with an unknown creator gets "Legacy import", owner ruling 2026-10-07); and whether staff start with opening balances at go-live
 
 **Owner prerequisites:** Owner approval of `LEGACY-MAPPING.md`. This is a blocking checkpoint.
 
@@ -695,7 +799,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Goal**: Every legacy order, payment, discount, expense, image and user lands in a fresh EF-migrated database with 100% reconciliation, proven by a timed dress rehearsal on staging.
 **Mode:** mvp
 **Depends on**: Phase 15 (approved mapping)
-**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08
+**Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08, MIG-09, MIG-10
 **Success Criteria** (what must be TRUE):
   1. **Legacy columns.** The approved legacy-only columns (`LegacyId`, legacy order number) exist as nullable columns, added through normal migrations. The app still builds, tests and runs on an empty database.
   2. **ETL.** The `tools/Csps.LegacyMigration` ETL:
@@ -713,6 +817,8 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
      It lists every transformed or rejected row with a reason, and blocks cutover unless reconciliation is 100% with zero unexplained differences.
   5. **Dress rehearsal.** A timed dress rehearsal on the staging site, using a fresh `.bak`, runs end to end and passes reconciliation.
+  6. **Payment receivers.** Every migrated payment has a Received by under the approved OD-15 rule. None was dropped or changed, and reconciliation covers them all.
+  7. **Expense payers and record attribution.** Every migrated company and order expense has a Paid by, and every migrated record has its creator attribution ("Legacy import" when the creator is unknown), under the approved OD-15 rules. No expense or record was dropped or changed, and reconciliation covers them all.
 
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
@@ -738,6 +844,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - scheduled DB backups, with one restore tested
      - a live TLS certificate, with HSTS enabled after verification
      - SPF/DKIM/DMARC passing on the sender domain
+     - a SQL Server 2025 database created in the control panel (D-33; SmarterASP.NET confirmed 2026-10-07 that there is no in-place upgrade, so the data arrives by `.bak` restore). Its compatibility level is verified, `SqlCompatibility.Level` is re-pinned from the provisional 160 to that level (170 expected), and `MigrationScriptTests` is re-run at the new pin
   2. **Runbook executed.** The cutover runbook is executed with the owner present. The point of no return and the rollback plan are written down beforehand. The steps:
      1. maintenance notice
      2. legacy set read-only
@@ -755,6 +862,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 - Control of the production domain and DNS.
 - The production SQL login and scheduled backups, enabled in the SmarterASP.NET control panel.
 - The production TLS certificate.
+- SmarterASP.NET's answer on whether the Basic plan (1 database) allows a temporary second database, at no extra cost, while the live one still exists (D-33). If not, the runbook takes the live site offline from deleting the old database until the restore finishes.
 
 **Research flag:** Needs research: restoring a `.bak` on the host vs running the ETL locally and then restoring on the host (LOW confidence).
 
@@ -771,42 +879,42 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 | **Before Phase 3** | C-27 / S-9, C-45 (owner creates the GitHub repo; Web Deploy credentials; secrets) | CI security set, branch protection, staging deploy |
 | **Before Phase 4 starts** (one security batch) | OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33 | Sign-in, 2FA, reset, onboarding and email change. Email is a hard sign-in dependency, so send this batch early |
 | **Phase 5 discuss** | C-41 (+ C-4 and C-9 if still open) | User delete semantics, onboarding, email change |
-| **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43 | Expense schema and categories |
-| **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44 | The order aggregate, numbering, invariants and schema (Core Value) |
-| **Phase 8 discuss** | C-13 (labels), C-18 | Order screens |
+| **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43, OD-21 | Expense schema and categories, expense payer |
+| **Before Phase 7's first test** (Orders batch) | OD-3, OD-4, OD-5 (orders), OD-6, OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37, C-38, C-39, C-42, C-43, C-44, OD-15 (shape only) | The order aggregate, numbering, invariants and schema (Core Value) |
+| **Phase 8 discuss** | C-13 (labels), C-18, OD-20 | Order screens, payment receiver label |
 | **Phase 9 discuss** | OD-9 / C-26, C-2, C-16 (+ Cloudinary account) | Image delivery, per-order limit, accessible reorder |
-| **Phase 10 discuss** | C-40, C-18 | Dashboard metric definitions |
+| **Phase 10 discuss** | C-40, C-18, OD-16, OD-17, OD-18 | Dashboard metric definitions, staff money rules |
 | **Phase 11 discuss** | C-21, C-12, C-36 (scope only), C-17 | Content model, Contact layout, whether Phase 13 runs |
 | **Phase 12 discuss** | OD-10 (full retention set), OD-11 | Retention jobs, legal text |
 | **Phase 13 discuss** | C-36 (details), OD-10 (inquiry retention) | Inquiry storage, inbox, attachment types |
 | **Phase 14 discuss** | OD-10 (audit and financial records), OD-13 (confirm), C-32 (confirm), every open OD-14 item | Release readiness |
-| **Phase 15** | C-28 (final), re-check C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7 against real data; **LEGACY-MAPPING.md approval** | All ETL code |
+| **Phase 15** | C-28 (final), OD-15 (final), re-check C-1, C-2, C-14, C-15, OD-3, OD-4, OD-7 against real data; **LEGACY-MAPPING.md approval** | All ETL code |
 | **Phase 17** | Cutover window, monitoring period, legacy-backup retention, point of no return | Go-live |
 
 ## Coverage
 
-All 162 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
+All 180 v1 requirements are mapped, each to exactly one phase. There are no orphans and no duplicates.
 
 | Phase | Requirements | Count |
 |---|---|---|
 | 1 | FND-01…FND-13, QUAL-01, QUAL-03, QUAL-06, SEC-01, SEC-02, SEC-04 | 19 |
-| 2 | WEB-01…WEB-08, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 18 |
+| 2 | WEB-01…WEB-10, ORD-09, QUAL-02, QUAL-04, A11Y-01, A11Y-02, A11Y-04, PERF-01, PERF-02, PERF-03, PERF-05 | 20 |
 | 3 | OPS-01…OPS-05 | 5 |
-| 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, A11Y-03, AUDIT-01 | 17 |
-| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02 | 13 |
-| 6 | CEXP-01…CEXP-04, PERF-04 | 5 |
-| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21 | 10 |
+| 4 | AUTH-01…AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01 | 18 |
+| 5 | PROF-01…PROF-04, USER-01…USER-08, AUDIT-02, SEC-07, SEC-08 | 15 |
+| 6 | CEXP-01…CEXP-05, PERF-04 | 6 |
+| 7 | ORD-03, ORD-05, ORD-08, ORD-13, ORD-14, ORD-16, ORD-17, ORD-18, ORD-20, ORD-21, ORD-22, ORD-23 | 12 |
 | 8 | ORD-01, ORD-02, ORD-06, ORD-07, ORD-10, ORD-11, ORD-12, ORD-15, ORD-19 | 9 |
 | 9 | ORD-04, IMG-01…IMG-05, JOB-01, JOB-02 | 8 |
-| 10 | DASH-01…DASH-06 | 6 |
+| 10 | DASH-01…DASH-06, MONEY-01…MONEY-08 | 14 |
 | 11 | PUB-01…PUB-06, GAL-01…GAL-03, CONT-01…CONT-05 | 14 |
 | 12 | ANL-01…ANL-09, LEGAL-01…LEGAL-05 | 14 |
 | 13 | INQ-01…INQ-08 | 8 |
 | 14 | SEC-05, A11Y-05, PERF-06, PERF-07, LEGAL-06 | 5 |
 | 15 | MIG-01, MIG-02 | 2 |
-| 16 | MIG-03…MIG-08 | 6 |
+| 16 | MIG-03…MIG-10 | 8 |
 | 17 | CUT-01…CUT-03 | 3 |
-| **Total** | | **162** |
+| **Total** | | **180** |
 
 ## Progress
 
@@ -817,8 +925,8 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Hosting Verification & Backend Foundation | 0/13 | Planned | - |
-| 2. Web Foundation & Design System | 0/TBD | Not started | - |
+| 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
+| 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 0/TBD | Not started | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
@@ -835,5 +943,33 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 16. Legacy Data Import | 0/TBD | Not started | - |
 | 17. Production Cutover | 0/TBD | Not started | - |
 
+## Backlog
+
+### Phase 999.1: Owner decisions deferred during Phase 2 execution (BACKLOG)
+
+**Goal:** Collect every owner decision, approval or sign-off that came up while the owner was away during Phase 2 execution, so they can be settled in one sitting. Each item, its options and its impact are listed in `.planning/phases/999.1-owner-decisions-deferred-during-phase-2-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.2: Follow-up — Phase 02 deferred UAT follow-up: Test 6 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 02 verification
+**Source phase:** 02
+**Deferred at:** 2026-10-08 during /gsd-verify-work 2 session completion
+**Follow-ups:**
+- [ ] Test 6: Check on the Phase 8 order screens and the Discount modal that server totals replace the client preview after a save (02-04 D7, D-09). (deferred 2026-10-08)
+
+### Phase 999.3: Follow-up — Phase 02 deferred UAT follow-up: Test 8 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 02 verification
+**Source phase:** 02
+**Deferred at:** 2026-10-08 during /gsd-verify-work 2 session completion
+**Follow-ups:**
+- [ ] Test 8: Review the shared list-query defaults (staleTime 30 s, gcTime 5 min, refetchOnWindowFocus true, retry false) per list screen as later phases build them, and override per query where needed (02-08 D10). (deferred 2026-10-08)
+
 ---
 *Roadmap created: 2026-10-07*
+*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10, Phase 2) and the matching Definition-of-Done bullet*

@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Csps.Domain/Csps.Domain.csproj" />
+    <Project Path="src/Csps.Application/Csps.Application.csproj" />
+    <Project Path="src/Csps.Infrastructure/Csps.Infrastructure.csproj" />
+    <Project Path="src/Csps.Server/Csps.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Csps.Testing/Csps.Testing.csproj" />
+    <Project Path="tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj" />
+    <Project Path="tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj" />
+    <Project Path="tests/Csps.Domain.UnitTests/Csps.Domain.UnitTests.csproj" />
+    <Project Path="tests/Csps.Application.UnitTests/Csps.Application.UnitTests.csproj" />
+    <Project Path="tests/Csps.Infrastructure.IntegrationTests/Csps.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Csps.DevSeed/Csps.DevSeed.csproj" />
+    <Project Path="tools/Csps.HostProbe/Csps.HostProbe.csproj" />
+  </Folder>
+</Solution>

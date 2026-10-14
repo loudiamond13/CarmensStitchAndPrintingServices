@@ -1,0 +1,312 @@
+/* Owner rulings on the approved look, as a test-only layer on the frozen spec classes (WEB-02, D-33, UI-SPEC
+   "Intentional differences"). The look-equality proof (plan 02-14) holds the Tailwind implementation to the verbatim
+   App. A-C CSS plus exactly these rules, so every intentional difference is written down here and nowhere else.
+   Rules:
+   - Never shipped: only visual/reference/reference.css imports this file.
+   - Unlayered, so each rule wins over the layered spec CSS whatever its specificity.
+   - Every rule group starts with a comment naming its decision ID, and every selector names a spec class (.csp-* or
+     .s-*), except the PERF-05 font faces and font-stack tokens.
+   - Values come from the reviewed overrides at 74621f5 (web/src/styles/overrides.css, D-37); tokens only. The rulings
+     made after it (D-31 O-3, O-6 and D-31 D-BL-02, 2026-10-08) follow UI-SPEC "Owner-ruled colour and state rulings",
+     and D-39 (2026-10-08) follows 02-CONTEXT.md and the UI-SPEC D-02 row.
+   - The phone list-card title separator has no rule here on purpose: the owner kept it exactly as the approved CSS
+     renders it (the last card has none), so the proof expects the implementation to match the spec there.
+   - D-40 (owner, 2026-10-08) has no rule here either: it changes text, not a look. A no-team OrderCard reads
+     "Walk-in customer" on its customer line, which keeps the approved .csp-order-cust look. CSS cannot add a text
+     node, so the WalkInOrderCard wrapper pair (visual/reference/fragments/WalkInOrderCard.tsx) writes the text into
+     the frozen line after mount.
+   - D-41 R2-04 (owner, 2026-10-13) has no rule here: it changes the Topbar shortcut hint text ("Ctrl K", or "⌘K" on
+     Apple platforms, instead of "/"). The reference-only Topbar override (visual/reference/fragments/Topbar.tsx, on
+     SPEC_OVERRIDES in merge-kit.ts) writes the hint into the frozen kbd after mount.
+   - D-41 R2-06 (owner, 2026-10-13) has no rule here: it changes text, not a look. The order math follows the PRD
+     names, so the OrderTotals row before discount reads "Subtotal" (App. D.3: "Total") and the panel note reads
+     "Profit = Subtotal − Discount − Expenses. Internal only.". The reference-only OrderTotals and OrderCard overrides
+     (visual/reference/fragments/OrderTotals.tsx and OrderCard.tsx, on SPEC_OVERRIDES in merge-kit.ts) write the words
+     into the frozen rows and note after mount.
+   - The second D-27 group (plan 02-26) states the pointer cursor the approved Logout link already shows: WebKit
+     reports a link's hand cursor as `auto`, the D-27 button reports `pointer`. It changes no look in any engine.
+   - visual/reference/rulings.test.ts pins all of the above. */
+
+/* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/styles/base.css. */
+@font-face {
+  font-family: "Archivo Fallback";
+  src: local("Arial");
+  size-adjust: 101.85%;
+  ascent-override: 86.21%;
+  descent-override: 20.62%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 metric-matched fallback for Barlow Condensed (display text), identical to web/src/styles/base.css. It skips
+   U+20B1, so a peso in display text falls through to Archivo Variable (research Pitfall 17). */
+@font-face {
+  font-family: "Barlow Condensed Fallback";
+  src: local("Arial Narrow"), local("Arial");
+  unicode-range: U+0000-20B0, U+20B2-10FFFF;
+  size-adjust: 68.92%;
+  ascent-override: 145.1%;
+  descent-override: 29.02%;
+  line-gap-override: 0%;
+}
+
+/* PERF-05 font stacks: the App. A token names with each fallback face right after its brand family, identical to
+   web/src/styles/base.css. */
+:root {
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-sans: "Archivo Variable", "Archivo Fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* D-01 (C-34) iOS input zoom: on phones only, text inside search boxes, toolbar filters and item-row inputs is 16px, so
+   iOS Safari does not zoom on focus. .csp-input is already 16px; desktop and tablet keep the designed 14px. */
+@container pg (max-width: 767px) {
+  .csp-search input,
+  .s-search-box input,
+  .s-toolbar .csp-input,
+  .s-item .csp-input {
+    font-size: 16px;
+  }
+}
+
+/* D-02 (C-35) inactive rows: muted but readable, no opacity. A softer row background plus the existing neutral
+   Inactive badge; all text keeps its normal tokens (>= 4.5:1 on --surface-2). Replaces App. E.12 opacity .72. */
+.s-rt tbody tr.is-inactive > td {
+  background: var(--surface-2);
+}
+
+/* D-02 (C-35) inactive rows on phones: the stacked card itself takes the softer background. */
+@container pg (max-width: 767px) {
+  .s-rt tbody tr.is-inactive {
+    background: var(--surface-2);
+  }
+}
+
+/* D-02 FYI-01 no faded text: the five spec texts that faded below 4.5:1 (input placeholder, Manager tag, CTA lead,
+   filter-pill count, big-button caption) render at full opacity in their own token colours. */
+.csp-input::placeholder,
+.csp-nav-tag,
+.s-cut-accent .s-lead,
+.s-pill-count,
+.s-bigbtn span {
+  opacity: 1;
+}
+
+/* D-39 (owner, 2026-10-08) a KpiCard whose figure is zero is dimmed by colour only: the value takes --ink-subtle, as
+   the D-02 .is-zero cascade tiles do, and nothing else changes (no opacity). App. D.3 has no zero state and its markup
+   has no hook for one, so the DimmedZeroKpi wrapper pair marks the frozen value with data-zero after mount. */
+.csp-kpi-value[data-zero] {
+  color: var(--ink-subtle);
+}
+
+/* D-03 (C-35) orange is never the only state cue: the selected tab, the current site link, the current sidebar item
+   and the current tab-bar item are bold (700; siblings stay 600), in both themes. */
+.csp-tab.is-on,
+.csp-site-link.is-on,
+.csp-nav.is-on,
+.s-tab-i.is-on {
+  font-weight: 700;
+}
+
+/* D-03 (C-35) checkbox second cue: a 2px --ink border at rest. */
+.s-check input[type="checkbox"] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+/* D-03 (C-35) checked checkbox: orange fill, dark border kept. */
+.s-check input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+/* D-03 (C-35) checked checkbox tick, drawn in --on-accent (6.32:1 Blush / 6.51:1 Espresso on the orange). */
+.s-check input[type="checkbox"]:checked::before {
+  content: "";
+  width: 10px;
+  height: 5px;
+  margin-top: -3px;
+  border-bottom: 2px solid var(--on-accent);
+  border-left: 2px solid var(--on-accent);
+  transform: rotate(-45deg);
+}
+
+/* D-03 (C-35) the checkbox keeps the 2px focus-visible ring. */
+.s-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* D-05 (C-35) hover-hidden thumb actions: no focusable element is ever invisible. App. B already shows the actions on
+   :focus-within; the drag grip follows them. */
+.csp-thumb:focus-within .csp-thumb-grip {
+  opacity: 1;
+}
+
+/* D-05 (C-35) touch devices have no hover, so the grip and the actions are always visible. */
+@media (hover: none) {
+  .csp-thumb-actions,
+  .csp-thumb-grip {
+    opacity: 1;
+  }
+}
+
+/* D-27 (O-9) the Sidebar Logout is a <button class="csp-nav"> instead of <a href="#">, with the same look (confirmed by
+   the owner, D-31). Preflight already gives the button an inherited font and colour, a transparent background and no
+   padding or margin; this removes what is left of the button look and restores the link's start-aligned text and
+   pointer cursor. It sets only properties no .csp-nav rule sets, so the hover, current and collapsed states still
+   apply. */
+button.csp-nav {
+  appearance: none;
+  border-width: 0;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* D-27 (O-9) the frozen reference still draws Logout as the approved <a href="#" class="csp-nav">, and WebKit reports a
+   link's hand cursor as `cursor: auto` (its UA sheet leaves the hand to link behaviour), while the D-27 button has to
+   state `cursor: pointer` to show the same hand. Stating the pointer on the reference Logout changes nothing anyone sees
+   in any engine (Chromium and Firefox already report `pointer` for it) and keeps the cursor compared in WebKit too
+   (plan 02-26). The other sidebar links are links on both sides and keep their engine's own value. */
+.csp-sidebar-foot > a.csp-nav {
+  cursor: pointer;
+}
+
+/* D-31 O-3 the current public drawer link (already 800 in --accent-ink) turns italic as its second cue; the
+   800-italic face is already loaded. */
+.csp-site-dlink.is-on {
+  font-style: italic;
+}
+
+/* D-31 D-BL-02 the "Manager" tag is hidden on the current sidebar row: the page title already says where you are.
+   Unselected rows keep the tag at full opacity (FYI-01). */
+.csp-nav.is-on .csp-nav-tag {
+  display: none;
+}
+
+/* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
+   part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
+@media (prefers-reduced-motion: reduce) {
+  .csp-skel,
+  .csp-overlay,
+  .csp-modal,
+  .csp-toast {
+    animation: none;
+  }
+}
+
+/* D-41 R2-01 (owner, 2026-10-13) the admin Topbar search box may shrink below its content, so the Topbar row fits at
+   320px in every engine and the admin pages never scroll sideways (PERF-03). App. B let it shrink only to the search
+   field's intrinsic width (about 234px). The placeholder is cut shorter on small phones; nothing changes where the box
+   already had room. */
+.csp-search {
+  min-width: 0;
+}
+
+/* D-41 R2-02 (owner, 2026-10-13) the list table frame contains its paint, so it is the containing block of the
+   visually hidden "Actions" header text: when the table scrolls inside its frame on a tablet, that text no longer
+   lets the page scroll sideways (22px at 768px). The frame already clips sideways, so nothing visible changes. */
+.s-rt-wrap {
+  contain: paint;
+}
+
+/* D-41 R2-02 phones keep no containment: the rows are the cards there, nothing is clipped and the head is hidden. */
+@container pg (max-width: 767px) {
+  .s-rt-wrap {
+    contain: none;
+  }
+}
+
+/* D-41 R2-03 (owner, 2026-10-13) the list search box shows a focus ring of its own, subtler than the shared field
+   ring: while its input has focus, the box's own 1px border turns --focus (no outer ring, no change in size). App. B
+   gave it none (its input has outline: none). --focus is at least 3:1 against --surface-2, --surface and --bg in both
+   themes (WCAG 1.4.11; web/src/ui/lists/search-focus-contrast.node.test.ts). */
+.s-search-box:focus-within {
+  border-color: var(--focus);
+}
+
+/* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short
+   window. The region becomes a column with a 16px top padding and a ::before spacer of 124px above the dialog, so the
+   dialog still sits 140px down (16 + 124) wherever it fits; on a shorter window only the spacer shrinks, down to 0, and
+   when the dialog is still taller than the window the backdrop scrolls (WCAG 1.4.10). Phone pages: 96px of spacer and
+   no padding (96 + 0). These rules are unlayered, so they beat App. C's layered row rule (justify-content: center;
+   align-items: flex-start; padding: 140px var(--space-4) var(--space-4)) and its phone rule (padding: 96px 0 0;
+   align-items: flex-start): align-items becomes center there too, because in a column it centres sideways, and the
+   full-width sheet does not move. Nothing moves where the dialog already fits. */
+.s-overlay {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: var(--space-4);
+  overflow-y: auto;
+}
+
+/* D-42 the spacer above the dialog: the only part that shrinks. */
+.s-overlay::before {
+  content: "";
+  flex: 0 1 124px;
+}
+
+/* D-42 the dialog itself never shrinks (App. C gives the inline overlay min-height: 0). */
+.s-overlay > * {
+  flex-shrink: 0;
+}
+
+/* D-42 phone pages: the approved 96px comes from the spacer alone, so the padding-top goes back to 0. */
+@container pg (max-width: 767px) {
+  .s-overlay {
+    padding-top: 0;
+  }
+
+  .s-overlay::before {
+    flex-basis: 96px;
+  }
+}
+
+/* WEB-09 pending button: aria-disabled keeps keyboard focus and looks exactly like App. B .csp-btn:disabled. */
+.csp-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* WEB-09 a disabled button never gets the App. B press nudge, so a pending one does not either. */
+.csp-btn[aria-disabled="true"]:active {
+  transform: none;
+}
+
+/* WEB-09 pending buttons keep their resting look on hover (App. B hover rules are :not(:disabled)); each value is the
+   variant's own resting value from App. B. */
+.csp-btn-primary[aria-disabled="true"]:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+/* WEB-09 secondary variant at rest. */
+.csp-btn-secondary[aria-disabled="true"]:hover {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+/* WEB-09 ghost variant at rest. */
+.csp-btn-ghost[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+/* WEB-09 danger variant at rest. */
+.csp-btn-danger[aria-disabled="true"]:hover {
+  filter: none;
+}
+
+/* WEB-09 ghost-danger variant at rest. */
+.csp-btn-ghost-danger[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--ink-muted);
+}

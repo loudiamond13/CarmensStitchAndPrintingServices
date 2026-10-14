@@ -1,0 +1,122 @@
+// Source: CSPS-UI-SPEC.md App. D.7, plus the deltas below. Each delta is marked SPEC-DEVIATION (research Pattern 1).
+import { fileURLToPath, URL } from 'node:url';
+import { defineConfig, loadEnv } from 'vite';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
+import tailwindcss from '@tailwindcss/vite';
+import { PUBLIC_ROUTE } from './scripts/budget.ts';
+import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
+import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
+import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
+
+// SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
+// Flag 2). Babel only ever sees this app's own TypeScript under src/, never node_modules (L-27: the filter
+// receives string | undefined).
+const sourceDirectory = fileURLToPath(new URL('./src/', import.meta.url))
+  .replaceAll('\\', '/')
+  .toLowerCase();
+const isAppSource = (id: string | undefined): boolean => {
+  if (id === undefined) {
+    return false;
+  }
+  const normalized = id.replaceAll('\\', '/').toLowerCase();
+  return normalized.startsWith(sourceDirectory) && /\.tsx?$/.test(normalized);
+};
+
+/** The web root: .env files are read from here, whatever the working directory (TOOL-CR-01). */
+const webRoot = fileURLToPath(new URL('.', import.meta.url));
+
+/**
+ * What each mode builds (D-20). The mode alone decides; no environment variable or .env file can turn the dev-only
+ * routes on (TOOL-CR-01). `budget` is the budget plugin's build profile: production keeps every D-20 rule, the
+ * e2e and budget builds measure the shipped topology with the admin routes in, and the parity build may add the
+ * test-only parity page (docs/web/budgets.md).
+ */
+const MODES: Readonly<Record<string, { devRoutes: boolean; parityEntry: boolean; budget: BudgetBuild }>> = {
+  production: { devRoutes: false, parityEntry: false, budget: 'production' },
+  development: { devRoutes: true, parityEntry: true, budget: 'parity' },
+  test: { devRoutes: false, parityEntry: false, budget: 'production' },
+  e2e: { devRoutes: true, parityEntry: false, budget: 'dev-routes' },
+  budget: { devRoutes: true, parityEntry: false, budget: 'dev-routes' },
+  parity: { devRoutes: true, parityEntry: true, budget: 'parity' },
+};
+
+// SPEC-DEVIATION: a function config, so the build output folder and the dev-route switch follow the mode (D-20).
+export default defineConfig(({ mode }) => {
+  const settings = Object.hasOwn(MODES, mode) ? MODES[mode] : undefined;
+  if (settings === undefined) {
+    throw new Error(`vite.config.ts: unknown mode "${mode}". Use one of: ${Object.keys(MODES).join(', ')}.`);
+  }
+  // D-20 / CWE-489 (TOOL-CR-01): loadEnv merges every VITE_* process variable and the git-ignored .env, .env.local,
+  // .env.production and .env.production.local files. The build that ships refuses the old dev-route switch outright,
+  // so a stray value in a shell, in CI or in an untracked file stops the build instead of being silently ignored.
+  if (mode === 'production' && loadEnv(mode, webRoot, 'VITE_').VITE_DEV_ROUTES !== undefined) {
+    throw new Error(
+      'VITE_DEV_ROUTES must never be set for a production build (D-20). Remove it from the environment and from any .env file in web/.',
+    );
+  }
+  const devRoutes = settings.devRoutes;
+
+  return {
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()], include: [isAppSource] }),
+      tailwindcss(),
+      // SPEC-DEVIATION: PERF-05 woff2 only. The Fontsource weight files list a .woff fallback after each woff2; it
+      // is dropped before the CSS pipeline, so the web root ships woff2 files only (research Pattern 14).
+      woff2OnlyPlugin(),
+      // SPEC-DEVIATION: PERF-05 preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2 (the
+      // LCP font), and the build fails if that file is missing or matched twice (research Pattern 14).
+      preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
+      // SPEC-DEVIATION: PERF-01 budgets. Build-only: every build measures public initial JS (<= 150 KB gz), CSS
+      // (<= 35 KB gz, exactly one CSS file) and, with dev routes, admin initial JS (<= 250 KB gz); the production build
+      // also fails on any admin, dev or parity module. Over a limit the build fails with the size table
+      // (research Pattern 12, docs/web/budgets.md).
+      budgetPlugin({ build: settings.budget }),
+      // SPEC-DEVIATION: PERF-02 route preload (plan 02-35). Production only: `<link rel="modulepreload">` for the lazy
+      // public layout and page chunks, so a phone fetches them with the entry script instead of one round trip later.
+      // The dev-route builds put those modules in shared chunks with no facade, and nothing measures them for speed.
+      ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_ROUTE)]),
+    ],
+    resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+    // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget
+    // builds, and never in production (D-20). A literal false lets Rolldown drop the unreachable imports.
+    define: { __DEV_ROUTES__: JSON.stringify(devRoutes) },
+    // SPEC-DEVIATION: this project's port (CLAUDE.md). strictPort makes a busy 5180 an error instead of a silent hop
+    // to a port another project owns (WEB-01). The proxy targets the API's http port: Node does not trust the
+    // ASP.NET dev certificate, and Development has no HTTPS redirect (Program.cs).
+    server: {
+      port: 5180,
+      strictPort: true,
+      proxy: { '/api': { target: 'http://localhost:5115', changeOrigin: false } },
+    },
+    // SPEC-DEVIATION: the production build is the API's web root (git-ignored as a whole, research Pitfall 1); the
+    // e2e and budget modes build to their own git-ignored .<mode>-dist folders, so builds never touch tracked files.
+    build: {
+      outDir: mode === 'production' ? '../src/Csps.Server/wwwroot' : `.${mode}-dist`,
+      emptyOutDir: true,
+      // Fonts and images stay files, never data: URLs, because the CSP is font-src 'self' / img-src 'self'.
+      assetsInlineLimit: 0,
+      sourcemap: false,
+      // D-35: no .vite/license.md in the web root; the third-party notices live in the repository only.
+      license: false,
+      rolldownOptions: {
+        // SPEC-DEVIATION: zero build warnings (plan 02-33). Rolldown's timing check warns whenever JavaScript plugins
+        // take most of the build time, which the React Compiler (babel) and Tailwind always do in the dev-route builds;
+        // it reports speed, not a defect, and nothing here can act on it.
+        checks: { bundlerTimings: false },
+        // SPEC-DEVIATION: D-20 / CWE-489. Only the parity build of `npm run parity` (and development) adds the
+        // look-equality page, parity.html (WEB-02, D-33). The production, e2e and budget builds keep index.html as their
+        // only entry: the page never reaches wwwroot, and its imports never shape the chunks the budgets measure.
+        ...(settings.parityEntry
+          ? {
+              input: {
+                main: fileURLToPath(new URL('./index.html', import.meta.url)),
+                parity: fileURLToPath(new URL('./parity.html', import.meta.url)),
+              },
+            }
+          : {}),
+      },
+    },
+  };
+});

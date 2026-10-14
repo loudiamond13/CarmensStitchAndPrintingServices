@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- The implementation side of the look-equality proof (WEB-02, D-33). Built only when dev routes are on (development,
+     e2e and budget modes; vite.config.ts, D-20), never in production. No inline script or style (strict CSP). -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/mark.svg" />
+    <title>CSPS parity implementation (dev only)</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/dev/parity-main.tsx"></script>
+  </body>
+</html>

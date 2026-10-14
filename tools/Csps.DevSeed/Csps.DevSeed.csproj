@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The explicit dev-seed command (D-08, FND-04). Usage text: Csps.Infrastructure.Seeding.DevSeedOptions.Usage.
+    Migrating and dropping databases is allowed only here, never in src/ (StartupSafetyTests).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

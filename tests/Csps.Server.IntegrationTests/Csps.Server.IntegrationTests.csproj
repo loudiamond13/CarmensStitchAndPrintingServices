@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Csps.Testing\Csps.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Referenced directly: its build targets (deps.json copy) do not flow transitively. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+</Project>

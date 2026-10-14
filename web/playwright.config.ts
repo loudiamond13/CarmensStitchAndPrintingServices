@@ -1,0 +1,77 @@
+// Playwright E2E config (QUAL-04, A11Y-01, research Pattern 11). Run it through `npm run e2e` (scripts/e2e.mjs), which
+// takes the run lock, refuses a busy port 5199, runs the shared-machine preflight, seeds CSPS_E2E and builds the e2e
+// bundle first. Guide: docs/web/e2e.md.
+import { fileURLToPath } from 'node:url';
+import { defineConfig, devices } from '@playwright/test';
+
+// The host serves the e2e bundle straight from web/.e2e-dist (git-ignored). It is never copied into the API's wwwroot,
+// so the dev routes in that bundle can never be deployed (D-20).
+const e2eDist = fileURLToPath(new URL('./.e2e-dist', import.meta.url));
+// In Development the host also loads the build-time static web assets manifest, which always maps
+// src/Csps.Server/wwwroot, and that folder's files then win over --webroot. A production build left in wwwroot made the
+// host serve it instead of the e2e bundle (plan 02-29). Pointing the manifest setting at a file that does not exist turns
+// the loader off for this host only, as the .NET test hosts do (plan 02-01).
+const noStaticWebAssets = fileURLToPath(new URL('./.e2e-dist/no-static-web-assets.json', import.meta.url));
+const serverProject = fileURLToPath(new URL('../src/Csps.Server', import.meta.url));
+
+// HTTPS is mandatory: the strict CSP ends with upgrade-insecure-requests, and WebKit applies it to http://localhost, so
+// the webkit and iphone projects would load a blank page over http (research Pitfall 2, D-30). 5199 is this project's
+// Playwright port (CLAUDE.md).
+const origin = 'https://localhost:5199';
+
+// The fixture self-tests prove the guards once per engine; the phone projects reuse those engines.
+const engineOnly = ['**/fixture-selftest.spec.ts'];
+
+// The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
+const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];
+
+export default defineConfig({
+  testDir: 'e2e',
+  forbidOnly: true,
+  retries: 0,
+  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
+  // No CSP bypass anywhere: the tests run under the same strict CSP as production.
+  use: { baseURL: 'https://localhost:5199', ignoreHTTPSErrors: true, trace: 'retain-on-failure' },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: scrollbarSpecs },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: scrollbarSpecs },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: scrollbarSpecs },
+    { name: 'pixel', use: { ...devices['Pixel 7'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
+    { name: 'iphone', use: { ...devices['iPhone 15'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
+    // Headless Chromium starts with --hide-scrollbars, so no project above ever presses a real scrollbar. These two show
+    // them again: classic scrollbars, which take about 15px of the window as in Chrome on Windows (the owner's setup),
+    // and overlay scrollbars, which take no space as on macOS with a trackpad and on ChromeOS. They run only
+    // dialog-scrollbars.spec.ts, under the same base URL, HTTPS host and guard as every other project (plan 02-42,
+    // review WR-02).
+    {
+      name: 'chromium-classic-scrollbars',
+      use: { ...devices['Desktop Chrome'], launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } },
+      testMatch: scrollbarSpecs,
+    },
+    {
+      name: 'chromium-overlay-scrollbars',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--enable-features=OverlayScrollbar'] },
+      },
+      testMatch: scrollbarSpecs,
+    },
+  ],
+  webServer: {
+    // The real ASP.NET Core host. Its working directory is the server project, so the content root (appsettings, logs)
+    // is the same as in a normal `dotnet run`.
+    command: `dotnet run --project "${serverProject}" --no-launch-profile -- --urls ${origin} --webroot "${e2eDist}" --staticWebAssets "${noStaticWebAssets}"`,
+    cwd: serverProject,
+    url: `${origin}/health`,
+    ignoreHTTPSErrors: true,
+    // Never attach to a server someone else started on 5199: a busy port is an error (CLAUDE.md shared machine).
+    reuseExistingServer: false,
+    timeout: 120_000,
+    // Set on the host process only, never at User or Machine level. Development loads the JWT signing key and the Data
+    // Protection certificate from this developer's user-secrets (D-30); no secret is passed or written here (T-02-25).
+    env: {
+      ASPNETCORE_ENVIRONMENT: 'Development',
+      ConnectionStrings__Csps: 'Server=(localdb)\\CSPS;Database=CSPS_E2E;Integrated Security=true',
+    },
+  },
+});

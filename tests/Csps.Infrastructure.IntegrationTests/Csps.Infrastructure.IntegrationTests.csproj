@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Integration tests against real SQL Server: (localdb)\CSPS locally, the CI container when CSPS_TEST_SQL=container. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Csps.Testing\Csps.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

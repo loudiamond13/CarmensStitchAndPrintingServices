@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Pure unit tests of the BCL-only Domain (coverage target 100%). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Domain\Csps.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    The order-math golden vectors (WEB-07, D-09) are shared with the web Vitest suite. They are linked, never copied
+    into this project, so both suites read the one committed file; regenerate it with
+    `node web/scripts/gen-golden-vectors.mjs` with the write flag.
+  -->
+  <ItemGroup>
+    <Content Include="..\fixtures\order-math-golden-vectors.json" Link="Fixtures\order-math-golden-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Coverage under Microsoft.Testing.Platform (D-17); thresholds are enforced by tools/scripts/Invoke-CoverageGate.ps1. -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.MTP" />
+  </ItemGroup>
+
+</Project>
