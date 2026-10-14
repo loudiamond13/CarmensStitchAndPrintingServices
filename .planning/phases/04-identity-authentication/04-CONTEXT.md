@@ -1,6 +1,6 @@
 ---
 created: "2026-10-14T07:55:00-05:00"
-updated: "2026-10-14T07:55:00-05:00"
+updated: "2026-10-14T08:25:00-05:00"
 phase: 04-identity-authentication
 kind: context
 ---
@@ -182,6 +182,27 @@ Two rulings below **pull small pieces into Phase 4** that were not in the origin
 - Purging expired idempotency, outbox and token rows: JOB-01 (later phase).
 - SMS or authenticator-app second factor: AUTH-V2-01 (keep the `ISecondFactorDelivery` seam only).
 </deferred>
+
+<added_decisions>
+## Owner decisions added during /gsd-ui-phase 4 (2026-10-14)
+
+The owner made these in chat during the UI-consideration probe. They are binding, like D-01..D-42.
+
+- **D-43 (owner, R-1): a "Signed-in devices" page in Phase 4.** A new admin page, opened from the admin user menu, lists the signed-in user's own active sessions. Each row shows:
+  - the browser and device, from the same coarse in-house User-Agent parse as D-32 (e.g. "Chrome on Android"; never an IP or location)
+  - "Signed in at"
+  - "Last active" (updated on each token refresh)
+  - a "Keep me signed in" badge (90-day session vs. one that ends when the browser closes)
+
+  The current session is marked "This device" and has no sign-out button there (Logout covers it). Every other row has its own sign-out. UI contract: `04-UI-SPEC.md` S7. — **Scope note:** this adds to D-04/D-05 and AUTH-06, which only required "sign out" and "sign out of all devices". The server must:
+  - store, per refresh family, the User-Agent summary, the created-at time, the last-refreshed-at time and the persistence kind (persistent or session)
+  - add a "list my sessions" endpoint and a "revoke one of my sessions" endpoint. The revoke is limited to the caller's own families (CWE-639) and is idempotent for a family already revoked or expired.
+  - give both endpoints authorization-matrix rows (anonymous, Admin, Manager)
+  - write an audit event for each per-device sign-out (AUDIT-01, session revocation)
+
+  The schema stays relational (no JSON columns, D-13 of Phase 1).
+- **D-44 (owner, R-2):** "Sign out of other devices" is **always allowed**, even when no other session exists, and shows the same success message. The action needs no session count. This applies both in the user menu and on the D-43 page.
+</added_decisions>
 
 ---
 
