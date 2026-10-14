@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T10:20:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T11:51:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -100,7 +100,7 @@ Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the ro
 - **LocalDB (OR-1):** the default instance `(localdb)\MSSQLLocalDB` with separate `CSPS_*` databases (`CSPS_Dev`, `CSPS_E2E`, `CSPS_Test_<guid>`, `CSPS_Legacy_Restore`). The dedicated CSPS instance is retired. TheBETSLLC shares the instance, so never create, reset, restore over or drop a `BetsLLC_*` database. Cleanup may drop only `^CSPS_Test_[0-9a-f-]{36}$`.
 - **Comments (OR-2):** minimal, concise and on point. They say what the code does, enough for the owner to follow it in review. No history narration.
 - **Client-side validation first (OR-3):** each form has a zod schema that mirrors the API validator, so every rule the backend validates is also checked in the browser before any request is sent. Errors show inline before submit. Checks only the server can make stay server-side: uniqueness, the breached-password lookup, rate limits and concurrency.
-- **No long dash in the client (OR-4):** no em dash (U+2014), en dash or similar in `web/src`: code, copy and comments. Use a colon or period for an aside, "to" for a range in prose, a hyphen for an empty value or a compact range. The minus sign U+2212 in money stays. UI-SPEC copy that contains a dash is rewritten in the client.
+- **No long dash in the client (OR-4):** no em dash (U+2014), en dash or similar in `web/src`: code, copy and comments. Use a colon or period for an aside, "to" for a range in prose, a hyphen for a compact range (`Mon-Sat`, `9:00 AM - 6:00 PM`). Where a long dash would be used as a symbol, use an icon: an empty or missing value renders `EmptyValue` from `@/components` (the `minus` icon, hidden from assistive technology, plus visually hidden "Not set"), and formatters return `null` for it, never a dash string (owner, 2026-10-14; quick 261014-g0q). The minus sign U+2212 in money stays. UI-SPEC copy that contains a dash is rewritten in the client.
 - **API calls per module (OR-5):** calls live in `modules/{public,admin}/services/`, not in one file. The shared client and interceptors live in `core/api/`. Only `core/api/http` touches `fetch`.
 - **Layout (OR-6):** `web/src` follows the owner tree:
 
@@ -130,7 +130,7 @@ Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the ro
   - `core/api`: `http/` is the transport, `apiClient.ts` holds the shared client for services only, `errors.ts` is what UI code imports for errors.
   - `modules/*`: module-wide files such as `routes.tsx` and `copy.ts` sit at the module root.
 - **Imports:** `@/` across folders and `./` within one. `dev/scenarios` files use relative imports.
-- **Enforcement:** `source-layout.node.test.ts` (layout), `no-long-dash.node.test.ts` (OR-4) and the ESLint WEB-04 rules (transport and `apiClient` boundaries).
+- **Enforcement:** `source-layout.node.test.ts` (layout), `no-long-dash.node.test.ts` (OR-4), `EmptyValue.test.tsx` (OR-4 empty value) and the ESLint WEB-04 rules (transport and `apiClient` boundaries).
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
