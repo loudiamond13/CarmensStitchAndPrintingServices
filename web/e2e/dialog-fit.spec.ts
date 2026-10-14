@@ -9,7 +9,9 @@
 //     the whole window and the page stays axe-clean;
 //   - a left click on the dark area still closes it (above the dialog, beside it after the wheel scrolled the backdrop,
 //     above the phone sheet), while a middle or a right press there does not (plan 02-42, D-42; the real-scrollbar
-//     cases are in dialog-scrollbars.spec.ts).
+//     cases are in dialog-scrollbars.spec.ts);
+//   - on a scrolled backdrop a press that does not close leaves the caret in the confirm field and the backdrop where it
+//     was (review WR-01, plan 02-43).
 // The desktop and phone-page sizes run in chromium, firefox and webkit; the pixel and iphone projects check their own
 // screen instead (touch scrolling cannot be driven by the wheel in mobile emulation, so they scroll Delete Order into
 // view directly). Every measurement waits for the dialog's entry animation to finish: its 0.2s rise moves its box.
@@ -17,7 +19,17 @@
 // dialog-scrollbars.spec.ts (deleteOrderDialog.ts).
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { boxOf, openDeleteOrder, ORDER, topOf, type OpenDialog } from './deleteOrderDialog.ts';
+import {
+  boxOf,
+  openDeleteOrder,
+  ORDER,
+  readCaret,
+  readRegion,
+  topOf,
+  waitForFramesAndTask,
+  waitForSettledScroll,
+  type OpenDialog,
+} from './deleteOrderDialog.ts';
 
 /** Desktop: the approved top (16px padding + 124px spacer) and the edge gap it may shrink to. */
 const DESKTOP_TOP = 140;
@@ -239,4 +251,33 @@ test("@dialog-fit on the phone's own screen: a click on the dark area above the 
   await page.mouse.click(fit.viewport.width / 2, fit.box.y / 2);
 
   await expect(fit.dialog).toHaveCount(0);
+});
+
+test('@dialog-fit 1280x420 scrolled: a right press on the dark area keeps the dialog open, the caret in the confirm field and the backdrop where it was', async ({
+  page,
+}, testInfo) => {
+  test.skip(isDevice(testInfo), DESKTOP_ONLY);
+  const fit = await openDeleteOrder(page, { width: 1280, height: 420 });
+  const field = fit.dialog.getByRole('textbox');
+  await expect(field).toBeFocused();
+  await page.keyboard.type(ORDER);
+  await wheelOverDialog(page, fit);
+  await expectButtonsInView(fit);
+  const before = await waitForSettledScroll(page);
+  expect(before, 'the wheel scrolled the backdrop').toBeGreaterThan(0);
+
+  await page.mouse.click(20, 210, { button: 'right' });
+  await waitForFramesAndTask(page);
+
+  const after = (await readRegion(page)).scrollTop;
+  const focused = await field.evaluate<boolean>('(element) => element === document.activeElement');
+  testInfo.annotations.push({
+    type: 'dialog-focus',
+    description: `${testInfo.project.name} right press: scrollTop ${String(before)} -> ${String(after)}, field focused ${String(focused)}`,
+  });
+  await expect(fit.dialog).toBeVisible();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(ORDER);
+  expect(await readCaret(page)).toEqual({ start: 13, end: 13 });
+  expect(after, 'the right press did not move the backdrop').toBe(before);
 });

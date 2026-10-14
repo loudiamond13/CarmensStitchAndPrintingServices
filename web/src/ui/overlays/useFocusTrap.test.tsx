@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 
 // The ref-based focus trap behind Modal (WEB-02, A11Y-02, research Pitfall 9): initial focus, Tab and Shift+Tab wrap
@@ -217,12 +217,16 @@ describe('useFocusTrap', () => {
     expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
   });
 
-  it('brings focus back inside when it moves to an element outside', async () => {
+  it('brings focus back to the element inside that had it (the first field it started on), without scrolling, when focus moves outside (review WR-01)', async () => {
     await openTrap(fields);
+    const amount = screen.getByRole('textbox', { name: 'Amount' });
+    const focus = vi.spyOn(amount, 'focus');
 
     screen.getByRole('button', { name: 'Outside' }).focus();
 
-    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
+    expect(amount).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    expect(screen.getByRole('button', { name: 'Close' })).not.toHaveFocus();
   });
 
   it('returns focus to the trigger when the trap ends', async () => {
@@ -354,9 +358,9 @@ describe('useFocusTrap with two traps open (UI-WR-02)', () => {
     await user.tab({ shift: true });
     expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
 
-    // Focus sent outside comes back to the top trap only.
+    // Focus sent outside comes back to where it was in the top trap, never into the drawer.
     screen.getByRole('button', { name: 'Drawer last' }).focus();
-    expect(screen.getByRole('button', { name: 'Dialog first' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
   });
 
   it('hands focus back to the trigger in the trap below when the top trap ends, and that trap works again', async () => {
@@ -470,5 +474,140 @@ describe('useFocusTrap and the toast layer (UI-WR-03)', () => {
     screen.getByRole('button', { name: 'Dialog first' }).focus();
     await user.tab({ shift: true });
     expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+  });
+});
+
+// Review WR-01 (plan 02-43): a press on a dialog's dark area that does not close it can focus the page's `main`. The
+// trap sends focus back to the element inside that last had it, through focus({ preventScroll: true }), so the caret
+// stays in a confirm field and a scrolled backdrop does not jump. It falls back to the first focusable element when
+// there is nothing usable to return to, so focus never stays outside the dialog.
+function Outside() {
+  return <button type="button">Outside</button>;
+}
+
+function Shrinking({ extra }: { readonly extra: boolean }) {
+  const container = useRef<HTMLDivElement>(null);
+  useFocusTrap(container);
+  return (
+    <>
+      <Outside />
+      <div ref={container}>
+        <button type="button">First</button>
+        {extra && <button type="button">Extra</button>}
+      </div>
+    </>
+  );
+}
+
+function Disablable({ busy }: { readonly busy: boolean }) {
+  const container = useRef<HTMLDivElement>(null);
+  useFocusTrap(container);
+  return (
+    <>
+      <Outside />
+      <div ref={container}>
+        <button type="button">Close</button>
+        <button type="button" disabled={busy}>
+          Save
+        </button>
+      </div>
+    </>
+  );
+}
+
+function BusyStart() {
+  const container = useRef<HTMLDivElement>(null);
+  const busy = useRef<HTMLButtonElement>(null);
+  useFocusTrap(container, { initialFocus: busy });
+  return (
+    <>
+      <Outside />
+      <div ref={container}>
+        <button type="button" disabled ref={busy}>
+          Busy
+        </button>
+        <button type="button">First</button>
+      </div>
+    </>
+  );
+}
+
+function WithChart() {
+  const container = useRef<HTMLDivElement>(null);
+  useFocusTrap(container);
+  return (
+    <>
+      <Outside />
+      <div ref={container}>
+        <button type="button">First</button>
+        <svg tabIndex={0} role="img" aria-label="Chart" />
+      </div>
+    </>
+  );
+}
+
+describe('useFocusTrap: focus that leaves comes back to where it was (review WR-01, plan 02-43)', () => {
+  it('returns focus to the element inside that last had it, not to the first one', async () => {
+    await openTrap(fields);
+    const done = screen.getByRole('button', { name: 'Done' });
+    done.focus();
+    const focus = vi.spyOn(done, 'focus');
+
+    screen.getByRole('button', { name: 'Outside' }).focus();
+
+    expect(done).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    expect(screen.getByRole('button', { name: 'Close' })).not.toHaveFocus();
+  });
+
+  it('returns focus to where it was after a visit to a toast', () => {
+    render(<DialogWithToast toasts />);
+    screen.getByRole('button', { name: 'Dialog last' }).focus();
+
+    screen.getByRole('button', { name: 'Dismiss' }).focus();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Page' }).focus();
+
+    expect(screen.getByRole('button', { name: 'Dialog last' })).toHaveFocus();
+  });
+
+  it('returns focus to a focusable SVG inside too', () => {
+    render(<WithChart />);
+    const chart = screen.getByRole('img', { name: 'Chart' });
+    chart.focus();
+    expect(chart).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Outside' }).focus();
+
+    expect(chart).toHaveFocus();
+  });
+
+  it('falls back to the first focusable element when nothing inside has had focus yet', () => {
+    render(<BusyStart />);
+    expect(document.body).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Outside' }).focus();
+
+    expect(screen.getByRole('button', { name: 'First' })).toHaveFocus();
+  });
+
+  it('falls back to the first focusable element when the element that had focus is gone', () => {
+    const { rerender } = render(<Shrinking extra />);
+    screen.getByRole('button', { name: 'Extra' }).focus();
+    rerender(<Shrinking extra={false} />);
+
+    screen.getByRole('button', { name: 'Outside' }).focus();
+
+    expect(screen.getByRole('button', { name: 'First' })).toHaveFocus();
+  });
+
+  it('falls back to the first focusable element when the element that had focus can no longer take it', () => {
+    const { rerender } = render(<Disablable busy={false} />);
+    screen.getByRole('button', { name: 'Save' }).focus();
+    rerender(<Disablable busy />);
+
+    screen.getByRole('button', { name: 'Outside' }).focus();
+
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
   });
 });

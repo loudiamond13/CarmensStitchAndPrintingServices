@@ -1,8 +1,10 @@
-// The Delete Order dialog helpers shared by dialog-fit.spec.ts and dialog-scrollbars.spec.ts (plans 02-41 and 02-42,
-// owner ruling D-42): open /dev/components at a window size, open the Delete Order dialog in its Overlay region (App. C
+// The Delete Order dialog helpers shared by dialog-fit.spec.ts and dialog-scrollbars.spec.ts (plans 02-41, 02-42 and
+// 02-43, owner ruling D-42): open /dev/components at a window size, open the Delete Order dialog in its Overlay region (App. C
 // `.s-overlay`), wait for its entry animation and measure the dialog and the region. Every measurement waits for the
 // animations to finish: the dialog's 0.2s rise moves its box. Page scripts are strings: the e2e TypeScript program has
-// no DOM types.
+// no DOM types. Plan 02-43 adds the
+// helpers that prove a press which does not close the dialog leaves the caret in the confirm field and the scrolled
+// backdrop where it was (review WR-01): waitForFramesAndTask, waitForSettledScroll and readCaret.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
@@ -67,6 +69,50 @@ export async function boxOf(locator: Locator, name: string): Promise<Box> {
 /** The region's scroll position and size, read now (it changes when the backdrop scrolls). */
 export async function readRegion(page: Page): Promise<RegionMetrics> {
   return page.evaluate<RegionMetrics>(READ_REGION);
+}
+
+/**
+ * Resolves after two animation frames and then a 0 ms task. WebKit applied a focus reveal one task after the focus move
+ * (the 02-42 probe), so this window lets any such scroll happen before scrollTop or the focus is read.
+ */
+export async function waitForFramesAndTask(page: Page): Promise<void> {
+  await page.evaluate<boolean>(`(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return true;
+  })()`);
+}
+
+/**
+ * Polls the region until two reads in a row give the same scrollTop greater than 0 (the wheel has scrolled the backdrop
+ * and it stopped), and returns that value.
+ */
+export async function waitForSettledScroll(page: Page): Promise<number> {
+  let last = Number.NaN;
+  let settledAt = 0;
+  await expect
+    .poll(
+      async () => {
+        const now = (await readRegion(page)).scrollTop;
+        const settled = now > 0 && now === last;
+        last = now;
+        settledAt = now;
+        return settled;
+      },
+      { message: 'the backdrop scrolled and settled', intervals: [100] },
+    )
+    .toBe(true);
+  return settledAt;
+}
+
+/** The caret of the focused input (selectionStart and selectionEnd), or null when no input has the focus. */
+export async function readCaret(
+  page: Page,
+): Promise<{ readonly start: number | null; readonly end: number | null } | null> {
+  return page.evaluate<{ readonly start: number | null; readonly end: number | null } | null>(`(() => {
+    const active = document.activeElement;
+    return active instanceof HTMLInputElement ? { start: active.selectionStart, end: active.selectionEnd } : null;
+  })()`);
 }
 
 /** Opens /dev/components at the given window size (or the project's own), opens Delete Order and measures it. */
