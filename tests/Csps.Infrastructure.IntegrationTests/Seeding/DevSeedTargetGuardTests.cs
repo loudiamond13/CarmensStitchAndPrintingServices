@@ -4,18 +4,17 @@ using Csps.Testing;
 namespace Csps.Infrastructure.IntegrationTests.Seeding;
 
 /// <summary>
-/// FND-04 boundary and empty edges, T-01-13: the dev seed may touch only CSPS_Dev and CSPS_E2E, never another
-/// project's database, the shared MSSQLLocalDB instance, an attached file or anything it cannot read. WR-04: and only
-/// on the dedicated (localdb)\CSPS instance or a loopback container address, never a hosted or shared server.
+/// FND-04 boundary and empty edges, T-01-13: the dev seed may touch only CSPS_Dev and CSPS_E2E, and only on
+/// (localdb)\MSSQLLocalDB or a loopback container. TheBETSLLC shares that instance, so its databases must be refused.
 /// </summary>
 public sealed class DevSeedTargetGuardTests
 {
     [Theory]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev;Integrated Security=true", "CSPS_Dev")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
-    [InlineData(@"Server=(localdb)\CSPS;Initial Catalog=csps_dev;Integrated Security=true", "csps_dev")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true", "CSPS_Dev")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Initial Catalog=csps_dev;Integrated Security=true", "csps_dev")]
     [InlineData("Server=localhost,1433;Database=CSPS_E2E;User ID=sa;Password=NotARealSecret1;TrustServerCertificate=True", "CSPS_E2E")]
-    [InlineData(@"Data Source=(LocalDB)\csps;Initial Catalog=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
+    [InlineData(@"Data Source=(LocalDB)\mssqllocaldb;Initial Catalog=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
     [InlineData("Server=127.0.0.1,32768;Database=CSPS_E2E;User ID=sa;Password=NotARealSecret1;TrustServerCertificate=True", "CSPS_E2E")]
     public void AllowsOnlyTheTwoDevDatabases(string connectionString, string expectedDatabase)
     {
@@ -27,13 +26,13 @@ public sealed class DevSeedTargetGuardTests
     }
 
     [Theory]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev2;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_De;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev_;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Legacy_Restore;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=BetsLLC_Dev;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=master;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev2;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_De;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev_;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Legacy_Restore;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=true")]
     [InlineData("Server=127.0.0.1,32768;Database=BetsLLC_Dev;User ID=sa;Password=NotARealSecret1;TrustServerCertificate=True")]
     public void RefusesEveryOtherDatabase(string connectionString)
     {
@@ -44,9 +43,9 @@ public sealed class DevSeedTargetGuardTests
     }
 
     [Theory]
-    [InlineData(@"Server=(localdb)\CSPS;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Initial Catalog=;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=   ;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Initial Catalog=;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=   ;Integrated Security=true")]
     public void RefusesAMissingOrEmptyCatalog(string connectionString)
     {
         var check = DevSeedTargetGuard.Check(connectionString);
@@ -70,8 +69,8 @@ public sealed class DevSeedTargetGuardTests
 
     [Theory]
     [InlineData("this is not a connection string")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev;Not A Keyword=1")]
-    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev;Integrated Security=maybe")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Not A Keyword=1")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=maybe")]
     public void RefusesAnUnparseableConnectionString(string connectionString)
     {
         var check = DevSeedTargetGuard.Check(connectionString);
@@ -81,14 +80,27 @@ public sealed class DevSeedTargetGuardTests
     }
 
     [Theory]
-    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true")]
-    [InlineData(@"Data Source=(LocalDB)\mssqllocaldb;Initial Catalog=CSPS_E2E;Integrated Security=true")]
-    public void RefusesTheSharedMssqlLocalDbInstance(string connectionString)
+    [InlineData(@"Server=(localdb)\CSPS;Database=CSPS_Dev;Integrated Security=true")]
+    [InlineData(@"Data Source=(LocalDB)\csps;Initial Catalog=CSPS_E2E;Integrated Security=true")]
+    public void RefusesTheRetiredCspsLocalDbInstance(string connectionString)
     {
         var check = DevSeedTargetGuard.Check(connectionString);
 
         check.Allowed.ShouldBeFalse();
-        check.Reason.ShouldContain("MSSQLLocalDB");
+        check.Reason.ShouldContain(@"(localdb)\MSSQLLocalDB");
+    }
+
+    [Theory]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_E2E;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Test_0f8fad5b-d9cb-469f-a165-70867728950e;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=betsllc_dev;Integrated Security=true")]
+    public void RefusesTheOtherProjectsDatabasesOnTheSharedInstance(string connectionString)
+    {
+        var check = DevSeedTargetGuard.Check(connectionString);
+
+        check.Allowed.ShouldBeFalse();
+        check.Reason.ShouldContain("is not CSPS_Dev or CSPS_E2E");
     }
 
     [Theory]
@@ -97,8 +109,8 @@ public sealed class DevSeedTargetGuardTests
     [InlineData("Address=sql1234.site4now.net;Database=CSPS_E2E;User ID=csps;Password=NotARealSecret1")]
     [InlineData("Server=203.0.113.10;Database=CSPS_E2E;User ID=csps;Password=NotARealSecret1")]
     [InlineData(@"Server=np:\\.\pipe\LOCALDB#351DA954\tsql\query;Database=CSPS_Dev;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\.\CSPS;Database=CSPS_Dev;Integrated Security=true")]
-    [InlineData(@"Server=(localdb)\CSPS2;Database=CSPS_Dev;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\.\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB2;Database=CSPS_Dev;Integrated Security=true")]
     [InlineData("Server=localhost;Database=CSPS_Dev;Integrated Security=true")]
     [InlineData("Server=127.0.0.1;Database=CSPS_E2E;User ID=sa;Password=NotARealSecret1")]
     [InlineData(@"Server=localhost\SQLEXPRESS;Database=CSPS_Dev;Integrated Security=true")]
@@ -116,7 +128,7 @@ public sealed class DevSeedTargetGuardTests
         var check = DevSeedTargetGuard.Check(connectionString);
 
         check.Allowed.ShouldBeFalse();
-        check.Reason.ShouldContain(@"(localdb)\CSPS");
+        check.Reason.ShouldContain(@"(localdb)\MSSQLLocalDB");
         check.Reason.ShouldNotContain("NotARealSecret1");
         check.Reason.ShouldNotContain("site4now");
         check.Reason.ShouldNotContain("203.0.113");
@@ -124,7 +136,7 @@ public sealed class DevSeedTargetGuardTests
     }
 
     [Theory]
-    [InlineData(@"Server=(localdb)\CSPS;Failover Partner=sql1234.site4now.net;Database=CSPS_Dev;Integrated Security=true")]
+    [InlineData(@"Server=(localdb)\MSSQLLocalDB;Failover Partner=sql1234.site4now.net;Database=CSPS_Dev;Integrated Security=true")]
     [InlineData(@"Server=127.0.0.1,32768;Failover Partner=(localdb)\MSSQLLocalDB;Database=CSPS_E2E;User ID=sa;Password=NotARealSecret1;TrustServerCertificate=True")]
     public void RefusesAFailoverPartner(string connectionString)
     {
@@ -151,7 +163,7 @@ public sealed class DevSeedTargetGuardTests
     public void RefusesAnyAttachDbFilename()
     {
         var check = DevSeedTargetGuard.Check(
-            @"Server=(localdb)\CSPS;Database=CSPS_Dev;AttachDBFilename=C:\Data\CSPS_Dev.mdf;Integrated Security=true");
+            @"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;AttachDBFilename=C:\Data\CSPS_Dev.mdf;Integrated Security=true");
 
         check.Allowed.ShouldBeFalse();
         check.Reason.ShouldContain("AttachDBFilename");
