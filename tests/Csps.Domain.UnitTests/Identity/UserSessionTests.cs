@@ -120,4 +120,126 @@ public sealed class UserSessionTests
 
         Should.Throw<ArgumentException>(() => session.Rotate(foreign, [foreign], Hash("x"), T0.AddMinutes(1), Settings));
     }
+
+    // A session whose first token A was rotated to B one minute in; `all` is what the store would load.
+    private static (UserSession Session, List<RefreshToken> All, RefreshToken A, RefreshToken B, DateTimeOffset T) Rotated()
+    {
+        var (session, a) = NewSession();
+        var t = T0.AddMinutes(1);
+        var b = session.Rotate(a, [a], Hash("b"), t, Settings).NewToken!;
+        return (session, [a, b], a, b, t);
+    }
+
+    private static RefreshToken Present(
+        UserSession session, List<RefreshToken> all, RefreshToken token, string hash, DateTimeOffset now)
+    {
+        var result = session.Rotate(token, all, Hash(hash), now, Settings);
+        result.NewToken.ShouldNotBeNull();
+        all.Add(result.NewToken);
+        return result.NewToken;
+    }
+
+    [Fact]
+    public void ARotatedTokenPresentedAgainAtThirtySecondsGetsASibling()
+    {
+        var (session, all, a, _, t) = Rotated();
+        var now = t.AddSeconds(30);
+
+        var result = session.Rotate(a, all, Hash("c"), now, Settings);
+
+        result.Outcome.ShouldBe(RotationOutcome.GraceSibling);
+        result.NewToken.ShouldNotBeNull();
+        result.NewToken.ParentId.ShouldBe(a.Id);
+        result.NewToken.IssuedAt.ShouldBe(now);
+        a.ConsumedAt.ShouldBe(t);
+        session.LastActiveAt.ShouldBe(now);
+        session.RevokedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ARotatedTokenPresentedAgainAtThirtyOneSecondsIsReuseAndEndsTheSession()
+    {
+        var (session, all, a, b, t) = Rotated();
+        var now = t.AddSeconds(31);
+
+        var result = session.Rotate(a, all, Hash("c"), now, Settings);
+
+        result.Outcome.ShouldBe(RotationOutcome.ReuseDetected);
+        result.NewToken.ShouldBeNull();
+        session.RevokedAt.ShouldBe(now);
+        session.RevokedReason.ShouldBe(SessionRevocationReason.ReuseDetected);
+        b.RevokedAt.ShouldBe(now);
+    }
+
+    [Fact]
+    public void TheFifthSiblingIsStillFineAndTheSixthIsReuse()
+    {
+        var (session, all, a, _, t) = Rotated();
+
+        for (var i = 1; i <= 5; i++)
+        {
+            Present(session, all, a, $"s{i}", t.AddSeconds(i));
+        }
+
+        var sixth = session.Rotate(a, all, Hash("s6"), t.AddSeconds(6), Settings);
+
+        sixth.Outcome.ShouldBe(RotationOutcome.ReuseDetected);
+        session.RevokedReason.ShouldBe(SessionRevocationReason.ReuseDetected);
+    }
+
+    [Fact]
+    public void ASiblingOlderThanThirtySecondsIsRevokedWhenAnotherTokenRotates()
+    {
+        var (session, all, a, b, t) = Rotated();
+        var c = Present(session, all, a, "c", t.AddSeconds(10));
+        var d = Present(session, all, a, "d", t.AddSeconds(25));
+        var now = t.AddSeconds(41);
+
+        var result = session.Rotate(b, all, Hash("e"), now, Settings);
+
+        result.Outcome.ShouldBe(RotationOutcome.Rotated);
+        c.RevokedAt.ShouldBe(now);
+        d.RevokedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ASiblingExactlyThirtySecondsOldIsKept()
+    {
+        var (session, all, a, b, t) = Rotated();
+        var c = Present(session, all, a, "c", t.AddSeconds(10));
+
+        session.Rotate(b, all, Hash("e"), t.AddSeconds(40), Settings);
+
+        c.RevokedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ARevokedTokenPresentedLaterIsReuseAndEndsTheSession()
+    {
+        var (session, all, a, b, t) = Rotated();
+        var c = Present(session, all, a, "c", t.AddSeconds(10));
+        var d = Present(session, all, b, "d", t.AddSeconds(60));
+        c.RevokedAt.ShouldNotBeNull();
+        var now = t.AddSeconds(61);
+
+        var result = session.Rotate(c, all, Hash("e"), now, Settings);
+
+        result.Outcome.ShouldBe(RotationOutcome.ReuseDetected);
+        result.NewToken.ShouldBeNull();
+        session.RevokedReason.ShouldBe(SessionRevocationReason.ReuseDetected);
+        d.RevokedAt.ShouldBe(now);
+    }
+
+    [Fact]
+    public void ARevokedSiblingKeepsItsFirstRevocationTime()
+    {
+        var (session, all, a, b, t) = Rotated();
+        var c = Present(session, all, a, "c", t.AddSeconds(10));
+        var d = Present(session, all, b, "d", t.AddSeconds(60));
+        var revokedAt = c.RevokedAt;
+
+        Present(session, all, d, "e", t.AddSeconds(120));
+
+        c.RevokedAt.ShouldBe(revokedAt);
+    }
 }
