@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-14T23:14:00-05:00
+updated: 2026-10-14T23:55:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -77,7 +77,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | Code | Written when | Target | Detail | Write path |
 |------|--------------|--------|--------|------------|
 | `auth.sign-in-failed` | A password sign-in is refused | `User` id when the account is known, otherwise none | `unknown-account`, `bad-password`, `locked`, `deactivated`, `unconfirmed` or `no-password` (an invited user who has not set a password yet) | `RecordIndependentlyAsync` |
-| `auth.lockout` | An account becomes locked after repeated failures | `User` id | `password` or `code` | `Record` for `password`: the sign-in handler commits it with the failed-password count and the one lockout e-mail, so the entry exists exactly when the lock does. The `code` path is set by the code-verification plan. |
+| `auth.lockout` | An account becomes locked after repeated failures | `User` id | `password` or `code` | `Record` for `password`: the sign-in handler commits it with the failed-password count and the one lockout e-mail, so the entry exists exactly when the lock does. The `code` path (the tenth wrong code in an hour) is the same: the code handler commits it with the cancelled challenges, the lock and the one lockout e-mail. |
 | `auth.2fa-issued` | A sign-in code is created and e-mailed | `User` id | none | `Record` |
 | `auth.2fa-resent` | A new sign-in code is requested | `User` id | none | `Record` |
 | `auth.2fa-verified` | A sign-in code is entered correctly | `User` id | none | `Record` |

@@ -29,6 +29,9 @@ public sealed class AuthSettings
     /// <summary>The wrong code guesses across all tickets that lock an account (cross-ticket cap, D-39).</summary>
     public int AccountFailureCap { get; init; } = 10;
 
+    /// <summary>How long an account is paused after the cross-ticket wrong-code cap (D-39).</summary>
+    public TimeSpan CodeLockoutDuration { get; init; } = TimeSpan.FromMinutes(15);
+
     /// <summary>How long a pending-login ticket lives.</summary>
     public TimeSpan ChallengeLifetime { get; init; } = TimeSpan.FromMinutes(30);
 
@@ -86,6 +89,7 @@ public sealed class AuthSettings
         RequirePositive(ResponseFloor, nameof(ResponseFloor), problems);
         RequirePositive(CodeLifetime, nameof(CodeLifetime), problems);
         RequirePositive(ResendCooldown, nameof(ResendCooldown), problems);
+        RequirePositive(CodeLockoutDuration, nameof(CodeLockoutDuration), problems);
         RequirePositive(ChallengeLifetime, nameof(ChallengeLifetime), problems);
         RequirePositive(AccessTokenLifetime, nameof(AccessTokenLifetime), problems);
         RequirePositive(PersistentSessionLifetime, nameof(PersistentSessionLifetime), problems);

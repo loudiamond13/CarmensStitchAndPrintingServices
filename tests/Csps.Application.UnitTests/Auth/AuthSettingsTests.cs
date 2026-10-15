@@ -17,6 +17,7 @@ public sealed class AuthSettingsTests
         settings.ResendCooldown.ShouldBe(TimeSpan.FromSeconds(60));
         settings.SendsPerHour.ShouldBe(5);
         settings.AccountFailureCap.ShouldBe(10);
+        settings.CodeLockoutDuration.ShouldBe(TimeSpan.FromMinutes(15));
         settings.ChallengeLifetime.ShouldBe(TimeSpan.FromMinutes(30));
         settings.AccessTokenLifetime.ShouldBe(TimeSpan.FromMinutes(15));
         settings.PersistentSessionLifetime.ShouldBe(TimeSpan.FromDays(90));
@@ -80,6 +81,7 @@ public sealed class AuthSettingsTests
             ResponseFloor = TimeSpan.Zero,
             CodeLifetime = TimeSpan.Zero,
             ResendCooldown = TimeSpan.Zero,
+            CodeLockoutDuration = TimeSpan.Zero,
             ChallengeLifetime = TimeSpan.Zero,
             AccessTokenLifetime = TimeSpan.Zero,
             PersistentSessionLifetime = TimeSpan.Zero,
@@ -96,9 +98,10 @@ public sealed class AuthSettingsTests
 
         var problems = settings.Validate();
 
-        problems.Count.ShouldBe(15);
+        problems.Count.ShouldBe(16);
         problems.ShouldAllBe(problem => problem.StartsWith("Auth:", StringComparison.Ordinal) && problem.EndsWith("must be greater than zero.", StringComparison.Ordinal));
         problems.ShouldContain("Auth:ResponseFloor must be greater than zero.");
+        problems.ShouldContain("Auth:CodeLockoutDuration must be greater than zero.");
         problems.ShouldContain("Auth:ResetEmailsPerHour must be greater than zero.");
     }
 }
