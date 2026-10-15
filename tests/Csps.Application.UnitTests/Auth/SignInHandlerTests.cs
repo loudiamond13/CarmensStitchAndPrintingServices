@@ -208,6 +208,68 @@ public sealed class SignInHandlerTests
     public void AnOutcomePrintsOnlyItsTypeName() =>
         new SignInOutcome("secret-ticket", Start, 60).ToString().ShouldBe("SignInOutcome");
 
+    [Theory]
+    [InlineData("unknown", "unknown-account", false)]
+    [InlineData("no-password", "no-password", true)]
+    [InlineData("bad-password", "bad-password", true)]
+    [InlineData("locked", "locked", true)]
+    [InlineData("deactivated", "deactivated", true)]
+    [InlineData("unconfirmed", "unconfirmed", true)]
+    public async Task EveryFailureIsAuditedIndependentlyWithItsReason(string branch, string reason, bool targetKnown)
+    {
+        var harness = Harness.For(branch);
+
+        await harness.RunAsync();
+
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.ShouldBe(new AuditCall(AuditActions.SignInFailed, targetKnown ? "User" : null, targetKnown ? UserId.ToString("D") : null, reason, Independent: true));
+        AuditActions.SignInFailureReasons.ShouldContain(entry.Detail);
+    }
+
+    [Fact]
+    public async Task ASuccessWritesNoFailureAudit()
+    {
+        var harness = Harness.For("success");
+
+        await harness.RunAsync();
+
+        harness.Audit.Entries.ShouldNotContain(entry => entry.Action == AuditActions.SignInFailed);
+    }
+
+    [Fact]
+    public async Task TheFailureThatLocksTheAccountQueuesOneLockoutEmailAndAuditsIt()
+    {
+        var harness = Harness.For("bad-password");
+        var until = Start.AddMinutes(15);
+        harness.Accounts.RecordFailedPasswordAsync(UserId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(new FailedPasswordResult(true, until)));
+
+        var result = await harness.RunAsync();
+
+        result.Error.ShouldBeSameAs(AuthErrors.InvalidCredentials);
+        var email = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<AccountLockedEmail>();
+        email.To.ShouldBe(Email);
+        email.LockedUntil.ShouldBe(until);
+        email.Cause.ShouldBe(LockoutCause.Password);
+        harness.Audit.Entries.ShouldBe(
+        [
+            new AuditCall(AuditActions.Lockout, "User", UserId.ToString("D"), "password", Independent: false),
+            new AuditCall(AuditActions.SignInFailed, "User", UserId.ToString("D"), "bad-password", Independent: true),
+        ]);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AFailureThatDoesNotLockSendsNoEmailAndWritesNoLockoutAudit()
+    {
+        var harness = Harness.For("bad-password");
+
+        await harness.RunAsync();
+
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldNotContain(entry => entry.Action == AuditActions.Lockout);
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
     private sealed record AuditCall(string Action, string? TargetType, string? TargetId, string? Detail, bool Independent);
 
     private sealed class RecordingOutbox : IEmailOutbox

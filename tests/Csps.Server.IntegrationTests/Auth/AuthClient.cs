@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Csps.Server.IntegrationTests.Auth;
 
 /// <summary>The state a test staff account starts in.</summary>
-internal enum StaffState
+public enum StaffState
 {
     /// <summary>Active, confirmed, with a password.</summary>
     Active,
