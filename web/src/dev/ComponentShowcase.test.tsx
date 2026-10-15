@@ -28,7 +28,13 @@ const SECTION_TITLES = [
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
-const LAYOUT_GROUPS = new Set(['layouts-admin', 'layouts-admin-boundaries', 'layouts-auth', 'layouts-public']);
+const LAYOUT_GROUPS = new Set([
+  'auth-brand',
+  'layouts-admin',
+  'layouts-admin-boundaries',
+  'layouts-auth',
+  'layouts-public',
+]);
 
 function renderShowcase() {
   return render(

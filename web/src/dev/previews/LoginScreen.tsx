@@ -12,13 +12,15 @@ import { SignInForm } from '@/modules/admin/components/SignInForm';
 
 export interface LoginScreenProps {
   state?: 'default' | 'error' | 'loading';
+  /** `frame` (the default) is the mockup's 960px; `viewport` is the production page height (`min-h-dvh`). */
+  fit?: 'frame' | 'viewport';
 }
 
 function noop(): undefined {
   return undefined;
 }
 
-export function LoginScreen({ state = 'default' }: LoginScreenProps) {
+export function LoginScreen({ state = 'default', fit = 'frame' }: LoginScreenProps) {
   const { control } = useForm<SignInValues>({
     defaultValues: {
       email: 'paolo.garcia@gmail.com',
@@ -28,7 +30,7 @@ export function LoginScreen({ state = 'default' }: LoginScreenProps) {
   });
   const failed = AUTH_COPY.signIn.failed;
   return (
-    <AuthFrame minHeight={960}>
+    <AuthFrame {...(fit === 'frame' ? { minHeight: 960 } : {})}>
       <SignInForm
         control={control}
         onSubmit={noop}

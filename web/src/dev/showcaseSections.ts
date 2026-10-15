@@ -23,6 +23,7 @@ export type ShowcaseSectionId = (typeof SHOWCASE_SECTIONS)[number]['id'];
 
 /** Groups that are whole pages (see the header). */
 export const LAYOUT_GROUPS: readonly string[] = [
+  'auth-brand',
   'layouts-admin',
   'layouts-admin-boundaries',
   'layouts-auth',
