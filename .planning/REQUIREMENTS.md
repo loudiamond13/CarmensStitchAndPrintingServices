@@ -78,8 +78,8 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **AUTH-02**: After a correct password, staff must enter a 6-digit code emailed to them before any session is issued. The code is bound to a pending-login ticket cookie and user, and required on every new sign-in ⚑ C-6, OD-12
 - [x] **AUTH-03**: The 6-digit code is valid 15 minutes, single-use, and invalidated after 5 wrong attempts. It is stored only as HMAC-SHA256 and compared in fixed time. A per-account cross-ticket attempt cap applies
 - [x] **AUTH-04**: Staff can resend the code after a 60-second cooldown, up to 5 sends per hour per account. A new code invalidates the previous one
-- [ ] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
-- [ ] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
+- [x] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
+- [x] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
 - [x] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
 - [ ] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
 - [ ] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
@@ -239,7 +239,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 - [x] **A11Y-01**: Every page passes axe with zero violations for `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa` (vitest-axe per component, `@axe-core/playwright` per page)
 - [x] **A11Y-02**: All functionality is keyboard-operable with visible focus, a skip-to-content link, focus trapping and return in dialogs, landmarks with labels, and one `h1` per page
-- [ ] **A11Y-03**: Accessible authentication: paste allowed in password and OTP fields, `autocomplete` attributes set, no cognitive puzzles
+- [x] **A11Y-03**: Accessible authentication: paste allowed in password and OTP fields, `autocomplete` attributes set, no cognitive puzzles
 - [x] **A11Y-04**: UI-spec items that conflict with WCAG 2.2 AA (contrast, target size, drag-only, hover-only, auto-dismissing danger toasts) are flagged to the owner and resolved before release ⚑ OD-14, C-35
 - [ ] **A11Y-05**: Manual keyboard-only and screen-reader (NVDA + VoiceOver) passes are recorded for critical flows before release
 
@@ -375,8 +375,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 4 | Complete |
 | AUTH-03 | Phase 4 | Complete |
 | AUTH-04 | Phase 4 | Complete |
-| AUTH-05 | Phase 4 | Pending |
-| AUTH-06 | Phase 4 | Pending |
+| AUTH-05 | Phase 4 | Complete |
+| AUTH-06 | Phase 4 | Complete |
 | AUTH-07 | Phase 4 | Complete |
 | AUTH-08 | Phase 4 | Pending |
 | AUTH-09 | Phase 4 | Pending |
@@ -486,7 +486,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEGAL-06 | Phase 14 | Pending |
 | A11Y-01 | Phase 2 | Complete |
 | A11Y-02 | Phase 2 | Complete |
-| A11Y-03 | Phase 4 | Pending |
+| A11Y-03 | Phase 4 | Complete |
 | A11Y-04 | Phase 2 | Complete |
 | A11Y-05 | Phase 14 | Pending |
 | PERF-01 | Phase 2 | Complete |
