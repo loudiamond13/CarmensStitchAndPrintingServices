@@ -18,4 +18,40 @@ public interface ISessions
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>The tracked session, or null when none has that id.</returns>
     Task<UserSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken);
+
+    /// <summary>Finds the refresh token with this hash, with its session and the tokens rotation needs.</summary>
+    /// <param name="tokenHash">SHA-256 of the presented token.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The tracked session and tokens, or null when no token has that hash.</returns>
+    Task<RefreshLookup?> FindByRefreshHashAsync(byte[] tokenHash, CancellationToken cancellationToken);
+
+    /// <summary>Tracks a refresh token issued by a rotation, to be saved.</summary>
+    /// <param name="token">The child token.</param>
+    void AddToken(RefreshToken token);
+
+    /// <summary>
+    /// Revokes every active session of a user except one (D-05), with their open tokens, to be saved. The caller
+    /// then evicts the user from <see cref="ISessionCache"/> so the revocation shows at once.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="exceptSessionId">The session to keep; null revokes all.</param>
+    /// <param name="reason">Why the sessions end.</param>
+    /// <param name="now">The current instant.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The ids of the sessions revoked; empty when there were none.</returns>
+    Task<IReadOnlyList<Guid>> RevokeAllAsync(
+        Guid userId,
+        Guid? exceptSessionId,
+        SessionRevocationReason reason,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
 }
+
+/// <summary>A presented refresh token with what <see cref="UserSession.Rotate"/> needs (AUTH-05).</summary>
+/// <param name="Session">The token's session.</param>
+/// <param name="Presented">The token that was presented.</param>
+/// <param name="Related">
+/// The presented token, the session's unused and unrevoked tokens, and the presented token's children; not the
+/// session's whole history.
+/// </param>
+public sealed record RefreshLookup(UserSession Session, RefreshToken Presented, IReadOnlyList<RefreshToken> Related);
