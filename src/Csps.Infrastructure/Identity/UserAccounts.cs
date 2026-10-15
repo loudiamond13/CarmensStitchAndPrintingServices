@@ -151,6 +151,9 @@ internal sealed class UserAccounts(
         Require(await users.UpdateSecurityStampAsync(user).ConfigureAwait(false), "Setting the password");
     }
 
+    public Task ConfirmEmailAsync(Guid id, CancellationToken cancellationToken) =>
+        UpdateAsync(id, user => user.EmailConfirmed = true, cancellationToken);
+
     public Task SetMustChangePasswordAsync(Guid id, PasswordChangeReason reason, CancellationToken cancellationToken) =>
         UpdateAsync(id, user =>
         {

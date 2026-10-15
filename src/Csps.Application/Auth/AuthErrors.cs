@@ -95,6 +95,15 @@ public static class AuthErrors
     /// <summary>The plain-English text for a reset link that does not work; it never says why.</summary>
     public const string LinkInvalidMessage = "This link has expired";
 
+    /// <summary>The code of an invite link that is malformed, unknown, used, revoked, expired or for an account that is deactivated.</summary>
+    public const string InviteInvalidCode = "auth.invite-invalid";
+
+    /// <summary>The plain-English text for an invite link that does not work; it never says why.</summary>
+    public const string InviteInvalidMessage = "This invite has expired";
+
+    /// <summary>The code of an invite acceptance that could not check the password against the breach list.</summary>
+    public const string BreachCheckUnavailableCode = "auth.breach-check-unavailable";
+
     /// <summary>The field that new-password errors belong to.</summary>
     public const string NewPasswordField = "newPassword";
 
@@ -123,6 +132,12 @@ public static class AuthErrors
 
     /// <summary>Gets the one answer for any reset link that does not work, so a link reveals nothing beyond "expired" (CWE-640).</summary>
     public static Error LinkInvalid { get; } = Error.NotFound(LinkInvalidCode, LinkInvalidMessage);
+
+    /// <summary>Gets the one answer for any invite link that does not work, so a link reveals nothing beyond "expired" (CWE-640).</summary>
+    public static Error InviteInvalid { get; } = Error.NotFound(InviteInvalidCode, InviteInvalidMessage);
+
+    /// <summary>Gets the answer for an invite acceptance while the breach list cannot be reached; nothing was saved and the link still works (D-14).</summary>
+    public static Error BreachCheckUnavailable { get; } = Error.BusinessRule(BreachCheckUnavailableCode, PasswordRules.CheckUnavailableMessage);
 
     /// <summary>Returns a 400 on the new-password field.</summary>
     /// <param name="message">The plain-English reason.</param>

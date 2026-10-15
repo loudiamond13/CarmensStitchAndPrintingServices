@@ -40,6 +40,6 @@ internal static class ResetLinkLookup
     }
 
     // 32 random bytes in base64url without padding.
-    private static bool IsWellFormed(string? token) =>
+    internal static bool IsWellFormed(string? token) =>
         token is { Length: TokenLength } && token.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
 }

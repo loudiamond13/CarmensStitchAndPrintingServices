@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/auth/invite/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets the first password from an invite. It issues no session. */
+        post: operations["AcceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/invite/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the accept-invite page whether its link still works and which account it is for. */
+        post: operations["CheckInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password/forgot": {
         parameters: {
             query?: never;
@@ -229,10 +263,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The accept-invite form: the token from the emailed link and the first password (D-29). */
+        AcceptInviteRequest: {
+            /** @description The password as typed. */
+            newPassword: null | string;
+            /** @description The 43-character token from the link. */
+            token: null | string;
+        };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
         ForgotPasswordRequest: {
             /** @description The email address. */
             email: null | string;
+        };
+        /** @description The answer to a usable invite link. */
+        InviteLinkResponse: {
+            /** @description The address of the account the invite belongs to, so the page can name it. */
+            email: string;
+            /** @description The invited person's given name, for the greeting. */
+            firstName: string;
+        };
+        /** @description The body of an invite-link check: the token from the emailed link. It travels in the body, never in a URL. */
+        InviteTokenRequest: {
+            /** @description The 43-character token. */
+            token: null | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -396,6 +449,105 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    AcceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AcceptInviteRequest"];
+                "application/json": null | components["schemas"]["AcceptInviteRequest"];
+                "text/json": null | components["schemas"]["AcceptInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["InviteTokenRequest"];
+                "application/json": null | components["schemas"]["InviteTokenRequest"];
+                "text/json": null | components["schemas"]["InviteTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteLinkResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ForgotPassword: {
         parameters: {
             query?: never;

@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Users;
 using FluentValidation;
 
 namespace Csps.Server.Composition;
@@ -32,6 +33,8 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
         services.AddSingleton<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
         services.AddSingleton<IValidator<SetNewPasswordRequest>, SetNewPasswordRequestValidator>();
+        services.AddSingleton<IValidator<AcceptInviteRequest>, AcceptInviteRequestValidator>();
+        services.AddSingleton<IValidator<BootstrapManagerCommand>, BootstrapManagerCommandValidator>();
         return services;
     }
 }

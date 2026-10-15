@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Csps.Application.Security;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;

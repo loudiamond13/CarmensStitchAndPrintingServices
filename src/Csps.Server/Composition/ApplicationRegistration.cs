@@ -1,5 +1,6 @@
 using Csps.Application.Auth;
 using Csps.Application.Content;
+using Csps.Application.Users;
 
 namespace Csps.Server.Composition;
 
@@ -27,6 +28,9 @@ public static class ApplicationRegistration
         services.AddScoped<CheckResetLinkHandler>();
         services.AddScoped<ResetPasswordHandler>();
         services.AddScoped<SetNewPasswordHandler>();
+        services.AddScoped<CheckInviteHandler>();
+        services.AddScoped<AcceptInviteHandler>();
+        services.AddScoped<BootstrapManagerHandler>();
         return services;
     }
 }

@@ -83,6 +83,12 @@ public interface IUserAccounts
     /// <returns>A task that completes when the password is saved.</returns>
     Task SetPasswordAsync(Guid id, string newPassword, CancellationToken cancellationToken);
 
+    /// <summary>Marks the email confirmed, once a link sent to that address has been followed (D-29).</summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>A task that completes when the change is saved.</returns>
+    Task ConfirmEmailAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Requires a new password at the next sign-in (D-13).</summary>
     /// <param name="id">The account id.</param>
     /// <param name="reason">Why.</param>

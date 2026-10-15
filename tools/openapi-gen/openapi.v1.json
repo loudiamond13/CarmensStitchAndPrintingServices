@@ -1,6 +1,30 @@
 {
   "components": {
     "schemas": {
+      "AcceptInviteRequest": {
+        "description": "The accept-invite form: the token from the emailed link and the first password (D-29).",
+        "properties": {
+          "newPassword": {
+            "description": "The password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "token": {
+            "description": "The 43-character token from the link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "description": "The forgot-password form: the email the reset link goes to (D-16).",
         "properties": {
@@ -14,6 +38,40 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "InviteLinkResponse": {
+        "description": "The answer to a usable invite link.",
+        "properties": {
+          "email": {
+            "description": "The address of the account the invite belongs to, so the page can name it.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "The invited person's given name, for the greeting.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName"
+        ],
+        "type": "object"
+      },
+      "InviteTokenRequest": {
+        "description": "The body of an invite-link check: the token from the emailed link. It travels in the body, never in a URL.",
+        "properties": {
+          "token": {
+            "description": "The 43-character token.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token"
         ],
         "type": "object"
       },
@@ -422,6 +480,176 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/auth/invite/accept": {
+      "post": {
+        "operationId": "AcceptInvite",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sets the first password from an invite. It issues no session.",
+        "tags": [
+          "Invite"
+        ]
+      }
+    },
+    "/api/v1/auth/invite/check": {
+      "post": {
+        "operationId": "CheckInvite",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteLinkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Tells the accept-invite page whether its link still works and which account it is for.",
+        "tags": [
+          "Invite"
+        ]
+      }
+    },
     "/api/v1/auth/password/forgot": {
       "post": {
         "operationId": "ForgotPassword",
@@ -1239,6 +1467,9 @@
   "tags": [
     {
       "name": "AuthSession"
+    },
+    {
+      "name": "Invite"
     },
     {
       "name": "Password"
