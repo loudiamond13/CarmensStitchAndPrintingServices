@@ -121,6 +121,11 @@ public sealed class UserSession
             throw new ArgumentException("The token belongs to another session.", nameof(presented));
         }
 
+        if (!IsActive(now))
+        {
+            return new RotationResult(RotationOutcome.SessionEnded, null);
+        }
+
         if (presented.RevokedAt is not null)
         {
             return RevokeForReuse(related, now);
@@ -154,18 +159,44 @@ public sealed class UserSession
         return new RotationResult(outcome, RefreshToken.Issue(Id, parent.Id, newTokenHash, now));
     }
 
-    private RotationResult RevokeForReuse(IReadOnlyCollection<RefreshToken> related, DateTimeOffset now)
+    /// <summary>Whether the session can still be used: not revoked and before its fixed end.</summary>
+    /// <param name="now">The current instant.</param>
+    /// <returns>True while the session is active.</returns>
+    public bool IsActive(DateTimeOffset now) => RevokedAt is null && now < AbsoluteExpiresAt;
+
+    /// <summary>Ends the session. The first reason and time are kept; later calls only end tokens still open.</summary>
+    /// <param name="reason">Why the session ends.</param>
+    /// <param name="now">The current instant.</param>
+    /// <param name="related">The session's tokens the store loaded; unused, unrevoked ones are revoked. Null marks only the session.</param>
+    public void Revoke(SessionRevocationReason reason, DateTimeOffset now, IReadOnlyCollection<RefreshToken>? related = null)
     {
-        RevokedAt = now;
-        RevokedReason = SessionRevocationReason.ReuseDetected;
-        foreach (var token in related)
+        if (RevokedAt is null)
+        {
+            RevokedAt = now;
+            RevokedReason = reason;
+        }
+
+        foreach (var token in related ?? [])
         {
             if (token.ConsumedAt is null && token.RevokedAt is null)
             {
                 token.Revoke(now);
             }
         }
+    }
 
+    /// <summary>Chooses the sessions "sign out other devices" ends (D-05): every active one except the caller's.</summary>
+    /// <param name="sessions">The user's sessions.</param>
+    /// <param name="keepSessionId">The caller's own session.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The sessions to revoke; empty when there are none, which still counts as success (D-44).</returns>
+    public static IReadOnlyList<UserSession> SelectOthersToRevoke(
+        IEnumerable<UserSession> sessions, Guid keepSessionId, DateTimeOffset now) =>
+        [.. sessions.Where(session => session.Id != keepSessionId && session.IsActive(now))];
+
+    private RotationResult RevokeForReuse(IReadOnlyCollection<RefreshToken> related, DateTimeOffset now)
+    {
+        Revoke(SessionRevocationReason.ReuseDetected, now, related);
         return new RotationResult(RotationOutcome.ReuseDetected, null);
     }
 
