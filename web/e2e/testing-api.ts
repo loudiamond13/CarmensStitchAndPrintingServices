@@ -78,17 +78,17 @@ export async function readEmails(
   return body;
 }
 
-/** Waits up to 15 seconds for mail to an address (optionally with a subject part) and returns the newest match. */
+/** Waits up to 15 seconds for mail to an address (optionally with a subject part, after a cursor id) and returns the newest match. */
 export async function latestEmail(
   request: APIRequestContext,
   to: string,
-  options: { readonly subject?: string } = {},
+  options: { readonly subject?: string; readonly after?: number } = {},
 ): Promise<SinkEmail> {
   const found: { email: SinkEmail | undefined } = { email: undefined };
   await expect
     .poll(
       async () => {
-        const messages = await readEmails(request, { to });
+        const messages = await readEmails(request, { to, after: options.after ?? 0 });
         found.email = messages
           .filter((message) => options.subject === undefined || message.subject.includes(options.subject))
           .at(-1);
