@@ -53,7 +53,7 @@ internal sealed partial class EmailDispatcher(
         }
     }
 
-    private async Task SweepAsync(CancellationToken cancellationToken)
+    internal async Task SweepAsync(CancellationToken cancellationToken)
     {
         var context = await contexts.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         await using (context.ConfigureAwait(false))
