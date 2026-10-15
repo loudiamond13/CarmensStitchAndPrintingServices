@@ -25,6 +25,9 @@ const engineOnly = ['**/fixture-selftest.spec.ts'];
 // The Testing host smoke calls API routes only, so one engine proves it (plan 04-10).
 const chromiumOnly = ['**/testing-host.spec.ts'];
 
+// The cookie attributes belong to the engine, not the screen size; the phone projects reuse the same engines (plan 04-27).
+const desktopEnginesOnly = ['**/auth-cookies.spec.ts'];
+
 // The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
 const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];
 
@@ -39,11 +42,15 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: scrollbarSpecs },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: [...chromiumOnly, ...scrollbarSpecs] },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: [...chromiumOnly, ...scrollbarSpecs] },
-    { name: 'pixel', use: { ...devices['Pixel 7'] }, testIgnore: [...engineOnly, ...chromiumOnly, ...scrollbarSpecs] },
+    {
+      name: 'pixel',
+      use: { ...devices['Pixel 7'] },
+      testIgnore: [...engineOnly, ...chromiumOnly, ...desktopEnginesOnly, ...scrollbarSpecs],
+    },
     {
       name: 'iphone',
       use: { ...devices['iPhone 15'] },
-      testIgnore: [...engineOnly, ...chromiumOnly, ...scrollbarSpecs],
+      testIgnore: [...engineOnly, ...chromiumOnly, ...desktopEnginesOnly, ...scrollbarSpecs],
     },
     // Headless Chromium starts with --hide-scrollbars, so no project above ever presses a real scrollbar. These two show
     // them again: classic scrollbars, which take about 15px of the window as in Chrome on Windows (the owner's setup),
