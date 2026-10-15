@@ -112,6 +112,7 @@ public sealed class TwoFactorChallenge
             throw new InvalidOperationException("The challenge is closed.");
         }
 
+        ActiveCode()?.Supersede(now);
         var code = TwoFactorCode.Issue(Id, codeMac, now, settings.CodeLifetime);
         _codes.Add(code);
         return code;
@@ -124,19 +125,51 @@ public sealed class TwoFactorChallenge
     /// <returns>The decision and the tries left.</returns>
     public TwoFactorVerifyResult Verify(ReadOnlySpan<byte> codeMac, DateTimeOffset now, TwoFactorSettings settings)
     {
-        var active = _codes.LastOrDefault(c => c.SupersededAt is null);
+        var active = ActiveCode();
         if (!IsOpen(now) || active is null || active.ConsumedAt is not null)
         {
             return new TwoFactorVerifyResult(TwoFactorVerifyOutcome.ChallengeClosed, 0);
         }
 
+        if (now >= active.ExpiresAt)
+        {
+            return new TwoFactorVerifyResult(TwoFactorVerifyOutcome.CodeExpired, 0);
+        }
+
+        if (active.FailedAttempts >= settings.MaxAttemptsPerCode)
+        {
+            return new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Exhausted, 0);
+        }
+
         if (TokenHash.Equal(active.CodeMac, codeMac))
         {
             active.Consume(now);
-            return new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Ok, settings.MaxAttemptsPerCode);
+            return new TwoFactorVerifyResult(
+                TwoFactorVerifyOutcome.Ok, settings.MaxAttemptsPerCode - active.FailedAttempts);
         }
 
-        return new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Wrong, settings.MaxAttemptsPerCode);
+        active.RecordFailure();
+        var remaining = settings.MaxAttemptsPerCode - active.FailedAttempts;
+        return remaining <= 0
+            ? new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Exhausted, 0)
+            : new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Wrong, remaining);
+    }
+
+    /// <summary>Sums the wrong tries on codes issued at or after <paramref name="since"/>.</summary>
+    /// <param name="since">The start of the rolling window.</param>
+    /// <returns>The number of wrong tries.</returns>
+    public int FailedAttemptsSince(DateTimeOffset since) =>
+        _codes.Where(c => c.IssuedAt >= since).Sum(c => c.FailedAttempts);
+
+    /// <summary>Cancels a challenge that is still waiting; a finished or cancelled one is left as it is.</summary>
+    /// <param name="now">The current instant.</param>
+    public void Invalidate(DateTimeOffset now)
+    {
+        if (Status is TwoFactorChallengeStatus.Pending or TwoFactorChallengeStatus.AwaitingNewPassword)
+        {
+            Status = TwoFactorChallengeStatus.Invalidated;
+            InvalidatedAt = now;
+        }
     }
 
     private static void RequireHashLength(ReadOnlySpan<byte> value, string name)
@@ -146,6 +179,8 @@ public sealed class TwoFactorChallenge
             throw new ArgumentException("The value must be a 32-byte hash.", name);
         }
     }
+
+    private TwoFactorCode? ActiveCode() => _codes.LastOrDefault(c => c.SupersededAt is null);
 
     private bool IsOpen(DateTimeOffset now) => Status == TwoFactorChallengeStatus.Pending && now < ExpiresAt;
 }

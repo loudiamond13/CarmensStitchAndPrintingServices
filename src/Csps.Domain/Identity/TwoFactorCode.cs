@@ -53,4 +53,8 @@ public sealed class TwoFactorCode
         new(Guid.CreateVersion7(now), challengeId, codeMac.ToArray(), now, now + lifetime, 0, null, null);
 
     internal void Consume(DateTimeOffset now) => ConsumedAt = now;
+
+    internal void Supersede(DateTimeOffset now) => SupersededAt = now;
+
+    internal void RecordFailure() => FailedAttempts++;
 }
