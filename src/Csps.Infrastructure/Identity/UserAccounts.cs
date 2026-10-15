@@ -4,7 +4,9 @@ using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Identity;
+using Csps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Identity;
 
@@ -20,8 +22,12 @@ namespace Csps.Infrastructure.Identity;
 internal sealed class UserAccounts(
     UserManager<ApplicationUser> users,
     RoleManager<IdentityRole<Guid>> roles,
-    IPasswordHasher<ApplicationUser> hasher) : IUserAccounts
+    IPasswordHasher<ApplicationUser> hasher,
+    CspsDbContext context) : IUserAccounts
 {
+    // Parallel wrong guesses each lose the row to one another; every loser reloads and counts again.
+    private const int CountAttempts = 16;
+
     private static readonly Lazy<string> DummyHash = new(() =>
         new PasswordHasher<ApplicationUser>().HashPassword(new ApplicationUser(), Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
 
@@ -108,11 +114,24 @@ internal sealed class UserAccounts(
     {
         var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
 
-        var wasLocked = await users.IsLockedOutAsync(user).ConfigureAwait(false);
-        Require(await users.AccessFailedAsync(user).ConfigureAwait(false), "Counting the failed password");
-        var isLocked = await users.IsLockedOutAsync(user).ConfigureAwait(false);
+        for (var attempt = 1; ; attempt++)
+        {
+            var wasLocked = await users.IsLockedOutAsync(user).ConfigureAwait(false);
+            var result = await users.AccessFailedAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                var isLocked = await users.IsLockedOutAsync(user).ConfigureAwait(false);
+                return new FailedPasswordResult(!wasLocked && isLocked, isLocked ? user.LockoutEnd : null);
+            }
 
-        return new FailedPasswordResult(!wasLocked && isLocked, isLocked ? user.LockoutEnd : null);
+            if (attempt == CountAttempts || !result.Errors.Any(static error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+            {
+                Require(result, "Counting the failed password");
+            }
+
+            // The row changed under us: read the other guess's count and add this one to it.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public async Task ResetFailedCountAsync(Guid id, CancellationToken cancellationToken)

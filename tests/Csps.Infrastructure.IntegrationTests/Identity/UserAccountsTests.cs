@@ -128,6 +128,34 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
     }
 
     [Fact]
+    public async Task ParallelWrongGuessesAreAllCountedAndLockTheAccountOnce()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        Guid id;
+        await using (var setup = provider.CreateAsyncScope())
+        {
+            id = await setup.ServiceProvider.GetRequiredService<IUserAccounts>()
+                .CreateAsync(NewAccount(Roles.Admin, Password), TestContext.Current.CancellationToken);
+        }
+
+        const int Guesses = 8;
+        var results = await Task.WhenAll(Enumerable.Range(0, Guesses).Select(async _ =>
+        {
+            await using var scope = provider.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<IUserAccounts>().RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken);
+        }));
+
+        // Every guess counts: 5 lock the account (and restart the count), the other 3 are counted after it.
+        results.Count(static result => result.LockedNow).ShouldBe(1);
+        await using var check = provider.CreateAsyncScope();
+        var user = await check.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>()
+            .FindByIdAsync(id.ToString("D", CultureInfo.InvariantCulture));
+        user.ShouldNotBeNull();
+        user.LockoutEnd.ShouldNotBeNull();
+        user.AccessFailedCount.ShouldBe(Guesses - 5);
+    }
+
+    [Fact]
     public async Task ClearingTheLockoutUnlocksAndResetsTheCount()
     {
         await using var provider = BuildProvider(database.ConnectionString);
