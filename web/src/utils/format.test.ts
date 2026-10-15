@@ -4,6 +4,7 @@ import {
   BUSINESS_ZONE,
   centavosToMoneyText,
   formatBusinessDate,
+  formatBusinessDateTime,
   formatCalendarDate,
   isMoneyText,
   MONEY_TEXT,
@@ -77,6 +78,33 @@ describe('formatBusinessDate', () => {
 
   it('throws a RangeError for an unknown zone', () => {
     expect(() => formatBusinessDate('2026-10-05T16:30:00Z', 'Not/AZone')).toThrow(RangeError);
+  });
+});
+
+describe('formatBusinessDateTime', () => {
+  it('shows 2026-10-12T07:42:00Z as "Oct 12, 2026, 3:42 PM" in the business zone', () => {
+    expect(formatBusinessDateTime('2026-10-12T07:42:00Z')).toBe('Oct 12, 2026, 3:42 PM');
+  });
+
+  it.for(MACHINE_ZONES)('does not move with a machine in %s', (zone) => {
+    useMachineZone(zone);
+    expect(formatBusinessDateTime('2026-10-12T07:42:00Z')).toBe('Oct 12, 2026, 3:42 PM');
+  });
+
+  it('uses a plain space before PM, never a narrow no-break space', () => {
+    expect(formatBusinessDateTime('2026-10-12T07:42:00Z')).not.toMatch(/[  ]/);
+  });
+
+  it('crosses into the next day in the business zone', () => {
+    expect(formatBusinessDateTime('2026-12-31T16:05:00Z')).toBe('Jan 1, 2027, 12:05 AM');
+  });
+
+  it('formats in another zone when one is given', () => {
+    expect(formatBusinessDateTime('2026-10-12T07:42:00Z', 'UTC')).toBe('Oct 12, 2026, 7:42 AM');
+  });
+
+  it.each(['', 'not a date', '2026-02-30T10:00:00Z', '2026-10-12T07:42:00', '2026-10-12'])('gives null for %j', (bad) => {
+    expect(formatBusinessDateTime(bad)).toBeNull();
   });
 });
 
