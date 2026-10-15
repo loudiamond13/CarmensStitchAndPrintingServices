@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-10-15T01:03:13.603Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-10-15T01:16:31.450Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: ee9f8e63a4d5646b7925c4b8b9ee9ee6bf900046
+state_head: af773e3edac3d854cb038980d61b64df9d4d6da6
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 58
+  completed_plans: 59
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T05:57:52-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 3 of 35
+Plan: 4 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -117,6 +117,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 02 P43 | ~7h elapsed | 3 tasks | 9 files |
 | Phase 04 P01 | 3h25m | 3 tasks | 4 files |
 | Phase 04 P02 | 75min | 3 tasks | 16 files |
+| Phase 04 P03 | 55min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -295,6 +296,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Order math uses the PRD names (Subtotal before discount, Total after discount; D-41 R2-06); browser totals are preview-only, saved orders show server figures
 - [Phase 04]: 04-01: mail results recorded as public facts only (domain, DKIM selector, pass results); app sets its own From display name
 - [Phase 04]: 04-02: MSW 3 uses onUnhandledFrame (not onUnhandledRequest); setup.ts errors on unhandled requests in every jsdom test
+- [Phase 04]: 04-03: Record only adds the audit entry and IUnitOfWork commits it; failure audits use RecordIndependentlyAsync through IDbContextFactory so a rollback cannot erase them
+- [Phase 04]: 04-03: log masking treats any property ending in Hash, Stamp, Key or Mac as a secret (CWE-532), accepting that names like CacheKey are masked too
 
 ### Pending Todos
 
@@ -303,7 +306,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1 → 3/4/17]: Hosting record still has Unverified facts: probe facts (runtime patch, content root, logs, client IP, HTTPS, Manila/en-PH, PFX, memory) verified on the Phase 3 first deploy; Gmail SPF/DKIM/DMARC pass (D2) before Phase 4. SmarterASP.NET confirmed SQL Server 2025 is offered (new DB + `.bak` restore, no in-place upgrade); still ask whether a temporary second database is allowed at no cost (Phase 17 prerequisite, D-33).
-- [Phase 4]: Code review WR-02 (IpPrefix 6to4/NAT64 → IPv4 before truncation) is owner-deferred and MUST be fixed before any code path writes audit rows. Also triage the remaining open review items (WR-01, WR-03, WR-05..WR-09, IN-*) before shipping.
+- [Phase 4]: Resolved in 04-03 (2026-10-14): WR-01, WR-02, WR-03, WR-05, WR-06 fixed before any audit write; the other Phase 1 review items are triaged in 01-REVIEW-DISPOSITION.md (IN-04 and IN-06 planned in 04-13 and 04-09, the rest deferred to Phase 3 or Phase 14).
 - [Phase 2+]: API style is now controller-based (owner, 2026-10-07); `GET /api/v1/site-settings` converts to a controller when a phase touches it.
 - [Phase 2 → follow-up]: Fix 02-43 review items WR-02 (docs/web/e2e.md @dialog-fit row says a scrollbar drag leaves scrollTop unchanged; the test asserts it scrolls) and IN-01..IN-05 (test/comment hygiene). UI review 02-UI-REVIEW.md (18/24) lists 3 priority warnings (admin sidebar height at 1440x900, undocumented arbitrary px literals, no measured contrast table) for owner triage.
 - [Phase 3]: GitHub repo exists (private, default branch `dev`; PRs target `dev`). The owner must still provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
@@ -341,6 +344,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T01:03:13.281Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-10-15T01:16:31.132Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
