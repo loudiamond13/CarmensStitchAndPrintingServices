@@ -18,8 +18,16 @@ internal sealed class RecordingOutbox : IEmailOutbox
     /// <summary>The window queries the handler made.</summary>
     public List<(AuthEmailKind Kind, string To, DateTimeOffset Since)> Counts { get; } = [];
 
+    /// <summary>When set, queuing throws it, like an outbox that cannot be reached.</summary>
+    public Exception? FailWith { get; set; }
+
     public ValueTask EnqueueAsync(AuthEmail email, CancellationToken cancellationToken)
     {
+        if (FailWith is not null)
+        {
+            throw FailWith;
+        }
+
         Emails.Add(email);
         return ValueTask.CompletedTask;
     }
@@ -53,6 +61,12 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
 
     public int Saves { get; private set; }
 
+    /// <summary>How many transactions ended by returning.</summary>
+    public int Commits { get; private set; }
+
+    /// <summary>How many transactions ended by throwing.</summary>
+    public int Rollbacks { get; private set; }
+
     /// <summary>Makes the next save fail the way the real unit of work does when another request changed the same row.</summary>
     public void FailFirstSaveWithConflict() => _failuresLeft = 1;
 
@@ -71,6 +85,18 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
         return Task.FromResult(1);
     }
 
-    public Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken) =>
-        work(cancellationToken);
+    public async Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await work(cancellationToken);
+            Commits++;
+            return result;
+        }
+        catch
+        {
+            Rollbacks++;
+            throw;
+        }
+    }
 }

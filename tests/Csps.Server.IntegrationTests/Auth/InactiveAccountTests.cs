@@ -146,6 +146,40 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         await RefreshEndpointTests.ShouldBeSessionEndedAsync(again);
     }
 
+    [Fact]
+    public async Task ALinkOfAnAccountDeactivatedAfterwardsReadsAsInvalidAndNeverReactivatesIt()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var token = await AuthClient.RequestResetTokenAsync(client, staff.Email);
+        await AuthClient.DeactivateAsync(factory, staff.Id);
+        string hashBefore;
+        await using (var before = database.CreateContext())
+        {
+            hashBefore = (await before.Users.AsNoTracking().SingleAsync(u => u.Id == staff.Id, TestContext.Current.CancellationToken)).PasswordHash.ShouldNotBeNull();
+        }
+
+        using var check = await AuthClient.CheckResetLinkAsync(client, token);
+        using var reset = await AuthClient.ResetPasswordAsync(client, token, "Tela-Sukat-7381");
+
+        foreach (var response in new[] { check, reset })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.link-invalid");
+            response.Headers.Contains("Set-Cookie").ShouldBeFalse();
+        }
+
+        await using var context = database.CreateContext();
+        var user = await context.Users.AsNoTracking().SingleAsync(u => u.Id == staff.Id, TestContext.Current.CancellationToken);
+        user.IsActive.ShouldBeFalse();
+        user.PasswordHash.ShouldBe(hashBefore);
+        (await context.AccountTokens.AsNoTracking().SingleAsync(t => t.UserId == staff.Id, TestContext.Current.CancellationToken)).UsedAt.ShouldBeNull();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, "Tela-Sukat-7381");
+        signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
     // Builds the account for a reason and returns the credentials to try.
     private static async Task<(string Email, string Password, Guid UserId)> ArrangeAsync(CspsApiFactory factory, string reason)
     {
