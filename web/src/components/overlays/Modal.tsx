@@ -12,7 +12,10 @@
 //   starts on the scrim and the backdrop does not scroll before the click); the scrim listeners are attached through a
 //   ref and an effect (Pitfall 7), and in an Overlay region the region is the scrim; with dialogs stacked, Esc closes
 //   only the one on top (UI-WR-01);
-// - body scroll is locked with the `overflow-hidden` class while it is open (useBodyScrollLock).
+// - body scroll is locked with the `overflow-hidden` class while it is open (useBodyScrollLock);
+// - SPEC-DEVIATION: R2-10 the page behind an open dialog is inert, except the toast layer (useInertOutside), so assistive
+//   technology, the keyboard and axe cannot reach it. An `inline` dialog, a static mock-up in an Overlay region, leaves
+//   the page alone. No style or layout change.
 // It renders where it is placed, inside the page root, never in a portal, and never inside a ResponsiveTable frame,
 // whose paint containment would trap the fixed scrim: an open Modal there throws (code review WR-05, see
 // fixedLayerGuard.ts).
@@ -32,6 +35,7 @@ import {
 import { useFixedLayerGuard } from './fixedLayerGuard';
 import { useBodyScrollLock } from './useBodyScrollLock';
 import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
+import { useInertOutside } from './useInertOutside';
 
 export interface ModalProps {
   open?: boolean;
@@ -104,6 +108,8 @@ function OpenModal({
   const hasDescription = Boolean(description);
 
   useFocusTrap(dialogRef, { initialFocus });
+  // After the trap, so the trap has captured its trigger before the page goes inert (see useInertOutside).
+  useInertOutside(dialogRef, !inline);
   useBodyScrollLock();
 
   const close = () => {

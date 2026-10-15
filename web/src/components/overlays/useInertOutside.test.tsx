@@ -50,6 +50,23 @@ describe('useInertOutside (R2-10)', () => {
     }
   });
 
+  it('walks up to the body: other body children go inert, but never script or style elements', () => {
+    const script = document.createElement('script');
+    const style = document.createElement('style');
+    const elsewhere = document.createElement('div');
+    document.body.append(script, style, elsewhere);
+
+    render(<Page />);
+
+    expect(script).not.toHaveAttribute('inert');
+    expect(style).not.toHaveAttribute('inert');
+    expect(elsewhere).toHaveAttribute('inert');
+    expect(document.body).not.toHaveAttribute('inert');
+    script.remove();
+    style.remove();
+    elsewhere.remove();
+  });
+
   it('leaves the toast layer live', () => {
     render(<Page />);
 
