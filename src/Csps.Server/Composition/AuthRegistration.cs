@@ -28,6 +28,7 @@ public static class AuthRegistration
 
         services.AddSingleton(settings);
         services.AddSingleton<IValidator<SignInRequest>, SignInRequestValidator>();
+        services.AddSingleton<IValidator<VerifyCodeRequest>, VerifyCodeRequestValidator>();
         return services;
     }
 }

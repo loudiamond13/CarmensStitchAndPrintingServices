@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/two-factor/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the emailed code and starts the session, or hands over to the set-new-password step. */
+        post: operations["VerifyCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -49,6 +66,41 @@ export interface components {
             status?: null | number | string;
             title?: null | string;
             type?: null | string;
+        };
+        /** @description What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here. */
+        SessionResponse: {
+            /** @description The 15-minute bearer token. A secret. */
+            accessToken: string;
+            /**
+             * Format: date-time
+             * @description When the access token expires.
+             */
+            accessTokenExpiresAt: string;
+            /** @description True for "Keep me signed in". */
+            persistent: boolean;
+            /**
+             * Format: date-time
+             * @description The fixed end of the session.
+             */
+            sessionExpiresAt: string;
+            /** @description The signed-in user. */
+            user: components["schemas"]["SessionUser"];
+        };
+        /** @description The signed-in user as the client sees it. */
+        SessionUser: {
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description Family name. */
+            lastName: string;
+            /** @description The role, `Admin` or `Manager`. */
+            role: string;
         };
         /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
         SignInRequest: {
@@ -87,6 +139,19 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description The code step form: the six digits from the email (AUTH-02). */
+        VerifyCodeRequest: {
+            /** @description The code, exactly as typed. */
+            code: null | string;
+        };
+        /** @description What a correct code answers: the next step and, when signed in, the session. */
+        VerifyCodeResponse: {
+            /** @description Either `signed-in` or `set-new-password`. */
+            next: string;
+            /** @description Why a new password is needed (`temporary` or `breach`); null when signed in. */
+            reason: null | string;
+            session: null | components["schemas"]["SessionResponse"];
         };
     };
     responses: never;
@@ -133,6 +198,69 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    VerifyCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["VerifyCodeRequest"];
+                "application/json": null | components["schemas"]["VerifyCodeRequest"];
+                "text/json": null | components["schemas"]["VerifyCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyCodeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

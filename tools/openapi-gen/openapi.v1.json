@@ -39,6 +39,75 @@
         },
         "type": "object"
       },
+      "SessionResponse": {
+        "description": "What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here.",
+        "properties": {
+          "accessToken": {
+            "description": "The 15-minute bearer token. A secret.",
+            "type": "string"
+          },
+          "accessTokenExpiresAt": {
+            "description": "When the access token expires.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "persistent": {
+            "description": "True for \"Keep me signed in\".",
+            "type": "boolean"
+          },
+          "sessionExpiresAt": {
+            "description": "The fixed end of the session.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SessionUser",
+            "description": "The signed-in user."
+          }
+        },
+        "required": [
+          "accessToken",
+          "accessTokenExpiresAt",
+          "sessionExpiresAt",
+          "persistent",
+          "user"
+        ],
+        "type": "object"
+      },
+      "SessionUser": {
+        "description": "The signed-in user as the client sees it.",
+        "properties": {
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "role": {
+            "description": "The role, `Admin` or `Manager`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "role"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
         "properties": {
@@ -138,6 +207,55 @@
           "rowVersion"
         ],
         "type": "object"
+      },
+      "VerifyCodeRequest": {
+        "description": "The code step form: the six digits from the email (AUTH-02).",
+        "properties": {
+          "code": {
+            "description": "The code, exactly as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "VerifyCodeResponse": {
+        "description": "What a correct code answers: the next step and, when signed in, the session.",
+        "properties": {
+          "next": {
+            "description": "Either `signed-in` or `set-new-password`.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a new password is needed (`temporary` or `breach`); null when signed in.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "session": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SessionResponse",
+                "description": "The started session; null when a new password is needed."
+              }
+            ]
+          }
+        },
+        "required": [
+          "next",
+          "reason",
+          "session"
+        ],
+        "type": "object"
       }
     }
   },
@@ -224,6 +342,108 @@
           }
         },
         "summary": "Checks the email and password and sends the sign-in code.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/verify": {
+      "post": {
+        "operationId": "VerifyCode",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyCodeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Checks the emailed code and starts the session, or hands over to the set-new-password step.",
         "tags": [
           "SignIn"
         ]

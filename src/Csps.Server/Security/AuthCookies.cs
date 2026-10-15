@@ -38,6 +38,31 @@ public static class AuthCookies
         response.Cookies.Delete(TicketCookieName, Options());
     }
 
+    /// <summary>
+    /// Sets the refresh cookie. With an expiry it lasts that long ("Keep me signed in"); without one it is a
+    /// browser-session cookie that goes when the browser closes (D-03).
+    /// </summary>
+    /// <param name="response">The response.</param>
+    /// <param name="token">The raw refresh token. A secret.</param>
+    /// <param name="expiresAt">When the cookie expires; null for a browser-session cookie.</param>
+    public static void SetRefresh(HttpResponse response, string token, DateTimeOffset? expiresAt)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentException.ThrowIfNullOrEmpty(token);
+
+        var options = Options();
+        options.Expires = expiresAt;
+        response.Cookies.Append(RefreshCookieName, token, options);
+    }
+
+    /// <summary>Clears the refresh cookie.</summary>
+    /// <param name="response">The response.</param>
+    public static void ClearRefresh(HttpResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        response.Cookies.Delete(RefreshCookieName, Options());
+    }
+
     private static CookieOptions Options() => new()
     {
         HttpOnly = true,

@@ -7,7 +7,8 @@ namespace Csps.Application.Auth;
 /// <param name="Response">The body for the client.</param>
 /// <param name="RefreshToken">The raw first refresh token for the cookie. A secret.</param>
 /// <param name="CookieExpiresAt">When the cookie expires; null for a browser-session cookie.</param>
-public sealed record IssuedSession(SessionResponse Response, string RefreshToken, DateTimeOffset? CookieExpiresAt)
+/// <param name="SessionId">The new session's id, for the audit entry.</param>
+public sealed record IssuedSession(SessionResponse Response, string RefreshToken, DateTimeOffset? CookieExpiresAt, Guid SessionId)
 {
     /// <summary>Returns the type name only, so the token never reaches a log.</summary>
     /// <returns>The type name.</returns>
@@ -50,6 +51,6 @@ public sealed class SessionIssuer(
             session.AbsoluteExpiresAt,
             persistent,
             new SessionUser(user.Id, user.Email, user.FirstName, user.LastName, user.Role));
-        return Task.FromResult(new IssuedSession(response, refreshToken, session.CookieExpiresAt));
+        return Task.FromResult(new IssuedSession(response, refreshToken, session.CookieExpiresAt, session.Id));
     }
 }
