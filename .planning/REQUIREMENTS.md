@@ -75,9 +75,9 @@ Initial release: everything needed to replace the production system at cutover.
 ### Authentication (AUTH)
 
 - [x] **AUTH-01**: Staff can sign in with email + password. Failures show one generic error ("Email or password is incorrect.") and never reveal whether the email exists, with similar timing either way ⚑ C-8
-- [ ] **AUTH-02**: After a correct password, staff must enter a 6-digit code emailed to them before any session is issued. The code is bound to a pending-login ticket cookie and user, and required on every new sign-in ⚑ C-6, OD-12
-- [ ] **AUTH-03**: The 6-digit code is valid 15 minutes, single-use, and invalidated after 5 wrong attempts. It is stored only as HMAC-SHA256 and compared in fixed time. A per-account cross-ticket attempt cap applies
-- [ ] **AUTH-04**: Staff can resend the code after a 60-second cooldown, up to 5 sends per hour per account. A new code invalidates the previous one
+- [x] **AUTH-02**: After a correct password, staff must enter a 6-digit code emailed to them before any session is issued. The code is bound to a pending-login ticket cookie and user, and required on every new sign-in ⚑ C-6, OD-12
+- [x] **AUTH-03**: The 6-digit code is valid 15 minutes, single-use, and invalidated after 5 wrong attempts. It is stored only as HMAC-SHA256 and compared in fixed time. A per-account cross-ticket attempt cap applies
+- [x] **AUTH-04**: Staff can resend the code after a 60-second cooldown, up to 5 sends per hour per account. A new code invalidates the previous one
 - [ ] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
 - [ ] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
 - [x] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
@@ -372,9 +372,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-07 | Phase 5 | Pending |
 | SEC-08 | Phase 5 | Pending |
 | AUTH-01 | Phase 4 | Complete |
-| AUTH-02 | Phase 4 | Pending |
-| AUTH-03 | Phase 4 | Pending |
-| AUTH-04 | Phase 4 | Pending |
+| AUTH-02 | Phase 4 | Complete |
+| AUTH-03 | Phase 4 | Complete |
+| AUTH-04 | Phase 4 | Complete |
 | AUTH-05 | Phase 4 | Pending |
 | AUTH-06 | Phase 4 | Pending |
 | AUTH-07 | Phase 4 | Complete |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-34-PLAN.md
-last_updated: "2026-10-15T04:35:02.229Z"
+stopped_at: Completed 04-14-PLAN.md
+last_updated: "2026-10-15T04:54:10.927Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 84b1dc430472968d0dd25eb10208ce1c9be8af60
+state_head: aa0e606ed3cc34640e225c5298bf22322641175c
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 72
+  completed_plans: 73
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 17 of 35
+Plan: 18 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -131,6 +131,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P12 | 70min | 3 tasks | 26 files |
 | Phase 04 P13 | 40 min | 2 tasks | 31 files |
 | Phase 04 P34 | 15min | 2 tasks | 7 files |
+| Phase 04 P14 | 75min | 3 tasks | 28 files |
 
 ## Accumulated Context
 
@@ -329,6 +330,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-12: auth.lockout for a password lockout is recorded in the same unit of work as the count and the email (Record), not independently; audit-log.md updated
 - [Phase 04]: 04-12: ResponseFloor re-measures after each delay because a coarse timer can fire early; state checks run before the password result so blocked accounts are never counted
 - [Phase 04]: 04-13: session cache keyed by sid (60 s, user tag), unknown and revoked sessions cached too; RefreshTokens.ParentId has no self FK
+- [Phase 04]: 04-14: IssuedSession carries the session id so auth.signed-in targets the UserSession; the code-cap lock length is AuthSettings.CodeLockoutDuration (15 min)
+- [Phase 04]: 04-14: locked or deactivated accounts get 401 auth.ticket-expired on verify and resend; expired codes are not audited or counted
 
 ### Pending Todos
 
@@ -375,6 +378,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T04:35:01.870Z
-Stopped at: Completed 04-34-PLAN.md
+Last session: 2026-10-15T04:54:10.564Z
+Stopped at: Completed 04-14-PLAN.md
 Resume file: None
