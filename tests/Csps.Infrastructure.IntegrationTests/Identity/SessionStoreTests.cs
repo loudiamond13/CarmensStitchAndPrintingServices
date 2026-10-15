@@ -122,6 +122,154 @@ public sealed class SessionStoreTests(CspsDatabase database) : IClassFixture<Csp
         (await cache.IsActiveAsync(second.Id, userId, TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task AnUnknownRefreshHashFindsNothing()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        await using var scope = provider.CreateAsyncScope();
+
+        var found = await scope.ServiceProvider.GetRequiredService<ISessions>()
+            .FindByRefreshHashAsync(TokenHash.Compute("raw-never-issued"), TestContext.Current.CancellationToken);
+
+        found.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ARefreshHashFindsItsSessionAndOnlyTheTokensRotationNeeds()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var hashA = TokenHash.Compute("raw-rotate-a");
+        var hashB = TokenHash.Compute("raw-rotate-b");
+        var hashC = TokenHash.Compute("raw-rotate-c");
+        var session = await StartAsync(provider, userId, hashA);
+        await RotateAsync(provider, hashA, hashB, Now);
+        await RotateAsync(provider, hashB, hashC, Now.AddMinutes(1));
+
+        // A is used with child B; B is used with child C; C is the only open token.
+        var lookupA = await FindAsync(provider, hashA);
+        lookupA.Session.Id.ShouldBe(session.Id);
+        lookupA.Presented.TokenHash.ShouldBe(hashA);
+        lookupA.Related.Select(token => token.TokenHash).ShouldBe([hashA, hashB, hashC], ignoreOrder: true);
+
+        var lookupC = await FindAsync(provider, hashC);
+        lookupC.Presented.TokenHash.ShouldBe(hashC);
+        lookupC.Related.Select(token => token.TokenHash).ShouldBe([hashC]);
+    }
+
+    [Fact]
+    public async Task AChildTokenAddedToTheStoreCanBeFoundByItsHash()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var hashA = TokenHash.Compute("raw-child-a");
+        var hashB = TokenHash.Compute("raw-child-b");
+        var session = await StartAsync(provider, userId, hashA);
+
+        await RotateAsync(provider, hashA, hashB, Now);
+
+        var child = await FindAsync(provider, hashB);
+        child.Session.Id.ShouldBe(session.Id);
+        child.Presented.ParentId.ShouldBe((await FindAsync(provider, hashA)).Presented.Id);
+        child.Presented.ConsumedAt.ShouldBeNull();
+        (await FindAsync(provider, hashA)).Presented.ConsumedAt.ShouldBe(Now);
+    }
+
+    [Fact]
+    public async Task RevokingAllButOneEndsTheOthersAtOnceAndLeavesOtherUsersAlone()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var otherUserId = await CreateUserAsync(provider);
+        var keep = await StartAsync(provider, userId, TokenHash.Compute("raw-all-keep"));
+        var sameInstant = await StartAsync(provider, userId, TokenHash.Compute("raw-all-same"));
+        var other = await StartAsync(provider, userId, TokenHash.Compute("raw-all-other"));
+        var strangers = await StartAsync(provider, otherUserId, TokenHash.Compute("raw-all-stranger"));
+        var cache = provider.GetRequiredService<ISessionCache>();
+        foreach (var warmed in new[] { keep, sameInstant, other })
+        {
+            (await cache.IsActiveAsync(warmed.Id, userId, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        }
+
+        var revoked = await RevokeAllAsync(provider, userId, keep.Id, Now.AddSeconds(5));
+
+        revoked.ShouldBe([sameInstant.Id, other.Id], ignoreOrder: true);
+        await cache.EvictUserAsync(userId, TestContext.Current.CancellationToken);
+        (await cache.IsActiveAsync(keep.Id, userId, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await cache.IsActiveAsync(sameInstant.Id, userId, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await cache.IsActiveAsync(other.Id, userId, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await cache.IsActiveAsync(strangers.Id, otherUserId, TestContext.Current.CancellationToken)).ShouldBeTrue();
+
+        var stored = await ReadSessionAsync(provider, other.Id);
+        stored.RevokedAt.ShouldBe(Now.AddSeconds(5));
+        stored.RevokedReason.ShouldBe(SessionRevocationReason.SignedOutOtherDevices);
+        (await ReadSessionAsync(provider, keep.Id)).RevokedAt.ShouldBeNull();
+        (await ReadSessionAsync(provider, strangers.Id)).RevokedAt.ShouldBeNull();
+        (await ReadOpenTokenCountAsync(provider, other.Id)).ShouldBe(0);
+        (await ReadOpenTokenCountAsync(provider, keep.Id)).ShouldBe(1);
+        (await ReadOpenTokenCountAsync(provider, strangers.Id)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RevokingWithNoExceptionEndsEveryActiveSessionOnce()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var first = await StartAsync(provider, userId, TokenHash.Compute("raw-none-1"));
+        var second = await StartAsync(provider, userId, TokenHash.Compute("raw-none-2"));
+
+        var revoked = await RevokeAllAsync(provider, userId, null, Now, SessionRevocationReason.PasswordReset);
+
+        revoked.ShouldBe([first.Id, second.Id], ignoreOrder: true);
+        (await ReadSessionAsync(provider, first.Id)).RevokedReason.ShouldBe(SessionRevocationReason.PasswordReset);
+        (await RevokeAllAsync(provider, userId, null, Now.AddSeconds(1), SessionRevocationReason.PasswordReset)).ShouldBeEmpty();
+    }
+
+    private static async Task<RefreshLookup> FindAsync(ServiceProvider provider, byte[] hash)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<ISessions>()
+            .FindByRefreshHashAsync(hash, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+    }
+
+    private static async Task RotateAsync(ServiceProvider provider, byte[] presentedHash, byte[] newHash, DateTimeOffset now)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        var sessions = scope.ServiceProvider.GetRequiredService<ISessions>();
+        var lookup = (await sessions.FindByRefreshHashAsync(presentedHash, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var result = lookup.Session.Rotate(lookup.Presented, lookup.Related, newHash, now, Settings);
+        result.Outcome.ShouldBe(RotationOutcome.Rotated);
+        sessions.AddToken(result.NewToken.ShouldNotBeNull());
+        await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<Guid>> RevokeAllAsync(
+        ServiceProvider provider,
+        Guid userId,
+        Guid? exceptSessionId,
+        DateTimeOffset now,
+        SessionRevocationReason reason = SessionRevocationReason.SignedOutOtherDevices)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        var revoked = await scope.ServiceProvider.GetRequiredService<ISessions>()
+            .RevokeAllAsync(userId, exceptSessionId, reason, now, TestContext.Current.CancellationToken);
+        await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        return revoked;
+    }
+
+    private static async Task<UserSession> ReadSessionAsync(ServiceProvider provider, Guid sessionId)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<ISessions>().FindAsync(sessionId, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+    }
+
+    private static async Task<int> ReadOpenTokenCountAsync(ServiceProvider provider, Guid sessionId)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<CspsDbContext>().RefreshTokens
+            .CountAsync(token => token.SessionId == sessionId && token.ConsumedAt == null && token.RevokedAt == null, TestContext.Current.CancellationToken);
+    }
+
     private static async Task<UserSession> StartAsync(ServiceProvider provider, Guid userId, byte[] hash)
     {
         var (session, token) = UserSession.Start(userId, persistent: false, "Firefox on Windows", hash, Now, Settings);
