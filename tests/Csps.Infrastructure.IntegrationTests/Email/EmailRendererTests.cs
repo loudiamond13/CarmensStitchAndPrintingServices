@@ -52,7 +52,9 @@ public sealed class EmailRendererTests
     {
         var rendered = await RenderAsync(email);
 
-        foreach (var part in new[] { rendered.Subject, rendered.Text, rendered.Html })
+        // The frame's one <style> block holds the phone-padding media query; braces are expected only there.
+        var htmlWithoutStyle = Regex.Replace(rendered.Html, "<style>.*?</style>", string.Empty, RegexOptions.Singleline);
+        foreach (var part in new[] { rendered.Subject, rendered.Text, htmlWithoutStyle })
         {
             part.ShouldNotContain("{");
             part.ShouldNotContain("}");
@@ -60,8 +62,10 @@ public sealed class EmailRendererTests
         }
 
         rendered.Subject.ShouldNotContain("\n");
-        rendered.Html.ShouldNotContain("<img");
-        rendered.Html.ShouldNotContain("src=");
+        Regex.Matches(rendered.Html, "src=\"([^\"]*)\"").Select(match => match.Groups[1].Value).ShouldAllBe(source => source == "cid:csps-logo");
+        Regex.Count(rendered.Html, "<img\b").ShouldBeLessThanOrEqualTo(1);
+        rendered.Html.ShouldNotContain("<script");
+        rendered.Html.ShouldNotContain("<link");
         rendered.Html.ShouldNotContain("@import");
         rendered.Html.ShouldNotContain("url(");
         rendered.Html.ShouldNotContain("http://");

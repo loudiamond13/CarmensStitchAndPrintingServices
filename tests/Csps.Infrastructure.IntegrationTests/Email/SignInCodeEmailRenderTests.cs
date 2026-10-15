@@ -49,8 +49,9 @@ public sealed class SignInCodeEmailRenderTests
         rendered.Html.ShouldNotContain("<script>");
         rendered.Html.ShouldContain("&lt;b&gt;&amp;");
         rendered.Html.ShouldContain("&lt;script&gt;");
-        rendered.Html.ShouldNotContain("<img");
-        rendered.Html.ShouldNotContain("src=");
+        rendered.Html.ShouldNotContain("<script");
+        rendered.Html.ShouldNotContain("url(");
+        rendered.Html.ShouldNotContain("http://");
     }
 
     private static SignInCodeEmail Code(string code, DeviceDescription device) =>

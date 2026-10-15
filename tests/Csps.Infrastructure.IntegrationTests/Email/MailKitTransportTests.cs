@@ -47,6 +47,26 @@ public sealed class MailKitTransportTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public void LogoIsAnInlineRelatedImageOnlyWhenTheHtmlReferencesIt()
+    {
+        var email = new OutgoingEmail("paolo.garcia@gmail.com", "Subject", "plain", "<p><img src=\"cid:csps-logo\" alt=\"CSPS\"></p>");
+
+        var message = MailKitTransport.BuildMessage(email, Sender);
+
+        var body = message.Body.ShouldBeOfType<MultipartAlternative>();
+        body.Count.ShouldBe(2);
+        body[0].ShouldBeOfType<TextPart>().ContentType.MimeType.ShouldBe("text/plain");
+        var related = body[1].ShouldBeOfType<MultipartRelated>();
+        related[0].ShouldBeOfType<TextPart>().ContentType.MimeType.ShouldBe("text/html");
+        var logo = related[1].ShouldBeOfType<MimePart>();
+        logo.ContentType.MimeType.ShouldBe("image/png");
+        logo.ContentId.ShouldBe("csps-logo");
+        using var bytes = new MemoryStream();
+        logo.Content.ShouldNotBeNull().DecodeTo(bytes, TestContext.Current.CancellationToken);
+        bytes.ToArray().ShouldBe(EmailHtmlLayout.LogoPng());
+    }
+
+    [Fact]
     public void OnlyRequiredTlsModesAreReachable()
     {
         MailKitTransport.SocketOptionsFor(SmtpSecurity.StartTls).ShouldBe(SecureSocketOptions.StartTls);
