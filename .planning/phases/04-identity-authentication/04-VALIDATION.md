@@ -7,7 +7,7 @@ status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-10-14T12:40:00-05:00"
-updated: "2026-10-15T11:32:16-05:00"
+updated: "2026-10-15T18:10:00-05:00"
 ---
 
 # Phase 04 — Validation Strategy
@@ -45,7 +45,7 @@ Requirement-level map from research. The planner fills task IDs; execution updat
 |-------------|----------|-----------|-------------------|-------------|-------------|--------|
 | AUTH-01 | Generic 401 for unknown/wrong/locked/deactivated; one hash per branch; same fake completion time; timing medians | unit + integration timing | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*SignInHandlerTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*SignInTimingTests"` | 04-12 T1-T3; UI 04-26 T3 | ✅ | ✅ green |
 | AUTH-02/03/04 | Challenge state machine; HMAC/fixed-time; resend cooldown/cap; cross-ticket cap | unit (Domain 100%) + integration + E2E | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class "*TwoFactorChallengeTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*VerifyCodeEndpointTests"`; `"*CrossTicketCapTests"`; `"*ResendCodeEndpointTests"` | 04-05 T1-T3; 04-11 T1-T3; 04-12 T1; 04-14 T1-T3; UI 04-27 T1-T2 | ✅ | ✅ green |
-| AUTH-05/06 | Rotation, grace siblings, reuse revokes family, absolute expiry, persistent vs session cookie, immediate revocation via `sid`, sessions list/revoke | unit + integration + E2E (two tabs, cookie spike) | `--filter-class "*UserSessionTests"`, `"*SessionRevocationTests"`, `"*SessionStoreTests"`, `"*RefreshRotationTests"`, `"*SignOut*"`, `"*SessionsEndpointTests"`; `npm --prefix web run e2e -- --grep "@auth-cookies|@auth-multitab|@sessions|@session-menu"` | 04-06 T1-T3; 04-13 T1-T2; 04-34 T1-T2; 04-15 T1-T3; 04-16 T1-T2; UI 04-25, 04-27 T3, 04-29, 04-30 | ✅ | ✅ green |
+| AUTH-05/06 | Rotation, grace siblings, reuse revokes family, absolute expiry, persistent vs session cookie, immediate revocation via `sid`, sessions list/revoke | unit + integration + E2E (two tabs, cookie spike) | `--filter-class "*UserSessionTests"`, `"*SessionRevocationTests"`, `"*SessionStoreTests"`, `"*RefreshRotationTests"`, `"*SignOut*"`, `"*SessionsEndpointTests"`; `npm --prefix web run e2e -- --grep "@auth-cookies|@auth-multitab|@sessions|@session-menu"` | 04-06 T1-T3; 04-13 T1-T2; 04-34 T1-T2; 04-15 T1-T3; 04-16 T1-T2; UI 04-25, 04-27 T3, 04-29, 04-30 | ✅ | ⚠️ flaky (see note 1) |
 | AUTH-07 | 5 failures lock 15 min; one lockout email | integration + sink | `"*LockoutTests"` | 04-08 T3; 04-12 T3 | ✅ | ✅ green |
 | AUTH-08/09 | Same response known/unknown; hashed single-use 30-min token; reset revokes sessions; "changed" email; same-key replay sends one email | integration + E2E | `"*ForgotPasswordTests"`, `"*PasswordResetTests"`, `"*IdempotencyTests"`; `npm --prefix web run e2e -- --grep @auth-reset` | 04-18 T1-T2; 04-19 T1-T2; 04-20 T1; UI 04-28 | ✅ | ✅ green |
 | AUTH-10 | Deactivated/locked can't sign in/refresh/reset into a session | integration | `"*InactiveAccountTests"` | 04-12 T3; 04-15 T2; 04-19 T2 | ✅ | ✅ green |
@@ -60,6 +60,8 @@ Requirement-level map from research. The planner fills task IDs; execution updat
 | SEC-02 (ongoing) | Every new endpoint in matrix × 3 callers on real sessions | integration | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*AuthorizationMatrixTests"` | 04-07 T1; 04-13 T2; every endpoint plan | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+**Note 1 (2026-10-15 re-audit):** in the full E2E run after the review fixes, `[firefox] sessions.spec.ts @sessions` failed once on the zero-warning guard (`e2e/fixtures.ts`): Firefox reported the preloaded `archivo-latin-wght-normal-*.woff2` as "not used within a few seconds". The run took 52 minutes on a loaded machine. Rerun alone with `--repeat-each 3` it passed 3/3. `fixtures.ts` allow-lists WebKit's equivalent unused-preload warning for `/assets/*.js` only. Whether to allow-list Firefox's font-preload wording, or change how the font is preloaded, is an owner decision under the zero-warning rule.
 
 ---
 
