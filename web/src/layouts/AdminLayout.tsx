@@ -31,6 +31,7 @@ import {
 } from '@/modules/admin/components/admin.recipe';
 import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
+import { useClearCacheOnSignOut } from '@/modules/admin/hooks/useClearCacheOnSignOut';
 import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
 import { useSessionCapWarning } from '@/modules/admin/hooks/useSessionCapWarning';
 import { setNavigator, signOut } from '@/modules/admin/services/session';
@@ -132,6 +133,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
   useSessionCapWarning();
   usePostSignInToast();
+  useClearCacheOnSignOut();
   const user: unknown = useLoaderData();
   // The session module navigates (a session that ended in this or another tab) without importing the router.
   useEffect(() => {
