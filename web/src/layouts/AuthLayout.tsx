@@ -7,23 +7,10 @@
 // imports the session module.
 import { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router';
-import { Logo } from '@/components/brand';
 import { SkipLink } from '@/components/entry';
 import { ToastProvider } from '@/components/feedback';
-import {
-  authPageRootClasses,
-  loginBandsClasses,
-  loginBrandClasses,
-  loginClasses,
-  loginEyebrowClasses,
-  loginFormColumnClasses,
-  loginLogoClasses,
-  loginNumeralClasses,
-  loginQuoteClasses,
-  loginQuoteTextClasses,
-  loginSlabClasses,
-} from '@/components/layout/layout.recipe';
-import { AUTH_COPY } from '@/modules/admin/authCopy';
+import { authPageRootClasses } from '@/components/layout/layout.recipe';
+import { AuthFrame } from '@/layouts/AuthFrame';
 import { setNavigator } from '@/modules/admin/services/session';
 
 export default function AuthLayout() {
@@ -37,25 +24,9 @@ export default function AuthLayout() {
     <div data-theme="light" className={authPageRootClasses}>
       <ToastProvider>
         <SkipLink />
-        <div className={loginClasses}>
-          <div className={loginBrandClasses}>
-            <div className={loginSlabClasses} aria-hidden="true" />
-            <div className={loginBandsClasses} aria-hidden="true" />
-            <span className={loginNumeralClasses} aria-hidden="true">
-              C
-            </span>
-            <div className={loginLogoClasses}>
-              <Logo size="lg" context="login" />
-            </div>
-            <div className={loginQuoteClasses}>
-              <span className={loginEyebrowClasses}>{AUTH_COPY.brand.eyebrow}</span>
-              <p className={loginQuoteTextClasses}>{AUTH_COPY.brand.quote}</p>
-            </div>
-          </div>
-          <main id="main" tabIndex={-1} className={loginFormColumnClasses}>
-            <Outlet />
-          </main>
-        </div>
+        <AuthFrame>
+          <Outlet />
+        </AuthFrame>
       </ToastProvider>
     </div>
   );

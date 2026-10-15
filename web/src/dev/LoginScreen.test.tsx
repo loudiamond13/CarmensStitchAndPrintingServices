@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { LoginScreen } from './LoginScreen';
+import { LoginScreen } from './previews/LoginScreen';
 
 // The S1 parity preview (plan 04-32): the real AuthFrame around the real SignInForm, with the App. E.5 values.
 
@@ -43,7 +43,9 @@ describe('LoginScreen preview (App. E.5)', () => {
   it('holds the frame at the mockup height of 960px', () => {
     const { container } = renderScreen();
 
-    expect(container.querySelector<HTMLElement>('main')?.parentElement?.style.minHeight).toBe('960px');
+    expect(container.querySelector<HTMLElement>('main')?.parentElement?.style.getPropertyValue('--login-h')).toBe(
+      '960px',
+    );
   });
 
   it('has no axe violations in any state', async () => {

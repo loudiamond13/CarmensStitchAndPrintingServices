@@ -22,7 +22,12 @@ export const SHOWCASE_SECTIONS = [
 export type ShowcaseSectionId = (typeof SHOWCASE_SECTIONS)[number]['id'];
 
 /** Groups that are whole pages (see the header). */
-export const LAYOUT_GROUPS: readonly string[] = ['layouts-admin', 'layouts-admin-boundaries', 'layouts-auth', 'layouts-public'];
+export const LAYOUT_GROUPS: readonly string[] = [
+  'layouts-admin',
+  'layouts-admin-boundaries',
+  'layouts-auth',
+  'layouts-public',
+];
 
 /** Scenarios moved out of their group's section by id prefix, shown first in their new section. */
 const MOVED: readonly (readonly [RegExp, ShowcaseSectionId])[] = [

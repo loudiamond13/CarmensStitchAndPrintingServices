@@ -13,6 +13,7 @@ import {
   loginCardClasses,
   loginClasses,
   loginEyebrowClasses,
+  loginFixedClasses,
   loginFormColumnClasses,
   loginLinkClasses,
   loginLogoClasses,
@@ -53,6 +54,8 @@ const SPEC_PAGE_SUBLINE = 'text-[14px] leading-5 text-ink-muted';
 const SPEC_AUTH_PAGE_ROOT = '@container/pg relative min-h-dvh bg-bg text-ink font-sans text-[16px] leading-6';
 // `.s-login`: grid 1.1fr 1fr, `minmax(0, 1fr)` in the 1023 container rule.
 const SPEC_LOGIN = 'grid min-h-dvh grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]';
+// `.s-login` at the parity preview's fixed height: the same grid with `--login-h` in place of `min-h-dvh`.
+const SPEC_LOGIN_FIXED = 'grid min-h-(--login-h) grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]';
 // `.s-login-brand.s-mesh`: relative, clipped, padding 48, column space-between, `--surface`, right hairline; phone rule:
 // padding 24/16, min-height 200, no right border, bottom hairline.
 const SPEC_LOGIN_BRAND =
@@ -89,6 +92,7 @@ const SPEC_LOGIN_LOGO = 'relative';
 const LOGIN_SPECS = [
   SPEC_AUTH_PAGE_ROOT,
   SPEC_LOGIN,
+  SPEC_LOGIN_FIXED,
   SPEC_LOGIN_BRAND,
   SPEC_LOGIN_SLAB,
   SPEC_LOGIN_BANDS,
@@ -176,6 +180,7 @@ describe('login recipes (App. C `.s-login*`, plan 04-26)', () => {
   it.each([
     ['authPageRootClasses', authPageRootClasses, SPEC_AUTH_PAGE_ROOT],
     ['loginClasses', loginClasses, SPEC_LOGIN],
+    ['loginFixedClasses', loginFixedClasses, SPEC_LOGIN_FIXED],
     ['loginBrandClasses', loginBrandClasses, SPEC_LOGIN_BRAND],
     ['loginSlabClasses', loginSlabClasses, SPEC_LOGIN_SLAB],
     ['loginBandsClasses', loginBandsClasses, SPEC_LOGIN_BANDS],

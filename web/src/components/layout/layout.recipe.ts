@@ -45,6 +45,11 @@ export const authPageRootClasses = tw(
 /** `.s-login`: the brand panel and the form column, 1.1fr to 1fr; one column up to 1023px. */
 export const loginClasses = tw('grid min-h-dvh grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]');
 
+/** `.s-login` at a fixed height (the parity preview, whose frame is the mockup's 960px): `--login-h` replaces `min-h-dvh`. */
+export const loginFixedClasses = tw(
+  'grid min-h-(--login-h) grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]',
+);
+
 /** `.s-login-brand.s-mesh`: the surface panel with the dot mesh; on phones a 200px band with a bottom hairline. */
 export const loginBrandClasses = tw(
   'relative flex flex-col justify-between overflow-hidden border-r border-line bg-surface bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] p-12 pg-phone:min-h-[200px] pg-phone:border-r-0 pg-phone:border-b pg-phone:px-4 pg-phone:py-6',
