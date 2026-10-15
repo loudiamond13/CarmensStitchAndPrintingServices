@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-12-PLAN.md
-last_updated: "2026-10-15T04:16:48.522Z"
+stopped_at: Completed 04-13-PLAN.md
+last_updated: "2026-10-15T04:30:23.858Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 9cb60417a7496b128a2126125128a679cd4ac1c9
+state_head: 4642b8db8fdbbf068bff0b215a8170dd7cfe3c2b
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 70
+  completed_plans: 71
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 15 of 35
+Plan: 16 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -129,6 +129,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P17 | 40min | 3 tasks | 24 files |
 | Phase 04 P33 | 35 min | 2 tasks | 7 files |
 | Phase 04 P12 | 70min | 3 tasks | 26 files |
+| Phase 04 P13 | 40 min | 2 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -326,6 +327,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-33: retry delay counts from the failed attempt; claim lease 2 min; transport errors stored only as smtp-connect/auth/send/unknown
 - [Phase 04]: 04-12: auth.lockout for a password lockout is recorded in the same unit of work as the count and the email (Record), not independently; audit-log.md updated
 - [Phase 04]: 04-12: ResponseFloor re-measures after each delay because a coarse timer can fire early; state checks run before the password result so blocked accounts are never counted
+- [Phase 04]: 04-13: session cache keyed by sid (60 s, user tag), unknown and revoked sessions cached too; RefreshTokens.ParentId has no self FK
 
 ### Pending Todos
 
@@ -372,6 +374,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T04:16:48.177Z
-Stopped at: Completed 04-12-PLAN.md
+Last session: 2026-10-15T04:30:23.493Z
+Stopped at: Completed 04-13-PLAN.md
 Resume file: None
