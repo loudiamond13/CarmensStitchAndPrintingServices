@@ -253,13 +253,20 @@ export function ResetPasswordForm({
   );
 }
 
+export interface InvalidCardProps {
+  /** Moves focus to the h1 when the card shows (the screens do; a page of previews must not take focus). Default true. */
+  focusHeading?: boolean;
+}
+
 /** The one state for every link that does not work. Focus moves to its h1. */
-export function ResetInvalidCard() {
+export function ResetInvalidCard({ focusHeading = true }: InvalidCardProps) {
   const copy = AUTH_COPY.reset;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
+    if (focusHeading) {
+      headingRef.current?.focus();
+    }
+  }, [focusHeading]);
   return (
     <div className={loginCardClasses}>
       <AuthHeader title={copy.invalidTitle} subline={copy.invalidBody} headingRef={headingRef} />
@@ -277,12 +284,14 @@ export function ResetInvalidCard() {
 // ── S6 Set your password from an invite ──
 
 /** The one state for every invite that does not work. Focus moves to its h1. */
-export function InviteInvalidCard() {
+export function InviteInvalidCard({ focusHeading = true }: InvalidCardProps) {
   const copy = AUTH_COPY.invite;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
+    if (focusHeading) {
+      headingRef.current?.focus();
+    }
+  }, [focusHeading]);
   return (
     <div className={loginCardClasses}>
       <AuthHeader title={copy.invalidTitle} subline={copy.invalidBody} headingRef={headingRef} />

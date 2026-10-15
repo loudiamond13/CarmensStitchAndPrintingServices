@@ -187,13 +187,13 @@ function Card({ card, email, traceId }: Required<AuthCardProps>) {
     case 'reset-form':
       return <ResetCard email={email} />;
     case 'reset-invalid':
-      return <ResetInvalidCard />;
+      return <ResetInvalidCard focusHeading={false} />;
     case 'invite-checking':
       return <Checking title={AUTH_COPY.invite.title} things="invite" />;
     case 'invite-form':
       return <InviteCard email={email} banner={null} />;
     case 'invite-invalid':
-      return <InviteInvalidCard />;
+      return <InviteInvalidCard focusHeading={false} />;
     case 'invite-fail-closed': {
       const down = AUTH_COPY.newPassword.errors.breachCheckDown;
       return <InviteCard email={email} banner={{ title: down.title, message: down.body }} />;
