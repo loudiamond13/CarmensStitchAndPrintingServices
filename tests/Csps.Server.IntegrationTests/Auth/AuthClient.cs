@@ -438,6 +438,18 @@ internal static partial class AuthClient
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Signs out one session through the devices API.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The caller's access token; none when null.</param>
+    /// <param name="sessionId">The session to sign out.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> RevokeSessionAsync(HttpClient client, string? accessToken, Guid sessionId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{SessionsRoute}/{sessionId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the signed-in devices list of a caller.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The caller's access token.</param>
