@@ -33,6 +33,32 @@ public sealed class IpPrefixTests
         IpPrefix.From(IPAddress.Parse(address)).ShouldBe(expected);
     }
 
+    [Theory]
+    [InlineData("2002:cbb1:0c2d::1", "203.177.12.0")]
+    [InlineData("2002:cbb1:0c2d:ffff:ffff:ffff:ffff:ffff", "203.177.12.0")]
+    [InlineData("2002:0a01:0203::1", "10.1.2.0")]
+    public void MapsSixToFourToTheEmbeddedIpv4(string address, string expected)
+    {
+        IpPrefix.From(IPAddress.Parse(address)).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("64:ff9b::cbb1:c2d", "203.177.12.0")]
+    [InlineData("64:ff9b::a01:203", "10.1.2.0")]
+    public void MapsNat64ToTheEmbeddedIpv4(string address, string expected)
+    {
+        IpPrefix.From(IPAddress.Parse(address)).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("2003:cbb1:c2d::1", "2003:cbb1:c2d::")]
+    [InlineData("64:ff9b:1::cbb1:c2d", "64:ff9b:1::")]
+    [InlineData("64:ff9a::cbb1:c2d", "64:ff9a::")]
+    public void KeepsNearMissesAsSlash48(string address, string expected)
+    {
+        IpPrefix.From(IPAddress.Parse(address)).ShouldBe(expected);
+    }
+
     [Fact]
     public void DropsTheIpv6ScopeId()
     {
