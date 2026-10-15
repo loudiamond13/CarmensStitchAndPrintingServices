@@ -24,7 +24,7 @@ public sealed class PasswordRulesTests
         result.Status.ShouldBe(PasswordRulesStatus.Rejected);
         result.Message.ShouldBe(PasswordPolicy.MessageFor(PasswordRuleFailure.TooShort));
         result.BreachCheckSkipped.ShouldBeFalse();
-        await _pwned.DidNotReceiveWithAnyArgs().CheckAsync(default!, default);
+        await _pwned.DidNotReceiveWithAnyArgs().CheckAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class PasswordRulesTests
 
         result.Status.ShouldBe(PasswordRulesStatus.Rejected);
         result.Message.ShouldBe(PasswordPolicy.MessageFor(PasswordRuleFailure.ContainsPersonalInfo));
-        await _pwned.DidNotReceiveWithAnyArgs().CheckAsync(default!, default);
+        await _pwned.DidNotReceiveWithAnyArgs().CheckAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

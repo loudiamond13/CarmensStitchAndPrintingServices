@@ -5,6 +5,7 @@ using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +82,7 @@ public static class DependencyInjection
 
         services.AddCspsIdentity();
         services.AddCspsEmail(configuration, environment);
+        services.AddCspsPasswordChecks(environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
         services.AddCspsDataProtection(configuration);
