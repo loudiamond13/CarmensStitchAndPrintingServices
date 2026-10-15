@@ -151,12 +151,5 @@ internal static class EmailHtmlLayout
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
 
-    private static byte[] ReadLogo()
-    {
-        using var stream = typeof(EmailHtmlLayout).Assembly.GetManifestResourceStream("Csps.Infrastructure.Email.Assets.csps-logo.png")
-            ?? throw new InvalidOperationException("The email logo asset is not embedded in Csps.Infrastructure.");
-        using var copy = new MemoryStream();
-        stream.CopyTo(copy);
-        return copy.ToArray();
-    }
+    private static byte[] ReadLogo() => Convert.FromBase64String(EmailLogoPng.Base64);
 }

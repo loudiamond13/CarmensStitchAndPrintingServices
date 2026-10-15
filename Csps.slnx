@@ -16,6 +16,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/Csps.BootstrapManager/Csps.BootstrapManager.csproj" />
     <Project Path="tools/Csps.DevSeed/Csps.DevSeed.csproj" />
+    <Project Path="tools/Csps.EmailPreview/Csps.EmailPreview.csproj" />
     <Project Path="tools/Csps.HostProbe/Csps.HostProbe.csproj" />
   </Folder>
 </Solution>

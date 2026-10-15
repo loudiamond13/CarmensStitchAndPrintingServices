@@ -1062,6 +1062,12 @@
       "csps.domain": {
         "type": "Project"
       },
+      "csps.emailpreview": {
+        "type": "Project",
+        "dependencies": {
+          "Csps.Infrastructure": "[1.0.0, )"
+        }
+      },
       "csps.infrastructure": {
         "type": "Project",
         "dependencies": {

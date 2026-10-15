@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The email preview tool (D-30, D-27). Development only: it sends the seven sample auth emails to one address through
+    the real SMTP path, or writes them as .html and .txt files. Usage text: Csps.Infrastructure.Email.EmailPreviewOptions.Usage.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

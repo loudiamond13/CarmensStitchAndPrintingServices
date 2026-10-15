@@ -100,6 +100,21 @@ public sealed partial class EmailHtmlLayoutTests
         BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16, 4)).ShouldBe(360);
     }
 
+    [Fact]
+    public async Task CompiledLogoIsTheCommittedPngAsset()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "Csps.slnx")))
+        {
+            root = root.Parent;
+        }
+
+        root.ShouldNotBeNull();
+        var asset = Path.Combine(root.FullName, "src", "Csps.Infrastructure", "Email", "Assets", "csps-logo.png");
+
+        (await File.ReadAllBytesAsync(asset, TestContext.Current.CancellationToken)).ShouldBe(EmailHtmlLayout.LogoPng());
+    }
+
     [GeneratedRegex("<td[^>]*font-size:32px[^>]*>.*?</td>", RegexOptions.Singleline)]
     private static partial Regex CodeBlock();
 

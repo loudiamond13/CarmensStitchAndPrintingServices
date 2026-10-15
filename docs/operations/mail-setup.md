@@ -1,6 +1,6 @@
 ---
 created: 2026-10-14T18:00:00-05:00
-updated: 2026-10-14T18:30:00-05:00
+updated: 2026-10-15T07:53:00-05:00
 ---
 
 # Mail setup: the app's sender mailbox and the .NET security update
@@ -83,6 +83,34 @@ This is the 2026-10-13 Microsoft security release. It is a free Microsoft downlo
    ```
 
 4. Paste back the line that reads `Microsoft.AspNetCore.App 10.0.13`.
+
+## Preview the emails
+
+The seven emails staff receive (sign-in code, account locked, password reset, password changed, reset by a Manager, deactivated account, invite) are designed to match the site. Look at them before they go live. The preview uses made-up sample values (code 482913, Carmen Reyes, a token that does not work), so nothing real is in it. It runs only in Development and refuses anywhere else.
+
+Both commands run in a normal PowerShell window from the project folder, and the second line makes this terminal a Development one only for that window.
+
+**Look at them as files (no mail is sent).** Open the `.html` files in a browser and the `.txt` files in Notepad:
+
+```powershell
+$env:DOTNET_ENVIRONMENT = 'Development'
+dotnet run --project tools/Csps.EmailPreview -- --out artifacts/email-preview
+```
+
+**Send all seven to your own Gmail** through the real mailbox (needs the mail settings from step 3). Replace the address with yours; it prints only how many were sent:
+
+```powershell
+$env:DOTNET_ENVIRONMENT = 'Development'
+dotnet run --project tools/Csps.EmailPreview -- --to you@gmail.com
+```
+
+In Gmail on the web and in the Gmail app on your phone, open each one and check:
+
+- The CSPS logo shows at the top without pressing "load images".
+- The colours and fonts look like the site, and the card fits the phone screen.
+- The sign-in code email has the code in its subject and in a big box you can select and copy.
+- Each button opens its page (the links point at your local site, `http://localhost:5180`, unless you add `--public-base-url https://your-site`).
+- In Gmail, the three dots and **Show original** show the plain-text version with the same words.
 
 ## What to send back
 
