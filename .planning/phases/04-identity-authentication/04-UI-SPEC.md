@@ -6,7 +6,7 @@ reviewed_at: "2026-10-14T09:05:00-05:00"
 shadcn_initialized: false
 preset: none
 created: "2026-10-14T08:10:00-05:00"
-updated: "2026-10-15T12:05:00-05:00"
+updated: "2026-10-15T16:21:29-05:00"
 ---
 
 # Phase 4 — UI Design Contract
@@ -76,7 +76,7 @@ The command counts the PascalCase value exports of the 15 area barrels that `web
 | ErrorState | `@/components` | The danger banner on auth forms, with a caller `title` and `message` and **no** `onRetry`. Gets the `align` prop below. |
 | LoadingRegion, SkeletonText | `@/components` | The "checking your link" state of the reset and invite screens. (S7 gets its loading state through ResponsiveTable.) |
 | Modal | `@/components` | The "Sign out of other devices?" dialog and the S7 per-device "Sign out {device}?" dialog. Both are composed from Modal, not ConfirmDialog, because ConfirmDialog is hard-wired to the danger button and `trash-2` icon of a delete. |
-| ToastProvider / `useToast` | `@/components` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7). Optional session-cap warning (OQ-4). |
+| ToastProvider / `useToast` | `@/components` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7); a danger toast when Logout fails (D-45). Optional session-cap warning (OQ-4). |
 | UserMenu, Sidebar, Topbar | `@/components` | Real sign-out wiring, plus the two new menu items below. |
 | ResponsiveTable | `@/components` | The S7 device list: table on desktop, in-wrapper scroll on tablet, stacked cards on phones (spec §8.4, P2), with its `pending` (SkeletonTable), `failed` + `onRetry` (ErrorState) states. |
 | RowActions, RowAction | `@/components` | The per-row `log-out` icon action on S7, the same 36px row-action pattern as the Users list (§8.9; P2 O-8). |
@@ -389,7 +389,7 @@ An ordinary admin-shell page (`AdminLayout`, the user's D-13 theme, both Blush a
 
 | Item | Contract |
 |------|----------|
-| **Logout** (UserMenu and Sidebar, the existing P2 D-27 button) | Real sign-out. No confirm step. The current session is revoked, other tabs are told over `BroadcastChannel('csps-auth')`, and the user goes to `/admin/login` with the "signed out" notice. If the request fails (network), the local session is still cleared and the same navigation happens. |
+| **Logout** (UserMenu and Sidebar, the existing P2 D-27 button) | Real sign-out. No confirm step. The current session is revoked, other tabs are told over `BroadcastChannel('csps-auth')`, and the user goes to `/admin/login` with the "signed out" notice. If the request fails (owner ruling 2026-10-15, D-45), the person stays signed in on the same page: the local session is kept, other tabs are not told, there is no navigation and no "signed out" notice. A danger toast (persists until closed) reads **"We couldn’t sign you out."** / "Check your connection and try again.". Pressing Logout again retries, and a second failure replaces the toast. |
 | **Signed-in Devices** (UserMenu, D-43) | A link item to `/admin/sessions` (S7). It closes the menu like "My Profile". |
 | **Sign Out Other Devices** (UserMenu and the S7 page header, OQ-3) | Opens SignOutOthersDialog. Focus goes to the dismiss button **"Keep Others Signed In"** on open. The primary `log-out` button shows a pending state. On success the dialog closes, focus returns to the button that opened it (the user-menu button, or the S7 header button), and a success toast appears. On S7 the list then refetches. On failure the dialog stays open and shows the mapper line above the buttons with `role="alert"`, the button becomes clickable again and takes focus (P2 ConfirmDialog failure rule). The current session stays (D-05). **Always allowed (D-44):** the item and the S7 button are never hidden or disabled for lack of other sessions, the client never counts sessions first, and success with nothing to revoke shows the same dialog flow and the same success toast. |
 | **Other tabs** | A broadcast sign-out, or a 401 after a failed refresh in any tab, sends that tab to `/admin/login` with the "session ended" notice (R2-09). |
@@ -516,6 +516,7 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | Sign-out dialog *(SPEC-GAP)* | Title "Sign out of other devices?" · body "You'll stay signed in on this device. Any other phone, tablet or computer signed in to your account will be signed out. Use this if you signed in on a shared or lost device." · buttons "Keep Others Signed In" (secondary, dismisses; Esc and the scrim do the same) / "Sign Out Other Devices" (primary) |
 | Sign-out-others success toast *(SPEC-GAP, success)* | "Signed out of other devices" / "You're still signed in on this device." (D-05: says "other devices") |
 | Must-change saved toast *(SPEC-GAP, success)* | "Password saved" / "You're signed in. Use your new password next time." |
+| Sign-out failed toast *(owner, 2026-10-15, D-45; danger, persists)* | "We couldn’t sign you out." / "Check your connection and try again." |
 | Session-cap warning toast *(SPEC-GAP, warning, persists; OQ-4)* | "Your session ends soon" / "You'll be signed out at {h:mm AM/PM}. Save your work, then sign in again." |
 | Loading (live region) | "Checking your link…" → "Link checked." (P2 loading pattern) |
 
@@ -674,7 +675,7 @@ Applicable state considerations resolved: 44 covered (verification: explicit), 7
 | error | Password rule failures (client and server) | ✅ covered | The first failing rule's message under the field, focus to the first invalid field; the server message wins. |
 | error | Breach check unavailable | ✅ covered | Reset and must-change: fail open with the local list (D-14), no UI difference. Invite: fail closed with the banner copy. |
 | error | 429 / network / 5xx on any auth form | ✅ covered | The P2 shared-mapper banner, with "Reference: {traceId}" on 5xx. |
-| error | Logout request fails | ✅ covered | Local session is cleared anyway; navigate to S1 with `signed-out`. |
+| error | Logout request fails | ✅ covered | Owner ruling 2026-10-15 (D-45): the session is kept, no broadcast, no navigation; the danger toast with the owner copy; Logout retries. |
 | error | Sign-out-others fails | ✅ covered | The dialog stays open with the mapper line (`role="alert"`) above the buttons; retry allowed (P2 ConfirmDialog failure rule). |
 | error | Mail outage (D-33) | ✅ covered | Nothing on screen changes; S2 shows normally, and Resend is available after 60s. |
 | populated | S1 notice slot | ✅ covered | At most one notice (the five keys in Copywriting), shown once, cleared on submit. |

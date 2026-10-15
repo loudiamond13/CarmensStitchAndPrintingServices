@@ -8,7 +8,7 @@ fixed: 16
 skipped: 1
 status: partial
 created: 2026-10-15T14:50:00-05:00
-updated: 2026-10-15T14:50:00-05:00
+updated: 2026-10-15T16:21:29-05:00
 ---
 
 # Phase 4: Code Review Fix Report
@@ -19,7 +19,7 @@ updated: 2026-10-15T14:50:00-05:00
 
 **Summary:**
 - Findings in scope: 17 (CR-01, WR-01 to WR-16; Info findings out of scope)
-- Fixed: 16 (CR-01 is a partial fix, see below)
+- Fixed: 16 (CR-01 was completed by quick 261015-m51 after the owner's ruling; see below)
 - Skipped: 1 (WR-06, not reproducible)
 
 Every fix was written test first (the failing test was run before the fix wherever the finding could be reproduced). Work was done in the main checkout because `workflow.use_worktrees` is `false`; no worktree or recovery sentinel was created. Nothing was pushed.
@@ -44,14 +44,16 @@ Notes on test runs:
 
 ### CR-01: A failed sign-out call is swallowed, and the sign-in loader then restores the session from the still-valid refresh cookie
 
-**Status:** fixed in part, requires human verification and an owner decision for the rest
-**Files modified:** `web/src/modules/admin/services/session.ts`, `web/src/modules/admin/services/session.test.ts`, `web/src/layouts/AdminLayout.test.tsx`
-**Commit:** 863c547
+**Status:** fixed (owner ruling 2026-10-15, D-45)
+**Files modified:** `web/src/modules/admin/services/session.ts`, `web/src/modules/admin/services/session.test.ts`, `web/src/layouts/AdminLayout.test.tsx`, `web/src/layouts/AdminLayout.tsx`, `web/src/modules/admin/copy.ts`
+**Commits:** 863c547, 881c1d3 (quick 261015-m51)
 **Applied fix:**
-- `signOut()` now retries a 409 (lost save race) once, as the refresh path does.
-- After a sign-out, `ensureSession()` no longer uses the leftover refresh cookie to restore the session in this page load. A flag is set by `signOut()` and cleared by the next `acceptSession` (a new sign-in or a refresh that is asked for explicitly). So when the server call fails, the person lands on the sign-in page with the "You've signed out." notice and stays there. The new AdminLayout test (`Logout stays on the sign-in page when the server call failed but the refresh cookie still works`) failed before the fix (the router bounced to `/admin`) and passes now.
+- `signOut()` retries a 409 (lost save race) once, as the refresh path does, and now resolves `true` only when the server ended the session.
+- A failure after that retry (network, timeout, 403, 429, 5xx or a second 409) keeps the person signed in: the local session stays, no `signed-out` message goes to other tabs, no notice is set and nothing navigates. The shell shows the danger toast "We couldn’t sign you out." / "Check your connection and try again." (`ADMIN_COPY.signOutFailed`), and a second failed press replaces it. Pressing Logout again retries.
+- Success is unchanged: the session ends, other tabs are told, the `signed-out` notice is set and the person lands on `/admin/login`.
+- The in-memory suppression added in 863c547 is removed. On success the server has already revoked the refresh family and deleted the cookie, so the sign-in route's session check gets 401 and stays on the sign-in page. On failure the session is kept, so there is nothing to suppress. Keeping it would also have stopped this tab from picking up a sign-in made in another tab.
 
-**Not applied (owner decision):** the reviewer's wider fix, which is to keep the local session and show a "We couldn't sign you out" toast when the server call fails. UI-SPEC "Logout" (04-UI-SPEC.md, "Logout (UserMenu and Sidebar)") says that if the request fails the local session is still cleared and the same navigation happens, and the review fix would add new copy. Changing that is an owner decision. What stays open: after a failed server call the HttpOnly cookie is still valid on the server, and a full page reload (which loses the in-memory flag) will boot the session from it again (CWE-613 remains for that case). If the owner wants that closed, the fix is the reviewer's wider one.
+**Owner ruling (2026-10-15):** keep the person signed in (D-45). A failed call no longer claims success, and a confirmed one leaves no cookie to restore from.
 
 ### WR-01: The must-change step accepts the current (temporary or breached) password as the "new" password
 
@@ -59,6 +61,7 @@ Notes on test runs:
 **Files modified:** `src/Csps.Application/Auth/SetNewPasswordHandler.cs`, `tests/Csps.Application.UnitTests/Auth/SetNewPasswordHandlerTests.cs`, `tests/Csps.Server.IntegrationTests/Auth/MustChangePasswordTests.cs`
 **Commits:** 2d3c916, 50d93b8
 **Applied fix:** After the policy check and before the transaction, `IUserAccounts.CheckPasswordAsync` is called; a match returns a 400 with the message "Choose a different password from your current one." (public constant `SetNewPasswordHandler.SameAsCurrentMessage`). No new port. The web mirror needs no change because the client cannot know the current password; the message is shown from the server's field error. The integration test that used to expect the temporary password to be accepted now expects it to be refused, then accepts a different one.
+**Owner (2026-10-15):** wording approved (D-47).
 
 ### WR-02: SignIn and ResendCode let `ConcurrencyConflictException` escape, which gives a 500
 
@@ -83,7 +86,7 @@ Notes on test runs:
 **Files modified:** `src/Csps.Application/Auth/RefreshHandler.cs`, `tests/Csps.Application.UnitTests/Auth/RefreshHandlerTests.cs`, `tests/Csps.Server.IntegrationTests/Auth/InactiveAccountTests.cs`
 **Commit:** 6d35838
 **Applied fix:** A deactivated or missing account still revokes the session. A temporary lock (`LockoutEnd > now`) now answers `SessionEnded` (401) without revoking, saving or rotating anything, so the session recovers when the lock passes. AUTH-10 ("locked users cannot ... refresh") still holds, because the refresh is refused. The old unit and integration tests that required a lock to revoke the session were split: deactivated and missing still revoke; a new test covers the lock.
-**Note for the owner:** this changes the T-04-53 behavior for locked accounts (documented in the 04-15 plan and the old tests). The review itself said to record the decision in D-39 if the owner wants a code lockout to end sessions. Please confirm.
+**Owner (2026-10-15):** accepted (D-46); T-04-53 amended.
 
 ### WR-05: Failed-password counter can be lost under concurrent guesses
 
@@ -107,6 +110,7 @@ Notes on test runs:
 **Applied fix:**
 - The sign-in code and reset emails word their lifetime from `ExpiresAt - RequestedAt`. `InviteEmail` gained `RequestedAt` so the invite does the same. `AccountLockedEmail` gained `LockedFor` (the real pause length) and its subject and body use it. Whole hours read as hours ("72 hours", "1 hour"), anything else as minutes. Defaults print exactly the old text (15 minutes, 30 minutes, 72 hours).
 - New `AuthSettings.PasswordLockoutDuration` (default 15 minutes, validated) is now the one source of the password lockout length: the handler passes it to the email and `AddCspsAuth` applies it to Identity with `PostConfigure<IdentityOptions>`, so the email and the real lock cannot disagree. The code-lockout email uses `CodeLockoutDuration`.
+- **Owner (2026-10-15):** approved, default 15 minutes (D-48).
 - A renderer test with non-default lifetimes (10 and 45 minutes, 24 hours, 1 hour, a 30 minute lock) failed before the change.
 
 ### WR-09: A failure after a successful SMTP send is recorded as a send failure and retried
@@ -135,10 +139,10 @@ Notes on test runs:
 
 ### WR-12: Auth rate limits key IPv6 clients by /64
 
-**Status:** fixed
+**Status:** reverted by owner ruling (D-49)
 **Files modified:** `src/Csps.Server/Security/RateLimitingRegistration.cs`, `tests/Csps.Server.IntegrationTests/RateLimiting/RateLimitPartitionTests.cs`
-**Commit:** 3918aeb
-**Applied fix:** IPv6 buckets use the first 6 bytes (/48), the same prefix the audit log keeps (D-32). Partition key tests and the bucket-sharing test were updated (two /64s in one /48 now share a bucket; a different /48 does not). Trade-off to know: addresses inside one /48 now share a limit.
+**Commits:** 3918aeb, bc992a9 (quick 261015-m51)
+**Applied fix:** 3918aeb moved IPv6 buckets to the first 6 bytes (/48). After the owner's ruling, bc992a9 restored /64 (8 bytes, keys like `2001:db8:1:2::/64`) so devices that share a /48 do not share a limit. Per-account lockout (WR-05) and the per-account caps in D-39 guard against address rotation, and the audit log keeps its /48 prefix. The bucket test is now `IPv6AddressesInOneSlash64ShareABucketAndOtherSlash64sInTheSameSlash48DoNot` (a sibling /64 in the same /48 passes the limiter), and the partition-key rows read `x:x:x:x::/64`.
 
 ### WR-13: The admin bundle budget is not enforced for the shipped admin app
 
@@ -178,12 +182,15 @@ Notes on test runs:
 **Reason:** Not reproducible on this stack, so no code change was made. I wrote the test first: insert an `ApplicationUser` with `IsActive = false` through the context and read it back. It passed on the unchanged code. EF Core 8 and later use the `HasDefaultValue(...)` value as the sentinel for the property, so with a default of `true` an explicit `false` is written and `true` is left to the column default. The review described the old EF 7 behavior (sentinel = CLR default `false`). The CLR initializer on `ApplicationUser.IsActive` is already `true`, which also differs from the review's description. No migration is needed. The regression test was kept as a guard in `IdentitySchemaTests` (commit c3268da, `test(04): WR-06 ...`). The EF "bool with default" warning the review mentioned did not appear in any build here (0 warnings).
 **Original issue:** `IsActive` has a database default of `true`, so an Added entity with `false` was said to insert as active.
 
-## Open items for the owner
+## Owner decisions (2026-10-15)
 
-1. **CR-01 (rest of the review's fix):** decide whether a failed server sign-out should keep the local session and show an error, which contradicts UI-SPEC "Logout" and needs new copy. Until then a hard reload after a failed server sign-out can still restore the session from the cookie.
-2. **WR-04:** confirm that a temporary lockout should refuse the refresh without ending the session (AUTH-10 still holds), and record it in D-39 if so.
-3. **WR-12:** confirm that sharing one rate-limit bucket per IPv6 /48 is acceptable.
-4. **WR-01:** the new plain-English message "Choose a different password from your current one." was chosen by me (the review suggested a similar line); please confirm the wording.
+| Finding | Decision |
+|---------|----------|
+| CR-01 | Keep the person signed in on a failed sign-out and show the owner's toast (D-45) |
+| WR-04 | Accepted: a temporary lockout refuses refresh without ending the session (D-46) |
+| WR-12 | IPv6 rate-limit buckets are /64 again (D-49) |
+| WR-01 | Wording approved (D-47) |
+| WR-08 | `PasswordLockoutDuration` approved, default 15 minutes (D-48) |
 
 No schema change, migration or new package was made.
 
