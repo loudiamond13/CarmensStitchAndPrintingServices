@@ -135,6 +135,8 @@ export function createSession(deps: SessionDeps) {
   let refreshFailure: 'unauthorized' | 'other' | null = null;
   let peerRefreshes = 0;
   let peerExpiresAt = 0;
+  /** True from a sign-out until the next sign-in: the refresh cookie must not bring the session back in this page load. */
+  let signedOutHere = false;
 
   function publish(next: SessionSnapshot): void {
     snapshot = next;
@@ -144,6 +146,7 @@ export function createSession(deps: SessionDeps) {
   }
 
   function acceptSession(response: SessionResponse): void {
+    signedOutHere = false;
     token = response.accessToken;
     tokenExpiresAt = Date.parse(response.accessTokenExpiresAt);
     pendingEmail = null;
@@ -228,6 +231,9 @@ export function createSession(deps: SessionDeps) {
     if (token !== null) {
       return Promise.resolve(snapshot.user);
     }
+    if (signedOutHere) {
+      return Promise.resolve(null);
+    }
     boot ??= refreshSession()
       .then(() => snapshot.user)
       .catch((error: unknown) => {
@@ -242,14 +248,26 @@ export function createSession(deps: SessionDeps) {
     return boot;
   }
 
-  /** Signs out on the server (the local session ends even if that call fails), tells the other tabs, sets the notice. */
+  /**
+   * Signs out on the server (a 409 save race is tried once more), then ends the local session even if the call still
+   * failed (UI-SPEC "Logout"), tells the other tabs and sets the notice. The sign-in page then opens instead of the
+   * leftover refresh cookie signing the person straight back in.
+   */
   async function signOut(): Promise<void> {
-    try {
-      await deps.auth.signOut();
-    } catch {
-      // The local sign-out stands; the server session ends at its own expiry.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await deps.auth.signOut();
+        break;
+      } catch (error) {
+        if (attempt === 0 && isHttpError(error) && error.status === 409) {
+          await sleep(BUSY_RETRY_MS);
+          continue;
+        }
+        break;
+      }
     }
     endSession('signed-out', false);
+    signedOutHere = true;
     channel?.postMessage({ type: 'signed-out' } satisfies ChannelMessage);
   }
 

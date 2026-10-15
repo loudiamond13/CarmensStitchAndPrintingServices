@@ -255,6 +255,45 @@ describe('sign-out and other tabs (AUTH-06, R2-09)', () => {
     expect(a.tab.takeSignInNotice()).toBe('signed-out');
   });
 
+  it('retries a 409 sign-out once before giving up on the server call', async () => {
+    const hub = createHub();
+    const a = newTab(hub, createLocks());
+    a.signOutCall.mockRejectedValueOnce(new HttpError({ kind: 'http', status: 409 }));
+    a.tab.acceptSession(sessionResponse());
+
+    await a.tab.signOut();
+
+    expect(a.signOutCall).toHaveBeenCalledTimes(2);
+    expect(a.tab.getSessionUser()).toBeNull();
+  });
+
+  it('does not retry a sign-out that failed for another reason', async () => {
+    const hub = createHub();
+    const a = newTab(hub, createLocks());
+    a.signOutCall.mockRejectedValue(new HttpError({ kind: 'network' }));
+    a.tab.acceptSession(sessionResponse());
+
+    await a.tab.signOut();
+
+    expect(a.signOutCall).toHaveBeenCalledTimes(1);
+  });
+
+  it('a sign-out whose server call failed is not undone by the next session check, until a new sign-in', async () => {
+    const hub = createHub();
+    const a = newTab(hub, createLocks());
+    a.signOutCall.mockRejectedValue(new HttpError({ kind: 'http', status: 500 }));
+    a.tab.acceptSession(sessionResponse());
+
+    await a.tab.signOut();
+
+    await expect(a.tab.ensureSession()).resolves.toBeNull();
+    expect(a.refresh).not.toHaveBeenCalled();
+    expect(a.tab.takeSignInNotice()).toBe('signed-out');
+
+    a.tab.completeSignIn(sessionResponse());
+    await expect(a.tab.ensureSession()).resolves.toMatchObject({ name: 'Carmen Reyes' });
+  });
+
   it('a sign-out in another tab clears this tab, sets session-ended and goes to the sign-in page', async () => {
     const hub = createHub();
     const a = newTab(hub, createLocks());

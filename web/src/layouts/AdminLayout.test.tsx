@@ -109,11 +109,13 @@ function sidebarLink(name: string): HTMLElement {
  * Answers POST /auth/sign-out with `status`; the returned function says how many calls arrived. Leaving for the real
  * sign-in page makes its loader look for a session, so POST /auth/refresh answers 401 (no cookie).
  */
-function answerSignOut(status = 204): () => number {
+function answerSignOut(status = 204, cookieSurvives = false): () => number {
   let calls = 0;
   server.use(
     http.post('*/api/v1/auth/refresh', () =>
-      HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
+      cookieSurvives
+        ? HttpResponse.json(sessionResponse())
+        : HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
     ),
     http.post('*/api/v1/auth/sign-out', () => {
       calls += 1;
@@ -240,6 +242,20 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
     expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
+  });
+
+  it('Logout stays on the sign-in page when the server call failed but the refresh cookie still works', async () => {
+    answerSignOut(500, true);
+    const { router } = await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.state.location.pathname).toBe('/admin/login');
   });
 
   it('has no axe violations', async () => {
