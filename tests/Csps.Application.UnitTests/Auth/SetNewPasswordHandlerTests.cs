@@ -145,7 +145,7 @@ public sealed class SetNewPasswordHandlerTests
         await harness.Accounts.Received(1).MarkBreachRecheckAsync(UserId, Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         harness.Audit.Entries.Select(e => e.Action).ShouldBe(
-            [AuditActions.PasswordChanged, AuditActions.BreachCheckUnavailable, AuditActions.SignedIn]);
+            [AuditActions.PasswordChanged, AuditActions.SessionsRevoked, AuditActions.BreachCheckUnavailable, AuditActions.SignedIn]);
     }
 
     [Fact]
@@ -178,11 +178,44 @@ public sealed class SetNewPasswordHandlerTests
         harness.Audit.Entries.Select(e => (e.Action, e.TargetType, e.TargetId)).ShouldBe(
         [
             (AuditActions.PasswordChanged, "User", UserId.ToString("D")),
+            (AuditActions.SessionsRevoked, "User", UserId.ToString("D")),
             (AuditActions.SignedIn, "UserSession", session.Id.ToString("D")),
         ]);
-        harness.Audit.Entries.ShouldAllBe(e => !e.Independent && e.Detail == null);
+        harness.Audit.Entries.ShouldAllBe(e => !e.Independent && (e.Detail == null || e.Action == AuditActions.SessionsRevoked));
         harness.Unit.Commits.ShouldBe(1);
         harness.Unit.Rollbacks.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task EveryEarlierSessionEndsBeforeTheNewOneStartsAndTheCacheForgetsThem()
+    {
+        var harness = new Harness();
+        var revokedBeforeNewSession = false;
+        harness.Sessions.RevokeAllAsync(UserId, null, SessionRevocationReason.PasswordReset, Start, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                revokedBeforeNewSession = harness.Added.Count == 0;
+                return Task.FromResult<IReadOnlyList<Guid>>([]);
+            });
+
+        var result = await harness.RunAsync(Good);
+
+        result.IsSuccess.ShouldBeTrue();
+        revokedBeforeNewSession.ShouldBeTrue();
+        await harness.Sessions.Received(1).RevokeAllAsync(UserId, null, SessionRevocationReason.PasswordReset, Start, Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldContain(e => e.Action == AuditActions.SessionsRevoked && e.Detail == "password-reset");
+        await harness.SessionCache.Received(1).EvictUserAsync(UserId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARejectedPasswordEndsNoSessionAndEvictsNothing()
+    {
+        var harness = new Harness(BreachCheckResult.Breached);
+
+        await harness.RunAsync(Good);
+
+        await harness.Sessions.DidNotReceive().RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        await harness.SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -317,6 +350,8 @@ public sealed class SetNewPasswordHandlerTests
             Handler = new SetNewPasswordHandler(
                 Challenges,
                 Accounts,
+                Sessions,
+                SessionCache,
                 new PasswordRules(Pwned, common),
                 issuer,
                 Outbox,
@@ -335,6 +370,8 @@ public sealed class SetNewPasswordHandlerTests
         public IPwnedPasswords Pwned { get; }
 
         public ISessions Sessions { get; }
+
+        public ISessionCache SessionCache { get; } = Substitute.For<ISessionCache>();
 
         public RecordingOutbox Outbox { get; } = new();
 

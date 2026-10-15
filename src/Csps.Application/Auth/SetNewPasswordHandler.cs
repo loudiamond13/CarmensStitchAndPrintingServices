@@ -12,12 +12,14 @@ namespace Csps.Application.Auth;
 /// <summary>
 /// Use case: the must-change step after the emailed code (AUTH-09, AUTH-11, D-13, D-22). Only the pending sign-in that
 /// passed the code step may set the new password; the full rule applies (breach check failing open to the floor, D-14).
-/// One transaction spends the sign-in, saves the password, clears the flag, starts the session and audits it, or does
-/// none of that. No session exists before this succeeds.
+/// One transaction spends the sign-in, saves the password, clears the flag, ends the earlier sessions, starts the new
+/// session and audits it, or does none of that. No session exists before this succeeds.
 /// </summary>
 public sealed class SetNewPasswordHandler(
     ITwoFactorChallenges challenges,
     IUserAccounts accounts,
+    ISessions sessions,
+    ISessionCache sessionCache,
     PasswordRules passwordRules,
     SessionIssuer sessionIssuer,
     IEmailOutbox outbox,
@@ -96,6 +98,9 @@ public sealed class SetNewPasswordHandler(
 
         var issued = await unitOfWork.InTransactionAsync(
             token => SaveAsync(challenge, user, request.NewPassword!, verdict.BreachCheckSkipped, now, token), cancellationToken).ConfigureAwait(false);
+
+        // After the commit, so no request can cache "active" for a session that was just revoked.
+        await sessionCache.EvictUserAsync(user.Id, cancellationToken).ConfigureAwait(false);
         return Result.Success(issued);
     }
 
@@ -119,9 +124,12 @@ public sealed class SetNewPasswordHandler(
             await accounts.ClearBreachRecheckAsync(user.Id, cancellationToken).ConfigureAwait(false);
         }
 
+        // A changed password ends every earlier session (a breached password may already be in use); the new one starts after.
+        await sessions.RevokeAllAsync(user.Id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var issued = await sessionIssuer.StartAsync(user, challenge.Persistent, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(user.Email, now, false), cancellationToken).ConfigureAwait(false);
         audit.Record(AuditActions.PasswordChanged, UserTarget, Key(user.Id), null);
+        audit.Record(AuditActions.SessionsRevoked, UserTarget, Key(user.Id), "password-reset");
         if (breachCheckSkipped)
         {
             audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, Key(user.Id), null);
