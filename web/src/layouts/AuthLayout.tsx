@@ -10,7 +10,7 @@ import { Outlet, useNavigate } from 'react-router';
 import { SkipLink } from '@/components/entry';
 import { ToastProvider } from '@/components/feedback';
 import { authPageRootClasses } from '@/components/layout/layout.recipe';
-import { AuthFrame } from '@/layouts/AuthFrame';
+import { AuthFrame } from '@/modules/admin/components/AuthFrame';
 import { setNavigator } from '@/modules/admin/services/session';
 
 export default function AuthLayout() {

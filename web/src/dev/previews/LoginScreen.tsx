@@ -5,7 +5,7 @@
 // App. E.5 and are left out. The frame is fixed at the mockup's 960px (production uses the viewport height). The
 // reference side is web/visual/reference/fragments/LoginScreen.tsx.
 import { useForm } from 'react-hook-form';
-import { AuthFrame } from '@/layouts/AuthFrame';
+import { AuthFrame } from '@/modules/admin/components/AuthFrame';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import type { SignInValues } from '@/modules/admin/authSchemas';
 import { SignInForm } from '@/modules/admin/components/SignInForm';
