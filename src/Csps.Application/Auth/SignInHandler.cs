@@ -27,6 +27,7 @@ public sealed record SignInOutcome(string Ticket, DateTimeOffset TicketExpiresAt
 /// </summary>
 public sealed class SignInHandler(
     IUserAccounts accounts,
+    IPwnedPasswords pwned,
     ITwoFactorChallenges challenges,
     ICodeMac codeMac,
     ISecureRandom random,
@@ -89,6 +90,11 @@ public sealed class SignInHandler(
             }
             else
             {
+                if (account.BreachRecheckPending)
+                {
+                    await RecheckBreachAsync(account, password, cancellationToken).ConfigureAwait(false);
+                }
+
                 outcome = await StartChallengeAsync(account, request.KeepSignedIn, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -125,6 +131,38 @@ public sealed class SignInHandler(
                 return result.LockedNow;
             },
             cancellationToken).ConfigureAwait(false);
+
+    // D-18: a password accepted while the breach service was down is checked again now. It runs only after the correct
+    // password, so sign-in timing for everyone else is unchanged (CWE-204). A breach sends the account to the
+    // set-new-password step after the code; an outage leaves the mark pending; sign-in continues in every case.
+    private async Task RecheckBreachAsync(UserAccount account, string password, CancellationToken cancellationToken)
+    {
+        var answer = await pwned.CheckAsync(PasswordPolicy.Normalize(password), cancellationToken).ConfigureAwait(false);
+        if (answer == BreachCheckResult.Unavailable)
+        {
+            return;
+        }
+
+        var breached = answer == BreachCheckResult.Breached;
+        await unitOfWork.InTransactionAsync(
+            async token =>
+            {
+                if (breached)
+                {
+                    await accounts.SetMustChangePasswordAsync(account.Id, PasswordChangeReason.Breach, token).ConfigureAwait(false);
+                }
+
+                await accounts.ClearBreachRecheckAsync(account.Id, token).ConfigureAwait(false);
+                if (breached)
+                {
+                    audit.Record(AuditActions.PasswordBreachFound, UserTarget, Key(account.Id), null);
+                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                }
+
+                return breached;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
 
     // Identity changes first (Pitfall 13): UserManager saves the shared context, so the tracked challenge, email and
     // audit rows are added only after it, and one SaveChanges commits them together.

@@ -54,7 +54,7 @@ public static class AuditActions
     /// <summary>A signed-in user changed their own password.</summary>
     public const string PasswordChanged = "auth.password-changed";
 
-    /// <summary>A chosen password was refused because it appears in a known breach.</summary>
+    /// <summary>A chosen password was refused because it appears in a known breach, or a saved one was found in a breach at sign-in (D-18).</summary>
     public const string PasswordBreachFound = "auth.password-breach-found";
 
     /// <summary>The breached-password lookup could not be reached.</summary>

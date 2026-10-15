@@ -4,6 +4,7 @@ using System.Text.Json;
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
 using Csps.Server.Http;
 using Csps.Server.Security;
@@ -37,7 +38,7 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
 
     /// <summary>The body of the create call.</summary>
     /// <param name="Role"><c>Admin</c> or <c>Manager</c>.</param>
-    /// <param name="State"><c>active</c> (default) or <c>deactivated</c>.</param>
+    /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>must-change-temporary</c> or <c>must-change-breach</c>.</param>
     public sealed record StaffRequest(string? Role, string? State);
 
     /// <summary>The new account and the password it was created with.</summary>
@@ -72,9 +73,9 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
             return Rejected("The role must be Admin or Manager.", "role");
         }
 
-        if (state is not ("active" or "deactivated"))
+        if (state is not ("active" or "deactivated" or "must-change-temporary" or "must-change-breach"))
         {
-            return Rejected("The state must be active or deactivated.", "state");
+            return Rejected("The state must be active, deactivated, must-change-temporary or must-change-breach.", "state");
         }
 
         var email = $"e2e-{Guid.NewGuid():N}@csps.test";
@@ -83,6 +84,11 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
         if (state == "deactivated")
         {
             await activation.DeactivateAsync(id).ConfigureAwait(false);
+        }
+        else if (state is "must-change-temporary" or "must-change-breach")
+        {
+            var reason = state == "must-change-temporary" ? PasswordChangeReason.Temporary : PasswordChangeReason.Breach;
+            await accounts.SetMustChangePasswordAsync(id, reason, cancellationToken).ConfigureAwait(false);
         }
 
         return TypedResults.Json(new StaffCreated(id, email, password), JsonOptions, statusCode: StatusCodes.Status201Created);
