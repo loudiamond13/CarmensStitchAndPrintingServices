@@ -406,6 +406,91 @@ describe('Modal with another dialog open (UI-WR-01)', () => {
   });
 });
 
+describe('Modal makes the page behind it inert (R2-10)', () => {
+  function Page({ open, inline = false }: { open: boolean; inline?: boolean }) {
+    return (
+      <div>
+        <main data-testid="page">
+          <button type="button">Behind</button>
+        </main>
+        <div data-ui="s-toast-layer" data-testid="toasts" />
+        <AddPayment open={open} inline={inline} onClose={vi.fn()} />
+      </div>
+    );
+  }
+
+  it('marks the page inert while open, keeps the toast layer live and restores the page on close', () => {
+    const { rerender } = render(<Page open />);
+
+    expect(screen.getByTestId('page')).toHaveAttribute('inert');
+    expect(screen.getByTestId('toasts')).not.toHaveAttribute('inert');
+    expect(screen.getByRole('dialog', { name: 'Add Payment' })).not.toHaveAttribute('inert');
+
+    rerender(<Page open={false} />);
+
+    expect(screen.getByTestId('page')).not.toHaveAttribute('inert');
+  });
+
+  it('returns focus to the trigger on close even though the page was inert', async () => {
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <main>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(true);
+              }}
+            >
+              Open
+            </button>
+          </main>
+          <AddPayment
+            open={open}
+            onClose={() => {
+              setOpen(false);
+            }}
+          />
+        </div>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Opener />);
+    const trigger = screen.getByRole('button', { name: 'Open' });
+    await user.click(trigger);
+    expect(trigger.closest('main')).toHaveAttribute('inert');
+
+    await user.keyboard('{Escape}');
+
+    expect(trigger.closest('main')).not.toHaveAttribute('inert');
+    expect(trigger).toHaveFocus();
+  });
+
+  it('leaves the page alone for an inline dialog in an Overlay region (a static mock-up)', () => {
+    render(<Page open inline />);
+
+    expect(screen.getByTestId('page')).not.toHaveAttribute('inert');
+  });
+
+  it('keeps the page inert until the last of two stacked dialogs closes', async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <main data-testid="page">Page</main>
+        <EditWithConfirm onEditClose={vi.fn()} />
+      </div>,
+    );
+    expect(screen.getByTestId('page')).toHaveAttribute('inert');
+    expect(screen.getByRole('dialog', { name: 'Delete payment?' })).not.toHaveAttribute('inert');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Delete payment?' })).toBeNull();
+    expect(screen.getByTestId('page')).toHaveAttribute('inert');
+    expect(screen.getByRole('dialog', { name: 'Edit Order' })).not.toHaveAttribute('inert');
+  });
+});
+
 describe('Overlay (App. C .s-overlay)', () => {
   it('is the data-ui="s-overlay" region with the App. C look, holding an inline Modal', () => {
     const { container } = render(
