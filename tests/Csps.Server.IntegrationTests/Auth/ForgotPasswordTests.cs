@@ -87,6 +87,147 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         problem.GetProperty("errors").GetProperty("email")[0].GetString().ShouldBe("Enter a valid email, like name@gmail.com");
     }
 
+    [Fact]
+    public async Task UnknownDeactivatedAndActiveAddressesAllGetTheSame202()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var active = await AuthClient.CreateStaffAsync(factory);
+        var deactivated = await AuthClient.CreateStaffAsync(factory, StaffState.Deactivated);
+        var answers = new List<(HttpStatusCode Status, string Body, string? CacheControl, string? ContentType)>();
+
+        foreach (var email in new[] { AuthClient.NewEmail(), deactivated.Email, active.Email })
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            using var response = await AuthClient.ForgotPasswordAsync(client, email);
+            stopwatch.Stop();
+            stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(490));
+            answers.Add((
+                response.StatusCode,
+                await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+                response.Headers.CacheControl?.ToString(),
+                response.Content.Headers.ContentType?.ToString()));
+        }
+
+        answers.Distinct().ShouldHaveSingleItem().Status.ShouldBe(HttpStatusCode.Accepted);
+        answers[0].Body.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADeactivatedAccountGetsTheNoticeWithoutALinkOrAToken()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory, StaffState.Deactivated);
+
+        using var response = await AuthClient.ForgotPasswordAsync(client, staff.Email);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var mail = (await AuthClient.WaitForEmailsAsync(client, staff.Email)).ShouldHaveSingleItem();
+        mail.Text.ShouldContain("Your account is deactivated. Ask a Manager if you need access.");
+        mail.Text.ShouldNotContain("http");
+        mail.Html.ShouldNotContain("href=");
+        mail.Html.ShouldNotContain("token=");
+        await using var context = database.CreateContext();
+        (await context.AccountTokens.AsNoTracking().CountAsync(t => t.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        var audit = (await context.AuditLog.AsNoTracking()
+            .Where(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == staff.Id.ToString("D"))
+            .ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        audit.Detail.ShouldBe("deactivated");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnUnknownOrUnconfirmedAddressGetsNoEmailAndNoToken(bool unconfirmedAccount)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var email = unconfirmedAccount ? (await AuthClient.CreateStaffAsync(factory, StaffState.Unconfirmed)).Email : AuthClient.NewEmail();
+
+        using var response = await AuthClient.ForgotPasswordAsync(client, email);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.AsNoTracking().CountAsync(m => m.ToAddress == email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken))
+            .ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task OnlyThreeLinkEmailsAreSentPerHourAndTheNewestLinkIsTheOnlyLiveOne()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+
+        for (var request = 0; request < 4; request++)
+        {
+            using var response = await AuthClient.ForgotPasswordAsync(client, staff.Email);
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        }
+
+        var mails = await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 3);
+        mails.Count.ShouldBe(3);
+        await using var context = database.CreateContext();
+        var rows = await context.AccountTokens.AsNoTracking().Where(t => t.UserId == staff.Id).OrderBy(t => t.CreatedAt).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Count.ShouldBe(3);
+        rows.Count(row => row.RevokedAt is null).ShouldBe(1);
+        rows[^1].RevokedAt.ShouldBeNull();
+        var newest = TokenInLink().Match(mails[^1].Text).Groups[1].Value;
+        rows[^1].TokenHash.ShouldBe(TokenHash.Compute(newest));
+        var details = await context.AuditLog.AsNoTracking()
+            .Where(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == staff.Id.ToString("D"))
+            .OrderBy(a => a.Id)
+            .Select(a => a.Detail)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        details.ShouldBe(["sent", "sent", "sent", "capped"]);
+    }
+
+    [Fact]
+    public async Task OnlyThreeDeactivatedNoticesAreSentPerHour()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory, StaffState.Deactivated);
+
+        for (var request = 0; request < 4; request++)
+        {
+            using var response = await AuthClient.ForgotPasswordAsync(client, staff.Email);
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        }
+
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 3)).Count.ShouldBe(3);
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.AsNoTracking().CountAsync(m => m.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task TwoRequestsAtTheSameMomentLeaveExactlyOneUsableToken()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var first = AuthClient.CreateClient(factory);
+        using var second = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+
+        var responses = await Task.WhenAll(
+            AuthClient.ForgotPasswordAsync(first, staff.Email),
+            AuthClient.ForgotPasswordAsync(second, staff.Email));
+
+        foreach (var response in responses)
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+            response.Dispose();
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.AccountTokens.AsNoTracking().Where(t => t.UserId == staff.Id).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Count.ShouldBe(2);
+        rows.Count(row => row.IsUsable(TimeProvider.System.GetUtcNow())).ShouldBe(1);
+        rows.Count(row => row.RevokedAt is not null).ShouldBe(1);
+    }
+
     [GeneratedRegex(@"#token=([A-Za-z0-9_-]+)")]
     private static partial Regex TokenInLink();
 }

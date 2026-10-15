@@ -12,14 +12,23 @@ internal sealed class RecordingOutbox : IEmailOutbox
 {
     public List<AuthEmail> Emails { get; } = [];
 
+    /// <summary>How many emails of each kind the outbox reports as already queued in the window; absent means none.</summary>
+    public Dictionary<AuthEmailKind, int> Recent { get; } = [];
+
+    /// <summary>The window queries the handler made.</summary>
+    public List<(AuthEmailKind Kind, string To, DateTimeOffset Since)> Counts { get; } = [];
+
     public ValueTask EnqueueAsync(AuthEmail email, CancellationToken cancellationToken)
     {
         Emails.Add(email);
         return ValueTask.CompletedTask;
     }
 
-    public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken) =>
-        Task.FromResult(0);
+    public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        Counts.Add((kind, toAddress, since));
+        return Task.FromResult(Recent.GetValueOrDefault(kind));
+    }
 }
 
 /// <summary>An audit trail that keeps what was recorded.</summary>
