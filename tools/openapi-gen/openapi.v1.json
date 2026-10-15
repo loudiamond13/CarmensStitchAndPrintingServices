@@ -283,6 +283,47 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "Refresh",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Renews the access token with the refresh cookie and rotates the cookie.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
     "/api/v1/auth/sign-in": {
       "post": {
         "operationId": "SignIn",
@@ -546,6 +587,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "AuthSession"
+    },
     {
       "name": "SignIn"
     },

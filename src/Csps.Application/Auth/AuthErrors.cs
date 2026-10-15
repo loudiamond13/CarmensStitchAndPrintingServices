@@ -29,6 +29,12 @@ public static class AuthErrors
     /// <summary>The plain-English text for a failed anti-CSRF check.</summary>
     public const string CsrfCheckFailedMessage = "This request could not be checked. Reload the page and try again.";
 
+    /// <summary>The code of a refresh or sign-in session that has ended or is unknown.</summary>
+    public const string SessionEndedCode = "auth.session-ended";
+
+    /// <summary>The plain-English text for a session that has ended.</summary>
+    public const string SessionEndedMessage = "Your session ended. Sign in again.";
+
     /// <summary>The code of a wrong emailed code.</summary>
     public const string CodeWrongCode = "auth.code-wrong";
 
@@ -90,6 +96,9 @@ public static class AuthErrors
 
     /// <summary>Gets the answer for a missing, unknown, closed or timed-out pending sign-in; the page returns to sign-in.</summary>
     public static Error TicketExpired { get; } = Error.Unauthenticated(TicketExpiredCode, TicketExpiredMessage);
+
+    /// <summary>Gets the answer for a session that has ended, is unknown or may no longer refresh; the client signs in again.</summary>
+    public static Error SessionEnded { get; } = Error.Unauthenticated(SessionEndedCode, SessionEndedMessage);
 
     /// <summary>Gets the answer for a cookie-reading call without the anti-CSRF header or from another origin.</summary>
     public static Error CsrfCheckFailed { get; } = Error.Forbidden(CsrfCheckFailedCode, CsrfCheckFailedMessage);

@@ -18,6 +18,7 @@ public static class ApplicationRegistration
         services.AddScoped<VerifyCodeHandler>();
         services.AddScoped<ResendCodeHandler>();
         services.AddScoped<SessionIssuer>();
+        services.AddScoped<RefreshHandler>();
         return services;
     }
 }
