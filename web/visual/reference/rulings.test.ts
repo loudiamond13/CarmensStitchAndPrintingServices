@@ -34,6 +34,7 @@ const RULING_IDS = [
   'D-41 R2-02',
   'D-41 R2-03',
   'D-42',
+  'OQ-5',
 ] as const;
 
 interface Group {
@@ -353,6 +354,26 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
       ['.s-overlay', 'padding-top: 0;'],
       ['.s-overlay::before', 'flex-basis: 96px;'],
     ]);
+  });
+
+  it('OQ-5: the sign-in small link, checkbox label and back link get the invisible 44px ::before tap area, nothing else', () => {
+    const groupsOfOq5 = byRuling('OQ-5');
+    const selectors = groupsOfOq5.flatMap((group) => selectorsOf(group.prelude));
+
+    expect(selectors.sort()).toEqual(
+      [
+        '.s-login-card .s-back',
+        '.s-login-card .s-back::before',
+        '.s-login-card .s-check',
+        '.s-login-card .s-check::before',
+        '.s-login-card .s-link',
+        '.s-login-card .s-link::before',
+      ].sort(),
+    );
+    expect(declarations('OQ-5')).toContain('position: relative;');
+    expect(declarations('OQ-5')).toContain(
+      'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
+    );
   });
 
   it('WEB-09: an aria-disabled button looks like the disabled button and never nudges or hovers', () => {
