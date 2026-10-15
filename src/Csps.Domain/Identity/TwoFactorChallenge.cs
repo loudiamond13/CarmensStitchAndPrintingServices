@@ -155,6 +155,67 @@ public sealed class TwoFactorChallenge
             : new TwoFactorVerifyResult(TwoFactorVerifyOutcome.Wrong, remaining);
     }
 
+    /// <summary>Decides whether another code may be sent. The hourly cap is checked before the cooldown.</summary>
+    /// <param name="now">The current instant.</param>
+    /// <param name="codesIssuedInWindow">Codes sent to this account inside the rolling send window.</param>
+    /// <param name="settings">The limits.</param>
+    /// <returns>The decision, with a whole-second wait while cooling down.</returns>
+    public ResendDecision CheckResend(DateTimeOffset now, int codesIssuedInWindow, TwoFactorSettings settings)
+    {
+        if (!IsOpen(now))
+        {
+            return new ResendDecision(ResendDecisionKind.Closed, null);
+        }
+
+        if (codesIssuedInWindow >= settings.MaxSendsPerWindow)
+        {
+            return new ResendDecision(ResendDecisionKind.CapReached, null);
+        }
+
+        var newest = _codes.LastOrDefault();
+        var remaining = newest is null ? TimeSpan.Zero : newest.IssuedAt + settings.ResendCooldown - now;
+        return remaining <= TimeSpan.Zero
+            ? new ResendDecision(ResendDecisionKind.Allowed, null)
+            : new ResendDecision(
+                ResendDecisionKind.CoolingDown, TimeSpan.FromSeconds(Math.Ceiling(remaining.TotalSeconds)));
+    }
+
+    /// <summary>Moves a challenge whose code was accepted to "awaiting a new password" (D-13).</summary>
+    /// <param name="reason">Why the password must change.</param>
+    /// <exception cref="InvalidOperationException">No code was accepted, or the challenge is not Pending.</exception>
+    public void RequirePasswordChange(PasswordChangeReason reason)
+    {
+        if (Status != TwoFactorChallengeStatus.Pending || !HasAcceptedCode())
+        {
+            throw new InvalidOperationException("The challenge cannot move to a password change.");
+        }
+
+        Status = TwoFactorChallengeStatus.AwaitingNewPassword;
+        PasswordChangeReason = reason;
+    }
+
+    /// <summary>True while a new password may still be set: awaiting one and not past the expiry.</summary>
+    /// <param name="now">The current instant.</param>
+    /// <returns>True when the new-password step is open.</returns>
+    public bool CanSetNewPassword(DateTimeOffset now) =>
+        Status == TwoFactorChallengeStatus.AwaitingNewPassword && now < ExpiresAt;
+
+    /// <summary>Finishes the sign-in, from Pending after an accepted code or from awaiting a new password.</summary>
+    /// <param name="now">The current instant.</param>
+    /// <exception cref="InvalidOperationException">The challenge is not in a state that can finish.</exception>
+    public void Complete(DateTimeOffset now)
+    {
+        var canFinish = Status == TwoFactorChallengeStatus.AwaitingNewPassword
+            || (Status == TwoFactorChallengeStatus.Pending && HasAcceptedCode());
+        if (!canFinish)
+        {
+            throw new InvalidOperationException("The challenge cannot be completed.");
+        }
+
+        Status = TwoFactorChallengeStatus.Completed;
+        CompletedAt = now;
+    }
+
     /// <summary>Sums the wrong tries on codes issued at or after <paramref name="since"/>.</summary>
     /// <param name="since">The start of the rolling window.</param>
     /// <returns>The number of wrong tries.</returns>
@@ -181,6 +242,8 @@ public sealed class TwoFactorChallenge
     }
 
     private TwoFactorCode? ActiveCode() => _codes.LastOrDefault(c => c.SupersededAt is null);
+
+    private bool HasAcceptedCode() => _codes.Any(c => c.ConsumedAt is not null);
 
     private bool IsOpen(DateTimeOffset now) => Status == TwoFactorChallengeStatus.Pending && now < ExpiresAt;
 }

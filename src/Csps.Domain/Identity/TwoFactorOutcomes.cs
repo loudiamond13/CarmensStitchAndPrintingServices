@@ -39,3 +39,35 @@ public enum TwoFactorVerifyOutcome
 /// <param name="Outcome">What was decided.</param>
 /// <param name="RemainingAttempts">Tries left on the active code after this check.</param>
 public readonly record struct TwoFactorVerifyResult(TwoFactorVerifyOutcome Outcome, int RemainingAttempts);
+
+/// <summary>What a resend request decided.</summary>
+public enum ResendDecisionKind
+{
+    /// <summary>A new code may be sent.</summary>
+    Allowed,
+
+    /// <summary>The last code is too recent; see the retry-after time.</summary>
+    CoolingDown,
+
+    /// <summary>The hourly limit of codes is used up; no wait time is given (D-10).</summary>
+    CapReached,
+
+    /// <summary>The challenge is over.</summary>
+    Closed,
+}
+
+/// <summary>The decision on a resend and, while cooling down, how long to wait.</summary>
+/// <param name="Kind">What was decided.</param>
+/// <param name="RetryAfter">Whole seconds to wait, at least 1; null unless cooling down.</param>
+public readonly record struct ResendDecision(ResendDecisionKind Kind, TimeSpan? RetryAfter);
+
+/// <summary>Limits that span several challenges of one account (D-39).</summary>
+public static class TwoFactorLimits
+{
+    /// <summary>True when the account has reached the wrong-code limit for the rolling window.</summary>
+    /// <param name="failedInWindow">Wrong codes across all challenges inside the window.</param>
+    /// <param name="settings">The limits.</param>
+    /// <returns>True at the cap (the 10th wrong code), false below it.</returns>
+    public static bool AccountCapReached(int failedInWindow, TwoFactorSettings settings) =>
+        failedInWindow >= settings.AccountFailureCap;
+}
