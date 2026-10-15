@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T10:05:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T21:45:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -51,7 +51,7 @@ Everything after `--` goes straight to `playwright test`. Always start through `
 
 Details that matter on this machine:
 
-- **Environment variables** for the host (`ASPNETCORE_ENVIRONMENT=Development` and the `CSPS_E2E` connection string) are set on that one child process only. Nothing is set at User or Machine level, and no secret is passed or written anywhere: Development reads the JWT key and the Data Protection certificate from your user-secrets.
+- **Environment variables** for the host (`ASPNETCORE_ENVIRONMENT=Testing`, `Csps__Testing__LoadUserSecrets=true`, `App__PublicBaseUrl`, a 1-second email dispatcher sweep and the `CSPS_E2E` connection string) are set on that one child process only. Nothing is set at User or Machine level, and no secret is passed or written anywhere: the host reads the JWT key and the Data Protection certificate from your user-secrets because of `Csps__Testing__LoadUserSecrets`. Environment variables and the command line still win over user-secrets. See [the Testing environment](#8-the-testing-environment-and-its-helpers).
 - **`reuseExistingServer: false`:** Playwright never attaches to a server someone else started on 5199. A busy port is an error.
 - Node tools run on the current Node binary with their JS entry (`node_modules/vite/bin/vite.js`, `node_modules/@playwright/test/cli.js`), because Windows can't start the `.cmd` shims without a shell.
 - MSBuild worker processes can linger for a few minutes after `dotnet run`. They are not servers; leave them alone.
@@ -112,10 +112,39 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |
 | `@a11y-rulings` | The owner's accessibility rulings on computed styles (D-02, D-03, D-05, D-BL-02, O-3, O-6) | plan 02-35 |
+| `@testing-host` | The Testing environment on the E2E host: `createStaff` makes a staff user under `csps.test` and `readEmails` returns an empty mailbox for it (Chromium only) | plan 04-10 |
 | `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects); from a scrolled backdrop (1280x420) a middle or right press and a press or drag on the backdrop's scrollbar keep the caret in the confirm field and the backdrop's scrollTop unchanged (Firefox's own middle-button scroll is the one documented exception), and on the phone screens a right press above the sheet keeps the caret (the focus trap returns focus without scrolling) | plans 02-41, 02-42, 02-43 (D-42) |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 
-## 8. Reports
+## 8. The Testing environment and its helpers
+
+The E2E host runs in the **Testing** environment of a **Debug** build, the same environment the .NET integration tests use. That gives E2E tests two things they need, because every sign-in ends with an emailed code (plan 04-10, QUAL-05):
+
+- `GET /api/testing/emails?after=<id>&to=<address>` returns the mail the app delivered to the in-memory sink as `[{ id, to, subject, text, html, sentAt }]`, oldest first. **E2E never sends real mail** (D-27): in Testing every email goes to the sink, and nothing is sent over SMTP.
+- `POST /api/testing/staff` with `{ "role": "Admin" | "Manager", "state"?: "active" | "deactivated" }` creates a fresh staff user (`e2e-<guid>@csps.test`, a random 16-character password that meets the password rule) and returns `{ userId, email, password }`. Every test makes its own user, so one test's resend cooldown, caps and lockouts never reach another.
+
+Both routes are compiled into Debug builds only (`CSPS_TESTING`), mapped only in the Testing environment, and a Release build is proven to contain none of it (`ReleaseHasNoEmailSinkTests`). A Debug build refuses to start as Production.
+
+Use the helpers in `web/e2e/testing-api.ts` (they take the Playwright `request` fixture):
+
+```ts
+import { expect, test } from './fixtures.ts';
+import { createStaff, latestEmail, readEmails } from './testing-api.ts';
+
+test('@example a staff user gets a code by email', async ({ request }) => {
+  const staff = await createStaff(request, 'Manager'); // { userId, email, password }
+  // ... trigger a sign-in for staff.email ...
+  const mail = await latestEmail(request, staff.email, { subject: 'sign-in code' }); // waits up to 15 s
+  expect(mail.text).toMatch(/\b\d{6}\b/);
+  expect(await readEmails(request, { to: staff.email, after: mail.id })).toEqual([]);
+});
+```
+
+`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject? })` are the whole API. `testing-host.spec.ts` (`@testing-host`, Chromium only) proves the host is in the Testing environment.
+
+User-secrets load in the Testing environment only when `Csps:Testing:LoadUserSecrets` is true. Only the Playwright `webServer.env` sets it; the .NET test factory never does, so a developer's secrets cannot change an integration test.
+
+## 9. Reports
 
 The list reporter prints to the terminal. The HTML report goes to `web/playwright-report/` and failure traces to `web/test-results/`; both are git-ignored. Open the report with `npx --prefix web playwright show-report web/playwright-report`.
