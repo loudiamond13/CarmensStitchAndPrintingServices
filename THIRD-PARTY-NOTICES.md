@@ -112,3 +112,28 @@ exact version (docs/license-exceptions.json).
 | --- | --- | --- | --- | --- |
 | Microsoft.Data.SqlClient.SNI.runtime | 6.0.3 | [Microsoft Software License Terms - Microsoft.Data.SqlClient.SNI Library](https://www.nuget.org/packages/Microsoft.Data.SqlClient.SNI.runtime/6.0.3/license) | Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13 | 2026-10-14 by the owner |
 | Microsoft.Identity.Client.NativeInterop | 0.20.6 | [Microsoft Software License Terms](https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.6/license) | Microsoft.Identity.Client.Broker 4.84.2 <- Microsoft.Data.SqlClient 6.1.7 <- Microsoft.EntityFrameworkCore.SqlServer 10.0.13 | 2026-10-07 by the owner |
+
+## Bundled data files
+
+The files below are data, not code, and ship inside the app unchanged. Each is pinned to an exact source
+commit and a SHA-256 hash in docs/dependencies.json, and a test fails if the bytes ever differ.
+
+| File | License | Copyright | Source |
+| --- | --- | --- | --- |
+| SecLists-10k-most-common | MIT | Copyright (c) 2018 Daniel Miessler | https://raw.githubusercontent.com/danielmiessler/SecLists/913b327317496d062bcc7cace524aaad8a693be2/Passwords/Common-Credentials/10k-most-common.txt |
+
+Files above marked MIT are used under this license:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.

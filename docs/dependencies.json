@@ -362,6 +362,23 @@
       "coolDown": "aged"
     },
     {
+      "id": "SecLists-10k-most-common",
+      "version": "913b327317496d062bcc7cace524aaad8a693be2",
+      "kind": "data",
+      "scope": "runtime",
+      "purpose": "Floor of common passwords when the breach-check service is down (D-14): a plain text list of the 10,000 most common passwords, embedded in the app.",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2018 Daniel Miessler",
+      "publisher": "Daniel Miessler (github.com/danielmiessler/SecLists)",
+      "legitimacy": "Well-known security wordlist repository (about 74,000 stars, created 2012, not archived); GitHub reports the repository license as MIT; the file is plain ASCII, 10,000 entries, last changed 2026-09-08 (commit 913b327); owner approved it in D-36 on 2026-10-14; a test pins its SHA-256",
+      "published": "2026-09-08",
+      "adopted": "2026-10-14",
+      "coolDown": "aged",
+      "source": "https://raw.githubusercontent.com/danielmiessler/SecLists/913b327317496d062bcc7cace524aaad8a693be2/Passwords/Common-Credentials/10k-most-common.txt",
+      "sha256": "68782d6a4a19a4768d5f15dd66bd534e7a33055cc755411e33f16d18c50fdcce",
+      "path": "src/Csps.Infrastructure/Passwords/common-passwords-10k.txt"
+    },
+    {
       "id": "Serilog.AspNetCore",
       "version": "10.0.0",
       "kind": "nuget",

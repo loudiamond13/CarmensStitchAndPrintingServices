@@ -336,10 +336,55 @@ if ($shippedExceptions.Count -gt 0) {
             })
 }
 
+# Bundled data files (kind "data" in docs/dependencies.json): listed with license, copyright and pinned source.
+$registryPath = Join-Path $repoRoot 'docs\dependencies.json'
+if (-not (Test-Path -LiteralPath $registryPath)) {
+    throw "The dependency registry is missing: $registryPath"
+}
+$registry = ConvertFrom-Json -InputObject (Get-Content -LiteralPath $registryPath -Raw)
+$dataRecords = @((Get-Property $registry 'packages') | Write-Output | Where-Object { (Get-Property $_ 'kind') -eq 'data' } |
+        Sort-Object -Property @{ Expression = { ([string]$_.id).ToUpperInvariant() } })
+if ($dataRecords.Count -gt 0) {
+    $lines += @(
+        '',
+        '## Bundled data files',
+        '',
+        'The files below are data, not code, and ship inside the app unchanged. Each is pinned to an exact source',
+        'commit and a SHA-256 hash in docs/dependencies.json, and a test fails if the bytes ever differ.',
+        '',
+        '| File | License | Copyright | Source |',
+        '| --- | --- | --- | --- |'
+    )
+    $lines += @($dataRecords | ForEach-Object {
+            '| {0} | {1} | {2} | {3} |' -f (ConvertTo-MarkdownCell $_.id), (ConvertTo-MarkdownCell $_.license),
+            (ConvertTo-MarkdownCell (Get-Property $_ 'copyright')), (ConvertTo-MarkdownCell $_.source)
+        })
+    if (@($dataRecords | Where-Object { $_.license -eq 'MIT' }).Count -gt 0) {
+        $lines += @(
+            '',
+            'Files above marked MIT are used under this license:',
+            '',
+            'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated',
+            'documentation files (the "Software"), to deal in the Software without restriction, including without limitation',
+            'the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and',
+            'to permit persons to whom the Software is furnished to do so, subject to the following conditions:',
+            '',
+            'The above copyright notice and this permission notice shall be included in all copies or substantial portions of',
+            'the Software.',
+            '',
+            'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO',
+            'THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE',
+            'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF',
+            'CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER',
+            'DEALINGS IN THE SOFTWARE.'
+        )
+    }
+}
+
 # UTF-8 without a byte-order mark, LF line endings, one trailing newline (same output on Windows PowerShell 5.1).
 $content = ($lines -join "`n") + "`n"
 [System.IO.File]::WriteAllText($noticesPath, $content, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host ''
-Write-Host "Wrote $noticesPath ($($packages.Count) packages, $($shippedExceptions.Count) under an owner-approved exception)."
+Write-Host "Wrote $noticesPath ($($packages.Count) packages, $($shippedExceptions.Count) under an owner-approved exception, $($dataRecords.Count) bundled data file(s))."
 exit 0
