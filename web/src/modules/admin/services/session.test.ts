@@ -374,12 +374,29 @@ describe('failures', () => {
     expect(a.tab.takeSignInNotice()).toBeNull();
   });
 
-  it('a network failure in the boot refresh also means no session', async () => {
+  it.each([
+    ['a network failure', new HttpError({ kind: 'network' })],
+    ['a timeout', new HttpError({ kind: 'timeout' })],
+    ['a 429', new HttpError({ kind: 'http', status: 429 })],
+    ['a 503', new HttpError({ kind: 'http', status: 503 })],
+  ])(
+    '%s in the boot refresh is not "no session": it surfaces so the person is not sent to sign in',
+    async (_name, failure) => {
+      const hub = createHub();
+      const a = newTab(hub, createLocks());
+      a.refresh.mockRejectedValue(failure);
+
+      await expect(a.tab.ensureSession()).rejects.toBe(failure);
+    },
+  );
+
+  it('a later boot after a transient failure tries the refresh again', async () => {
     const hub = createHub();
     const a = newTab(hub, createLocks());
-    a.refresh.mockRejectedValue(new HttpError({ kind: 'network' }));
+    a.refresh.mockRejectedValueOnce(new HttpError({ kind: 'network' })).mockResolvedValueOnce(sessionResponse());
 
-    await expect(a.tab.ensureSession()).resolves.toBeNull();
+    await expect(a.tab.ensureSession()).rejects.toMatchObject({ kind: 'network' });
+    await expect(a.tab.ensureSession()).resolves.toMatchObject({ name: 'Carmen Reyes' });
   });
 
   it('a programming error in the boot refresh is not swallowed', async () => {

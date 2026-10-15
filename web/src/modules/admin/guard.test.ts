@@ -71,26 +71,55 @@ describe('requireSessionLoader', () => {
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get('Location')).toBe('/admin/login?returnUrl=%2Fadmin%2Forders%3Fpage%3D2');
   });
+
+  it('lets a failed session check reach the error screen instead of sending a signed-in person to sign in', async () => {
+    ensureSession.mockRejectedValue(new Error('server is down'));
+
+    await expect(requireSessionLoader(args('/admin/orders'))).rejects.toThrow('server is down');
+  });
 });
 
 describe('redirectIfSignedInLoader', () => {
   it('redirects a live session to /admin', async () => {
     ensureSession.mockResolvedValue(user);
 
-    const response = await thrown(() => redirectIfSignedInLoader());
+    const response = await thrown(() => redirectIfSignedInLoader(args('/admin/login')));
 
     expect((response as Response).headers.get('Location')).toBe('/admin');
   });
 
+  it('redirects a live session to the safe return path, so a deep link survives a reload', async () => {
+    ensureSession.mockResolvedValue(user);
+
+    const response = await thrown(() =>
+      redirectIfSignedInLoader(args('/admin/login?returnUrl=%2Fadmin%2Forders%2F123%3Ftab%3Dpayments')),
+    );
+
+    expect((response as Response).headers.get('Location')).toBe('/admin/orders/123?tab=payments');
+  });
+
+  it.each(['https://evil.example/admin', '//evil.example', '/public', '/admin/login'])(
+    'ignores the unsafe return path %s',
+    async (returnUrl) => {
+      ensureSession.mockResolvedValue(user);
+
+      const response = await thrown(() =>
+        redirectIfSignedInLoader(args(`/admin/login?returnUrl=${encodeURIComponent(returnUrl)}`)),
+      );
+
+      expect((response as Response).headers.get('Location')).toBe('/admin');
+    },
+  );
+
   it('lets an anonymous visitor through', async () => {
     ensureSession.mockResolvedValue(null);
 
-    await expect(redirectIfSignedInLoader()).resolves.toBeNull();
+    await expect(redirectIfSignedInLoader(args('/admin/login'))).resolves.toBeNull();
   });
 
   it('never throws when the session check fails', async () => {
     ensureSession.mockRejectedValue(new Error('network'));
 
-    await expect(redirectIfSignedInLoader()).resolves.toBeNull();
+    await expect(redirectIfSignedInLoader(args('/admin/login'))).resolves.toBeNull();
   });
 });

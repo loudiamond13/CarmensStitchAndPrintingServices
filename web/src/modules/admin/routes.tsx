@@ -74,8 +74,8 @@ const requireSession: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireSessionLoader(args);
 
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
-const redirectIfSignedIn: LoaderFunction = async () =>
-  (await import('@/modules/admin/guard')).redirectIfSignedInLoader();
+const redirectIfSignedIn: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).redirectIfSignedInLoader(args);
 
 export const adminRoutes: RouteObject[] = [
   {

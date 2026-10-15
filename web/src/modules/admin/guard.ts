@@ -59,8 +59,11 @@ export async function requireSessionLoader({ request }: Pick<LoaderFunctionArgs,
   return user;
 }
 
-/** The loader of the sign-in routes: a live session goes to /admin; a failed session check never throws. */
-export async function redirectIfSignedInLoader(): Promise<null> {
+/**
+ * The loader of the sign-in routes: a live session goes to the safe return path (/admin without one), so a deep link
+ * survives a reload; a failed session check never throws.
+ */
+export async function redirectIfSignedInLoader({ request }: Pick<LoaderFunctionArgs, 'request'>): Promise<null> {
   let signedIn = false;
   try {
     signedIn = (await ensureSession()) !== null;
@@ -69,7 +72,7 @@ export async function redirectIfSignedInLoader(): Promise<null> {
   }
   if (signedIn) {
     // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
-    throw redirect(ADMIN_HOME);
+    throw redirect(safeReturnUrl(new URL(request.url).searchParams.get('returnUrl')));
   }
   return null;
 }

@@ -237,7 +237,9 @@ export function createSession(deps: SessionDeps) {
     boot ??= refreshSession()
       .then(() => snapshot.user)
       .catch((error: unknown) => {
-        if (isHttpError(error)) {
+        // Only a 401 means "no session". An outage, a timeout or a rate limit may hit a person whose cookie is fine, so
+        // it surfaces to the retryable error screen instead of sending them to a sign-in that cannot work.
+        if (isHttpError(error) && error.status === 401) {
           return null;
         }
         throw error;
