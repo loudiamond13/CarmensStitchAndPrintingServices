@@ -27,6 +27,8 @@ import { setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
 
 const SIGN_IN_PATH = '/admin/login';
+/** The code of the 422 the server sends when the breach list cannot be reached: the invite is not accepted (D-14). */
+const BREACH_CHECK_UNAVAILABLE = 'auth.breach-check-unavailable';
 const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
@@ -80,6 +82,13 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
     if (isHttpError(error)) {
       if (error.status === 404) {
         onInviteGone();
+        return;
+      }
+      if (error.status === 422 && error.code === BREACH_CHECK_UNAVAILABLE) {
+        // D-14: fail closed. Nothing was saved and the invite still works; the typed values stay and the next try is new.
+        const down = AUTH_COPY.newPassword.errors.breachCheckDown;
+        setBanner({ title: down.title, message: down.body, error });
+        formRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
         return;
       }
       if (error.status === 400) {
