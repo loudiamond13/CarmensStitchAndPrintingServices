@@ -21,6 +21,15 @@ describe('HttpError', () => {
     expect(error.problem).toBe(parsed);
     expect(error.fieldErrors).toEqual({ Amount: ['Enter an amount.'] });
     expect(error.traceId).toBe('t-1');
+    expect(error.code).toBeUndefined();
+  });
+
+  it('exposes the machine code from the problem', () => {
+    const parsed = parseProblemDetails({ title: 'Too many requests.', status: 429, code: 'auth.resend-cap' });
+    const error = new HttpError({ kind: 'http', status: 429, problem: parsed });
+
+    expect(error.code).toBe('auth.resend-cap');
+    expect(error.problem?.code).toBe('auth.resend-cap');
   });
 
   it('defaults to status 0, no problem, no field errors and no traceId when there was no HTTP response', () => {
@@ -30,6 +39,7 @@ describe('HttpError', () => {
     expect(error.problem).toBeUndefined();
     expect(error.fieldErrors).toEqual({});
     expect(error.traceId).toBeUndefined();
+    expect(error.code).toBeUndefined();
   });
 
   it('uses the problem title as its message', () => {
@@ -83,6 +93,7 @@ describe('parseProblemDetails', () => {
         detail: 'No such order.',
         instance: '/api/v1/orders/9',
         traceId: '00-abc-01',
+        code: 'order.not-found',
       }),
     ).toEqual({
       type: 'https://tools.ietf.org/html/rfc9110#section-15.5.5',
@@ -91,12 +102,13 @@ describe('parseProblemDetails', () => {
       detail: 'No such order.',
       instance: '/api/v1/orders/9',
       traceId: '00-abc-01',
+      code: 'order.not-found',
       errors: {},
     });
   });
 
   it('drops members with the wrong type', () => {
-    expect(parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7 })).toEqual(
+    expect(parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7, code: 12 })).toEqual(
       {
         type: undefined,
         title: undefined,
@@ -104,6 +116,7 @@ describe('parseProblemDetails', () => {
         detail: undefined,
         instance: undefined,
         traceId: undefined,
+        code: undefined,
         errors: {},
       },
     );
