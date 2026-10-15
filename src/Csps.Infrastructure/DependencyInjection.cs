@@ -5,6 +5,7 @@ using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -90,7 +91,11 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Adds <see cref="CspsDbContext"/> configured through <see cref="CspsDbContextOptions.Configure"/>.</summary>
+    /// <summary>
+    /// Adds an <see cref="IDbContextFactory{TContext}"/> for <see cref="CspsDbContext"/> (short-lived contexts for caches
+    /// and independent audit writes) and, with it, the scoped context that handlers and Identity use, both configured
+    /// through <see cref="CspsDbContextOptions.Configure"/>.
+    /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="connectionString">The SQL Server connection string.</param>
     /// <returns>The same service collection.</returns>
@@ -99,7 +104,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        services.AddDbContext<CspsDbContext>(options => CspsDbContextOptions.Configure(options, connectionString));
+        services.AddDbContextFactory<CspsDbContext>(options => CspsDbContextOptions.Configure(options, connectionString));
         return services;
     }
 }

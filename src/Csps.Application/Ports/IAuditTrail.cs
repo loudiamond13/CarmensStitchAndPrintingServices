@@ -22,4 +22,17 @@ public interface IAuditTrail
     /// <param name="targetId">The id of the thing acted on, or null.</param>
     /// <param name="detail">An optional short plain-text note (at most 400 characters), or null.</param>
     void Record(string action, string? targetType, string? targetId, string? detail);
+
+    /// <summary>
+    /// Writes one audit entry through its own short-lived database context and saves it at once, so it survives a
+    /// rollback of the caller's change and never saves the caller's tracked changes. Use it for failures that must
+    /// persist (sign-in failed, code failed, reuse detected).
+    /// </summary>
+    /// <param name="action">A dotted lowercase code such as <c>auth.sign-in-failed</c>; at most 64 characters.</param>
+    /// <param name="targetType">The kind of thing acted on, or null.</param>
+    /// <param name="targetId">The id of the thing acted on, or null.</param>
+    /// <param name="detail">An optional short plain-text note (at most 400 characters), or null.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>A task that completes when the entry is stored.</returns>
+    ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken);
 }

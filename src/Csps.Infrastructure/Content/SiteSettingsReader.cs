@@ -10,8 +10,9 @@ namespace Csps.Infrastructure.Content;
 /// <summary>
 /// Reads the SiteSettings singleton through the in-process HybridCache (FND-09, D-02, D-10). The entry lives
 /// for an hour, or until <see cref="InvalidateAsync"/> marks everything tagged <c>site-settings</c> as stale.
+/// The cache factory creates its own context, because it can outlive the request that started it (WR-01).
 /// </summary>
-internal sealed class SiteSettingsReader(HybridCache cache, CspsDbContext db) : ISiteSettingsReader, ISiteSettingsCache
+internal sealed class SiteSettingsReader(HybridCache cache, IDbContextFactory<CspsDbContext> contextFactory) : ISiteSettingsReader, ISiteSettingsCache
 {
     internal const string CacheKey = "csps:site-settings:v1";
 
@@ -35,7 +36,16 @@ internal sealed class SiteSettingsReader(HybridCache cache, CspsDbContext db) : 
     public ValueTask InvalidateAsync(CancellationToken cancellationToken) =>
         cache.RemoveByTagAsync(CacheTag, cancellationToken);
 
-    private async ValueTask<SiteSettingsSnapshot> LoadAsync(CancellationToken cancellationToken) =>
+    private async ValueTask<SiteSettingsSnapshot> LoadAsync(CancellationToken cancellationToken)
+    {
+        var db = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            return await Query(db, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<SiteSettingsSnapshot> Query(CspsDbContext db, CancellationToken cancellationToken) =>
         await db.SiteSettings
             .AsNoTracking()
             .Where(settings => settings.Id == SiteSettings.SingletonId)
