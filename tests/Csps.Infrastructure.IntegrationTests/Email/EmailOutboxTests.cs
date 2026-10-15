@@ -233,6 +233,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
         {
             [DependencyInjection.ConnectionStringKey] = database.ConnectionString,
             [TestCertificates.CertificateBase64Setting] = TestCertificates.Current.Base64,
+            [TestSecrets.CodeMacKeySetting] = TestSecrets.CodeMacKeyBase64,
             [TestCertificates.CertificatePasswordSetting] = TestCertificates.Current.Password,
             ["App:PublicBaseUrl"] = "https://localhost",
             ["Email:Dispatcher:Enabled"] = dispatcherEnabled ? "true" : "false",

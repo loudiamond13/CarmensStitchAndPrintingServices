@@ -52,6 +52,15 @@ public static class IdentityRegistration
             .AddEntityFrameworkStores<CspsDbContext>();
 
         services.AddScoped<IUserAccounts, UserAccounts>();
+
+        // The code key is a secret (AUTH-03): the host stops at start when it is missing or too short.
+        services.AddOptions<AuthSecretsOptions>()
+            .BindConfiguration(AuthSecretsOptions.SectionName)
+            .Validate(static options => options.TryGetCodeMacKeyBytes(out _), AuthSecretsOptions.CodeMacKeyInvalidMessage)
+            .ValidateOnStart();
+        services.AddScoped<ITwoFactorChallenges, TwoFactorChallengeStore>();
+        services.AddSingleton<ICodeMac, HmacCodeMac>();
+        services.AddSingleton<ISecureRandom, SecureRandom>();
 #if CSPS_TESTING
         services.AddScoped<TestingAccountActivation>();
 #endif

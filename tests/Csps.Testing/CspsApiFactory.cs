@@ -82,6 +82,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(TestJwt.AudienceSetting, TestJwt.Audience);
         builder.UseSetting(TestJwt.SigningKeySetting, TestJwt.SigningKeyBase64);
 
+        // Test-only sign-in code key (TestSecrets), derived in-process.
+        builder.UseSetting(TestSecrets.CodeMacKeySetting, TestSecrets.CodeMacKeyBase64);
+
         // Test-only Data Protection certificate (TestCertificates, D-15), created in memory once per run. Rotation and
         // fail-fast tests override these two keys, or add DataProtection:PreviousCertificates, through
         // WithWebHostBuilder(b => b.UseSetting(...)), which runs after this method.

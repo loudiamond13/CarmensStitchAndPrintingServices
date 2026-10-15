@@ -1,5 +1,6 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -25,6 +26,12 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The email outbox: queued auth mail, encrypted until sent (AUTH-13).</summary>
     public DbSet<EmailOutboxMessage> EmailOutbox => Set<EmailOutboxMessage>();
+
+    /// <summary>Pending sign-ins; each holds only the hash of its ticket (AUTH-03).</summary>
+    public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
+
+    /// <summary>The emailed codes of the sign-ins; each holds only the HMAC of its code (AUTH-03).</summary>
+    public DbSet<TwoFactorCode> TwoFactorCodes => Set<TwoFactorCode>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
