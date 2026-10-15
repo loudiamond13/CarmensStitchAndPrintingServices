@@ -1,5 +1,5 @@
 using System.Collections.Frozen;
-using Csps.Server;
+using Csps.Server.Composition;
 
 namespace Csps.Server.IntegrationTests.Authorization;
 

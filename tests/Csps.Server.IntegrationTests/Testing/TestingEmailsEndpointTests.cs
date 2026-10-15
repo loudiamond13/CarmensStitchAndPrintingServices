@@ -3,6 +3,7 @@ using System.Text.Json;
 using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Domain.Identity;
+using Csps.Server.Composition;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
@@ -36,9 +37,9 @@ public sealed class TestingEmailsEndpointTests(CspsDatabase database) : IClassFi
         var message = messages.ShouldHaveSingleItem();
         message.GetProperty("to").GetString().ShouldBe(to);
         message.GetProperty("subject").GetString().ShouldBe("048213 is your CSPS sign-in code");
-        message.GetProperty("text").GetString().ShouldContain("048213");
-        message.GetProperty("html").GetString().ShouldContain("048213");
-        message.GetProperty("sentAt").GetDateTimeOffset().ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddMinutes(-5));
+        message.GetProperty("text").GetString().ShouldNotBeNull().ShouldContain("048213");
+        message.GetProperty("html").GetString().ShouldNotBeNull().ShouldContain("048213");
+        message.GetProperty("sentAt").GetDateTimeOffset().ShouldBeGreaterThan(TimeProvider.System.GetUtcNow().AddMinutes(-5));
         var id = message.GetProperty("id").GetInt64();
 
         using var next = await client.GetAsync(new Uri($"{Route}?after={id}&to={to}", UriKind.Relative), TestContext.Current.CancellationToken);

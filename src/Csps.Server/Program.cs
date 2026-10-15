@@ -53,7 +53,13 @@ builder.Services.AddCspsSecurity();
 builder.Services.AddCspsApplication();
 
 // Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers.
-builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+
+#if CSPS_TESTING
+// Debug builds only: the Testing-only controllers exist in the Testing environment alone, and a Debug build never runs as
+// Production (QUAL-05, D-37).
+Csps.Server.Testing.TestingHostRegistration.AddTestingFeatures(mvc, builder);
+#endif
 
 // OpenAPI is registered in Development only (D-14).
 builder.Services.AddCspsOpenApi(builder.Environment);
