@@ -14,6 +14,11 @@
     <Content Include="..\fixtures\order-math-golden-vectors.json" Link="Fixtures\order-math-golden-vectors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The password cases (D-11, D-15) are shared with the web Vitest suite and linked the same way. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\password-policy-cases.json" Link="Fixtures\password-policy-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Coverage under Microsoft.Testing.Platform (D-17); thresholds are enforced by tools/scripts/Invoke-CoverageGate.ps1. -->
   <ItemGroup>
     <PackageReference Include="coverlet.MTP" />
