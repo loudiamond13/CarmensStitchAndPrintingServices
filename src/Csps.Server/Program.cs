@@ -8,6 +8,11 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+#if CSPS_TESTING
+// D-37, Pitfall 10: the Playwright host may read the developer's user-secrets; no other Testing host does.
+Csps.Server.Testing.TestingConfiguration.AddUserSecretsWhenAsked(builder, args);
+#endif
+
 // Serilog with the request's W3C trace id on every event; files under {contentRoot}/logs (FND-07, D-21, D-22).
 builder.Services.AddCspsLogging(builder.Configuration, builder.Environment);
 

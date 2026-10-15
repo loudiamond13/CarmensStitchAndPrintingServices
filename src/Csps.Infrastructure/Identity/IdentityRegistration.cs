@@ -52,6 +52,9 @@ public static class IdentityRegistration
             .AddEntityFrameworkStores<CspsDbContext>();
 
         services.AddScoped<IUserAccounts, UserAccounts>();
+#if CSPS_TESTING
+        services.AddScoped<TestingAccountActivation>();
+#endif
 
         return services;
     }

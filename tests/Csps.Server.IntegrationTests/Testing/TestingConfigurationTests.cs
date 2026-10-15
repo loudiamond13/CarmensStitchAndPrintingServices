@@ -1,5 +1,6 @@
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.CommandLine;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
@@ -91,7 +92,7 @@ public sealed class TestingConfigurationTests
     }
 #endif
 
-    private static List<IConfigurationProvider> Providers(CspsApiFactory factory)
+    private static List<IConfigurationProvider> Providers(WebApplicationFactory<Program> factory)
     {
         using var client = factory.CreateClient();
         return [.. ((IConfigurationRoot)factory.Services.GetRequiredService<IConfiguration>()).Providers];
