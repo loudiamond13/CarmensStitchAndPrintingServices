@@ -121,7 +121,9 @@ describe('S5 token handling and the checking state', () => {
     renderReset(null);
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'This link has expired' });
-    expect(heading).toHaveFocus();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
     expect(probe.checkBodies).toEqual([]);
   });
 
@@ -189,7 +191,9 @@ describe('S5 invalid and failed links', () => {
     renderReset();
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'This link has expired' });
-    expect(heading).toHaveFocus();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
     expect(
       screen.getByText("Reset links work for 30 minutes and only once. Ask for a new one and we'll email it to you."),
     ).toBeInTheDocument();

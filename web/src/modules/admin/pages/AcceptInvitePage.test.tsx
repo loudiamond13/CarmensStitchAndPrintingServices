@@ -102,7 +102,9 @@ describe('S6 token handling and the checking state', () => {
     renderInvite(null);
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'This invite has expired' });
-    expect(heading).toHaveFocus();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
     expect(probe.checkBodies).toEqual([]);
     await expectNoAxeViolations(document.body);
   });
@@ -165,7 +167,9 @@ describe('S6 invalid and failed invites', () => {
     renderInvite();
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'This invite has expired' });
-    expect(heading).toHaveFocus();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
     expect(
       screen.getByText('Invite links work for 72 hours and only once. Ask a Manager to send you a new invite.'),
     ).toBeInTheDocument();
