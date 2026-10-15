@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-14T10:28:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-14T20:26:27-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -82,9 +82,9 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
 - [ ] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
 - [ ] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
-- [ ] **AUTH-09**: Resetting a password enforces the password policy, revokes all sessions and sends a "your password was changed" email ⚑ C-5
+- [ ] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
 - [ ] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
-- [ ] **AUTH-11**: Passwords follow the NIST SP 800-63B policy (12–128 chars, any printable characters, no composition or rotation rules). They are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only) or if they contain the user's email or name. A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
+- [ ] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
 - [ ] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
 - [ ] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
 
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10; ORD-10 precedence; USER-01, AUDIT-02, CEXP-01, ORD-02, ORD-07, DASH-03, MONEY-02, GAL-01, INQ-05, ANL-05, ANL-08 and SEC-03 sharpened; 180/180 mapped)*
+*Last updated: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*

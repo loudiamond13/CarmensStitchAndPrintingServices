@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T17:56:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T20:26:27-05:00*
 
 ## Overview
 
@@ -361,8 +361,8 @@ Plans:
      - Without it, the session ends when the browser closes, after 12 hours at most.
      - Several open tabs refresh without signing each other out, but replaying a rotated refresh token revokes its whole family.
      - Sign out and "sign out of all devices" end sessions immediately.
-  4. **Password reset.** A staff member can request a reset link; the response never reveals whether the account exists. The new password must meet the NIST policy:
-     - 12–128 characters
+  4. **Password reset.** A staff member can request a reset link; the response never reveals whether the account exists. The new password must meet the owner's rule (D-11, D-15):
+     - at least 8 and at most 64 characters with a number and a symbol
      - not in breach corpora
      - doesn't contain the user's email or name
      - a strength meter is shown
