@@ -9,7 +9,8 @@ internal abstract record EmailBlock;
 /// <summary>A body paragraph, with an optional link written out after it.</summary>
 /// <param name="Text">The sentence.</param>
 /// <param name="LinkUrl">An absolute link shown after the sentence, or null.</param>
-internal sealed record ParagraphBlock(string Text, string? LinkUrl = null) : EmailBlock;
+/// <param name="Strong">A part of <paramref name="Text"/> to bold in the HTML (the staff address), or null. The text part stays plain.</param>
+internal sealed record ParagraphBlock(string Text, string? LinkUrl = null, string? Strong = null) : EmailBlock;
 
 /// <summary>A small muted line (when and from where a request was made).</summary>
 /// <param name="Text">The line.</param>
@@ -110,7 +111,7 @@ internal static class EmailHtmlLayout
             case ParagraphBlock paragraph:
                 html.Append("<p style=\"margin:0 0 16px 0;font-family:").Append(BodyFont)
                     .Append(";font-size:16px;line-height:24px;font-weight:400;color:").Append(Ink).Append("\">")
-                    .Append(Encode(paragraph.Text));
+                    .Append(EncodeWithStrong(paragraph.Text, paragraph.Strong));
                 if (paragraph.LinkUrl is { } url)
                 {
                     html.Append(' ').Append(Link(url));
@@ -148,6 +149,15 @@ internal static class EmailHtmlLayout
 
     private static string Link(string url) =>
         $"<a href=\"{Encode(url)}\" style=\"color:#a33f00;text-decoration:underline;word-break:break-all\">{Encode(url)}</a>";
+
+    // Bolds the first occurrence of the strong part; every piece is encoded separately (CWE-79).
+    private static string EncodeWithStrong(string text, string? strong)
+    {
+        var at = string.IsNullOrEmpty(strong) ? -1 : text.IndexOf(strong, StringComparison.Ordinal);
+        return at < 0
+            ? Encode(text)
+            : Encode(text[..at]) + "<strong style=\"font-weight:700\">" + Encode(strong!) + "</strong>" + Encode(text[(at + strong!.Length)..]);
+    }
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
 

@@ -92,7 +92,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Heading: "Reset your password",
             Blocks:
             [
-                new ParagraphBlock($"We got a request to reset the password for {email.To}."),
+                new ParagraphBlock($"We got a request to reset the password for {email.To}.", Strong: email.To),
                 new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
                 new ParagraphBlock("This link works for 30 minutes and only once."),
                 new ParagraphBlock("Didn't ask for this? Ignore this email. Your password stays the same."),
@@ -101,7 +101,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
 
     private EmailContent Changed(PasswordChangedEmail email, TimeZoneInfo zone)
     {
-        var blocks = new List<EmailBlock> { new ParagraphBlock($"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}.") };
+        var blocks = new List<EmailBlock> { new ParagraphBlock($"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}.", Strong: email.To) };
         if (email.SessionsEnded)
         {
             blocks.Add(new ParagraphBlock(SessionsEndedLine));
@@ -137,7 +137,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Heading: "Account deactivated",
             Blocks:
             [
-                new ParagraphBlock($"We got a request to reset the password for {email.To}."),
+                new ParagraphBlock($"We got a request to reset the password for {email.To}.", Strong: email.To),
                 new ParagraphBlock("Your account is deactivated. Ask a Manager if you need access."),
             ],
             Button: null);
@@ -149,7 +149,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Heading: "You're invited",
             Blocks:
             [
-                new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin."),
+                new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To),
                 new ParagraphBlock("This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite."),
                 new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
             ],
