@@ -27,7 +27,7 @@ test('@auth-must-change a temporary password must be replaced before the admin a
   guard,
 }) => {
   test.setTimeout(90_000);
-  // Opening a sign-in page, or /admin, asks the refresh cookie for a session first; with none that answer is a 401.
+  // Opening a sign-in page, or a guarded page, asks the refresh cookie for a session first; with none that answer is a 401.
   guard.expectStatus('/api/v1/auth/refresh', 401);
   await signInToCodeEntered(page, request, 'must-change-temporary');
 
@@ -40,9 +40,10 @@ test('@auth-must-change a temporary password must be replaced before the admin a
   await expect(page.getByLabel('New password', { exact: true })).toBeFocused();
   await expectNoAxeViolations(page);
 
-  // The admin area is closed until the save: a second tab of the same browser is sent to sign in.
+  // The admin area is closed until the save: a second tab of the same browser is sent to sign in. (The e2e bundle's dev
+  // previews answer /admin itself, so the guarded devices page stands in for the area.)
   const other = await page.context().newPage();
-  await other.goto('/admin');
+  await other.goto('/admin/sessions');
   await expect(other).toHaveURL(/\/admin\/login/);
   await other.close();
 

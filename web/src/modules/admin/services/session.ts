@@ -30,6 +30,9 @@ export interface SessionSnapshot {
 /** The one-shot message the sign-in page shows once (UI-SPEC "One-shot notices"). Never put in a URL or storage. */
 export type SignInNotice = 'session-ended' | 'signed-out' | 'password-changed' | 'password-set' | 'timed-out';
 
+/** The one-shot toast the admin shell shows once after a sign-in that came from a screen of the auth layout. */
+export type SignedInToast = 'password-saved';
+
 /** The part of navigator.locks the session uses. */
 export interface LockManagerLike {
   request(name: string, callback: () => Promise<void>): Promise<void>;
@@ -124,6 +127,7 @@ export function createSession(deps: SessionDeps) {
   let inflight: Promise<void> | undefined;
   let navigator: ((to: string) => void) | undefined;
   let notice: SignInNotice | null = null;
+  let signedInToast: SignedInToast | null = null;
   let pendingEmail: string | null = null;
   let resendAvailableAt: number | null = null;
   let passwordChangeReason: string | null = null;
@@ -297,6 +301,16 @@ export function createSession(deps: SessionDeps) {
       notice = null;
       return taken;
     },
+    /** Leaves a toast for the admin shell: the auth layout's own toast layer goes away with its route. */
+    setSignedInToast: (next: SignedInToast): void => {
+      signedInToast = next;
+    },
+    /** The toast once, then null. */
+    takeSignedInToast: (): SignedInToast | null => {
+      const taken = signedInToast;
+      signedInToast = null;
+      return taken;
+    },
     setPendingEmail: (email: string): void => {
       pendingEmail = email;
     },
@@ -329,6 +343,8 @@ export const {
   setNavigator,
   setSignInNotice,
   takeSignInNotice,
+  setSignedInToast,
+  takeSignedInToast,
   setPendingEmail,
   getPendingEmail,
   setResendAvailableAt,

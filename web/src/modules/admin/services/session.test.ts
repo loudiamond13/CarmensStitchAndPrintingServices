@@ -25,6 +25,8 @@ import {
   setSignInNotice,
   signOut,
   takeSignInNotice,
+  setSignedInToast,
+  takeSignedInToast,
 } from './session';
 
 /** An in-memory BroadcastChannel hub: a message reaches every other channel of the hub, one microtask later. */
@@ -418,6 +420,13 @@ describe('notices and the pending email', () => {
 
     expect(takeSignInNotice()).toBe('password-changed');
     expect(takeSignInNotice()).toBeNull();
+  });
+
+  it('takeSignedInToast returns the toast once, then null', () => {
+    setSignedInToast('password-saved');
+
+    expect(takeSignedInToast()).toBe('password-saved');
+    expect(takeSignedInToast()).toBeNull();
   });
 
   it('keeps the pending email in memory only, and drops it on sign-in completion and on sign-out', async () => {

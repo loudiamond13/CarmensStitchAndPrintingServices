@@ -8,7 +8,7 @@
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
 //     come in Phases 5-9 show the page-not-found screen inside the shell.
-//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite` and, in a later plan, the new-password screen) sit in a pathless
+//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite` and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the D-22
 //     Component Showcase, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing there ships.
@@ -43,6 +43,10 @@ const signInPage = /* @__PURE__ */ lazyRoute(async () => ({
 
 const verifyCodePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/VerifyCodePage')).VerifyCodeRoute,
+}));
+
+const newPasswordPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/NewPasswordPage')).NewPasswordRoute,
 }));
 
 const forgotPasswordPage = /* @__PURE__ */ lazyRoute(async () => ({
@@ -111,6 +115,7 @@ export const adminRoutes: RouteObject[] = [
         children: [
           { path: 'admin/login', loader: redirectIfSignedIn, lazy: signInPage },
           { path: 'admin/login/verify', loader: redirectIfSignedIn, lazy: verifyCodePage },
+          { path: 'admin/login/new-password', loader: redirectIfSignedIn, lazy: newPasswordPage },
           { path: 'admin/forgot-password', loader: redirectIfSignedIn, lazy: forgotPasswordPage },
           // No sign-in check: a reset link works signed in or not.
           { path: 'admin/reset-password', lazy: resetPasswordPage },
