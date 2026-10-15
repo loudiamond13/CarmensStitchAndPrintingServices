@@ -1,4 +1,5 @@
 using System.Globalization;
+using MailKit.Net.Smtp;
 using MailKit.Security;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Email;
@@ -91,6 +92,25 @@ public sealed class MailKitTransportTests(CspsDatabase database) : IClassFixture
     {
         new SmtpOptions.Validator().Validate(name: null, Full()).Succeeded.ShouldBeTrue();
         new SmtpOptions.Validator().Validate(name: null, Full(security: "SslOnConnect", port: 465)).Succeeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task AFailedGoodbyeAfterTheServerAcceptedTheMessageIsNotASendFailure()
+    {
+        await Should.NotThrowAsync(() => MailKitTransport.CloseAfterSendAsync(
+            _ => throw new IOException("The server closed the connection."), TestContext.Current.CancellationToken));
+        await Should.NotThrowAsync(() => MailKitTransport.CloseAfterSendAsync(
+            _ => throw new SmtpProtocolException("Bad reply to QUIT."), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ACancelledGoodbyeStillSurfacesTheCancellation()
+    {
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => MailKitTransport.CloseAfterSendAsync(
+            token => Task.FromCanceled(token), source.Token));
     }
 
     [Fact]

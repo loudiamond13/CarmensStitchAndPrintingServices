@@ -66,6 +66,24 @@ internal sealed class MailKitTransport(IOptions<SmtpOptions> smtp, IOptions<Emai
         await client.ConnectAsync(settings.Host, settings.Port, SocketOptionsFor(security), cancellationToken).ConfigureAwait(false);
         await client.AuthenticateAsync(settings.UserName, settings.Password, cancellationToken).ConfigureAwait(false);
         await client.SendAsync(message, cancellationToken).ConfigureAwait(false);
-        await client.DisconnectAsync(quit: true, cancellationToken).ConfigureAwait(false);
+        await CloseAfterSendAsync(token => client.DisconnectAsync(quit: true, token), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Closes the connection once the server has accepted the message; a failed goodbye must not make the mail look unsent.</summary>
+    /// <param name="disconnect">Sends QUIT and closes the socket.</param>
+    /// <param name="cancellationToken">Cancels the close.</param>
+    /// <returns>A task that completes when the close has finished or failed harmlessly.</returns>
+    internal static async Task CloseAfterSendAsync(Func<CancellationToken, Task> disconnect, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(disconnect);
+
+        try
+        {
+            await disconnect(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The message is already accepted; a retry would send it twice.
+        }
     }
 }
