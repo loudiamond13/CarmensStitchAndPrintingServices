@@ -9,6 +9,15 @@ import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDia
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 
+/** The scrim around a dialog: its parent element. */
+function scrimOf(dialog: HTMLElement): HTMLElement {
+  const scrim = dialog.parentElement;
+  if (scrim === null) {
+    throw new Error('The dialog has no scrim around it.');
+  }
+  return scrim;
+}
+
 // SignOutOthersDialog (D-44, D-05): shared by the S7 header button and the user menu (plan 04-30).
 
 function deferred() {
@@ -123,7 +132,7 @@ describe('SignOutOthersDialog', () => {
     const pending = await within(dialog).findByRole('button', { name: 'Signing out' });
     await user.click(pending);
     await user.keyboard('{Escape}');
-    await user.click(dialog.parentElement as HTMLElement);
+    await user.click(scrimOf(dialog));
     await user.click(within(dialog).getByRole('button', { name: 'Keep Others Signed In' }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -140,16 +149,16 @@ describe('SignOutOthersDialog', () => {
     const user = userEvent.setup();
     render(<Opener />);
 
-    let dialog = await openDialog(user);
-    await user.click(within(dialog).getByRole('button', { name: 'Keep Others Signed In' }));
+    const first = await openDialog(user);
+    await user.click(within(first).getByRole('button', { name: 'Keep Others Signed In' }));
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    dialog = await openDialog(user);
+    await openDialog(user);
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    dialog = await openDialog(user);
-    await user.click(dialog.parentElement as HTMLElement);
+    const third = await openDialog(user);
+    await user.click(scrimOf(third));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(probe.calls).toBe(0);
   });

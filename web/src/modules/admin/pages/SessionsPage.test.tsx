@@ -151,9 +151,11 @@ describe('S7 the list', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
     // Current first, then the others by newest last active (PHONE 5 min, TABLET 3 hr), whatever order the server used.
-    expect(within(rows[0] as HTMLElement).getByText('Chrome on Windows')).toBeInTheDocument();
-    expect(within(rows[1] as HTMLElement).getByText('Safari on iPhone')).toBeInTheDocument();
-    expect(within(rows[2] as HTMLElement).getByText('Chrome on Android')).toBeInTheDocument();
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Chrome on Windows'),
+      expect.stringContaining('Safari on iPhone'),
+      expect.stringContaining('Chrome on Android'),
+    ]);
   });
 
   it('shows "This device" as text on the current row, with no sign-out button there', async () => {

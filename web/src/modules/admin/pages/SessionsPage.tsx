@@ -5,6 +5,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
+import { isHttpError } from '@/core/api/errors';
 import { useToast } from '@/components/feedback';
 import {
   pageHeadClasses,
@@ -19,6 +20,7 @@ import { sessionsListKey } from '@/lib/query/keys';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { deviceLabel, lastActiveText, rowSignOutName, signedInText } from '@/modules/admin/components/deviceSummary';
 import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
+import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useSessionsQuery } from '@/modules/admin/hooks/useSessionsQuery';
 import { sessionsService, type SessionListItem } from '@/modules/admin/services/sessionsService';
@@ -36,6 +38,7 @@ export function SessionsRoute() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [target, setTarget] = useState<SessionListItem | null>(null);
+  const [othersOpen, setOthersOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
   // Where focus goes once a removed row is gone: a row's button id, or the heading.
@@ -80,20 +83,47 @@ export function SessionsRoute() {
     }
   };
 
-  const revoke = async (device: SessionListItem) => {
-    try {
-      await sessionsService.revoke(device.id);
-    } catch (error: unknown) {
-      return { ok: false as const, error };
-    }
-    chooseFocusAfter(device);
-    removeRow(device.id);
-    setTarget(null);
+  const showGone = () => {
+    toast.show({
+      tone: 'info',
+      title: AUTH_COPY.toasts.alreadySignedOut.title,
+      message: AUTH_COPY.toasts.alreadySignedOut.body,
+    });
+  };
+
+  const showSignedOut = (device: SessionListItem) => {
     toast.show({
       title: AUTH_COPY.toasts.deviceSignedOut.title,
       message: AUTH_COPY.toasts.deviceSignedOut.body(deviceLabel(device)),
     });
+  };
+
+  /**
+   * Signs one device out. A device that had already ended, or that the server no longer knows (404), is a success with
+   * its own info toast (UI-SPEC S7): the row goes either way. Any other failure keeps the dialog open.
+   */
+  const revoke = async (device: SessionListItem) => {
+    const answer = await sessionsService.revoke(device.id).then(
+      (response) => ({ gone: response.alreadySignedOut }),
+      (error: unknown) => (isHttpError(error) && error.status === 404 ? { gone: true } : { error }),
+    );
+    if ('error' in answer) {
+      return { ok: false as const, error: answer.error };
+    }
+    chooseFocusAfter(device);
+    removeRow(device.id);
+    setTarget(null);
+    if (answer.gone) {
+      showGone();
+    } else {
+      showSignedOut(device);
+    }
     return { ok: true as const };
+  };
+
+  const afterSignedOutOthers = () => {
+    queryClient.setQueryData<SessionListItem[]>(sessionsListKey, (list) => list?.filter((item) => item.current));
+    void queryClient.invalidateQueries({ queryKey: sessionsListKey });
   };
 
   const columns: readonly ResponsiveTableColumn<SessionListItem>[] = [
@@ -160,7 +190,14 @@ export function SessionsRoute() {
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
         <div className="pg-phone:w-full">
-          <Button variant="secondary" icon="log-out" className="pg-phone:w-full">
+          <Button
+            variant="secondary"
+            icon="log-out"
+            className="pg-phone:w-full"
+            onClick={() => {
+              setOthersOpen(true);
+            }}
+          >
             {COPY.headerAction}
           </Button>
         </div>
@@ -180,6 +217,14 @@ export function SessionsRoute() {
         }}
       />
       {onlyThisDevice && <Note icon="shield-check">{COPY.onlyThisDevice}</Note>}
+      {othersOpen && (
+        <SignOutOthersDialog
+          onClose={() => {
+            setOthersOpen(false);
+          }}
+          onSignedOut={afterSignedOutOthers}
+        />
+      )}
       {target !== null && (
         <SignOutDeviceDialog
           device={target}

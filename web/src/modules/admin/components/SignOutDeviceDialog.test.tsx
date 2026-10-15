@@ -6,6 +6,15 @@ import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDia
 import type { SessionListItem } from '@/modules/admin/services/sessionsService';
 import { expectNoAxeViolations } from '@/test/axe';
 
+/** The scrim around a dialog: its parent element. */
+function scrimOf(dialog: HTMLElement): HTMLElement {
+  const scrim = dialog.parentElement;
+  if (scrim === null) {
+    throw new Error('The dialog has no scrim around it.');
+  }
+  return scrim;
+}
+
 // SignOutDeviceDialog (S7, D-43): the confirm for one device, with the ConfirmDialog failure rule and the pending lock.
 
 const DEVICE: SessionListItem = {
@@ -48,7 +57,7 @@ describe('SignOutDeviceDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Keep Signed In' }));
     await user.keyboard('{Escape}');
-    const scrim = screen.getByRole('dialog').parentElement as HTMLElement;
+    const scrim = scrimOf(screen.getByRole('dialog'));
     await user.click(scrim);
 
     expect(onCancel).toHaveBeenCalledTimes(3);
@@ -80,7 +89,7 @@ describe('SignOutDeviceDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign Out Device' }));
     await user.keyboard('{Escape}');
-    await user.click(screen.getByRole('dialog').parentElement as HTMLElement);
+    await user.click(scrimOf(screen.getByRole('dialog')));
     await user.click(screen.getByRole('button', { name: 'Keep Signed In' }));
     await user.click(screen.getByRole('button', { name: 'Close' }));
 
