@@ -1,3 +1,4 @@
+using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,8 @@ public static class IdentityRegistration
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<CspsDbContext>();
+
+        services.AddScoped<IUserAccounts, UserAccounts>();
 
         return services;
     }
