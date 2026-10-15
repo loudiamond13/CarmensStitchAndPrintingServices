@@ -81,6 +81,10 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/auth/two-factor/resend", "/api/v1/auth/two-factor/resend", Anonymous: 401, Admin: 401, Manager: 401),
         // Refresh reads the refresh cookie; with no cookie every caller meets the same 401 (the token is ignored).
         new("POST", "/api/v1/auth/refresh", "/api/v1/auth/refresh", Anonymous: 401, Admin: 401, Manager: 401),
+        // Sign-out is anonymous and always succeeds, with or without a cookie. Sign-out-others needs a Staff token; the matrix
+        // sessions have no other device, so staff get 204.
+        new("POST", "/api/v1/auth/sign-out", "/api/v1/auth/sign-out", Anonymous: 204, Admin: 204, Manager: 204),
+        new("POST", "/api/v1/auth/sign-out-others", "/api/v1/auth/sign-out-others", Anonymous: 401, Admin: 204, Manager: 204),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -103,6 +107,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/two-factor/verify",
             "POST /api/v1/auth/two-factor/resend",
             "POST /api/v1/auth/refresh",
+            "POST /api/v1/auth/sign-out",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

@@ -47,7 +47,7 @@ public sealed class VerifyCodeHandlerTests
     public async Task ALostRaceWithAnotherSubmissionOfTheCodeIsATimedOutSignIn()
     {
         var harness = new Harness();
-        harness.Unit.ConflictOnSave = true;
+        harness.Unit.FailEverySaveWithConflict();
 
         var result = await harness.RunAsync(RightCode);
 

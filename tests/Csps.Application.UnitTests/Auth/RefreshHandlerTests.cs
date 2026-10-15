@@ -1,5 +1,4 @@
 using Csps.Application.Auth;
-using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
@@ -213,7 +212,7 @@ public sealed class RefreshHandlerTests
 
         var result = await harness.RunAsync();
 
-        result.Error.ShouldBeSameAs(AuthErrors.RefreshBusy);
+        result.Error.ShouldBeSameAs(AuthErrors.SessionBusy);
         result.Error.Kind.ShouldBe(ErrorKind.Conflict);
         harness.Session.IsActive(harness.Time.GetUtcNow()).ShouldBeTrue();
     }
@@ -267,7 +266,7 @@ public sealed class RefreshHandlerTests
 
         public RecordingAudit Audit { get; } = new();
 
-        public ConflictingUnitOfWork Unit { get; } = new();
+        public FakeUnitOfWork Unit { get; } = new();
 
         public FakeTimeProvider Time { get; }
 
@@ -287,32 +286,5 @@ public sealed class RefreshHandlerTests
 
         private static UserAccount Account(string role, bool isActive = true, DateTimeOffset? lockoutEnd = null) =>
             new(UserId, Email, "Paolo", "Reyes", role, isActive, true, true, null, false, lockoutEnd);
-    }
-
-    // Saves like the real unit of work, and can raise the concurrency conflict the Infrastructure unit of work translates.
-    private sealed class ConflictingUnitOfWork : IUnitOfWork
-    {
-        private int _failuresLeft;
-
-        public int Saves { get; private set; }
-
-        public void FailFirstSaveWithConflict() => _failuresLeft = 1;
-
-        public void FailEverySaveWithConflict() => _failuresLeft = int.MaxValue;
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
-        {
-            Saves++;
-            if (_failuresLeft > 0)
-            {
-                _failuresLeft--;
-                throw new ConcurrencyConflictException(new InvalidOperationException("Another request changed the row."));
-            }
-
-            return Task.FromResult(1);
-        }
-
-        public Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken) =>
-            work(cancellationToken);
     }
 }

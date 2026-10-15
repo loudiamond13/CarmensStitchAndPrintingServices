@@ -40,16 +40,22 @@ internal sealed class RecordingAudit : IAuditTrail
 /// <summary>Runs the work at once and counts commits, like a real unit of work without a database.</summary>
 internal sealed class FakeUnitOfWork : IUnitOfWork
 {
+    private int _failuresLeft;
+
     public int Saves { get; private set; }
 
-    /// <summary>Gets or sets whether a save fails the way the real unit of work does when another request changed the same row.</summary>
-    public bool ConflictOnSave { get; set; }
+    /// <summary>Makes the next save fail the way the real unit of work does when another request changed the same row.</summary>
+    public void FailFirstSaveWithConflict() => _failuresLeft = 1;
+
+    /// <summary>Makes every save fail with that conflict.</summary>
+    public void FailEverySaveWithConflict() => _failuresLeft = int.MaxValue;
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         Saves++;
-        if (ConflictOnSave)
+        if (_failuresLeft > 0)
         {
+            _failuresLeft--;
             throw new ConcurrencyConflictException(new InvalidOperationException("Another request changed the row."));
         }
 
