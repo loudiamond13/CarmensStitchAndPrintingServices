@@ -115,12 +115,28 @@ public sealed class EmailOutboxMessage
         Scrub();
     }
 
-    /// <summary>Records a failed send; the row stays due.</summary>
+    /// <summary>Leases the row to one dispatcher: it is not due again until <paramref name="until"/> (saved with the row version).</summary>
+    /// <param name="until">When the lease ends.</param>
+    public void Claim(DateTimeOffset until) => NextAttemptAt = until;
+
+    /// <summary>Records a failed send. Follow it with <see cref="RetryAt"/> or <see cref="MarkFailed"/>.</summary>
     /// <param name="errorCode">A short code for the error, never its message.</param>
     public void MarkAttemptFailed(string errorCode)
     {
         Attempts++;
         LastErrorCode = Truncate(errorCode);
+    }
+
+    /// <summary>Makes the row due again at <paramref name="when"/>.</summary>
+    /// <param name="when">The next attempt time.</param>
+    public void RetryAt(DateTimeOffset when) => NextAttemptAt = when;
+
+    /// <summary>Closes a row that passed <see cref="NotAfter"/> unsent and wipes the content.</summary>
+    /// <param name="now">The time the row was closed.</param>
+    public void MarkExpired(DateTimeOffset now)
+    {
+        ExpiredAt = now;
+        Scrub();
     }
 
     /// <summary>Gives up on the row and wipes the content.</summary>
