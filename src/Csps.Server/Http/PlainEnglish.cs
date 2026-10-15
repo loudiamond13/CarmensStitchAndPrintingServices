@@ -20,6 +20,7 @@ public static class PlainEnglish
         StatusCodes.Status404NotFound => "We couldn't find that.",
         StatusCodes.Status405MethodNotAllowed => "That action isn't available here.",
         StatusCodes.Status409Conflict => "This was changed by someone else.",
+        StatusCodes.Status413PayloadTooLarge => "The request is too large.",
         StatusCodes.Status415UnsupportedMediaType => "That format isn't supported.",
         StatusCodes.Status422UnprocessableEntity => "That can't be done.",
         StatusCodes.Status429TooManyRequests => "Too many requests. Please wait a moment and try again.",

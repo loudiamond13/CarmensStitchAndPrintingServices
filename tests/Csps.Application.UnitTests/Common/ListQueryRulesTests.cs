@@ -52,8 +52,8 @@ public sealed class ListQueryRulesTests
     public void SearchLengthCountsUtf16CodeUnits()
     {
         // Each emoji is two UTF-16 code units, which is what the browser's string length reports.
-        Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("😀", 50)))).IsValid.ShouldBeTrue();
-        Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("😀", 51)))).IsValid.ShouldBeFalse();
+        Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("\U0001F600", 50)))).IsValid.ShouldBeTrue();
+        Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("\U0001F600", 51)))).IsValid.ShouldBeFalse();
     }
 
     [Fact]

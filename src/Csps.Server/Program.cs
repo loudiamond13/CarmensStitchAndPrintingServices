@@ -11,8 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Serilog with the request's W3C trace id on every event; files under {contentRoot}/logs (FND-07, D-21, D-22).
 builder.Services.AddCspsLogging(builder.Configuration, builder.Environment);
 
-// No "Server: Kestrel" banner (SEC-01). IIS removes its own banner through web.config.
-builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+// No "Server: Kestrel" banner (SEC-01); IIS removes its own through web.config. 1 MB body cap on Kestrel (SEC-03).
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+    options.Limits.MaxRequestBodySize = RequestBodyLimitMiddleware.MaxBytes;
+});
+
+// The same 1 MB cap for IIS in-process; web.config requestFiltering is the IIS-level twin (SEC-03).
+builder.Services.Configure<IISServerOptions>(options => options.MaxRequestBodySize = RequestBodyLimitMiddleware.MaxBytes);
 
 // Plain HTTP is redirected to HTTPS on the real host. Development and the "Testing" integration-test environment
 // (CspsApiFactory.EnvironmentName) are exempt so they can exercise both transports.
@@ -63,6 +70,9 @@ app.Environment.WebRootFileProvider = new HiddenSegmentFileProvider(app.Environm
 
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
 app.UseMiddleware<SecurityHeadersMiddleware>();
+
+// Refuses bodies above 1 MB with a 413 before anything else reads them (SEC-03).
+app.UseMiddleware<RequestBodyLimitMiddleware>();
 
 if (redirectToHttps)
 {
