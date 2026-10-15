@@ -97,3 +97,13 @@ Requirement-level map from research. The planner fills task IDs; execution updat
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved by the plan 04-32 full local gate on 2026-10-15 (see 04-32-SUMMARY.md)
+
+## Validation Audit 2026-10-15
+
+| Metric | Count |
+|---|---|
+| Gaps found | 2 |
+| Resolved | 2 |
+| Escalated | 0 |
+| E2E passed | 674 |
+| E2E flaky | 1 |
