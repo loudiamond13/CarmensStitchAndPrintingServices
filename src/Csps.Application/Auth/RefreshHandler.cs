@@ -48,23 +48,8 @@ public sealed class RefreshHandler(
         }
 
         var hash = TokenHash.Compute(refreshToken);
-        try
-        {
-            return await AttemptAsync(hash, cancellationToken).ConfigureAwait(false);
-        }
-        catch (ConcurrencyConflictException)
-        {
-            // Another tab saved first. The unit of work dropped its tracked state; the second pass sees the used token inside the grace window.
-        }
-
-        try
-        {
-            return await AttemptAsync(hash, cancellationToken).ConfigureAwait(false);
-        }
-        catch (ConcurrencyConflictException)
-        {
-            return Result.Failure<RefreshOutcome>(AuthErrors.RefreshBusy);
-        }
+        return await ConflictRetry.RunAsync(() => AttemptAsync(hash, cancellationToken), Result.Failure<RefreshOutcome>(AuthErrors.SessionBusy))
+            .ConfigureAwait(false);
     }
 
     private async Task<Result<RefreshOutcome>> AttemptAsync(byte[] hash, CancellationToken cancellationToken)

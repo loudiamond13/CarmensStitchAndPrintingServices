@@ -67,6 +67,7 @@ public sealed class SignOutHandlerTests
     public async Task ALostRaceIsRetriedOnce()
     {
         var harness = new SignOutHarness();
+        harness.ReloadFreshEachTime();
         harness.Unit.FailFirstSaveWithConflict();
 
         var result = await harness.SignOut.HandleAsync(Token, TestContext.Current.CancellationToken);
@@ -79,6 +80,7 @@ public sealed class SignOutHandlerTests
     public async Task TwoLostRacesAreABusyAnswerNotAFalseSuccess()
     {
         var harness = new SignOutHarness();
+        harness.ReloadFreshEachTime();
         harness.Unit.FailEverySaveWithConflict();
 
         var result = await harness.SignOut.HandleAsync(Token, TestContext.Current.CancellationToken);
@@ -192,5 +194,14 @@ public sealed class SignOutHandlerTests
         public SignOutHandler SignOut { get; }
 
         public SignOutOthersHandler SignOutOthers { get; }
+
+        // A real store loads the rows again after a lost race, so a revoke done in memory by the failed pass is gone.
+        public void ReloadFreshEachTime() =>
+            SessionStore.FindByRefreshHashAsync(Arg.Any<byte[]>(), Arg.Any<CancellationToken>())
+                .Returns(_ =>
+                {
+                    var (session, token) = UserSession.Start(UserId, persistent: true, "Chrome on Android", TokenHash.Compute(Token), Start, Sessions);
+                    return Task.FromResult<RefreshLookup?>(new RefreshLookup(session, token, [token]));
+                });
     }
 }

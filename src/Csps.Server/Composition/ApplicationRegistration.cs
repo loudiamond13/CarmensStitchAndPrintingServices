@@ -19,6 +19,8 @@ public static class ApplicationRegistration
         services.AddScoped<ResendCodeHandler>();
         services.AddScoped<SessionIssuer>();
         services.AddScoped<RefreshHandler>();
+        services.AddScoped<SignOutHandler>();
+        services.AddScoped<SignOutOthersHandler>();
         return services;
     }
 }

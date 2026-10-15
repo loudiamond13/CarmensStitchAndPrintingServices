@@ -35,11 +35,11 @@ public static class AuthErrors
     /// <summary>The plain-English text for a session that has ended.</summary>
     public const string SessionEndedMessage = "Your session ended. Sign in again.";
 
-    /// <summary>The code of a refresh that lost two races against other tabs in a row.</summary>
-    public const string RefreshBusyCode = "auth.refresh-busy";
+    /// <summary>The code of a session change that lost two races against other requests in a row.</summary>
+    public const string SessionBusyCode = "auth.session-busy";
 
-    /// <summary>The plain-English text of a refresh that lost its races; the session is still good.</summary>
-    public const string RefreshBusyMessage = "Something changed at the same time. Try again.";
+    /// <summary>The plain-English text of a session change that lost its races; nothing was changed.</summary>
+    public const string SessionBusyMessage = "Something changed at the same time. Try again.";
 
     /// <summary>The code of a wrong emailed code.</summary>
     public const string CodeWrongCode = "auth.code-wrong";
@@ -106,8 +106,8 @@ public static class AuthErrors
     /// <summary>Gets the answer for a session that has ended, is unknown or may no longer refresh; the client signs in again.</summary>
     public static Error SessionEnded { get; } = Error.Unauthenticated(SessionEndedCode, SessionEndedMessage);
 
-    /// <summary>Gets the answer for a refresh that lost two races in a row; the session is untouched, so the client retries.</summary>
-    public static Error RefreshBusy { get; } = Error.Conflict(RefreshBusyCode, RefreshBusyMessage);
+    /// <summary>Gets the answer for a session change that lost two races in a row; nothing was changed, so the client retries.</summary>
+    public static Error SessionBusy { get; } = Error.Conflict(SessionBusyCode, SessionBusyMessage);
 
     /// <summary>Gets the answer for a cookie-reading call without the anti-CSRF header or from another origin.</summary>
     public static Error CsrfCheckFailed { get; } = Error.Forbidden(CsrfCheckFailedCode, CsrfCheckFailedMessage);

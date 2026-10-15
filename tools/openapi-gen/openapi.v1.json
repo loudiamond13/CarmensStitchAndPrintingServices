@@ -416,6 +416,80 @@
         ]
       }
     },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "operationId": "SignOut",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Ends this device's session and clears the refresh cookie. It succeeds with no cookie too.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out-others": {
+      "post": {
+        "operationId": "SignOutOthers",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Ends every other session of the signed-in user and keeps this one. It succeeds when there is nothing to end.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
     "/api/v1/auth/two-factor/resend": {
       "post": {
         "operationId": "ResendCode",
