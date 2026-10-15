@@ -47,6 +47,33 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task QueuedPasswordResetEmailReachesTheTransportWithASafeLinkAndIsScrubbed()
+    {
+        var transport = new RecordingTransport();
+        var to = NewAddress();
+        using var host = await StartHostAsync(transport, dispatcherEnabled: true);
+        var now = TimeProvider.System.GetUtcNow();
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var email = new PasswordResetEmail(to, "tok-abc_123", now.AddMinutes(30), now, new DeviceDescription("Chrome on Android", true));
+            await scope.ServiceProvider.GetRequiredService<IEmailOutbox>().EnqueueAsync(email, TestContext.Current.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var sent = await transport.WaitForAsync(to, Patience);
+        sent.Subject.ShouldBe("Reset your CSPS password");
+        sent.Text.ShouldContain("https://localhost/admin/reset-password#token=tok-abc_123");
+
+        var row = await ReadSentRowAsync(host, to);
+        row.Kind.ShouldBe(AuthEmailKind.PasswordReset);
+        row.ProtectedSubject.ShouldBeNull();
+        row.ProtectedText.ShouldBeNull();
+        row.ProtectedHtml.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task EnqueueWithoutACommitSendsNothingAndStoresNothing()
     {
         var transport = new RecordingTransport();

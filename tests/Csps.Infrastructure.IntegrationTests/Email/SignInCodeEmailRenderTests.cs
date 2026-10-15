@@ -53,14 +53,6 @@ public sealed class SignInCodeEmailRenderTests
         rendered.Html.ShouldNotContain("src=");
     }
 
-    [Fact]
-    public async Task KindsWithoutATemplateYetAreRefused()
-    {
-        var email = new DeactivatedNoticeEmail("paolo.garcia@gmail.com");
-
-        await Should.ThrowAsync<NotSupportedException>(() => RenderAsync(email));
-    }
-
     private static SignInCodeEmail Code(string code, DeviceDescription device) =>
         new("paolo.garcia@gmail.com", code, RequestedAt.AddMinutes(15), RequestedAt, device);
 
