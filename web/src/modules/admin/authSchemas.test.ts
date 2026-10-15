@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import { isEmailShaped, signInSchema } from './authSchemas';
+import { isEmailShaped, signInSchema, verifySchema } from './authSchemas';
 
 // signInSchema mirrors SignInRequestValidator (OR-3): the same rules and the same words.
 
@@ -64,5 +65,35 @@ describe('isEmailShaped', () => {
     expect(isEmailShaped('@b')).toBe(false);
     expect(isEmailShaped('a@')).toBe(false);
     expect(isEmailShaped('a@b@c')).toBe(false);
+  });
+});
+
+describe('verifySchema', () => {
+  const message = (code: string): string | undefined => {
+    const result = verifySchema.safeParse({ code });
+    return result.success ? undefined : result.error.issues[0]?.message;
+  };
+
+  it('accepts exactly six ASCII digits, leading zeros included', () => {
+    expect(verifySchema.safeParse({ code: '000123' }).success).toBe(true);
+    expect(verifySchema.safeParse({ code: '048213' }).data).toEqual({ code: '048213' });
+  });
+
+  it.each([
+    ['empty', ''],
+    ['five digits', '12345'],
+    ['five digits and a gap', '12 45'],
+    ['seven digits', '1234567'],
+    ['a letter', '12a456'],
+    ['spaces around', ' 123456'],
+    ['full-width digits', '１２３４５６'],
+  ])('rejects %s with "Enter all 6 digits."', (_name, code) => {
+    expect(message(code)).toBe('Enter all 6 digits.');
+  });
+});
+
+describe('zod and the strict CSP', () => {
+  it('runs without code generation, so no script-src eval violation is reported', () => {
+    expect(z.config().jitless).toBe(true);
   });
 });

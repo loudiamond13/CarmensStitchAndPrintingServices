@@ -11,12 +11,17 @@ import {
   acceptSession,
   clearSession,
   createSession,
+  completeSignIn,
   ensureSession,
+  getPasswordChangeReason,
   getPendingEmail,
+  getResendAvailableAt,
   getSessionUser,
   refreshSession,
   setNavigator,
+  setPasswordChangeReason,
   setPendingEmail,
+  setResendAvailableAt,
   setSignInNotice,
   signOut,
   takeSignInNotice,
@@ -425,6 +430,66 @@ describe('notices and the pending email', () => {
     setPendingEmail('lito@example.ph');
     await signOut();
     expect(getPendingEmail()).toBeNull();
+  });
+});
+
+describe('sign-in completion and the code step state (AUTH-02, D-01)', () => {
+  beforeEach(() => {
+    clearSession();
+    takeSignInNotice();
+  });
+
+  it('completeSignIn stores the session, drops the pending email and the code step state, and shows the user', () => {
+    setPendingEmail('lito@example.ph');
+    setResendAvailableAt(Date.now() + 60_000);
+    setPasswordChangeReason('temporary');
+
+    completeSignIn(sessionResponse());
+
+    expect(getSessionUser()?.name).toBe('Carmen Reyes');
+    expect(getPendingEmail()).toBeNull();
+    expect(getResendAvailableAt()).toBeNull();
+    expect(getPasswordChangeReason()).toBeNull();
+  });
+
+  it('completeSignIn tells other tabs a session exists, with the expiry only', () => {
+    const hub = createHub();
+    const tab = createSession({
+      auth: { refresh: vi.fn(), signOut: vi.fn() },
+      locks: null,
+      createChannel: () => hub.create(),
+    });
+    const response = sessionResponse();
+
+    tab.completeSignIn(response);
+
+    expect(hub.messages).toEqual([{ type: 'refreshed', expiresAt: Date.parse(response.accessTokenExpiresAt) }]);
+    expect(JSON.stringify(hub.messages)).not.toContain(response.accessToken);
+  });
+
+  it('keeps the resend time and the password change reason in memory, and clears them with the session', () => {
+    expect(getResendAvailableAt()).toBeNull();
+    expect(getPasswordChangeReason()).toBeNull();
+
+    setResendAvailableAt(1_700_000_000_000);
+    setPasswordChangeReason('breach');
+    expect(getResendAvailableAt()).toBe(1_700_000_000_000);
+    expect(getPasswordChangeReason()).toBe('breach');
+
+    clearSession();
+    expect(getResendAvailableAt()).toBeNull();
+    expect(getPasswordChangeReason()).toBeNull();
+  });
+
+  it('writes none of it to a browser store', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    setResendAvailableAt(Date.now() + 60_000);
+    setPasswordChangeReason('temporary');
+    completeSignIn(sessionResponse());
+
+    expect(setItem).not.toHaveBeenCalled();
+    expect(document.cookie).toBe('');
+    setItem.mockRestore();
   });
 });
 
