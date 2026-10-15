@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Identity;
@@ -59,6 +60,27 @@ public sealed class SessionStoreTests(CspsDatabase database) : IClassFixture<Csp
         await StartAsync(provider, userId, hash);
 
         await Should.ThrowAsync<DbUpdateException>(() => StartAsync(provider, userId, hash));
+    }
+
+    [Fact]
+    public async Task ASaveThatLosesTheRaceThrowsAConflictAndDropsTheStaleSession()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var started = await StartAsync(provider, userId, TokenHash.Compute("raw-conflict"));
+        await using var winner = provider.CreateAsyncScope();
+        await using var loser = provider.CreateAsyncScope();
+        var winning = (await winner.ServiceProvider.GetRequiredService<ISessions>().FindAsync(started.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var losing = (await loser.ServiceProvider.GetRequiredService<ISessions>().FindAsync(started.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        winning.Revoke(SessionRevocationReason.SignedOut, Now);
+        await winner.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        losing.Revoke(SessionRevocationReason.DeviceSignedOut, Now);
+
+        await Should.ThrowAsync<ConcurrencyConflictException>(
+            () => loser.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        var reloaded = (await loser.ServiceProvider.GetRequiredService<ISessions>().FindAsync(started.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        reloaded.RevokedReason.ShouldBe(SessionRevocationReason.SignedOut);
     }
 
     [Fact]

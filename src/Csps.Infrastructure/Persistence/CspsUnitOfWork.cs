@@ -1,4 +1,6 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Persistence;
 
@@ -7,7 +9,19 @@ namespace Csps.Infrastructure.Persistence;
 internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
 {
     /// <inheritdoc />
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken) => context.SaveChangesAsync(cancellationToken);
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            // Application cannot see EF. The stale entities go, so the caller can load the rows again.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(exception);
+        }
+    }
 
     /// <inheritdoc />
     public async Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken)

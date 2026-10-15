@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Domain.Common;
 using Csps.Server.Http;
 using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -20,8 +21,8 @@ public sealed class AuthSessionController(RefreshHandler refresh) : ControllerBa
     /// <summary>Renews the access token with the refresh cookie and rotates the cookie.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>
-    /// 200 with the session and the rotated cookie, 401 when the session ended (the cookie is deleted), or 403
-    /// without the anti-CSRF header.
+    /// 200 with the session and the rotated cookie, 401 when the session ended (the cookie is deleted), 409 when two
+    /// refreshes raced and this one lost (the cookie stays), or 403 without the anti-CSRF header.
     /// </returns>
     [HttpPost("refresh")]
     [AllowAnonymous]
@@ -30,11 +31,12 @@ public sealed class AuthSessionController(RefreshHandler refresh) : ControllerBa
     [ProducesResponseType<SessionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> Refresh(CancellationToken cancellationToken)
     {
         var token = Request.Cookies[AuthCookies.RefreshCookieName];
         var result = await refresh.HandleAsync(token, cancellationToken).ConfigureAwait(false);
-        if (result.IsFailure)
+        if (result.IsFailure && result.Error.Kind == ErrorKind.Unauthenticated)
         {
             AuthCookies.ClearRefresh(Response);
         }

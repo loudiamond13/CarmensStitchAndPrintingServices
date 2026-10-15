@@ -1,4 +1,7 @@
+using System.Globalization;
+using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Identity;
 
@@ -16,22 +19,27 @@ public sealed record RefreshOutcome(SessionResponse Response, string RefreshToke
 }
 
 /// <summary>
-/// Use case: keep a session alive with its refresh cookie (AUTH-05, D-43). Each refresh uses the presented token once,
-/// issues a new access token and a new refresh token, and never moves the session's fixed end.
+/// Use case: keep a session alive with its refresh cookie (AUTH-05, AUTH-10, D-39, D-43). Each refresh uses the
+/// presented token once, issues a new access token and a new refresh token, and never moves the session's fixed end.
+/// A token used a moment ago gets a sibling, so two tabs never sign each other out; a replay later revokes the session.
 /// </summary>
 public sealed class RefreshHandler(
     ISessions sessions,
     IUserAccounts accounts,
     IAccessTokenIssuer accessTokens,
     ISecureRandom random,
+    ISessionCache sessionCache,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     AuthSettings settings,
     TimeProvider time)
 {
+    private const string SessionTarget = "UserSession";
+
     /// <summary>Refreshes a session.</summary>
     /// <param name="refreshToken">The raw token from the refresh cookie; null or empty when the cookie is missing.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new session body and cookie value, or a 401 when the session cannot go on.</returns>
+    /// <returns>The new session body and cookie value, a 401 when the session cannot go on, or a 409 after two lost races.</returns>
     public async Task<Result<RefreshOutcome>> HandleAsync(string? refreshToken, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(refreshToken))
@@ -39,36 +47,80 @@ public sealed class RefreshHandler(
             return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
         }
 
-        var lookup = await sessions.FindByRefreshHashAsync(TokenHash.Compute(refreshToken), cancellationToken).ConfigureAwait(false);
-        if (lookup is null)
+        var hash = TokenHash.Compute(refreshToken);
+        try
+        {
+            return await AttemptAsync(hash, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // Another tab saved first. The unit of work dropped its tracked state; the second pass sees the used token inside the grace window.
+        }
+
+        try
+        {
+            return await AttemptAsync(hash, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Result.Failure<RefreshOutcome>(AuthErrors.RefreshBusy);
+        }
+    }
+
+    private async Task<Result<RefreshOutcome>> AttemptAsync(byte[] hash, CancellationToken cancellationToken)
+    {
+        var lookup = await sessions.FindByRefreshHashAsync(hash, cancellationToken).ConfigureAwait(false);
+        var now = time.GetUtcNow();
+        if (lookup is null || !lookup.Session.IsActive(now))
         {
             return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
         }
 
         var session = lookup.Session;
         var user = await accounts.FindByIdAsync(session.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null)
+        if (user is null || !user.IsActive || user.LockoutEnd > now)
         {
+            await EndForInactiveAccountAsync(lookup, now, cancellationToken).ConfigureAwait(false);
             return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
         }
 
         var next = random.NewToken();
-        var rotation = session.Rotate(lookup.Presented, lookup.Related, TokenHash.Compute(next), time.GetUtcNow(), settings.ToSessionSettings());
-        if (rotation.NewToken is null)
+        var rotation = session.Rotate(lookup.Presented, lookup.Related, TokenHash.Compute(next), now, settings.ToSessionSettings());
+        switch (rotation.Outcome)
         {
-            return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
+            case RotationOutcome.Rotated or RotationOutcome.GraceSibling:
+                sessions.AddToken(rotation.NewToken!);
+                var access = accessTokens.Issue(user.Id, user.Role, session.Id);
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                var response = new SessionResponse(
+                    access.Token,
+                    access.ExpiresAt,
+                    session.AbsoluteExpiresAt,
+                    session.Persistent,
+                    new SessionUser(user.Id, user.Email, user.FirstName, user.LastName, user.Role));
+                return Result.Success(new RefreshOutcome(response, next, session.CookieExpiresAt));
+
+            case RotationOutcome.ReuseDetected:
+                // The revocation is committed first; the alarm is written on its own path so it survives any later failure (T-04-50).
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await sessionCache.EvictAsync(session.Id, cancellationToken).ConfigureAwait(false);
+                await audit.RecordIndependentlyAsync(AuditActions.RefreshReuseDetected, SessionTarget, Key(session.Id), null, cancellationToken)
+                    .ConfigureAwait(false);
+                return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
+
+            default:
+                return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
         }
-
-        sessions.AddToken(rotation.NewToken);
-        var access = accessTokens.Issue(user.Id, user.Role, session.Id);
-        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        var response = new SessionResponse(
-            access.Token,
-            access.ExpiresAt,
-            session.AbsoluteExpiresAt,
-            session.Persistent,
-            new SessionUser(user.Id, user.Email, user.FirstName, user.LastName, user.Role));
-        return Result.Success(new RefreshOutcome(response, next, session.CookieExpiresAt));
     }
+
+    // A deactivated, locked or removed account keeps no session (AUTH-10, T-04-53): revoke it now and make its access token fail at once.
+    private async Task EndForInactiveAccountAsync(RefreshLookup lookup, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        lookup.Session.Revoke(SessionRevocationReason.AccountInactive, now, lookup.Related);
+        audit.Record(AuditActions.SessionRevoked, SessionTarget, Key(lookup.Session.Id), null);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await sessionCache.EvictAsync(lookup.Session.Id, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 }

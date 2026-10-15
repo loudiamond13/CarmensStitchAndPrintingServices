@@ -37,6 +37,19 @@ public sealed class VerifyCodeHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        try
+        {
+            return await CheckAsync(ticket, request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // The same ticket was submitted twice at once and the other submission saved first.
+            return Result.Failure<VerifyCodeOutcome>(AuthErrors.TicketExpired);
+        }
+    }
+
+    private async Task<Result<VerifyCodeOutcome>> CheckAsync(string? ticket, VerifyCodeRequest request, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrEmpty(ticket))
         {
             return Result.Failure<VerifyCodeOutcome>(AuthErrors.TicketExpired);
