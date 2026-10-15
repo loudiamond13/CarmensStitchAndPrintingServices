@@ -1053,6 +1053,12 @@
           "FluentValidation": "[12.1.1, )"
         }
       },
+      "csps.bootstrapmanager": {
+        "type": "Project",
+        "dependencies": {
+          "Csps.Infrastructure": "[1.0.0, )"
+        }
+      },
       "csps.domain": {
         "type": "Project"
       },

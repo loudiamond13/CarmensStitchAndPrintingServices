@@ -1,4 +1,4 @@
-using Csps.BootstrapManager;
+using BootstrapProgram = Csps.BootstrapManager.Program;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Seeding;
@@ -157,15 +157,15 @@ public sealed class BootstrapManagerTests
         error.Message.ShouldContain("Usage:");
     }
 
-    [Theory]
-    [InlineData("--email")]
-    [InlineData("--public-base-url")]
-    public void OptionsRejectARepeatedAnUnknownOrValuelessArgument(string flag)
+    [Fact]
+    public void OptionsRejectARepeatedAnUnknownOrValuelessArgument()
     {
-        Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments(), flag, "x"], static _ => null));
+        Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments(), "--email", "x"], static _ => null));
         Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments(), "--unknown=NotARealSecret1"], static _ => null))
             .Message.ShouldNotContain(Password);
-        Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments()[..^1], "--confirm-database"], static _ => null));
+        Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments(), "NotARealSecret1"], static _ => null))
+            .Message.ShouldNotContain(Password);
+        Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse([.. RequiredArguments(), "--public-base-url"], static _ => null));
         Should.Throw<ArgumentException>(() => BootstrapManagerOptions.Parse(["--email", "--first-name", "Carmen"], static _ => null));
     }
 
@@ -203,7 +203,7 @@ public sealed class BootstrapManagerTests
             var user = await context.Users.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
             user.Email.ShouldBe(Email);
             user.IsActive.ShouldBeTrue();
-            user.EmailConfirmed.ShouldBeTrue();
+            user.EmailConfirmed.ShouldBeFalse("the email is confirmed when the invite is accepted");
             user.PasswordHash.ShouldBeNull();
             (await context.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
             (await context.AccountTokens.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
@@ -367,7 +367,7 @@ public sealed class BootstrapManagerTests
         var output = new StringWriter();
         var error = new StringWriter();
 
-        var exitCode = await Program.RunAsync(args, environment, settings, prompt, output, error, TestContext.Current.CancellationToken);
+        var exitCode = await BootstrapProgram.RunAsync(args, environment, settings, prompt, output, error, TestContext.Current.CancellationToken);
 
         return new CommandRun(exitCode, output.ToString(), error.ToString());
     }
