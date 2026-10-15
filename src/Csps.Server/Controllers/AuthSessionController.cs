@@ -5,6 +5,7 @@ using Csps.Server.Http;
 using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
 
@@ -28,6 +29,7 @@ public sealed class AuthSessionController(RefreshHandler refresh, SignOutHandler
     /// refreshes raced and this one lost (the cookie stays), or 403 without the anti-CSRF header.
     /// </returns>
     [HttpPost("refresh")]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [IdempotencyExempt("Returns a new access token and rotates the cookie; must never be stored or replayed.")]
     [AllowAnonymous]
     [RequireCsrfHeader]
@@ -56,6 +58,7 @@ public sealed class AuthSessionController(RefreshHandler refresh, SignOutHandler
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>204 and a deleted cookie, 403 without the anti-CSRF header, or 409 when two saves lost a race.</returns>
     [HttpPost("sign-out")]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [IdempotencyExempt("Naturally idempotent: a repeat finds nothing more to revoke; it clears the refresh cookie.")]
     [AllowAnonymous]
     [RequireCsrfHeader]
@@ -78,6 +81,7 @@ public sealed class AuthSessionController(RefreshHandler refresh, SignOutHandler
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>204, 401 without a valid token, or 409 when two saves lost a race.</returns>
     [HttpPost("sign-out-others")]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [IdempotencyExempt("Naturally idempotent: a repeat finds nothing more to revoke; no answer worth storing.")]
     [Authorize(Policy = Policies.Staff)]
     [EndpointName("SignOutOthers")]

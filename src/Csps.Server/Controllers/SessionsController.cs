@@ -1,8 +1,10 @@
 using Csps.Application.Auth;
 using Csps.Application.Security;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
 
@@ -24,6 +26,7 @@ public sealed class SessionsController(ListSessionsHandler list, RevokeSessionHa
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the sessions, or 401 without a valid token.</returns>
     [HttpGet]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [EndpointName("ListSessions")]
     [ProducesResponseType<IReadOnlyList<SessionListItem>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -41,6 +44,7 @@ public sealed class SessionsController(ListSessionsHandler list, RevokeSessionHa
     /// session, 401 without a valid token, or 409 when two saves lost a race.
     /// </returns>
     [HttpDelete("{id:guid}")]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [EndpointName("RevokeSession")]
     [ProducesResponseType<RevokeSessionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

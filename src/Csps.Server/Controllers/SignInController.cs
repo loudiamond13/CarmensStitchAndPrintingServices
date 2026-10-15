@@ -69,6 +69,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// sign-in timed out, 403 without the anti-CSRF header, or 429 when the account is paused.
     /// </returns>
     [HttpPost("two-factor/verify")]
+    [EnableRateLimiting(RateLimitPolicies.Verify)]
     [IdempotencyExempt("The answer carries an access token and sets the refresh cookie; tokens must never be stored.")]
     [RequireCsrfHeader]
     [EndpointName("VerifyCode")]
@@ -104,6 +105,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// header, or 429 for the cooldown (with Retry-After) or the hourly cap (without a wait time).
     /// </returns>
     [HttpPost("two-factor/resend")]
+    [EnableRateLimiting(RateLimitPolicies.Resend)]
     [IdempotencyExempt("Bound to the ticket cookie; the 60 s cooldown and hourly cap already make a repeat harmless.")]
     [RequireCsrfHeader]
     [EndpointName("ResendCode")]

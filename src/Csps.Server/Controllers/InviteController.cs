@@ -3,6 +3,7 @@ using Csps.Server.Http;
 using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Csps.Server.Controllers;
@@ -25,6 +26,7 @@ public sealed class InviteController(CheckInviteHandler checkInvite, AcceptInvit
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the account email and first name, or 404 <c>auth.invite-invalid</c> for any invite that does not work.</returns>
     [HttpPost("check")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
     [IdempotencyExempt("Read-only lookup; changes nothing.")]
     [EndpointName("CheckInvite")]
     [ProducesResponseType<InviteLinkResponse>(StatusCodes.Status200OK)]
@@ -45,6 +47,7 @@ public sealed class InviteController(CheckInviteHandler checkInvite, AcceptInvit
     /// 422 <c>auth.breach-check-unavailable</c> while the breach list cannot be reached.
     /// </returns>
     [HttpPost("accept")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
     [EndpointName("AcceptInvite")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

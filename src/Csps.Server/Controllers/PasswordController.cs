@@ -3,6 +3,7 @@ using Csps.Server.Http;
 using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Csps.Server.Controllers;
@@ -31,6 +32,7 @@ public sealed class PasswordController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>202 with no body, or 400 for a missing or malformed email.</returns>
     [HttpPost("forgot")]
+    [EnableRateLimiting(RateLimitPolicies.Forgot)]
     [EndpointName("ForgotPassword")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -47,6 +49,7 @@ public sealed class PasswordController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the account email, or 404 <c>auth.link-invalid</c> for any link that does not work.</returns>
     [HttpPost("reset/check")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
     [IdempotencyExempt("Read-only lookup; changes nothing.")]
     [EndpointName("CheckResetLink")]
     [ProducesResponseType<ResetLinkResponse>(StatusCodes.Status200OK)]
@@ -64,6 +67,7 @@ public sealed class PasswordController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>204 with no body, 400 for a refused password, 404 <c>auth.link-invalid</c>, or 409 when two saves lost a race.</returns>
     [HttpPost("reset")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
     [EndpointName("ResetPassword")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -85,6 +89,7 @@ public sealed class PasswordController(
     /// usable pending sign-in, or 403 without the anti-CSRF header.
     /// </returns>
     [HttpPost("set-new")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
     [IdempotencyExempt("The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.")]
     [RequireCsrfHeader]
     [EndpointName("SetNewPassword")]

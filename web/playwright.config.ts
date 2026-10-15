@@ -19,6 +19,9 @@ const serverProject = fileURLToPath(new URL('../src/Csps.Server', import.meta.ur
 // Playwright port (CLAUDE.md).
 const origin = 'https://localhost:5199';
 
+// The per-address auth limit the E2E host runs with: high enough that no worker count can reach it (plan 04-24).
+const noThrottle = '100000';
+
 // The fixture self-tests prove the guards once per engine; the phone projects reuse those engines.
 const engineOnly = ['**/fixture-selftest.spec.ts'];
 
@@ -92,6 +95,14 @@ export default defineConfig({
       App__PublicBaseUrl: origin,
       Email__Dispatcher__SweepInterval: '00:00:01',
       ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+      // Every worker and project signs in from this one address, so the per-address auth limits (D-39) are set very high
+      // here, as in the .NET test host. Production keeps the owner's numbers (plan 04-24).
+      RateLimits__Auth__SignIn__PermitLimit: noThrottle,
+      RateLimits__Auth__Verify__PermitLimit: noThrottle,
+      RateLimits__Auth__Resend__PermitLimit: noThrottle,
+      RateLimits__Auth__Forgot__PermitLimit: noThrottle,
+      RateLimits__Auth__Reset__PermitLimit: noThrottle,
+      RateLimits__Auth__Refresh__PermitLimit: noThrottle,
     },
   },
 });
