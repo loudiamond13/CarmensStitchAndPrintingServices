@@ -42,6 +42,7 @@ function httpError(status: number, traceId?: string, errors: Record<string, stri
       detail: 'at Csps.Server.Orders.Handler line 42',
       instance: undefined,
       traceId,
+      code: undefined,
       errors,
     },
   });

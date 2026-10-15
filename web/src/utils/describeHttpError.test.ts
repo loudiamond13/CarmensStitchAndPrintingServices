@@ -21,6 +21,7 @@ function httpError(status: number, init: ProblemInit = {}): HttpError {
       detail: undefined,
       instance: undefined,
       traceId: init.traceId,
+      code: undefined,
       errors: init.errors ?? {},
     },
   });

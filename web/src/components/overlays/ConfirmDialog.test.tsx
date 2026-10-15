@@ -48,6 +48,7 @@ function problem(traceId: string): ProblemDetails {
     detail: 'SqlException: deadlock on table Orders',
     instance: undefined,
     traceId,
+    code: undefined,
     errors: {},
   };
 }

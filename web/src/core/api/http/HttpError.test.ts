@@ -108,18 +108,18 @@ describe('parseProblemDetails', () => {
   });
 
   it('drops members with the wrong type', () => {
-    expect(parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7, code: 12 })).toEqual(
-      {
-        type: undefined,
-        title: undefined,
-        status: undefined,
-        detail: undefined,
-        instance: undefined,
-        traceId: undefined,
-        code: undefined,
-        errors: {},
-      },
-    );
+    expect(
+      parseProblemDetails({ type: 1, title: false, status: '404', detail: {}, instance: [], traceId: 7, code: 12 }),
+    ).toEqual({
+      type: undefined,
+      title: undefined,
+      status: undefined,
+      detail: undefined,
+      instance: undefined,
+      traceId: undefined,
+      code: undefined,
+      errors: {},
+    });
   });
 
   it('keeps only string messages in each field-error list', () => {

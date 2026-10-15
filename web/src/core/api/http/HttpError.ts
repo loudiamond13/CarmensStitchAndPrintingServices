@@ -14,7 +14,7 @@ export type HttpErrorKind = 'network' | 'timeout' | 'aborted' | 'http' | 'parse'
 /** Validation messages keyed by field name, from the ProblemDetails `errors` member. */
 export type FieldErrors = Readonly<Record<string, readonly string[]>>;
 
-/** The RFC 9457 members CSPS uses, plus the `traceId` extension. Members with the wrong type are dropped. */
+/** The RFC 9457 members CSPS uses, plus the `traceId` and `code` extensions. Members with the wrong type are dropped. */
 export interface ProblemDetails {
   readonly type: string | undefined;
   readonly title: string | undefined;
@@ -22,6 +22,8 @@ export interface ProblemDetails {
   readonly detail: string | undefined;
   readonly instance: string | undefined;
   readonly traceId: string | undefined;
+  /** The stable machine code of a 4xx, such as `auth.resend-cap`. */
+  readonly code: string | undefined;
   readonly errors: FieldErrors;
 }
 
@@ -57,6 +59,7 @@ export class HttpError extends Error {
   readonly problem: ProblemDetails | undefined;
   readonly fieldErrors: FieldErrors;
   readonly traceId: string | undefined;
+  readonly code: string | undefined;
 
   constructor(init: HttpErrorInit) {
     super(messageFor(init.kind, init.problem), { cause: init.cause });
@@ -65,6 +68,7 @@ export class HttpError extends Error {
     this.problem = init.problem;
     this.fieldErrors = init.problem?.errors ?? noFieldErrors;
     this.traceId = init.problem?.traceId;
+    this.code = init.problem?.code;
   }
 }
 
@@ -105,6 +109,7 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     detail: stringOrUndefined(value.detail),
     instance: stringOrUndefined(value.instance),
     traceId: stringOrUndefined(value.traceId),
+    code: stringOrUndefined(value.code),
     errors: parseFieldErrors(value.errors),
   });
 }

@@ -43,6 +43,7 @@ export function FailedConfirmDialog({ traceId, ...props }: FailedConfirmDialogPr
           detail: undefined,
           instance: undefined,
           traceId,
+          code: undefined,
           errors: {},
         },
       }),
