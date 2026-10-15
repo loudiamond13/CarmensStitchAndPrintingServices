@@ -94,6 +94,26 @@ public sealed class TestingFixturesEndpointTests(CspsDatabase database) : IClass
         account.MustChangePassword.ShouldBe(reason);
     }
 
+    [Fact]
+    public async Task InvitedStateCreatesAnActiveAccountWithNoPasswordAndReturnsTheRawInviteToken()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            new Uri(Route, UriKind.Relative), new { role = "Manager", state = "invited" }, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var root = document.RootElement;
+        root.TryGetProperty("password", out _).ShouldBeFalse();
+        root.GetProperty("inviteToken").GetString().ShouldNotBeNull().Length.ShouldBe(43);
+        var account = await FindAsync(factory, root.GetProperty("userId").GetGuid());
+        account.Email.ShouldBe(root.GetProperty("email").GetString());
+        account.IsActive.ShouldBeTrue();
+        account.HasPassword.ShouldBeFalse();
+    }
+
     [Theory]
     [InlineData("{\"role\":\"Owner\"}")]
     [InlineData("{\"role\":\"Admin\",\"state\":\"locked\"}")]
