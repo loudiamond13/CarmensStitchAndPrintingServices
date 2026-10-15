@@ -123,7 +123,7 @@ describe('formatBusinessTime', () => {
   });
 
   it('uses a plain space before AM or PM, never a narrow no-break space', () => {
-    expect(formatBusinessTime('2026-10-14T07:42:00Z')).not.toMatch(/[  ]/);
+    expect(formatBusinessTime('2026-10-14T07:42:00Z')).not.toMatch(/[\u202F\u00A0]/);
   });
 
   it('reads midnight and noon the 12-hour way', () => {
