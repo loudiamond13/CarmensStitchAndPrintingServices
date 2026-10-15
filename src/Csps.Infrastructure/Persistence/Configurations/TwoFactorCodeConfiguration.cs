@@ -16,6 +16,12 @@ internal sealed class TwoFactorCodeConfiguration : IEntityTypeConfiguration<TwoF
 
         builder.Property(code => code.CodeMac).IsRequired().HasColumnType("binary(32)");
 
+        // Verifying changes only the code row, never the challenge row, so the code's own columns guard it: a second
+        // request that read the same state cannot consume the code twice or lose a wrong-try count (T-04-36).
+        builder.Property(code => code.FailedAttempts).IsConcurrencyToken();
+        builder.Property(code => code.SupersededAt).IsConcurrencyToken();
+        builder.Property(code => code.ConsumedAt).IsConcurrencyToken();
+
         builder.HasIndex(code => code.ChallengeId).HasDatabaseName("IX_TwoFactorCodes_ChallengeId");
     }
 }
