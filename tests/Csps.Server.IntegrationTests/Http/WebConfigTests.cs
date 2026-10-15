@@ -27,6 +27,14 @@ public sealed class WebConfigTests
     }
 
     [Fact]
+    public void LimitsRequestBodiesToOneMebibyte()
+    {
+        var limits = Load().Descendants("security").Elements("requestFiltering").Elements("requestLimits").ShouldHaveSingleItem();
+
+        limits.Attribute("maxAllowedContentLength").ShouldNotBeNull().Value.ShouldBe("1048576");
+    }
+
+    [Fact]
     public void RemovesXPoweredBy()
     {
         var removed = Load().Descendants("httpProtocol").Elements("customHeaders").Elements("remove")
