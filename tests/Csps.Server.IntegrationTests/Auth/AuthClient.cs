@@ -104,6 +104,9 @@ internal static partial class AuthClient
     /// <summary>The reset route.</summary>
     public const string ResetRoute = "/api/v1/auth/password/reset";
 
+    /// <summary>The set-new-password route (the must-change step).</summary>
+    public const string SetNewPasswordRoute = "/api/v1/auth/password/set-new";
+
     /// <summary>The refresh cookie name.</summary>
     public const string RefreshCookieName = "__Secure-csps_rt";
 
@@ -160,6 +163,36 @@ internal static partial class AuthClient
                 user.IsActive = state != StaffState.Deactivated;
                 user.EmailConfirmed = state != StaffState.Unconfirmed;
                 (await users.UpdateAsync(user)).Succeeded.ShouldBeTrue();
+            }
+
+            return new TestStaff(id, email, password);
+        }
+    }
+
+    /// <summary>Creates an active staff account with a chosen password, optionally flagged to set a new one (D-21 shape).</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="password">The password the account starts with, saved as given.</param>
+    /// <param name="reason">Why the next sign-in ends with a new password; null for none.</param>
+    /// <param name="recheckPending">True to mark the password for the late breach re-check (D-18).</param>
+    /// <returns>The account and its password.</returns>
+    public static async Task<TestStaff> CreateStaffWithPasswordAsync(
+        WebApplicationFactory<Program> factory, string password, PasswordChangeReason? reason = null, bool recheckPending = false)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var email = NewEmail();
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var id = await accounts.CreateAsync(new NewUserAccount(email, "Paolo", "Reyes", Roles.Manager, password), TestContext.Current.CancellationToken);
+            if (reason is { } why)
+            {
+                await accounts.SetMustChangePasswordAsync(id, why, TestContext.Current.CancellationToken);
+            }
+
+            if (recheckPending)
+            {
+                await accounts.MarkBreachRecheckAsync(id, TestContext.Current.CancellationToken);
             }
 
             return new TestStaff(id, email, password);
@@ -407,6 +440,41 @@ internal static partial class AuthClient
         }
 
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts the new password of the must-change step; the client's cookie jar supplies the ticket.</summary>
+    /// <param name="client">The client holding the ticket cookie.</param>
+    /// <param name="newPassword">The new password.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> SetNewPasswordAsync(HttpClient client, string? newPassword, bool csrf = true)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(SetNewPasswordRoute, UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { newPassword }),
+        };
+        if (csrf)
+        {
+            request.Headers.Add(CsrfHeader, "1");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Signs in and verifies the emailed code, leaving the client at the answer of the code step.</summary>
+    /// <param name="client">The client (one cookie jar).</param>
+    /// <param name="staff">The account.</param>
+    /// <param name="signInsSoFar">How many sign-in emails the account already holds.</param>
+    /// <returns>The verify response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> SignInThroughCodeAsync(HttpClient client, TestStaff staff, int signInsSoFar = 0)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(staff);
+        using var signIn = await SignInAsync(client, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var code = await ReadCodeAsync(client, staff.Email, signInsSoFar + 1);
+        return await VerifyAsync(client, code);
     }
 
     /// <summary>Posts to the resend route.</summary>
