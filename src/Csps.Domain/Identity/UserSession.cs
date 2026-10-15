@@ -121,9 +121,52 @@ public sealed class UserSession
             throw new ArgumentException("The token belongs to another session.", nameof(presented));
         }
 
+        if (presented.RevokedAt is not null)
+        {
+            return RevokeForReuse(related, now);
+        }
+
+        if (presented.ConsumedAt is { } consumedAt)
+        {
+            // Within the grace window a used token gets a sibling, up to the cap; beyond it, it is a replay.
+            var children = related.Count(token => token.ParentId == presented.Id);
+            return now - consumedAt > settings.RefreshGrace || children > settings.MaxGraceSiblings
+                ? RevokeForReuse(related, now)
+                : IssueChild(presented, newTokenHash, now, RotationOutcome.GraceSibling);
+        }
+
         presented.Consume(now);
+        foreach (var token in related)
+        {
+            if (token.ConsumedAt is null && token.RevokedAt is null && now - token.IssuedAt > settings.RefreshGrace)
+            {
+                token.Revoke(now);
+            }
+        }
+
+        return IssueChild(presented, newTokenHash, now, RotationOutcome.Rotated);
+    }
+
+    private RotationResult IssueChild(
+        RefreshToken parent, ReadOnlySpan<byte> newTokenHash, DateTimeOffset now, RotationOutcome outcome)
+    {
         LastActiveAt = now;
-        return new RotationResult(RotationOutcome.Rotated, RefreshToken.Issue(Id, presented.Id, newTokenHash, now));
+        return new RotationResult(outcome, RefreshToken.Issue(Id, parent.Id, newTokenHash, now));
+    }
+
+    private RotationResult RevokeForReuse(IReadOnlyCollection<RefreshToken> related, DateTimeOffset now)
+    {
+        RevokedAt = now;
+        RevokedReason = SessionRevocationReason.ReuseDetected;
+        foreach (var token in related)
+        {
+            if (token.ConsumedAt is null && token.RevokedAt is null)
+            {
+                token.Revoke(now);
+            }
+        }
+
+        return new RotationResult(RotationOutcome.ReuseDetected, null);
     }
 
     private static void RequireHashLength(ReadOnlySpan<byte> hash, string paramName)
