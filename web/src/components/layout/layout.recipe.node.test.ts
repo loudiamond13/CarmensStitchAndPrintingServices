@@ -198,7 +198,7 @@ describe('login recipes (App. C `.s-login*`, plan 04-26)', () => {
     const css = (await buildCss(tokensOf(loginClasses))).replace(/\s+/g, ' ');
     expect(css).toContain('grid-template-columns: 1.1fr 1fr');
     expect(css).toMatch(/@container pg \((?:width <= 1023px|max-width: 1023px)\)/);
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(css).toMatch(/grid-template-columns: minmax\(0, ?1fr\)/);
   });
 
   it('the phone brand panel is 200px tall at least, the card 420px wide with a 20px gap, the h1 44px then 36px', async () => {

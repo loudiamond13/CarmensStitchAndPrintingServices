@@ -105,10 +105,16 @@ function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
 
-/** Answers POST /auth/sign-out with `status`; the returned function says how many calls arrived. */
+/**
+ * Answers POST /auth/sign-out with `status`; the returned function says how many calls arrived. Leaving for the real
+ * sign-in page makes its loader look for a session, so POST /auth/refresh answers 401 (no cookie).
+ */
 function answerSignOut(status = 204): () => number {
   let calls = 0;
   server.use(
+    http.post('*/api/v1/auth/refresh', () =>
+      HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
+    ),
     http.post('*/api/v1/auth/sign-out', () => {
       calls += 1;
       return new HttpResponse(null, { status });

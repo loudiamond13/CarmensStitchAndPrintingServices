@@ -62,7 +62,9 @@ describe('S1 sign in tracer', () => {
     expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/admin/forgot-password');
     expect(screen.getByRole('button', { name: 'Sign In' })).toHaveAttribute('type', 'submit');
     expect(screen.getByRole('link', { name: 'Back to the CSPS website' })).toHaveAttribute('href', '/');
-    expect(screen.getByText('Staff only. Customer orders are placed through the public site or Messenger.')).toBeVisible();
+    expect(
+      screen.getByText('Staff only. Customer orders are placed through the public site or Messenger.'),
+    ).toBeVisible();
   });
 
   it('sends the sign-in with the Keep me signed in choice and opens the code step with the same return path', async () => {

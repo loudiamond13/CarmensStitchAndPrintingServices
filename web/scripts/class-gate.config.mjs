@@ -25,6 +25,8 @@ export const OPACITY_ALLOW = Object.freeze([
   { pattern: /^group-hover\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^group-focus-within\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^no-hover:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
+  // D-02 (named there as "the login numeral"): the decorative, aria-hidden outlined "C" of the auth brand panel.
+  { pattern: /^opacity-50$/, files: /^src\/components\/layout\/layout\.recipe\.ts$/, decision: 'D-02' },
 ]);
 
 /**

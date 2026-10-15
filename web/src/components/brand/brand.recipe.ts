@@ -11,7 +11,7 @@ export const markClasses = tw('block flex-none');
 /** `.csp-logo`: inline-flex, centred, no underline (the lockup sits in links). The gap is per size, the ink per context. */
 export const logoClasses = tw('inline-flex items-center no-underline');
 
-export type LogoContext = 'default' | 'sidebar' | 'siteHeader' | 'footer';
+export type LogoContext = 'default' | 'sidebar' | 'siteHeader' | 'footer' | 'login';
 
 /**
  * The lockup ink per context (plan 02-26): `.csp-logo` in `--ink`, and inside the sidebar the App. B
@@ -23,6 +23,7 @@ export const logoContextClasses = {
   sidebar: tw('text-nav-ink'),
   siteHeader: tw('text-ink'),
   footer: tw('text-ink pg-phone:gap-[10px]'),
+  login: tw('text-ink pg-phone:gap-3'),
 } as const satisfies Record<LogoContext, string>;
 
 /**
@@ -34,6 +35,7 @@ export const logoLetterContextClasses = {
   sidebar: tw(''),
   siteHeader: tw(''),
   footer: tw('pg-phone:text-[40px]'),
+  login: tw('pg-phone:text-[56px]'),
 } as const satisfies Record<LogoContext, string>;
 
 /**
@@ -47,6 +49,7 @@ export const logoTaglineContextClasses = {
   sidebar: tw('text-nav-ink pg-tablet:in-data-[ui=s-admin-side]:hidden'),
   siteHeader: tw('text-ink pg-phone:text-[8px] pg-phone:tracking-[.12em]'),
   footer: tw('text-ink pg-phone:text-[9.5px]'),
+  login: tw('text-ink pg-phone:text-[9.5px]'),
 } as const satisfies Record<LogoContext, string>;
 
 /**
@@ -58,6 +61,7 @@ export const logoLettersContextClasses = {
   sidebar: tw('pg-tablet:in-data-[ui=s-admin-side]:hidden'),
   siteHeader: tw(''),
   footer: tw(''),
+  login: tw(''),
 } as const satisfies Record<LogoContext, string>;
 
 /**
@@ -69,6 +73,7 @@ export const logoLetterMarkContextClasses = {
   sidebar: tw('pg-tablet:in-data-[ui=s-admin-side]:m-0 pg-tablet:in-data-[ui=s-admin-side]:size-9'),
   siteHeader: tw(''),
   footer: tw(''),
+  login: tw(''),
 } as const satisfies Record<LogoContext, string>;
 
 /** `.csp-logo-sm/md/lg { gap }` (App. B overrides the `.csp-logo` gap per size). */

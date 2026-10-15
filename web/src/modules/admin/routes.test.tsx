@@ -48,8 +48,9 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Forders');
-    expect(probe.count).toBe(1);
-    expect(probe.csrf).toEqual(['1']);
+    // One refresh for the guard, and one more when the sign-in page checks that no session is live.
+    expect(probe.count).toBe(2);
+    expect(probe.csrf).toEqual(['1', '1']);
   });
 
   it('with a refresh cookie the shell shows the signed-in user instead of the dev placeholder', async () => {

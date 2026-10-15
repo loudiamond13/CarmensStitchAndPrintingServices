@@ -8,6 +8,8 @@
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
 //     come in Phases 5-9 show the page-not-found screen inside the shell.
+//   - The sign-in screens (`admin/login` and, in later plans, the code, forgot and reset screens) sit in a pathless
+//     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the D-22
 //     Component Showcase, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
@@ -31,6 +33,14 @@ const adminLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/layouts/AdminLayout')).default,
 }));
 
+const authLayout = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/layouts/AuthLayout')).default,
+}));
+
+const signInPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/SignInPage')).SignInRoute,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -38,6 +48,10 @@ const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
 /** requireSessionLoader, loaded with the admin chunks so the public entry never carries the session code (PERF-01). */
 const requireSession: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireSessionLoader(args);
+
+/** redirectIfSignedInLoader, loaded with the admin chunks as above. */
+const redirectIfSignedIn: LoaderFunction = async () =>
+  (await import('@/modules/admin/guard')).redirectIfSignedInLoader();
 
 export const adminRoutes: RouteObject[] = [
   {
@@ -63,6 +77,17 @@ export const adminRoutes: RouteObject[] = [
           { path: 'users', lazy: notFoundPage },
           { path: 'profile', lazy: notFoundPage },
         ],
+      },
+    ],
+  },
+  // The sign-in screens: in the auth layout, outside the guard (a guarded splat would redirect them to themselves).
+  {
+    ErrorBoundary: AdminRootErrorBoundary,
+    lazy: authLayout,
+    children: [
+      {
+        ErrorBoundary: AdminRouteErrorBoundary,
+        children: [{ path: 'admin/login', loader: redirectIfSignedIn, lazy: signInPage }],
       },
     ],
   },
