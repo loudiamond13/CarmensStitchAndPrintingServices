@@ -58,43 +58,19 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         };
     }
 
-    private RenderedEmail RenderSignInCode(SignInCodeEmail email, TimeZoneInfo zone)
-    {
-        const string Preheader = "It works for 15 minutes. Never share it.";
-        const string Instruction = "Enter this code on the CSPS sign-in screen. It works for 15 minutes and only once.";
-        const string NotYou = "Didn't try to sign in? Someone may know your password. Reset it now from the sign-in page:";
-
-        var subject = $"{email.Code} is your CSPS sign-in code";
-        var requestedLine = $"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}.";
-        var forgotPage = links.Value.ForgotPasswordPage();
-
-        var text = new StringBuilder()
-            .Append("Your sign-in code\n\n")
-            .Append(email.Code).Append("\n\n")
-            .Append(Instruction).Append("\n\n")
-            .Append(requestedLine).Append("\n\n")
-            .Append(NotYou).Append(' ').Append(forgotPage).Append("\n\n")
-            .Append(FooterBusiness).Append(" · ").Append(FooterNote).Append('\n')
-            .Append(FooterReason).Append('\n')
-            .ToString();
-
-        var html = new StringBuilder()
-            .Append("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"color-scheme\" content=\"light\">\n")
-            .Append("<title>").Append(Encode(subject)).Append("</title>\n</head>\n<body>\n")
-            .Append("<div style=\"display:none;max-height:0;overflow:hidden\">").Append(Encode(Preheader)).Append("</div>\n")
-            .Append("<h1>Your sign-in code</h1>\n")
-            .Append("<p style=\"font-family:Consolas,'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:8px\">")
-            .Append(Encode(email.Code)).Append("</p>\n")
-            .Append("<p>").Append(Encode(Instruction)).Append("</p>\n")
-            .Append("<p>").Append(Encode(requestedLine)).Append("</p>\n")
-            .Append("<p>").Append(Encode(NotYou)).Append(" <a href=\"").Append(Encode(forgotPage)).Append("\">").Append(Encode(forgotPage)).Append("</a></p>\n")
-            .Append("<p>").Append(Encode(FooterBusiness)).Append(" &middot; ").Append(Encode(FooterNote)).Append("<br>")
-            .Append(Encode(FooterReason)).Append("</p>\n")
-            .Append("</body>\n</html>\n")
-            .ToString();
-
-        return new RenderedEmail(subject, text, html);
-    }
+    private RenderedEmail RenderSignInCode(SignInCodeEmail email, TimeZoneInfo zone) =>
+        Brand(new EmailContent(
+            Subject: $"{email.Code} is your CSPS sign-in code",
+            Preheader: "It works for 15 minutes. Never share it.",
+            Heading: "Your sign-in code",
+            Blocks:
+            [
+                new CodeBlock(email.Code),
+                new ParagraphBlock("Enter this code on the CSPS sign-in screen. It works for 15 minutes and only once."),
+                new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
+                new ParagraphBlock("Didn't try to sign in? Someone may know your password. Reset it now from the sign-in page:", links.Value.ForgotPasswordPage()),
+            ],
+            Button: null));
 
     private RenderedEmail RenderLocked(AccountLockedEmail email, TimeZoneInfo zone)
     {
@@ -180,6 +156,33 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 "Each time you sign in, we'll also email you a 6-digit code.",
             ],
             button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+
+    // The branded frame (D-30): the HTML part and the plain-text part are both built from the same blocks.
+    private static RenderedEmail Brand(EmailContent content)
+    {
+        const string Gap = "\n\n";
+        var text = new StringBuilder().Append(content.Heading).Append(Gap);
+        foreach (var block in content.Blocks)
+        {
+            text.Append(block switch
+            {
+                ParagraphBlock { LinkUrl: { } url } paragraph => $"{paragraph.Text} {url}",
+                ParagraphBlock paragraph => paragraph.Text,
+                MetaBlock meta => meta.Text,
+                CodeBlock code => code.Code,
+                _ => throw new NotSupportedException($"{block.GetType().Name} has no text form."),
+            }).Append(Gap);
+        }
+
+        if (content.Button is { } button)
+        {
+            text.Append(button.Label).Append(": ").Append(button.Url).Append(Gap);
+        }
+
+        text.Append(EmailHtmlLayout.FooterBusiness).Append(" · ").Append(EmailHtmlLayout.FooterNote).Append('\n')
+            .Append(EmailHtmlLayout.FooterReason).Append('\n');
+        return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
+    }
 
     // One frame for the notice kinds: heading, paragraphs, and an optional button whose link is also written out as a fallback.
     private static RenderedEmail Compose(string subject, string preheader, string heading, IReadOnlyList<string> paragraphs, EmailButton? button)

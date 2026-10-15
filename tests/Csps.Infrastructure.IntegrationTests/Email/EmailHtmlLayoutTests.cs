@@ -36,7 +36,9 @@ public sealed partial class EmailHtmlLayoutTests
         html.ShouldContain("text-transform:uppercase");
         html.ShouldContain("Your sign-in code");
         html.ShouldContain("Carmen&#39;s Stitch &amp; Printing Services &middot; This is an automatic email.");
-        Regex.Matches(html, "<table\b[^>]*>").ShouldAllBe(match => match.Value.Contains("role=\"presentation\"", StringComparison.Ordinal));
+        var tables = Regex.Matches(html, @"<table\b[^>]*>");
+        tables.Count.ShouldBeGreaterThan(0);
+        tables.ShouldAllBe(match => match.Value.Contains("role=\"presentation\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -58,7 +60,7 @@ public sealed partial class EmailHtmlLayoutTests
     {
         var html = (await RenderCodeAsync()).Html;
 
-        Regex.Count(html, "<img\b").ShouldBe(1);
+        Regex.Count(html, @"<img\b").ShouldBe(1);
         html.ShouldContain("src=\"cid:csps-logo\"");
         html.ShouldContain("alt=\"CSPS — Carmen&#39;s Stitch &amp; Printing Services\"");
         html.ShouldContain("width=\"180\"");

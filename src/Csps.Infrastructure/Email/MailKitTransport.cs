@@ -26,7 +26,7 @@ internal sealed class MailKitTransport(IOptions<SmtpOptions> smtp, IOptions<Emai
         _ => throw new ArgumentOutOfRangeException(nameof(security), "Only StartTls and SslOnConnect are supported."),
     };
 
-    /// <summary>Builds the message: the business sender, no Reply-To, plain text first and HTML second.</summary>
+    /// <summary>Builds the message: the business sender, no Reply-To, plain text first and HTML second (with the inline logo when it is used).</summary>
     /// <param name="email">The rendered email.</param>
     /// <param name="sender">The From address and name.</param>
     /// <returns>The message to send.</returns>
@@ -38,7 +38,15 @@ internal sealed class MailKitTransport(IOptions<SmtpOptions> smtp, IOptions<Emai
         var message = new MimeMessage { Subject = email.Subject };
         message.From.Add(new MailboxAddress(sender.FromName, sender.FromAddress));
         message.To.Add(MailboxAddress.Parse(email.To));
-        message.Body = new BodyBuilder { TextBody = email.Text, HtmlBody = email.Html }.ToMessageBody();
+
+        var builder = new BodyBuilder { TextBody = email.Text, HtmlBody = email.Html };
+        if (email.Html.Contains($"cid:{EmailHtmlLayout.LogoContentId}", StringComparison.Ordinal))
+        {
+            var logo = builder.LinkedResources.Add("csps-logo.png", EmailHtmlLayout.LogoPng(), new ContentType("image", "png"));
+            logo.ContentId = EmailHtmlLayout.LogoContentId;
+        }
+
+        message.Body = builder.ToMessageBody();
         return message;
     }
 

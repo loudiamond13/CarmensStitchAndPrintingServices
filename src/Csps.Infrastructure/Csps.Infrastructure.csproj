@@ -10,6 +10,11 @@
     <EmbeddedResource Include="Passwords\common-passwords-10k.txt" LogicalName="Csps.Infrastructure.Passwords.common-passwords-10k.txt" />
   </ItemGroup>
 
+  <!-- The 2x PNG of the horizontal CSPS lockup the auth emails attach inline (D-30); made by web/scripts/render-email-logo.mjs. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Email\Assets\csps-logo.png" LogicalName="Csps.Infrastructure.Email.Assets.csps-logo.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Application\Csps.Application.csproj" />
   </ItemGroup>

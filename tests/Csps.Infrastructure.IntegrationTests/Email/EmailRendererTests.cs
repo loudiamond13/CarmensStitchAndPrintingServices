@@ -63,7 +63,7 @@ public sealed class EmailRendererTests
 
         rendered.Subject.ShouldNotContain("\n");
         Regex.Matches(rendered.Html, "src=\"([^\"]*)\"").Select(match => match.Groups[1].Value).ShouldAllBe(source => source == "cid:csps-logo");
-        Regex.Count(rendered.Html, "<img\b").ShouldBeLessThanOrEqualTo(1);
+        Regex.Count(rendered.Html, @"<img\b").ShouldBeLessThanOrEqualTo(1);
         rendered.Html.ShouldNotContain("<script");
         rendered.Html.ShouldNotContain("<link");
         rendered.Html.ShouldNotContain("@import");
