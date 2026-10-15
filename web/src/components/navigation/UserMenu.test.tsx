@@ -274,6 +274,134 @@ describe('UserMenu popover (SPEC-GAP: user menu)', () => {
   });
 });
 
+describe('UserMenu session items (D-04, D-43, OQ-3; plan 04-30)', () => {
+  function renderSessionMenu(onSignOutOthers = vi.fn(), onLogout = vi.fn()) {
+    const view = render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <UserMenu
+          user={CARMEN}
+          role={MANAGER}
+          onLogout={onLogout}
+          devicesPath="/admin/sessions"
+          onSignOutOthers={onSignOutOthers}
+        />
+        <CurrentPath />
+      </MemoryRouter>,
+    );
+    return { ...view, onSignOutOthers, onLogout, user: userEvent.setup() };
+  }
+
+  it('lists My Profile, Signed-in Devices, Sign Out Other Devices and Logout, in that order', async () => {
+    const { user } = renderSessionMenu();
+
+    await user.click(trigger());
+
+    expect(
+      within(menu())
+        .getAllByRole('menuitem')
+        .map((element) => element.textContent),
+    ).toEqual(['My Profile', 'Signed-in Devices', 'Sign Out Other Devices', 'Logout']);
+    expect(item('Signed-in Devices')).toHaveAttribute('href', '/admin/sessions');
+    expect(item('Sign Out Other Devices').localName).toBe('button');
+  });
+
+  it('draws the new items in the nav-item look with 20px icons and a roving tabindex', async () => {
+    const { user } = renderSessionMenu();
+    await user.click(trigger());
+
+    expect(hasClasses(item('Signed-in Devices'), navItemClasses())).toBe(true);
+    expect(hasClasses(item('Sign Out Other Devices'), navItemClasses())).toBe(true);
+    expect(hasClasses(item('Sign Out Other Devices'), navButtonClasses)).toBe(true);
+    for (const name of ['Signed-in Devices', 'Sign Out Other Devices']) {
+      expect(item(name).querySelector('svg')?.getAttribute('width'), name).toBe('20');
+      expect(item(name), name).toHaveAttribute('tabindex', '-1');
+    }
+  });
+
+  it('moves over all four items with the arrows (wrapping), Home and End, and closes on Esc', async () => {
+    const { user } = renderSessionMenu();
+    await user.click(trigger());
+
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(item('Signed-in Devices'));
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(item('Sign Out Other Devices'));
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(item('Logout'));
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(item('My Profile'));
+    await user.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(item('Logout'));
+    await user.keyboard('{Home}');
+    expect(document.activeElement).toBe(item('My Profile'));
+    await user.keyboard('{End}');
+    expect(document.activeElement).toBe(item('Logout'));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('follows Signed-in Devices in the app, closes and returns focus to the button', async () => {
+    const { user } = renderSessionMenu();
+    await user.click(trigger());
+
+    await user.click(item('Signed-in Devices'));
+
+    expect(screen.getByRole('status', { name: 'Current path' })).toHaveTextContent('/admin/sessions');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('calls onSignOutOthers from Sign Out Other Devices, closes and puts focus on the button', async () => {
+    const { user, onSignOutOthers, onLogout } = renderSessionMenu();
+    await user.click(trigger());
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+
+    expect(onSignOutOthers).toHaveBeenCalledTimes(1);
+    expect(onLogout).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('has no axe violations with the four items', async () => {
+    const { container, user } = renderSessionMenu();
+    await user.click(trigger());
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows only the items whose prop is given', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <UserMenu user={CARMEN} role={MANAGER} devicesPath="/admin/sessions" />
+      </MemoryRouter>,
+    );
+    await user.click(trigger());
+
+    expect(
+      within(menu())
+        .getAllByRole('menuitem')
+        .map((element) => element.textContent),
+    ).toEqual(['My Profile', 'Signed-in Devices', 'Logout']);
+  });
+
+  it('hands both session props through the Topbar', async () => {
+    const onSignOutOthers = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Topbar user={CARMEN} role={MANAGER} devicesPath="/admin/sessions" onSignOutOthers={onSignOutOthers} />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Carmen Reyes/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+
+    expect(onSignOutOthers).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Topbar user menu (spec §6.6)', () => {
   it('opens the user menu from the Topbar user button and hands Logout to onLogout', async () => {
     const onLogout = vi.fn();

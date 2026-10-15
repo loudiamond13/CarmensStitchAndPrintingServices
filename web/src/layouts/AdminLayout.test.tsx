@@ -571,6 +571,57 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
 
     await expectNoAxeViolations(container);
   });
+
+  it('lists the session items between My Profile and Logout (D-04, D-43, OQ-3)', async () => {
+    await renderAt('/admin');
+
+    await userEvent.click(userButton());
+
+    expect(screen.getAllByRole('menuitem').map((element) => element.textContent)).toEqual([
+      'My Profile',
+      'Signed-in Devices',
+      'Sign Out Other Devices',
+      'Logout',
+    ]);
+    expect(screen.getByRole('menuitem', { name: 'Signed-in Devices' })).toHaveAttribute('href', '/admin/sessions');
+  });
+
+  it('opens the sign-out-others dialog from the menu, signs the others out, toasts and returns focus to the menu button', async () => {
+    let calls = 0;
+    server.use(
+      http.post('*/api/v1/auth/sign-out-others', () => {
+        calls += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Others Signed In' })).toHaveFocus();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+
+    expect(await screen.findByText('Signed out of other devices')).toBeInTheDocument();
+    expect(calls).toBe(1);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Sign out of other devices?' })).toBeNull();
+    });
+    expect(userButton()).toHaveFocus();
+  });
+
+  it('keeps the other devices signed in when the dialog is dismissed with Esc', async () => {
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(userButton()).toHaveFocus();
+  });
 });
 
 describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
