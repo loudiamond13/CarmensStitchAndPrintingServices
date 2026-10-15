@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionListItem } from '@/modules/admin/services/sessionsService';
-import { deviceLabel, lastActiveText, rowSignOutName, signedInText } from './deviceSummary';
+import { deviceLabel, lastActiveText, orderDevices, rowSignOutName, signedInText } from './deviceSummary';
 
 // The S7 row strings (UI-SPEC "S7 Signed-in devices"; D-43).
 
@@ -92,5 +92,32 @@ describe('rowSignOutName', () => {
 
   it('uses the unknown-browser label for a blank device', () => {
     expect(rowSignOutName(item({ device: '' }))).toBe('Sign out Unknown browser, signed in Oct 12, 2026, 3:42 PM');
+  });
+});
+
+describe('orderDevices', () => {
+  it('puts this device first, then the others by last active, newest first', () => {
+    const old = item({ id: 'old', lastActiveAt: minutesAgo(300) });
+    const recent = item({ id: 'recent', lastActiveAt: minutesAgo(2) });
+    const me = item({ id: 'me', current: true, lastActiveAt: minutesAgo(900) });
+
+    expect(orderDevices([old, recent, me]).map((entry) => entry.id)).toEqual(['me', 'recent', 'old']);
+  });
+
+  it('keeps the server order for equal times and sorts an unreadable time last', () => {
+    const a = item({ id: 'a', lastActiveAt: minutesAgo(10) });
+    const b = item({ id: 'b', lastActiveAt: minutesAgo(10) });
+    const broken = item({ id: 'broken', lastActiveAt: 'soon' });
+
+    expect(orderDevices([broken, a, b]).map((entry) => entry.id)).toEqual(['a', 'b', 'broken']);
+  });
+
+  it('returns a new array and leaves its input alone', () => {
+    const input = [item({ id: 'x' }), item({ id: 'y', current: true })];
+
+    const ordered = orderDevices(input);
+
+    expect(ordered).not.toBe(input);
+    expect(input.map((entry) => entry.id)).toEqual(['x', 'y']);
   });
 });
