@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-30-PLAN.md
-last_updated: "2026-10-15T11:47:02.212Z"
+stopped_at: Completed 04-24-PLAN.md
+last_updated: "2026-10-15T12:04:25.128Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: fcbdc71ece552676584912734ee8af3374f7c05b
+state_head: 778ecd198aad9e0148c43b7a49009394a06e93ab
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 86
+  completed_plans: 87
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 31 of 35
+Plan: 32 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -145,6 +145,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P29 | 57min | 2 tasks | 21 files |
 | Phase 04 P22 | 40 min | 2 tasks | 29 files |
 | Phase 04 P30 | 2h 0m | 3 tasks | 21 files |
+| Phase 04 P24 | 70 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -371,6 +372,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-22: invite acceptance confirms the email (ConfirmEmailAsync); the bootstrap Manager is created unconfirmed and passwordless
 - [Phase 04]: 04-30: Modal makes the page behind it inert (only the newest dialog decides); inline mock-up dialogs stay live
 - [Phase 04]: 04-30: session-cap warning is a warning-tone toast 5 minutes before the 12-hour cap of a browser session (OQ-4)
+- [Phase 04]: 04-24: Retry-After on a per-IP 429 is the policy's whole window (sliding-window leases report no wait); E2E host sets auth limits to 100000
 
 ### Pending Todos
 
@@ -417,6 +419,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T11:47:01.826Z
-Stopped at: Completed 04-30-PLAN.md
+Last session: 2026-10-15T12:04:24.768Z
+Stopped at: Completed 04-24-PLAN.md
 Resume file: None
