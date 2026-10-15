@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-07T18:05:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-14T19:50:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -174,9 +174,11 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
 | SPF | D1 (DNS record on cspstailoring.com) | `v=spf1 a mx include:_spf.site4now.net -all` | Verified | 2026-10-07 |
-| DKIM | D2 | Gmail "Show original" result not provided yet; the owner may supply it later. Needed before Phase 4 email | Unverified | - |
+| DKIM | D2 | `dkim=pass header.i=@cspstailoring.com header.s=8DF2A53DE38DCC0` (Gmail "Show original"); the DKIM TXT record is published at `8DF2A53DE38DCC0._domainkey.cspstailoring.com` and was seen from 8.8.8.8 | Verified | 2026-10-14 |
 | DMARC | D1 (DNS record on _dmarc.cspstailoring.com) | `v=DMARC1;p=reject;pct=100;rua=mailto:postmaster@cspstailoring.com` | Verified | 2026-10-07 |
-| SPF / DKIM / DMARC pass in Gmail | D2 | Gmail "Show original" result not provided yet; the owner may supply it later. Needed before Phase 4 email | Unverified | - |
+| SPF / DKIM / DMARC pass in Gmail | D2 | Message from no-reply@cspstailoring.com: `spf=pass` (sender allowed via site4now.net), `dkim=pass` (header.i=@cspstailoring.com), `dmarc=pass` (p=REJECT sp=REJECT dis=NONE, header.from=cspstailoring.com). Still exactly one SPF record, `_dmarc` unchanged | Verified | 2026-10-14 |
+| Sender mailbox | D-26, D-34 (mail-setup.md step 1) | `no-reply@cspstailoring.com`; the app sets its own From display name "Carmen's Stitch & Printing" and no Reply-To (the mailbox's own webmail display name is "Carmens Stitch and Printing Services", which the app does not use) | Verified | 2026-10-14 |
+| Dev runtime | D-35 (`dotnet --list-runtimes`, `dotnet --list-sdks`) | ASP.NET Core 10.0.13, SDK 10.0.402 (D-35, this machine; the host runtime is verified on the Phase 3 first deploy) | Verified | 2026-10-14 |
 
 ## Consequences for later phases
 
@@ -221,8 +223,8 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 - **Email (Phase 4, D-12).** The SPF record ends in `-all` and DMARC is `p=reject`, so mail that fails is rejected,
   not just marked. The app must send through SmarterASP.NET's mail servers (covered by
   `include:_spf.site4now.net`) with DKIM aligned to `cspstailoring.com`. Any other sending service must be **merged
-  into the one existing SPF record**, never added as a second record. The Gmail SPF/DKIM/DMARC pass check (D2) is
-  still due before Phase 4 relies on email.
+  into the one existing SPF record**, never added as a second record. The Gmail SPF/DKIM/DMARC pass check (D2) passed on 2026-10-14 (see Facts),
+  so Phase 4 may send mail through the host.
 - **Scheduled jobs (D-10).** The Basic plan has no host scheduler (A8). Scheduled jobs run from a GitHub Actions
   cron that calls a secret-protected endpoint.
 - **No staging (D-11, amends OPS-04).** There is no staging site (A9). Production deploys need a manual approval
