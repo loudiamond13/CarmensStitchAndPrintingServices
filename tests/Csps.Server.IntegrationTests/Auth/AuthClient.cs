@@ -107,6 +107,12 @@ internal static partial class AuthClient
     /// <summary>The set-new-password route (the must-change step).</summary>
     public const string SetNewPasswordRoute = "/api/v1/auth/password/set-new";
 
+    /// <summary>The invite-link check route.</summary>
+    public const string InviteCheckRoute = "/api/v1/auth/invite/check";
+
+    /// <summary>The invite acceptance route.</summary>
+    public const string InviteAcceptRoute = "/api/v1/auth/invite/accept";
+
     /// <summary>The pending-login ticket cookie name.</summary>
     public const string TicketCookieName = "__Secure-csps_2fa";
 
@@ -333,6 +339,45 @@ internal static partial class AuthClient
         };
         request.Headers.Add(IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts an invite-link check.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="token">The token from the emailed link.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> CheckInviteAsync(HttpClient client, string? token)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return await client.PostAsJsonAsync(new Uri(InviteCheckRoute, UriKind.Relative), new { token }, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts an invite acceptance.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="token">The token from the emailed link.</param>
+    /// <param name="newPassword">The first password.</param>
+    /// <param name="idempotencyKey">The request key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AcceptInviteAsync(
+        HttpClient client, string? token, string? newPassword, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(InviteAcceptRoute, UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { token, newPassword }),
+        };
+        request.Headers.Add(IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the token from the link of an invite or reset email.</summary>
+    /// <param name="mail">The sink message.</param>
+    /// <returns>The 43-character token.</returns>
+    public static string TokenOf(SinkEmail mail)
+    {
+        ArgumentNullException.ThrowIfNull(mail);
+        var match = TokenInResetLink().Match(mail.Text);
+        match.Success.ShouldBeTrue("The email holds no link token.");
+        return match.Groups[1].Value;
     }
 
     /// <summary>Asks for a reset link and returns the token in the emailed link.</summary>
