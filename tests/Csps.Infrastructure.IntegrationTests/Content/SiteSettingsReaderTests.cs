@@ -1,9 +1,11 @@
 using Csps.Application.Ports;
+using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.IntegrationTests.Auditing;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting.Internal;
 
 namespace Csps.Infrastructure.IntegrationTests.Content;
@@ -101,7 +103,65 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
         }
     }
 
-    private static ServiceProvider BuildServices(string connectionString)
+    [Fact]
+    public async Task ResolvesWithoutAScopedDbContext()
+    {
+        await using var services = BuildServices(database.ConnectionString, removeScopedContext: true);
+
+        (await ReadAsync(services)).TimeZoneId.ShouldBe("Asia/Manila");
+    }
+
+    [Fact]
+    public async Task JoinedCallerCompletesWhenTheFirstCallerIsCancelledAndItsScopeEnds()
+    {
+        var adHoc = await CspsDatabase.CreateAsync();
+        await using (adHoc)
+        {
+            await using var services = BuildServices(adHoc.ConnectionString);
+
+            // Hold an exclusive lock on the row so the cache factory is still running when the first caller leaves.
+            var blocker = new SqlConnection(adHoc.ConnectionString);
+            await using (blocker)
+            {
+                await blocker.OpenAsync(TestContext.Current.CancellationToken);
+                var transaction = (SqlTransaction)await blocker.BeginTransactionAsync(TestContext.Current.CancellationToken);
+                await using (transaction)
+                {
+                    var update = blocker.CreateCommand();
+                    await using (update)
+                    {
+                        update.Transaction = transaction;
+                        update.CommandText = "UPDATE dbo.SiteSettings SET BusinessName = BusinessName WHERE Id = 1;";
+                        await update.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+                    }
+
+                    using var firstCaller = new CancellationTokenSource();
+                    var scopeA = services.CreateAsyncScope();
+                    var first = scopeA.ServiceProvider.GetRequiredService<ISiteSettingsReader>().GetAsync(firstCaller.Token).AsTask();
+                    await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+                    var scopeB = services.CreateAsyncScope();
+                    await using (scopeB)
+                    {
+                        var second = scopeB.ServiceProvider.GetRequiredService<ISiteSettingsReader>().GetAsync(TestContext.Current.CancellationToken).AsTask();
+                        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+
+                        await firstCaller.CancelAsync();
+                        await scopeA.DisposeAsync();
+                        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+                        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+
+                        (await second.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken))
+                            .BusinessName.ShouldBe("Carmen's Stitch & Printing Services");
+                    }
+
+                    await Should.ThrowAsync<OperationCanceledException>(() => first);
+                }
+            }
+        }
+    }
+
+    private static ServiceProvider BuildServices(string connectionString, bool removeScopedContext = false)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Csps"] = connectionString })
@@ -112,7 +172,12 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
         // The host provides IRequestContext (the Server reads it from HttpContext); the audit trail needs it.
         services.AddSingleton<IRequestContext>(new FixedRequestContext());
         services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });
-        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        if (removeScopedContext)
+        {
+            services.RemoveAll<CspsDbContext>();
+        }
+
+        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = !removeScopedContext });
     }
 
     // Each read runs in its own scope, like separate HTTP requests sharing the singleton cache.

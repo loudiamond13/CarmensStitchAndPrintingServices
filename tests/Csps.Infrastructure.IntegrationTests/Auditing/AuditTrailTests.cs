@@ -217,6 +217,69 @@ public sealed class AuditTrailTests(CspsDatabase database) : IClassFixture<CspsD
         (await AuditLogSql.ReadAsync(database, request.CorrelationId)).ShouldHaveSingleItem();
     }
 
+    [Fact]
+    public async Task IndependentRecordSurvivesARollbackWithTheSameFacts()
+    {
+        var request = NewRequest();
+        request.RemoteIp = IPAddress.Parse("2002:cbb1:0c2d::1");
+        var provider = AuditLogSql.BuildProvider(database, new FakeTimeProvider(Now), request);
+        await using (provider)
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope)
+            {
+                var audit = scope.ServiceProvider.GetRequiredService<IAuditTrail>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                await Should.ThrowAsync<InvalidOperationException>(() => unitOfWork.InTransactionAsync<int>(
+                    async token =>
+                    {
+                        await audit.RecordIndependentlyAsync("system.check", "SiteSettings", "1", "probe", token);
+                        throw new InvalidOperationException("boom");
+                    },
+                    TestContext.Current.CancellationToken));
+            }
+        }
+
+        var row = (await AuditLogSql.ReadAsync(database, request.CorrelationId)).ShouldHaveSingleItem();
+        row.OccurredAtUtc.ShouldBe(Now);
+        row.ActorUserId.ShouldBe(request.UserId);
+        row.Action.ShouldBe("system.check");
+        row.TargetType.ShouldBe("SiteSettings");
+        row.TargetId.ShouldBe("1");
+        row.Detail.ShouldBe("probe");
+        row.IpPrefix.ShouldBe("203.177.12.0");
+        row.UserAgentFamily.ShouldBe("Chrome");
+    }
+
+    [Fact]
+    public async Task IndependentRecordDoesNotSaveTheRequestsTrackedChanges()
+    {
+        var adHoc = await CspsDatabase.CreateAsync();
+        await using (adHoc)
+        {
+            var request = NewRequest();
+            var provider = AuditLogSql.BuildProvider(adHoc, new FakeTimeProvider(Now), request);
+            await using (provider)
+            {
+                var scope = provider.CreateAsyncScope();
+                await using (scope)
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<CspsDbContext>();
+                    var settings = await db.SiteSettings.SingleAsync(TestContext.Current.CancellationToken);
+                    db.Entry(settings).Property(s => s.BusinessName).CurrentValue = "Unsaved Change";
+
+                    await scope.ServiceProvider.GetRequiredService<IAuditTrail>()
+                        .RecordIndependentlyAsync("system.check", null, null, null, TestContext.Current.CancellationToken);
+
+                    (await AuditLogSql.ReadAsync(adHoc, request.CorrelationId)).ShouldHaveSingleItem();
+                    (await ReadBusinessNameAsync(adHoc)).ShouldBe("Carmen's Stitch & Printing Services");
+                    db.Entry(settings).State.ShouldBe(EntityState.Modified);
+                }
+            }
+        }
+    }
+
     private static async Task<string> ReadBusinessNameAsync(CspsDatabase target)
     {
         var connection = new SqlConnection(target.ConnectionString);
