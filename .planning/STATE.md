@@ -4,10 +4,10 @@ current_phase: 04
 current_phase_name: Identity & Authentication
 status: verifying
 stopped_at: Completed 04-32-PLAN.md
-last_updated: "2026-10-15T17:05:00.436Z"
+last_updated: "2026-10-15T21:22:43.152Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 2b24781f3f47651d4c691b42df1cd87d1d47ace8
+state_head: 0fc338792a3d31f1a0d5efaa15f33aff99aaa4ed
 progress:
   total_phases: 17
   completed_phases: 2
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 04 (Identity & Authentication) — EXECUTING
 Plan: 35 of 35
 Status: Phase complete — ready for verification
-Last activity: 2026-10-14 — Phase 04 execution started
+Last activity: 2026-10-15 - Completed quick task 261015-m51: Phase 4 review follow-ups (CR-01 keep signed in, WR-12 back to /64, owner rulings)
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -419,6 +419,7 @@ None yet.
 | 261014-ctx | Adopt owner conventions 2026-10-14: MSSQLLocalDB with CSPS_* DBs, web/src modules layout + per-module services, no long dash in client, rules recorded | 2026-10-14 | 3b2daf6 | [261014-ctx-adopt-2026-10-14-conventions-switch-loca](./quick/261014-ctx-adopt-2026-10-14-conventions-switch-loca/) |
 | 261014-g0q | Show a minus icon (EmptyValue) wherever a long dash would mark an empty value; OR-4 amended | 2026-10-14 | 5bb3879 | [261014-g0q-show-an-icon-wherever-a-long-dash-would-](./quick/261014-g0q-show-an-icon-wherever-a-long-dash-would-/) |
 | 261014-gqz | Fix NuGetAudit restore failure: bump .NET 10.0.12 packages to 10.0.13 and pin patched System.Security.Cryptography.Pkcs/Xml | 2026-10-14 | 190fc19 | [261014-gqz-fix-nugetaudit-restore-failure-bump-net-](./quick/261014-gqz-fix-nugetaudit-restore-failure-bump-net-/) |
+| 261015-m51 | Phase 4 review follow-ups: CR-01 keep signed in, WR-12 back to /64, record owner rulings | 2026-10-15 | 0fc3387 | [261015-m51-phase-4-review-follow-ups-cr-01-keep-sig](./quick/261015-m51-phase-4-review-follow-ups-cr-01-keep-sig/) |
 
 ## Deferred Items
 
