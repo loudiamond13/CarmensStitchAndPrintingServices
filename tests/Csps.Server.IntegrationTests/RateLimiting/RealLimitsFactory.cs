@@ -1,5 +1,7 @@
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.RateLimiting;
 
@@ -32,6 +34,9 @@ internal sealed class RealLimitsFactory : CspsApiFactory
         _overrides = overrides ?? [];
     }
 
+    /// <summary>Gets a value indicating whether the remote address is read from <see cref="RemoteIpStartupFilter.HeaderName"/>.</summary>
+    public bool RemoteIpFromHeader { get; init; }
+
     /// <summary>Gets the setting key of a policy's permit limit.</summary>
     /// <param name="policy">One of <see cref="PolicyNames"/>.</param>
     /// <returns>The configuration key.</returns>
@@ -44,6 +49,11 @@ internal sealed class RealLimitsFactory : CspsApiFactory
         for (var index = 0; index < PolicyNames.Length; index++)
         {
             builder.UseSetting(PermitLimitKey(PolicyNames[index]), PermitLimits[index].ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (RemoteIpFromHeader)
+        {
+            builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>());
         }
 
         foreach (var (key, value) in _overrides)
