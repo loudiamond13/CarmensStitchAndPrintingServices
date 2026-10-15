@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-10-15T02:00:32.095Z"
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-10-15T02:12:40.226Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 434eadacb87c51efd962949a5cf24079d1d9a366
+state_head: 863e8437963a5db791e066550f3d8bbdfc488f87
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 63
+  completed_plans: 64
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:00:42-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 8 of 35
+Plan: 9 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -122,6 +122,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P05 | 9min | 3 tasks | 10 files |
 | Phase 04 P06 | 9min | 3 tasks | 7 files |
 | Phase 04 P07 | 20min | 3 tasks | 32 files |
+| Phase 04 P08 | 16min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -306,6 +307,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-05: TwoFactorChallenge Verify order is closed, expiry, exhausted, then fixed-time compare; an expired or exhausted code never counts an attempt
 - [Phase 04]: 04-06: sibling cap counts the original rotation child, so the 5th grace sibling works and the 6th is reuse; Revoke keeps the first reason but still ends open tokens
 - [Phase 04]: 04-07: [Produces(application/json)] on controllers keeps the OpenAPI contract JSON-only; the problem code extension is 4xx only; Retry-After is whole seconds rounded up, min 1
+- [Phase 04]: 04-08: Identity schema version 2 is forced for host-less contexts (design-time, tests) through CspsDbContextOptions so migrations match the host model
+- [Phase 04]: 04-08: passwords are NFC-normalized and hashed directly (no Identity password validators, one atomic save with the security stamp); CreateAsync confirms the email only when a password is given
 
 ### Pending Todos
 
@@ -352,6 +355,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:00:31.654Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-10-15T02:12:39.780Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
