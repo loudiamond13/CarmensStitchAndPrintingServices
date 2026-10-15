@@ -74,6 +74,8 @@ public static class AuthorizationMatrix
         new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("*", "/api/{**path}", "/api/v1/does-not-exist", Anonymous: 404, Admin: 404, Manager: 404),
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
+        // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
+        new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -92,6 +94,7 @@ public static class AuthorizationMatrix
         {
             "GET /health",
             "HEAD /health",
+            "POST /api/v1/auth/sign-in",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

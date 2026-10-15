@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Application.Content;
 
 namespace Csps.Server.Composition;
@@ -13,6 +14,7 @@ public static class ApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<GetSiteSettingsHandler>();
+        services.AddScoped<SignInHandler>();
         return services;
     }
 }

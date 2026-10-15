@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/auth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the email and password and sends the sign-in code. */
+        post: operations["SignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -25,6 +42,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ProblemDetails: {
+            detail?: null | string;
+            instance?: null | string;
+            /** Format: int32 */
+            status?: null | number | string;
+            title?: null | string;
+            type?: null | string;
+        };
+        /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
+        SignInRequest: {
+            /** @description The email address. */
+            email: null | string;
+            /** @description True for a 90-day session, false for a browser session. */
+            keepSignedIn: boolean;
+            /** @description The password, exactly as typed. */
+            password: null | string;
+        };
+        /** @description What a successful sign-in step answers: how long to wait before asking for a new code. */
+        SignInResponse: {
+            /**
+             * Format: int32
+             * @description Whole seconds.
+             */
+            resendAfterSeconds: number | string;
+        };
         /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
         SiteSettingsDto: {
             /** @description Public shop address. */
@@ -55,6 +97,51 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    SignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SignInRequest"];
+                "application/json": null | components["schemas"]["SignInRequest"];
+                "text/json": null | components["schemas"]["SignInRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetSiteSettings: {
         parameters: {
             query?: never;

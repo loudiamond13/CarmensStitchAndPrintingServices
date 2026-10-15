@@ -1,6 +1,91 @@
 {
   "components": {
     "schemas": {
+      "ProblemDetails": {
+        "properties": {
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "SignInRequest": {
+        "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
+        "properties": {
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "keepSignedIn": {
+            "description": "True for a 90-day session, false for a browser session.",
+            "type": "boolean"
+          },
+          "password": {
+            "description": "The password, exactly as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "keepSignedIn"
+        ],
+        "type": "object"
+      },
+      "SignInResponse": {
+        "description": "What a successful sign-in step answers: how long to wait before asking for a new code.",
+        "properties": {
+          "resendAfterSeconds": {
+            "description": "Whole seconds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "resendAfterSeconds"
+        ],
+        "type": "object"
+      },
       "SiteSettingsDto": {
         "description": "The site settings as the API returns them (D-29). Read-only for now; editing comes later.",
         "properties": {
@@ -62,6 +147,88 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "operationId": "SignIn",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Checks the email and password and sends the sign-in code.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
     "/api/v1/site-settings": {
       "get": {
         "operationId": "GetSiteSettings",
@@ -90,6 +257,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "SignIn"
+    },
     {
       "name": "SiteSettings"
     }

@@ -54,6 +54,9 @@ builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 // user plus the named Staff and Manager policies (SEC-02). The API refuses to start without valid Jwt settings.
 builder.Services.AddCspsSecurity();
 
+// Sign-in settings (D-39 defaults) and request validators.
+builder.Services.AddCspsAuth(builder.Configuration);
+
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
 
