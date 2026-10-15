@@ -5,6 +5,7 @@ using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
 
@@ -42,6 +43,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the resend wait and the ticket cookie, 400 for field errors, or the one generic 401.</returns>
     [HttpPost("sign-in")]
+    [EnableRateLimiting(RateLimitPolicies.SignIn)]
     [IdempotencyExempt("Answers set a pending-login cookie and must never be stored; repeats are harmless and rate-limited.")]
     [EndpointName("SignIn")]
     [ProducesResponseType<SignInResponse>(StatusCodes.Status200OK)]

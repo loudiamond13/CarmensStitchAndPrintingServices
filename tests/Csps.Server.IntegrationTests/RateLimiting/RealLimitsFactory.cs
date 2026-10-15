@@ -5,12 +5,14 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 
 /// <summary>
 /// A test host that runs with the real D-39 per-address limits. The default factory sets every limit to 100000 so
-/// suites never throttle themselves; here the settings are removed again so the built-in defaults apply.
+/// suites never throttle themselves; here the owner's numbers are set again (the windows keep their defaults).
 /// </summary>
 internal sealed class RealLimitsFactory : CspsApiFactory
 {
     /// <summary>The policy names, as they appear in <c>RateLimits:Auth:&lt;name&gt;</c>.</summary>
     public static readonly string[] PolicyNames = ["SignIn", "Verify", "Resend", "Forgot", "Reset", "Refresh"];
+
+    private static readonly int[] PermitLimits = [10, 10, 5, 5, 10, 60];
 
     private readonly Dictionary<string, string> _overrides;
 
@@ -39,9 +41,9 @@ internal sealed class RealLimitsFactory : CspsApiFactory
     protected override void ConfigureSettings(IWebHostBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        foreach (var policy in PolicyNames)
+        for (var index = 0; index < PolicyNames.Length; index++)
         {
-            builder.UseSetting(PermitLimitKey(policy), null);
+            builder.UseSetting(PermitLimitKey(PolicyNames[index]), PermitLimits[index].ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         foreach (var (key, value) in _overrides)

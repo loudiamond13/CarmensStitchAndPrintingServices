@@ -133,6 +133,13 @@ public class CspsApiFactory : WebApplicationFactory<Program>
             builder.ConfigureTestServices(services => services.AddSingleton<ISessionCache, AcceptingSessionCache>());
         }
 
+        // Suites never throttle themselves: every per-address auth limit is set very high. The RateLimit tests restore
+        // the real values through ConfigureSettings.
+        foreach (var policy in new[] { "SignIn", "Verify", "Resend", "Forgot", "Reset", "Refresh" })
+        {
+            builder.UseSetting($"RateLimits:Auth:{policy}:PermitLimit", "100000");
+        }
+
         ConfigureSettings(builder);
     }
 

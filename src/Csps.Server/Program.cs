@@ -58,6 +58,9 @@ builder.Services.AddCspsSecurity();
 // Sign-in settings (D-39 defaults) and request validators.
 builder.Services.AddCspsAuth(builder.Configuration);
 
+// Per-address limits on the auth endpoints (SEC-03, D-39), answered by the limiter before any handler runs.
+builder.Services.AddCspsRateLimiting(builder.Configuration);
+
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
 
@@ -118,6 +121,9 @@ app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply 
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
+
+// After routing so [EnableRateLimiting] sees the endpoint; before authentication so a throttled request costs nothing (SEC-03).
+app.UseRateLimiter();
 
 // Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
 app.UseAuthentication();
