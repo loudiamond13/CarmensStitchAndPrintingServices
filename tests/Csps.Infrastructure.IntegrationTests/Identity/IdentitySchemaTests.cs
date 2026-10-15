@@ -3,6 +3,7 @@ using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.IntegrationTests.Identity;
@@ -59,6 +60,72 @@ public sealed class IdentitySchemaTests(CspsDatabase database) : IClassFixture<C
         found.BreachRecheckPending.ShouldBeFalse();
         (await users.GetRolesAsync(found)).ShouldBe([Roles.Manager]);
     }
+
+    [Fact]
+    public async Task TwoUsersCannotShareANormalizedEmailEvenWhenTheyRacePastTheManagerCheck()
+    {
+        var normalized = $"RACE.{Guid.NewGuid():N}@EXAMPLE.COM".ToUpperInvariant();
+        var first = database.CreateContext();
+        var second = database.CreateContext();
+        await using (first)
+        await using (second)
+        {
+            // Raw inserts skip UserManager's RequireUniqueEmail check, as two concurrent creates would.
+            first.Users.Add(NewRawUser("first", normalized));
+            second.Users.Add(NewRawUser("second", normalized));
+
+            await first.SaveChangesAsync(TestContext.Current.CancellationToken);
+            var error = await Should.ThrowAsync<DbUpdateException>(() => second.SaveChangesAsync(TestContext.Current.CancellationToken));
+
+            error.InnerException!.Message.ShouldContain("EmailIndex");
+        }
+    }
+
+    [Fact]
+    public async Task ResetKeepsTheMigrationRolesAndRemovesUsers()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            var context = own.CreateContext();
+            await using (context)
+            {
+                context.Users.Add(NewRawUser("gone", $"GONE.{Guid.NewGuid():N}@EXAMPLE.COM"));
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            await own.ResetAsync();
+
+            var after = own.CreateContext();
+            await using (after)
+            {
+                (await after.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+                (await after.Roles.Select(role => role.Name).OrderBy(name => name).ToListAsync(TestContext.Current.CancellationToken))
+                    .ShouldBe([Roles.Admin, Roles.Manager]);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task HostBuiltModelMatchesTheMigrations()
+    {
+        await using var provider = BuildProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<CspsDbContext>();
+
+        context.Database.HasPendingModelChanges().ShouldBeFalse("The model Identity builds inside the host must match the migrations.");
+    }
+
+    private static ApplicationUser NewRawUser(string name, string normalizedEmail) => new()
+    {
+        Id = Guid.NewGuid(),
+        UserName = $"{name}.{Guid.NewGuid():N}",
+        NormalizedUserName = $"{name}.{Guid.NewGuid():N}".ToUpperInvariant(),
+        Email = normalizedEmail.ToLowerInvariant(),
+        NormalizedEmail = normalizedEmail,
+        FirstName = "Test",
+        LastName = "User",
+    };
 
     private ServiceProvider BuildProvider()
     {
