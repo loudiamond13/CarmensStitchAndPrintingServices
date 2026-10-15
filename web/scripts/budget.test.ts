@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_ROUTE,
+  ADMIN_SIGN_IN_ROUTE,
   BARREL_SPLIT_TRIGGER,
   BUDGETS,
   evaluateBudgets,
@@ -36,15 +37,22 @@ const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
 const PUBLIC_PAGE = 'src/modules/public/pages/PublicPlaceholderPage.tsx';
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
-const ADMIN_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
+const SESSIONS_PAGE = 'src/modules/admin/pages/SessionsPage.tsx';
+const AUTH_LAYOUT = 'src/layouts/AuthLayout.tsx';
+const SIGN_IN_PAGE = 'src/modules/admin/pages/SignInPage.tsx';
+const GUARD = 'src/modules/admin/guard.ts';
+const PREVIEW_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
 const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
 
 /**
  * A production-shaped graph: the entry and the public layout both import one shared chunk, the placeholder page imports
- * nothing. The public initial JS is entry + shared + layout + page = `publicBytes`.
+ * nothing. The public initial JS is entry + shared + layout + page = `publicBytes`. The guarded admin app ships too:
+ * the signed-in entry (guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
+ * signed-out entry (guard, auth layout, sign-in page) is about 3 KB over the public number.
  */
-function productionGraph(publicBytes: number, cssBytes = 15_000): BudgetGraph {
+function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes = publicBytes + 42_000): BudgetGraph {
+  const adminShared = 'assets/admin-shared-G7.js';
   return {
     chunks: [
       chunk(ENTRY, publicBytes - 3_000, {
@@ -64,6 +72,43 @@ function productionGraph(publicBytes: number, cssBytes = 15_000): BudgetGraph {
         isDynamicEntry: true,
         facadeModuleId: PUBLIC_PAGE,
         moduleIds: [PUBLIC_PAGE],
+      }),
+      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 2_000, {
+        isDynamicEntry: true,
+        facadeModuleId: ADMIN_LAYOUT,
+        imports: [SHARED, adminShared],
+        moduleIds: [ADMIN_LAYOUT, 'src/modules/admin/components/TabBar.tsx'],
+      }),
+      chunk(adminShared, 1_000),
+      chunk('assets/UrlStateLayout-I9.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: URL_STATE_LAYOUT,
+        imports: [adminShared],
+        moduleIds: [URL_STATE_LAYOUT],
+      }),
+      chunk('assets/SessionsPage-J0.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: SESSIONS_PAGE,
+        imports: [SHARED],
+        moduleIds: [SESSIONS_PAGE],
+      }),
+      chunk('assets/guard-K2.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: GUARD,
+        imports: [SHARED],
+        moduleIds: [GUARD],
+      }),
+      chunk('assets/AuthLayout-L3.js', 2_000, {
+        isDynamicEntry: true,
+        facadeModuleId: AUTH_LAYOUT,
+        imports: [SHARED, adminShared],
+        moduleIds: [AUTH_LAYOUT],
+      }),
+      chunk('assets/SignInPage-M4.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: SIGN_IN_PAGE,
+        imports: [SHARED],
+        moduleIds: [SIGN_IN_PAGE],
       }),
     ],
     assets: [
@@ -86,31 +131,17 @@ function parityGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetGrap
   return { ...base, chunks: [...base.chunks, PARITY_CHUNK] };
 }
 
-/** The e2e/budget-build graph: the production graph plus the admin route modules (no parity entry). */
+/** The e2e/budget-build graph: the production graph plus the dev-only preview page (no parity entry). */
 function devRoutesGraph(adminRouteBytes: number, publicBytes = 120_000): BudgetGraph {
-  const base = productionGraph(publicBytes);
-  const adminShared = 'assets/admin-shared-G7.js';
+  const base = productionGraph(publicBytes, 15_000, adminRouteBytes);
   return {
     chunks: [
       ...base.chunks,
-      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes + 2_000 - 3_000, {
-        isDynamicEntry: true,
-        facadeModuleId: ADMIN_LAYOUT,
-        imports: [SHARED, adminShared],
-        moduleIds: [ADMIN_LAYOUT, 'src/modules/admin/components/TabBar.tsx'],
-      }),
-      chunk(adminShared, 1_000),
-      chunk('assets/UrlStateLayout-I9.js', 1_000, {
-        isDynamicEntry: true,
-        facadeModuleId: URL_STATE_LAYOUT,
-        imports: [adminShared],
-        moduleIds: [URL_STATE_LAYOUT],
-      }),
       chunk('assets/AdminPreviewPage-J0.js', 1_000, {
         isDynamicEntry: true,
-        facadeModuleId: ADMIN_PAGE,
+        facadeModuleId: PREVIEW_PAGE,
         imports: [SHARED],
-        moduleIds: [ADMIN_PAGE],
+        moduleIds: [PREVIEW_PAGE],
       }),
     ],
     assets: base.assets,
@@ -134,8 +165,15 @@ describe('BUDGETS (PERF-01)', () => {
     expect(ADMIN_ROUTE).toEqual([
       'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
-      'src/modules/admin/pages/AdminPreviewPage.tsx',
+      'src/modules/admin/pages/SessionsPage.tsx',
+      'src/modules/admin/guard.ts',
     ]);
+    expect(ADMIN_SIGN_IN_ROUTE).toEqual([
+      'src/layouts/AuthLayout.tsx',
+      'src/modules/admin/pages/SignInPage.tsx',
+      'src/modules/admin/guard.ts',
+    ]);
+    expect(ADMIN_ROUTE).not.toContain(PREVIEW_PAGE);
   });
 });
 
@@ -250,10 +288,38 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     expect(report.errors).toEqual([expect.stringContaining('parity.html')]);
   });
 
-  it('measures no admin route in the production build', () => {
+  it('measures the shipped admin app in the production build (the larger of the signed-in and signed-out entries)', () => {
     const report = evaluateBudgets(productionGraph(120_000), production);
-    expect(report.adminJs).toBeNull();
+    expect(report.errors).toEqual([]);
+    expect(report.adminJs).toBe(162_000);
   });
+
+  it('fails the production build when the signed-in admin entry is over 250 KB', () => {
+    const report = evaluateBudgets(productionGraph(120_000, 15_000, 251_000), production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*251\.00 KB.*250\.00 KB/)]);
+  });
+
+  it('fails the production build when the sign-in entry is over 250 KB, though the signed-in entry is small', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) => (c.facadeModuleId === AUTH_LAYOUT ? { ...c, gzipSize: 200_000 } : c));
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.adminJs).toBe(321_000);
+    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*321.00 KB.*250\.00 KB/)]);
+  });
+
+  it.each([[SIGN_IN_PAGE], [GUARD], [SESSIONS_PAGE]])(
+    'fails closed in the production build when the shipped admin module %s has no chunk',
+    (module) => {
+      const graph = productionGraph(120_000);
+      const chunks = graph.chunks.filter((c) => c.facadeModuleId !== module);
+      const report = evaluateBudgets({ ...graph, chunks }, production);
+      expect(report.ok).toBe(false);
+      expect(report.adminJs).toBeNull();
+      expect(report.errors).toEqual([expect.stringContaining(module)]);
+    },
+  );
 
   it('reports every measured value against its limit in a table', () => {
     const report = evaluateBudgets(productionGraph(150_100), production);

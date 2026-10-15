@@ -65,6 +65,24 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
+/** The guarded admin app's first-load chunks, which ship in every build: the signed-in and the sign-in entries. */
+function adminChunks(): Rollup.OutputChunk[] {
+  const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
+    outputChunk(fileName, 'export const a = 1;', {
+      isDynamicEntry: true,
+      facadeModuleId: `${ROOT}/${relative}`,
+      moduleIds: [`${ROOT}/${relative}`],
+    });
+  return [
+    lazy('assets/AdminLayout-H8.js', 'src/layouts/AdminLayout.tsx'),
+    lazy('assets/UrlStateLayout-I9.js', 'src/lib/url-state/UrlStateLayout.tsx'),
+    lazy('assets/SessionsPage-J1.js', 'src/modules/admin/pages/SessionsPage.tsx'),
+    lazy('assets/guard-K2.js', 'src/modules/admin/guard.ts'),
+    lazy('assets/AuthLayout-L3.js', 'src/layouts/AuthLayout.tsx'),
+    lazy('assets/SignInPage-M4.js', 'src/modules/admin/pages/SignInPage.tsx'),
+  ];
+}
+
 /** A production-shaped bundle with absolute (Windows-style) module ids under ROOT. */
 function bundle(entryCode: string, entryModules: Record<string, number> = {}): Rollup.OutputBundle {
   const items = [
@@ -84,6 +102,7 @@ function bundle(entryCode: string, entryModules: Record<string, number> = {}): R
       facadeModuleId: `${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx?v=1`,
       moduleIds: [`${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx`],
     }),
+    ...adminChunks(),
     outputAsset('assets/index-E5.css', 'body{color:red}'),
     outputAsset('index.html', '<!doctype html>'),
   ];
@@ -168,11 +187,12 @@ describe('budgetPlugin (PERF-01)', () => {
       build: 'production',
       devRoutes: false,
       limits: { publicJs: 150_000, adminJs: 250_000, css: 35_000 },
-      adminJs: null,
       errors: [],
     });
     expect(summary.publicJs).toBeTypeOf('number');
     expect(summary.publicJs).toBeGreaterThan(0);
+    expect(summary.adminJs).toBeTypeOf('number');
+    expect(summary.adminJs).toBeGreaterThan(0);
     expect(summary.css).toBeTypeOf('number');
     expect(readFileSync(path.join(reportDir, 'budget.production.json'), 'utf8')).toBe(
       readFileSync(path.join(reportDir, 'budget.json'), 'utf8'),
@@ -187,6 +207,16 @@ describe('budgetPlugin (PERF-01)', () => {
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
     expect(summary.errors).toHaveLength(1);
   });
+  it('fails the production build when a shipped admin entry has no chunk (the admin limit must be measurable)', async () => {
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
+    const output = Object.fromEntries(
+      Object.entries(bundle('export const main = 1;')).filter(([name]) => !name.startsWith('assets/SignInPage')),
+    );
+    await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
+      /admin JS[\s\S]*SignInPage\.tsx/,
+    );
+  });
+
   it('ignores a dev-only module that was tree-shaken to nothing (rendered length 0)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`]: 0 });
@@ -216,19 +246,9 @@ const PARITY_ENTRY_CHUNK = outputChunk('assets/parity-P0.js', 'export const p = 
   moduleIds: [`${ROOT}/parity.html`, `${ROOT}/src/dev/scenarios/index.ts`],
 });
 
-/** The e2e/budget-mode bundle: the production bundle plus the admin route chunks (no parity entry). */
+/** The e2e/budget-mode bundle: the production bundle plus the dev-only preview page (no parity entry). */
 function devRoutesBundle(entryCode: string): Rollup.OutputBundle {
   const items = [
-    outputChunk('assets/AdminLayout-H8.js', 'export const l = 1;', {
-      isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/layouts/AdminLayout.tsx`,
-      moduleIds: [`${ROOT}/src/layouts/AdminLayout.tsx`],
-    }),
-    outputChunk('assets/UrlStateLayout-I9.js', 'export const u = 2;', {
-      isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/lib/url-state/UrlStateLayout.tsx`,
-      moduleIds: [`${ROOT}/src/lib/url-state/UrlStateLayout.tsx`],
-    }),
     outputChunk('assets/AdminPreviewPage-J0.js', 'export const v = 3;', {
       isDynamicEntry: true,
       facadeModuleId: `${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`,

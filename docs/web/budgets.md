@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-15T00:46:22-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-15T14:30:00-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -30,7 +30,10 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 | Route | Route modules |
 |---|---|
 | Public (`/`) | `src/layouts/PublicLayout.tsx`, `src/modules/public/pages/PublicPlaceholderPage.tsx` |
-| Admin (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/AdminPreviewPage.tsx` |
+| Admin, signed in (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed out (`/admin/login`) | `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
+
+The admin number is the larger of the two admin rows. Both ship in every build, so admin JS is measured in the production build too. The dev-only `AdminPreviewPage` is never part of it.
 
 A route module is usually the start of its own lazy chunk. In the parity build the parity page imports some of them directly, so they end up inside a shared chunk; the plugin then measures that shared chunk, because it is what the router downloads.
 
@@ -42,7 +45,7 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 
 | Command | Mode | Output folder | What it measures |
 |---|---|---|---|
-| `npm run build` | `production` | `src/Csps.Server/wwwroot` (what ships) | public JS and CSS, plus the "no dev code" rules below |
+| `npm run build` | `production` | `src/Csps.Server/wwwroot` (what ships) | public JS, admin JS and CSS, plus the "no dev code" rules below |
 | `npm run build:budget` | `budget` | `web/.budget-dist` (git-ignored) | public JS, admin JS and CSS with the admin routes built in |
 | `npm run build:e2e` (run by `npm run e2e`) | `e2e` | `web/.e2e-dist` (git-ignored) | the same as the budget build |
 | `npm run parity` (its app build) | `parity` | `web/.parity-dist` (git-ignored) | the same, with the parity page added |
@@ -65,7 +68,7 @@ Every build writes its numbers to the git-ignored `artifacts/budget/` folder at 
 - `budget.json`: the latest build,
 - `budget.<mode>.json`: the latest build of each mode (`budget.production.json`, `budget.budget.json`, `budget.e2e.json`, `budget.parity.json`).
 
-Each file holds `mode`, `build` (`production`, `dev-routes` or `parity`), the `limits`, `publicJs`, `adminJs` (`null` in production), `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
+Each file holds `mode`, `build` (`production`, `dev-routes` or `parity`), the `limits`, `publicJs`, `adminJs`, `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
 
 ## The 135 KB note (Phase 4 barrel split)
 

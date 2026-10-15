@@ -87,11 +87,19 @@ export const PUBLIC_ROUTE: readonly string[] = Object.freeze([
   'src/modules/public/pages/PublicPlaceholderPage.tsx',
 ]);
 
-/** The route modules `/admin` renders on first load: the admin layout, the URL-state layout and the page (02-31). */
+/** The shipped modules a signed-in `/admin` visit loads first: the guard, the admin layout, the URL-state layout and the devices page. */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
   'src/layouts/AdminLayout.tsx',
   'src/lib/url-state/UrlStateLayout.tsx',
-  'src/modules/admin/pages/AdminPreviewPage.tsx',
+  'src/modules/admin/pages/SessionsPage.tsx',
+  'src/modules/admin/guard.ts',
+]);
+
+/** The shipped modules a signed-out visit to `/admin` loads first: the guard, the auth layout and the sign-in page. */
+export const ADMIN_SIGN_IN_ROUTE: readonly string[] = Object.freeze([
+  'src/layouts/AuthLayout.tsx',
+  'src/modules/admin/pages/SignInPage.tsx',
+  'src/modules/admin/guard.ts',
 ]);
 
 /**
@@ -239,10 +247,18 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     }
   }
 
-  const measurements: BudgetMeasurement[] = [measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTE, errors)];
-  if (devRoutes) {
-    measurements.push(measureRoute(graph, entry, 'adminJs', ADMIN_ROUTE, errors));
-  }
+  // The guarded admin app ships in every build, so admin JS is measured in every build: the larger of the two entries.
+  const adminErrors: string[] = [];
+  const signedIn = measureRoute(graph, entry, 'adminJs', ADMIN_ROUTE, adminErrors);
+  const signedOut = measureRoute(graph, entry, 'adminJs', ADMIN_SIGN_IN_ROUTE, adminErrors);
+  errors.push(...new Set(adminErrors));
+  const admin =
+    signedIn.bytes === null || signedOut.bytes === null
+      ? { ...signedIn, bytes: null, files: [] }
+      : signedOut.bytes > signedIn.bytes
+        ? signedOut
+        : signedIn;
+  const measurements: BudgetMeasurement[] = [measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTE, errors), admin];
 
   const cssAssets = graph.assets.filter((a) => a.fileName.endsWith('.css'));
   if (cssAssets.length !== 1) {
