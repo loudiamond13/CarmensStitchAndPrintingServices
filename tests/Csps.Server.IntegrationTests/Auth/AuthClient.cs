@@ -10,7 +10,9 @@ using Csps.Infrastructure.Identity;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Csps.Server.IntegrationTests.Auth;
 
@@ -158,6 +160,21 @@ internal static partial class AuthClient
             var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
             await accounts.SetMustChangePasswordAsync(id, reason, TestContext.Current.CancellationToken);
         }
+    }
+
+    /// <summary>Derives a host that reads its UTC time from a test clock.</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="clock">The clock the host uses.</param>
+    /// <returns>The derived host. The caller disposes it.</returns>
+    public static WebApplicationFactory<Program> WithClock(WebApplicationFactory<Program> factory, TimeProvider clock)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(clock);
+        return factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton(clock);
+        }));
     }
 
     /// <summary>Returns a fresh unique email address.</summary>

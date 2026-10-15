@@ -5,11 +5,7 @@ using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.Net.Http.Headers;
 
@@ -252,7 +248,7 @@ public sealed class VerifyCodeEndpointTests(CspsDatabase database) : IClassFixtu
     {
         var clock = new SteppedClock();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        await using var factory = WithClock(baseFactory, clock);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
         using var client = AuthClient.CreateClient(factory);
         var staff = await AuthClient.CreateStaffAsync(factory);
         using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
@@ -331,13 +327,6 @@ public sealed class VerifyCodeEndpointTests(CspsDatabase database) : IClassFixtu
     private const string WrongMessage = "That code isn't right. Check the newest email and try again.";
     private const string UsedUpMessage = "This code can't be used anymore. Use Resend Code to get a new one.";
     private const string ExpiredMessage = "This code has expired. Use Resend Code to get a new one.";
-
-    private static WebApplicationFactory<Program> WithClock(WebApplicationFactory<Program> factory, TimeProvider clock) =>
-        factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<TimeProvider>();
-            services.AddSingleton(clock);
-        }));
 
     private async Task<int> FailedAttemptsAsync(Guid userId)
     {
