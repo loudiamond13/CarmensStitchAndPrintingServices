@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-28-PLAN.md
-last_updated: "2026-10-15T08:52:39.299Z"
+stopped_at: Completed 04-21-PLAN.md
+last_updated: "2026-10-15T09:04:20.976Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 1a0b58943901f5dda496ba8c240542a3b386dd2b
+state_head: bcfbcb215d60b3f428fb399c2594eb8c419d1085
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 82
+  completed_plans: 83
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 27 of 35
+Plan: 28 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -141,6 +141,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P27 | 1h | 3 tasks | 21 files |
 | Phase 04 P20 | 35 min | 3 tasks | 21 files |
 | Phase 04 P28 | 35min | 2 tasks | 23 files |
+| Phase 04 P21 | 14 min | 2 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -361,6 +362,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-28: the reset link check names only the email, so the browser keeps the email local part out of the password and the server checks first and last name
 - [Phase 04]: 04-28: a reset link check that gets no answer (network, 429, 5xx) shows the shared banner and Try Again, never the expired state
 - [Phase 04]: 04-28: the shared HTTP client treats an empty 202 as no content (forgot-password answer)
+- [Phase 04]: 04-21: a locked account also gets 401 at set-new, like the code step
+- [Phase 04]: 04-21: breach found at sign-in sets must-change reason Breach (overrides Temporary)
 
 ### Pending Todos
 
@@ -407,6 +410,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T08:52:38.935Z
-Stopped at: Completed 04-28-PLAN.md
+Last session: 2026-10-15T09:04:20.613Z
+Stopped at: Completed 04-21-PLAN.md
 Resume file: None
