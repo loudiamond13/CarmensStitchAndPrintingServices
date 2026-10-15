@@ -94,6 +94,15 @@ Measured after the parity page left the budget and e2e builds (2026-10-13, code-
 
 Since plan 02-34 the dev-only showcase (`/dev/components`) also imports nearly every component, so without the parity page the budget build saved only 0.29 KB. The real cause was the barrels, fixed next.
 
+Measured at plan 04-25 (2026-10-15), when the guarded admin app began to ship in production:
+
+| Build | Public JS | Admin JS | CSS |
+|---|---|---|---|
+| Production (guarded admin included, admin not measured) | 130.16 KB | — | 13.04 KB |
+| Budget and e2e (admin + dev showcase, no parity page) | 132.75 KB | 160.67 KB | 13.04 KB |
+
+The session, guard and sign-out code load in the admin chunks only; the router keeps them out of the public entry through dynamic imports.
+
 ## Public route imports
 
 The public layout (`src/layouts/PublicLayout.tsx`) imports `SiteHeader`, `SkipLink` and `ToastProvider` from their own modules, never from the `@/components/navigation`, `@/components/entry` or `@/components/feedback` barrels. A barrel re-exports admin-only components (Sidebar, Topbar, UserMenu, MobileNavDrawer, MoneyInput, ...). In a build that uses them (the admin routes, the showcase, the parity page) the bundler cannot drop them, so a public module that imports the barrel pulled them, and the forms, overlays and HTTP-client modules they need, into the chunks the public route loads. In production it also kept about 4 KB of their module-level code. Keep new public-route imports on the component modules; the Phase 4 barrel split (research Flag 4) makes this the rule for every barrel.
