@@ -3,6 +3,7 @@ using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Health;
+using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +76,8 @@ public static class DependencyInjection
         // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
         services.AddScoped<IAuditTrail, AuditTrail>();
         services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
+
+        services.AddCspsIdentity();
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
         services.AddCspsDataProtection(configuration);
