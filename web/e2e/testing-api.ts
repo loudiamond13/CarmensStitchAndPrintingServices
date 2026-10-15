@@ -5,13 +5,20 @@ import type { APIRequestContext } from '@playwright/test';
 import { expect } from './fixtures.ts';
 
 export type StaffRole = 'Admin' | 'Manager';
-export type StaffState = 'active' | 'deactivated';
+export type StaffState = 'active' | 'deactivated' | 'must-change-temporary' | 'must-change-breach';
 
 /** A staff user made for one test. The password is shown here once. */
 export interface TestStaff {
   readonly userId: string;
   readonly email: string;
   readonly password: string;
+}
+
+/** An invited staff member made for one test: no password yet, and the raw token of the invite link. */
+export interface InvitedStaff {
+  readonly userId: string;
+  readonly email: string;
+  readonly inviteToken: string;
 }
 
 /** One email the sink received. */
@@ -37,6 +44,15 @@ function isTestStaff(value: unknown): value is TestStaff {
   );
 }
 
+function isInvitedStaff(value: unknown): value is InvitedStaff {
+  return (
+    isRecord(value) &&
+    typeof value.userId === 'string' &&
+    typeof value.email === 'string' &&
+    typeof value.inviteToken === 'string'
+  );
+}
+
 function isSinkEmail(value: unknown): value is SinkEmail {
   return (
     isRecord(value) &&
@@ -56,6 +72,17 @@ export async function createStaff(request: APIRequestContext, role: StaffRole, s
   const body: unknown = await response.json();
   if (!isTestStaff(body)) {
     throw new Error('POST /api/testing/staff returned an unexpected body.');
+  }
+  return body;
+}
+
+/** Creates a fresh invited staff user (state `invited`): no password, and the token an emailed invite link would carry. */
+export async function createInvitedStaff(request: APIRequestContext, role: StaffRole): Promise<InvitedStaff> {
+  const response = await request.post('/api/testing/staff', { data: { role, state: 'invited' } });
+  expect(response.status(), 'POST /api/testing/staff (invited)').toBe(201);
+  const body: unknown = await response.json();
+  if (!isInvitedStaff(body)) {
+    throw new Error('POST /api/testing/staff (invited) returned an unexpected body.');
   }
   return body;
 }
