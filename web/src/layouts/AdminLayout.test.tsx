@@ -2,13 +2,19 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
+import { acceptSession, clearSession, takeSignInNotice } from '@/modules/admin/services/session';
+import { apiClient } from '@/core/api/apiClient';
+import { AdminFrame } from '@/layouts/AdminLayout';
 
 /**
  * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
@@ -99,16 +105,18 @@ function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
 
-/** The toast titled `title` in the toast layer (UI-WR-04: the layer is the live region, so a toast has no role). */
-async function findToast(title: string): Promise<HTMLElement> {
-  const heading = await screen.findByText(title);
-  const layer = document.querySelector('[data-ui="s-toast-layer"]');
-  const toast = [...(layer?.children ?? [])].find((item) => item.contains(heading));
-  if (!(toast instanceof HTMLElement)) {
-    throw new Error(`No toast titled "${title}" in the toast layer.`);
-  }
-  return toast;
+/** Answers POST /auth/sign-out with `status`; the returned function says how many calls arrived. */
+function answerSignOut(status = 204): () => number {
+  let calls = 0;
+  server.use(
+    http.post('*/api/v1/auth/sign-out', () => {
+      calls += 1;
+      return new HttpResponse(null, { status });
+    }),
+  );
+  return () => calls;
 }
+
 describe('AdminLayout tracer (WEB-05, D-20)', () => {
   it('on /admin/users shows the admin shell with Users current, its preview page and the document title', async () => {
     await renderAt('/admin/users');
@@ -203,14 +211,29 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     expect(router.state.location.hash).toBe('');
   });
 
-  it('shows the info toast "Not available yet" when Logout is pressed (dev shell)', async () => {
-    await renderAt('/admin/users');
+  it('Logout signs out on the server, leaves the shell for /admin/login and leaves the signed-out notice', async () => {
+    const calls = answerSignOut();
+    const { router } = await renderAt('/admin/users');
+
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
-    const toast = await findToast('Not available yet');
-    expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    const layer = document.querySelector('[data-ui="s-toast-layer"]');
-    expect(layer).toContainElement(toast);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(calls()).toBe(1);
+    expect(takeSignInNotice()).toBe('signed-out');
+  });
+
+  it('Logout still goes to /admin/login when the server call fails', async () => {
+    answerSignOut(500);
+    const { router } = await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(takeSignInNotice()).toBe('signed-out');
   });
 
   it('has no axe violations', async () => {
@@ -483,16 +506,19 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     expect(document.activeElement).toBe(openNavigation());
   });
 
-  it('shows the Logout toast from the drawer and keeps the drawer open', async () => {
-    await renderAt('/admin');
+  it('signs out from the drawer and leaves for /admin/login', async () => {
+    answerSignOut();
+    const { router } = await renderAt('/admin');
     await userEvent.click(openNavigation());
 
     await userEvent.click(
       within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: 'Logout' }),
     );
 
-    expect(await findToast('Not available yet')).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(takeSignInNotice()).toBe('signed-out');
   });
 
   it('has no axe violations with the drawer open', async () => {
@@ -508,17 +534,19 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     return screen.getByRole('button', { name: /Carmen Reyes/ });
   }
 
-  it('opens the user menu from the Topbar user button; Logout shows the dev toast', async () => {
-    await renderAt('/admin');
+  it('opens the user menu from the Topbar user button; Logout signs out and leaves for /admin/login', async () => {
+    answerSignOut();
+    const { router } = await renderAt('/admin');
     expect(userButton()).toHaveAttribute('aria-expanded', 'false');
 
     await userEvent.click(userButton());
     expect(userButton()).toHaveAttribute('aria-expanded', 'true');
     await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
 
-    const toast = await findToast('Not available yet');
-    expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    expect(screen.queryByRole('menu')).toBeNull();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(takeSignInNotice()).toBe('signed-out');
   });
 
   it('takes the user to My Profile from the user menu', async () => {
@@ -536,5 +564,52 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     await userEvent.click(userButton());
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
+  it('AdminFrame shows the user it is given, with the role', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="orders" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getAllByText('Lito Santos').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
+  });
+
+  it('shows the error screen, not a made-up user, when the route gives no signed-in user', async () => {
+    const router = createMemoryRouter(adminTree({ layout: { loader: () => null } }), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    const main = await screen.findByRole('main');
+    expect(await within(main).findByRole('heading', { level: 2, name: ERROR_BOUNDARY_COPY.title })).toBeVisible();
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+    collectConsole();
+  });
+
+  it('a session that ends in the API client sends the shell to /admin/login with the session-ended notice', async () => {
+    acceptSession(sessionResponse());
+    server.use(
+      http.get('*/api/v1/ping', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
+      http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
+    );
+    const { router } = await renderAt('/admin/users');
+
+    await expect(apiClient.get('/ping')).rejects.toMatchObject({ status: 401 });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(takeSignInNotice()).toBe('session-ended');
+    clearSession();
   });
 });

@@ -6,6 +6,8 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
+import { devRoutes } from '@/modules/admin/routes';
+import type { RouteObject } from 'react-router';
 import { clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -99,5 +101,50 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Forders%3Fpage%3D2');
+  });
+});
+
+/** The route tree as a dev-route build has it: the unguarded previews in front of everything else. */
+function devTree(): RouteObject[] {
+  const [root, ...rest] = routes;
+  if (root === undefined) {
+    throw new Error('The app has no root route.');
+  }
+  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
+}
+
+describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
+  it('the production routes have no /dev/components: it falls through to the public placeholder', async () => {
+    const router = createMemoryRouter(routes, { initialEntries: ['/dev/components'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Site update/ }, { timeout: 5000 })).toBeVisible();
+    expect(screen.queryByText('Component Showcase')).toBeNull();
+  });
+
+  it('the production /admin section routes are guarded and show the page-not-found screen inside the shell', async () => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+  });
+
+  it('with the dev routes added, /dev/components and the section previews render without a session or a refresh', async () => {
+    const probe = answerRefresh();
+    const showcase = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
+    const first = render(<RouterProvider router={showcase} />);
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 5000 }),
+    ).toBeVisible();
+    first.unmount();
+
+    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
+    render(<RouterProvider router={preview} />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 5000 })).toBeVisible();
+    expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
+    expect(preview.state.location.pathname).toBe('/admin/orders');
+    expect(probe.count).toBe(0);
   });
 });

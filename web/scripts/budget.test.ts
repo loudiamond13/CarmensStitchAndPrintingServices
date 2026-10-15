@@ -225,14 +225,16 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     expect(report.errors).toEqual([expect.stringContaining('index.html')]);
   });
 
-  it('fails a production chunk whose modules include src/layouts/AdminLayout.tsx (D-20, CWE-489)', () => {
+  it('fails a production chunk whose modules include the dev preview page (D-20, CWE-489)', () => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
-      c.fileName === SHARED ? { ...c, moduleIds: [...c.moduleIds, 'src/layouts/AdminLayout.tsx'] } : c,
+      c.fileName === SHARED ? { ...c, moduleIds: [...c.moduleIds, 'src/modules/admin/pages/AdminPreviewPage.tsx'] } : c,
     );
     const report = evaluateBudgets({ ...graph, chunks: leaked }, production);
     expect(report.ok).toBe(false);
-    expect(report.errors).toEqual([expect.stringMatching(/shared-B2\.js.*src\/layouts\/AdminLayout\.tsx/)]);
+    expect(report.errors).toEqual([
+      expect.stringMatching(/shared-B2\.js.*src\/modules\/admin\/pages\/AdminPreviewPage\.tsx/),
+    ]);
   });
 
   it('fails a production build with a second entry (the parity page must never ship)', () => {
@@ -360,8 +362,8 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     ['src/dev/scenarios/groups/money.ts'],
     ['visual/parity/page.tsx'],
     ['visual/.reference-src/ui/index.tsx'],
-    ['src/modules/admin/routes.tsx'],
-    ['src/layouts/AdminLayout.tsx'],
+    ['src/modules/admin/pages/AdminPreviewPage.tsx'],
+    ['src/modules/admin/previewCopy.ts'],
   ])('fails a production chunk that contains %s', (moduleId) => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
@@ -370,6 +372,26 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     const report = evaluateBudgets({ ...graph, chunks: leaked }, production);
     expect(report.ok).toBe(false);
     expect(report.errors).toEqual([expect.stringContaining(`index-A1.js contains the dev-only module ${moduleId}`)]);
+  });
+
+  it('allows the guarded admin app in production (D-20 reversed in Phase 4)', () => {
+    const graph = productionGraph(120_000);
+    const admin = graph.chunks.map((c) =>
+      c.fileName === ENTRY
+        ? {
+            ...c,
+            moduleIds: [
+              ...c.moduleIds,
+              'src/modules/admin/routes.tsx',
+              'src/modules/admin/guard.ts',
+              'src/modules/admin/services/session.ts',
+              'src/modules/admin/pages/AdminNotFoundPage.tsx',
+              'src/layouts/AdminLayout.tsx',
+            ],
+          }
+        : c,
+    );
+    expect(evaluateBudgets({ ...graph, chunks: admin }, production).errors).toEqual([]);
   });
 
   it('allows a module whose name only resembles a dev path', () => {

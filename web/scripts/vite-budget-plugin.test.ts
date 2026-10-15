@@ -189,15 +189,23 @@ describe('budgetPlugin (PERF-01)', () => {
   });
   it('ignores a dev-only module that was tree-shaken to nothing (rendered length 0)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
-    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 0 });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`]: 0 });
+    await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+  });
+
+  it('lets the guarded admin app ship code in the production build (D-20 reversed in Phase 4)', async () => {
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
+    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 120 });
     await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
   });
 
   it('fails the production build when a dev-only module ships code', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
-    const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 120 });
+    const output = bundle('export const main = 1;', {
+      [`${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`]: 120,
+    });
     await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
-      /index-A1\.js contains the dev-only module src\/modules\/admin\/routes\.tsx/,
+      /index-A1\.js contains the dev-only module src\/modules\/admin\/pages\/AdminPreviewPage\.tsx/,
     );
   });
 });
