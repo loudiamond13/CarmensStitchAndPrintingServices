@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-14T19:50:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-15T11:55:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -179,6 +179,25 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | SPF / DKIM / DMARC pass in Gmail | D2 | Message from no-reply@cspstailoring.com: `spf=pass` (sender allowed via site4now.net), `dkim=pass` (header.i=@cspstailoring.com), `dmarc=pass` (p=REJECT sp=REJECT dis=NONE, header.from=cspstailoring.com). Still exactly one SPF record, `_dmarc` unchanged | Verified | 2026-10-14 |
 | Sender mailbox | D-26, D-34 (mail-setup.md step 1) | `no-reply@cspstailoring.com`; the app sets its own From display name "Carmen's Stitch & Printing" and no Reply-To (the mailbox's own webmail display name is "Carmens Stitch and Printing Services", which the app does not use) | Verified | 2026-10-14 |
 | Dev runtime | D-35 (`dotnet --list-runtimes`, `dotnet --list-sdks`) | ASP.NET Core 10.0.13, SDK 10.0.402 (D-35, this machine; the host runtime is verified on the Phase 3 first deploy) | Verified | 2026-10-14 |
+
+## Phase 3 first-deploy checks added by Phase 4
+
+Phase 4 (identity and authentication) was built and tested locally while the first real deploy (Phase 3) is deferred.
+Everything below is something Phase 4 depends on that no one has seen on the real host yet. Each row stays
+**Unverified** until the Phase 3 first deploy: verify it on that deploy and then move it into the Facts table with the
+owner's observed result and the date (D-09). Nothing here may be relied on before then.
+
+| Check | How to check | Result | Status | Date |
+|-------|--------------|--------|--------|------|
+| Outbound SMTP from the site (port 587, or 465) to the SmarterASP.NET mail server | First deploy: send the sign-in code to a real mailbox from the deployed site (assumption A6) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
+| Outbound HTTPS to the breached-password service (`api.pwnedpasswords.com`) | First deploy: set a password and watch the audit log for `auth.breach-check-unavailable` (research Pitfall 12) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
+| ASP.NET Core 10.0.13 (or newer) runtime on the host | First deploy: the app's startup line, or the probe's runtime field (D-35) | Not checked: the host runtime has not been seen. Verify on the Phase 3 first deploy; otherwise publish self-contained `win-x64` | Unverified | - |
+| `Set-Cookie` for `__Secure-csps_rt` and `__Secure-csps_2fa` on the production HTTPS host | First deploy: sign in once and look at the cookies in the browser (both `Secure`, `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`) | Not checked: needs the deployed site and its HTTPS termination. Verify on the Phase 3 first deploy | Unverified | - |
+| `AllowedHosts` set to the real host names | First deploy: the production settings name the real domains, and a request with another Host header is refused (IN-06) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
+| web.config `requestLimits` honoured by IIS | First deploy: an oversized request body is refused by IIS before the app (assumption A14) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
+| Client IP and proxy topology before the per-address limits are trusted (D-39) | First deploy: the Facts row "Client IP / proxy topology" above; until it is Verified the limits see the proxy's address | Not checked: see the Facts row. Verify on the Phase 3 first deploy | Unverified | - |
+| Data Protection certificate and `App:PublicBaseUrl` available to the bootstrap command on the host | First deploy: run the bootstrap command (docs/operations/bootstrap-manager.md) with the host's settings and see it reach the invite email | Not checked: needs the deployed site and its secrets. Verify on the Phase 3 first deploy | Unverified | - |
+| The real bootstrap on the hosted database, then the first sign-in with an emailed code (AUTH-12) | First deploy: create the first Manager, open the invite link, set a password, sign in and enter the emailed code | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
 
 ## Consequences for later phases
 
