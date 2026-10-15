@@ -254,7 +254,7 @@ function SignOutDemo({ kind, fails }: { kind: 'others' | 'device'; fails: boolea
   }
   return (
     <>
-      <Button variant="secondary" icon="log-out" onClick={show}>
+      <Button variant="secondary" size="sm" icon="log-out" onClick={show}>
         {label}
       </Button>
       {dialog}

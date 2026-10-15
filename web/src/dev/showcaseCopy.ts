@@ -14,8 +14,8 @@ export const SHOWCASE_COPY = {
   openDeletePayment: 'Open Delete Payment',
   openDrawer: 'Open navigation drawer',
   /** SPEC-GAP dev wording: the triggers of the four sign-out dialog demos (plan 04-32). */
-  openSignOutOthers: 'Open Sign Out Other Devices',
-  openSignOutOthersFailed: 'Open Sign Out Other Devices (fails)',
+  openSignOutOthers: 'Open Sign Out Others',
+  openSignOutOthersFailed: 'Open Sign Out Others (fails)',
   openSignOutDevice: 'Open Sign Out Device',
   openSignOutDeviceFailed: 'Open Sign Out Device (fails)',
   /** SPEC-GAP dev wording: the session toast triggers, each with the app's own copy (plan 04-32). */

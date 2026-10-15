@@ -335,13 +335,8 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
   });
 
   it.each([
-    ['signout-others-open', 'Open Sign Out Other Devices', 'Sign out of other devices?', 'Keep Others Signed In'],
-    [
-      'signout-others-failed',
-      'Open Sign Out Other Devices (fails)',
-      'Sign out of other devices?',
-      'Keep Others Signed In',
-    ],
+    ['signout-others-open', 'Open Sign Out Others', 'Sign out of other devices?', 'Keep Others Signed In'],
+    ['signout-others-failed', 'Open Sign Out Others (fails)', 'Sign out of other devices?', 'Keep Others Signed In'],
     ['signout-device-open', 'Open Sign Out Device', 'Sign out Safari on iPhone?', 'Keep Signed In'],
     ['signout-device-failed', 'Open Sign Out Device (fails)', 'Sign out Safari on iPhone?', 'Keep Signed In'],
   ] as const)('opens the %s demo with focus on its dismiss button, and closes it', async (id, trigger, title, keep) => {
