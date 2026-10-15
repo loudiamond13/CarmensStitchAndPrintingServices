@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T19:58:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T20:25:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -63,7 +63,7 @@ On **2026-10-14** the owner approved the .NET 10.0.13 security update and the tw
 
 ## Phase 4 packages (approved 2026-10-14)
 
-For staff sign-in, the owner approved these packages on **2026-10-14** (decision D-36), before anything was installed. The four web packages are added to this section when they are installed. Every one is free: MIT or Apache-2.0 means free to use in a business, and we only keep the author's notice in `THIRD-PARTY-NOTICES.md`.
+For staff sign-in, the owner approved these packages on **2026-10-14** (decision D-36), before anything was installed. Every one is free: MIT or Apache-2.0 means free to use in a business, and we only keep the author's notice in `THIRD-PARTY-NOTICES.md`.
 
 | Package | What it does for the shop | License |
 |---------|---------------------------|---------|
@@ -74,8 +74,14 @@ For staff sign-in, the owner approved these packages on **2026-10-14** (decision
 | BouncyCastle.Cryptography 2.7.0 | The encryption code MimeKit uses. Pinned for the same reason. | MIT |
 | Microsoft.Extensions.Http.Resilience 10.10.0 | Adds a time limit and a retry to the check that a new password has not appeared in a known data breach. | MIT |
 | Microsoft.Extensions.Diagnostics.Testing 10.10.0 | Tests only. Lets a test read the log and prove that no secret or code is ever written to it. Never ships. | MIT |
+| react-hook-form 7.89.0 (web) | Keeps the state of each form in the browser: what was typed and which fields have errors. | MIT |
+| zod 4.6.5 (web) | Checks every field in the browser before anything is sent, with the same rules the server checks (OR-3). | MIT |
+| @hookform/resolvers 5.9.1 (web) | Connects the zod rules to the form so errors show next to the field. | MIT |
+| msw 3.0.1 (web, tests only) | Fakes the server in tests and fails any test that tries a real network call. Never ships. | MIT |
 
 **Security exception.** Identity.EntityFrameworkCore 10.0.13 was published on 2026-10-13, so it is younger than the 14-day wait. It is a Microsoft security servicing release (D-35) that matches the other 10.0.13 pins, and the owner approved it on 2026-10-14 (D-36). Its registry record says `accepted:` and it reaches 14 days on 2026-10-27.
+
+**The four web packages were checked by the owner first.** The research tool flagged them as suspicious only because of how it reads npm's "latest" tag and download counts. At install time Claude checked each exact version (license MIT, no install script, no known security problem, 14 to 58 days old) and the owner replied "approved" on 2026-10-14. When npm installs msw it prints a notice that vitest's optional msw 2 link does not match msw 3.0.1. Vitest only uses that link for its browser mode, which CSPS does not use, so nothing is affected.
 
 ## The web app's packages (npm)
 
@@ -83,7 +89,7 @@ The web app in `web/` and the API type generator in `tools/openapi-gen/` use pac
 
 - **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`.
 - **Exact versions only.** A range such as `^1.2.0` would let npm pick a newer version on its own, so the automated check fails on any range. An alias such as `"typescript": "npm:@typescript/typescript6@6.0.2"` is checked as the real package it installs (`@typescript/typescript6` 6.0.2).
-- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
+- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react, react-hook-form, zod, @hookform/resolvers and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
 - **Cool-down exceptions are written down.** Four npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), and source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07).
 - **nuqs is installed.** It was approved on 2026-10-07 and installed in Phase 2 at 2.10.1. A newer 2.10.2 came out on 2026-10-08, so it is not 14 days old until 2026-10-22, and switching to it needs the owner's OK.
 

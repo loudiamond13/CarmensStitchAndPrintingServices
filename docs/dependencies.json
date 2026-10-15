@@ -564,6 +564,20 @@
       "coolDown": "aged"
     },
     {
+      "id": "@hookform/resolvers",
+      "version": "5.9.1",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Connects the zod rules to react-hook-form so field errors show inline.",
+      "license": "MIT",
+      "publisher": "react-hook-form team (npm owners bluebill1049, kotarella1110, jorisre)",
+      "legitimacy": "43.9M weekly downloads; source github.com/react-hook-form/resolvers; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-08-17",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
       "id": "@playwright/test",
       "version": "1.63.0",
       "kind": "npm",
@@ -970,6 +984,20 @@
       "coolDown": "accepted: owner waiver D-11 (lucide-react follows the newest stable release; no cool-down) and owner choice of 1.53.0 (D-34). All 56 spec icons are byte-identical to 1.52.0; no advisory."
     },
     {
+      "id": "msw",
+      "version": "3.0.1",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "test",
+      "purpose": "Fakes the server in component and service tests and fails any request without a handler. Never ships.",
+      "license": "MIT",
+      "publisher": "Artem Zakharchenko (npm owner kettanaito)",
+      "legitimacy": "23.0M weekly downloads; source github.com/mswjs/msw; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36). npm warns that vitest's optional msw ^2 peer does not match 3.0.1; vitest only uses it in browser mode, which CSPS does not use",
+      "published": "2026-09-30",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
       "id": "nuqs",
       "version": "2.10.1",
       "kind": "npm",
@@ -1037,6 +1065,20 @@
       "legitimacy": "211.6M weekly downloads; source github.com/react/react; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
       "published": "2026-09-09",
       "adopted": "2026-10-08",
+      "coolDown": "aged"
+    },
+    {
+      "id": "react-hook-form",
+      "version": "7.89.0",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Keeps the state of each form (values, errors, touched fields) in the browser.",
+      "license": "MIT",
+      "publisher": "Bill Luo (npm owner bluebill1049)",
+      "legitimacy": "53.7M weekly downloads; source github.com/react-hook-form/react-hook-form; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-09-26",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {
@@ -1135,6 +1177,20 @@
       "legitimacy": "142.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
       "published": "2026-09-15",
       "adopted": "2026-10-08",
+      "coolDown": "aged"
+    },
+    {
+      "id": "zod",
+      "version": "4.6.5",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Checks every form field in the browser before anything is sent, with the same rules the server checks (OR-3).",
+      "license": "MIT",
+      "publisher": "Colin McDonnell (npm owner colinhacks)",
+      "legitimacy": "346.9M weekly downloads; source github.com/colinhacks/zod; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-09-13",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {
