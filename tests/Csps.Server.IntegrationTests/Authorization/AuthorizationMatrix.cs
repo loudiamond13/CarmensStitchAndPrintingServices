@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using Csps.Server;
 
 namespace Csps.Server.IntegrationTests.Authorization;
 
@@ -52,6 +53,17 @@ public static class AuthorizationMatrix
     /// <summary>The matrix rows.</summary>
     public static IReadOnlyList<MatrixRow> Rows { get; } =
     [
+        .. BaseRows,
+        .. TestingRows,
+    ];
+
+    // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
+    private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
+        ? [new("GET", "/api/testing/emails", "/api/testing/emails", Anonymous: 200, Admin: 200, Manager: 200)]
+        : [];
+
+    private static MatrixRow[] BaseRows =>
+    [
         // /health answers GET and HEAD only, so it has two keys like the SPA shell. Other methods: HealthEndpointTests.
         new("GET", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
@@ -81,7 +93,9 @@ public static class AuthorizationMatrix
             "* {*path:file}",
             "* /openapi/{**path}",
             "* /scalar/{**path}",
-        }.ToFrozenSet(StringComparer.Ordinal);
+        }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
+
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>
