@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -72,6 +73,59 @@ public sealed class EmailRendererTests
         rendered.Text.ShouldContain("Carmen's Stitch & Printing Services");
         rendered.Text.ShouldContain("Replies to this address aren't read.");
         rendered.Html.ShouldContain("Replies to this address aren&#39;t read.");
+    }
+
+    public static TheoryData<AuthEmail, string, string, string?, string?> UiSpecFrames() => new()
+    {
+        { new SignInCodeEmail("paolo.garcia@gmail.com", "048213", At.AddMinutes(15), At, Chrome), "Your sign-in code", "It works for 15 minutes. Never share it.", null, null },
+        { new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password), "Sign-in paused", "Sign-in is paused after too many wrong tries.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
+        { new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, Chrome), "Reset your password", "This link works for 30 minutes.", "Reset Password", $"{BaseUrl}/admin/reset-password#token={Token}" },
+        { new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true), "Password changed", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
+        { new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At), "Your password was reset", "Ask them for your temporary password.", null, null },
+        { new DeactivatedNoticeEmail("paolo.garcia@gmail.com"), "Account deactivated", "Your account is deactivated.", null, null },
+        { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72)), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
+    };
+
+    [Theory]
+    [MemberData(nameof(UiSpecFrames))]
+    public async Task EveryKindIsInTheBrandedFrameWithItsHeadingPreheaderAndAtMostOneButton(
+        AuthEmail email, string heading, string preheader, string? label, string? target)
+    {
+        var rendered = await RenderAsync(email);
+
+        rendered.Html.ShouldContain("src=\"cid:csps-logo\"");
+        rendered.Html.ShouldContain("#ff6600");
+        rendered.Html.ShouldContain("max-width:600px");
+        rendered.Html.ShouldContain($">{WebUtility.HtmlEncode(heading)}</h1>");
+        rendered.Html.ShouldContain($">{WebUtility.HtmlEncode(preheader)}</div>");
+        Regex.Count(rendered.Html, "bgcolor=\"#572e2b\"").ShouldBe(label is null ? 0 : 1);
+        if (label is not null)
+        {
+            rendered.Html.ShouldContain($"href=\"{target}\"");
+            rendered.Html.ShouldContain($"{label}</a>");
+            rendered.Html.ShouldContain("If the button doesn&#39;t work, copy this link into your browser:");
+            rendered.Text.ShouldContain($"{label}: {target}");
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(AllKinds))]
+    public async Task EverySentenceOfTheHtmlBodyIsInTheTextPart(AuthEmail email)
+    {
+        var rendered = await RenderAsync(email);
+        var text = Normalise(rendered.Text);
+
+        var withoutHead = Regex.Replace(rendered.Html, "<(style|title)>.*?</(style|title)>|<div style=\"display:none[^>]*>.*?</div>", string.Empty, RegexOptions.Singleline);
+        var sentences = Regex.Split(withoutHead, "<[^>]+>")
+            .Select(node => Normalise(WebUtility.HtmlDecode(node)))
+            .Where(node => node.Length > 0)
+            .ToList();
+
+        sentences.Count.ShouldBeGreaterThan(3);
+        foreach (var sentence in sentences.Where(node => !node.StartsWith("If the button doesn't work", StringComparison.Ordinal)))
+        {
+            text.ShouldContain(sentence);
+        }
     }
 
     [Fact]
@@ -198,6 +252,8 @@ public sealed class EmailRendererTests
     {
         await Should.ThrowAsync<NotSupportedException>(() => RenderAsync(new UnknownEmail("paolo.garcia@gmail.com")));
     }
+
+    private static string Normalise(string value) => Regex.Replace(value, @"\s+", " ").Trim();
 
     private static int CountOf(string value, string part) => Regex.Count(value, Regex.Escape(part));
 
