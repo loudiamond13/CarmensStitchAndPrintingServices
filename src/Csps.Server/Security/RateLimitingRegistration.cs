@@ -18,7 +18,7 @@ public static class RateLimitingRegistration
 
     private const string UnknownAddressKey = "unknown";
     private const int SegmentsPerWindow = 6;
-    private const int IPv6PrefixBytes = 8;
+    private const int IPv6PrefixBytes = 6;
 
     /// <summary>
     /// Adds the six auth policies. The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
@@ -65,8 +65,8 @@ public static class RateLimitingRegistration
     }
 
     /// <summary>
-    /// Builds the bucket key for a client address: the full IPv4 address, the first 64 bits of an IPv6 address (one host
-    /// owns a /64), or a shared key when there is no address. The set of keys is bounded by the address space.
+    /// Builds the bucket key for a client address: the full IPv4 address, the first 48 bits of an IPv6 address (the
+    /// same /48 the audit log keeps, D-32, so one site cannot rotate through its /64s), or a shared key when there is no address. The set of keys is bounded by the address space.
     /// </summary>
     /// <param name="address">The connection's remote address, or null.</param>
     /// <returns>The partition key.</returns>
@@ -94,7 +94,7 @@ public static class RateLimitingRegistration
         }
 
         bytes[IPv6PrefixBytes..].Clear();
-        return $"{new IPAddress(bytes)}/64";
+        return $"{new IPAddress(bytes)}/48";
     }
 
     private static void AddPolicy(RateLimiterOptions options, string name, RateLimitRule rule) =>

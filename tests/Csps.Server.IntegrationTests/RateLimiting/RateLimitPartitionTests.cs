@@ -6,7 +6,7 @@ using Csps.Testing;
 namespace Csps.Server.IntegrationTests.RateLimiting;
 
 /// <summary>
-/// SEC-03: who shares a bucket. IPv4 clients are limited per address, IPv6 clients per /64, and a request with no address
+/// SEC-03: who shares a bucket. IPv4 clients are limited per address, IPv6 clients per /48, and a request with no address
 /// shares one bucket. Over-limit requests are rejected at once, never queued.
 /// </summary>
 public sealed class RateLimitPartitionTests
@@ -27,7 +27,7 @@ public sealed class RateLimitPartitionTests
     }
 
     [Fact]
-    public async Task IPv6AddressesInOneSlash64ShareABucketAndOtherSlash64sDoNot()
+    public async Task IPv6AddressesInOneSlash48ShareABucketAndOtherSlash48sDoNot()
     {
         await using var factory = new RealLimitsFactory { RemoteIpFromHeader = true };
         using var client = factory.CreateClient();
@@ -35,7 +35,8 @@ public sealed class RateLimitPartitionTests
         await FillAsync(client, "2001:db8:1:2::10");
 
         (await SendAsync(client, "2001:db8:1:2::20")).ShouldBe(HttpStatusCode.TooManyRequests);
-        (await SendAsync(client, "2001:db8:1:3::10")).ShouldBe(HttpStatusCode.BadRequest);
+        (await SendAsync(client, "2001:db8:1:3::10")).ShouldBe(HttpStatusCode.TooManyRequests);
+        (await SendAsync(client, "2001:db8:2:2::10")).ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -77,8 +78,10 @@ public sealed class RateLimitPartitionTests
     [InlineData(null, "unknown")]
     [InlineData("203.0.113.1", "203.0.113.1")]
     [InlineData("::ffff:203.0.113.1", "203.0.113.1")]
-    [InlineData("2001:db8:1:2:aaaa:bbbb:cccc:dddd", "2001:db8:1:2::/64")]
-    [InlineData("2001:db8:1:2::1", "2001:db8:1:2::/64")]
+    [InlineData("2001:db8:1:2:aaaa:bbbb:cccc:dddd", "2001:db8:1::/48")]
+    [InlineData("2001:db8:1:2::1", "2001:db8:1::/48")]
+    [InlineData("2001:db8:1:ffff::1", "2001:db8:1::/48")]
+    [InlineData("2001:db8:2:2::1", "2001:db8:2::/48")]
     public void PartitionKeysAreBounded(string? address, string expected)
     {
         var parsed = address is null ? null : IPAddress.Parse(address);
