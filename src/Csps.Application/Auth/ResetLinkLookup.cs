@@ -1,4 +1,3 @@
-using System.Buffers.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Identity;
 
@@ -42,5 +41,5 @@ internal static class ResetLinkLookup
 
     // 32 random bytes in base64url without padding.
     private static bool IsWellFormed(string? token) =>
-        token is { Length: TokenLength } && Base64Url.IsValid(token);
+        token is { Length: TokenLength } && token.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
 }

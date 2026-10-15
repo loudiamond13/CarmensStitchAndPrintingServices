@@ -326,6 +326,8 @@ public sealed class ResetPasswordHandlerTests
 
         public FakeTimeProvider Time { get; }
 
+        private DateTimeOffset? _usedAtStart;
+
         public AccountToken Token { get; private set; }
 
         public UserAccount Account { get; private set; }
@@ -346,6 +348,7 @@ public sealed class ResetPasswordHandlerTests
                     break;
                 case "used":
                     Token.Use(Start);
+                    _usedAtStart = Start;
                     break;
                 case "revoked":
                     Token.Revoke(Start);
@@ -385,7 +388,7 @@ public sealed class ResetPasswordHandlerTests
         // Nothing was spent, saved, queued, revoked or evicted.
         public async Task AssertNothingChangedAsync()
         {
-            Token.UsedAt.ShouldBeNull();
+            Token.UsedAt.ShouldBe(_usedAtStart);
             Unit.Saves.ShouldBe(0);
             Outbox.Emails.ShouldBeEmpty();
             await Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
