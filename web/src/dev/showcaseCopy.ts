@@ -13,6 +13,19 @@ export const SHOWCASE_COPY = {
   /** SPEC-GAP trigger for the child-row delete (CSPS-UI-SPEC "Deleting a child row"), the ConfirmDialog with no field. */
   openDeletePayment: 'Open Delete Payment',
   openDrawer: 'Open navigation drawer',
+  /** SPEC-GAP dev wording: the triggers of the four sign-out dialog demos (plan 04-32). */
+  openSignOutOthers: 'Open Sign Out Other Devices',
+  openSignOutOthersFailed: 'Open Sign Out Other Devices (fails)',
+  openSignOutDevice: 'Open Sign Out Device',
+  openSignOutDeviceFailed: 'Open Sign Out Device (fails)',
+  /** SPEC-GAP dev wording: the session toast triggers, each with the app's own copy (plan 04-32). */
+  sessionToastTriggers: [
+    ['Show session ending toast', 'session-ending'],
+    ['Show device signed out toast', 'device-signed-out'],
+    ['Show already signed out toast', 'already-signed-out'],
+    ['Show signed out others toast', 'signed-out-others'],
+    ['Show password saved toast', 'password-saved'],
+  ],
   /** Toast trigger label → the toast scenario whose tone, title and message it shows. */
   toastTriggers: [
     ['Show success toast', 'toast-success'],

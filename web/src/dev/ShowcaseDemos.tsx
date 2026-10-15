@@ -24,8 +24,13 @@ import {
   type ToastTone,
 } from '@/components';
 import { ICONS, type IconName } from '@/components/brand/icons';
+import { AUTH_COPY } from '@/modules/admin/authCopy';
+import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
+import { SignOutDialog } from '@/modules/admin/components/SignOutDialog';
 import { FailedConfirmDialog } from './previews/FailedConfirmDialog';
 import { OpenedDialog } from './previews/OpenedDialog';
+import { LONG_DEVICE_LABEL, SAMPLE_DEVICE } from './previews/SessionScreens';
+import { serverError } from './previews/serverError';
 import { scenarioById } from './scenarios';
 import {
   dateClasses,
@@ -208,7 +213,96 @@ function NavDrawerDemo() {
   );
 }
 
-/** The live demo shown in place of each fixed-position (`viewport`) scenario. */
+/**
+ * The sign-out dialogs (plan 04-32): real dialogs with demo requests. "Sign Out Other Devices" and "Sign Out Device" end
+ * nothing here, because the showcase runs inside a real session: the confirm only waits a moment and closes, or (the
+ * "fails" demos) fails with a 500 and its reference, so the failure line shows.
+ */
+function SignOutDemo({ kind, fails }: { kind: 'others' | 'device'; fails: boolean }) {
+  const [open, show, close] = useOpen();
+  const confirm = () =>
+    fails
+      ? Promise.reject(serverError(FAILED_TRACE_ID))
+      : new Promise<undefined>((resolve) => {
+          window.setTimeout(() => {
+            close();
+            resolve(undefined);
+          }, 400);
+        });
+  const others = AUTH_COPY.signOutOthersDialog;
+  let label: string = SHOWCASE_COPY.openSignOutDevice;
+  if (kind === 'others') {
+    label = fails ? SHOWCASE_COPY.openSignOutOthersFailed : SHOWCASE_COPY.openSignOutOthers;
+  } else if (fails) {
+    label = SHOWCASE_COPY.openSignOutDeviceFailed;
+  }
+  let dialog = null;
+  if (open && kind === 'others') {
+    dialog = (
+      <SignOutDialog
+        title={others.title}
+        message={others.body}
+        keepLabel={others.keep}
+        confirmLabel={others.confirm}
+        pendingLabel={others.pending}
+        onConfirm={confirm}
+        onCancel={close}
+      />
+    );
+  } else if (open) {
+    dialog = <SignOutDeviceDialog device={SAMPLE_DEVICE} onConfirm={confirm} onCancel={close} />;
+  }
+  return (
+    <>
+      <Button variant="secondary" icon="log-out" onClick={show}>
+        {label}
+      </Button>
+      {dialog}
+    </>
+  );
+}
+
+/** One trigger per session toast: the session-cap warning and the S7 and password toasts, with the app's own copy. */
+function SessionToastTriggers() {
+  const toast = useToast();
+  const copy = AUTH_COPY.toasts;
+  const inputs: Readonly<Record<string, ToastInput>> = {
+    'session-ending': {
+      tone: 'warning',
+      title: copy.sessionEnding.title,
+      message: copy.sessionEnding.body('3:42 PM'),
+    },
+    'device-signed-out': {
+      tone: 'success',
+      title: copy.deviceSignedOut.title,
+      message: copy.deviceSignedOut.body(LONG_DEVICE_LABEL),
+    },
+    'already-signed-out': { tone: 'info', title: copy.alreadySignedOut.title, message: copy.alreadySignedOut.body },
+    'signed-out-others': { tone: 'success', title: copy.signedOutOthers.title, message: copy.signedOutOthers.body },
+    'password-saved': { tone: 'success', title: copy.passwordSaved.title, message: copy.passwordSaved.body },
+  };
+  return (
+    <div className={triggersClasses}>
+      {SHOWCASE_COPY.sessionToastTriggers.map(([label, id]) => (
+        <Button
+          key={id}
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            const input = inputs[id];
+            if (input !== undefined) {
+              toast.show(input);
+            }
+          }}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+/** The live demo shown in place of each fixed-position (viewport) scenario. */
 export const VIEWPORT_DEMOS: Readonly<Record<string, ComponentType>> = {
   'modal-add-payment': AddPaymentDemo,
   'modal-slideover': AddUserDemo,
@@ -216,6 +310,10 @@ export const VIEWPORT_DEMOS: Readonly<Record<string, ComponentType>> = {
   'confirm-delete-order-typed': () => <DeleteOrderDemo mode="typed" />,
   'confirm-delete-order-error': () => <DeleteOrderDemo mode="failed" />,
   'drawer-open': NavDrawerDemo,
+  'signout-others-open': () => <SignOutDemo kind="others" fails={false} />,
+  'signout-others-failed': () => <SignOutDemo kind="others" fails />,
+  'signout-device-open': () => <SignOutDemo kind="device" fails={false} />,
+  'signout-device-failed': () => <SignOutDemo kind="device" fails />,
 };
 
 /**
@@ -323,4 +421,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
     { id: 'showcase-confirm-delete-payment', Component: DeletePaymentDemo, demo: true },
   ],
   media: [{ id: 'showcase-lazy-image-loaded', Component: LoadedLazyImage }],
+  auth: [{ id: 'showcase-session-toasts', Component: SessionToastTriggers }],
 };
