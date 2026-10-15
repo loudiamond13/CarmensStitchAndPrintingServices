@@ -12,7 +12,7 @@ import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
-import { acceptSession, clearSession, takeSignInNotice } from '@/modules/admin/services/session';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { AdminFrame } from '@/layouts/AdminLayout';
 
@@ -217,7 +217,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     expect(router.state.location.hash).toBe('');
   });
 
-  it('Logout signs out on the server, leaves the shell for /admin/login and leaves the signed-out notice', async () => {
+  it('Logout signs out on the server, leaves the shell for /admin/login and shows the signed-out notice on the sign-in page', async () => {
     const calls = answerSignOut();
     const { router } = await renderAt('/admin/users');
 
@@ -227,7 +227,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
     expect(calls()).toBe(1);
-    expect(takeSignInNotice()).toBe('signed-out');
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('Logout still goes to /admin/login when the server call fails', async () => {
@@ -239,7 +239,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
-    expect(takeSignInNotice()).toBe('signed-out');
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('has no axe violations', async () => {
@@ -524,7 +524,7 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
-    expect(takeSignInNotice()).toBe('signed-out');
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('has no axe violations with the drawer open', async () => {
@@ -552,7 +552,7 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
-    expect(takeSignInNotice()).toBe('signed-out');
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('takes the user to My Profile from the user menu', async () => {
@@ -615,7 +615,7 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
-    expect(takeSignInNotice()).toBe('session-ended');
+    expect(await screen.findByRole('status')).toHaveTextContent('Your session ended. Sign in again.');
     clearSession();
   });
 });
