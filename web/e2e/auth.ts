@@ -65,7 +65,9 @@ export async function signInAs(
   await page.getByLabel('Email').fill(staff.email);
   await page.getByLabel('Password', { exact: true }).fill(staff.password);
   if (options.keepSignedIn === true) {
-    await page.getByRole('checkbox', { name: 'Keep me signed in' }).check();
+    // The label carries an invisible 44px tap area (OQ-5) over the box, so the click goes to the label, as a finger's would.
+    await page.locator('label', { hasText: 'Keep me signed in' }).click();
+    await expect(page.getByRole('checkbox', { name: 'Keep me signed in' })).toBeChecked();
   }
   await page.getByRole('button', { name: 'Sign In' }).click();
 

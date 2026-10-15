@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-14T22:40:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-15T02:50:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -92,6 +92,14 @@ Run these once, in this order.
    - <http://localhost:5115/scalar> is the API reference (Scalar), with the OpenAPI document at `/openapi/v1.json`. Both exist **in Development only** and are never mapped in production.
 
 The launch profile sets `ASPNETCORE_ENVIRONMENT=Development` for that process only. Never set it, or any other variable, at User or Machine level.
+
+## Signing in locally
+
+Staff sign in with their password and an emailed 6-digit code. The refresh cookie `__Secure-csps_rt` is HttpOnly, Secure, SameSite Strict and scoped to `/api/v1/auth`.
+
+- Local sign-in works in Chrome, Edge and Firefox on `http://localhost:5180`. Safari refuses Secure cookies on plain localhost, so WebKit is covered by the HTTPS E2E host (`https://localhost:5199`) instead (research Pitfall 2, assumption A8). `npm --prefix web run e2e -- --grep @auth-cookies` proves the cookie's attributes in Chromium, Firefox and WebKit.
+- A session without "Keep me signed in" uses a session cookie, but closing the browser ends it only when the browser does not restore its session (Chrome's "Continue where you left off" and Safari's reopened windows bring session cookies back). The server's 12-hour cap is the real limit (research Pitfall 3).
+- Sign-in codes are emailed. In the Testing environment (the E2E host) they go to an in-memory sink instead, and nothing is ever sent (see [the Testing environment](web/e2e.md#8-the-testing-environment-and-its-helpers)).
 
 ## How the API serves the web app
 
