@@ -81,7 +81,10 @@ describe('passwordService routes', () => {
     const seen = answer('/api/v1/auth/password/reset', () => new HttpResponse(null, { status: 204 }));
 
     await expect(
-      build().service.resetPassword({ token: TOKEN, newPassword: 'Mabuhay#Tahi2026' }, { idempotencyKey: 'key-reset-1' }),
+      build().service.resetPassword(
+        { token: TOKEN, newPassword: 'Mabuhay#Tahi2026' },
+        { idempotencyKey: 'key-reset-1' },
+      ),
     ).resolves.toBeUndefined();
 
     expect(seen[0]).toMatchObject({

@@ -35,6 +35,16 @@ test('@auth-reset a forgotten password is reset from the emailed link and the ol
     const otherPage = await other.newPage();
     await signInAs(otherPage, request, staff);
 
+    // SEC-06, D-40: forgot and reset are covered by the default-on Idempotency-Key gate, so each carries one.
+    const keyed: Record<string, string | undefined> = {};
+    page.on('request', (sent) => {
+      for (const route of ['/auth/password/forgot', '/auth/password/reset']) {
+        if (sent.method() === 'POST' && new URL(sent.url()).pathname.endsWith(route)) {
+          keyed[route] = sent.headers()['idempotency-key'];
+        }
+      }
+    });
+
     // S1 to S4: "Forgot password?" opens the request screen.
     await page.goto('/admin/login');
     await page.getByRole('link', { name: 'Forgot password?' }).click();
@@ -60,6 +70,9 @@ test('@auth-reset a forgotten password is reset from the emailed link and the ol
     await page.getByLabel('New password', { exact: true }).fill(NEW_PASSWORD);
     await page.getByLabel('Confirm new password').fill(NEW_PASSWORD);
     await page.getByRole('button', { name: 'Save Password' }).click();
+
+    expect(keyed['/auth/password/forgot']).toMatch(/\S/);
+    expect(keyed['/auth/password/reset']).toMatch(/\S/);
 
     // D-17: no automatic sign-in; S1 says the password changed.
     await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();

@@ -1,6 +1,10 @@
+// @vitest-environment node
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import { isEmailShaped, signInSchema, verifySchema } from './authSchemas';
+import type { PasswordRuleFailure } from '@/utils/passwordRules';
+import { forgotSchema, isEmailShaped, newPasswordSchema, signInSchema, verifySchema } from './authSchemas';
 
 // signInSchema mirrors SignInRequestValidator (OR-3): the same rules and the same words.
 
@@ -95,5 +99,101 @@ describe('verifySchema', () => {
 describe('zod and the strict CSP', () => {
   it('runs without code generation, so no script-src eval violation is reported', () => {
     expect(z.config().jitless).toBe(true);
+  });
+});
+
+describe('forgotSchema', () => {
+  it('accepts a shaped email and trims it', () => {
+    const result = forgotSchema.safeParse({ email: '  paolo.garcia@gmail.com ' });
+
+    expect(result.data).toEqual({ email: 'paolo.garcia@gmail.com' });
+  });
+
+  it.each([
+    ['', 'Enter your email.'],
+    ['   ', 'Enter your email.'],
+    ['paolo', 'Enter a valid email, like name@gmail.com'],
+    ['paolo@', 'Enter a valid email, like name@gmail.com'],
+    ['a@b@c', 'Enter a valid email, like name@gmail.com'],
+  ])('rejects %j with the sign-in wording', (email, message) => {
+    const result = forgotSchema.safeParse({ email });
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([message]);
+  });
+});
+
+// newPasswordSchema mirrors the server's new-password rule through the shared golden cases (D-11, D-15).
+interface PasswordCase {
+  id: string;
+  password: string;
+  personal: { email: string; firstName: string | null; lastName: string | null } | null;
+  mode: 'composition' | 'full';
+  expected: 'ok' | PasswordRuleFailure;
+}
+
+const shared = JSON.parse(
+  readFileSync(new URL('../../../../tests/fixtures/password-policy-cases.json', import.meta.url), 'utf8'),
+) as {
+  messages: Record<PasswordRuleFailure, string>;
+  cases: PasswordCase[];
+};
+
+const NOBODY = { email: 'nobody@example.test', firstName: null, lastName: null };
+
+function newPasswordMessages(
+  schema: ReturnType<typeof newPasswordSchema>,
+  newPassword: string,
+  confirmPassword: string,
+): Record<string, string> {
+  const result = schema.safeParse({ newPassword, confirmPassword });
+  return result.success
+    ? {}
+    : Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+}
+
+describe('newPasswordSchema', () => {
+  it.each(shared.cases.filter((c) => c.mode === 'full'))(
+    'gives the verdict of the shared case $id (password-policy-cases.json)',
+    (c) => {
+      const found = newPasswordMessages(newPasswordSchema(c.personal ?? NOBODY), c.password, c.password);
+
+      expect(found.newPassword).toBe(c.expected === 'ok' ? undefined : shared.messages[c.expected]);
+    },
+  );
+
+  it.each(shared.cases.filter((c) => c.mode === 'composition'))(
+    'gives the verdict of the composition case $id with no personal details',
+    (c) => {
+      const found = newPasswordMessages(newPasswordSchema(NOBODY), c.password, c.password);
+
+      expect(found.newPassword).toBe(c.expected === 'ok' ? undefined : shared.messages[c.expected]);
+    },
+  );
+
+  it('asks for the new password again when the confirmation is empty', () => {
+    expect(newPasswordMessages(newPasswordSchema(NOBODY), 'Mabuhay#Tahi2026', '')).toEqual({
+      confirmPassword: 'Enter the new password again.',
+    });
+  });
+
+  it("says the passwords don't match when the confirmation differs", () => {
+    expect(newPasswordMessages(newPasswordSchema(NOBODY), 'Mabuhay#Tahi2026', 'Mabuhay#Tahi2027')).toEqual({
+      confirmPassword: "Passwords don't match.",
+    });
+  });
+
+  it('reports a rule failure and a mismatch together, each under its own field', () => {
+    expect(newPasswordMessages(newPasswordSchema(NOBODY), 'Pass1234', 'Pass12345')).toEqual({
+      newPassword: 'Add at least one symbol, like ! or #.',
+      confirmPassword: "Passwords don't match.",
+    });
+  });
+
+  it('keeps the account email out of the password', () => {
+    const schema = newPasswordSchema({ email: 'paolo@gmail.com', firstName: null, lastName: null });
+
+    expect(newPasswordMessages(schema, 'Paolo#2026!', 'Paolo#2026!')).toEqual({
+      newPassword: "Don't use your name or email in your password.",
+    });
   });
 });
