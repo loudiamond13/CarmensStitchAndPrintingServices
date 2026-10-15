@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-24-PLAN.md
-last_updated: "2026-10-15T12:04:25.128Z"
+stopped_at: Completed 04-31-PLAN.md
+last_updated: "2026-10-15T12:26:17.840Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 778ecd198aad9e0148c43b7a49009394a06e93ab
+state_head: c9453a16a5691f9e423b19714209c32f23a92e95
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 87
+  completed_plans: 88
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 32 of 35
+Plan: 33 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -146,6 +146,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P22 | 40 min | 2 tasks | 29 files |
 | Phase 04 P30 | 2h 0m | 3 tasks | 21 files |
 | Phase 04 P24 | 70 min | 2 tasks | 14 files |
+| Phase 04 P31 | 21 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -373,6 +374,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-30: Modal makes the page behind it inert (only the newest dialog decides); inline mock-up dialogs stay live
 - [Phase 04]: 04-30: session-cap warning is a warning-tone toast 5 minutes before the 12-hour cap of a browser session (OQ-4)
 - [Phase 04]: 04-24: Retry-After on a per-IP 429 is the policy's whole window (sliding-window leases report no wait); E2E host sets auth limits to 100000
+- [Phase 04]: 04-31: the Password saved toast reaches the admin shell through a one-shot in the session module (AuthLayout's toast layer unmounts with its route)
+- [Phase 04]: 04-31: S3 and S6 show the shared banner with Try Again when the check could not be made, instead of calling the link expired
 
 ### Pending Todos
 
@@ -419,6 +422,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T12:04:24.768Z
-Stopped at: Completed 04-24-PLAN.md
+Last session: 2026-10-15T12:26:17.480Z
+Stopped at: Completed 04-31-PLAN.md
 Resume file: None
