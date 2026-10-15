@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-14-PLAN.md
-last_updated: "2026-10-15T04:54:10.927Z"
+stopped_at: Completed 04-15-PLAN.md
+last_updated: "2026-10-15T05:12:37.139Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: aa0e606ed3cc34640e225c5298bf22322641175c
+state_head: 1348d08f004357f0ad706978723edb3da0f4b0d3
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 73
+  completed_plans: 74
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 18 of 35
+Plan: 19 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -132,6 +132,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P13 | 40 min | 2 tasks | 31 files |
 | Phase 04 P34 | 15min | 2 tasks | 7 files |
 | Phase 04 P14 | 75min | 3 tasks | 28 files |
+| Phase 04 P15 | ~40min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -332,6 +333,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-13: session cache keyed by sid (60 s, user tag), unknown and revoked sessions cached too; RefreshTokens.ParentId has no self FK
 - [Phase 04]: 04-14: IssuedSession carries the session id so auth.signed-in targets the UserSession; the code-cap lock length is AuthSettings.CodeLockoutDuration (15 min)
 - [Phase 04]: 04-14: locked or deactivated accounts get 401 auth.ticket-expired on verify and resend; expired codes are not audited or counted
+- [Phase 04]: Refresh, sign-out and sign-out-others: a second lost save race answers 409 auth.session-busy (cookie kept) instead of 401 or a false 204
+- [Phase 04]: sign-out-others without a user and sid in the request context revokes nothing and answers 401
+- [Phase 04]: Inactive-account revocation on refresh is audited as auth.session-revoked; the lock check uses UserAccount.LockoutEnd with the injected clock
 
 ### Pending Todos
 
@@ -378,6 +382,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T04:54:10.564Z
-Stopped at: Completed 04-14-PLAN.md
+Last session: 2026-10-15T05:12:36.774Z
+Stopped at: Completed 04-15-PLAN.md
 Resume file: None
