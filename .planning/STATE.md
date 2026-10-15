@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-33-PLAN.md
-last_updated: "2026-10-15T03:57:35.079Z"
+stopped_at: Completed 04-12-PLAN.md
+last_updated: "2026-10-15T04:16:48.522Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 872fbf10c1c29c61dc053e1b32695801977c1cb7
+state_head: 9cb60417a7496b128a2126125128a679cd4ac1c9
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 69
+  completed_plans: 70
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 14 of 35
+Plan: 15 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -128,6 +128,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P11 | 35min | 3 tasks | 20 files |
 | Phase 04 P17 | 40min | 3 tasks | 24 files |
 | Phase 04 P33 | 35 min | 2 tasks | 7 files |
+| Phase 04 P12 | 70min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -323,6 +324,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-11: InvalidateOpenAsync does not save; handlers save it with the new challenge in one unit of work
 - [Phase 04]: 04-17: HIBP address is an absolute constant URI on every call, one 250 ms retry inside a 3 s limit; SecLists top-10k pinned at commit 913b327 and hash-checked via registry kind data
 - [Phase 04]: 04-33: retry delay counts from the failed attempt; claim lease 2 min; transport errors stored only as smtp-connect/auth/send/unknown
+- [Phase 04]: 04-12: auth.lockout for a password lockout is recorded in the same unit of work as the count and the email (Record), not independently; audit-log.md updated
+- [Phase 04]: 04-12: ResponseFloor re-measures after each delay because a coarse timer can fire early; state checks run before the password result so blocked accounts are never counted
 
 ### Pending Todos
 
@@ -369,6 +372,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T03:57:34.738Z
-Stopped at: Completed 04-33-PLAN.md
+Last session: 2026-10-15T04:16:48.177Z
+Stopped at: Completed 04-12-PLAN.md
 Resume file: None
