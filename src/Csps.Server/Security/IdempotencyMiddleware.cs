@@ -11,8 +11,8 @@ namespace Csps.Server.Security;
 
 /// <summary>
 /// Default-on Idempotency-Key handling for every POST (SEC-06, D-40). A POST must carry a UUID key. The key is scoped
-/// to the route and the user (none when anonymous): a repeat with the same body gets the stored answer with
-/// <c>Idempotent-Replayed: true</c>, a different body is a 422, and a duplicate that arrives while the first runs is a
+/// to the route and the user (none when anonymous): a repeat with the same path, query and body gets the stored answer with
+/// <c>Idempotent-Replayed: true</c>, a different one is a 422, and a duplicate that arrives while the first runs is a
 /// 409. The answer is stored with the business change in one transaction and written to the client only after the
 /// commit. Only 2xx, 400, 404 and 422 are kept; anything else rolls back so the same key may run again.
 /// Multipart bodies will need part-wise hashing once uploads exist (deferred LIB-CR-02).
@@ -67,7 +67,7 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
             return;
         }
 
-        var requestHash = await HashBodyAsync(context.Request, context.RequestAborted).ConfigureAwait(false);
+        var requestHash = await HashRequestAsync(context.Request, context.RequestAborted).ConfigureAwait(false);
         var lease = await gate.BeginAsync(key, route, requestContext.UserId, requestHash, clock.GetUtcNow(), context.RequestAborted).ConfigureAwait(false);
         await using (lease.ConfigureAwait(false))
         {
@@ -118,11 +118,17 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
         return values.Count == 1 && Guid.TryParseExact(values[0], "D", out key);
     }
 
-    private static async Task<byte[]> HashBodyAsync(HttpRequest request, CancellationToken cancellationToken)
+    // The hash covers the concrete target (path and query) and the body, so one key cannot replay an answer for another resource.
+    private static async Task<byte[]> HashRequestAsync(HttpRequest request, CancellationToken cancellationToken)
     {
         // The body is read here and again by the action, so it is buffered in memory (it is capped at 1 MB).
         request.EnableBuffering((int)RequestBodyLimitMiddleware.MaxBytes, RequestBodyLimitMiddleware.MaxBytes);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+        // Length-prefixed, so the target cannot blur into the body bytes that follow.
+        var target = Encoding.UTF8.GetBytes($"{request.Path}{request.QueryString}");
+        hash.AppendData(BitConverter.GetBytes(target.Length));
+        hash.AppendData(target);
         var buffer = ArrayPool<byte>.Shared.Rent(8192);
         try
         {

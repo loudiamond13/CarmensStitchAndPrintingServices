@@ -131,6 +131,28 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task TheSameKeyOnAnotherResourceOfTheSameRoutePatternIsAMismatchNotAReplay()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        var key = Guid.NewGuid().ToString("D");
+
+        using var first = await SendAsync(client, $"{ProbePrefix}/status/200", key, body: null);
+        using var otherResource = await SendAsync(client, $"{ProbePrefix}/status/202", key, body: null);
+        using var otherQuery = await SendAsync(client, $"{ProbePrefix}/status/200?write={Guid.NewGuid():D}", key, body: null);
+        using var repeat = await SendAsync(client, $"{ProbePrefix}/status/200", key, body: null);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        otherResource.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        otherResource.Headers.Contains(AuthClient.ReplayedHeader).ShouldBeFalse();
+        (await ProblemJson.ReadAsync(otherResource, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.key-mismatch");
+        otherQuery.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        repeat.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+        probe.Runs.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ADuplicateThatArrivesWhileTheFirstRunsGetsAConflict()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
