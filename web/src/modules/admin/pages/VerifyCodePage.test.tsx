@@ -219,7 +219,7 @@ async function typeAndVerify(user: User, code = '048213'): Promise<void> {
 
 function boxValues(): string[] {
   return [1, 2, 3, 4, 5, 6].map(
-    (index) => (screen.getByLabelText(`Digit ${String(index)} of 6`) as HTMLInputElement).value,
+    (index) => screen.getByRole<HTMLInputElement>('textbox', { name: `Digit ${String(index)} of 6` }).value,
   );
 }
 

@@ -35,6 +35,8 @@ interface ButtonBaseProps {
   form?: string;
   name?: string;
   value?: string;
+  /** Looks and acts disabled but keeps keyboard focus (WEB-09 without the spinner): a wait the person can see end. */
+  'aria-disabled'?: boolean;
   'aria-describedby'?: string;
   'aria-controls'?: string;
   'aria-expanded'?: boolean;
@@ -68,6 +70,7 @@ export function Button({
   name,
   value,
   'aria-label': ariaLabel,
+  'aria-disabled': ariaDisabled = false,
   'aria-describedby': ariaDescribedBy,
   'aria-controls': ariaControls,
   'aria-expanded': ariaExpanded,
@@ -79,8 +82,9 @@ export function Button({
   // disabled, so keyboard focus stays on it; activation is swallowed here instead (a click, Enter or Space, and so the
   // form submission a submit button would start). It looks exactly like the disabled button (owner, 2026-10-07).
   const busy = pending || loading;
+  const inactive = busy || ariaDisabled;
   const handleClick = (event: MouseEvent<HTMLButtonElement>): void => {
-    if (busy) {
+    if (inactive) {
       event.preventDefault();
       return;
     }
@@ -97,7 +101,7 @@ export function Button({
       name={name}
       value={value}
       disabled={disabled}
-      aria-disabled={busy || undefined}
+      aria-disabled={inactive || undefined}
       aria-busy={busy || undefined}
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
