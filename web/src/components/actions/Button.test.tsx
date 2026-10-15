@@ -200,6 +200,45 @@ describe('Button pending (WEB-09)', () => {
   });
 });
 
+describe('Button aria-disabled (the code step Resend)', () => {
+  it('is aria-disabled without a spinner or aria-busy, stays focusable, and ignores activation', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <Button aria-disabled onClick={onClick} icon="check">
+        Resend code in 0:42
+      </Button>,
+    );
+    const button = onlyButton();
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toHaveAttribute('aria-busy');
+    expect(button).not.toBeDisabled();
+    expect(button.querySelector('svg')).not.toHaveClass('animate-spin');
+    await user.click(button);
+    button.focus();
+    await user.keyboard('{Enter}');
+    expect(button).toHaveFocus();
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('activates normally when aria-disabled is false or left out', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    const { rerender } = render(
+      <Button aria-disabled={false} onClick={onClick}>
+        Resend Code
+      </Button>,
+    );
+    await user.click(onlyButton());
+    rerender(<Button onClick={onClick}>Resend Code</Button>);
+    await user.click(onlyButton());
+
+    expect(onClick).toHaveBeenCalledTimes(2);
+    expect(onlyButton()).not.toHaveAttribute('aria-disabled');
+  });
+});
+
 describe('Button accessibility and rendering', () => {
   it('has no axe violations at rest, icon-only and pending (A11Y-01)', async () => {
     const { container } = render(

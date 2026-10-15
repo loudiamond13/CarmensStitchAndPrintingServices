@@ -220,6 +220,23 @@ describe('OtpInput paste and direct input (PRD §12 accessible authentication)',
     expect(onComplete).toHaveBeenCalledWith('123456');
   });
 
+  it('fills all six boxes from a whole code pasted into any box (A11Y-03 adjacency)', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn<(code: string) => void>();
+    render(<OtpInput onComplete={onComplete} />);
+    await user.click(digitBox(3));
+    await user.paste('048213');
+    expect(values()).toEqual(['0', '4', '8', '2', '1', '3']);
+    expect(digitBox(6)).toHaveFocus();
+    expect(onComplete).toHaveBeenCalledWith('048213');
+  });
+
+  it('fills all six boxes from a whole code written into a later box (autofill), replacing what was there', () => {
+    render(<OtpInput defaultValue="9    9" />);
+    fireEvent.input(digitBox(4), { target: { value: '654321' } });
+    expect(values()).toEqual(['6', '5', '4', '3', '2', '1']);
+  });
+
   it('fills box 4 from a one-digit paste there and focuses box 5', async () => {
     const user = userEvent.setup();
     render(<OtpInput />);
