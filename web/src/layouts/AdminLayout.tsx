@@ -11,16 +11,17 @@
 // under the scrim.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
 // The signed-in user comes from the route's loader data (the session user, or Carmen Reyes on the dev routes). Logout (in
-// the Sidebar, the drawer and the Topbar's user menu) signs out, then goes to /admin/login.
+// the Sidebar, the drawer and the Topbar's user menu) signs out and goes to /admin/login; when the server call fails the
+// person stays signed in on the page and a danger toast says so.
 // Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
 // on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLoaderData, useLocation, useNavigate, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry';
-import { Skeleton, ToastProvider } from '@/components/feedback';
+import { Skeleton, ToastProvider, useToast } from '@/components/feedback';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { MobileNavDrawer, Sidebar, Topbar, type AdminSection } from '@/components/navigation';
 import {
@@ -31,6 +32,7 @@ import {
   skeletonHeadClasses,
 } from '@/modules/admin/components/admin.recipe';
 import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
+import { ADMIN_COPY } from '@/modules/admin/copy';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
 import { useClearCacheOnSignOut } from '@/modules/admin/hooks/useClearCacheOnSignOut';
 import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
@@ -127,13 +129,15 @@ export function AdminFrame({
   );
 }
 
-/** The frame for the current path. Logout signs out (the local session ends even if the server call fails) and leaves. */
+/** The frame for the current path. Logout leaves for /admin/login once the server ended the session; if not, a toast says so. */
 function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const failureToast = useRef<number | null>(null);
   useSessionCapWarning();
   usePostSignInToast();
   useClearCacheOnSignOut();
@@ -155,7 +159,21 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={() => {
-          void signOut().then(() => navigate('/admin/login'));
+          if (failureToast.current !== null) {
+            toast.dismiss(failureToast.current);
+            failureToast.current = null;
+          }
+          void signOut().then((ended) => {
+            if (ended) {
+              void navigate('/admin/login');
+            } else {
+              failureToast.current = toast.show({
+                tone: 'danger',
+                title: ADMIN_COPY.signOutFailed.title,
+                message: ADMIN_COPY.signOutFailed.message,
+              });
+            }
+          });
         }}
         devicesPath={SESSIONS_PATH}
         onSignOutOthers={() => {

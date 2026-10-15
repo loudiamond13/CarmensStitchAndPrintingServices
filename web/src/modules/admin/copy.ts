@@ -8,4 +8,6 @@ export const ADMIN_COPY = {
     emptyTitle: 'Nothing here yet',
     emptyMessage: 'This screen is not available yet. Use the menu to go to another page.',
   },
+  // Owner copy (D-45): the toast when Logout fails and the person stays signed in.
+  signOutFailed: { title: 'We couldn’t sign you out.', message: 'Check your connection and try again.' },
 } as const;

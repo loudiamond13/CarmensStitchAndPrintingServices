@@ -12,7 +12,8 @@ import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
-import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { ADMIN_COPY } from '@/modules/admin/copy';
+import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { AdminFrame } from '@/layouts/AdminLayout';
 
@@ -105,21 +106,25 @@ function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
 
+/** What POST /auth/sign-out answers: a status, or `'network'` for a dropped connection. */
+type SignOutAnswer = number | 'network';
+
 /**
- * Answers POST /auth/sign-out with `status`; the returned function says how many calls arrived. Leaving for the real
- * sign-in page makes its loader look for a session, so POST /auth/refresh answers 401 (no cookie).
+ * Answers POST /auth/sign-out with `answers` in order (the last one repeats); the returned function says how many calls
+ * arrived. Leaving for the real sign-in page makes its loader look for a session, so POST /auth/refresh answers 401
+ * (the confirmed sign-out deleted the cookie).
  */
-function answerSignOut(status = 204, cookieSurvives = false): () => number {
+function answerSignOut(...answers: SignOutAnswer[]): () => number {
+  const list: SignOutAnswer[] = answers.length === 0 ? [204] : answers;
   let calls = 0;
   server.use(
     http.post('*/api/v1/auth/refresh', () =>
-      cookieSurvives
-        ? HttpResponse.json(sessionResponse())
-        : HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
+      HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
     ),
     http.post('*/api/v1/auth/sign-out', () => {
+      const answer = list[Math.min(calls, list.length - 1)] ?? 204;
       calls += 1;
-      return new HttpResponse(null, { status });
+      return answer === 'network' ? HttpResponse.error() : new HttpResponse(null, { status: answer });
     }),
   );
   return () => calls;
@@ -232,30 +237,90 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
-  it('Logout still goes to /admin/login when the server call fails', async () => {
-    answerSignOut(500);
-    const { router } = await renderAt('/admin/users');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
-
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/admin/login');
-    });
-    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
+  it('keeps the owner copy for a failed Logout word for word (D-45)', () => {
+    expect(`${ADMIN_COPY.signOutFailed.title} ${ADMIN_COPY.signOutFailed.message}`).toBe(
+      'We couldn’t sign you out. Check your connection and try again.',
+    );
   });
 
-  it('Logout stays on the sign-in page when the server call failed but the refresh cookie still works', async () => {
-    answerSignOut(500, true);
+  it.each<[string, SignOutAnswer]>([
+    ['a 500', 500],
+    ['a 503', 503],
+    ['a 429', 429],
+    ['a network error', 'network'],
+  ])(
+    'a Logout that fails with %s keeps the person signed in on the same page with the danger toast',
+    async (_name, answer) => {
+      acceptSession(sessionResponse());
+      const calls = answerSignOut(answer);
+      const { router } = await renderAt('/admin/users');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+      expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+      expect(screen.getByText(ADMIN_COPY.signOutFailed.message)).toBeInTheDocument();
+      expect(calls()).toBe(1);
+      expect(router.state.location.pathname).toBe('/admin/users');
+      expect(screen.queryByText("You've signed out.")).toBeNull();
+      expect(getSessionUser()).not.toBeNull();
+    },
+  );
+
+  it('a 409 twice makes two calls and then shows the same failure state', async () => {
+    acceptSession(sessionResponse());
+    const calls = answerSignOut(409);
     const { router } = await renderAt('/admin/users');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    expect(calls()).toBe(2);
+    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(getSessionUser()).not.toBeNull();
+  });
+
+  it('a second failed press replaces the toast instead of stacking another', async () => {
+    acceptSession(sessionResponse());
+    const calls = answerSignOut(500);
+    await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    await waitFor(() => {
+      expect(calls()).toBe(2);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText(ADMIN_COPY.signOutFailed.title)).toHaveLength(1);
+    });
+  });
+
+  it('pressing Logout again after a failure retries and leaves for /admin/login', async () => {
+    acceptSession(sessionResponse());
+    answerSignOut(500, 204);
+    const { router } = await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Carmen Reyes/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
+
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');
     });
-    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(router.state.location.pathname).toBe('/admin/login');
+    expect(await screen.findByText("You've signed out.")).toBeInTheDocument();
+    expect(getSessionUser()).toBeNull();
+  });
+
+  it('has no axe violations with the sign-out failure toast showing', async () => {
+    acceptSession(sessionResponse());
+    answerSignOut(500);
+    const { container } = await renderAt('/admin/users');
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    await screen.findByText(ADMIN_COPY.signOutFailed.title);
+
+    await expectNoAxeViolations(container);
   });
 
   it('has no axe violations', async () => {
@@ -319,6 +384,8 @@ const RAIL = 'pg-tablet:in-data-[ui=s-admin-side]:';
 
 afterEach(() => {
   window.localStorage.clear();
+  clearSession();
+  takeSignInNotice();
 });
 
 describe('AdminLayout theme (D-13)', () => {
