@@ -45,7 +45,7 @@ public sealed class SiteSettingsEndpointTests(CspsDatabase database) : IClassFix
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
-        using var request = ApiRequests.Get(Route, TestTokens.For(role, TimeProvider.System));
+        using var request = ApiRequests.Get(Route, (await TestSessions.StartAsync(factory, role)).AccessToken);
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 

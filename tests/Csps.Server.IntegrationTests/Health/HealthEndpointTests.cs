@@ -56,7 +56,7 @@ public sealed class HealthEndpointTests(CspsDatabase database) : IClassFixture<C
         // caller gets 404, not 405, because the any-method missing-file fallback shares the routing node (research A4).
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
-        var token = signedIn ? TestTokens.For(Roles.Admin, TimeProvider.System) : null;
+        var token = signedIn ? (await TestSessions.StartAsync(factory, Roles.Admin)).AccessToken : null;
         using var request = ApiRequests.Create(new HttpMethod(method), "/health", token);
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);

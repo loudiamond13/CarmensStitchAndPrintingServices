@@ -1,4 +1,6 @@
+using Csps.Application.Ports;
 using Csps.Application.Security;
+using Csps.Server.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
@@ -7,8 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 namespace Csps.Server.Composition;
 
 /// <summary>
-/// Access-token validation and default-deny authorization (SEC-02, CWE-862/863, CWE-347/287). Phase 1 only
-/// validates tokens; issuing them is Phase 4.
+/// Access-token validation and default-deny authorization (SEC-02, CWE-862/863, CWE-347/287). Tokens are issued by
+/// <see cref="AccessTokenIssuer"/> and are accepted only while the session they name is active.
 /// </summary>
 public static class SecurityRegistration
 {
@@ -17,6 +19,9 @@ public static class SecurityRegistration
 
     /// <summary>The claim that carries the role.</summary>
     public const string RoleClaim = "role";
+
+    /// <summary>The claim that carries the session id; the session must be active on every request (AUTH-06).</summary>
+    public const string SessionClaim = "sid";
 
     /// <summary>The clock skew allowed on token lifetimes.</summary>
     public static readonly TimeSpan ClockSkew = TimeSpan.FromSeconds(30);
@@ -37,6 +42,8 @@ public static class SecurityRegistration
             .Validate(static options => !string.IsNullOrWhiteSpace(options.Audience), JwtOptions.AudienceMissingMessage)
             .Validate(static options => options.TryGetSigningKeyBytes(out _), JwtOptions.SigningKeyInvalidMessage)
             .ValidateOnStart();
+
+        services.AddSingleton<IAccessTokenIssuer, AccessTokenIssuer>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -75,9 +82,32 @@ public static class SecurityRegistration
             IssuerSigningKey = new SymmetricSecurityKey(key),
             RequireSignedTokens = true,
             ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+
+            // Only access tokens: another JWT signed with the same key is refused (IN-04, CWE-347).
+            ValidTypes = [AccessTokenIssuer.TokenType],
             RoleClaimType = RoleClaim,
             NameClaimType = SubjectClaim,
             ClockSkew = ClockSkew,
         };
+
+        bearer.Events = new JwtBearerEvents { OnTokenValidated = RequireActiveSessionAsync };
+    }
+
+    // A valid signature is not enough: the sid must name an active session of the same user, on every request (AUTH-06).
+    private static async Task RequireActiveSessionAsync(TokenValidatedContext context)
+    {
+        var principal = context.Principal;
+        if (!Guid.TryParse(principal?.FindFirst(SubjectClaim)?.Value, out var userId)
+            || !Guid.TryParse(principal?.FindFirst(SessionClaim)?.Value, out var sessionId))
+        {
+            context.Fail("The token does not name a user and a session.");
+            return;
+        }
+
+        var sessions = context.HttpContext.RequestServices.GetRequiredService<ISessionCache>();
+        if (!await sessions.IsActiveAsync(sessionId, userId, context.HttpContext.RequestAborted).ConfigureAwait(false))
+        {
+            context.Fail("The session is not active.");
+        }
     }
 }

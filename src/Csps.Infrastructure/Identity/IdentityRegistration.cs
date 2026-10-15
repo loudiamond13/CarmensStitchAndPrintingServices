@@ -59,6 +59,8 @@ public static class IdentityRegistration
             .Validate(static options => options.TryGetCodeMacKeyBytes(out _), AuthSecretsOptions.CodeMacKeyInvalidMessage)
             .ValidateOnStart();
         services.AddScoped<ITwoFactorChallenges, TwoFactorChallengeStore>();
+        services.AddScoped<ISessions, SessionStore>();
+        services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ICodeMac, HmacCodeMac>();
         services.AddSingleton<ISecureRandom, SecureRandom>();
 #if CSPS_TESTING

@@ -1,3 +1,4 @@
+using Csps.Application.Ports;
 using Csps.Infrastructure;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Hosting;
@@ -127,6 +128,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
             // Replaces only the key store; the certificate encryptor stays the production one.
             builder.ConfigureTestServices(services => services.PostConfigure<KeyManagementOptions>(
                 options => options.XmlRepository = new InMemoryXmlRepository()));
+
+            // No database to look sessions up in: accept every sid. The real cache is proven by SessionRevocationTests.
+            builder.ConfigureTestServices(services => services.AddSingleton<ISessionCache, AcceptingSessionCache>());
         }
 
         ConfigureSettings(builder);

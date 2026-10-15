@@ -33,6 +33,12 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The emailed codes of the sign-ins; each holds only the HMAC of its code (AUTH-03).</summary>
     public DbSet<TwoFactorCode> TwoFactorCodes => Set<TwoFactorCode>();
 
+    /// <summary>Signed-in sessions; each carries its device label and revocation state (AUTH-05, D-43).</summary>
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+
+    /// <summary>The single-use refresh tokens of the sessions; each holds only the SHA-256 of its token (AUTH-05).</summary>
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

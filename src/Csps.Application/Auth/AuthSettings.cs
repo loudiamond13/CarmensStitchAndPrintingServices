@@ -32,6 +32,9 @@ public sealed class AuthSettings
     /// <summary>How long a pending-login ticket lives.</summary>
     public TimeSpan ChallengeLifetime { get; init; } = TimeSpan.FromMinutes(30);
 
+    /// <summary>How long an access token works (AUTH-05).</summary>
+    public TimeSpan AccessTokenLifetime { get; init; } = TimeSpan.FromMinutes(15);
+
     /// <summary>The life of a "keep me signed in" session.</summary>
     public TimeSpan PersistentSessionLifetime { get; init; } = TimeSpan.FromDays(90);
 
@@ -84,6 +87,7 @@ public sealed class AuthSettings
         RequirePositive(CodeLifetime, nameof(CodeLifetime), problems);
         RequirePositive(ResendCooldown, nameof(ResendCooldown), problems);
         RequirePositive(ChallengeLifetime, nameof(ChallengeLifetime), problems);
+        RequirePositive(AccessTokenLifetime, nameof(AccessTokenLifetime), problems);
         RequirePositive(PersistentSessionLifetime, nameof(PersistentSessionLifetime), problems);
         RequirePositive(BrowserSessionLifetime, nameof(BrowserSessionLifetime), problems);
         RequirePositive(RefreshGrace, nameof(RefreshGrace), problems);
