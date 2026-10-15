@@ -7,12 +7,15 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.Net.Http.Headers;
 
 namespace Csps.Server.IntegrationTests.Auth;
 
@@ -38,6 +41,16 @@ public enum StaffState
 /// <param name="Password">The password.</param>
 internal sealed record TestStaff(Guid Id, string Email, string Password);
 
+/// <summary>A device that finished sign-in: the access token, the refresh cookie value and the session's fixed end.</summary>
+/// <param name="UserId">The account id.</param>
+/// <param name="SessionId">The session id (the token's <c>sid</c>).</param>
+/// <param name="AccessToken">The 15-minute bearer token.</param>
+/// <param name="RefreshToken">The refresh cookie value.</param>
+/// <param name="CookieExpires">The refresh cookie's expiry; null for a browser-session cookie.</param>
+/// <param name="SessionExpiresAt">The session's fixed end.</param>
+internal sealed record SignedInDevice(
+    Guid UserId, Guid SessionId, string AccessToken, string RefreshToken, DateTimeOffset? CookieExpires, DateTimeOffset SessionExpiresAt);
+
 /// <summary>A message read from the Testing email sink.</summary>
 /// <param name="Id">The sink cursor id.</param>
 /// <param name="To">The recipient.</param>
@@ -60,6 +73,18 @@ internal static partial class AuthClient
 
     /// <summary>The code resend route.</summary>
     public const string ResendRoute = "/api/v1/auth/two-factor/resend";
+
+    /// <summary>The refresh route.</summary>
+    public const string RefreshRoute = "/api/v1/auth/refresh";
+
+    /// <summary>The sign-out route.</summary>
+    public const string SignOutRoute = "/api/v1/auth/sign-out";
+
+    /// <summary>The sign-out-other-devices route.</summary>
+    public const string SignOutOthersRoute = "/api/v1/auth/sign-out-others";
+
+    /// <summary>The refresh cookie name.</summary>
+    public const string RefreshCookieName = "__Secure-csps_rt";
 
     /// <summary>The anti-CSRF header every cookie-reading auth call carries.</summary>
     public const string CsrfHeader = "X-CSPS-CSRF";
@@ -304,10 +329,117 @@ internal static partial class AuthClient
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Signs in with the password and the emailed code, so the client holds the refresh cookie.</summary>
+    /// <param name="client">The client (one cookie jar per device).</param>
+    /// <param name="staff">The account.</param>
+    /// <param name="keepSignedIn">The keep-signed-in choice.</param>
+    /// <param name="signInsSoFar">How many sign-in emails the account already holds, so the newest code is read.</param>
+    /// <returns>The device's tokens.</returns>
+    public static async Task<SignedInDevice> SignInFullyAsync(HttpClient client, TestStaff staff, bool keepSignedIn = true, int signInsSoFar = 0)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(staff);
+        using var signIn = await SignInAsync(client, staff.Email, staff.Password, keepSignedIn);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var code = await ReadCodeAsync(client, staff.Email, signInsSoFar + 1);
+        using var verify = await VerifyAsync(client, code);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+        return await ReadDeviceAsync(verify, staff.Id);
+    }
+
+    /// <summary>Reads a session response (verify or refresh) and its refresh cookie.</summary>
+    /// <param name="response">The 200 response.</param>
+    /// <param name="userId">The account id.</param>
+    /// <returns>The device's tokens.</returns>
+    public static async Task<SignedInDevice> ReadDeviceAsync(HttpResponseMessage response, Guid userId)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var root = body.RootElement;
+        var session = root.TryGetProperty("session", out var wrapped) ? wrapped : root;
+        var accessToken = session.GetProperty("accessToken").GetString().ShouldNotBeNull();
+        var cookie = RefreshCookie(response).ShouldNotBeNull();
+        var sessionId = Guid.Parse(new JsonWebToken(accessToken).GetClaim("sid").Value);
+        return new SignedInDevice(
+            userId, sessionId, accessToken, cookie.Value.Value.ShouldNotBeNull(), cookie.Expires, session.GetProperty("sessionExpiresAt").GetDateTimeOffset());
+    }
+
+    /// <summary>Finds the refresh cookie a response sets.</summary>
+    /// <param name="response">The response.</param>
+    /// <returns>The parsed cookie, or null when the response does not set it.</returns>
+    public static SetCookieHeaderValue? RefreshCookie(HttpResponseMessage response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        if (!response.Headers.TryGetValues("Set-Cookie", out var headers))
+        {
+            return null;
+        }
+
+        return headers.Select(static header => SetCookieHeaderValue.Parse(header))
+            .SingleOrDefault(static cookie => cookie.Name.Value == RefreshCookieName);
+    }
+
+    /// <summary>Posts to the refresh route.</summary>
+    /// <param name="client">The client; its cookie jar supplies the refresh cookie unless one is given.</param>
+    /// <param name="refreshToken">A refresh cookie value to send explicitly; null sends only the jar's cookies.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> RefreshAsync(HttpClient client, string? refreshToken = null, bool csrf = true) =>
+        PostCookieRouteAsync(client, RefreshRoute, refreshToken, csrf);
+
+    /// <summary>Posts to the sign-out route.</summary>
+    /// <param name="client">The client; its cookie jar supplies the refresh cookie unless one is given.</param>
+    /// <param name="refreshToken">A refresh cookie value to send explicitly; null sends only the jar's cookies.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> SignOutAsync(HttpClient client, string? refreshToken = null, bool csrf = true) =>
+        PostCookieRouteAsync(client, SignOutRoute, refreshToken, csrf);
+
+    /// <summary>Posts to the sign-out-other-devices route with a bearer token.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The caller's access token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> SignOutOthersAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, SignOutOthersRoute, accessToken);
+        request.Headers.Add(CsrfHeader, "1");
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the site settings with an access token and returns the status.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The access token.</param>
+    /// <returns>The HTTP status.</returns>
+    public static async Task<HttpStatusCode> SiteSettingsStatusAsync(HttpClient client, string accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get("/api/v1/site-settings", accessToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        return response.StatusCode;
+    }
+
     /// <summary>Returns a code that is well formed but is not <paramref name="notThis"/>.</summary>
     /// <param name="notThis">The code to avoid.</param>
     /// <returns>Six digits.</returns>
     public static string WrongCode(string notThis) => notThis == "000000" ? "000001" : "000000";
+
+    private static async Task<HttpResponseMessage> PostCookieRouteAsync(HttpClient client, string route, string? refreshToken, bool csrf)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(route, UriKind.Relative));
+        if (csrf)
+        {
+            request.Headers.Add(CsrfHeader, "1");
+        }
+
+        if (refreshToken is not null)
+        {
+            request.Headers.Add("Cookie", $"{RefreshCookieName}={refreshToken}");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
 
     [GeneratedRegex(@"^(\d{6}) is your CSPS sign-in code$")]
     private static partial Regex CodeInSubject();
