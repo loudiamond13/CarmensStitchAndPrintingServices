@@ -24,28 +24,27 @@ import {
 
 /** An in-memory BroadcastChannel hub: a message reaches every other channel of the hub, one microtask later. */
 function createHub() {
-  type Handler = ((event: { data: unknown }) => void) | null;
-  const channels: { onmessage: Handler }[] = [];
+  type Handler = (data: unknown) => void;
+  const channels: { handler: Handler | null }[] = [];
   const messages: unknown[] = [];
   return {
     messages,
-    create(): { onmessage: Handler; postMessage(message: unknown): void; close(): void } {
-      const channel = {
-        onmessage: null as Handler,
+    create(): { postMessage(message: unknown): void; listen(handler: Handler): void } {
+      const channel: { handler: Handler | null } = { handler: null };
+      channels.push(channel);
+      return {
         postMessage(message: unknown) {
           messages.push(message);
           for (const other of channels.filter((candidate) => candidate !== channel)) {
             queueMicrotask(() => {
-              other.onmessage?.({ data: structuredClone(message) });
+              other.handler?.(structuredClone(message));
             });
           }
         },
-        close() {
-          channels.splice(channels.indexOf(channel), 1);
+        listen(handler: Handler) {
+          channel.handler = handler;
         },
       };
-      channels.push(channel);
-      return channel;
     },
   };
 }
@@ -562,8 +561,8 @@ describe('the shared session wired to the shared client', () => {
     for (const store of stores) {
       expect(store).not.toHaveBeenCalled();
     }
-    expect(JSON.stringify({ ...window.localStorage })).not.toContain('secret-access-token');
-    expect(JSON.stringify({ ...window.sessionStorage })).not.toContain('lito@example.ph');
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
     expect(document.cookie).toBe('');
   });
 });
