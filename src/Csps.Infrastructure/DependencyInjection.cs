@@ -2,6 +2,7 @@ using Csps.Application.Ports;
 using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.DataProtection;
+using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
@@ -37,8 +38,9 @@ public static class DependencyInjection
 
     /// <summary>
     /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar, the audit trail,
-    /// Data Protection (key ring in the database, encrypted with the <c>DataProtection</c> certificate) and the
-    /// <c>database</c> and <c>time-zone</c> health checks, reading the connection string from configuration.
+    /// Data Protection (key ring in the database, encrypted with the <c>DataProtection</c> certificate), the email
+    /// outbox with its dispatcher, and the <c>database</c> and <c>time-zone</c> health checks, reading the connection
+    /// string from configuration.
     /// The host must also register <see cref="IRequestContext"/>, which the audit trail reads.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -78,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
 
         services.AddCspsIdentity();
+        services.AddCspsEmail(configuration, environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
         services.AddCspsDataProtection(configuration);
@@ -107,7 +110,11 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        services.AddDbContextFactory<CspsDbContext>(options => CspsDbContextOptions.Configure(options, connectionString));
+        // The interceptor wakes the email dispatcher after a commit that added outbox rows.
+        services.TryAddSingleton<OutboxSignal>();
+        services.TryAddSingleton<OutboxSignalInterceptor>();
+        services.AddDbContextFactory<CspsDbContext>((provider, options) =>
+            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(provider.GetRequiredService<OutboxSignalInterceptor>()));
         return services;
     }
 }

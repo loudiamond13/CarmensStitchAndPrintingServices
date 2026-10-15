@@ -29,7 +29,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     {
         var transport = new RecordingTransport();
         var to = NewAddress();
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: true);
+        using var host = await StartHostAsync(transport, dispatcherEnabled: true);
 
         await QueueCodeAsync(host, to);
 
@@ -51,7 +51,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     {
         var transport = new RecordingTransport();
         var to = NewAddress();
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: true);
+        using var host = await StartHostAsync(transport, dispatcherEnabled: true);
 
         var scope = host.Services.CreateAsyncScope();
         await using (scope)
@@ -70,7 +70,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     {
         var transport = new RecordingTransport();
         var to = NewAddress();
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
 
         await QueueCodeAsync(host, to);
 
@@ -93,7 +93,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
         var to = NewAddress();
 
         // An hour between sweeps: only the signal that follows the commit can make this send in time.
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: true, sweepInterval: TimeSpan.FromHours(1));
+        using var host = await StartHostAsync(transport, dispatcherEnabled: true, sweepInterval: TimeSpan.FromHours(1));
 
         var scope = host.Services.CreateAsyncScope();
         await using (scope)
@@ -120,7 +120,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     {
         var transport = new RecordingTransport();
         var to = NewAddress();
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: true);
+        using var host = await StartHostAsync(transport, dispatcherEnabled: true);
 
         var scope = host.Services.CreateAsyncScope();
         await using (scope)
@@ -148,7 +148,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
     {
         var transport = new RecordingTransport();
         var to = NewAddress();
-        await using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
         await QueueCodeAsync(host, to);
         await QueueCodeAsync(host, to);
         await QueueCodeAsync(host, NewAddress());

@@ -88,6 +88,12 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(TestCertificates.CertificateBase64Setting, TestCertificates.Current.Base64);
         builder.UseSetting(TestCertificates.CertificatePasswordSetting, TestCertificates.Current.Password);
 
+        // Links in emails are built from this address only (IN-06). The dispatcher is off without a database; with one
+        // it sweeps every second, so a test sees its mail quickly even if the commit signal were missed.
+        builder.UseSetting("App:PublicBaseUrl", "https://localhost");
+        builder.UseSetting("Email:Dispatcher:Enabled", _withoutDatabase ? "false" : "true");
+        builder.UseSetting("Email:Dispatcher:SweepInterval", "00:00:01");
+
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");

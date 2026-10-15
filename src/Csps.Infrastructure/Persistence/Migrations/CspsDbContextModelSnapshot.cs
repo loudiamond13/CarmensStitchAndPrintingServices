@@ -180,6 +180,75 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Infrastructure.Email.EmailOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpiredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("FailedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("NotAfter")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ProtectedHtml")
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProtectedSubject")
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProtectedText")
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ToAddress")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "ToAddress", "CreatedAt")
+                        .HasDatabaseName("IX_EmailOutbox_Kind_ToAddress_CreatedAt");
+
+                    b.HasIndex("SentAt", "FailedAt", "ExpiredAt", "NextAttemptAt")
+                        .HasDatabaseName("IX_EmailOutbox_Due");
+
+                    b.ToTable("EmailOutbox", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")

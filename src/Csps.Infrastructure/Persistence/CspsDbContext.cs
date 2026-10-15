@@ -1,5 +1,6 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
+using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +22,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
+
+    /// <summary>The email outbox: queued auth mail, encrypted until sent (AUTH-13).</summary>
+    public DbSet<EmailOutboxMessage> EmailOutbox => Set<EmailOutboxMessage>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
