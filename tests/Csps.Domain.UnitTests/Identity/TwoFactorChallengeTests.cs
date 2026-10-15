@@ -243,4 +243,222 @@ public sealed class TwoFactorChallengeTests
         challenge.FailedAttemptsSince(T0.AddMinutes(2)).ShouldBe(1);
         challenge.FailedAttemptsSince(T0.AddMinutes(2).AddTicks(1)).ShouldBe(0);
     }
+
+    private static TwoFactorChallenge VerifiedChallenge()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+        challenge.Verify(Mac("111111"), T0.AddMinutes(1), Settings).Outcome.ShouldBe(TwoFactorVerifyOutcome.Ok);
+        return challenge;
+    }
+
+    [Fact]
+    public void ResendIsAllowedWhenNoCodeWasIssuedYet()
+    {
+        NewChallenge().CheckResend(T0, 0, Settings).Kind.ShouldBe(ResendDecisionKind.Allowed);
+    }
+
+    [Fact]
+    public void ResendWithinTheCooldownReportsTheWholeSecondsLeft()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        var decision = challenge.CheckResend(T0.AddSeconds(30), 1, Settings);
+
+        decision.Kind.ShouldBe(ResendDecisionKind.CoolingDown);
+        decision.RetryAfter.ShouldBe(TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public void ResendRoundsTheWaitUpAndNeverReportsZero()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        var decision = challenge.CheckResend(T0.AddSeconds(59.2), 1, Settings);
+
+        decision.Kind.ShouldBe(ResendDecisionKind.CoolingDown);
+        decision.RetryAfter.ShouldBe(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void ResendIsAllowedAtExactlySixtySeconds()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        var decision = challenge.CheckResend(T0.AddSeconds(60), 1, Settings);
+
+        decision.Kind.ShouldBe(ResendDecisionKind.Allowed);
+        decision.RetryAfter.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TheSixthCodeInTheWindowIsRefusedAsTheCapWithNoWaitTime()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        var atCap = challenge.CheckResend(T0.AddSeconds(5), 5, Settings);
+        var belowCap = challenge.CheckResend(T0.AddSeconds(61), 4, Settings);
+
+        atCap.Kind.ShouldBe(ResendDecisionKind.CapReached);
+        atCap.RetryAfter.ShouldBeNull();
+        belowCap.Kind.ShouldBe(ResendDecisionKind.Allowed);
+    }
+
+    [Fact]
+    public void ResendOnAClosedChallengeIsClosed()
+    {
+        var expired = NewChallenge();
+        var invalidated = NewChallenge();
+        invalidated.Invalidate(T0);
+
+        expired.CheckResend(T0.AddMinutes(30), 0, Settings).Kind.ShouldBe(ResendDecisionKind.Closed);
+        invalidated.CheckResend(T0, 0, Settings).Kind.ShouldBe(ResendDecisionKind.Closed);
+    }
+
+    [Theory]
+    [InlineData(9, false)]
+    [InlineData(10, true)]
+    [InlineData(11, true)]
+    public void TheAccountCapIsReachedAtTheTenthWrongCode(int failedInWindow, bool expected)
+    {
+        TwoFactorLimits.AccountCapReached(failedInWindow, Settings).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(PasswordChangeReason.Breach)]
+    [InlineData(PasswordChangeReason.Temporary)]
+    public void ACorrectCodeCanLeadToAwaitingANewPassword(PasswordChangeReason reason)
+    {
+        var challenge = VerifiedChallenge();
+
+        challenge.RequirePasswordChange(reason);
+
+        challenge.Status.ShouldBe(TwoFactorChallengeStatus.AwaitingNewPassword);
+        challenge.PasswordChangeReason.ShouldBe(reason);
+    }
+
+    [Fact]
+    public void ThePasswordChangeReasonValuesAreStable()
+    {
+        ((int)PasswordChangeReason.Temporary).ShouldBe(1);
+        ((int)PasswordChangeReason.Breach).ShouldBe(2);
+    }
+
+    [Fact]
+    public void ANewPasswordCannotBeRequiredBeforeTheCodeIsAccepted()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        Should.Throw<InvalidOperationException>(() => challenge.RequirePasswordChange(PasswordChangeReason.Breach));
+    }
+
+    [Fact]
+    public void ANewPasswordCannotBeRequiredTwice()
+    {
+        var challenge = VerifiedChallenge();
+        challenge.RequirePasswordChange(PasswordChangeReason.Breach);
+
+        Should.Throw<InvalidOperationException>(() => challenge.RequirePasswordChange(PasswordChangeReason.Temporary));
+    }
+
+    [Fact]
+    public void CanSetNewPasswordIsTrueOnlyWhileAwaitingAndBeforeTheExpiry()
+    {
+        var pending = VerifiedChallenge();
+        var awaiting = VerifiedChallenge();
+        awaiting.RequirePasswordChange(PasswordChangeReason.Temporary);
+
+        pending.CanSetNewPassword(T0.AddMinutes(2)).ShouldBeFalse();
+        awaiting.CanSetNewPassword(T0.AddMinutes(29).AddSeconds(59)).ShouldBeTrue();
+        awaiting.CanSetNewPassword(T0.AddMinutes(30)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void CompleteFromPendingAfterACorrectCodeFinishesTheSignIn()
+    {
+        var challenge = VerifiedChallenge();
+
+        challenge.Complete(T0.AddMinutes(2));
+
+        challenge.Status.ShouldBe(TwoFactorChallengeStatus.Completed);
+        challenge.CompletedAt.ShouldBe(T0.AddMinutes(2));
+    }
+
+    [Fact]
+    public void CompleteFromAwaitingANewPasswordFinishesTheSignIn()
+    {
+        var challenge = VerifiedChallenge();
+        challenge.RequirePasswordChange(PasswordChangeReason.Breach);
+
+        challenge.Complete(T0.AddMinutes(3));
+
+        challenge.Status.ShouldBe(TwoFactorChallengeStatus.Completed);
+        challenge.CompletedAt.ShouldBe(T0.AddMinutes(3));
+    }
+
+    [Fact]
+    public void CompleteWithoutACorrectCodeIsRefused()
+    {
+        var challenge = NewChallenge();
+        challenge.IssueCode(Mac("111111"), T0, Settings);
+
+        Should.Throw<InvalidOperationException>(() => challenge.Complete(T0.AddMinutes(1)));
+    }
+
+    [Fact]
+    public void ACompletedChallengeAcceptsNoFurtherTransitions()
+    {
+        var challenge = VerifiedChallenge();
+        challenge.Complete(T0.AddMinutes(2));
+
+        Should.Throw<InvalidOperationException>(() => challenge.Complete(T0.AddMinutes(3)));
+        Should.Throw<InvalidOperationException>(() => challenge.RequirePasswordChange(PasswordChangeReason.Breach));
+        Should.Throw<InvalidOperationException>(() => challenge.IssueCode(Mac("444444"), T0.AddMinutes(3), Settings));
+        challenge.Verify(Mac("111111"), T0.AddMinutes(3), Settings).Outcome
+            .ShouldBe(TwoFactorVerifyOutcome.ChallengeClosed);
+        challenge.CheckResend(T0.AddMinutes(3), 1, Settings).Kind.ShouldBe(ResendDecisionKind.Closed);
+    }
+
+    [Fact]
+    public void AnInvalidatedChallengeAcceptsNoFurtherTransitions()
+    {
+        var challenge = VerifiedChallenge();
+        challenge.Invalidate(T0.AddMinutes(2));
+
+        Should.Throw<InvalidOperationException>(() => challenge.Complete(T0.AddMinutes(3)));
+        Should.Throw<InvalidOperationException>(() => challenge.RequirePasswordChange(PasswordChangeReason.Breach));
+    }
+
+    [Fact]
+    public void InvalidateCancelsAChallengeThatIsAwaitingANewPassword()
+    {
+        var challenge = VerifiedChallenge();
+        challenge.RequirePasswordChange(PasswordChangeReason.Breach);
+
+        challenge.Invalidate(T0.AddMinutes(4));
+
+        challenge.Status.ShouldBe(TwoFactorChallengeStatus.Invalidated);
+        challenge.CanSetNewPassword(T0.AddMinutes(5)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void InvalidateLeavesAFinishedOrCancelledChallengeAsItIs()
+    {
+        var completed = VerifiedChallenge();
+        completed.Complete(T0.AddMinutes(2));
+        var cancelled = NewChallenge();
+        cancelled.Invalidate(T0.AddMinutes(1));
+
+        completed.Invalidate(T0.AddMinutes(3));
+        cancelled.Invalidate(T0.AddMinutes(4));
+
+        completed.Status.ShouldBe(TwoFactorChallengeStatus.Completed);
+        completed.InvalidatedAt.ShouldBeNull();
+        cancelled.InvalidatedAt.ShouldBe(T0.AddMinutes(1));
+    }
 }
