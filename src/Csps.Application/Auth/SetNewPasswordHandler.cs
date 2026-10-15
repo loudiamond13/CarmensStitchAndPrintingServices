@@ -26,6 +26,9 @@ public sealed class SetNewPasswordHandler(
     IValidator<SetNewPasswordRequest> validator,
     TimeProvider time)
 {
+    /// <summary>Gets the message for a new password that equals the current one (a temporary or breached password must be replaced).</summary>
+    public const string SameAsCurrentMessage = "Choose a different password from your current one.";
+
     private const string UserTarget = "User";
     private const string SessionTarget = "UserSession";
 
@@ -83,6 +86,12 @@ public sealed class SetNewPasswordHandler(
         if (verdict.Status != PasswordRulesStatus.Accepted)
         {
             return Result.Failure<IssuedSession>(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage));
+        }
+
+        // The point of this step is to replace the temporary or breached password, so the same value is refused.
+        if (await accounts.CheckPasswordAsync(user.Id, request.NewPassword!, cancellationToken).ConfigureAwait(false) == PasswordCheck.Succeeded)
+        {
+            return Result.Failure<IssuedSession>(AuthErrors.NewPasswordRejected(SameAsCurrentMessage));
         }
 
         var issued = await unitOfWork.InTransactionAsync(

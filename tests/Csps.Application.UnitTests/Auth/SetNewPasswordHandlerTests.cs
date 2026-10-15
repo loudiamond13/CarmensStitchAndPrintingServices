@@ -100,6 +100,19 @@ public sealed class SetNewPasswordHandlerTests
     }
 
     [Fact]
+    public async Task TheCurrentPasswordAsTheNewOneIs400AndNothingIsSaved()
+    {
+        var harness = new Harness();
+        harness.Accounts.CheckPasswordAsync(UserId, Good, Arg.Any<CancellationToken>()).Returns(PasswordCheck.Succeeded);
+
+        var result = await harness.RunAsync(Good);
+
+        AssertFieldError(result, SetNewPasswordHandler.SameAsCurrentMessage);
+        await harness.AssertNothingChangedAsync();
+        harness.Challenge.Status.ShouldBe(TwoFactorChallengeStatus.AwaitingNewPassword);
+    }
+
+    [Fact]
     public async Task ABreachedPasswordIs400WithTheBreachMessage()
     {
         var harness = new Harness(BreachCheckResult.Breached);
