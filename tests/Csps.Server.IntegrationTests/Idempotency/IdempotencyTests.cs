@@ -153,6 +153,36 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task AFrameworkBodyTooLargeFailureIsA413NotA500()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+
+        using var response = await SendAsync(client, $"{ProbePrefix}/too-large", Guid.NewGuid().ToString("D"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("title").GetString().ShouldBe("The request is too large.");
+    }
+
+    [Fact]
+    public async Task AChunkedBodyOverOneMebibyteIsA413AndNeverRuns()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{ProbePrefix}/echo", null);
+        request.Headers.TryAddWithoutValidation(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        request.Headers.TransferEncodingChunked = true;
+        request.Content = new StreamContent(new MemoryStream(new byte[1_048_576 + 1]));
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        probe.Runs.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task ADuplicateThatArrivesWhileTheFirstRunsGetsAConflict()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

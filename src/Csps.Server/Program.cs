@@ -97,10 +97,10 @@ if (redirectToHttps)
     app.UseHttpsRedirection();
 }
 
-// Unhandled exceptions become a generic 500 with a reference, never exception text (D-27).
+// Unhandled exceptions become a generic 500 with a reference, never exception text (D-27); a bad request keeps its 4xx.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
-    ExceptionHandler = static context => CspsProblemDetails.WriteAsync(context, StatusCodes.Status500InternalServerError),
+    ExceptionHandler = CspsProblemDetails.WriteExceptionAsync,
 });
 
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.

@@ -68,6 +68,13 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
         }
 
         var requestHash = await HashRequestAsync(context.Request, context.RequestAborted).ConfigureAwait(false);
+        if (requestHash is null)
+        {
+            // A chunked body has no declared length for the body-limit middleware to refuse; it is counted here.
+            await CspsProblemDetails.WriteAsync(context, StatusCodes.Status413PayloadTooLarge).ConfigureAwait(false);
+            return;
+        }
+
         var lease = await gate.BeginAsync(key, route, requestContext.UserId, requestHash, clock.GetUtcNow(), context.RequestAborted).ConfigureAwait(false);
         await using (lease.ConfigureAwait(false))
         {
@@ -119,22 +126,34 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
     }
 
     // The hash covers the concrete target (path and query) and the body, so one key cannot replay an answer for another resource.
-    private static async Task<byte[]> HashRequestAsync(HttpRequest request, CancellationToken cancellationToken)
+    // Null when the body is over the limit, counted here so the answer is a 413 and not the buffer's own exception.
+    private static async Task<byte[]?> HashRequestAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        // The body is read here and again by the action, so it is buffered in memory (it is capped at 1 MB).
-        request.EnableBuffering((int)RequestBodyLimitMiddleware.MaxBytes, RequestBodyLimitMiddleware.MaxBytes);
+        const int ReadSize = 8192;
+
+        // The body is read here and again by the action, so it is buffered in memory; the buffer limit sits above the
+        // counted limit, so the count always trips first.
+        request.EnableBuffering((int)RequestBodyLimitMiddleware.MaxBytes, RequestBodyLimitMiddleware.MaxBytes + ReadSize);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
         // Length-prefixed, so the target cannot blur into the body bytes that follow.
         var target = Encoding.UTF8.GetBytes($"{request.Path}{request.QueryString}");
         hash.AppendData(BitConverter.GetBytes(target.Length));
         hash.AppendData(target);
-        var buffer = ArrayPool<byte>.Shared.Rent(8192);
+
+        var buffer = ArrayPool<byte>.Shared.Rent(ReadSize);
         try
         {
+            long total = 0;
             int read;
-            while ((read = await request.Body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            while ((read = await request.Body.ReadAsync(buffer.AsMemory(0, ReadSize), cancellationToken).ConfigureAwait(false)) > 0)
             {
+                total += read;
+                if (total > RequestBodyLimitMiddleware.MaxBytes)
+                {
+                    return null;
+                }
+
                 hash.AppendData(buffer, 0, read);
             }
         }

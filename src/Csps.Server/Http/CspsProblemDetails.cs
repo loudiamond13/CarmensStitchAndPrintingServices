@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Csps.Server.Http;
@@ -62,6 +63,23 @@ public static class CspsProblemDetails
         }
 
         problem.Extensions[TraceIdKey] = traceId;
+    }
+
+    /// <summary>
+    /// Writes the answer for an unhandled exception: the framework's own client-error status for a bad request (an
+    /// oversized body is a 413), a generic 500 for anything else.
+    /// </summary>
+    /// <param name="context">The current HTTP context.</param>
+    /// <returns>A task that completes when the response is written.</returns>
+    public static Task WriteExceptionAsync(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var status = error is BadHttpRequestException { StatusCode: >= StatusCodes.Status400BadRequest and < StatusCodes.Status500InternalServerError } bad
+            ? bad.StatusCode
+            : StatusCodes.Status500InternalServerError;
+        return WriteAsync(context, status);
     }
 
     /// <summary>

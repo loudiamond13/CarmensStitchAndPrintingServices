@@ -79,6 +79,15 @@ public sealed class IdempotencyProbeController(IdempotencyProbe probe, CspsDbCon
         throw new InvalidOperationException("Probe failure.");
     }
 
+    /// <summary>Fails the way the framework does when a body read passes the size limit.</summary>
+    /// <returns>Never returns.</returns>
+    [HttpPost("too-large")]
+    public IActionResult TooLarge()
+    {
+        probe.Run();
+        throw new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge);
+    }
+
     /// <summary>Answers 200 whatever the body is.</summary>
     /// <returns>200 with the run number.</returns>
     [HttpPost("echo")]
