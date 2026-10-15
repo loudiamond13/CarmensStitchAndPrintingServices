@@ -17,6 +17,9 @@ public sealed class FixedRequestContext : IRequestContext
     public Guid? UserId { get; set; }
 
     /// <inheritdoc />
+    public Guid? SessionId { get; set; }
+
+    /// <inheritdoc />
     public IPAddress? RemoteIp { get; set; }
 
     /// <inheritdoc />

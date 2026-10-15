@@ -14,6 +14,12 @@ public interface IRequestContext
     Guid? UserId { get; }
 
     /// <summary>
+    /// Gets the caller's own session id from the <c>sid</c> claim ("this device"), or <see langword="null"/> when
+    /// there is no valid claim or outside a request.
+    /// </summary>
+    Guid? SessionId { get; }
+
+    /// <summary>
     /// Gets the remote address of the direct connection. It is personal data: store it only in minimized form
     /// (the audit trail keeps a /24 or /48 prefix, D-24) and never write it to application logs.
     /// </summary>
