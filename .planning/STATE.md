@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-35-PLAN.md
-last_updated: "2026-10-15T12:37:43.431Z"
+stopped_at: Completed 04-23-PLAN.md
+last_updated: "2026-10-15T13:29:47.121Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 39d05de91162bbee21aa12ac3c109a190bb9be24
+state_head: 32661c1f3b58a30b8d46ca5f7bc6c9cfbf5dc598
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 89
+  completed_plans: 90
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 34 of 35
+Plan: 35 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -148,6 +148,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P24 | 70 min | 2 tasks | 14 files |
 | Phase 04 P31 | 21 min | 3 tasks | 18 files |
 | Phase 04 P35 | 25m | 2 tasks | 13 files |
+| Phase 04 P23 | 1h 0m | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -378,6 +379,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-31: the Password saved toast reaches the admin shell through a one-shot in the session module (AuthLayout's toast layer unmounts with its route)
 - [Phase 04]: 04-31: S3 and S6 show the shared banner with Try Again when the check could not be made, instead of calling the link expired
 - [Phase 04]: 04-35: bootstrap guard also refuses system databases and allows only CSPS_Dev/CSPS_E2E/CSPS_Test_<guid> on local servers; pending migrations are refused
+- [Phase 04]: Plan 04-23: compiled-in base64 logo (EmailLogoPng.cs generated from the committed PNG) instead of an EmbeddedResource, because the dependency registry treats embedded files as third-party data; owner accepted
+- [Phase 04]: Plan 04-23: email HTML has one style block with a 480 px media query for phone padding, and the text part prints Label: URL for the button; owner accepted
+- [Phase 04]: Plan 04-23: staff address is bold (strong, font-weight 700, HTML-encoded) in the reset-link, password-changed, deactivated and invite email HTML; text part unchanged; owner requested
 
 ### Pending Todos
 
@@ -424,6 +428,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T12:37:43.065Z
-Stopped at: Completed 04-35-PLAN.md
+Last session: 2026-10-15T13:29:46.726Z
+Stopped at: Completed 04-23-PLAN.md
 Resume file: None
