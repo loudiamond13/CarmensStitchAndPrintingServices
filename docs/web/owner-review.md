@@ -1,6 +1,6 @@
 # The owner review: screenshots and the side-by-side with the design
 
-*Created: 2026-10-09T07:57:00-05:00 · Updated: 2026-10-15T11:50:00-05:00*
+*Created: 2026-10-09T07:57:00-05:00 · Updated: 2026-10-15T11:32:00-05:00*
 
 This page explains the two local reports the owner uses to check how the new site looks (decisions D-23 and D-24, plan 02-36). Both are made on this computer and **stay on this computer**: they are never put in git, uploaded or put on the live site. The output folder `artifacts/` is git-ignored, and both scripts refuse to run if it is not.
 
