@@ -101,6 +101,21 @@ internal static class AuthClient
         }
     }
 
+    /// <summary>Locks an account for 15 minutes, as the fifth wrong password would.</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="id">The account id.</param>
+    /// <returns>A task that completes when the account is locked.</returns>
+    public static async Task LockAsync(CspsApiFactory factory, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            await accounts.LockUntilAsync(id, TimeProvider.System.GetUtcNow().AddMinutes(15), TestContext.Current.CancellationToken);
+        }
+    }
+
     /// <summary>Returns a fresh unique email address.</summary>
     /// <returns>The address.</returns>
     public static string NewEmail() => $"paolo.{Guid.NewGuid():N}@example.com";

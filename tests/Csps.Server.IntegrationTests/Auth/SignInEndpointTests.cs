@@ -136,4 +136,82 @@ public sealed class SignInEndpointTests(CspsDatabase database) : IClassFixture<C
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("auth.invalid-credentials");
     }
+
+    [Fact]
+    public async Task EveryFailureAnswersWithTheSameBodyApartFromTheTraceId()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var wrong = await AuthClient.CreateStaffAsync(factory);
+        var locked = await AuthClient.CreateStaffAsync(factory);
+        await AuthClient.LockAsync(factory, locked.Id);
+        var deactivated = await AuthClient.CreateStaffAsync(factory, StaffState.Deactivated);
+        var unconfirmed = await AuthClient.CreateStaffAsync(factory, StaffState.Unconfirmed);
+        var noPassword = await AuthClient.CreateStaffAsync(factory, StaffState.NoPassword);
+
+        var bodies = new List<string>
+        {
+            await FailureBodyAsync(client, AuthClient.NewEmail(), "some-password"),
+            await FailureBodyAsync(client, wrong.Email, "not-the-password"),
+            await FailureBodyAsync(client, locked.Email, locked.Password),
+            await FailureBodyAsync(client, deactivated.Email, deactivated.Password),
+            await FailureBodyAsync(client, unconfirmed.Email, unconfirmed.Password),
+            await FailureBodyAsync(client, noPassword.Email, "some-password"),
+        };
+
+        bodies.Distinct(StringComparer.Ordinal).ShouldHaveSingleItem();
+        using var problem = JsonDocument.Parse(bodies[0]);
+        problem.RootElement.GetProperty("code").GetString().ShouldBe("auth.invalid-credentials");
+        problem.RootElement.GetProperty("detail").GetString().ShouldBe("Email or password is incorrect.");
+        problem.RootElement.GetProperty("status").GetInt32().ShouldBe(401);
+    }
+
+    [Fact]
+    public async Task FailuresSetNoCookieAndSendNoCodeEmail()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+
+        using var response = await AuthClient.SignInAsync(client, staff.Email, "not-the-password");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.Headers.Contains("Set-Cookie").ShouldBeFalse();
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.AsNoTracking().CountAsync(message => message.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.TwoFactorChallenges.AsNoTracking().CountAsync(challenge => challenge.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task NoLogEventHoldsThePasswordOrTheEmail()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+
+        (await AuthClient.SignInAsync(client, staff.Email, "wrong-" + staff.Password)).Dispose();
+        (await AuthClient.SignInAsync(client, staff.Email, staff.Password)).Dispose();
+
+        var logged = factory.Sink.Events.Select(static logEvent => logEvent.RenderMessage(System.Globalization.CultureInfo.InvariantCulture)
+            + string.Join(' ', logEvent.Properties.Values.Select(static value => value.ToString())));
+        logged.ShouldNotContain(text => text.Contains(staff.Password, StringComparison.Ordinal));
+        logged.ShouldNotContain(text => text.Contains(staff.Email, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // The 401 body with the per-request trace id removed, so identical failures compare equal as text.
+    private static async Task<string> FailureBodyAsync(HttpClient client, string email, string password)
+    {
+        using var response = await AuthClient.SignInAsync(client, email, password);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("traceId").GetString().ShouldNotBeNullOrEmpty();
+        var fields = new SortedDictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var property in problem.EnumerateObject().Where(static property => property.Name != "traceId"))
+        {
+            fields[property.Name] = property.Value;
+        }
+
+        return JsonSerializer.Serialize(fields);
+    }
 }
