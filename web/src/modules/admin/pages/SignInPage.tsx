@@ -141,6 +141,7 @@ export function SignInForm({ control, onSubmit, pending, notice = null, banner =
 const FIELD_ORDER = ['email', 'password'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
+// SPEC-DEVIATION: D-02 spec §8.2 draws a "This account is deactivated." banner; it is not built. Every failure is this one.
 const GENERIC_BANNER: SignInBanner = { title: AUTH_COPY.signIn.failed.title, message: AUTH_COPY.signIn.failed.body };
 
 /** The server's field messages (keyed in its casing) for the fields this form has, first message each. */
