@@ -6,13 +6,15 @@
 //   - A correct sign-in keeps the typed email in memory only (the code step names it) and opens the code step with the
 //     same return path.
 import { zodResolver } from '@hookform/resolvers/zod';
+import clsx from 'clsx';
 import { useEffect, type SyntheticEvent } from 'react';
 import { Controller, useForm, type Control } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Button, UiLink } from '@/components/actions';
+import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Checkbox } from '@/components/entry';
 import { Field, PasswordField } from '@/components/forms';
+import { Note } from '@/components/states';
 import {
   loginBackClasses,
   loginCardClasses,
@@ -84,22 +86,25 @@ export function SignInForm({ control, onSubmit, pending }: SignInFormProps) {
           control={control}
           name="keepSignedIn"
           render={({ field }) => (
-            <Checkbox label={copy.keepSignedIn} checked={field.value} name={field.name} onChange={field.onChange} />
+            <Checkbox
+              label={copy.keepSignedIn}
+              checked={field.value}
+              name={field.name}
+              onChange={field.onChange}
+              className={hitAreaClasses}
+            />
           )}
         />
         {/* SPEC-DEVIATION: D-16 App. E.5 shows a toast; this is a link to the forgot-password screen. */}
-        <UiLink to="/admin/forgot-password" className={loginLinkClasses}>
+        <UiLink to="/admin/forgot-password" className={clsx(loginLinkClasses, hitAreaClasses)}>
           {copy.forgot}
         </UiLink>
       </div>
       <Button type="submit" variant="primary" size="lg" block iconRight="arrow-right" pending={pending}>
         {pending ? copy.pending : copy.cta}
       </Button>
-      <div className="flex items-start gap-2 rounded-sm bg-surface-2 p-3 text-[13px] leading-[18px] text-ink-muted">
-        <Icon name="shield-check" size={18} />
-        <span>{copy.staffNote}</span>
-      </div>
-      <UiLink to="/" className={loginBackClasses}>
+      <Note icon="shield-check">{copy.staffNote}</Note>
+      <UiLink to="/" className={clsx(loginBackClasses, hitAreaClasses)}>
         <Icon name="chevron-left" size={16} />
         {copy.back}
       </UiLink>
