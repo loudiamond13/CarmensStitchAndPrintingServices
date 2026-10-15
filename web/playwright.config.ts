@@ -26,7 +26,8 @@ const engineOnly = ['**/fixture-selftest.spec.ts'];
 const chromiumOnly = ['**/testing-host.spec.ts'];
 
 // The cookie attributes belong to the engine, not the screen size; the phone projects reuse the same engines (plan 04-27).
-const desktopEnginesOnly = ['**/auth-cookies.spec.ts'];
+// The two-tab session proof (Web Locks, BroadcastChannel) is likewise per engine (plan 04-30).
+const desktopEnginesOnly = ['**/auth-cookies.spec.ts', '**/auth-multitab.spec.ts'];
 
 // The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
 const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];

@@ -5,6 +5,7 @@ import {
   centavosToMoneyText,
   formatBusinessDate,
   formatBusinessDateTime,
+  formatBusinessTime,
   formatCalendarDate,
   isMoneyText,
   MONEY_TEXT,
@@ -107,6 +108,37 @@ describe('formatBusinessDateTime', () => {
     'gives null for %j',
     (bad) => {
       expect(formatBusinessDateTime(bad)).toBeNull();
+    },
+  );
+});
+
+describe('formatBusinessTime', () => {
+  it('shows 2026-10-14T07:42:00Z as "3:42 PM" in the business zone', () => {
+    expect(formatBusinessTime('2026-10-14T07:42:00Z')).toBe('3:42 PM');
+  });
+
+  it.for(MACHINE_ZONES)('does not move with a machine in %s', (zone) => {
+    useMachineZone(zone);
+    expect(formatBusinessTime('2026-10-14T07:42:00Z')).toBe('3:42 PM');
+  });
+
+  it('uses a plain space before AM or PM, never a narrow no-break space', () => {
+    expect(formatBusinessTime('2026-10-14T07:42:00Z')).not.toMatch(/[  ]/);
+  });
+
+  it('reads midnight and noon the 12-hour way', () => {
+    expect(formatBusinessTime('2026-10-13T16:05:00Z')).toBe('12:05 AM');
+    expect(formatBusinessTime('2026-10-14T04:00:00Z')).toBe('12:00 PM');
+  });
+
+  it('formats in another zone when one is given', () => {
+    expect(formatBusinessTime('2026-10-14T07:42:00Z', 'UTC')).toBe('7:42 AM');
+  });
+
+  it.each(['', 'not a date', '2026-02-30T10:00:00Z', '2026-10-12T07:42:00', '2026-10-12'])(
+    'gives null for %j',
+    (bad) => {
+      expect(formatBusinessTime(bad)).toBeNull();
     },
   );
 });
