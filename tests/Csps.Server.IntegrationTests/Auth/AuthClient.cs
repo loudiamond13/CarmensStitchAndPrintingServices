@@ -98,6 +98,12 @@ internal static partial class AuthClient
     /// <summary>The forgot-password route.</summary>
     public const string ForgotRoute = "/api/v1/auth/password/forgot";
 
+    /// <summary>The reset-link check route.</summary>
+    public const string ResetCheckRoute = "/api/v1/auth/password/reset/check";
+
+    /// <summary>The reset route.</summary>
+    public const string ResetRoute = "/api/v1/auth/password/reset";
+
     /// <summary>The refresh cookie name.</summary>
     public const string RefreshCookieName = "__Secure-csps_rt";
 
@@ -254,6 +260,43 @@ internal static partial class AuthClient
         };
         request.Headers.UserAgent.ParseAdd(userAgent);
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts a reset-link check.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="token">The token from the emailed link.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> CheckResetLinkAsync(HttpClient client, string? token)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return await client.PostAsJsonAsync(new Uri(ResetCheckRoute, UriKind.Relative), new { token }, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts a password reset.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="token">The token from the emailed link.</param>
+    /// <param name="newPassword">The new password.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ResetPasswordAsync(HttpClient client, string? token, string? newPassword)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return await client.PostAsJsonAsync(new Uri(ResetRoute, UriKind.Relative), new { token, newPassword }, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Asks for a reset link and returns the token in the emailed link.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="email">The account email.</param>
+    /// <param name="emailsSoFar">How many messages the address already holds.</param>
+    /// <returns>The 43-character token.</returns>
+    public static async Task<string> RequestResetTokenAsync(HttpClient client, string email, int emailsSoFar = 0)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var forgot = await ForgotPasswordAsync(client, email);
+        forgot.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var mail = (await WaitForEmailsAsync(client, email, emailsSoFar + 1))[^1];
+        var match = TokenInResetLink().Match(mail.Text);
+        match.Success.ShouldBeTrue("The newest email is not a reset link email.");
+        return match.Groups[1].Value;
     }
 
     /// <summary>Reads the sink messages to an address after a cursor.</summary>
@@ -526,4 +569,7 @@ internal static partial class AuthClient
 
     [GeneratedRegex(@"^(\d{6}) is your CSPS sign-in code$")]
     private static partial Regex CodeInSubject();
+
+    [GeneratedRegex(@"#token=([A-Za-z0-9_-]+)")]
+    private static partial Regex TokenInResetLink();
 }
