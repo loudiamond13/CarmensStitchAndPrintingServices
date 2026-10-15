@@ -163,6 +163,32 @@ public sealed class SignInHandlerTests
     }
 
     [Fact]
+    public async Task ASaveRaceOnTheChallengeIsTriedOnceMoreAndSucceeds()
+    {
+        var harness = Harness.For("success");
+        harness.Unit.FailFirstSaveWithConflict();
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Ticket.ShouldBe(Harness.Ticket);
+    }
+
+    [Fact]
+    public async Task TwoSaveRacesOnTheChallengeGiveTheGenericAnswerAfterTheFullFloor()
+    {
+        var harness = Harness.For("success");
+        harness.Unit.FailEverySaveWithConflict();
+
+        var task = harness.Handler.HandleAsync(new SignInRequest(Email, Password, true), TestContext.Current.CancellationToken);
+        task.IsCompleted.ShouldBeFalse();
+        harness.Time.Advance(TimeSpan.FromMilliseconds(500));
+        var result = await task;
+
+        result.Error.ShouldBeSameAs(AuthErrors.InvalidCredentials);
+    }
+
+    [Fact]
     public async Task ABrowserSessionChoiceIsKeptOnTheChallenge()
     {
         var harness = Harness.For("success");
@@ -373,21 +399,6 @@ public sealed class SignInHandlerTests
         await harness.Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().SetMustChangePasswordAsync(Arg.Any<Guid>(), Arg.Any<PasswordChangeReason>(), Arg.Any<CancellationToken>());
         harness.Audit.Entries.ShouldNotContain(e => e.Action == AuditActions.PasswordBreachFound);
-    }
-
-    // Runs the work at once and counts commits, like a real unit of work without a database.
-    private sealed class FakeUnitOfWork : IUnitOfWork
-    {
-        public int Saves { get; private set; }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
-        {
-            Saves++;
-            return Task.FromResult(1);
-        }
-
-        public Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken) =>
-            work(cancellationToken);
     }
 
     private sealed class Harness

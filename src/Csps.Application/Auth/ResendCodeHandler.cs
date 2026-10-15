@@ -1,4 +1,5 @@
 using System.Globalization;
+using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
@@ -32,6 +33,14 @@ public sealed class ResendCodeHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The wait before the next resend, a 429 for the cooldown or the cap, or a 401 when the pending sign-in is gone.</returns>
     public async Task<Result<ResendCodeOutcome>> HandleAsync(string? ticket, CancellationToken cancellationToken)
+    {
+        // A double click makes two requests load the same code; the loser reads again and meets the cooldown.
+        return await ConflictRetry.RunAsync(
+            () => AttemptAsync(ticket, cancellationToken),
+            Result.Failure<ResendCodeOutcome>(AuthErrors.ResendCooldown(settings.ResendCooldown))).ConfigureAwait(false);
+    }
+
+    private async Task<Result<ResendCodeOutcome>> AttemptAsync(string? ticket, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(ticket))
         {

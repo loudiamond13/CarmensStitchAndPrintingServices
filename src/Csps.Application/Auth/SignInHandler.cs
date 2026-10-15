@@ -95,7 +95,10 @@ public sealed class SignInHandler(
                     await RecheckBreachAsync(account, password, cancellationToken).ConfigureAwait(false);
                 }
 
-                outcome = await StartChallengeAsync(account, request.KeepSignedIn, cancellationToken).ConfigureAwait(false);
+                // Two logins at once race on the open challenge; the loser tries once more, then answers like a wrong password.
+                outcome = await ConflictRetry.RunAsync<SignInOutcome?>(
+                    async () => await StartChallengeAsync(account, request.KeepSignedIn, cancellationToken).ConfigureAwait(false),
+                    null).ConfigureAwait(false);
             }
         }
 

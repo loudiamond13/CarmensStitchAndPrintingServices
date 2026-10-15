@@ -85,6 +85,34 @@ public sealed class ResendCodeHandlerTests
     }
 
     [Fact]
+    public async Task ALostSaveRaceReadsAgainAndAnswersWithTheNormalCooldown()
+    {
+        var harness = new Harness();
+        harness.Time.Advance(TimeSpan.FromSeconds(61));
+        harness.Unit.FailFirstSaveWithConflict();
+
+        var result = await harness.RunAsync();
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.TooManyRequests);
+        result.Error.Code.ShouldBe("auth.resend-cooldown");
+    }
+
+    [Fact]
+    public async Task TwoLostSaveRacesStillAnswerWithTheCooldownAndNeverThrow()
+    {
+        var harness = new Harness();
+        harness.Time.Advance(TimeSpan.FromSeconds(61));
+        harness.Unit.FailEverySaveWithConflict();
+
+        var result = await harness.RunAsync();
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.TooManyRequests);
+        result.Error.RetryAfter.ShouldBe(TimeSpan.FromSeconds(60));
+    }
+
+    [Fact]
     public async Task TheCapIsCheckedBeforeTheCooldown()
     {
         var harness = new Harness(codesInWindow: 5);
