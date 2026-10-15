@@ -85,6 +85,8 @@ public static class AuthorizationMatrix
         // sessions have no other device, so staff get 204.
         new("POST", "/api/v1/auth/sign-out", "/api/v1/auth/sign-out", Anonymous: 204, Admin: 204, Manager: 204),
         new("POST", "/api/v1/auth/sign-out-others", "/api/v1/auth/sign-out-others", Anonymous: 401, Admin: 204, Manager: 204),
+        // Forgot-password is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
+        new("POST", "/api/v1/auth/password/forgot", "/api/v1/auth/password/forgot", Anonymous: 400, Admin: 400, Manager: 400),
         // The caller's own signed-in devices (D-43): Staff only.
         new("GET", "/api/v1/sessions", "/api/v1/sessions", Anonymous: 401, Admin: 200, Manager: 200),
         // A random id is no session of the caller, so staff meet the same 404 whatever their role (CWE-639).
@@ -112,6 +114,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/two-factor/resend",
             "POST /api/v1/auth/refresh",
             "POST /api/v1/auth/sign-out",
+            "POST /api/v1/auth/password/forgot",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

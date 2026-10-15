@@ -95,6 +95,9 @@ internal static partial class AuthClient
     /// <summary>The signed-in devices route.</summary>
     public const string SessionsRoute = "/api/v1/sessions";
 
+    /// <summary>The forgot-password route.</summary>
+    public const string ForgotRoute = "/api/v1/auth/password/forgot";
+
     /// <summary>The refresh cookie name.</summary>
     public const string RefreshCookieName = "__Secure-csps_rt";
 
@@ -232,6 +235,22 @@ internal static partial class AuthClient
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(SignInRoute, UriKind.Relative))
         {
             Content = JsonContent.Create(new { email, password, keepSignedIn }),
+        };
+        request.Headers.UserAgent.ParseAdd(userAgent);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts a forgot-password request.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="email">The email to send.</param>
+    /// <param name="userAgent">The User-Agent to send.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ForgotPasswordAsync(HttpClient client, string email, string userAgent = ChromeOnAndroid)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(ForgotRoute, UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { email }),
         };
         request.Headers.UserAgent.ParseAdd(userAgent);
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
