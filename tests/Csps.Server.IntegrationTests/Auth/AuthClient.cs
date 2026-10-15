@@ -110,6 +110,12 @@ internal static partial class AuthClient
     /// <summary>The anti-CSRF header every cookie-reading auth call carries.</summary>
     public const string CsrfHeader = "X-CSPS-CSRF";
 
+    /// <summary>The header every covered POST carries (SEC-06); the web client sends one key per submission.</summary>
+    public const string IdempotencyKeyHeader = "Idempotency-Key";
+
+    /// <summary>The response header that marks a stored answer sent again.</summary>
+    public const string ReplayedHeader = "Idempotent-Replayed";
+
     /// <summary>A Chrome on Android User-Agent.</summary>
     public const string ChromeOnAndroid =
         "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
@@ -250,8 +256,10 @@ internal static partial class AuthClient
     /// <param name="client">The client.</param>
     /// <param name="email">The email to send.</param>
     /// <param name="userAgent">The User-Agent to send.</param>
+    /// <param name="idempotencyKey">The request key; a fresh one when null.</param>
     /// <returns>The response. The caller disposes it.</returns>
-    public static async Task<HttpResponseMessage> ForgotPasswordAsync(HttpClient client, string email, string userAgent = ChromeOnAndroid)
+    public static async Task<HttpResponseMessage> ForgotPasswordAsync(
+        HttpClient client, string email, string userAgent = ChromeOnAndroid, Guid? idempotencyKey = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(ForgotRoute, UriKind.Relative))
@@ -259,6 +267,7 @@ internal static partial class AuthClient
             Content = JsonContent.Create(new { email }),
         };
         request.Headers.UserAgent.ParseAdd(userAgent);
+        request.Headers.Add(IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
@@ -276,11 +285,18 @@ internal static partial class AuthClient
     /// <param name="client">The client.</param>
     /// <param name="token">The token from the emailed link.</param>
     /// <param name="newPassword">The new password.</param>
+    /// <param name="idempotencyKey">The request key; a fresh one when null.</param>
     /// <returns>The response. The caller disposes it.</returns>
-    public static async Task<HttpResponseMessage> ResetPasswordAsync(HttpClient client, string? token, string? newPassword)
+    public static async Task<HttpResponseMessage> ResetPasswordAsync(
+        HttpClient client, string? token, string? newPassword, Guid? idempotencyKey = null)
     {
         ArgumentNullException.ThrowIfNull(client);
-        return await client.PostAsJsonAsync(new Uri(ResetRoute, UriKind.Relative), new { token, newPassword }, TestContext.Current.CancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(ResetRoute, UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { token, newPassword }),
+        };
+        request.Headers.Add(IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Asks for a reset link and returns the token in the emailed link.</summary>
