@@ -9,6 +9,7 @@ const CODE_SUBJECT = 'is your CSPS sign-in code';
 
 /** Who the server said signed in (the verify answer's user). */
 export interface SignedInUser {
+  readonly email: string;
   readonly firstName: string;
   readonly lastName: string;
   readonly role: string;
@@ -32,6 +33,8 @@ function isSignedInUser(value: unknown): value is SignedInUser {
   return (
     typeof value === 'object' &&
     value !== null &&
+    'email' in value &&
+    typeof value.email === 'string' &&
     'firstName' in value &&
     typeof value.firstName === 'string' &&
     'lastName' in value &&

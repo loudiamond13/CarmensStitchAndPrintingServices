@@ -59,6 +59,13 @@ const cspListener = `document.addEventListener('securitypolicyviolation', (event
 const LOAD_FAILURE = /^Failed to load resource: the server responded with a status of (\d{3})\b/;
 // Their console line for a load that got no response at all (net::ERR_*, "The network connection was lost.", ...).
 const NETWORK_FAILURE = /^Failed to load resource\b/;
+// WebKit's own warning for a <link rel="modulepreload"> that nothing "used" within a few seconds of the window's load
+// event. Vite adds such links when a route's lazy chunk loads, and the chunk then comes from the module map, which WebKit
+// does not count as a use. So any client-side navigation to a chunk not yet loaded, more than about 3 seconds after the
+// page loaded (typing a password and a code takes that long), makes WebKit warn about a chunk the page did use. It is
+// matched exactly: our own /assets/*.js chunk and WebKit's wording, nothing else.
+const UNUSED_PRELOAD =
+  /^The resource https?:\/\/[^\s/]+\/assets\/[\w.-]+\.js was preloaded using link preload but not used within a few seconds from the window's load event\. Please make sure it wasn't preloaded for nothing\.$/;
 // How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
 const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
@@ -126,6 +133,9 @@ export const test = base.extend<{ guard: Guard }>({
             return;
           }
           if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
+            return;
+          }
+          if (type === 'warning' && UNUSED_PRELOAD.test(text)) {
             return;
           }
           consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);

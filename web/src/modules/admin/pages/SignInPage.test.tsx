@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hitAreaClasses } from '@/components/actions';
 import AuthLayout from '@/layouts/AuthLayout';
 import { SignInRoute } from '@/modules/admin/pages/SignInPage';
-import { clearSession, getPendingEmail, setSignInNotice } from '@/modules/admin/services/session';
+import { clearSession, getPendingEmail, getResendAvailableAt, setSignInNotice } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 
@@ -84,6 +84,21 @@ describe('S1 sign in tracer', () => {
     expect(router.state.location.pathname).toBe('/admin/login/verify');
     expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Forders');
     expect(getPendingEmail()).toBe('paolo.garcia@gmail.com');
+  });
+
+  it('keeps the wait for the next code in memory for the code step', async () => {
+    const user = userEvent.setup();
+    answerSignIn();
+    renderSignIn();
+    const before = Date.now();
+
+    await user.type(await screen.findByLabelText('Email'), 'paolo.garcia@gmail.com');
+    await user.type(screen.getByLabelText('Password'), 'tahi2026');
+    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+
+    expect(await screen.findByText('The code step')).toBeInTheDocument();
+    expect(getResendAvailableAt()).toBeGreaterThanOrEqual(before + 60_000);
+    expect(getResendAvailableAt()).toBeLessThanOrEqual(Date.now() + 60_000);
   });
 
   it('sends keepSignedIn false when the box is left alone', async () => {

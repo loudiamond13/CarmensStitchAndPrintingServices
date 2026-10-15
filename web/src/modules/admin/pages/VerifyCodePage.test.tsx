@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type JsonBodyType } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -23,7 +23,9 @@ interface VerifyProbe {
 }
 
 /** Answers POST /api/v1/auth/two-factor/verify with the given body and records what was sent. */
-function answerVerify(body: unknown = { next: 'signed-in', reason: null, session: sessionResponse() }): VerifyProbe {
+function answerVerify(
+  body: JsonBodyType = { next: 'signed-in', reason: null, session: sessionResponse() },
+): VerifyProbe {
   const probe: VerifyProbe = { bodies: [] };
   server.use(
     http.post('*/api/v1/auth/two-factor/verify', async ({ request }) => {

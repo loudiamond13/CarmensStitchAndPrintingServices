@@ -18,7 +18,7 @@ test('@auth a staff member signs in with the emailed code and stays signed in ac
   await expectNoAxeViolations(page);
 
   const user = await signInAs(page, request, staff);
-  expect(user).toEqual({ firstName: 'E2E', lastName: 'Staff', role: 'Manager' });
+  expect(user).toMatchObject({ firstName: 'E2E', lastName: 'Staff', role: 'Manager', email: staff.email });
   await expect(page).toHaveURL(/\/admin$/);
 
   // A reload keeps the shell, and the sign-in page now sends the visitor on to /admin because the refresh cookie

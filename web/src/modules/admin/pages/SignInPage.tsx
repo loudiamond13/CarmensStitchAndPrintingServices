@@ -33,7 +33,12 @@ import { AuthHeader } from '@/modules/admin/components/AuthHeader';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
 import { authService, type SignInResponse } from '@/modules/admin/services/authService';
-import { setPendingEmail, takeSignInNotice, type SignInNotice } from '@/modules/admin/services/session';
+import {
+  setPendingEmail,
+  setResendAvailableAt,
+  takeSignInNotice,
+  type SignInNotice,
+} from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
 
 const VERIFY_PATH = '/admin/login/verify';
@@ -172,8 +177,10 @@ export function SignInRoute() {
   const { submit, pending } = useSubmission<SignInValues, SignInResponse>(
     (_key, values) => authService.signIn(values),
     {
-      onSuccess: (_response, values) => {
+      onSuccess: (response, values) => {
         setPendingEmail(values.email);
+        // The code step counts down from the wait the server named for the next code.
+        setResendAvailableAt(Date.now() + Number(response.resendAfterSeconds) * 1000);
         const search = returnUrl === null ? '' : `?returnUrl=${encodeURIComponent(safeReturnUrl(returnUrl))}`;
         void navigate(`${VERIFY_PATH}${search}`);
       },

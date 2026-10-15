@@ -129,7 +129,10 @@ test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) =
 
 test('@keyboard @admin the user menu opens from its button, moves with the arrow keys and closes on Esc back to the button', async ({
   page,
+  guard,
 }) => {
+  // Logout lands on the sign-in page, which asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
   const response = await page.goto('/admin');
   expect(response?.status()).toBe(200);
   await expect(page.locator('h1')).toHaveText('Dashboard');

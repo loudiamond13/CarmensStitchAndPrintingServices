@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T21:45:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T02:05:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -113,6 +113,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |
 | `@a11y-rulings` | The owner's accessibility rulings on computed styles (D-02, D-03, D-05, D-BL-02, O-3, O-6) | plan 02-35 |
 | `@testing-host` | The Testing environment on the E2E host: `createStaff` makes a staff user under `csps.test` and `readEmails` returns an empty mailbox for it (Chromium only) | plan 04-10 |
+| `@auth` | Sign-in end to end in all five projects: S1, the emailed code read from the sink, S2 (`Check your email`), the admin shell and a reload that keeps the session through the refresh cookie; page-level axe on S1 and S2; the six boxes never submit by themselves | plan 04-27 |
 | `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects); from a scrolled backdrop (1280x420) a middle or right press and a press or drag on the backdrop's scrollbar keep the caret in the confirm field and the backdrop's scrollTop unchanged (Firefox's own middle-button scroll is the one documented exception), and on the phone screens a right press above the sheet keeps the caret (the focus trap returns focus without scrolling) | plans 02-41, 02-42, 02-43 (D-42) |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
@@ -141,7 +142,15 @@ test('@example a staff user gets a code by email', async ({ request }) => {
 });
 ```
 
-`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject? })` are the whole API. `testing-host.spec.ts` (`@testing-host`, Chromium only) proves the host is in the Testing environment.
+`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject? })` are the whole API.
+
+`web/e2e/auth.ts` builds on them for the sign-in flow (plan 04-27):
+
+- `codeFromEmail(email)` reads the six digits from the subject of a sign-in code email (`123456 is your CSPS sign-in code`).
+- `signInAs(page, request, staff, { keepSignedIn? })` opens `/admin/login`, types the email and password, ticks "Keep me signed in" when asked, reads the code from the sink, types it into the six boxes, presses Verify Code and resolves with the user the server named once the admin shell shows.
+- `typeCode(page, code)` types a code into the six boxes from the first one.
+
+Every auth spec makes its own staff user with `createStaff` and calls `guard.expectStatus('/api/v1/auth/refresh', 401)` for a page that opens without a session: the sign-in routes ask the refresh cookie for a session first, and with none that answer is a 401. The e2e bundle has the dev-only admin previews, which shadow the guarded `/admin`, `/admin/orders` and so on, so the shell there shows the placeholder user; the server's own answer (the verify response) and the redirect from `/admin/login` back to `/admin` are what prove the real session in E2E. `testing-host.spec.ts` (`@testing-host`, Chromium only) proves the host is in the Testing environment.
 
 User-secrets load in the Testing environment only when `Csps:Testing:LoadUserSecrets` is true. Only the Playwright `webServer.env` sets it; the .NET test factory never does, so a developer's secrets cannot change an integration test.
 

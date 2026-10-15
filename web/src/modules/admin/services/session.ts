@@ -125,6 +125,8 @@ export function createSession(deps: SessionDeps) {
   let navigator: ((to: string) => void) | undefined;
   let notice: SignInNotice | null = null;
   let pendingEmail: string | null = null;
+  let resendAvailableAt: number | null = null;
+  let passwordChangeReason: string | null = null;
   /** How the last refresh failed: only a 401 means the session is over. */
   let refreshFailure: 'unauthorized' | 'other' | null = null;
   let peerRefreshes = 0;
@@ -152,7 +154,17 @@ export function createSession(deps: SessionDeps) {
     token = null;
     tokenExpiresAt = 0;
     pendingEmail = null;
+    resendAvailableAt = null;
+    passwordChangeReason = null;
     publish(signedOut);
+  }
+
+  /** A correct code issued a session: keep it, drop the code step state and tell other tabs one exists (no token). */
+  function completeSignIn(response: SessionResponse): void {
+    acceptSession(response);
+    resendAvailableAt = null;
+    passwordChangeReason = null;
+    channel?.postMessage({ type: 'refreshed', expiresAt: tokenExpiresAt } satisfies ChannelMessage);
   }
 
   /** Clears this tab's session, leaves the one-shot notice for the sign-in page and goes there. */
@@ -259,6 +271,7 @@ export function createSession(deps: SessionDeps) {
     ensureSession,
     refreshSession,
     acceptSession,
+    completeSignIn,
     clearSession,
     signOut,
     handleUnauthorized,
@@ -288,6 +301,16 @@ export function createSession(deps: SessionDeps) {
       pendingEmail = email;
     },
     getPendingEmail: (): string | null => pendingEmail,
+    /** When the next code may be asked for (epoch ms), set by sign-in and by each resend. Memory only. */
+    setResendAvailableAt: (at: number): void => {
+      resendAvailableAt = at;
+    },
+    getResendAvailableAt: (): number | null => resendAvailableAt,
+    /** Why the new-password step is needed (`temporary` or `breach`), kept from the code step to that step. */
+    setPasswordChangeReason: (reason: string | null): void => {
+      passwordChangeReason = reason;
+    },
+    getPasswordChangeReason: (): string | null => passwordChangeReason,
   };
 }
 
@@ -297,6 +320,7 @@ export const {
   ensureSession,
   refreshSession,
   acceptSession,
+  completeSignIn,
   clearSession,
   signOut,
   getSessionUser,
@@ -307,6 +331,10 @@ export const {
   takeSignInNotice,
   setPendingEmail,
   getPendingEmail,
+  setResendAvailableAt,
+  getResendAvailableAt,
+  setPasswordChangeReason,
+  getPasswordChangeReason,
 } = session;
 
 configureSession({

@@ -3,6 +3,10 @@
 import { z } from 'zod';
 import { AUTH_COPY } from './authCopy';
 
+// The strict CSP has no 'unsafe-eval'. Zod probes for code generation with `new Function`, which the browser reports as
+// a CSP violation even though the probe is caught, so every schema here runs in its plain (non-generated) mode.
+z.config({ jitless: true });
+
 /** The longest accepted email address (SignInRequestValidator.EmailMaxLength). */
 export const EMAIL_MAX_LENGTH = 256;
 
@@ -27,3 +31,10 @@ export const signInSchema = z.object({
 });
 
 export type SignInValues = z.infer<typeof signInSchema>;
+
+/** The code is exactly six ASCII digits (VerifyCodeRequestValidator); the server alone says whether it is right. */
+export const verifySchema = z.object({
+  code: z.string().regex(/^[0-9]{6}$/, AUTH_COPY.verify.errors.incomplete),
+});
+
+export type VerifyValues = z.infer<typeof verifySchema>;
