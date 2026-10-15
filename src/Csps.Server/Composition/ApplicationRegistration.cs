@@ -26,6 +26,7 @@ public static class ApplicationRegistration
         services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<CheckResetLinkHandler>();
         services.AddScoped<ResetPasswordHandler>();
+        services.AddScoped<SetNewPasswordHandler>();
         return services;
     }
 }

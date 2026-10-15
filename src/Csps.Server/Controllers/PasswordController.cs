@@ -14,6 +14,7 @@ namespace Csps.Server.Controllers;
 /// <param name="forgotPassword">The forgot-password handler.</param>
 /// <param name="checkResetLink">The reset-link check handler.</param>
 /// <param name="resetPassword">The reset handler.</param>
+/// <param name="setNewPassword">The must-change handler.</param>
 [ApiController]
 [Route("api/v1/auth/password")]
 [AllowAnonymous]
@@ -22,7 +23,8 @@ namespace Csps.Server.Controllers;
 public sealed class PasswordController(
     ForgotPasswordHandler forgotPassword,
     CheckResetLinkHandler checkResetLink,
-    ResetPasswordHandler resetPassword) : ControllerBase
+    ResetPasswordHandler resetPassword,
+    SetNewPasswordHandler setNewPassword) : ControllerBase
 {
     /// <summary>Emails a reset link when the address belongs to an active staff account. Every well-formed address gets the same answer.</summary>
     /// <param name="body">The form; a null or unreadable body is reported as a field error.</param>
@@ -73,5 +75,34 @@ public sealed class PasswordController(
     {
         var result = await resetPassword.HandleAsync(body ?? ResetPasswordRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22).</summary>
+    /// <param name="body">The new password; a null or unreadable body is reported as a field error.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>
+    /// 200 with the session (and the refresh cookie), 400 for a refused password, 401 <c>auth.ticket-expired</c> without a
+    /// usable pending sign-in, or 403 without the anti-CSRF header.
+    /// </returns>
+    [HttpPost("set-new")]
+    [IdempotencyExempt("The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.")]
+    [RequireCsrfHeader]
+    [EndpointName("SetNewPassword")]
+    [ProducesResponseType<SessionResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> SetNew(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SetNewPasswordRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var ticket = Request.Cookies[AuthCookies.TicketCookieName];
+        var result = await setNewPassword.HandleAsync(ticket, body ?? SetNewPasswordRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, issued =>
+        {
+            AuthCookies.ClearTicket(Response);
+            AuthCookies.SetRefresh(Response, issued.RefreshToken, issued.CookieExpiresAt);
+            return TypedResults.Ok(issued.Response);
+        });
     }
 }

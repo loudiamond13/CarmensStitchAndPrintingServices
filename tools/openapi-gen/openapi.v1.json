@@ -249,6 +249,22 @@
         ],
         "type": "object"
       },
+      "SetNewPasswordRequest": {
+        "description": "The must-change form: the new password the person chose after the emailed code (D-13).",
+        "properties": {
+          "newPassword": {
+            "description": "The new password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "newPassword"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
         "properties": {
@@ -629,6 +645,98 @@
           }
         },
         "summary": "Tells the reset page whether its link still works and which account it is for.",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/set-new": {
+      "post": {
+        "operationId": "SetNewPassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22).",
         "tags": [
           "Password"
         ]
