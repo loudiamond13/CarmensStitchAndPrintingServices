@@ -129,7 +129,6 @@ public sealed class RefreshHandlerTests
 
     [Theory]
     [InlineData("deactivated")]
-    [InlineData("locked")]
     [InlineData("missing")]
     public async Task AnAccountThatCannotSignInLosesTheSessionAtTheNextRefresh(string state)
     {
@@ -145,6 +144,23 @@ public sealed class RefreshHandlerTests
             [new AuditCall(AuditActions.SessionRevoked, "UserSession", harness.Session.Id.ToString("D"), null, Independent: false)]);
         await harness.Cache.Received(1).EvictAsync(harness.Session.Id, Arg.Any<CancellationToken>());
         harness.Unit.Saves.ShouldBe(1);
+        harness.SessionStore.DidNotReceive().AddToken(Arg.Any<RefreshToken>());
+        harness.Lookup.Presented.ConsumedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ATemporaryLockRefusesTheRefreshButKeepsTheSession()
+    {
+        var harness = new Harness(account: "locked");
+        harness.Time.Advance(TimeSpan.FromMinutes(5));
+
+        var result = await harness.RunAsync();
+
+        result.Error.ShouldBeSameAs(AuthErrors.SessionEnded);
+        harness.Session.RevokedAt.ShouldBeNull();
+        harness.Session.RevokedReason.ShouldBeNull();
+        harness.Audit.Entries.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
         harness.SessionStore.DidNotReceive().AddToken(Arg.Any<RefreshToken>());
         harness.Lookup.Presented.ConsumedAt.ShouldBeNull();
     }

@@ -96,24 +96,15 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         }
     }
 
-    [Theory]
-    [InlineData("deactivated")]
-    [InlineData("locked")]
-    public async Task AnAccountThatBecomesInactiveLosesItsSessionAtTheNextRefresh(string change)
+    [Fact]
+    public async Task AnAccountThatIsDeactivatedLosesItsSessionAtTheNextRefresh()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = AuthClient.CreateClient(factory);
         var staff = await AuthClient.CreateStaffAsync(factory);
         var device = await AuthClient.SignInFullyAsync(client, staff);
         (await AuthClient.SiteSettingsStatusAsync(client, device.AccessToken)).ShouldBe(HttpStatusCode.OK);
-        if (change == "deactivated")
-        {
-            await AuthClient.DeactivateAsync(factory, staff.Id);
-        }
-        else
-        {
-            await AuthClient.LockAsync(factory, staff.Id);
-        }
+        await AuthClient.DeactivateAsync(factory, staff.Id);
 
         using var response = await AuthClient.RefreshAsync(client);
 
@@ -128,6 +119,24 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
             entry => entry.TargetId == sessionKey && entry.Action == AuditActions.SessionRevoked, TestContext.Current.CancellationToken);
         audit.TargetType.ShouldBe("UserSession");
         audit.Detail.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ATemporaryLockRefusesTheRefreshButKeepsTheSession()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        await AuthClient.LockAsync(factory, staff.Id);
+
+        using var response = await AuthClient.RefreshAsync(client);
+
+        await RefreshEndpointTests.ShouldBeSessionEndedAsync(response);
+        await using var context = database.CreateContext();
+        var session = await context.UserSessions.AsNoTracking().SingleAsync(s => s.Id == device.SessionId, TestContext.Current.CancellationToken);
+        session.RevokedAt.ShouldBeNull();
+        session.RevokedReason.ShouldBeNull();
     }
 
     [Fact]

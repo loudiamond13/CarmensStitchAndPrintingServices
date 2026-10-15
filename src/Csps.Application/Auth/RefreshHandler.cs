@@ -63,9 +63,15 @@ public sealed class RefreshHandler(
 
         var session = lookup.Session;
         var user = await accounts.FindByIdAsync(session.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null || !user.IsActive || user.LockoutEnd > now)
+        if (user is null || !user.IsActive)
         {
             await EndForInactiveAccountAsync(lookup, now, cancellationToken).ConfigureAwait(false);
+            return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
+        }
+
+        if (user.LockoutEnd > now)
+        {
+            // A lock can be caused by anyone who knows the email (CWE-645), so it refuses this refresh without ending the session.
             return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
         }
 
@@ -98,7 +104,7 @@ public sealed class RefreshHandler(
         }
     }
 
-    // A deactivated, locked or removed account keeps no session (AUTH-10, T-04-53): revoke it now and make its access token fail at once.
+    // A deactivated or removed account keeps no session (AUTH-10, T-04-53): revoke it now and make its access token fail at once.
     private async Task EndForInactiveAccountAsync(RefreshLookup lookup, DateTimeOffset now, CancellationToken cancellationToken)
     {
         lookup.Session.Revoke(SessionRevocationReason.AccountInactive, now, lookup.Related);
