@@ -94,6 +94,14 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Email:Dispatcher:Enabled", _withoutDatabase ? "false" : "true");
         builder.UseSetting("Email:Dispatcher:SweepInterval", "00:00:01");
 
+        // Placeholder mailbox settings so a host that a test switches to Development or Production passes the start-up
+        // check. They are not secrets and nothing connects to them: the Testing environment uses the in-memory sink (D-27).
+        builder.UseSetting("Smtp:Host", "smtp.test.invalid");
+        builder.UseSetting("Smtp:Port", "587");
+        builder.UseSetting("Smtp:Security", "StartTls");
+        builder.UseSetting("Smtp:UserName", "no-reply@test.invalid");
+        builder.UseSetting("Smtp:Password", "test-only-placeholder");
+
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
         builder.UseSetting(LogFileSwitchKey, "false");

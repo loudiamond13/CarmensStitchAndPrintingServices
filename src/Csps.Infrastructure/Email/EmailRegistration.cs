@@ -10,14 +10,19 @@ namespace Csps.Infrastructure.Email;
 /// <summary>Registers the email outbox, the dispatcher and the transport (AUTH-13).</summary>
 public static class EmailRegistration
 {
+    private const string TestingEnvironment = "Testing";
+
     /// <summary>
-    /// Adds the outbox port, the renderer, the link settings and the background dispatcher. The link settings are
-    /// validated when the host starts, so a missing or unsafe <c>App:PublicBaseUrl</c> stops the API with a plain message.
+    /// Adds the outbox port, the renderer, the link settings, the background dispatcher and the transport. The link and
+    /// mailbox settings are validated when the host starts, so a missing or unsafe value stops the API with a plain
+    /// message. The Testing environment gets the in-memory sink (Debug builds only, D-27, QUAL-05); every other
+    /// environment sends through SMTP over required TLS (D-26).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration.</param>
     /// <param name="environment">The host environment.</param>
     /// <returns>The same service collection.</returns>
+    /// <exception cref="InvalidOperationException">The environment is Testing in a Release build, which has no sink.</exception>
     public static IServiceCollection AddCspsEmail(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -39,15 +44,35 @@ public static class EmailRegistration
         services.AddScoped<IEmailOutbox, OutboxEmailSender>();
         services.AddHostedService<EmailDispatcher>();
 
-        // Replaced by the real transports in the next task.
-        services.TryAddSingleton<IEmailTransport, UnconfiguredEmailTransport>();
+        var sender = services.AddOptions<EmailSenderOptions>().Bind(configuration.GetSection(EmailSenderOptions.SectionName));
+
+        if (environment.IsEnvironment(TestingEnvironment))
+        {
+            AddTestingSink(services);
+        }
+        else
+        {
+            // Missing mailbox settings stop the host at start instead of failing at the first sign-in (D-26).
+            sender.ValidateOnStart();
+            services.AddSingleton<IValidateOptions<EmailSenderOptions>, EmailSenderOptions.Validator>();
+            services.AddOptions<SmtpOptions>()
+                .Bind(configuration.GetSection(SmtpOptions.SectionName))
+                .ValidateOnStart();
+            services.AddSingleton<IValidateOptions<SmtpOptions>, SmtpOptions.Validator>();
+            services.TryAddSingleton<IEmailTransport, MailKitTransport>();
+        }
 
         return services;
     }
 
-    private sealed class UnconfiguredEmailTransport : IEmailTransport
+    private static void AddTestingSink(IServiceCollection services)
     {
-        public Task SendAsync(OutgoingEmail email, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("No email transport is configured.");
+#if CSPS_TESTING
+        services.TryAddSingleton<InMemoryEmailSink>();
+        services.TryAddSingleton<IEmailTransport>(provider => provider.GetRequiredService<InMemoryEmailSink>());
+#else
+        throw new InvalidOperationException(
+            "The Testing environment needs a Debug build: the email sink is not in Release builds (QUAL-05).");
+#endif
     }
 }

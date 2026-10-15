@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- QUAL-05: the Testing email sink is compiled into Debug builds only, so a Release build cannot contain it. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);CSPS_TESTING</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Application\Csps.Application.csproj" />
   </ItemGroup>

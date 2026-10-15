@@ -16,7 +16,7 @@ namespace Csps.Infrastructure.IntegrationTests.Email;
 /// D-26, D-27, QUAL-05: mail leaves only over TLS from the business sender, the SMTP settings are checked when the
 /// host starts (never echoing a value), and the Testing environment gets the in-memory sink instead of SMTP.
 /// </summary>
-public sealed class MailKitTransportTests
+public sealed class MailKitTransportTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string SecretPassword = "never-print-this-password-9f3a";
 
@@ -204,13 +204,13 @@ public sealed class MailKitTransportTests
     private static SmtpOptions Full(string host = "smtp.test.invalid", string security = "StartTls", int port = 587, string userName = "no-reply@cspstailoring.com", string password = SecretPassword) =>
         new() { Host = host, Security = security, Port = port, UserName = userName, Password = password };
 
-    // The database is never opened: the dispatcher is off and nothing else touches it at start.
-    private static IHost Build(string environment, Dictionary<string, string?> smtp)
+    // A real test database, because Data Protection reads its key ring at host start. The dispatcher is off.
+    private IHost Build(string environment, Dictionary<string, string?> smtp)
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = environment, DisableDefaults = true });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            [DependencyInjection.ConnectionStringKey] = $"Server=(localdb)\\MSSQLLocalDB;Database={TestDatabaseName.NewName()};Integrated Security=true",
+            [DependencyInjection.ConnectionStringKey] = database.ConnectionString,
             [TestCertificates.CertificateBase64Setting] = TestCertificates.Current.Base64,
             [TestCertificates.CertificatePasswordSetting] = TestCertificates.Current.Password,
             ["App:PublicBaseUrl"] = "https://localhost",
