@@ -51,6 +51,15 @@ internal sealed record TestStaff(Guid Id, string Email, string Password);
 internal sealed record SignedInDevice(
     Guid UserId, Guid SessionId, string AccessToken, string RefreshToken, DateTimeOffset? CookieExpires, DateTimeOffset SessionExpiresAt);
 
+/// <summary>One row of the signed-in devices list.</summary>
+/// <param name="Id">The session id.</param>
+/// <param name="Device">The coarse device label.</param>
+/// <param name="SignedInAt">When the device signed in.</param>
+/// <param name="LastActiveAt">The device's last activity.</param>
+/// <param name="Persistent">True for "Keep me signed in".</param>
+/// <param name="Current">True for the caller's own device.</param>
+internal sealed record ListedSession(Guid Id, string Device, DateTimeOffset SignedInAt, DateTimeOffset LastActiveAt, bool Persistent, bool Current);
+
 /// <summary>A message read from the Testing email sink.</summary>
 /// <param name="Id">The sink cursor id.</param>
 /// <param name="To">The recipient.</param>
@@ -82,6 +91,9 @@ internal static partial class AuthClient
 
     /// <summary>The sign-out-other-devices route.</summary>
     public const string SignOutOthersRoute = "/api/v1/auth/sign-out-others";
+
+    /// <summary>The signed-in devices route.</summary>
+    public const string SessionsRoute = "/api/v1/sessions";
 
     /// <summary>The refresh cookie name.</summary>
     public const string RefreshCookieName = "__Secure-csps_rt";
@@ -334,12 +346,14 @@ internal static partial class AuthClient
     /// <param name="staff">The account.</param>
     /// <param name="keepSignedIn">The keep-signed-in choice.</param>
     /// <param name="signInsSoFar">How many sign-in emails the account already holds, so the newest code is read.</param>
+    /// <param name="userAgent">The User-Agent to sign in with.</param>
     /// <returns>The device's tokens.</returns>
-    public static async Task<SignedInDevice> SignInFullyAsync(HttpClient client, TestStaff staff, bool keepSignedIn = true, int signInsSoFar = 0)
+    public static async Task<SignedInDevice> SignInFullyAsync(
+        HttpClient client, TestStaff staff, bool keepSignedIn = true, int signInsSoFar = 0, string userAgent = ChromeOnAndroid)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(staff);
-        using var signIn = await SignInAsync(client, staff.Email, staff.Password, keepSignedIn);
+        using var signIn = await SignInAsync(client, staff.Email, staff.Password, keepSignedIn, userAgent);
         signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
         var code = await ReadCodeAsync(client, staff.Email, signInsSoFar + 1);
         using var verify = await VerifyAsync(client, code);
@@ -405,6 +419,38 @@ internal static partial class AuthClient
         using var request = ApiRequests.Create(HttpMethod.Post, SignOutOthersRoute, accessToken);
         request.Headers.Add(CsrfHeader, "1");
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Gets the signed-in devices list.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The caller's access token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ListSessionsAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(SessionsRoute, accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the signed-in devices list of a caller.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The caller's access token.</param>
+    /// <returns>The devices, in the order the API sent them.</returns>
+    public static async Task<IReadOnlyList<ListedSession>> ReadSessionsAsync(HttpClient client, string accessToken)
+    {
+        using var response = await ListSessionsAsync(client, accessToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return
+        [
+            .. body.RootElement.EnumerateArray().Select(static item => new ListedSession(
+                item.GetProperty("id").GetGuid(),
+                item.GetProperty("device").GetString().ShouldNotBeNull(),
+                item.GetProperty("signedInAt").GetDateTimeOffset(),
+                item.GetProperty("lastActiveAt").GetDateTimeOffset(),
+                item.GetProperty("persistent").GetBoolean(),
+                item.GetProperty("current").GetBoolean())),
+        ];
     }
 
     /// <summary>Reads the site settings with an access token and returns the status.</summary>
