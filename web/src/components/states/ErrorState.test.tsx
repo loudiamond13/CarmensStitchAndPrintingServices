@@ -109,6 +109,22 @@ describe('ErrorState markup and look (App. C .s-banner.is-danger)', () => {
   });
 });
 
+describe('ErrorState align (plan 04-26; App. E.5 banner)', () => {
+  it('keeps the icon and text centred by default (App. E.8)', () => {
+    render(<ErrorState title="Oops" message="Try again." />);
+
+    expect(tokens(screen.getByRole('alert').className)).toEqual(tokens(BANNER));
+  });
+
+  it('align="start" puts the icon and text at the top, as the .s-banner default (App. E.5)', () => {
+    render(<ErrorState title="Email or password is incorrect." message="Check for typos." align="start" />);
+
+    const banner = screen.getByRole('alert');
+    expect(tokens(banner.className)).toEqual(tokens(BANNER.replace('items-center', 'items-start')));
+    expect(banner.querySelector('strong')?.textContent).toBe('Email or password is incorrect.');
+  });
+});
+
 describe('ErrorState reference and copy (T-02-62, CWE-209)', () => {
   it('has no "Reference:" without a traceId', () => {
     render(<ErrorState things="orders" error={httpError(503)} />);

@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { hitAreaClasses } from '@/components/actions';
 import AuthLayout from '@/layouts/AuthLayout';
 import { SignInRoute } from '@/modules/admin/pages/SignInPage';
 import { clearSession, getPendingEmail } from '@/modules/admin/services/session';
@@ -95,5 +96,29 @@ describe('S1 sign in tracer', () => {
 
     expect(await screen.findByText('The code step')).toBeInTheDocument();
     expect(probe.bodies).toEqual([{ email: 'paolo.garcia@gmail.com', password: 'tahi2026', keepSignedIn: false }]);
+  });
+});
+
+describe('S1 shared pieces (OQ-5, Note)', () => {
+  it('gives Forgot password, the checkbox label and the back link the invisible 44px tap area', async () => {
+    renderSignIn();
+    await screen.findByRole('heading', { level: 1, name: 'Sign in' });
+
+    const area = hitAreaClasses.split(' ');
+    const forgot = screen.getByRole('link', { name: 'Forgot password?' });
+    const back = screen.getByRole('link', { name: 'Back to the CSPS website' });
+    const label = screen.getByRole('checkbox', { name: 'Keep me signed in' }).closest('label');
+    expect(forgot.className.split(' ')).toEqual(expect.arrayContaining(area));
+    expect(back.className.split(' ')).toEqual(expect.arrayContaining(area));
+    expect(label?.className.split(' ')).toEqual(expect.arrayContaining(area));
+  });
+
+  it('shows the staff-only line as a plain Note, not a live status', async () => {
+    renderSignIn();
+    await screen.findByRole('heading', { level: 1, name: 'Sign in' });
+
+    const line = screen.getByText('Staff only. Customer orders are placed through the public site or Messenger.');
+    expect(line.closest('div')?.querySelector('svg')).toHaveClass('lucide-shield-check');
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

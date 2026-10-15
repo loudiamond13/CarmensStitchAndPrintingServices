@@ -73,6 +73,7 @@ const SPEC_GAP_COMPONENTS = [
   'MobileNavDrawer',
   'UserMenu',
   'Overlay',
+  'Note',
 ] as const;
 
 const exports: Readonly<Record<string, unknown>> = ui;
