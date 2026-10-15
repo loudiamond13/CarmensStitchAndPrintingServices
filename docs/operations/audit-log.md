@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-15T00:05:00-05:00
+updated: 2026-10-15T00:22:33-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -87,7 +87,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.refresh-reuse-detected` | A used refresh token is presented again and the session is revoked | `UserSession` id | none | `RecordIndependentlyAsync` |
 | `auth.signed-out` | A user signs out of the current session | `UserSession` id | none | `Record` |
 | `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others` or `password-reset` | `Record` |
-| `auth.session-revoked` | One session is revoked, for example when a deactivated or locked account tries to refresh | `UserSession` id | none | `Record` |
+| `auth.session-revoked` | One session is revoked: a deactivated or locked account tries to refresh, or a user signs out one of their other devices (`DELETE /api/v1/sessions/{id}`; nothing is written for a session already gone or refused) | `UserSession` id | none | `Record` |
 | `auth.password-reset-requested` | A password reset is requested for a known account | `User` id | none | `Record` |
 | `auth.password-reset-completed` | A password reset finishes | `User` id | none | `Record` |
 | `auth.password-reset-link-invalid` | A reset link is unknown, expired or already used | none | none | `RecordIndependentlyAsync` |

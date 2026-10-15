@@ -57,6 +57,19 @@
         ],
         "type": "object"
       },
+      "RevokeSessionResponse": {
+        "description": "The answer to a per-device sign-out.",
+        "properties": {
+          "alreadySignedOut": {
+            "description": "True when the session had already ended, so nothing was changed.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "alreadySignedOut"
+        ],
+        "type": "object"
+      },
       "SessionListItem": {
         "description": "One signed-in device in the caller's devices list (D-43).",
         "properties": {
@@ -713,6 +726,79 @@
           }
         },
         "summary": "Lists the caller's own active sessions: this device first, then the rest by recent activity, at most 100.",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "delete": {
+        "operationId": "RevokeSession",
+        "parameters": [
+          {
+            "description": "The session to sign out.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeSessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Signs out one of the caller's other devices. Repeating the call is a success.",
         "tags": [
           "Sessions"
         ]

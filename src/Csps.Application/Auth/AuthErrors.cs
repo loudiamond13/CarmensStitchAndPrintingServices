@@ -41,6 +41,18 @@ public static class AuthErrors
     /// <summary>The plain-English text of a session change that lost its races; nothing was changed.</summary>
     public const string SessionBusyMessage = "Something changed at the same time. Try again.";
 
+    /// <summary>The code of a device sign-out for a session that is not the caller's, or does not exist.</summary>
+    public const string SessionNotFoundCode = "sessions.not-found";
+
+    /// <summary>The plain-English text for a device that is not in the caller's list.</summary>
+    public const string SessionNotFoundMessage = "That device isn't in your list.";
+
+    /// <summary>The code of a device sign-out aimed at the caller's own current session.</summary>
+    public const string SessionCurrentCode = "sessions.current";
+
+    /// <summary>The plain-English text for a refused sign-out of the current device.</summary>
+    public const string SessionCurrentMessage = "Use Logout to sign out this device.";
+
     /// <summary>The code of a wrong emailed code.</summary>
     public const string CodeWrongCode = "auth.code-wrong";
 
@@ -108,6 +120,12 @@ public static class AuthErrors
 
     /// <summary>Gets the answer for a session change that lost two races in a row; nothing was changed, so the client retries.</summary>
     public static Error SessionBusy { get; } = Error.Conflict(SessionBusyCode, SessionBusyMessage);
+
+    /// <summary>Gets the one answer for a session id that is another user's or unknown, so ids cannot be probed (CWE-639).</summary>
+    public static Error SessionNotFound { get; } = Error.NotFound(SessionNotFoundCode, SessionNotFoundMessage);
+
+    /// <summary>Gets the answer for signing out the current session through the devices list; Logout does that.</summary>
+    public static Error SessionCurrent { get; } = Error.BusinessRule(SessionCurrentCode, SessionCurrentMessage);
 
     /// <summary>Gets the answer for a cookie-reading call without the anti-CSRF header or from another origin.</summary>
     public static Error CsrfCheckFailed { get; } = Error.Forbidden(CsrfCheckFailedCode, CsrfCheckFailedMessage);

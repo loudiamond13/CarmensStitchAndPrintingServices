@@ -87,6 +87,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/auth/sign-out-others", "/api/v1/auth/sign-out-others", Anonymous: 401, Admin: 204, Manager: 204),
         // The caller's own signed-in devices (D-43): Staff only.
         new("GET", "/api/v1/sessions", "/api/v1/sessions", Anonymous: 401, Admin: 200, Manager: 200),
+        // A random id is no session of the caller, so staff meet the same 404 whatever their role (CWE-639).
+        new("DELETE", "/api/v1/sessions/{id:guid}", "/api/v1/sessions/6f1d3c52-8a0e-4b7d-9c41-2e5a7b9d0f13", Anonymous: 401, Admin: 404, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
