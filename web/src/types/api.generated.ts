@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets a new password from a reset link. It ends every session and signs nobody in. */
+        post: operations["ResetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/reset/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the reset page whether its link still works and which account it is for. */
+        post: operations["CheckResetLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -199,6 +233,23 @@ export interface components {
              */
             resendAfterSeconds: number | string;
         };
+        /** @description The answer to a usable reset link. */
+        ResetLinkResponse: {
+            /** @description The address of the account the link belongs to, so the page can name it. */
+            email: string;
+        };
+        /** @description The reset form: the token from the emailed link and the new password (AUTH-09). */
+        ResetPasswordRequest: {
+            /** @description The new password as typed. */
+            newPassword: null | string;
+            /** @description The 43-character token from the link. */
+            token: null | string;
+        };
+        /** @description The body of a reset-link check: the token from the emailed link. It travels in the body, never in a URL. */
+        ResetTokenRequest: {
+            /** @description The 43-character token. */
+            token: null | string;
+        };
         /** @description The answer to a per-device sign-out. */
         RevokeSessionResponse: {
             /** @description True when the session had already ended, so nothing was changed. */
@@ -350,6 +401,96 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ResetPasswordRequest"];
+                "application/json": null | components["schemas"]["ResetPasswordRequest"];
+                "text/json": null | components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckResetLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ResetTokenRequest"];
+                "application/json": null | components["schemas"]["ResetTokenRequest"];
+                "text/json": null | components["schemas"]["ResetTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetLinkResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

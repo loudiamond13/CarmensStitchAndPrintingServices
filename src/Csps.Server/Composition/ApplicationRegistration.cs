@@ -24,6 +24,8 @@ public static class ApplicationRegistration
         services.AddScoped<ListSessionsHandler>();
         services.AddScoped<RevokeSessionHandler>();
         services.AddScoped<ForgotPasswordHandler>();
+        services.AddScoped<CheckResetLinkHandler>();
+        services.AddScoped<ResetPasswordHandler>();
         return services;
     }
 }

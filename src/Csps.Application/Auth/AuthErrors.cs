@@ -89,6 +89,15 @@ public static class AuthErrors
     /// <summary>The plain-English text of a resend refused by the hourly cap; it names no wait time (D-10).</summary>
     public const string ResendCapMessage = "You've asked for too many codes.";
 
+    /// <summary>The code of a reset link that is malformed, unknown, used, revoked, expired or for an account that may not sign in.</summary>
+    public const string LinkInvalidCode = "auth.link-invalid";
+
+    /// <summary>The plain-English text for a reset link that does not work; it never says why.</summary>
+    public const string LinkInvalidMessage = "This link has expired";
+
+    /// <summary>The field that new-password errors belong to.</summary>
+    public const string NewPasswordField = "newPassword";
+
     /// <summary>The field that code errors belong to.</summary>
     public const string CodeField = "code";
 
@@ -111,6 +120,15 @@ public static class AuthErrors
     /// <param name="retryAfter">How long is left of the cooldown.</param>
     /// <returns>A 429 error that carries the wait.</returns>
     public static Error ResendCooldown(TimeSpan retryAfter) => Error.TooManyRequests(ResendCooldownCode, ResendCooldownMessage, retryAfter);
+
+    /// <summary>Gets the one answer for any reset link that does not work, so a link reveals nothing beyond "expired" (CWE-640).</summary>
+    public static Error LinkInvalid { get; } = Error.NotFound(LinkInvalidCode, LinkInvalidMessage);
+
+    /// <summary>Returns a 400 on the new-password field.</summary>
+    /// <param name="message">The plain-English reason.</param>
+    /// <returns>The validation error.</returns>
+    public static Error NewPasswordRejected(string message) =>
+        Error.Validation(ValidationCode, ValidationMessage, new Dictionary<string, string[]> { [NewPasswordField] = [message] });
 
     /// <summary>Gets the answer for a missing, unknown, closed or timed-out pending sign-in; the page returns to sign-in.</summary>
     public static Error TicketExpired { get; } = Error.Unauthenticated(TicketExpiredCode, TicketExpiredMessage);
