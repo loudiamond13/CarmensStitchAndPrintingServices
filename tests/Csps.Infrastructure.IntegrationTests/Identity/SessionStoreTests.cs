@@ -247,6 +247,27 @@ public sealed class SessionStoreTests(CspsDatabase database) : IClassFixture<Csp
         (await RevokeAllAsync(provider, userId, null, Now.AddSeconds(1), SessionRevocationReason.PasswordReset)).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task ListingGivesTheUsersActiveSessionsNewestActivityFirstWithinTheCap()
+    {
+        await using var provider = BuildProvider(new FakeTimeProvider(Now));
+        var userId = await CreateUserAsync(provider);
+        var strangerId = await CreateUserAsync(provider);
+        var oldest = await StartAtAsync(provider, userId, TokenHash.Compute("raw-list-1"), Now.AddMinutes(-30));
+        var middle = await StartAtAsync(provider, userId, TokenHash.Compute("raw-list-2"), Now.AddMinutes(-20));
+        var newest = await StartAtAsync(provider, userId, TokenHash.Compute("raw-list-3"), Now.AddMinutes(-10));
+        var revoked = await StartAtAsync(provider, userId, TokenHash.Compute("raw-list-4"), Now.AddMinutes(-5));
+        await StartAtAsync(provider, userId, TokenHash.Compute("raw-list-5"), Now.AddDays(-1));
+        await StartAtAsync(provider, strangerId, TokenHash.Compute("raw-list-6"), Now.AddMinutes(-1));
+        await RevokeAsync(provider, revoked.Id);
+
+        var all = await ListActiveAsync(provider, userId, Now, cap: 100);
+        var capped = await ListActiveAsync(provider, userId, Now, cap: 2);
+
+        all.Select(session => session.Id).ShouldBe([newest.Id, middle.Id, oldest.Id]);
+        capped.Select(session => session.Id).ShouldBe([newest.Id, middle.Id]);
+    }
+
     private static async Task<RefreshLookup> FindAsync(ServiceProvider provider, byte[] hash)
     {
         await using var scope = provider.CreateAsyncScope();
@@ -299,6 +320,21 @@ public sealed class SessionStoreTests(CspsDatabase database) : IClassFixture<Csp
         scope.ServiceProvider.GetRequiredService<ISessions>().Add(session, token);
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
         return session;
+    }
+
+    private static async Task<UserSession> StartAtAsync(ServiceProvider provider, Guid userId, byte[] hash, DateTimeOffset at)
+    {
+        var (session, token) = UserSession.Start(userId, persistent: false, "Firefox on Windows", hash, at, Settings);
+        await using var scope = provider.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<ISessions>().Add(session, token);
+        await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        return session;
+    }
+
+    private static async Task<IReadOnlyList<UserSession>> ListActiveAsync(ServiceProvider provider, Guid userId, DateTimeOffset now, int cap)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ISessions>().ListActiveAsync(userId, now, cap, TestContext.Current.CancellationToken);
     }
 
     private static async Task RevokeAsync(ServiceProvider provider, Guid sessionId)

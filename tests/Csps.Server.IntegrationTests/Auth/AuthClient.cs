@@ -309,14 +309,20 @@ internal static partial class AuthClient
     /// <param name="client">The client holding the ticket cookie.</param>
     /// <param name="code">The code to send.</param>
     /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <param name="userAgent">The User-Agent to send; the session's device label comes from it. None when null.</param>
     /// <returns>The response. The caller disposes it.</returns>
-    public static async Task<HttpResponseMessage> VerifyAsync(HttpClient client, string code, bool csrf = true)
+    public static async Task<HttpResponseMessage> VerifyAsync(HttpClient client, string code, bool csrf = true, string? userAgent = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(VerifyRoute, UriKind.Relative))
         {
             Content = JsonContent.Create(new { code }),
         };
+        if (userAgent is not null)
+        {
+            request.Headers.UserAgent.ParseAdd(userAgent);
+        }
+
         if (csrf)
         {
             request.Headers.Add(CsrfHeader, "1");
@@ -356,7 +362,7 @@ internal static partial class AuthClient
         using var signIn = await SignInAsync(client, staff.Email, staff.Password, keepSignedIn, userAgent);
         signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
         var code = await ReadCodeAsync(client, staff.Email, signInsSoFar + 1);
-        using var verify = await VerifyAsync(client, code);
+        using var verify = await VerifyAsync(client, code, userAgent: userAgent);
         verify.StatusCode.ShouldBe(HttpStatusCode.OK);
         return await ReadDeviceAsync(verify, staff.Id);
     }

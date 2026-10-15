@@ -57,6 +57,47 @@
         ],
         "type": "object"
       },
+      "SessionListItem": {
+        "description": "One signed-in device in the caller's devices list (D-43).",
+        "properties": {
+          "current": {
+            "description": "True for the device making this request.",
+            "type": "boolean"
+          },
+          "device": {
+            "description": "The coarse browser-and-device label (D-32).",
+            "type": "string"
+          },
+          "id": {
+            "description": "The session id, used to sign that device out.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastActiveAt": {
+            "description": "The device's last refresh, or the sign-in.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "persistent": {
+            "description": "True when \"Keep me signed in\" was chosen.",
+            "type": "boolean"
+          },
+          "signedInAt": {
+            "description": "When the device signed in.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "device",
+          "signedInAt",
+          "lastActiveAt",
+          "persistent",
+          "current"
+        ],
+        "type": "object"
+      },
       "SessionResponse": {
         "description": "What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here.",
         "properties": {
@@ -643,6 +684,40 @@
         ]
       }
     },
+    "/api/v1/sessions": {
+      "get": {
+        "operationId": "ListSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the caller's own active sessions: this device first, then the rest by recent activity, at most 100.",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
     "/api/v1/site-settings": {
       "get": {
         "operationId": "GetSiteSettings",
@@ -673,6 +748,9 @@
   "tags": [
     {
       "name": "AuthSession"
+    },
+    {
+      "name": "Sessions"
     },
     {
       "name": "SignIn"

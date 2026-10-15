@@ -19,6 +19,14 @@ public interface ISessions
     /// <returns>The tracked session, or null when none has that id.</returns>
     Task<UserSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken);
 
+    /// <summary>Lists a user's active sessions, most recently active first, without loading their tokens (D-43).</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="now">The current instant; revoked and expired sessions are left out.</param>
+    /// <param name="cap">The most sessions to return.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>Read-only sessions, newest activity first; empty when there are none.</returns>
+    Task<IReadOnlyList<UserSession>> ListActiveAsync(Guid userId, DateTimeOffset now, int cap, CancellationToken cancellationToken);
+
     /// <summary>Finds the refresh token with this hash, with its session and the tokens rotation needs.</summary>
     /// <param name="tokenHash">SHA-256 of the presented token.</param>
     /// <param name="cancellationToken">Cancels the lookup.</param>

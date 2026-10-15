@@ -85,6 +85,8 @@ public static class AuthorizationMatrix
         // sessions have no other device, so staff get 204.
         new("POST", "/api/v1/auth/sign-out", "/api/v1/auth/sign-out", Anonymous: 204, Admin: 204, Manager: 204),
         new("POST", "/api/v1/auth/sign-out-others", "/api/v1/auth/sign-out-others", Anonymous: 401, Admin: 204, Manager: 204),
+        // The caller's own signed-in devices (D-43): Staff only.
+        new("GET", "/api/v1/sessions", "/api/v1/sessions", Anonymous: 401, Admin: 200, Manager: 200),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

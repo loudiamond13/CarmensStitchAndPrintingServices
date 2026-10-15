@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the caller's own active sessions: this device first, then the rest by recent activity, at most 100. */
+        get: operations["ListSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -142,6 +159,30 @@ export interface components {
              * @description Whole seconds.
              */
             resendAfterSeconds: number | string;
+        };
+        /** @description One signed-in device in the caller's devices list (D-43). */
+        SessionListItem: {
+            /** @description True for the device making this request. */
+            current: boolean;
+            /** @description The coarse browser-and-device label (D-32). */
+            device: string;
+            /**
+             * Format: uuid
+             * @description The session id, used to sign that device out.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description The device's last refresh, or the sign-in.
+             */
+            lastActiveAt: string;
+            /** @description True when "Keep me signed in" was chosen. */
+            persistent: boolean;
+            /**
+             * Format: date-time
+             * @description When the device signed in.
+             */
+            signedInAt: string;
         };
         /** @description What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here. */
         SessionResponse: {
@@ -507,6 +548,35 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

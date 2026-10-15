@@ -20,6 +20,18 @@ internal sealed class SessionStore(CspsDbContext context) : ISessions
     public Task<UserSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken) =>
         context.UserSessions.FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
 
+    public async Task<IReadOnlyList<UserSession>> ListActiveAsync(
+        Guid userId, DateTimeOffset now, int cap, CancellationToken cancellationToken) =>
+        await context.UserSessions
+            .AsNoTracking()
+            .Where(session => session.UserId == userId && session.RevokedAt == null && session.AbsoluteExpiresAt > now)
+            .OrderByDescending(session => session.LastActiveAt)
+            .ThenByDescending(session => session.CreatedAt)
+            .ThenBy(session => session.Id)
+            .Take(cap)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<RefreshLookup?> FindByRefreshHashAsync(byte[] tokenHash, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(tokenHash);
