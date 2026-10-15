@@ -28,7 +28,7 @@ test('@session-menu Sign Out Other Devices from the user menu ends the other bro
     const otherPage = await other.newPage();
     await signInAs(otherPage, request, staff);
 
-    // OQ-3: the menu lists the four items in order.
+    // OQ-3: the menu lists the four items in order; Esc closes it with focus back on its button.
     const menuButton = page.locator('button[aria-haspopup="menu"]');
     await menuButton.click();
     const menu = page.getByRole('menu');
@@ -56,28 +56,26 @@ test('@session-menu Sign Out Other Devices from the user menu ends the other bro
     await expect(page.getByText("You're still signed in on this device.")).toBeVisible();
     await expect(menuButton).toBeFocused();
 
-    // This session is untouched: a reload keeps the shell.
-    await page.reload();
-    await expect(page.getByRole('main')).toBeVisible();
-    await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
-
     // The other browser's refresh cookie no longer works.
     await otherPage.goto('/admin/sessions');
     await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
 
+    // D-43: the devices item opens the S7 page, and this session survives a reload there.
+    await menuButton.click();
+    await menu.getByRole('menuitem', { name: 'Signed-in Devices' }).click();
+    await expect(page).toHaveURL(/\/admin\/sessions$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Signed-in devices' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Signed-in devices' })).toBeVisible();
+
     // D-44: nothing else is signed in now, and the same dialog flow ends with the same toast.
-    await page.locator('button[aria-haspopup="menu"]').click();
-    await page.getByRole('menuitem', { name: 'Sign Out Other Devices' }).click();
+    await menuButton.click();
+    await menu.getByRole('menuitem', { name: 'Sign Out Other Devices' }).click();
     const again = page.getByRole('dialog', { name: 'Sign out of other devices?' });
     await again.getByRole('button', { name: 'Sign Out Other Devices' }).click();
     await expect(again).toBeHidden();
     await expect(page.getByText('Signed out of other devices').first()).toBeVisible();
-
-    // D-43: the devices item opens the S7 page.
-    await page.locator('button[aria-haspopup="menu"]').click();
-    await page.getByRole('menuitem', { name: 'Signed-in Devices' }).click();
-    await expect(page).toHaveURL(/\/admin\/sessions$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Signed-in devices' })).toBeVisible();
+    await expect(menuButton).toBeFocused();
     await expectNoAxeViolations(page);
   } finally {
     await other.close();

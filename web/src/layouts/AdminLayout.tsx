@@ -29,10 +29,14 @@ import {
   adminSideClasses,
   skeletonHeadClasses,
 } from '@/modules/admin/components/admin.recipe';
+import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
 import { setNavigator, signOut } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
 import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
+
+/** The signed-in devices page (D-43); the user menu links to it. */
+const SESSIONS_PATH = '/admin/sessions';
 
 /** The skeleton page head shown while a page chunk loads. */
 function SkeletonPageHead() {
@@ -52,6 +56,10 @@ export interface AdminFrameProps {
   theme: Theme;
   onToggleTheme?: (() => void) | undefined;
   onLogout?: (() => void) | undefined;
+  /** "Signed-in Devices" in the Topbar's user menu goes here. */
+  devicesPath?: string | undefined;
+  /** "Sign Out Other Devices" in the Topbar's user menu. */
+  onSignOutOthers?: (() => void) | undefined;
   /** A route chunk is loading: `main` is busy. */
   loading?: boolean | undefined;
   children?: ReactNode;
@@ -67,6 +75,8 @@ export function AdminFrame({
   theme,
   onToggleTheme,
   onLogout,
+  devicesPath,
+  onSignOutOthers,
   loading = false,
   children,
 }: AdminFrameProps) {
@@ -85,6 +95,8 @@ export function AdminFrame({
             theme={theme}
             onToggleTheme={onToggleTheme}
             onLogout={onLogout}
+            devicesPath={devicesPath}
+            onSignOutOthers={onSignOutOthers}
             onMenu={() => {
               setNavOpen(true);
             }}
@@ -115,6 +127,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
+  const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
   const user: unknown = useLoaderData();
   // The session module navigates (a session that ended in this or another tab) without importing the router.
   useEffect(() => {
@@ -126,18 +139,32 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
     throw new Error('The admin layout route has no signed-in user.');
   }
   return (
-    <AdminFrame
-      section={adminNavItemForPath(pathname)?.id}
-      user={user}
-      theme={theme}
-      onToggleTheme={onToggleTheme}
-      onLogout={() => {
-        void signOut().then(() => navigate('/admin/login'));
-      }}
-      loading={loading}
-    >
-      <Outlet />
-    </AdminFrame>
+    <>
+      <AdminFrame
+        section={adminNavItemForPath(pathname)?.id}
+        user={user}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onLogout={() => {
+          void signOut().then(() => navigate('/admin/login'));
+        }}
+        devicesPath={SESSIONS_PATH}
+        onSignOutOthers={() => {
+          setSignOutOthersOpen(true);
+        }}
+        loading={loading}
+      >
+        <Outlet />
+      </AdminFrame>
+      {/* The menu puts focus on its button before this opens, so the dialog's focus trap returns there on close. */}
+      {signOutOthersOpen && (
+        <SignOutOthersDialog
+          onClose={() => {
+            setSignOutOthersOpen(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 

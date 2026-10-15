@@ -108,6 +108,10 @@ export interface TopbarProps {
   // SPEC-DEVIATION: UI-SPEC UserMenu (plan 02-32) the user menu's "Logout" item; App. D.3 draws no menu to call it.
   /** "Logout" in the user menu. */
   onLogout?: (() => void) | undefined;
+  /** "Signed-in Devices" in the user menu goes here (plan 04-30). */
+  devicesPath?: string | undefined;
+  /** "Sign Out Other Devices" in the user menu. */
+  onSignOutOthers?: (() => void) | undefined;
 }
 
 export function Topbar({
@@ -121,6 +125,8 @@ export function Topbar({
   onToggleTheme,
   onSearch,
   onLogout,
+  devicesPath,
+  onSignOutOthers,
 }: TopbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -182,7 +188,13 @@ export function Topbar({
             <Icon name={theme === 'light' ? 'moon' : 'sun'} size={18} />
           </button>
         )}
-        <UserMenu user={user} role={role} onLogout={onLogout} />
+        <UserMenu
+          user={user}
+          role={role}
+          onLogout={onLogout}
+          devicesPath={devicesPath}
+          onSignOutOthers={onSignOutOthers}
+        />
       </div>
     </div>
   );
