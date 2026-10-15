@@ -84,7 +84,7 @@ public sealed class SignInHandler(
             }
             else if (check == PasswordCheck.Failed)
             {
-                await accounts.RecordFailedPasswordAsync(account.Id, cancellationToken).ConfigureAwait(false);
+                await CountFailureAsync(account, cancellationToken).ConfigureAwait(false);
                 failure = "bad-password";
             }
             else
@@ -95,7 +95,7 @@ public sealed class SignInHandler(
 
         if (failure is not null)
         {
-            await audit.RecordIndependentlyAsync(AuditActions.SignInFailed, account is null ? null : UserTarget, account is null ? null : Key(account.Id), null, cancellationToken).ConfigureAwait(false);
+            await audit.RecordIndependentlyAsync(AuditActions.SignInFailed, account is null ? null : UserTarget, account is null ? null : Key(account.Id), failure, cancellationToken).ConfigureAwait(false);
         }
 
         await ResponseFloor.WaitAsync(started, settings.ResponseFloor, time, cancellationToken).ConfigureAwait(false);
@@ -107,6 +107,24 @@ public sealed class SignInHandler(
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private bool IsLocked(UserAccount account) => account.LockoutEnd is { } end && end > time.GetUtcNow();
+
+    // The count, and when it locks the account the one lockout email and its audit entry, commit together (T-04-39).
+    private async Task CountFailureAsync(UserAccount account, CancellationToken cancellationToken) =>
+        await unitOfWork.InTransactionAsync(
+            async token =>
+            {
+                var result = await accounts.RecordFailedPasswordAsync(account.Id, token).ConfigureAwait(false);
+                if (result.LockedNow)
+                {
+                    // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
+                    await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password), token).ConfigureAwait(false);
+                    audit.Record(AuditActions.Lockout, UserTarget, Key(account.Id), "password");
+                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                }
+
+                return result.LockedNow;
+            },
+            cancellationToken).ConfigureAwait(false);
 
     // Identity changes first (Pitfall 13): UserManager saves the shared context, so the tracked challenge, email and
     // audit rows are added only after it, and one SaveChanges commits them together.
