@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-09-PLAN.md
-last_updated: "2026-10-15T02:30:43.166Z"
+stopped_at: Completed 04-10-PLAN.md
+last_updated: "2026-10-15T03:17:44.379Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 88a0201b5a02c28435c997d8927dfdd990cb46a0
+state_head: 304c18ed78330cdad76f2533a0b86dc773403da3
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 65
+  completed_plans: 66
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 10 of 35
+Plan: 11 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -124,6 +124,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P07 | 20min | 3 tasks | 32 files |
 | Phase 04 P08 | 16min | 3 tasks | 19 files |
 | Phase 04 P09 | 17min | 2 tasks | 31 files |
+| Phase 04 P10 | 45min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -313,6 +314,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-09: the outbox signal fires after the commit (deferred to the outer transaction's commit, dropped on rollback), so the dispatcher never races an uncommitted row
 - [Phase 04]: 04-09: Smtp:Security is read as exact text (StartTls or SslOnConnect); any other value fails the start-up check without echoing it
 - [Phase 04]: 04-09: Production needs the host setting App:PublicBaseUrl (https) besides Smtp:*; test hosts carry placeholder Smtp values for a host that is never contacted
+- [Phase 04]: 04-10: a Debug build refuses Production unless Csps:Testing:AllowProductionEnvironment is true, set only by CspsApiFactory
+- [Phase 04]: 04-10: the deactivated fixture user goes through a Debug-only TestingAccountActivation, keeping IUserAccounts unchanged
 
 ### Pending Todos
 
@@ -359,6 +362,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T02:30:42.778Z
-Stopped at: Completed 04-09-PLAN.md
+Last session: 2026-10-15T03:17:31.247Z
+Stopped at: Completed 04-10-PLAN.md
 Resume file: None

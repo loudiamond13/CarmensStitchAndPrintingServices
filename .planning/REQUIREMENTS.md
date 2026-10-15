@@ -50,7 +50,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [x] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `core/api` 100%, web overall ≥ 90% ⚑ S-4
 - [x] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
-- [ ] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
+- [x] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
 - [x] **QUAL-06**: Dependency hygiene: every package has a recorded purpose, license (MIT/Apache-2.0/BSD/ISC, or an owner-approved exception) and legitimacy check. A `THIRD-PARTY-NOTICES` file is generated in CI. A release cool-down policy is recorded ⚑ S-5, S-10
 
 ### CI/CD & Hosting (OPS)
@@ -356,7 +356,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 2 | Complete |
-| QUAL-05 | Phase 4 | Pending |
+| QUAL-05 | Phase 4 | Complete |
 | QUAL-06 | Phase 1 | Complete |
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Pending |
