@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -46,10 +47,19 @@ internal sealed record SinkEmail(long Id, string To, string Subject, string Text
 /// Helpers for the auth integration tests: https clients with cookies, staff accounts in a chosen state, sign-in
 /// calls and the Testing email sink (D-27). Nothing here sends real mail.
 /// </summary>
-internal static class AuthClient
+internal static partial class AuthClient
 {
     /// <summary>The sign-in route.</summary>
     public const string SignInRoute = "/api/v1/auth/sign-in";
+
+    /// <summary>The code verification route.</summary>
+    public const string VerifyRoute = "/api/v1/auth/two-factor/verify";
+
+    /// <summary>The code resend route.</summary>
+    public const string ResendRoute = "/api/v1/auth/two-factor/resend";
+
+    /// <summary>The anti-CSRF header every cookie-reading auth call carries.</summary>
+    public const string CsrfHeader = "X-CSPS-CSRF";
 
     /// <summary>A Chrome on Android User-Agent.</summary>
     public const string ChromeOnAndroid =
@@ -60,7 +70,7 @@ internal static class AuthClient
     /// <summary>Creates an https client that keeps cookies, so Secure cookies flow (the Testing host does not redirect).</summary>
     /// <param name="factory">The test host.</param>
     /// <returns>The client. The caller disposes it.</returns>
-    public static HttpClient CreateClient(CspsApiFactory factory)
+    public static HttpClient CreateClient(WebApplicationFactory<Program> factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
         return factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -76,7 +86,7 @@ internal static class AuthClient
     /// <param name="state">The state to start in.</param>
     /// <param name="role">The role.</param>
     /// <returns>The account and its password.</returns>
-    public static async Task<TestStaff> CreateStaffAsync(CspsApiFactory factory, StaffState state = StaffState.Active, string role = Roles.Manager)
+    public static async Task<TestStaff> CreateStaffAsync(WebApplicationFactory<Program> factory, StaffState state = StaffState.Active, string role = Roles.Manager)
     {
         ArgumentNullException.ThrowIfNull(factory);
         var email = NewEmail();
@@ -105,7 +115,7 @@ internal static class AuthClient
     /// <param name="factory">The test host.</param>
     /// <param name="id">The account id.</param>
     /// <returns>A task that completes when the account is locked.</returns>
-    public static async Task LockAsync(CspsApiFactory factory, Guid id)
+    public static async Task LockAsync(WebApplicationFactory<Program> factory, Guid id)
     {
         ArgumentNullException.ThrowIfNull(factory);
         var scope = factory.Services.CreateAsyncScope();
@@ -113,6 +123,23 @@ internal static class AuthClient
         {
             var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
             await accounts.LockUntilAsync(id, TimeProvider.System.GetUtcNow().AddMinutes(15), TestContext.Current.CancellationToken);
+        }
+    }
+
+    /// <summary>Deactivates an account.</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="id">The account id.</param>
+    /// <returns>A task that completes when the account is deactivated.</returns>
+    public static async Task DeactivateAsync(WebApplicationFactory<Program> factory, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await users.FindByIdAsync(id.ToString("D"))).ShouldNotBeNull();
+            user.IsActive = false;
+            (await users.UpdateAsync(user)).Succeeded.ShouldBeTrue();
         }
     }
 
@@ -193,4 +220,61 @@ internal static class AuthClient
     /// <returns>The latest message.</returns>
     public static async Task<SinkEmail> LatestEmailAsync(HttpClient client, string to) =>
         (await WaitForEmailsAsync(client, to))[^1];
+
+    /// <summary>Reads the six-digit code from the newest sign-in email to an address.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="to">The recipient.</param>
+    /// <param name="count">How many sign-in emails the sink must hold; the newest is read.</param>
+    /// <returns>The code.</returns>
+    public static async Task<string> ReadCodeAsync(HttpClient client, string to, int count = 1)
+    {
+        var mails = await WaitForEmailsAsync(client, to, count);
+        var match = CodeInSubject().Match(mails[^1].Subject);
+        match.Success.ShouldBeTrue("The newest email is not a sign-in code email.");
+        return match.Groups[1].Value;
+    }
+
+    /// <summary>Posts a code to the verify route.</summary>
+    /// <param name="client">The client holding the ticket cookie.</param>
+    /// <param name="code">The code to send.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> VerifyAsync(HttpClient client, string code, bool csrf = true)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(VerifyRoute, UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { code }),
+        };
+        if (csrf)
+        {
+            request.Headers.Add(CsrfHeader, "1");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts to the resend route.</summary>
+    /// <param name="client">The client holding the ticket cookie.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ResendAsync(HttpClient client, bool csrf = true)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(ResendRoute, UriKind.Relative));
+        if (csrf)
+        {
+            request.Headers.Add(CsrfHeader, "1");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Returns a code that is well formed but is not <paramref name="notThis"/>.</summary>
+    /// <param name="notThis">The code to avoid.</param>
+    /// <returns>Six digits.</returns>
+    public static string WrongCode(string notThis) => notThis == "000000" ? "000001" : "000000";
+
+    [GeneratedRegex(@"^(\d{6}) is your CSPS sign-in code$")]
+    private static partial Regex CodeInSubject();
 }

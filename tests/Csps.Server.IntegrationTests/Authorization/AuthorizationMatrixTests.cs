@@ -13,6 +13,9 @@ namespace Csps.Server.IntegrationTests.Authorization;
 /// </summary>
 public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
+    // The web client sends this on every call; cookie-reading auth endpoints refuse a request without it.
+    private const string CsrfHeader = "X-CSPS-CSRF";
+
     private static readonly ConditionalWeakTable<CspsDatabase, Lazy<Task<IReadOnlyDictionary<Caller, string?>>>> SeededCallers = [];
 
     /// <summary>Every matrix row for every caller.</summary>
@@ -52,6 +55,7 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         using var request = ApiRequests.Create(row.RequestMethod, row.SamplePath, await TokenForAsync(caller));
+        request.Headers.Add(CsrfHeader, "1");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -73,6 +77,7 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
         var statuses = await Task.WhenAll(calls.Select(async call =>
         {
             using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
+            request.Headers.Add(CsrfHeader, "1");
             using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
             return (int)response.StatusCode;
         }));
