@@ -1,5 +1,5 @@
 // The admin layout (UI-SPEC Layout Contract "Admin layout", spec §8.1, App. E.6 shell; WEB-05, A11Y-01, A11Y-02).
-// Dev builds only (D-20): the router mounts it under `__DEV_ROUTES__`. The page root (the `.s-page` look, `data-theme`)
+// It ships in every build behind sign-in (plan 04-25); the dev routes mount it too, with a placeholder user. The page root (the `.s-page` look, `data-theme`)
 // holds, in keyboard order, the skip link and the App. E.6 frame (AdminFrame):
 //   - the side column (`data-ui="s-admin-side"`) with the Sidebar: 248px, a 72px icon rail from 768 to 1023px (the
 //     rail looks are `pg-tablet:in-data-[ui=s-admin-side]:` variants in the navigation recipes), hidden on phones;
@@ -10,16 +10,16 @@
 // while it is open the frame behind it is `inert`, so neither the keyboard nor assistive technology reaches the page
 // under the scrim.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
-// The dev user is Carmen Reyes (Manager); Logout (in the Sidebar, the drawer and the Topbar's user menu, plan 02-32)
-// shows the "Not available yet" info toast until Phase 4.
+// The signed-in user comes from the route's loader data (the session user, or Carmen Reyes on the dev routes). Logout (in
+// the Sidebar, the drawer and the Topbar's user menu) signs out, then goes to /admin/login.
 // Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
 // on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
-import { useId, useState, type ReactNode } from 'react';
-import { Outlet, useLoaderData, useLocation, useNavigation } from 'react-router';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { Outlet, useLoaderData, useLocation, useNavigate, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry';
-import { Skeleton, ToastProvider, useToast } from '@/components/feedback';
+import { Skeleton, ToastProvider } from '@/components/feedback';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { MobileNavDrawer, Sidebar, Topbar, type AdminSection } from '@/components/navigation';
 import {
@@ -29,8 +29,8 @@ import {
   adminSideClasses,
   skeletonHeadClasses,
 } from '@/modules/admin/components/admin.recipe';
-import { ADMIN_COPY } from '@/modules/admin/copy';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
+import { setNavigator, signOut } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
 import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
 
@@ -110,12 +110,18 @@ export function AdminFrame({
   );
 }
 
-/** The frame for the current path, inside the toast provider (Logout raises a toast). */
+/** The frame for the current path. Logout signs out (the local session ends even if the server call fails) and leaves. */
 function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
-  const toast = useToast();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
   const user: unknown = useLoaderData();
+  // The session module navigates (a session that ended in this or another tab) without importing the router.
+  useEffect(() => {
+    setNavigator((to) => {
+      void navigate(to);
+    });
+  }, [navigate]);
   if (!isShellUser(user)) {
     throw new Error('The admin layout route has no signed-in user.');
   }
@@ -126,7 +132,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
       theme={theme}
       onToggleTheme={onToggleTheme}
       onLogout={() => {
-        toast.show({ tone: 'info', title: ADMIN_COPY.logoutToast.title, message: ADMIN_COPY.logoutToast.message });
+        void signOut().then(() => navigate('/admin/login'));
       }}
       loading={loading}
     >

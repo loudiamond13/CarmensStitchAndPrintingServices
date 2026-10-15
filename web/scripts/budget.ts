@@ -94,10 +94,13 @@ export const ADMIN_ROUTE: readonly string[] = Object.freeze([
   'src/modules/admin/pages/AdminPreviewPage.tsx',
 ]);
 
-/** Module path prefixes that must never reach a production build (D-20, CWE-489). */
+/**
+ * Module path prefixes that must never reach a production build (D-20, CWE-489). Since Phase 4 the guarded admin app
+ * ships; only the dev showcase, the dev-only preview page and its copy, and the visual parity code stay out.
+ */
 export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
-  'src/modules/admin/',
-  'src/layouts/AdminLayout',
+  'src/modules/admin/pages/AdminPreviewPage',
+  'src/modules/admin/previewCopy',
   'src/dev/',
   'visual/',
 ]);

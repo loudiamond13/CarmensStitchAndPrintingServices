@@ -174,15 +174,11 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
   await expect(button).toBeFocused();
   await expect(button).toHaveAttribute('aria-expanded', 'false');
 
-  // Logout from the keyboard: the dev toast, the menu closed, focus back on the button.
+  // Logout from the keyboard: it signs out and leaves the shell for the sign-in page (Phase 4).
   await page.keyboard.press('ArrowUp');
   await expect(logout).toBeFocused();
   await page.keyboard.press('Enter');
-  // The toast layer is the live region; a toast in it has no role of its own (UI-WR-04).
-  await expect(page.locator('[data-ui="s-toast-layer"]').getByText('Not available yet')).toBeVisible();
-  await expect(menu).toHaveCount(0);
-  await expect(button).toBeFocused();
-  await expectNoAxeViolations(page);
+  await expect(page).toHaveURL(/\/admin\/login$/);
 });
 
 test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({ page }) => {

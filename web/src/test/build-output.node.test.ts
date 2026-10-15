@@ -110,7 +110,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   );
 
   it.each(['CSPS Admin', 'returnUrl'])('ships the guarded admin app: an asset carries "%s"', (copy) => {
-    const files = listAll(webRoot).filter((name) => /\.js$/.test(name));
+    const files = listAll(webRoot).filter((name) => name.endsWith('.js'));
     expect(files.filter((name) => readText(join(webRoot, name)).includes(copy)).length).toBeGreaterThan(0);
   });
 

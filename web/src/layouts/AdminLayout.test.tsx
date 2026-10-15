@@ -13,7 +13,7 @@ import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
 import { acceptSession, clearSession, takeSignInNotice } from '@/modules/admin/services/session';
-import { apiClient } from '@/core/api/apiClient';
+import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { AdminFrame } from '@/layouts/AdminLayout';
 
 /**
@@ -599,12 +599,12 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
   it('a session that ends in the API client sends the shell to /admin/login with the session-ended notice', async () => {
     acceptSession(sessionResponse());
     server.use(
-      http.get('*/api/v1/ping', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
+      http.get('*/api/v1/site-settings', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
       http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
     );
     const { router } = await renderAt('/admin/users');
 
-    await expect(apiClient.get('/ping')).rejects.toMatchObject({ status: 401 });
+    await expect(siteSettingsService.get()).rejects.toMatchObject({ status: 401 });
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/admin/login');

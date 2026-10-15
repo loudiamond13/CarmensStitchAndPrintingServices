@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-14T10:45:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-15T00:46:22-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -54,8 +54,8 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 ## Rules that fail the build besides the limits
 
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
-- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/modules/admin/`, `src/layouts/AdminLayout`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. These rules follow the mode, never a flag.
-- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example `src/modules/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
+- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/dev/`, `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), or when it has an entry other than `index.html`. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
+- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example the dev preview page behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 
 ## The numbers file
