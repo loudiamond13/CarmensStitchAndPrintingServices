@@ -126,7 +126,7 @@ public sealed class SignInHandler(
                 if (result.LockedNow)
                 {
                     // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
-                    await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password), token).ConfigureAwait(false);
+                    await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password, settings.PasswordLockoutDuration), token).ConfigureAwait(false);
                     audit.Record(AuditActions.Lockout, UserTarget, Key(account.Id), "password");
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 }

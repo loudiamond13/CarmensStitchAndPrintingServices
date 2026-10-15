@@ -69,9 +69,10 @@ public sealed class BootstrapManagerHandler(
             .ConfigureAwait(false);
 
         var secret = random.NewToken();
-        var invitation = AccountToken.Create(id, AccountTokenPurpose.Invitation, TokenHash.Compute(secret), time.GetUtcNow(), settings.InviteLinkLifetime);
+        var now = time.GetUtcNow();
+        var invitation = AccountToken.Create(id, AccountTokenPurpose.Invitation, TokenHash.Compute(secret), now, settings.InviteLinkLifetime);
         tokens.Add(invitation);
-        await outbox.EnqueueAsync(new InviteEmail(email, secret, invitation.ExpiresAt), cancellationToken).ConfigureAwait(false);
+        await outbox.EnqueueAsync(new InviteEmail(email, secret, invitation.ExpiresAt, now), cancellationToken).ConfigureAwait(false);
 
         audit.Record(AuditActions.BootstrapManagerCreated, UserTarget, Key(id), null);
         audit.Record(AuditActions.UserInvited, UserTarget, Key(id), "bootstrap");

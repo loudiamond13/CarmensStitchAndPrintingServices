@@ -25,12 +25,12 @@ public sealed class EmailRendererTests
     public static TheoryData<AuthEmail> AllKinds() =>
     [
         new SignInCodeEmail("paolo.garcia@gmail.com", "048213", At.AddMinutes(15), At, Chrome),
-        new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password),
+        new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password, TimeSpan.FromMinutes(15)),
         new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, Chrome),
         new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true),
         new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At),
         new DeactivatedNoticeEmail("paolo.garcia@gmail.com"),
-        new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72)),
+        new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At),
     ];
 
     [Theory]
@@ -78,12 +78,12 @@ public sealed class EmailRendererTests
     public static TheoryData<AuthEmail, string, string, string?, string?> UiSpecFrames() => new()
     {
         { new SignInCodeEmail("paolo.garcia@gmail.com", "048213", At.AddMinutes(15), At, Chrome), "Your sign-in code", "It works for 15 minutes. Never share it.", null, null },
-        { new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password), "Sign-in paused", "Sign-in is paused after too many wrong tries.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
+        { new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password, TimeSpan.FromMinutes(15)), "Sign-in paused", "Sign-in is paused after too many wrong tries.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
         { new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, Chrome), "Reset your password", "This link works for 30 minutes.", "Reset Password", $"{BaseUrl}/admin/reset-password#token={Token}" },
         { new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true), "Password changed", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
         { new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At), "Your password was reset", "Ask them for your temporary password.", null, null },
         { new DeactivatedNoticeEmail("paolo.garcia@gmail.com"), "Account deactivated", "Your account is deactivated.", null, null },
-        { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72)), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
+        { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
     };
 
     [Theory]
@@ -198,8 +198,8 @@ public sealed class EmailRendererTests
     [Fact]
     public async Task LockoutEmailLinksToTheForgotPasswordPageWithNoToken()
     {
-        var password = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password));
-        var code = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Code));
+        var password = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Password, TimeSpan.FromMinutes(15)));
+        var code = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(15), LockoutCause.Code, TimeSpan.FromMinutes(15)));
 
         password.Text.ShouldContain($"{BaseUrl}/admin/forgot-password");
         password.Text.ShouldNotContain("#token");
@@ -254,7 +254,7 @@ public sealed class EmailRendererTests
     [Fact]
     public async Task InviteLinksToAcceptInviteWithTheTokenInTheFragment()
     {
-        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72)));
+        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At));
 
         rendered.Text.ShouldContain($"{BaseUrl}/admin/accept-invite#token={Token}");
         rendered.Html.ShouldContain($"href=\"{BaseUrl}/admin/accept-invite#token={Token}\"");
@@ -263,6 +263,26 @@ public sealed class EmailRendererTests
         rendered.Text.ShouldContain("This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite.");
         rendered.Text.ShouldContain("Each time you sign in, we'll also email you a 6-digit code.");
         CountOf(rendered.Text, Token).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task LifetimesAreWordedFromTheRealExpiryNotFromFixedText()
+    {
+        var code = await RenderAsync(new SignInCodeEmail("paolo.garcia@gmail.com", "048213", At.AddMinutes(10), At, Chrome));
+        var reset = await RenderAsync(new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(45), At, Chrome));
+        var invite = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(24), At));
+        var hour = await RenderAsync(new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddHours(1), At, Chrome));
+        var locked = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(30), LockoutCause.Code, TimeSpan.FromMinutes(30)));
+
+        code.Text.ShouldContain("It works for 10 minutes and only once.");
+        code.Html.ShouldContain("It works for 10 minutes. Never share it.");
+        reset.Text.ShouldContain("This link works for 45 minutes and only once.");
+        reset.Html.ShouldContain("This link works for 45 minutes.");
+        invite.Text.ShouldContain("This link works for 24 hours and only once.");
+        hour.Text.ShouldContain("This link works for 1 hour and only once.");
+        locked.Subject.ShouldBe("Your CSPS account is locked for 30 minutes");
+        locked.Text.ShouldContain("we paused sign-in for 30 minutes.");
+        locked.Text.ShouldNotContain("15 minutes");
     }
 
     [Fact]

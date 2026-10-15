@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Users;
 using FluentValidation;
+using Microsoft.AspNetCore.Identity;
 
 namespace Csps.Server.Composition;
 
@@ -28,6 +29,8 @@ public static class AuthRegistration
         }
 
         services.AddSingleton(settings);
+        // After every Identity setup, so the pause the person is told about is the pause Identity applies.
+        services.PostConfigure<IdentityOptions>(options => options.Lockout.DefaultLockoutTimeSpan = settings.PasswordLockoutDuration);
         services.AddSingleton<IValidator<SignInRequest>, SignInRequestValidator>();
         services.AddSingleton<IValidator<VerifyCodeRequest>, VerifyCodeRequestValidator>();
         services.AddSingleton<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();

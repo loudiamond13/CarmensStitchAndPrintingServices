@@ -107,12 +107,12 @@ public static class Program
     {
         var chrome = new DeviceDescription("Chrome on Android", true);
         yield return ("sign-in-code", new SignInCodeEmail(SampleAddress, "482913", SampleTime.AddMinutes(15), SampleTime, chrome));
-        yield return ("account-locked", new AccountLockedEmail(SampleAddress, SampleTime.AddMinutes(15), LockoutCause.Password));
+        yield return ("account-locked", new AccountLockedEmail(SampleAddress, SampleTime.AddMinutes(15), LockoutCause.Password, TimeSpan.FromMinutes(15)));
         yield return ("reset-link", new PasswordResetEmail(SampleAddress, SampleToken, SampleTime.AddMinutes(30), SampleTime, chrome));
         yield return ("password-changed", new PasswordChangedEmail(SampleAddress, SampleTime, SessionsEnded: true));
         yield return ("manager-reset", new ManagerResetEmail(SampleAddress, "Carmen Reyes", SampleTime));
         yield return ("deactivated", new DeactivatedNoticeEmail(SampleAddress));
-        yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddHours(72)));
+        yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddHours(72), SampleTime));
     }
 
     // The files are only for looking at, so the logo is inlined as a data URL there (a browser has no CID parts).

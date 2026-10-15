@@ -143,7 +143,7 @@ public sealed class VerifyCodeHandler(
                 var until = now + settings.CodeLockoutDuration;
                 await challenges.InvalidateOpenAsync(user.Id, now, token).ConfigureAwait(false);
                 await accounts.LockUntilAsync(user.Id, until, token).ConfigureAwait(false);
-                await outbox.EnqueueAsync(new AccountLockedEmail(user.Email, until, LockoutCause.Code), token).ConfigureAwait(false);
+                await outbox.EnqueueAsync(new AccountLockedEmail(user.Email, until, LockoutCause.Code, settings.CodeLockoutDuration), token).ConfigureAwait(false);
                 audit.Record(AuditActions.Lockout, UserTarget, Key(user.Id), "code");
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return true;

@@ -175,7 +175,7 @@ public sealed class VerifyCodeHandlerTests
         error.RetryAfter.ShouldBeNull();
         await harness.Challenges.Received(1).InvalidateOpenAsync(UserId, Start, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).LockUntilAsync(UserId, Start.AddMinutes(15), Arg.Any<CancellationToken>());
-        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBe(new AccountLockedEmail(Email, Start.AddMinutes(15), LockoutCause.Code));
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBe(new AccountLockedEmail(Email, Start.AddMinutes(15), LockoutCause.Code, TimeSpan.FromMinutes(15)));
         harness.Audit.Entries.ShouldBe(
         [
             new AuditCall(AuditActions.Lockout, "User", UserId.ToString("D"), "code", Independent: false),

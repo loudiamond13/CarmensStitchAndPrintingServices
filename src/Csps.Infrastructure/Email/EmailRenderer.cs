@@ -58,12 +58,12 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
     private EmailContent SignInCode(SignInCodeEmail email, TimeZoneInfo zone) =>
         new(
             Subject: $"{email.Code} is your CSPS sign-in code",
-            Preheader: "It works for 15 minutes. Never share it.",
+            Preheader: $"It works for {Span(email.RequestedAt, email.ExpiresAt)}. Never share it.",
             Heading: "Your sign-in code",
             Blocks:
             [
                 new CodeBlock(email.Code),
-                new ParagraphBlock("Enter this code on the CSPS sign-in screen. It works for 15 minutes and only once."),
+                new ParagraphBlock($"Enter this code on the CSPS sign-in screen. It works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
                 new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
                 new ParagraphBlock("Didn't try to sign in? Someone may know your password. Reset it now from the sign-in page:", links.Value.ForgotPasswordPage()),
             ],
@@ -72,14 +72,15 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
     private EmailContent Locked(AccountLockedEmail email, TimeZoneInfo zone)
     {
         var what = email.Cause == LockoutCause.Code ? "sign-in codes" : "password tries";
+        var length = Span(email.LockedFor);
         return new(
-            Subject: "Your CSPS account is locked for 15 minutes",
+            Subject: $"Your CSPS account is locked for {length}",
             Preheader: "Sign-in is paused after too many wrong tries.",
             Heading: "Sign-in paused",
             Blocks:
             [
                 new ParagraphBlock(
-                    $"There were too many wrong {what} on your account, so we paused sign-in for 15 minutes. You can sign in again after {FormatTime(email.LockedUntil, zone)} on {FormatDate(email.LockedUntil, zone)}."),
+                    $"There were too many wrong {what} on your account, so we paused sign-in for {length}. You can sign in again after {FormatTime(email.LockedUntil, zone)} on {FormatDate(email.LockedUntil, zone)}."),
                 new ParagraphBlock("If this wasn't you, someone may be trying to get into your account. Reset your password."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
@@ -88,13 +89,13 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
     private EmailContent Reset(PasswordResetEmail email, TimeZoneInfo zone) =>
         new(
             Subject: "Reset your CSPS password",
-            Preheader: "This link works for 30 minutes.",
+            Preheader: $"This link works for {Span(email.RequestedAt, email.ExpiresAt)}.",
             Heading: "Reset your password",
             Blocks:
             [
                 new ParagraphBlock($"We got a request to reset the password for {email.To}.", Strong: email.To),
                 new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
-                new ParagraphBlock("This link works for 30 minutes and only once."),
+                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
                 new ParagraphBlock("Didn't ask for this? Ignore this email. Your password stays the same."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
@@ -150,7 +151,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Blocks:
             [
                 new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To),
-                new ParagraphBlock("This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite."),
+                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once. If it expires, ask a Manager to send a new invite."),
                 new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
             ],
             Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
@@ -181,6 +182,19 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             .Append(EmailHtmlLayout.FooterReason).Append('\n');
         return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
     }
+
+    // A lifetime in the words of the email: whole hours as hours, anything else as minutes.
+    private static string Span(DateTimeOffset from, DateTimeOffset to) => Span(to - from);
+
+    private static string Span(TimeSpan length)
+    {
+        var minutes = Math.Max(1, (int)Math.Round(length.TotalMinutes));
+        return minutes % 60 == 0
+            ? Plural(minutes / 60, "hour")
+            : Plural(minutes, "minute");
+    }
+
+    private static string Plural(int count, string unit) => count == 1 ? $"1 {unit}" : $"{count.ToString(CultureInfo.InvariantCulture)} {unit}s";
 
     private static string DeviceLine(DeviceDescription device) => device.IsKnown ? device.Label : "an unknown browser";
 

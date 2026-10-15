@@ -30,7 +30,7 @@ public sealed class AuthEmailTests
     {
         new SignInCodeEmail("a@example.com", "048213", ExpiresAt, CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
         new PasswordResetEmail("a@example.com", "token", ExpiresAt, CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
-        new InviteEmail("a@example.com", "token", ExpiresAt).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
+        new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class AuthEmailTests
     {
         var expected = CreatedAt.AddDays(1);
 
-        new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Password).NotAfter(CreatedAt).ShouldBe(expected);
+        new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Password, TimeSpan.FromMinutes(15)).NotAfter(CreatedAt).ShouldBe(expected);
         new PasswordChangedEmail("a@example.com", CreatedAt, SessionsEnded: true).NotAfter(CreatedAt).ShouldBe(expected);
         new ManagerResetEmail("a@example.com", "Carmen Reyes", CreatedAt).NotAfter(CreatedAt).ShouldBe(expected);
         new DeactivatedNoticeEmail("a@example.com").NotAfter(CreatedAt).ShouldBe(expected);
@@ -51,17 +51,18 @@ public sealed class AuthEmailTests
             .ShouldBe("SignInCodeEmail");
         new PasswordResetEmail("a@example.com", "reset-token-value", ExpiresAt, CreatedAt, Device).ToString()
             .ShouldBe("PasswordResetEmail");
-        new InviteEmail("a@example.com", "invite-token-value", ExpiresAt).ToString()
+        new InviteEmail("a@example.com", "invite-token-value", ExpiresAt, CreatedAt).ToString()
             .ShouldBe("InviteEmail");
     }
 
     [Fact]
     public void RecordsCarryTheirValues()
     {
-        var locked = new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Code);
+        var locked = new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Code, TimeSpan.FromMinutes(15));
         locked.To.ShouldBe("a@example.com");
         locked.LockedUntil.ShouldBe(ExpiresAt);
         locked.Cause.ShouldBe(LockoutCause.Code);
+        locked.LockedFor.ShouldBe(TimeSpan.FromMinutes(15));
 
         var changed = new PasswordChangedEmail("a@example.com", CreatedAt, SessionsEnded: false);
         changed.ChangedAt.ShouldBe(CreatedAt);
@@ -78,17 +79,17 @@ public sealed class AuthEmailTests
         code.Device.ShouldBe(Device);
 
         new PasswordResetEmail("a@example.com", "t", ExpiresAt, CreatedAt, Device).Token.ShouldBe("t");
-        new InviteEmail("a@example.com", "t", ExpiresAt).Token.ShouldBe("t");
+        new InviteEmail("a@example.com", "t", ExpiresAt, CreatedAt).Token.ShouldBe("t");
     }
 
     private static AuthEmail[] Kinds() =>
     [
         new SignInCodeEmail("a@example.com", "048213", ExpiresAt, CreatedAt, Device),
-        new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Password),
+        new AccountLockedEmail("a@example.com", ExpiresAt, LockoutCause.Password, TimeSpan.FromMinutes(15)),
         new PasswordResetEmail("a@example.com", "token", ExpiresAt, CreatedAt, Device),
         new PasswordChangedEmail("a@example.com", CreatedAt, SessionsEnded: true),
         new ManagerResetEmail("a@example.com", "Carmen Reyes", CreatedAt),
         new DeactivatedNoticeEmail("a@example.com"),
-        new InviteEmail("a@example.com", "token", ExpiresAt),
+        new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt),
     ];
 }

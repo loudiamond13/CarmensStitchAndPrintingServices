@@ -77,7 +77,8 @@ public sealed record SignInCodeEmail(string To, string Code, DateTimeOffset Expi
 /// <param name="To">The recipient address.</param>
 /// <param name="LockedUntil">When sign-in works again.</param>
 /// <param name="Cause">What was guessed wrong.</param>
-public sealed record AccountLockedEmail(string To, DateTimeOffset LockedUntil, LockoutCause Cause) : AuthEmail(To)
+/// <param name="LockedFor">How long the pause lasts, as the email words it.</param>
+public sealed record AccountLockedEmail(string To, DateTimeOffset LockedUntil, LockoutCause Cause, TimeSpan LockedFor) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.AccountLocked;
@@ -147,7 +148,8 @@ public sealed record DeactivatedNoticeEmail(string To) : AuthEmail(To)
 /// <param name="To">The recipient address.</param>
 /// <param name="Token">The invite token, placed in the link fragment.</param>
 /// <param name="ExpiresAt">When the link stops working.</param>
-public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt) : AuthEmail(To)
+/// <param name="RequestedAt">When the invitation was made.</param>
+public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.Invite;
