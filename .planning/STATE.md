@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-18-PLAN.md
-last_updated: "2026-10-15T06:10:47.937Z"
+stopped_at: Completed 04-26-PLAN.md
+last_updated: "2026-10-15T06:35:09.861Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 09ea420196af9262993420eb1e3522e0d759b9d2
+state_head: 542cc3f2f7f373ddca210523b0d382cdfdf853ca
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 77
+  completed_plans: 78
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 22 of 35
+Plan: 23 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -136,6 +136,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P16 | 25min | 2 tasks | 17 files |
 | Phase 04 P25 | 31min | 3 tasks | 31 files |
 | Phase 04 P18 | 40min | 2 tasks | 26 files |
+| Phase 04 P26 | 22min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -343,6 +344,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-25: admin app ships in production behind the route guard; dev previews, showcase and their copy stay dev-only
 - [Phase 04]: 04-18: only active, email-confirmed accounts get a reset link; unconfirmed answered like unknown
 - [Phase 04]: 04-18: per-account sp_getapplock serializes forgot-password so the hourly cap and one-live-link rule hold under concurrency
+- [Phase 04]: 04-26: any 401 from sign-in shows the one generic banner (D-02); email and password use aria-required so the approved App. E.5 labels gain no asterisk
+- [Phase 04]: 04-26: the sign-in page loader checks for a live session, so a guard redirect to /admin/login makes a second refresh request (2 in total)
 
 ### Pending Todos
 
@@ -389,6 +392,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T06:10:47.574Z
-Stopped at: Completed 04-18-PLAN.md
+Last session: 2026-10-15T06:35:09.492Z
+Stopped at: Completed 04-26-PLAN.md
 Resume file: None

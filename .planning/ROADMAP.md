@@ -398,7 +398,7 @@ Plans:
 - the refresh grace-window design
 - timing-parity tests
 
-**Plans**: 21/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+**Plans**: 22/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
@@ -442,7 +442,7 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [x] 04-18-PLAN.md — Forgot password: hashed fragment-only reset links, same answer for every email (AUTH-08, D-20)
-- [ ] 04-26-PLAN.md — AuthLayout and the S1 sign-in screen (App. E.5) with Note, banner alignment and tap areas
+- [x] 04-26-PLAN.md — AuthLayout and the S1 sign-in screen (App. E.5) with Note, banner alignment and tap areas
 
 **Wave 12** *(blocked on Wave 11 completion)*
 - [ ] 04-19-PLAN.md — Reset password: link check, full rule with breach floor, every session ended (AUTH-09, D-19)
@@ -1000,7 +1000,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
-| 4. Identity & Authentication | 21/35 | In Progress | - |
+| 4. Identity & Authentication | 22/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
