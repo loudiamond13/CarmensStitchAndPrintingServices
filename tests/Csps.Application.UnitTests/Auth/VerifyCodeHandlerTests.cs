@@ -44,6 +44,17 @@ public sealed class VerifyCodeHandlerTests
     }
 
     [Fact]
+    public async Task ALostRaceWithAnotherSubmissionOfTheCodeIsATimedOutSignIn()
+    {
+        var harness = new Harness();
+        harness.Unit.ConflictOnSave = true;
+
+        var result = await harness.RunAsync(RightCode);
+
+        result.Error.ShouldBeSameAs(AuthErrors.TicketExpired);
+    }
+
+    [Fact]
     public async Task ABrowserSessionChoiceCarriesThroughToTheSession()
     {
         var harness = new Harness(persistent: false);

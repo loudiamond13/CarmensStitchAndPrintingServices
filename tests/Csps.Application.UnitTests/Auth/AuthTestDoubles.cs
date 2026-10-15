@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
 
@@ -41,9 +42,17 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
 {
     public int Saves { get; private set; }
 
+    /// <summary>Gets or sets whether a save fails the way the real unit of work does when another request changed the same row.</summary>
+    public bool ConflictOnSave { get; set; }
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         Saves++;
+        if (ConflictOnSave)
+        {
+            throw new ConcurrencyConflictException(new InvalidOperationException("Another request changed the row."));
+        }
+
         return Task.FromResult(1);
     }
 

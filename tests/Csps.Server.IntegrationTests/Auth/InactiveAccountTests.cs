@@ -1,5 +1,6 @@
 using System.Net;
 using Csps.Domain.Auditing;
+using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -93,6 +94,56 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
             text.ShouldNotContain("@");
             text.ShouldNotContain(password);
         }
+    }
+
+    [Theory]
+    [InlineData("deactivated")]
+    [InlineData("locked")]
+    public async Task AnAccountThatBecomesInactiveLosesItsSessionAtTheNextRefresh(string change)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        (await AuthClient.SiteSettingsStatusAsync(client, device.AccessToken)).ShouldBe(HttpStatusCode.OK);
+        if (change == "deactivated")
+        {
+            await AuthClient.DeactivateAsync(factory, staff.Id);
+        }
+        else
+        {
+            await AuthClient.LockAsync(factory, staff.Id);
+        }
+
+        using var response = await AuthClient.RefreshAsync(client);
+
+        await RefreshEndpointTests.ShouldBeSessionEndedAsync(response);
+        await using var context = database.CreateContext();
+        var session = await context.UserSessions.AsNoTracking().SingleAsync(s => s.Id == device.SessionId, TestContext.Current.CancellationToken);
+        session.RevokedAt.ShouldNotBeNull();
+        session.RevokedReason.ShouldBe(SessionRevocationReason.AccountInactive);
+        (await AuthClient.SiteSettingsStatusAsync(client, device.AccessToken)).ShouldBe(HttpStatusCode.Unauthorized);
+        var sessionKey = device.SessionId.ToString("D");
+        var audit = await context.AuditLog.AsNoTracking().SingleAsync(
+            entry => entry.TargetId == sessionKey && entry.Action == AuditActions.SessionRevoked, TestContext.Current.CancellationToken);
+        audit.TargetType.ShouldBe("UserSession");
+        audit.Detail.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task TheCookieOfAnInactiveAccountsEndedSessionIsRefusedAgain()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        await AuthClient.DeactivateAsync(factory, staff.Id);
+        using var refused = await AuthClient.RefreshAsync(client);
+        refused.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        using var again = await AuthClient.RefreshAsync(client, device.RefreshToken);
+
+        await RefreshEndpointTests.ShouldBeSessionEndedAsync(again);
     }
 
     // Builds the account for a reason and returns the credentials to try.
