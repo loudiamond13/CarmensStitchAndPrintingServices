@@ -8,9 +8,7 @@ public sealed class CommonPasswordListTests
     [Fact]
     public void TheEmbeddedListLoadsAboutTenThousandEntries()
     {
-        var list = new CommonPasswordList();
-
-        list.Count.ShouldBeInRange(9900, 10100);
+        CommonPasswordList.Count.ShouldBeInRange(9900, 10100);
     }
 
     [Theory]
@@ -39,7 +37,7 @@ public sealed class CommonPasswordListTests
         var first = new CommonPasswordList();
         var second = new CommonPasswordList();
 
-        first.Count.ShouldBe(second.Count);
+        first.IsCommon("letmein").ShouldBeTrue();
         second.IsCommon("letmein").ShouldBeTrue();
     }
 }

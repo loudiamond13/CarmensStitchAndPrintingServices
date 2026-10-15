@@ -5,6 +5,11 @@
     <DefineConstants>$(DefineConstants);CSPS_TESTING</DefineConstants>
   </PropertyGroup>
 
+  <!-- The SecLists top-10k common passwords (MIT), pinned by hash in docs/dependencies.json (D-14, D-36). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Passwords\common-passwords-10k.txt" LogicalName="Csps.Infrastructure.Passwords.common-passwords-10k.txt" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Application\Csps.Application.csproj" />
   </ItemGroup>

@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
@@ -14,24 +15,43 @@ public static class PasswordCheckRegistration
     /// <summary>The name of the HIBP <see cref="HttpClient"/>.</summary>
     internal const string HttpClientName = "HibpPwnedPasswords";
 
+    private const string TestingEnvironment = "Testing";
+
     private static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
-    /// Adds <see cref="PasswordRules"/> and the HIBP client: a total timeout of 3 seconds, so an outage never holds up a
-    /// password change for long (D-14), with one quick retry.
+    /// Adds <see cref="PasswordRules"/>, the embedded common-password list and the breach checker. Outside Testing the
+    /// checker is the HIBP client: a total timeout of 3 seconds, so an outage never holds up a password change for
+    /// long (D-14), with one quick retry. The Testing environment gets the offline stand-in (Debug builds only, QUAL-05).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment.</param>
     /// <returns>The same service collection.</returns>
+    /// <exception cref="InvalidOperationException">The environment is Testing in a Release build, which has no stand-in.</exception>
     public static IServiceCollection AddCspsPasswordChecks(this IServiceCollection services, IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(environment);
 
         services.AddScoped<PasswordRules>();
+        services.TryAddSingleton<ICommonPasswords, CommonPasswordList>();
 
+        if (environment.IsEnvironment(TestingEnvironment))
+        {
+            AddTestingStandIn(services);
+        }
+        else
+        {
+            AddHibp(services);
+        }
+
+        return services;
+    }
+
+    private static void AddHibp(IServiceCollection services)
+    {
         services.AddHttpClient(HttpClientName)
             .AddTypedClient<IPwnedPasswords>((http, provider) =>
                 new HibpPwnedPasswords(http, provider.GetRequiredService<ILogger<HibpPwnedPasswords>>()))
@@ -44,7 +64,15 @@ public static class PasswordCheckRegistration
                 options.Retry.UseJitter = false;
                 options.Retry.Delay = RetryDelay;
             });
+    }
 
-        return services;
+    private static void AddTestingStandIn(IServiceCollection services)
+    {
+#if CSPS_TESTING
+        services.TryAddSingleton<IPwnedPasswords, TestingPwnedPasswords>();
+#else
+        throw new InvalidOperationException(
+            "The Testing environment needs a Debug build: the breach-check stand-in is not in Release builds (QUAL-05).");
+#endif
     }
 }

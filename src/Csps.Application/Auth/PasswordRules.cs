@@ -38,10 +38,17 @@ public sealed record PasswordRulesResult(PasswordRulesStatus Status, string? Mes
 /// service. A failure of the service follows <see cref="BreachCheckMode"/>.
 /// </summary>
 /// <param name="pwned">The breach service.</param>
-public sealed class PasswordRules(IPwnedPasswords pwned)
+/// <param name="common">The local list of the most common passwords, used when the breach service is down.</param>
+public sealed class PasswordRules(IPwnedPasswords pwned, ICommonPasswords common)
 {
     /// <summary>Shown when the password is in a known breach.</summary>
     public const string BreachedMessage = "This password has appeared in a data breach. Choose a different one.";
+
+    /// <summary>Shown when the breach service is down and the password is on the local common-password list.</summary>
+    public const string TooCommonMessage = "This password is too common. Choose a different one.";
+
+    /// <summary>Shown when a fail-closed flow cannot get an answer from the breach service.</summary>
+    public const string CheckUnavailableMessage = "We couldn't check your password right now.";
 
     /// <summary>Checks a new password.</summary>
     /// <param name="password">The password as typed.</param>
@@ -64,11 +71,25 @@ public sealed class PasswordRules(IPwnedPasswords pwned)
             return new PasswordRulesResult(PasswordRulesStatus.Rejected, PasswordPolicy.MessageFor(failure.Value), false);
         }
 
-        var answer = await pwned.CheckAsync(PasswordPolicy.Normalize(password), cancellationToken);
+        var normalized = PasswordPolicy.Normalize(password);
+        var answer = await pwned.CheckAsync(normalized, cancellationToken);
         return answer switch
         {
             BreachCheckResult.Breached => new PasswordRulesResult(PasswordRulesStatus.Rejected, BreachedMessage, false),
+            BreachCheckResult.Unavailable => WhenUnavailable(normalized, mode),
             _ => new PasswordRulesResult(PasswordRulesStatus.Accepted, null, false),
         };
+    }
+
+    private PasswordRulesResult WhenUnavailable(string normalized, BreachCheckMode mode)
+    {
+        if (mode == BreachCheckMode.FailClosed)
+        {
+            return new PasswordRulesResult(PasswordRulesStatus.CheckUnavailable, CheckUnavailableMessage, false);
+        }
+
+        return common.IsCommon(normalized)
+            ? new PasswordRulesResult(PasswordRulesStatus.Rejected, TooCommonMessage, false)
+            : new PasswordRulesResult(PasswordRulesStatus.Accepted, null, true);
     }
 }
