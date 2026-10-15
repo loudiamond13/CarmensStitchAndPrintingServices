@@ -1,4 +1,5 @@
 using System.Globalization;
+using Csps.Infrastructure.Identity;
 using Csps.Server.Logging;
 using Csps.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -127,6 +128,37 @@ public sealed class SensitiveDataMaskingTests
         properties["PasswordHash"].ShouldBe(SensitiveDataMasking.Mask);
         properties["SecurityStamp"].ShouldBe(SensitiveDataMasking.Mask);
         properties["ConcurrencyStamp"].ShouldBe(SensitiveDataMasking.Mask);
+        Render(logEvent).ShouldNotContain(SecretValue);
+    }
+
+    [Fact]
+    public void PolicyMasksTheApplicationUserSecrets()
+    {
+        var sink = new CollectingSink();
+        using (var logger = new LoggerConfiguration().Destructure.With<SensitiveDataDestructuringPolicy>().WriteTo.Sink(sink).CreateLogger())
+        {
+            logger.Information(
+                "{@User}",
+                new ApplicationUser
+                {
+                    Id = Guid.NewGuid(),
+                    UserName = "staff@example.com",
+                    Email = "staff@example.com",
+                    FirstName = "Maria",
+                    LastName = "Santos",
+                    PasswordHash = SecretValue,
+                    SecurityStamp = SecretValue,
+                    ConcurrencyStamp = SecretValue,
+                });
+        }
+
+        var logEvent = sink.Events.ShouldHaveSingleItem();
+        var user = logEvent.Properties["User"].ShouldBeOfType<StructureValue>();
+        var properties = user.Properties.ToDictionary(static p => p.Name, static p => p.Value, StringComparer.Ordinal);
+        properties["Email"].ShouldBeOfType<ScalarValue>().Value.ShouldBe("staff@example.com");
+        properties["PasswordHash"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
+        properties["SecurityStamp"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
+        properties["ConcurrencyStamp"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
         Render(logEvent).ShouldNotContain(SecretValue);
     }
 
