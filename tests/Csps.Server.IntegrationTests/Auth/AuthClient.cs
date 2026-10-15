@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
@@ -140,6 +141,22 @@ internal static partial class AuthClient
             var user = (await users.FindByIdAsync(id.ToString("D"))).ShouldNotBeNull();
             user.IsActive = false;
             (await users.UpdateAsync(user)).Succeeded.ShouldBeTrue();
+        }
+    }
+
+    /// <summary>Marks an account as needing a new password at its next sign-in (D-13).</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="id">The account id.</param>
+    /// <param name="reason">Why the password must change.</param>
+    /// <returns>A task that completes when the mark is saved.</returns>
+    public static async Task RequirePasswordChangeAsync(WebApplicationFactory<Program> factory, Guid id, PasswordChangeReason reason)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            await accounts.SetMustChangePasswordAsync(id, reason, TestContext.Current.CancellationToken);
         }
     }
 
