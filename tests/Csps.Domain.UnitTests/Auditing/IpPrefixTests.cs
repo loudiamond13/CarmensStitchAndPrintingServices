@@ -54,6 +54,7 @@ public sealed class IpPrefixTests
     [InlineData("2003:cbb1:c2d::1", "2003:cbb1:c2d::")]
     [InlineData("64:ff9b:1::cbb1:c2d", "64:ff9b:1::")]
     [InlineData("64:ff9a::cbb1:c2d", "64:ff9a::")]
+    [InlineData("64:fe9b::cbb1:c2d", "64:fe9b::")]
     public void KeepsNearMissesAsSlash48(string address, string expected)
     {
         IpPrefix.From(IPAddress.Parse(address)).ShouldBe(expected);

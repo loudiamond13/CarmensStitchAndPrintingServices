@@ -15,9 +15,11 @@ namespace Csps.Infrastructure.Auditing;
 internal sealed class AuditTrail(CspsDbContext context, IRequestContext request, TimeProvider time) : IAuditTrail
 {
     /// <inheritdoc />
-    public async ValueTask AppendAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken)
-    {
-        var entry = AuditEntry.Create(
+    public void Record(string action, string? targetType, string? targetId, string? detail) =>
+        context.AuditLog.Add(Create(action, targetType, targetId, detail));
+
+    private AuditEntry Create(string action, string? targetType, string? targetId, string? detail) =>
+        AuditEntry.Create(
             time.GetUtcNow(),
             request.UserId,
             action,
@@ -27,8 +29,4 @@ internal sealed class AuditTrail(CspsDbContext context, IRequestContext request,
             request.UserAgent,
             request.CorrelationId,
             detail);
-
-        context.AuditLog.Add(entry);
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
 }

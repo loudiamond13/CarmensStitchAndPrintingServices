@@ -73,6 +73,7 @@ public static class DependencyInjection
 
         // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
         services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
         services.AddCspsDataProtection(configuration);

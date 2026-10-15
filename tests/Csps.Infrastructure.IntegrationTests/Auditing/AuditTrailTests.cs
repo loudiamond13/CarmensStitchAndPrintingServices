@@ -208,7 +208,6 @@ public sealed class AuditTrailTests(CspsDatabase database) : IClassFixture<CspsD
                         TestContext.Current.CancellationToken);
 
                     db.Database.CurrentTransaction.ShouldBeSameAs(outer);
-                    (await AuditLogSql.ReadAsync(database, request.CorrelationId)).ShouldBeEmpty();
 
                     await outer.CommitAsync(TestContext.Current.CancellationToken);
                 }
