@@ -34,6 +34,11 @@ const shared = JSON.parse(
 const compositionCases = shared.cases.filter((c) => c.mode === 'composition');
 const fullCases = shared.cases.filter((c) => c.mode === 'full');
 
+function personalOf(c: PasswordCase): NonNullable<PasswordCase['personal']> {
+  if (!c.personal) throw new Error(`Case ${c.id} has no personal information.`);
+  return c.personal;
+}
+
 describe('password policy golden cases', () => {
   it('pins the shared file kind and version', () => {
     expect(shared.version).toBe(1);
@@ -54,13 +59,14 @@ describe('password policy golden cases', () => {
   });
 
   it.for(fullCases)('full $id: $note', (c) => {
-    expect(checkPassword(c.password, c.personal!)).toBe(c.expected === 'ok' ? null : c.expected);
+    expect(checkPassword(c.password, personalOf(c))).toBe(c.expected === 'ok' ? null : c.expected);
   });
 
   it('is stricter than composition mode for personal information', () => {
-    const c = shared.cases.find((x) => x.id === 'personal-composition-mode')!;
+    const c = shared.cases.find((x) => x.id === 'personal-composition-mode');
+    if (!c) throw new Error('Missing case personal-composition-mode.');
     expect(checkPasswordComposition(c.password)).toBeNull();
-    expect(checkPassword(c.password, c.personal!)).toBe('contains-personal-info');
+    expect(checkPassword(c.password, personalOf(c))).toBe('contains-personal-info');
   });
 
   it('uses the message table of the shared file', () => {

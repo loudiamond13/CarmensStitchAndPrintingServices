@@ -15,6 +15,9 @@ public static class PasswordPolicy
     /// <summary>The most characters a password may have.</summary>
     public const int MaxLength = 64;
 
+    /// <summary>Name and email parts shorter than this many characters are ignored (D-15), so "Al" blocks nothing.</summary>
+    public const int PersonalInfoMinPartLength = 3;
+
     /// <summary>The NFC form of <paramref name="password"/>, the one form used to check, hash and verify.</summary>
     public static string Normalize(string password) => password.Normalize(NormalizationForm.FormC);
 
@@ -76,4 +79,48 @@ public static class PasswordPolicy
 
         return hasSymbol ? null : PasswordRuleFailure.NoSymbol;
     }
+
+    /// <summary>
+    /// Applies every rule (D-11, D-15): composition first, then the personal-information rule, which refuses a
+    /// password containing, ignoring case, the email's local part, the first name or the last name.
+    /// </summary>
+    /// <returns>The first failing rule, or null when the password passes.</returns>
+    public static PasswordRuleFailure? Check(string password, PersonalInfo personal)
+    {
+        var failure = CheckComposition(password);
+        if (failure is not null)
+        {
+            return failure;
+        }
+
+        var normalized = Normalize(password);
+        var at = personal.Email.LastIndexOf('@');
+        string?[] parts = [at >= 0 ? personal.Email[..at] : personal.Email, personal.FirstName, personal.LastName];
+
+        foreach (var raw in parts)
+        {
+            var part = raw is null ? string.Empty : Normalize(raw).Trim();
+            if (Length(part) >= PersonalInfoMinPartLength && normalized.Contains(part, StringComparison.OrdinalIgnoreCase))
+            {
+                return PasswordRuleFailure.ContainsPersonalInfo;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The plain-English message shown for <paramref name="failure"/>.</summary>
+    public static string MessageFor(PasswordRuleFailure failure) => failure switch
+    {
+        PasswordRuleFailure.Empty => "Enter a new password.",
+        PasswordRuleFailure.TooShort => "Use at least 8 characters.",
+        PasswordRuleFailure.TooLong => "Use 64 characters or fewer.",
+
+        // SPEC-GAP: wording for the owner's OQ-7 review.
+        PasswordRuleFailure.ControlCharacter => "Remove tabs and line breaks from your password.",
+        PasswordRuleFailure.NoNumber => "Add at least one number.",
+        PasswordRuleFailure.NoSymbol => "Add at least one symbol, like ! or #.",
+        PasswordRuleFailure.ContainsPersonalInfo => "Don't use your name or email in your password.",
+        _ => throw new ArgumentOutOfRangeException(nameof(failure), failure, "Unknown password rule failure."),
+    };
 }
