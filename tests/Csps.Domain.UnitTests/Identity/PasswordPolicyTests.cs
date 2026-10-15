@@ -33,6 +33,15 @@ public sealed class PasswordPolicyTests
         Cases.Value.Cases.Select(c => c.Id).Distinct(StringComparer.Ordinal).Count().ShouldBe(Cases.Value.Cases.Count);
     }
 
+    /// <summary>Every full-mode case id in the shared file.</summary>
+    public static TheoryData<string> FullCaseIds => IdsOf("full");
+
+    [Fact]
+    public void HasAtLeast7FullCases()
+    {
+        Cases.Value.Cases.Count(c => c.Mode == "full").ShouldBeGreaterThanOrEqualTo(7);
+    }
+
     [Fact]
     public void HasAtLeast14CompositionCases()
     {
@@ -55,6 +64,50 @@ public sealed class PasswordPolicyTests
         PasswordPolicy.CheckComposition(shared.Password).ShouldBe(ExpectedOf(shared), shared.Note);
     }
 
+    [Theory]
+    [MemberData(nameof(FullCaseIds))]
+    public void CheckMatchesTheSharedCase(string caseId)
+    {
+        var shared = Cases.Value.Cases.Single(c => c.Id == caseId);
+        var personal = shared.Personal!;
+
+        PasswordPolicy.Check(shared.Password, new PersonalInfo(personal.Email, personal.FirstName, personal.LastName))
+            .ShouldBe(ExpectedOf(shared), shared.Note);
+    }
+
+    [Fact]
+    public void CheckIsStricterThanCompositionForPersonalInformation()
+    {
+        var shared = Cases.Value.Cases.Single(c => c.Id == "personal-composition-mode");
+        var personal = shared.Personal!;
+
+        PasswordPolicy.CheckComposition(shared.Password).ShouldBeNull();
+        PasswordPolicy.Check(shared.Password, new PersonalInfo(personal.Email, personal.FirstName, personal.LastName))
+            .ShouldBe(PasswordRuleFailure.ContainsPersonalInfo);
+    }
+
+    [Fact]
+    public void MessageForMatchesTheSharedMessageTable()
+    {
+        Cases.Value.Messages.Count.ShouldBe(Failures.Count);
+        foreach (var (key, message) in Cases.Value.Messages)
+        {
+            PasswordPolicy.MessageFor(Failures[key]).ShouldBe(message, key);
+        }
+    }
+
+    [Fact]
+    public void MessageForRefusesAnUnknownFailure()
+    {
+        Should.Throw<ArgumentOutOfRangeException>(() => PasswordPolicy.MessageFor((PasswordRuleFailure)99));
+    }
+
+    [Fact]
+    public void PersonalInfoMinPartLengthIsThree()
+    {
+        PasswordPolicy.PersonalInfoMinPartLength.ShouldBe(3);
+    }
+
     [Fact]
     public void LengthCountsAnEmojiAsOne()
     {
@@ -65,8 +118,8 @@ public sealed class PasswordPolicyTests
     [Fact]
     public void LengthTreatsComposedAndDecomposedAlike()
     {
-        var composed = "café";
-        var decomposed = "café";
+        var composed = "caf\u00e9";
+        var decomposed = "cafe\u0301";
 
         PasswordPolicy.Length(composed).ShouldBe(4);
         PasswordPolicy.Length(decomposed).ShouldBe(4);
@@ -75,9 +128,9 @@ public sealed class PasswordPolicyTests
     [Fact]
     public void NormalizeGivesTheComposedFormAndIsIdempotent()
     {
-        var once = PasswordPolicy.Normalize("café");
+        var once = PasswordPolicy.Normalize("cafe\u0301");
 
-        once.ShouldBe("café");
+        once.ShouldBe("caf\u00e9");
         PasswordPolicy.Normalize(once).ShouldBe(once);
     }
 
