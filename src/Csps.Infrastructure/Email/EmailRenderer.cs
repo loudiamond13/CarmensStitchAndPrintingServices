@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Net;
 using System.Text;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -20,8 +19,9 @@ internal sealed record RenderedEmail(string Subject, string Text, string Html);
 internal sealed record EmailButton(string Label, string Url);
 
 /// <summary>
-/// Turns an <see cref="AuthEmail"/> into its subject, plain text and HTML (UI-SPEC "Email Design Contract"). Times are
-/// business time (D-32), links come from <see cref="AppLinksOptions"/> only (IN-06) and every value is HTML-encoded (CWE-79).
+/// Turns an <see cref="AuthEmail"/> into its subject, plain text and branded HTML (UI-SPEC "Email Design Contract", D-30).
+/// Times are business time (D-32), links come from <see cref="AppLinksOptions"/> only (IN-06) and every value is
+/// HTML-encoded (CWE-79).
 /// </summary>
 /// <param name="calendar">Supplies the business time zone.</param>
 /// <param name="links">Builds the links.</param>
@@ -30,10 +30,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
     // Invariant culture with a fixed pattern gives the en-PH look without depending on the host's ICU data.
     private const string TimeFormat = "MMM d, yyyy, h:mm tt";
 
-    private const string FooterBusiness = "Carmen's Stitch & Printing Services";
-    private const string FooterNote = "This is an automatic email. Replies to this address aren't read.";
     private const string SessionsEndedLine = "For your safety, every device signed in to your account was signed out.";
-    private const string FooterReason = "You're getting this because you have a staff account at CSPS.";
 
     /// <summary>Renders <paramref name="email"/>.</summary>
     /// <param name="email">The email to render.</param>
@@ -45,21 +42,21 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         ArgumentNullException.ThrowIfNull(email);
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        return email switch
+        return Brand(email switch
         {
-            SignInCodeEmail code => RenderSignInCode(code, clock.Zone),
-            AccountLockedEmail locked => RenderLocked(locked, clock.Zone),
-            PasswordResetEmail reset => RenderReset(reset, clock.Zone),
-            PasswordChangedEmail changed => RenderChanged(changed, clock.Zone),
-            ManagerResetEmail manager => RenderManagerReset(manager, clock.Zone),
-            DeactivatedNoticeEmail deactivated => RenderDeactivated(deactivated),
-            InviteEmail invite => RenderInvite(invite),
+            SignInCodeEmail code => SignInCode(code, clock.Zone),
+            AccountLockedEmail locked => Locked(locked, clock.Zone),
+            PasswordResetEmail reset => Reset(reset, clock.Zone),
+            PasswordChangedEmail changed => Changed(changed, clock.Zone),
+            ManagerResetEmail manager => ManagerReset(manager, clock.Zone),
+            DeactivatedNoticeEmail deactivated => Deactivated(deactivated),
+            InviteEmail invite => Invite(invite),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
-        };
+        });
     }
 
-    private RenderedEmail RenderSignInCode(SignInCodeEmail email, TimeZoneInfo zone) =>
-        Brand(new EmailContent(
+    private EmailContent SignInCode(SignInCodeEmail email, TimeZoneInfo zone) =>
+        new(
             Subject: $"{email.Code} is your CSPS sign-in code",
             Preheader: "It works for 15 minutes. Never share it.",
             Heading: "Your sign-in code",
@@ -70,92 +67,93 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
                 new ParagraphBlock("Didn't try to sign in? Someone may know your password. Reset it now from the sign-in page:", links.Value.ForgotPasswordPage()),
             ],
-            Button: null));
+            Button: null);
 
-    private RenderedEmail RenderLocked(AccountLockedEmail email, TimeZoneInfo zone)
+    private EmailContent Locked(AccountLockedEmail email, TimeZoneInfo zone)
     {
         var what = email.Cause == LockoutCause.Code ? "sign-in codes" : "password tries";
-        return Compose(
-            subject: "Your CSPS account is locked for 15 minutes",
-            preheader: "Sign-in is paused after too many wrong tries.",
-            heading: "Sign-in paused",
-            paragraphs:
+        return new(
+            Subject: "Your CSPS account is locked for 15 minutes",
+            Preheader: "Sign-in is paused after too many wrong tries.",
+            Heading: "Sign-in paused",
+            Blocks:
             [
-                $"There were too many wrong {what} on your account, so we paused sign-in for 15 minutes. You can sign in again after {FormatTime(email.LockedUntil, zone)} on {FormatDate(email.LockedUntil, zone)}.",
-                "If this wasn't you, someone may be trying to get into your account. Reset your password.",
+                new ParagraphBlock(
+                    $"There were too many wrong {what} on your account, so we paused sign-in for 15 minutes. You can sign in again after {FormatTime(email.LockedUntil, zone)} on {FormatDate(email.LockedUntil, zone)}."),
+                new ParagraphBlock("If this wasn't you, someone may be trying to get into your account. Reset your password."),
             ],
-            button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
+            Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
     }
 
-    private RenderedEmail RenderReset(PasswordResetEmail email, TimeZoneInfo zone) =>
-        Compose(
-            subject: "Reset your CSPS password",
-            preheader: "This link works for 30 minutes.",
-            heading: "Reset your password",
-            paragraphs:
+    private EmailContent Reset(PasswordResetEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "Reset your CSPS password",
+            Preheader: "This link works for 30 minutes.",
+            Heading: "Reset your password",
+            Blocks:
             [
-                $"We got a request to reset the password for {email.To}.",
-                $"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}.",
-                "This link works for 30 minutes and only once.",
-                "Didn't ask for this? Ignore this email. Your password stays the same.",
+                new ParagraphBlock($"We got a request to reset the password for {email.To}."),
+                new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
+                new ParagraphBlock("This link works for 30 minutes and only once."),
+                new ParagraphBlock("Didn't ask for this? Ignore this email. Your password stays the same."),
             ],
-            button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
+            Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
 
-    private RenderedEmail RenderChanged(PasswordChangedEmail email, TimeZoneInfo zone)
+    private EmailContent Changed(PasswordChangedEmail email, TimeZoneInfo zone)
     {
-        var paragraphs = new List<string> { $"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}." };
+        var blocks = new List<EmailBlock> { new ParagraphBlock($"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}.") };
         if (email.SessionsEnded)
         {
-            paragraphs.Add(SessionsEndedLine);
+            blocks.Add(new ParagraphBlock(SessionsEndedLine));
         }
 
-        paragraphs.Add("If you did this, there's nothing else to do.");
-        paragraphs.Add("If you didn't, reset your password now and tell a Manager.");
-        return Compose(
-            subject: "Your CSPS password was changed",
-            preheader: "If this wasn't you, act now.",
-            heading: "Password changed",
-            paragraphs: paragraphs,
-            button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
+        blocks.Add(new ParagraphBlock("If you did this, there's nothing else to do."));
+        blocks.Add(new ParagraphBlock("If you didn't, reset your password now and tell a Manager."));
+        return new(
+            Subject: "Your CSPS password was changed",
+            Preheader: "If this wasn't you, act now.",
+            Heading: "Password changed",
+            Blocks: blocks,
+            Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
     }
 
-    private static RenderedEmail RenderManagerReset(ManagerResetEmail email, TimeZoneInfo zone) =>
-        Compose(
-            subject: "A Manager reset your CSPS password",
-            preheader: "Ask them for your temporary password.",
-            heading: "Your password was reset",
-            paragraphs:
+    private static EmailContent ManagerReset(ManagerResetEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "A Manager reset your CSPS password",
+            Preheader: "Ask them for your temporary password.",
+            Heading: "Your password was reset",
+            Blocks:
             [
-                $"{email.ManagerName} set a temporary password for your account on {Format(email.ResetAt, zone)}. Ask them for it.",
-                "When you sign in with it, you'll choose your own password.",
-                SessionsEndedLine,
+                new ParagraphBlock($"{email.ManagerName} set a temporary password for your account on {Format(email.ResetAt, zone)}. Ask them for it."),
+                new ParagraphBlock("When you sign in with it, you'll choose your own password."),
+                new ParagraphBlock(SessionsEndedLine),
             ],
-            button: null);
+            Button: null);
 
-    private static RenderedEmail RenderDeactivated(DeactivatedNoticeEmail email) =>
-        Compose(
-            subject: "Your CSPS password reset request",
-            preheader: "Your account is deactivated.",
-            heading: "Account deactivated",
-            paragraphs:
+    private static EmailContent Deactivated(DeactivatedNoticeEmail email) =>
+        new(
+            Subject: "Your CSPS password reset request",
+            Preheader: "Your account is deactivated.",
+            Heading: "Account deactivated",
+            Blocks:
             [
-                $"We got a request to reset the password for {email.To}.",
-                "Your account is deactivated. Ask a Manager if you need access.",
+                new ParagraphBlock($"We got a request to reset the password for {email.To}."),
+                new ParagraphBlock("Your account is deactivated. Ask a Manager if you need access."),
             ],
-            button: null);
+            Button: null);
 
-    private RenderedEmail RenderInvite(InviteEmail email) =>
-        Compose(
-            subject: "Set up your CSPS staff account",
-            preheader: "Choose your password to get started.",
-            heading: "You're invited",
-            paragraphs:
+    private EmailContent Invite(InviteEmail email) =>
+        new(
+            Subject: "Set up your CSPS staff account",
+            Preheader: "Choose your password to get started.",
+            Heading: "You're invited",
+            Blocks:
             [
-                $"A staff account at {FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.",
-                "This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite.",
-                "Each time you sign in, we'll also email you a 6-digit code.",
+                new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin."),
+                new ParagraphBlock("This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite."),
+                new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
             ],
-            button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+            Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
 
     // The branded frame (D-30): the HTML part and the plain-text part are both built from the same blocks.
     private static RenderedEmail Brand(EmailContent content)
@@ -184,46 +182,6 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
     }
 
-    // One frame for the notice kinds: heading, paragraphs, and an optional button whose link is also written out as a fallback.
-    private static RenderedEmail Compose(string subject, string preheader, string heading, IReadOnlyList<string> paragraphs, EmailButton? button)
-    {
-        var text = new StringBuilder().Append(heading).Append("\n\n");
-        foreach (var paragraph in paragraphs)
-        {
-            text.Append(paragraph).Append("\n\n");
-        }
-
-        if (button is not null)
-        {
-            text.Append(button.Label).Append(": ").Append(button.Url).Append("\n\n");
-        }
-
-        text.Append(FooterBusiness).Append(" · ").Append(FooterNote).Append('\n').Append(FooterReason).Append('\n');
-
-        var html = new StringBuilder()
-            .Append("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"color-scheme\" content=\"light\">\n")
-            .Append("<title>").Append(Encode(subject)).Append("</title>\n</head>\n<body>\n")
-            .Append("<div style=\"display:none;max-height:0;overflow:hidden\">").Append(Encode(preheader)).Append("</div>\n")
-            .Append("<h1>").Append(Encode(heading)).Append("</h1>\n");
-        foreach (var paragraph in paragraphs)
-        {
-            html.Append("<p>").Append(Encode(paragraph)).Append("</p>\n");
-        }
-
-        if (button is not null)
-        {
-            html.Append("<p><a href=\"").Append(Encode(button.Url))
-                .Append("\" style=\"display:inline-block;padding:12px 24px;background:#1f2937;color:#ffffff;text-decoration:none;border-radius:6px\">")
-                .Append(Encode(button.Label)).Append("</a></p>\n")
-                .Append("<p>If the button doesn't work, copy this link into your browser: ").Append(Encode(button.Url)).Append("</p>\n");
-        }
-
-        html.Append("<p>").Append(Encode(FooterBusiness)).Append(" &middot; ").Append(Encode(FooterNote)).Append("<br>")
-            .Append(Encode(FooterReason)).Append("</p>\n</body>\n</html>\n");
-
-        return new RenderedEmail(subject, text.ToString(), html.ToString());
-    }
-
     private static string DeviceLine(DeviceDescription device) => device.IsKnown ? device.Label : "an unknown browser";
 
     private static string Format(DateTimeOffset instant, TimeZoneInfo zone) =>
@@ -234,6 +192,4 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
 
     private static string FormatDate(DateTimeOffset instant, TimeZoneInfo zone) =>
         TimeZoneInfo.ConvertTime(instant, zone).ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
-
-    private static string Encode(string value) => WebUtility.HtmlEncode(value);
 }
