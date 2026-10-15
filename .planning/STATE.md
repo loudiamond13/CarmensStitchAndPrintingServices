@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-10-14T23:22:41.178Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-10-15T00:42:10.734Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 14dd7f5c41809924c0cbfd339f92d1909e467323
+state_head: 6be79dad3d226d159a5228d59d8033ee98cd6c6d
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 56
+  completed_plans: 57
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T05:57:52-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 1 of 35
-Status: Executing Phase 04
+Plan: 2 of 35
+Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
 Progress: [█░░░░░░░░░] 12%
@@ -115,6 +115,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 02 P41 | 40 min | 3 tasks | 13 files |
 | Phase 02 P42 | 89 min | 3 tasks | 13 files |
 | Phase 02 P43 | ~7h elapsed | 3 tasks | 9 files |
+| Phase 04 P01 | 3h25m | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Phase close (2026-10-14): UAT 202/202 passed; owner accepted 02-43 WR-01 (focusFirst() fallback may scroll the backdrop) and ruled WR-02 + IN-01..IN-05 to be fixed in a follow-up quick task (02-REVIEW-g199-43-DISPOSITION.md)
 - [Phase 02]: Dialogs follow D-42: centred on the whole window, the 140px top gap shrinks on short windows and the backdrop scrolls as a last resort; non-primary presses and scrollbar drags never close
 - [Phase 02]: Order math uses the PRD names (Subtotal before discount, Total after discount; D-41 R2-06); browser totals are preview-only, saved orders show server figures
+- [Phase 04]: 04-01: mail results recorded as public facts only (domain, DKIM selector, pass results); app sets its own From display name
 
 ### Pending Todos
 
@@ -337,6 +339,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T13:26:22.975Z
-Stopped at: Phase 4 UI-SPEC approved
-Resume file: .planning/phases/04-identity-authentication/04-UI-SPEC.md
+Last session: 2026-10-15T00:42:10.367Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
