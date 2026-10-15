@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-11-PLAN.md
-last_updated: "2026-10-15T03:30:47.732Z"
+stopped_at: Completed 04-17-PLAN.md
+last_updated: "2026-10-15T03:46:05.803Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 088cf3b6b4f474f07754b4735c27e9880c65cefe
+state_head: 96e287e865e36b0b4a14412c6e97eaa8f9379f5e
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 67
+  completed_plans: 68
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 12 of 35
+Plan: 13 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -126,6 +126,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P09 | 17min | 2 tasks | 31 files |
 | Phase 04 P10 | 45min | 3 tasks | 21 files |
 | Phase 04 P11 | 35min | 3 tasks | 20 files |
+| Phase 04 P17 | 40min | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -319,6 +320,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-10: the deactivated fixture user goes through a Debug-only TestingAccountActivation, keeping IUserAccounts unchanged
 - [Phase 04]: 04-11: concurrency tokens on TwoFactorCode FailedAttempts/SupersededAt/ConsumedAt guard double verification, since Verify never touches the challenge row
 - [Phase 04]: 04-11: InvalidateOpenAsync does not save; handlers save it with the new challenge in one unit of work
+- [Phase 04]: 04-17: HIBP address is an absolute constant URI on every call, one 250 ms retry inside a 3 s limit; SecLists top-10k pinned at commit 913b327 and hash-checked via registry kind data
 
 ### Pending Todos
 
@@ -365,6 +367,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T03:30:47.292Z
-Stopped at: Completed 04-11-PLAN.md
+Last session: 2026-10-15T03:46:05.399Z
+Stopped at: Completed 04-17-PLAN.md
 Resume file: None

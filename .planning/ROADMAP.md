@@ -398,7 +398,7 @@ Plans:
 - the refresh grace-window design
 - timing-parity tests
 
-**Plans**: 11/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+**Plans**: 12/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
@@ -420,7 +420,7 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 04-10-PLAN.md — Testing-only email and staff-fixture endpoints, Testing E2E host (D-37), Release proof (QUAL-05)
 - [x] 04-11-PLAN.md — Two-factor persistence with HMAC-bound codes and secure random values
-- [ ] 04-17-PLAN.md — Breach checks: HIBP k-anonymity, common-password floor, fail-open and fail-closed modes (D-12, D-14)
+- [x] 04-17-PLAN.md — Breach checks: HIBP k-anonymity, common-password floor, fail-open and fail-closed modes (D-12, D-14)
 - [ ] 04-33-PLAN.md — The other six auth emails with the UI-SPEC copy, and D-33 retries, expiry, single send and no secrets in logs
 
 **Wave 6** *(blocked on Wave 5 completion)*
@@ -1000,7 +1000,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
-| 4. Identity & Authentication | 11/35 | In Progress | - |
+| 4. Identity & Authentication | 12/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
