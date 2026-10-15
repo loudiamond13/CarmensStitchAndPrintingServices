@@ -423,6 +423,133 @@ public sealed class DependencyRegistryTests
             .ShouldContain(problem => problem.Contains("tools/openapi-gen:typescript: entries must be sorted", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void RepositoryDataFilesMatchTheirRecordedHashAndEveryEmbeddedFileHasARecord()
+    {
+        var json = File.ReadAllText(RepoRoot.PathOf(DependencyRegistry.RegistryPath));
+
+        var problems = DependencyRegistry.Validate(json, PackagePins.ReadAll(), DataFiles.FromRepository());
+
+        problems.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void RepositoryRegistryRecordsTheCommonPasswordListWithItsLicenseAndSource()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(RepoRoot.PathOf(DependencyRegistry.RegistryPath)));
+
+        var record = document.RootElement.GetProperty("packages").EnumerateArray()
+            .Single(item => item.GetProperty("kind").GetString() == "data");
+
+        record.GetProperty("license").GetString().ShouldBe("MIT");
+        record.GetProperty("source").GetString().ShouldStartWith("https://raw.githubusercontent.com/danielmiessler/SecLists/");
+        record.GetProperty("path").GetString().ShouldBe("src/Csps.Infrastructure/Passwords/common-passwords-10k.txt");
+    }
+
+    [Fact]
+    public void ADataRecordWithMatchingBytesIsValid()
+    {
+        var (registry, files) = DataRegistry();
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, files).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ADataRecordNeedsNoPin()
+    {
+        var (registry, files) = DataRegistry();
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, files)
+            .ShouldNotContain(problem => problem.Contains("no matching pin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ADataFileWhoseBytesDifferFromTheRecordedHashFails()
+    {
+        var (registry, _) = DataRegistry();
+        var changed = new DataFiles(_ => "tampered"u8.ToArray(), [DataPath]);
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, changed)
+            .ShouldContain(problem => problem.Contains("sha256", StringComparison.Ordinal) && problem.Contains(DataPath, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ADataFileThatIsMissingFails()
+    {
+        var (registry, _) = DataRegistry();
+        var missing = new DataFiles(_ => null, [DataPath]);
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, missing)
+            .ShouldContain(problem => problem.Contains("file is missing", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("sha256", "")]
+    [InlineData("sha256", "ABC123")]
+    [InlineData("sha256", "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF")]
+    [InlineData("path", "")]
+    [InlineData("source", "")]
+    [InlineData("source", "http://raw.githubusercontent.com/danielmiessler/SecLists/0123456789abcdef0123456789abcdef01234567/x.txt")]
+    [InlineData("source", "https://raw.githubusercontent.com/danielmiessler/SecLists/master/x.txt")]
+    public void ADataRecordWithABadSourceHashOrPathFails(string field, string value)
+    {
+        var (registry, files) = DataRegistry();
+        Entries(registry)[0]![field] = value;
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, files)
+            .ShouldContain(problem => problem.Contains(field, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnEmbeddedDataFileWithNoRecordFails()
+    {
+        var (registry, _) = DataRegistry();
+        var extra = new DataFiles(_ => "data"u8.ToArray(), [DataPath, "src/Csps.Infrastructure/Passwords/unlisted.txt"]);
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins, extra)
+            .ShouldContain(problem => problem.Contains("unlisted.txt", StringComparison.Ordinal) && problem.Contains("no data record", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void OnlyDataEntriesMayNameASourceHashOrPath()
+    {
+        var registry = Registry();
+        Entries(registry)[0]!["sha256"] = new string('a', 64);
+
+        DependencyRegistry.Validate(registry.ToJsonString(), SamplePins)
+            .ShouldContain(problem => problem.Contains("only data entries", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReadEmbeddedPathsListsEmbeddedResourcesRelativeToTheRepositoryAndSkipsResx()
+    {
+        const string csproj = """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                <EmbeddedResource Include="Passwords\list.txt" LogicalName="X.list.txt" />
+                <EmbeddedResource Include="Strings.resx" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        DataFiles.ReadEmbeddedPaths(csproj, "src/Csps.Infrastructure").ShouldBe(["src/Csps.Infrastructure/Passwords/list.txt"]);
+    }
+
+    private const string DataPath = "src/Csps.Infrastructure/Passwords/sample.txt";
+
+    private static (JsonObject Registry, DataFiles Files) DataRegistry()
+    {
+        var bytes = "sample data"u8.ToArray();
+        var registry = Registry();
+        var entry = Entry("Alpha.Data", "0123456789abcdef0123456789abcdef01234567", "data", "runtime");
+        entry["source"] = "https://raw.githubusercontent.com/danielmiessler/SecLists/0123456789abcdef0123456789abcdef01234567/Passwords/sample.txt";
+        entry["sha256"] = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
+        entry["path"] = DataPath;
+        var entries = Entries(registry);
+        entries.Insert(0, entry);
+        return (registry, new DataFiles(path => path == DataPath ? bytes : null, [DataPath]));
+    }
+
     private static JsonObject NpmEntry(string id, string version, string manifest)
     {
         var entry = Entry(id, version, "npm", "build");
