@@ -42,6 +42,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the resend wait and the ticket cookie, 400 for field errors, or the one generic 401.</returns>
     [HttpPost("sign-in")]
+    [IdempotencyExempt("Answers set a pending-login cookie and must never be stored; repeats are harmless and rate-limited.")]
     [EndpointName("SignIn")]
     [ProducesResponseType<SignInResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -66,6 +67,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// sign-in timed out, 403 without the anti-CSRF header, or 429 when the account is paused.
     /// </returns>
     [HttpPost("two-factor/verify")]
+    [IdempotencyExempt("The answer carries an access token and sets the refresh cookie; tokens must never be stored.")]
     [RequireCsrfHeader]
     [EndpointName("VerifyCode")]
     [ProducesResponseType<VerifyCodeResponse>(StatusCodes.Status200OK)]
@@ -100,6 +102,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     /// header, or 429 for the cooldown (with Retry-After) or the hourly cap (without a wait time).
     /// </returns>
     [HttpPost("two-factor/resend")]
+    [IdempotencyExempt("Bound to the ticket cookie; the 60 s cooldown and hourly cap already make a repeat harmless.")]
     [RequireCsrfHeader]
     [EndpointName("ResendCode")]
     [ProducesResponseType<ResendCodeResponse>(StatusCodes.Status200OK)]

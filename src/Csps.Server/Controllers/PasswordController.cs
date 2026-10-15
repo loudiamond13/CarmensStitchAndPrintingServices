@@ -1,5 +1,6 @@
 using Csps.Application.Auth;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -44,6 +45,7 @@ public sealed class PasswordController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the account email, or 404 <c>auth.link-invalid</c> for any link that does not work.</returns>
     [HttpPost("reset/check")]
+    [IdempotencyExempt("Read-only lookup; changes nothing.")]
     [EndpointName("CheckResetLink")]
     [ProducesResponseType<ResetLinkResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

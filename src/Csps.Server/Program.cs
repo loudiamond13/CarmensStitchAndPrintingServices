@@ -3,6 +3,7 @@ using Csps.Infrastructure;
 using Csps.Server.Composition;
 using Csps.Server.Endpoints;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
@@ -121,6 +122,10 @@ app.UseRouting();
 // Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Every POST needs an Idempotency-Key unless it is exempt with a written reason (SEC-06, D-40). It runs after routing and
+// authorization so the endpoint and the user are known and a refused request never takes a key.
+app.UseMiddleware<IdempotencyMiddleware>();
 
 app.MapCspsHealth();
 app.MapApiFallback();

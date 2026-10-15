@@ -66,7 +66,9 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         using var client = AuthClient.CreateClient(factory);
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
 
-        using var response = await client.PostAsync(new Uri(AuthClient.ForgotRoute, UriKind.Relative), content, TestContext.Current.CancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(AuthClient.ForgotRoute, UriKind.Relative)) { Content = content };
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();

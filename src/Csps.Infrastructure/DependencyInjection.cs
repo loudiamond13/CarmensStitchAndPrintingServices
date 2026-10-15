@@ -4,6 +4,7 @@ using Csps.Infrastructure.Content;
 using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Health;
+using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
@@ -81,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
 
         services.AddCspsIdentity();
+        services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
         services.AddCspsPasswordChecks(environment);
 

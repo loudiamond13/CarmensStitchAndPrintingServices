@@ -1,6 +1,7 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Identity;
+using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -41,6 +42,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>Single-use link tokens (password reset, invitation); each holds only the SHA-256 of its token (AUTH-08, D-28).</summary>
     public DbSet<AccountToken> AccountTokens => Set<AccountToken>();
+
+    /// <summary>The stored answers of idempotent POSTs, kept 24 hours (SEC-06, D-40).</summary>
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

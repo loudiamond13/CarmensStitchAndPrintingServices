@@ -16,6 +16,9 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
     // The web client sends this on every call; cookie-reading auth endpoints refuse a request without it.
     private const string CsrfHeader = "X-CSPS-CSRF";
 
+    // Covered POSTs need a request key (SEC-06); a fresh one per call keeps every matrix call a first request.
+    private const string IdempotencyKeyHeader = "Idempotency-Key";
+
     private static readonly ConditionalWeakTable<CspsDatabase, Lazy<Task<IReadOnlyDictionary<Caller, string?>>>> SeededCallers = [];
 
     /// <summary>Every matrix row for every caller.</summary>
@@ -56,6 +59,7 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
         using var client = factory.CreateClient();
         using var request = ApiRequests.Create(row.RequestMethod, row.SamplePath, await TokenForAsync(caller));
         request.Headers.Add(CsrfHeader, "1");
+        request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -78,6 +82,7 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
         {
             using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
             request.Headers.Add(CsrfHeader, "1");
+            request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
             using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
             return (int)response.StatusCode;
         }));

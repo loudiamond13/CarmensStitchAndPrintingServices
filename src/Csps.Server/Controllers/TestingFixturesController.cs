@@ -6,6 +6,7 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Infrastructure.Identity;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Csps.Server.Testing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -49,6 +50,7 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>201 with the account, or a 400 for a bad body, role or state.</returns>
     [HttpPost]
+    [IdempotencyExempt("Testing-only test data, compiled out of Release.")]
     [ProducesResponseType<StaffCreated>(StatusCodes.Status201Created)]
     public async Task<IResult> Create(CancellationToken cancellationToken)
     {
