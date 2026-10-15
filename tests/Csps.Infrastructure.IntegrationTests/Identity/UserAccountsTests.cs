@@ -46,6 +46,22 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.Email.ShouldBe(email);
     }
 
+    [Theory]
+    [InlineData("o'brien.{0}@example.com")]
+    [InlineData("rey!#$%&*=?^{0}@example.com")]
+    [InlineData("josé.{0}@example.com")]
+    public async Task AnEmailWithCharactersIdentityDoesNotListByDefaultStillCreatesAnAccount(string pattern)
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var email = string.Format(CultureInfo.InvariantCulture, pattern, Guid.NewGuid().ToString("N"));
+
+        var id = await accounts.CreateAsync(new NewUserAccount(email, "Sean", "O'Brien", Roles.Manager, Password), TestContext.Current.CancellationToken);
+
+        (await accounts.FindByEmailAsync(email, TestContext.Current.CancellationToken))!.Id.ShouldBe(id);
+    }
+
     [Fact]
     public async Task UnknownAccountsAreNotFound()
     {

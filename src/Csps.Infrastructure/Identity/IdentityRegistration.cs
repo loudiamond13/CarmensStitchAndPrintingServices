@@ -36,6 +36,8 @@ public static class IdentityRegistration
             .AddIdentityCore<ApplicationUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
+                // The email is the user name, and the sign-in validator and the unique index are the rules; no character list.
+                options.User.AllowedUserNameCharacters = string.Empty;
                 options.SignIn.RequireConfirmedEmail = true;
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
