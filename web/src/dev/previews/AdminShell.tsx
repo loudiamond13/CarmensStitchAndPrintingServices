@@ -10,6 +10,7 @@ import { AdminFrame } from '@/layouts/AdminLayout';
 import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import type { AdminSection } from '@/components/navigation';
+import { DEV_USER } from '@/modules/admin/sections';
 
 export interface AdminShellProps {
   section?: AdminSection;
@@ -25,7 +26,7 @@ function noop(): undefined {
 
 export function AdminShell({ section = 'dashboard', theme = 'light', frameWidth }: AdminShellProps) {
   const frame = (
-    <AdminFrame section={section} theme={theme} onToggleTheme={noop} onLogout={noop}>
+    <AdminFrame section={section} user={DEV_USER} theme={theme} onToggleTheme={noop} onLogout={noop}>
       <AdminPreviewPage section={section} />
     </AdminFrame>
   );

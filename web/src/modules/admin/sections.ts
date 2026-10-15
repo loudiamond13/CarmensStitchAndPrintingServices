@@ -9,10 +9,23 @@ export function adminNavItemForPath(pathname: string): AdminNavItem | undefined 
   return ADMIN_NAV.find((item) => item.to === path);
 }
 
-/** The signed-in user of the dev shell: Carmen Reyes, Manager (CSPS-UI-SPEC §12.1). Phase 4 replaces it with the session. */
-export interface DevUser {
+/** Who the shell shows: a name and a role. The guarded routes give the session user, the dev routes give DEV_USER. */
+export interface ShellUser {
   readonly name: string;
   readonly role: Role;
 }
 
-export const DEV_USER: DevUser = { name: 'Carmen Reyes', role: 'manager' };
+/** The placeholder user of the dev routes: Carmen Reyes, Manager (CSPS-UI-SPEC §12.1). */
+export const DEV_USER: ShellUser = { name: 'Carmen Reyes', role: 'manager' };
+
+/** True for what an admin layout loader returns. */
+export function isShellUser(value: unknown): value is ShellUser {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'name' in value &&
+    typeof value.name === 'string' &&
+    'role' in value &&
+    (value.role === 'admin' || value.role === 'manager')
+  );
+}

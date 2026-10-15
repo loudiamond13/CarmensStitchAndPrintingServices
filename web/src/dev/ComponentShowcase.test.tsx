@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { adminRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/routes';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
@@ -340,17 +340,17 @@ describe('ComponentShowcase accessibility (A11Y-01)', () => {
 });
 
 /** The app's route tree as a dev build has it (tests run with the production `__DEV_ROUTES__` value, false). */
-function devRoutes(): RouteObject[] {
+function devTree(): RouteObject[] {
   const [root, ...rest] = routes;
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...(root.children ?? []), ...adminRoutes] } as RouteObject, ...rest];
+  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 describe('/dev/components route (D-20, D-22)', () => {
   it('shows the showcase inside the admin shell, with no sidebar item current', async () => {
-    const router = createMemoryRouter(devRoutes(), { initialEntries: ['/dev/components'] });
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1 }, { timeout: 10_000 })).toHaveTextContent(

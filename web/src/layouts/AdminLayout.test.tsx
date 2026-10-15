@@ -8,18 +8,19 @@ import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
-import { adminRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/routes';
 
 /**
- * The app's route tree as a dev build has it: the root route with the admin branch next to the public layout. Tests run
- * with `__DEV_ROUTES__` false (the production value), so they add the branch themselves, as router.tsx does in dev.
+ * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
+ * routes. Tests run with `__DEV_ROUTES__` false (the production value), so they add the previews themselves, as
+ * router.tsx does in dev.
  */
-function devRoutes(): RouteObject[] {
+function devTree(): RouteObject[] {
   const [root, ...rest] = routes;
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...(root.children ?? []), ...adminRoutes] } as RouteObject, ...rest];
+  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 interface AdminTreeOptions {
@@ -33,14 +34,14 @@ interface AdminTreeOptions {
 
 /** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
 function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
-  const admin = adminRoutes[0];
+  const admin = devRoutes[0];
   const urlState = admin?.children?.[0];
   const pages = urlState?.children ?? [];
   const [dashboard, ...others] = pages;
   if (admin === undefined || urlState === undefined || dashboard === undefined) {
     throw new Error('The admin routes changed shape: expected admin > url state > pages.');
   }
-  const [root] = devRoutes();
+  const [root] = devTree();
   return [
     {
       ...root,
@@ -79,7 +80,7 @@ function expectOnlyReportsOf(error: Error): void {
 
 /** The dev route tree in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(devRoutes(), { initialEntries: [path] });
+  const router = createMemoryRouter(devTree(), { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
   // The first render transforms the lazy route modules on demand, which can take over the default 1 s in a full run.
   await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });

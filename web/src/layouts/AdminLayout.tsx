@@ -17,7 +17,7 @@
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
 import { useId, useState, type ReactNode } from 'react';
-import { Outlet, useLocation, useNavigation } from 'react-router';
+import { Outlet, useLoaderData, useLocation, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry';
 import { Skeleton, ToastProvider, useToast } from '@/components/feedback';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
@@ -30,7 +30,7 @@ import {
   skeletonHeadClasses,
 } from '@/modules/admin/components/admin.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { adminNavItemForPath, DEV_USER } from '@/modules/admin/sections';
+import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
 import { TabBar } from '@/modules/admin/components/TabBar';
 import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
 
@@ -47,6 +47,8 @@ function SkeletonPageHead() {
 export interface AdminFrameProps {
   /** The current section (sidebar and tab bar); none for a path that is no section. */
   section: AdminSection | undefined;
+  /** Who is signed in: shown in the Sidebar chip and the Topbar's user menu. */
+  user: ShellUser;
   theme: Theme;
   onToggleTheme?: (() => void) | undefined;
   onLogout?: (() => void) | undefined;
@@ -59,19 +61,27 @@ export interface AdminFrameProps {
  * The App. E.6 frame: the side column with the Sidebar, then the Topbar, `main` and the tab bar in the main column; then
  * the phone navigation drawer, which the frame owns (its state, and `inert` on the frame while it is open).
  */
-export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = false, children }: AdminFrameProps) {
+export function AdminFrame({
+  section,
+  user,
+  theme,
+  onToggleTheme,
+  onLogout,
+  loading = false,
+  children,
+}: AdminFrameProps) {
   const [navOpen, setNavOpen] = useState(false);
   const drawerId = useId();
   return (
     <>
       <div className={adminClasses} inert={navOpen}>
         <div data-ui="s-admin-side" className={adminSideClasses}>
-          <Sidebar active={section ?? null} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
+          <Sidebar active={section ?? null} role={user.role} user={user} onLogout={onLogout} />
         </div>
         <div data-ui="s-admin-main" className={adminMainClasses}>
           <Topbar
-            user={DEV_USER}
-            role={DEV_USER.role}
+            user={user}
+            role={user.role}
             theme={theme}
             onToggleTheme={onToggleTheme}
             onLogout={onLogout}
@@ -94,7 +104,7 @@ export function AdminFrame({ section, theme, onToggleTheme, onLogout, loading = 
           setNavOpen(false);
         }}
       >
-        <Sidebar active={section ?? null} role={DEV_USER.role} user={DEV_USER} onLogout={onLogout} />
+        <Sidebar active={section ?? null} role={user.role} user={user} onLogout={onLogout} />
       </MobileNavDrawer>
     </>
   );
@@ -105,9 +115,14 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
   const toast = useToast();
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
+  const user: unknown = useLoaderData();
+  if (!isShellUser(user)) {
+    throw new Error('The admin layout route has no signed-in user.');
+  }
   return (
     <AdminFrame
       section={adminNavItemForPath(pathname)?.id}
+      user={user}
       theme={theme}
       onToggleTheme={onToggleTheme}
       onLogout={() => {
