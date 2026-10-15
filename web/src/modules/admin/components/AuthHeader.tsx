@@ -9,7 +9,7 @@ import { AUTH_COPY } from '@/modules/admin/authCopy';
 export interface AuthHeaderProps {
   title: string;
   subline: ReactNode;
-  headingRef?: Ref<HTMLHeadingElement>;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
 }
 
 export function AuthHeader({ title, subline, headingRef }: AuthHeaderProps) {

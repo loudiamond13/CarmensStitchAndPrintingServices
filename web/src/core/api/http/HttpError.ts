@@ -6,7 +6,7 @@
 /**
  * What went wrong. `network`: no response (offline, DNS, CORS). `timeout`: the client's own time limit fired.
  * `aborted`: the caller cancelled. `http`: the server answered with a non-2xx status. `parse`: a 2xx answer was not
- * the JSON the API sends: invalid JSON, another content type, an empty body (other than 204, 205 or HEAD), or an answer
+ * the JSON the API sends: invalid JSON, another content type, an empty body (other than 202, 204, 205 or HEAD), or an answer
  * reached through a redirect.
  */
 export type HttpErrorKind = 'network' | 'timeout' | 'aborted' | 'http' | 'parse';

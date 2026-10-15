@@ -23,12 +23,14 @@ test('@auth-reset a forgotten password is reset from the emailed link and the ol
   request,
   guard,
 }) => {
+  // Two sign-ins, a reset and a third sign-in in one test: WebKit under four parallel workers needs more than 30 seconds.
+  test.setTimeout(90_000);
   // Opening a sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const staff = await createStaff(request, 'Manager');
 
   // The first browser holds a live session (a second browser context has its own cookies).
-  const other = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
+  const other = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
   try {
     const otherPage = await other.newPage();
     await signInAs(otherPage, request, staff);
@@ -76,9 +78,11 @@ test('@auth-reset a forgotten password is reset from the emailed link and the ol
     expect((await verified).status()).toBe(200);
     await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
 
-    // D-19: the other browser's session was revoked, so its next refresh ends in the sign-in screen.
-    await otherPage.reload();
+    // D-19: the other browser's session was revoked. Opening the sign-in page asks its refresh cookie for a session; a live
+    // session would go on to /admin, so the sign-in screen showing proves the cookie no longer works.
+    await otherPage.goto('/admin/login');
     await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(otherPage).toHaveURL(/\/admin\/login$/);
   } finally {
     await other.close();
   }

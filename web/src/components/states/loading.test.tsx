@@ -141,6 +141,22 @@ describe('LoadingRegion', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('speaks the announce words instead of the "Loading {things}…" pair when they are given', () => {
+    const tree = (loading: boolean) => (
+      <LoadingRegion
+        loading={loading}
+        things="link"
+        announce={{ loading: 'Checking your link…', loaded: 'Link checked.' }}
+      >
+        <p>Body</p>
+      </LoadingRegion>
+    );
+    const { rerender } = render(tree(true));
+    expect(screen.getByRole('status')).toHaveTextContent('Checking your link…');
+    rerender(tree(false));
+    expect(screen.getByRole('status')).toHaveTextContent('Link checked.');
+  });
+
   it('keeps the status node outside the busy region, so its announcement is not held back', () => {
     const { container } = render(region(true));
     expect(container.querySelector('[aria-busy="true"] [role="status"]')).toBeNull();

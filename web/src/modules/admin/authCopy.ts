@@ -126,6 +126,9 @@ export const AUTH_COPY = {
     invalidTitle: 'This link has expired',
     invalidBody: "Reset links work for 30 minutes and only once. Ask for a new one and we'll email it to you.",
     request: 'Request a New Link',
+    /** The link could not be checked (network, 429, 5xx): the screen offers the check again. */
+    checkFailed: 'We could not check your reset link yet.',
+    retry: 'Try Again',
     back: 'Back to sign in',
   },
 

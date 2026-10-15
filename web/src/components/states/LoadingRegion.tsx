@@ -16,6 +16,8 @@ export interface LoadingRegionProps {
    * announces the failure itself.
    */
   failed?: boolean | undefined;
+  /** Own words for the two announcements, for a screen whose copy is not "Loading {things}…" (the reset link check). */
+  announce?: { readonly loading: string; readonly loaded: string } | undefined;
   children?: ReactNode;
   /** Layout glue only, on the busy region. */
   className?: string | undefined;
@@ -23,7 +25,7 @@ export interface LoadingRegionProps {
 
 type Phase = 'idle' | 'loading' | 'loaded' | 'failed';
 
-export function LoadingRegion({ loading, things, failed = false, children, className }: LoadingRegionProps) {
+export function LoadingRegion({ loading, things, failed = false, announce, children, className }: LoadingRegionProps) {
   const [phase, setPhase] = useState<Phase>(loading ? 'loading' : 'idle');
   const [wasLoading, setWasLoading] = useState(loading);
   // Track the loading edges during render, so the announcement changes in the same render as aria-busy.
@@ -33,9 +35,9 @@ export function LoadingRegion({ loading, things, failed = false, children, class
   }
   const message =
     phase === 'loading'
-      ? STATES_COPY.loading.loading(things)
+      ? (announce?.loading ?? STATES_COPY.loading.loading(things))
       : phase === 'loaded'
-        ? STATES_COPY.loading.loaded(things)
+        ? (announce?.loaded ?? STATES_COPY.loading.loaded(things))
         : '';
   return (
     <>

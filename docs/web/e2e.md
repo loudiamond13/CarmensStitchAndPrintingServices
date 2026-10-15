@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T02:50:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T03:45:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -115,6 +115,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@testing-host` | The Testing environment on the E2E host: `createStaff` makes a staff user under `csps.test` and `readEmails` returns an empty mailbox for it (Chromium only) | plan 04-10 |
 | `@auth` | Sign-in end to end in all five projects: S1, the emailed code read from the sink, S2 (`Check your email`), the admin shell and a reload that keeps the session through the refresh cookie; page-level axe on S1 and S2; the six boxes never submit by themselves | plan 04-27 |
 | `@auth-cookies` | The refresh cookie `__Secure-csps_rt` in chromium, firefox and webkit (the phone projects skip it), with and without "Keep me signed in": the Set-Cookie header the server sent and the cookie jar both show HttpOnly, Secure, Path `/api/v1/auth`; SameSite Strict in the header everywhere and in the jar for chromium and firefox; about 90 days with the box ticked, a session cookie without it; `document.cookie` cannot see it; the ticket cookie is gone; a visit to `/admin/login` goes on to `/admin` because the cookie still holds the session | plan 04-27 |
+| `@auth-reset` | Forgot a password end to end in all five projects: S1 `Forgot password?`, S4 (`Reset your password`, then the same `Check your email` card with focus on its h1), the reset email's link opening S5 with the token gone from the address bar, a new password saved, S1 with the `Your password was changed` notice, signing in with the new password and a fresh emailed code, and a second browser context whose refresh cookie no longer works (D-19); page-level axe on S4 (both states) and S5 | plan 04-28 |
 | `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects); from a scrolled backdrop (1280x420) a middle or right press and a press or drag on the backdrop's scrollbar keep the caret in the confirm field and the backdrop's scrollTop unchanged (Firefox's own middle-button scroll is the one documented exception), and on the phone screens a right press above the sheet keeps the caret (the focus trap returns focus without scrolling) | plans 02-41, 02-42, 02-43 (D-42) |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
@@ -143,7 +144,7 @@ test('@example a staff user gets a code by email', async ({ request }) => {
 });
 ```
 
-`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject? })` are the whole API.
+`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject?, after? })` are the whole API. `after` is the id of the last mail already seen, so a test that signs in twice reads the second code and not the first.
 
 `web/e2e/auth.ts` builds on them for the sign-in flow (plan 04-27):
 
