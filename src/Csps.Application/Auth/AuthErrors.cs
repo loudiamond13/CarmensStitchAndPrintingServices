@@ -53,6 +53,18 @@ public static class AuthErrors
     /// <summary>The plain-English text of the account pause after too many wrong codes.</summary>
     public const string CodeLockoutMessage = "Too many wrong codes.";
 
+    /// <summary>The code of a resend asked for inside the cooldown.</summary>
+    public const string ResendCooldownCode = "auth.resend-cooldown";
+
+    /// <summary>The plain-English text of a resend asked for inside the cooldown.</summary>
+    public const string ResendCooldownMessage = "Wait a moment before asking for another code.";
+
+    /// <summary>The code of a resend refused by the hourly cap.</summary>
+    public const string ResendCapCode = "auth.resend-cap";
+
+    /// <summary>The plain-English text of a resend refused by the hourly cap; it names no wait time (D-10).</summary>
+    public const string ResendCapMessage = "You've asked for too many codes.";
+
     /// <summary>The field that code errors belong to.</summary>
     public const string CodeField = "code";
 
@@ -67,6 +79,14 @@ public static class AuthErrors
 
     /// <summary>Gets the answer for the account pause after too many wrong codes; it gives no wait time.</summary>
     public static Error CodeLockout { get; } = Error.TooManyRequests(CodeLockoutCode, CodeLockoutMessage);
+
+    /// <summary>Gets the answer for the hourly code cap. It carries no wait time, so no Retry-After is sent (D-10).</summary>
+    public static Error ResendCap { get; } = Error.TooManyRequests(ResendCapCode, ResendCapMessage);
+
+    /// <summary>Returns the answer for a resend asked for too soon.</summary>
+    /// <param name="retryAfter">How long is left of the cooldown.</param>
+    /// <returns>A 429 error that carries the wait.</returns>
+    public static Error ResendCooldown(TimeSpan retryAfter) => Error.TooManyRequests(ResendCooldownCode, ResendCooldownMessage, retryAfter);
 
     /// <summary>Gets the answer for a missing, unknown, closed or timed-out pending sign-in; the page returns to sign-in.</summary>
     public static Error TicketExpired { get; } = Error.Unauthenticated(TicketExpiredCode, TicketExpiredMessage);

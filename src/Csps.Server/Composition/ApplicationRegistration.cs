@@ -16,6 +16,7 @@ public static class ApplicationRegistration
         services.AddScoped<GetSiteSettingsHandler>();
         services.AddScoped<SignInHandler>();
         services.AddScoped<VerifyCodeHandler>();
+        services.AddScoped<ResendCodeHandler>();
         services.AddScoped<SessionIssuer>();
         return services;
     }

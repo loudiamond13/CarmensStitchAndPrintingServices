@@ -39,6 +39,24 @@
         },
         "type": "object"
       },
+      "ResendCodeResponse": {
+        "description": "What a resend answers: how long to wait before asking again.",
+        "properties": {
+          "resendAfterSeconds": {
+            "description": "Whole seconds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "resendAfterSeconds"
+        ],
+        "type": "object"
+      },
       "SessionResponse": {
         "description": "What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here.",
         "properties": {
@@ -342,6 +360,57 @@
           }
         },
         "summary": "Checks the email and password and sends the sign-in code.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/resend": {
+      "post": {
+        "operationId": "ResendCode",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResendCodeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sends a new sign-in code for the pending ticket, after the cooldown and within the hourly cap.",
         "tags": [
           "SignIn"
         ]
