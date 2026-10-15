@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <!-- Coverage under Microsoft.Testing.Platform (D-17); thresholds are enforced by tools/scripts/Invoke-CoverageGate.ps1. -->

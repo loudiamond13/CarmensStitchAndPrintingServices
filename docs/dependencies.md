@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T12:21:46-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T19:58:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -60,6 +60,22 @@ We adopt a new version of a package only after it has been public for **at least
 The owner approved the full Phase 1 list on **2026-10-07**, before anything was downloaded (plan 01-01, package legitimacy gate). The Phase 2 web packages were approved on **2026-10-07** (D-25, plus two security overrides) and **2026-10-08** (D-34 lucide-react 1.53.0, D-36 the two Tailwind tooling plugins). Each approval is recorded in `docs/dependencies.json` under `approvals`.
 
 On **2026-10-14** the owner approved the .NET 10.0.13 security update and the two crypto pins (quick task 261014-gqz), together with the SqlClient 6.1.7, SNI.runtime 6.0.3 and Microsoft.OpenApi 2.12.2 moves that come with it. It is recorded under `approvals`.
+
+## Phase 4 packages (approved 2026-10-14)
+
+For staff sign-in, the owner approved these packages on **2026-10-14** (decision D-36), before anything was installed. The four web packages are added to this section when they are installed. Every one is free: MIT or Apache-2.0 means free to use in a business, and we only keep the author's notice in `THIRD-PARTY-NOTICES.md`.
+
+| Package | What it does for the shop | License |
+|---------|---------------------------|---------|
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore 10.0.13 | Stores staff accounts and roles in the database and handles password hashing and lockout after too many wrong tries. | MIT |
+| FluentValidation 12.1.1 | Checks each request (email, password, sign-in code) against clear rules before the server acts on it. | Apache-2.0 |
+| MailKit 4.18.1 | Sends the sign-in code emails over an encrypted connection. | MIT |
+| MimeKit 4.18.1 | Builds the email messages that MailKit sends. Pinned so MailKit cannot quietly pull a different version. | MIT |
+| BouncyCastle.Cryptography 2.7.0 | The encryption code MimeKit uses. Pinned for the same reason. | MIT |
+| Microsoft.Extensions.Http.Resilience 10.10.0 | Adds a time limit and a retry to the check that a new password has not appeared in a known data breach. | MIT |
+| Microsoft.Extensions.Diagnostics.Testing 10.10.0 | Tests only. Lets a test read the log and prove that no secret or code is ever written to it. Never ships. | MIT |
+
+**Security exception.** Identity.EntityFrameworkCore 10.0.13 was published on 2026-10-13, so it is younger than the 14-day wait. It is a Microsoft security servicing release (D-35) that matches the other 10.0.13 pins, and the owner approved it on 2026-10-14 (D-36). Its registry record says `accepted:` and it reaches 14 days on 2026-10-27.
 
 ## The web app's packages (npm)
 
