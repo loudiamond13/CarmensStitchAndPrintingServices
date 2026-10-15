@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "Identity & Authentication",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "5",
@@ -94,5 +94,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 04 of 17 · 12% · executing"
   },
-  "updated_at": "2026-10-15T00:42:02.885Z"
+  "updated_at": "2026-10-15T01:03:05.809Z"
 }
