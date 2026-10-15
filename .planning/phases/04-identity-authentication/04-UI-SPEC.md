@@ -6,7 +6,7 @@ reviewed_at: "2026-10-14T09:05:00-05:00"
 shadcn_initialized: false
 preset: none
 created: "2026-10-14T08:10:00-05:00"
-updated: "2026-10-14T11:51:00-05:00"
+updated: "2026-10-15T12:05:00-05:00"
 ---
 
 # Phase 4 — UI Design Contract
@@ -611,6 +611,8 @@ The contract **does not decide these for the owner**. Until the owner rules, the
 | **OQ-6 (W-4)** | The "Resend code in 0:42" countdown and screen readers | Not specified | Announce only when the countdown starts and when it ends, never every second | No | **Apply** |
 | **OQ-7 (D-06)** | Wording of every *(SPEC-GAP)* string in § Copywriting and of all 7 emails | — | As written in this file. FYI: the one-word "Logout" (UserMenu and Sidebar) is kept because App. D.3 binds it (`ADMIN_NAV`, the P2 D-27 button, parity-pinned); the owner may rename it to "Sign Out", which would be a text-only look change across both places. | Text | As written; "Logout" kept |
 
+**Owner ruling, 2026-10-15 (plan 04-32 review pack, `artifacts/owner-review/index.html`, section "Sign-in screens and devices"):** the owner replied "Approve" to all seven items, with the built defaults. OQ-1 A (focus to Password), OQ-2 A (design meter kept), OQ-3 A ("Sign Out Other Devices"), OQ-4 A (warning toast 5 minutes before the 12-hour cap), OQ-5 applied (invisible 44px tap areas), OQ-6 applied (countdown announced at start and end only), OQ-7 the wording as written in this file, with "Logout" kept. The 138-row wording table of the pack and the S2 to S7, dialog, menu and toast pictures were approved with them. Two more rulings came during the plan (see the register): OQ-8 and OQ-9.
+
 Already ruled in CONTEXT and recorded here, not re-asked: no auto-submit (D-01), the generic error (D-02), unticked "Keep me signed in" (D-03), the code in the subject (D-08), no remembered email (D-09), no wait time at the resend cap (D-10), and the design password wording (D-11).
 
 ---
@@ -625,7 +627,9 @@ Each item carries a `// SPEC-DEVIATION: <ID>` comment at its site.
 | D-16 | §8.2: "Forgot password?" shows the toast "Ask a Manager to reset your password." | A link to `/admin/forgot-password` | Owner, C-7 |
 | D-02 | §8.2: a "This account is deactivated." / "Ask a Manager to reactivate it." banner | Not built; the generic error for every failure | Owner, C-8 (CWE-204) |
 | D-01 | (no design) | The code step on its own route, `/admin/login/verify` | Owner, C-6 |
-| OQ-5 | App. C small links | Invisible 44px tap areas (no visual change) | Pending owner (default applied) |
+| OQ-5 | App. C small links | Invisible 44px tap areas (no visual change) | Owner, approved 2026-10-15 |
+| OQ-8 | App. C `.s-login-brand` background rule wipes out the dot mesh the spec text asks for | The sign-in brand panel keeps the dot mesh | Owner, 2026-10-15 (plan 04-32 checkpoint, option B) |
+| OQ-9 | App. E.5 brand panel: the eyebrow and the headline run over the slab and its stripes | A bottom zone for the slab below the words (324px, 204px on tablet pages; slab 300px, 180px; numeral 160px on tablet pages); phone pages unchanged | Owner, approved 2026-10-15 after the before/after pictures |
 | R2-10 | P2 Modal: focus trap only | The page behind any open Modal is `inert` | Owner, D-41 R2-10 (carried to Phase 4) |
 
 ---
