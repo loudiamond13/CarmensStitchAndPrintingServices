@@ -74,11 +74,12 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "The settings, or the failure as ProblemDetails."
           }
         },
+        "summary": "Returns the site settings.",
         "tags": [
-          "SiteSettingsEndpoints"
+          "SiteSettings"
         ]
       }
     }
@@ -90,7 +91,7 @@
   ],
   "tags": [
     {
-      "name": "SiteSettingsEndpoints"
+      "name": "SiteSettings"
     }
   ]
 }

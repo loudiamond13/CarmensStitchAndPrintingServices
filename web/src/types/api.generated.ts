@@ -11,6 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Returns the site settings. */
         get: operations["GetSiteSettings"];
         put?: never;
         post?: never;
@@ -63,7 +64,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description The settings, or the failure as ProblemDetails. */
             200: {
                 headers: {
                     [name: string]: unknown;

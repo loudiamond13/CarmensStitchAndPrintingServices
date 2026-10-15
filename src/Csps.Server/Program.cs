@@ -45,6 +45,9 @@ builder.Services.AddCspsSecurity();
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
 
+// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers.
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+
 // OpenAPI is registered in Development only (D-14).
 builder.Services.AddCspsOpenApi(builder.Environment);
 
@@ -97,7 +100,7 @@ app.UseAuthorization();
 
 app.MapCspsHealth();
 app.MapApiFallback();
-app.MapSiteSettings();
+app.MapControllers();
 app.MapCspsApiDocs();
 
 // The SPA host (WEB-01): a missing file is a 404, never a 401 (research Pitfall 11); outside Development /openapi and
