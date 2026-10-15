@@ -120,7 +120,7 @@ public sealed class MustChangePasswordTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task ARefusedPasswordKeepsTheStepOpenAndTheTemporaryOneIsAcceptedAsAnyOtherValidPassword()
+    public async Task ARefusedPasswordKeepsTheStepOpenAndTheTemporaryOneIsRefusedAsTheNewPassword()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = AuthClient.CreateClient(factory);
@@ -138,7 +138,14 @@ public sealed class MustChangePasswordTests(CspsDatabase database) : IClassFixtu
 
         using var same = await AuthClient.SetNewPasswordAsync(client, TemporaryPassword);
 
-        same.StatusCode.ShouldBe(HttpStatusCode.OK);
+        same.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(same, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("newPassword")[0].GetString()
+            .ShouldBe("Choose a different password from your current one.");
+        same.Headers.Contains("Set-Cookie").ShouldBeFalse();
+
+        using var changed = await AuthClient.SetNewPasswordAsync(client, NewPassword);
+
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK);
         await using var context = database.CreateContext();
         (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
     }
