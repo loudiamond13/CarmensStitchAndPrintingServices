@@ -78,11 +78,11 @@ public sealed class HibpPwnedPasswordsTests
     [Fact]
     public async Task ThePasswordIsNormalizedBeforeItIsHashed()
     {
-        var (prefix, _) = Hash("Café-Tela-7381");
+        var (prefix, _) = Hash("Caf\u00e9-Tela-7381");
         var handler = new StubHandler(_ => Respond(OtherLine));
         var client = Create(handler, out _);
 
-        await client.CheckAsync("Café-Tela-7381", TestContext.Current.CancellationToken);
+        await client.CheckAsync("Cafe\u0301-Tela-7381", TestContext.Current.CancellationToken);
 
         handler.Requests.ShouldHaveSingleItem().RequestUri!.AbsoluteUri.ShouldEndWith(prefix);
     }
