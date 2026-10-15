@@ -21,13 +21,25 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="accounts">The staff accounts port.</param>
 /// <param name="activation">Deactivates an account.</param>
+/// <param name="tokens">Stores the invitation token of the <c>invited</c> state.</param>
+/// <param name="random">Makes the invitation token.</param>
+/// <param name="unitOfWork">Saves the invitation token.</param>
+/// <param name="settings">The sign-in settings (the invite lifetime).</param>
+/// <param name="time">The clock.</param>
 [TestingOnly]
 [ApiController]
 [Route("api/testing/staff")]
 [AllowAnonymous]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class TestingFixturesController(IUserAccounts accounts, TestingAccountActivation activation) : ControllerBase
+public sealed class TestingFixturesController(
+    IUserAccounts accounts,
+    TestingAccountActivation activation,
+    IAccountTokens tokens,
+    ISecureRandom random,
+    IUnitOfWork unitOfWork,
+    AuthSettings settings,
+    TimeProvider time) : ControllerBase
 {
     private const string Letters = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
     private const string Digits = "23456789";
@@ -38,7 +50,7 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
 
     /// <summary>The body of the create call.</summary>
     /// <param name="Role"><c>Admin</c> or <c>Manager</c>.</param>
-    /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>must-change-temporary</c> or <c>must-change-breach</c>.</param>
+    /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>must-change-temporary</c>, <c>must-change-breach</c> or <c>invited</c> (no password, a raw invite token returned).</param>
     public sealed record StaffRequest(string? Role, string? State);
 
     /// <summary>The new account and the password it was created with.</summary>
@@ -46,6 +58,12 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
     /// <param name="Email">The sign-in email.</param>
     /// <param name="Password">The password, shown once.</param>
     public sealed record StaffCreated(Guid UserId, string Email, string Password);
+
+    /// <summary>The new invited account and the raw token of its invite link.</summary>
+    /// <param name="UserId">The account id.</param>
+    /// <param name="Email">The sign-in email.</param>
+    /// <param name="InviteToken">The 43-character token, shown once.</param>
+    public sealed record InviteCreated(Guid UserId, string Email, string InviteToken);
 
     /// <summary>Creates a fresh staff account.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -73,12 +91,17 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
             return Rejected("The role must be Admin or Manager.", "role");
         }
 
-        if (state is not ("active" or "deactivated" or "must-change-temporary" or "must-change-breach"))
+        if (state is not ("active" or "deactivated" or "must-change-temporary" or "must-change-breach" or "invited"))
         {
-            return Rejected("The state must be active, deactivated, must-change-temporary or must-change-breach.", "state");
+            return Rejected("The state must be active, deactivated, must-change-temporary, must-change-breach or invited.", "state");
         }
 
         var email = $"e2e-{Guid.NewGuid():N}@csps.test";
+        if (state == "invited")
+        {
+            return await CreateInvitedAsync(email, role, cancellationToken).ConfigureAwait(false);
+        }
+
         var password = NewPassword();
         var id = await accounts.CreateAsync(new NewUserAccount(email, "E2E", "Staff", role, password), cancellationToken).ConfigureAwait(false);
         if (state == "deactivated")
@@ -92,6 +115,16 @@ public sealed class TestingFixturesController(IUserAccounts accounts, TestingAcc
         }
 
         return TypedResults.Json(new StaffCreated(id, email, password), JsonOptions, statusCode: StatusCodes.Status201Created);
+    }
+
+    // No password and an unconfirmed address, like a real invited account; the raw token stands in for the emailed link.
+    private async Task<IResult> CreateInvitedAsync(string email, string role, CancellationToken cancellationToken)
+    {
+        var id = await accounts.CreateAsync(new NewUserAccount(email, "E2E", "Staff", role, null), cancellationToken).ConfigureAwait(false);
+        var secret = random.NewToken();
+        tokens.Add(AccountToken.Create(id, AccountTokenPurpose.Invitation, TokenHash.Compute(secret), time.GetUtcNow(), settings.InviteLinkLifetime));
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Json(new InviteCreated(id, email, secret), JsonOptions, statusCode: StatusCodes.Status201Created);
     }
 
     private ProblemHttpResult Rejected(string detail, string field) =>

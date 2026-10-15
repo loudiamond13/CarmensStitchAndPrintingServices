@@ -39,9 +39,12 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
         var checkProblem = await AssertInvalidAsync(check);
         var acceptProblem = await AssertInvalidAsync(accept);
         acceptProblem.GetProperty("detail").GetString().ShouldBe(checkProblem.GetProperty("detail").GetString());
-        await using var context = database.CreateContext();
-        (await context.Users.AsNoTracking().SingleAsync(u => u.Id == invited.UserId, TestContext.Current.CancellationToken))
-            .PasswordHash.ShouldBeNull();
+        if (reason != "used")
+        {
+            await using var context = database.CreateContext();
+            (await context.Users.AsNoTracking().SingleAsync(u => u.Id == invited.UserId, TestContext.Current.CancellationToken))
+                .PasswordHash.ShouldBeNull();
+        }
     }
 
     [Fact]
