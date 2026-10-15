@@ -50,24 +50,28 @@ export const loginFixedClasses = tw(
   'grid min-h-(--login-h) grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]',
 );
 
-/** `.s-login-brand.s-mesh`: the surface panel with the dot mesh; on phones a 200px band with a bottom hairline. */
+/**
+ * `.s-login-brand.s-mesh`: the surface panel with the dot mesh (OQ-8); on phones a 200px band with a bottom hairline.
+ * OQ-9: below the logo and the quote the panel keeps a zone for the slab (324px of bottom padding, 204px on tablet
+ * pages), so the eyebrow and the headline never sit on the slab or its stripes.
+ */
 export const loginBrandClasses = tw(
-  'relative flex flex-col justify-between overflow-hidden border-r border-line bg-surface bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] p-12 pg-phone:min-h-[200px] pg-phone:border-r-0 pg-phone:border-b pg-phone:px-4 pg-phone:py-6',
+  'relative flex flex-col justify-between gap-8 overflow-hidden border-r border-line bg-surface bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] p-12 pb-[324px] pg-phone:min-h-[200px] pg-phone:border-r-0 pg-phone:border-b pg-phone:px-4 pg-phone:pt-6 pg-phone:pb-6 pg-tablet:pb-[204px]',
 );
 
-/** `.s-login-slab`: the orange slab, clipped; 60% by 80% on phones. */
+/** `.s-login-slab`: the orange slab, clipped, in the bottom zone (OQ-9: 300px tall, 180px on tablet pages); 60% by 80% on phones. */
 export const loginSlabClasses = tw(
-  'absolute right-[-10%] bottom-[-6%] h-[62%] w-[78%] bg-accent [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-phone:h-[80%] pg-phone:w-[60%]',
+  'absolute right-[-10%] bottom-0 h-[300px] w-[78%] bg-accent [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-phone:bottom-[-6%] pg-phone:h-[80%] pg-phone:w-[60%] pg-tablet:h-[180px]',
 );
 
 /** `.s-login-bands`: the stripes over the slab, masked to its lower part. */
 export const loginBandsClasses = tw(
-  'absolute right-[-10%] bottom-[-6%] h-[62%] w-[78%] bg-[image:repeating-linear-gradient(-14deg,transparent_0_46px,var(--on-accent)_46px_56px)] [mask-image:linear-gradient(transparent_55%,var(--ink)_56%)] [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-phone:h-[80%] pg-phone:w-[60%]',
+  'absolute right-[-10%] bottom-0 h-[300px] w-[78%] bg-[image:repeating-linear-gradient(-14deg,transparent_0_46px,var(--on-accent)_46px_56px)] [mask-image:linear-gradient(transparent_55%,var(--ink)_56%)] [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-phone:bottom-[-6%] pg-phone:h-[80%] pg-phone:w-[60%] pg-tablet:h-[180px]',
 );
 
-/** `.s-login-num`: the outlined "C", decorative; 160px at the right on phones. */
+/** `.s-login-num`: the outlined "C", decorative, in the bottom zone (OQ-9: 160px on tablet pages); 160px at the right on phones. */
 export const loginNumeralClasses = tw(
-  'absolute bottom-[18%] left-12 font-display text-[300px] leading-[.8] font-heavy text-transparent italic opacity-50 [-webkit-text-stroke:2px_var(--line-strong)] pg-phone:right-4 pg-phone:bottom-[10%] pg-phone:left-auto pg-phone:text-[160px]',
+  'absolute bottom-6 left-12 font-display text-[300px] leading-[.8] font-heavy text-transparent italic opacity-50 [-webkit-text-stroke:2px_var(--line-strong)] pg-phone:right-4 pg-phone:bottom-[10%] pg-phone:left-auto pg-phone:text-[160px] pg-tablet:bottom-4 pg-tablet:text-[160px]',
 );
 
 /** The `position: relative` wrapper that lifts the logo above the slab. */

@@ -330,3 +330,71 @@ button.csp-nav {
   height: 44px;
   transform: translateY(-50%);
 }
+
+/* OQ-8 (owner, plan 04-32) the sign-in brand panel keeps the dot mesh. The spec text gives the panel the .s-mesh class,
+   but App. C's later `.s-login-brand { background: var(--surface) }` wipes the dots out of the approved render. The owner
+   chose to keep them, so the reference draws the same dots as .s-mesh does elsewhere. */
+.s-login-brand.s-mesh {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, var(--ink) 9%, transparent) 1px,
+    transparent 1.6px
+  );
+  background-size: 6px 6px;
+}
+
+/* OQ-9 (owner, plan 04-32) the eyebrow and the headline of the brand panel were hard to read where they ran over the slab
+   and its black stripes. Below the logo and the quote the panel keeps a bottom zone for the slab: a 32px gap, 324px of
+   bottom padding (the slab is 300px tall, plus 24px of clear space), so the words, which sit at the bottom of the space
+   above the zone, never touch it. This is the base for desktop and tablet pages. */
+.s-login-brand {
+  gap: var(--space-8);
+  padding-bottom: 324px;
+}
+
+/* OQ-9 the slab and its stripes: 300px tall, flush with the bottom of the panel. */
+.s-login-slab,
+.s-login-bands {
+  bottom: 0;
+  height: 300px;
+}
+
+/* OQ-9 the outlined "C" sits in the zone, 24px up. */
+.s-login-num {
+  bottom: 24px;
+}
+
+/* OQ-9 tablet pages (one column, 768 to 1023px): a shorter zone, so the page does not grow much: a 180px slab, 204px of
+   bottom padding and a 160px numeral. */
+@container pg (min-width: 768px) and (max-width: 1023px) {
+  .s-login-brand {
+    padding-bottom: 204px;
+  }
+
+  .s-login-slab,
+  .s-login-bands {
+    height: 180px;
+  }
+
+  .s-login-num {
+    font-size: 160px;
+    bottom: 16px;
+  }
+}
+
+/* OQ-9 phone pages keep App. C exactly: the quote is hidden there, so the slab is clear of the words by itself. */
+@container pg (max-width: 767px) {
+  .s-login-brand {
+    padding-bottom: var(--space-6);
+  }
+
+  .s-login-slab,
+  .s-login-bands {
+    bottom: -6%;
+    height: 80%;
+  }
+
+  .s-login-num {
+    bottom: 10%;
+  }
+}

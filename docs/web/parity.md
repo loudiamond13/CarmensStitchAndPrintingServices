@@ -1,6 +1,6 @@
 # The look-equality proof: the parity reference and how to run it
 
-*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-15T08:45:00-05:00*
+*Created: 2026-10-08T12:52:08-05:00 · Updated: 2026-10-15T10:20:00-05:00*
 
 This page explains the automated proof that the web app looks the way the owner approved (requirement WEB-02, decision D-33). The app is styled with Tailwind utilities, not with the spec's `.csp-*` / `.s-*` stylesheets, so a test has to show that the two render the same. It does that by rendering every case twice, in the same browser and the same run:
 
@@ -178,6 +178,8 @@ Everything not in this table must be equal. Each ruling sits in `web/visual/refe
 | S1 Sign in: the page frame is 960px tall (App. E.5 `min-height: 960px`); production is `min-h-dvh` | UI-SPEC §8.2 | The `LoginScreen` preview fixes the height at 960px through the `--login-h` custom property (`AuthFrame minHeight`), so equal |
 | S1 Sign in: the error banner's text block is `flex: 1 1 0%` with `min-width: 0`, so a long message or reference wraps inside the banner | UI-SPEC long-text backstop | The `LoginScreen` reference fragment writes the same two values inline on the frozen text block, so equal; no visible change with the same words |
 | S1 Sign in: the quote reads "Orders, payments and expenses, all in one place." (the spec has a long dash) and the form column is a `main` (App. E.5 has a div) | OR-4, spec §11 | Text and tag only: the `LoginScreen` reference fragment draws the same words and a `main`, so equal |
+| S1 Sign in: the brand panel keeps the dot mesh on its surface (the spec text asks for it, but App. C's later `.s-login-brand { background }` rule wipes it out of the approved render) | OQ-8 | Rulings layer (`.s-login-brand.s-mesh` draws the `.s-mesh` dots), so equal |
+| S1 Sign in: the brand panel's eyebrow and headline sit above a bottom zone for the slab (a 32px gap and 324px of bottom padding; the slab is 300px tall and flush with the bottom, 180px on tablet pages; the outlined "C" sits in the zone, 160px on tablet pages), so the words never sit on the slab or its stripes and keep 4.5:1. Phone pages keep App. C exactly (the quote is hidden there) | OQ-9 | Rulings layer (`.s-login-brand`, `.s-login-slab`, `.s-login-bands`, `.s-login-num`, with a tablet and a phone container rule), so equal. `web/visual/login-brand.spec.ts` (`@brand`) proves the no-overlap rule and the contrast at 320 to 1920px in Blush and Espresso, through the implementation-only `auth-brand` group (`login-brand-viewport`, the real `min-h-dvh` frame) |
 | Metric-matched fallback faces in the font stacks | PERF-05 | Rulings layer, identical to `web/src/ui/base.css`, so equal once the fonts load |
 | 20 redrawn lucide icons | D-32 | Drawing masked, the icon's box compared |
 | `lucide lucide-<name>` classes; Avatar and Testimonial `role="img"`; Tabs ARIA; the Modal focus trap | D-28, D-31 O-1/O-2, WEB-02 | Attributes are not compared, and there is no visual change |

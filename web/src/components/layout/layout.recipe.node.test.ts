@@ -57,18 +57,21 @@ const SPEC_LOGIN = 'grid min-h-dvh grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-col
 // `.s-login` at the parity preview's fixed height: the same grid with `--login-h` in place of `min-h-dvh`.
 const SPEC_LOGIN_FIXED = 'grid min-h-(--login-h) grid-cols-[1.1fr_1fr] bg-bg pg-lt-lg:grid-cols-[minmax(0,1fr)]';
 // `.s-login-brand.s-mesh`: relative, clipped, padding 48, column space-between, `--surface`, right hairline; phone rule:
-// padding 24/16, min-height 200, no right border, bottom hairline.
+// padding 24/16, min-height 200, no right border, bottom hairline. OQ-9 (owner): a 32px gap and a bottom zone for the slab
+// (324px of bottom padding, 204px on tablet pages) keep the words off the slab.
 const SPEC_LOGIN_BRAND =
-  'relative flex flex-col justify-between overflow-hidden border-r border-line bg-surface p-12 bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] pg-phone:min-h-[200px] pg-phone:border-r-0 pg-phone:border-b pg-phone:px-4 pg-phone:py-6';
-// `.s-login-slab`: right -10%, bottom -6%, 78% x 62%, accent, clipped; phone 60% x 80%.
+  'relative flex flex-col justify-between gap-8 overflow-hidden border-r border-line bg-surface p-12 pb-[324px] pg-tablet:pb-[204px] bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px] pg-phone:min-h-[200px] pg-phone:border-r-0 pg-phone:border-b pg-phone:px-4 pg-phone:pt-6 pg-phone:pb-6';
+// `.s-login-slab`: right -10%, 78% wide, accent, clipped; OQ-9 (owner): in the bottom zone, 300px tall (180px on tablet
+// pages); phone: bottom -6%, 60% x 80% as in App. C.
 const SPEC_LOGIN_SLAB =
-  'absolute right-[-10%] bottom-[-6%] h-[62%] w-[78%] bg-accent [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-phone:h-[80%] pg-phone:w-[60%]';
+  'absolute right-[-10%] bottom-0 h-[300px] w-[78%] bg-accent [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] pg-tablet:h-[180px] pg-phone:bottom-[-6%] pg-phone:h-[80%] pg-phone:w-[60%]';
 // `.s-login-bands`: the same box and clip, `-14deg` stripes in `--on-accent`, masked to the lower 45%.
 const SPEC_LOGIN_BANDS =
-  'absolute right-[-10%] bottom-[-6%] h-[62%] w-[78%] [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] bg-[image:repeating-linear-gradient(-14deg,transparent_0_46px,var(--on-accent)_46px_56px)] [mask-image:linear-gradient(transparent_55%,var(--ink)_56%)] pg-phone:h-[80%] pg-phone:w-[60%]';
-// `.s-login-num`: display 800 italic 300px, outlined, 50% opacity; phone: 160px at the right.
+  'absolute right-[-10%] bottom-0 h-[300px] w-[78%] [clip-path:polygon(0_22%,100%_0,100%_100%,0_100%)] bg-[image:repeating-linear-gradient(-14deg,transparent_0_46px,var(--on-accent)_46px_56px)] [mask-image:linear-gradient(transparent_55%,var(--ink)_56%)] pg-tablet:h-[180px] pg-phone:bottom-[-6%] pg-phone:h-[80%] pg-phone:w-[60%]';
+// `.s-login-num`: display 800 italic 300px, outlined, 50% opacity; OQ-9 (owner): in the bottom zone, 24px up (tablet
+// pages: 160px, 16px up); phone: 160px at the right.
 const SPEC_LOGIN_NUMERAL =
-  'absolute bottom-[18%] left-12 font-display text-[300px] leading-[.8] font-heavy text-transparent italic opacity-50 [-webkit-text-stroke:2px_var(--line-strong)] pg-phone:right-4 pg-phone:bottom-[10%] pg-phone:left-auto pg-phone:text-[160px]';
+  'absolute bottom-6 left-12 font-display text-[300px] leading-[.8] font-heavy text-transparent italic opacity-50 [-webkit-text-stroke:2px_var(--line-strong)] pg-tablet:bottom-4 pg-tablet:text-[160px] pg-phone:right-4 pg-phone:bottom-[10%] pg-phone:left-auto pg-phone:text-[160px]';
 // `.s-login-quote`: relative, 420 wide, column gap 12; hidden on phones. The quote line is display 800 40px uppercase.
 const SPEC_LOGIN_QUOTE = 'relative flex max-w-[420px] flex-col gap-3 pg-phone:hidden';
 const SPEC_LOGIN_QUOTE_TEXT = 'font-display text-[40px] leading-none font-heavy uppercase';
