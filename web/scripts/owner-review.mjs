@@ -1497,6 +1497,26 @@ async function captureSpecGap(browser, origin, shots, problems) {
   }
 }
 
+/** Hides every sticky or fixed element outside the case with this id (a page script, run as an expression). */
+const hideStickyOutside = (/** @type {string} */ caseId) => `((id) => {
+  const frame = document.querySelector('[data-case="' + id + '"]');
+  for (const element of document.querySelectorAll('*')) {
+    const position = getComputedStyle(element).position;
+    if ((position === 'sticky' || position === 'fixed') && !frame.contains(element) && !element.contains(frame)) {
+      element.setAttribute('data-review-hidden', element.style.visibility);
+      element.style.visibility = 'hidden';
+    }
+  }
+})(${JSON.stringify(caseId)})`;
+
+/** Puts back what hideStickyOutside hid. */
+const SHOW_STICKY = `(() => {
+  for (const element of document.querySelectorAll('[data-review-hidden]')) {
+    element.style.visibility = element.getAttribute('data-review-hidden');
+    element.removeAttribute('data-review-hidden');
+  }
+})()`;
+
 /**
  * Takes the Phase 4 pictures on /dev/components, one page load per theme and width. A `frame` case is photographed as its
  * `[data-case]` frame; the account menu is opened with its "Show this example" button first; a `dialog` case is opened with
@@ -1554,7 +1574,11 @@ async function captureAuthReview(browser, origin, shots, problems) {
             await frame.getByRole('menu').first().waitFor();
           }
           await page.evaluate(SETTLE);
+          // A case taller than the window is photographed in pieces; the shell's sticky top bar and tab bar would show up
+          // in the middle of the picture, so they are hidden while the frame is taken.
+          await page.evaluate(hideStickyOutside(shot.id));
           await frame.screenshot({ path: target });
+          await page.evaluate(SHOW_STICKY);
         }
         process.stdout.write(`review: ${shot.file}\n`);
       }
