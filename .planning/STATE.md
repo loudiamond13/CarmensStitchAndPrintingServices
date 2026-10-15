@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-16-PLAN.md
-last_updated: "2026-10-15T05:24:52.442Z"
+stopped_at: Completed 04-25-PLAN.md
+last_updated: "2026-10-15T05:57:30.093Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 9881ee621b1461e533f3bf8637a2f73f60fbf999
+state_head: a36df508cb4acaf8c408e1f8725b3fb8ac4e5403
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 75
+  completed_plans: 76
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 20 of 35
+Plan: 21 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -134,6 +134,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P14 | 75min | 3 tasks | 28 files |
 | Phase 04 P15 | ~40min | 3 tasks | 25 files |
 | Phase 04 P16 | 25min | 2 tasks | 17 files |
+| Phase 04 P25 | 31min | 3 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -337,6 +338,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: Refresh, sign-out and sign-out-others: a second lost save race answers 409 auth.session-busy (cookie kept) instead of 401 or a false 204
 - [Phase 04]: sign-out-others without a user and sid in the request context revokes nothing and answers 401
 - [Phase 04]: Inactive-account revocation on refresh is audited as auth.session-revoked; the lock check uses UserAccount.LockoutEnd with the injected clock
+- [Phase 04]: 04-25: only a 401 from refresh ends the web session; a busy 409 refresh is retried once and other failures keep the session
+- [Phase 04]: 04-25: admin app ships in production behind the route guard; dev previews, showcase and their copy stay dev-only
 
 ### Pending Todos
 
@@ -383,6 +386,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T05:24:52.076Z
-Stopped at: Completed 04-16-PLAN.md
+Last session: 2026-10-15T05:57:29.727Z
+Stopped at: Completed 04-25-PLAN.md
 Resume file: None
