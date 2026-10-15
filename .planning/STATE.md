@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-10-15T01:35:48.048Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-10-15T01:42:26.396Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 4625eb75dc9a93fceb4f4889822f9ca93b8a8971
+state_head: d24d1d96ac064432807a6fb8c5140063cf45ec41
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 61
+  completed_plans: 62
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T05:57:52-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 6 of 35
+Plan: 7 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -120,6 +120,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P03 | 55min | 3 tasks | 20 files |
 | Phase 04 P04 | 25min | 3 tasks | 10 files |
 | Phase 04 P05 | 9min | 3 tasks | 10 files |
+| Phase 04 P06 | 9min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -302,6 +303,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-03: log masking treats any property ending in Hash, Stamp, Key or Mac as a secret (CWE-532), accepting that names like CacheKey are masked too
 - [Phase 04]: 04-04: password number is Unicode Nd, symbol is P* or S*, a space is neither; an email without @ is used whole for the D-15 check
 - [Phase 04]: 04-05: TwoFactorChallenge Verify order is closed, expiry, exhausted, then fixed-time compare; an expired or exhausted code never counts an attempt
+- [Phase 04]: 04-06: sibling cap counts the original rotation child, so the 5th grace sibling works and the 6th is reuse; Revoke keeps the first reason but still ends open tokens
 
 ### Pending Todos
 
@@ -348,6 +350,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T01:35:47.722Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-10-15T01:42:25.560Z
+Stopped at: Completed 04-06-PLAN.md
 Resume file: None
