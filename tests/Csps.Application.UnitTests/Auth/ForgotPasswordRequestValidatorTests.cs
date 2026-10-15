@@ -33,7 +33,7 @@ public sealed class ForgotPasswordRequestValidatorTests
 
     [Fact]
     public void AnEmailOver256CharactersIsRejected() =>
-        _validator.Validate(new ForgotPasswordRequest(new string('a', 250) + "@b.com")).IsValid.ShouldBeFalse();
+        _validator.Validate(new ForgotPasswordRequest(new string('a', 251) + "@b.com")).IsValid.ShouldBeFalse();
 
     [Fact]
     public void TheEmptyRequestFailsOnTheEmailAlone() =>

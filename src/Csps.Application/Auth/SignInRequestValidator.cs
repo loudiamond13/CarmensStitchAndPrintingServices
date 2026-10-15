@@ -33,7 +33,7 @@ public sealed class SignInRequestValidator : AbstractValidator<SignInRequest>
     }
 
     // One '@' with text on both sides, within the length cap.
-    private static bool IsEmailShaped(string email)
+    internal static bool IsEmailShaped(string email)
     {
         if (email.Length > EmailMaxLength)
         {

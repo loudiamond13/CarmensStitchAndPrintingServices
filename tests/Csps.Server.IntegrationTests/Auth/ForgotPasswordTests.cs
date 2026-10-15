@@ -50,9 +50,10 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         var audit = (await context.AuditLog.AsNoTracking()
             .Where(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == staff.Id.ToString("D"))
             .ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
-        audit.Detail.ShouldBe("sent");
-        audit.Detail.ShouldNotContain(staff.Email);
-        audit.Detail.ShouldNotContain(token);
+        var detail = audit.Detail.ShouldNotBeNull();
+        detail.ShouldBe("sent");
+        detail.ShouldNotContain(staff.Email);
+        detail.ShouldNotContain(token);
     }
 
     [Theory]

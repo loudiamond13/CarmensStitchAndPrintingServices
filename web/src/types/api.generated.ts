@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Emails a reset link when the address belongs to an active staff account. Every well-formed address gets the same answer. */
+        post: operations["ForgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -161,6 +178,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The forgot-password form: the email the reset link goes to (D-16). */
+        ForgotPasswordRequest: {
+            /** @description The email address. */
+            email: null | string;
+        };
         ProblemDetails: {
             detail?: null | string;
             instance?: null | string;
@@ -301,6 +323,42 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ForgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ForgotPasswordRequest"];
+                "application/json": null | components["schemas"]["ForgotPasswordRequest"];
+                "text/json": null | components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Refresh: {
         parameters: {
             query?: never;

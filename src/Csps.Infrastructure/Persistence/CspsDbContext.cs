@@ -39,6 +39,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The single-use refresh tokens of the sessions; each holds only the SHA-256 of its token (AUTH-05).</summary>
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    /// <summary>Single-use link tokens (password reset, invitation); each holds only the SHA-256 of its token (AUTH-08, D-28).</summary>
+    public DbSet<AccountToken> AccountTokens => Set<AccountToken>();
+
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
