@@ -62,6 +62,23 @@ public sealed class IdentitySchemaTests(CspsDatabase database) : IClassFixture<C
     }
 
     [Fact]
+    public async Task AnInactiveAccountIsInsertedAsInactiveNotAsTheColumnDefault()
+    {
+        var normalized = $"INACTIVE.{Guid.NewGuid():N}@EXAMPLE.COM".ToUpperInvariant();
+        await using (var writer = database.CreateContext())
+        {
+            var user = NewRawUser("inactive", normalized);
+            user.IsActive = false;
+            writer.Users.Add(user);
+            await writer.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var reader = database.CreateContext();
+        var found = await reader.Users.AsNoTracking().SingleAsync(user => user.NormalizedEmail == normalized, TestContext.Current.CancellationToken);
+        found.IsActive.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task TwoUsersCannotShareANormalizedEmailEvenWhenTheyRacePastTheManagerCheck()
     {
         var normalized = $"RACE.{Guid.NewGuid():N}@EXAMPLE.COM".ToUpperInvariant();
