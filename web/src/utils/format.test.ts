@@ -92,7 +92,7 @@ describe('formatBusinessDateTime', () => {
   });
 
   it('uses a plain space before PM, never a narrow no-break space', () => {
-    expect(formatBusinessDateTime('2026-10-12T07:42:00Z')).not.toMatch(/[  ]/);
+    expect(formatBusinessDateTime('2026-10-12T07:42:00Z')).not.toMatch(/[\u202F\u00A0]/);
   });
 
   it('crosses into the next day in the business zone', () => {
@@ -103,9 +103,12 @@ describe('formatBusinessDateTime', () => {
     expect(formatBusinessDateTime('2026-10-12T07:42:00Z', 'UTC')).toBe('Oct 12, 2026, 7:42 AM');
   });
 
-  it.each(['', 'not a date', '2026-02-30T10:00:00Z', '2026-10-12T07:42:00', '2026-10-12'])('gives null for %j', (bad) => {
-    expect(formatBusinessDateTime(bad)).toBeNull();
-  });
+  it.each(['', 'not a date', '2026-02-30T10:00:00Z', '2026-10-12T07:42:00', '2026-10-12'])(
+    'gives null for %j',
+    (bad) => {
+      expect(formatBusinessDateTime(bad)).toBeNull();
+    },
+  );
 });
 
 describe('formatCalendarDate', () => {

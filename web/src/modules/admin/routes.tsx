@@ -53,6 +53,10 @@ const resetPasswordPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ResetPasswordPage')).ResetPasswordRoute,
 }));
 
+const sessionsPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/SessionsPage')).SessionsRoute,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -84,6 +88,7 @@ export const adminRoutes: RouteObject[] = [
               throw redirect('/admin/sessions');
             },
           },
+          { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: notFoundPage },
           { path: 'users', lazy: notFoundPage },

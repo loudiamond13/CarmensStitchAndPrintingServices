@@ -211,15 +211,17 @@ export const AUTH_COPY = {
     justNow: 'Just now',
     minutesAgo: (minutes: number): string => `${String(minutes)} min ago`,
     hoursAgo: (hours: number): string => `${String(hours)} hr ago`,
-    rowAction: (device: string, signedIn: string): string => `Sign out ${device}, signed in ${signedIn}`,
+    rowAction: (device: string, signedIn: string | null): string =>
+      signedIn === null ? `Sign out ${device}` : `Sign out ${device}, signed in ${signedIn}`,
     rowHint: 'Sign out',
     onlyThisDevice: 'No other devices are signed in. When you sign in somewhere else, it shows up here.',
     deviceDialog: {
       title: (device: string): string => `Sign out ${device}?`,
-      body: (signedIn: string): string =>
-        `Signed in ${signedIn}. That device will have to sign in again with the password and an emailed code. If you don't recognize it, sign it out and tell a Manager.`,
+      body: (signedIn: string | null): string =>
+        `${signedIn === null ? '' : `Signed in ${signedIn}. `}That device will have to sign in again with the password and an emailed code. If you don't recognize it, sign it out and tell a Manager.`,
       keep: 'Keep Signed In',
       confirm: 'Sign Out Device',
+      pending: 'Signing out',
     },
   },
 } as const;

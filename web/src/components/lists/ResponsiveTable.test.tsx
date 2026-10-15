@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createRef, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
@@ -392,6 +392,16 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(tokens(remove.className)).toEqual(expect.arrayContaining(['hover:bg-danger-soft', 'hover:text-danger']));
     fireEvent.click(remove);
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('RowAction: hands its button element to a ref, so a screen can move focus to it', () => {
+    const ref = createRef<HTMLButtonElement>();
+    render(
+      <RowActions>
+        <RowAction icon="log-out" label="Sign out Phone" ref={ref} />
+      </RowActions>,
+    );
+    expect(ref.current).toBe(screen.getByRole('button', { name: 'Sign out Phone' }));
   });
 });
 
