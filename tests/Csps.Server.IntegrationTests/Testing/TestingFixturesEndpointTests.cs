@@ -75,6 +75,26 @@ public sealed class TestingFixturesEndpointTests(CspsDatabase database) : IClass
     }
 
     [Theory]
+    [InlineData("must-change-temporary", PasswordChangeReason.Temporary)]
+    [InlineData("must-change-breach", PasswordChangeReason.Breach)]
+    public async Task MustChangeStatesCreateAnActiveAccountWithTheFlagAndReasonSet(string state, PasswordChangeReason reason)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(new Uri(Route, UriKind.Relative), new { role = "Manager", state }, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var created = await ReadCreatedAsync(response);
+        PasswordPolicy.CheckComposition(created.Password).ShouldBeNull();
+        var account = await FindAsync(factory, created.UserId);
+        account.IsActive.ShouldBeTrue();
+        account.EmailConfirmed.ShouldBeTrue();
+        account.HasPassword.ShouldBeTrue();
+        account.MustChangePassword.ShouldBe(reason);
+    }
+
+    [Theory]
     [InlineData("{\"role\":\"Owner\"}")]
     [InlineData("{\"role\":\"Admin\",\"state\":\"locked\"}")]
     [InlineData("{}")]

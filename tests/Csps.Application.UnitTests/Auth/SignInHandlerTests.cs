@@ -300,6 +300,81 @@ public sealed class SignInHandlerTests
         }
     }
 
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("no-password")]
+    [InlineData("bad-password")]
+    [InlineData("locked")]
+    [InlineData("deactivated")]
+    [InlineData("unconfirmed")]
+    public async Task TheBreachRecheckNeverRunsOnAFailureBranch(string branch)
+    {
+        var harness = Harness.For(branch, recheckPending: true);
+
+        await harness.RunAsync();
+
+        await harness.Pwned.DidNotReceive().CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().SetMustChangePasswordAsync(Arg.Any<Guid>(), Arg.Any<PasswordChangeReason>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheBreachRecheckNeverRunsWhenNothingIsPending()
+    {
+        var harness = Harness.For("success");
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Pwned.DidNotReceive().CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFoundBreachFlagsTheAccountClearsTheMarkAuditsItAndStillSendsTheCode()
+    {
+        var harness = Harness.For("success", recheckPending: true);
+        harness.Pwned.CheckAsync(Password, Arg.Any<CancellationToken>()).Returns(BreachCheckResult.Breached);
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).SetMustChangePasswordAsync(UserId, PasswordChangeReason.Breach, Arg.Any<CancellationToken>());
+        await harness.Accounts.Received(1).ClearBreachRecheckAsync(UserId, Arg.Any<CancellationToken>());
+        var entry = harness.Audit.Entries.Single(e => e.Action == AuditActions.PasswordBreachFound);
+        entry.TargetType.ShouldBe("User");
+        entry.TargetId.ShouldBe(UserId.ToString("D"));
+        entry.Independent.ShouldBeFalse();
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<SignInCodeEmail>();
+    }
+
+    [Fact]
+    public async Task ACleanAnswerClearsTheMarkOnly()
+    {
+        var harness = Harness.For("success", recheckPending: true);
+        harness.Pwned.CheckAsync(Password, Arg.Any<CancellationToken>()).Returns(BreachCheckResult.NotBreached);
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).ClearBreachRecheckAsync(UserId, Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().SetMustChangePasswordAsync(Arg.Any<Guid>(), Arg.Any<PasswordChangeReason>(), Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldNotContain(e => e.Action == AuditActions.PasswordBreachFound);
+    }
+
+    [Fact]
+    public async Task AnUnreachableServiceLeavesTheRecheckPendingAndSignInContinues()
+    {
+        var harness = Harness.For("success", recheckPending: true);
+        harness.Pwned.CheckAsync(Password, Arg.Any<CancellationToken>()).Returns(BreachCheckResult.Unavailable);
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().SetMustChangePasswordAsync(Arg.Any<Guid>(), Arg.Any<PasswordChangeReason>(), Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldNotContain(e => e.Action == AuditActions.PasswordBreachFound);
+    }
+
     // Runs the work at once and counts commits, like a real unit of work without a database.
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
@@ -324,6 +399,7 @@ public sealed class SignInHandlerTests
         {
             Accounts = Substitute.For<IUserAccounts>();
             Challenges = Substitute.For<ITwoFactorChallenges>();
+            Pwned = Substitute.For<IPwnedPasswords>();
             Time = new FakeTimeProvider(Start);
 
             var codeMac = Substitute.For<ICodeMac>();
@@ -336,12 +412,14 @@ public sealed class SignInHandlerTests
             request.CorrelationId.Returns(new string('a', 32));
 
             Handler = new SignInHandler(
-                Accounts, Challenges, codeMac, random, Outbox, Audit, Unit, request, new SignInRequestValidator(), new AuthSettings(), Time);
+                Accounts, Pwned, Challenges, codeMac, random, Outbox, Audit, Unit, request, new SignInRequestValidator(), new AuthSettings(), Time);
         }
 
         public IUserAccounts Accounts { get; }
 
         public ITwoFactorChallenges Challenges { get; }
+
+        public IPwnedPasswords Pwned { get; }
 
         public RecordingOutbox Outbox { get; } = new();
 
@@ -353,17 +431,17 @@ public sealed class SignInHandlerTests
 
         public SignInHandler Handler { get; }
 
-        public static Harness For(string branch, bool passwordIsRight = true)
+        public static Harness For(string branch, bool passwordIsRight = true, bool recheckPending = false)
         {
             var harness = new Harness();
             var account = branch switch
             {
                 "unknown" => null,
-                "no-password" => Account(hasPassword: false),
-                "locked" => Account(lockoutEnd: Start.AddMinutes(10)),
-                "deactivated" => Account(isActive: false),
-                "unconfirmed" => Account(confirmed: false),
-                _ => Account(),
+                "no-password" => Account(hasPassword: false, recheck: recheckPending),
+                "locked" => Account(lockoutEnd: Start.AddMinutes(10), recheck: recheckPending),
+                "deactivated" => Account(isActive: false, recheck: recheckPending),
+                "unconfirmed" => Account(confirmed: false, recheck: recheckPending),
+                _ => Account(recheck: recheckPending),
             };
             harness.Accounts.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(account));
             var right = passwordIsRight && branch != "bad-password";
@@ -383,7 +461,7 @@ public sealed class SignInHandlerTests
         }
 
         private static UserAccount Account(
-            bool isActive = true, bool confirmed = true, bool hasPassword = true, DateTimeOffset? lockoutEnd = null) =>
-            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, hasPassword, null, false, lockoutEnd);
+            bool isActive = true, bool confirmed = true, bool hasPassword = true, DateTimeOffset? lockoutEnd = null, bool recheck = false) =>
+            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, hasPassword, null, recheck, lockoutEnd);
     }
 }

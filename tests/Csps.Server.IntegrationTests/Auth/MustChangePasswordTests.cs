@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -66,5 +67,127 @@ public sealed class MustChangePasswordTests(CspsDatabase database) : IClassFixtu
         using var laterVerify = await AuthClient.SignInThroughCodeAsync(later, staff with { Password = NewPassword }, signInsSoFar: 2);
         using var laterBody = JsonDocument.Parse(await laterVerify.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         laterBody.RootElement.GetProperty("next").GetString().ShouldBe("signed-in");
+    }
+
+    [Fact]
+    public async Task WithoutATicketTheAnswerIs401AndNothingChanges()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+
+        using var response = await AuthClient.SetNewPasswordAsync(client, NewPassword);
+
+        await ShouldBeTicketExpiredAsync(response);
+        await ShouldStillHoldTemporaryPasswordAsync(factory, staff);
+    }
+
+    [Fact]
+    public async Task ASignInThatHasNotPassedTheCodeStepCannotSetAPassword()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var response = await AuthClient.SetNewPasswordAsync(client, NewPassword);
+
+        await ShouldBeTicketExpiredAsync(response);
+        await ShouldStillHoldTemporaryPasswordAsync(factory, staff);
+    }
+
+    [Fact]
+    public async Task TheTicketWorksOnceAndAReplayIs401()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+        var ticket = AuthClient.TicketOf(signIn);
+        var code = await AuthClient.ReadCodeAsync(client, staff.Email);
+        using var verify = await AuthClient.VerifyAsync(client, code);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var first = await AuthClient.SetNewPasswordAsync(client, NewPassword);
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var other = AuthClient.CreateClient(factory);
+        using var replay = await AuthClient.SetNewPasswordAsync(other, "Another#Mabuhay2026", ticket: ticket);
+
+        await ShouldBeTicketExpiredAsync(replay);
+        await using var context = database.CreateContext();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ARefusedPasswordKeepsTheStepOpenAndTheTemporaryOneIsAcceptedAsAnyOtherValidPassword()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+        using var verify = await AuthClient.SignInThroughCodeAsync(client, staff);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var breached = await AuthClient.SetNewPasswordAsync(client, "Pwned#Pass2026");
+
+        breached.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(breached, TestContext.Current.CancellationToken);
+        problem.GetProperty("errors").GetProperty("newPassword")[0].GetString()
+            .ShouldBe("This password has appeared in a data breach. Choose a different one.");
+        breached.Headers.Contains("Set-Cookie").ShouldBeFalse();
+
+        using var same = await AuthClient.SetNewPasswordAsync(client, TemporaryPassword);
+
+        same.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnAccountDeactivatedAfterTheCodeStepCannotSetAPassword()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+        using var verify = await AuthClient.SignInThroughCodeAsync(client, staff);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await AuthClient.DeactivateAsync(factory, staff.Id);
+
+        using var response = await AuthClient.SetNewPasswordAsync(client, NewPassword);
+
+        await ShouldBeTicketExpiredAsync(response);
+    }
+
+    [Fact]
+    public async Task TheStepNeedsTheAntiCsrfHeader()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, TemporaryPassword, PasswordChangeReason.Temporary);
+        using var verify = await AuthClient.SignInThroughCodeAsync(client, staff);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var response = await AuthClient.SetNewPasswordAsync(client, NewPassword, csrf: false);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    private static async Task ShouldBeTicketExpiredAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("auth.ticket-expired");
+        response.Headers.Contains("Set-Cookie").ShouldBeFalse();
+    }
+
+    // The temporary password still signs in and no session exists: nothing was saved.
+    private async Task ShouldStillHoldTemporaryPasswordAsync(CspsApiFactory factory, TestStaff staff)
+    {
+        await using var context = database.CreateContext();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking().AnyAsync(
+            a => a.Action == AuditActions.PasswordChanged && a.TargetId == staff.Id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBeFalse();
+        using var client = AuthClient.CreateClient(factory);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, TemporaryPassword);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

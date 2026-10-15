@@ -107,6 +107,9 @@ internal static partial class AuthClient
     /// <summary>The set-new-password route (the must-change step).</summary>
     public const string SetNewPasswordRoute = "/api/v1/auth/password/set-new";
 
+    /// <summary>The pending-login ticket cookie name.</summary>
+    public const string TicketCookieName = "__Secure-csps_2fa";
+
     /// <summary>The refresh cookie name.</summary>
     public const string RefreshCookieName = "__Secure-csps_rt";
 
@@ -446,8 +449,9 @@ internal static partial class AuthClient
     /// <param name="client">The client holding the ticket cookie.</param>
     /// <param name="newPassword">The new password.</param>
     /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <param name="ticket">A ticket cookie value to send explicitly; null sends only the cookies of the client.</param>
     /// <returns>The response. The caller disposes it.</returns>
-    public static async Task<HttpResponseMessage> SetNewPasswordAsync(HttpClient client, string? newPassword, bool csrf = true)
+    public static async Task<HttpResponseMessage> SetNewPasswordAsync(HttpClient client, string? newPassword, bool csrf = true, string? ticket = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(SetNewPasswordRoute, UriKind.Relative))
@@ -459,7 +463,22 @@ internal static partial class AuthClient
             request.Headers.Add(CsrfHeader, "1");
         }
 
+        if (ticket is not null)
+        {
+            request.Headers.Add("Cookie", $"{TicketCookieName}={ticket}");
+        }
+
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the pending-login ticket a sign-in response sets.</summary>
+    /// <param name="signIn">The 200 sign-in response.</param>
+    /// <returns>The ticket value.</returns>
+    public static string TicketOf(HttpResponseMessage signIn)
+    {
+        ArgumentNullException.ThrowIfNull(signIn);
+        return signIn.Headers.GetValues("Set-Cookie").Select(static header => SetCookieHeaderValue.Parse(header))
+            .Single(static cookie => cookie.Name.Value == TicketCookieName).Value.Value.ShouldNotBeNull();
     }
 
     /// <summary>Signs in and verifies the emailed code, leaving the client at the answer of the code step.</summary>
