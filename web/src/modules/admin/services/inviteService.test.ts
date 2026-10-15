@@ -83,19 +83,25 @@ describe('inviteService', () => {
       (s: ReturnType<typeof build>['service']) =>
         s.accept({ token: TOKEN, newPassword: 'Mabuhay#Tahi2026' }, { idempotencyKey: 'k' }),
     ],
-  ])('%s: a 404 rejects as the answer, with no refresh and no sign-out (skipAuthRefresh)', async (_name, path, call) => {
-    answer(path, notFound);
-    const { service, refresh, onUnauthorized } = build();
+  ])(
+    '%s: a 404 rejects as the answer, with no refresh and no sign-out (skipAuthRefresh)',
+    async (_name, path, call) => {
+      answer(path, notFound);
+      const { service, refresh, onUnauthorized } = build();
 
-    await expect(call(service)).rejects.toMatchObject({ status: 404, code: 'auth.invite-invalid' });
+      await expect(call(service)).rejects.toMatchObject({ status: 404, code: 'auth.invite-invalid' });
 
-    expect(refresh).not.toHaveBeenCalled();
-    expect(onUnauthorized).not.toHaveBeenCalled();
-  });
+      expect(refresh).not.toHaveBeenCalled();
+      expect(onUnauthorized).not.toHaveBeenCalled();
+    },
+  );
 
   it('a 401 is the answer too: no refresh and no sign-out', async () => {
     answer('/api/v1/auth/invite/check', () =>
-      HttpResponse.json({ title: 'No', status: 401 }, { status: 401, headers: { 'Content-Type': 'application/problem+json' } }),
+      HttpResponse.json(
+        { title: 'No', status: 401 },
+        { status: 401, headers: { 'Content-Type': 'application/problem+json' } },
+      ),
     );
     const { service, refresh, onUnauthorized } = build();
 

@@ -41,7 +41,7 @@ export function tokenFromHash(hash: string): string | null {
 }
 
 /** Drops the fragment from the address bar without a navigation, keeping the router's history state. */
-function removeFragment(): void {
+export function removeFragment(): void {
   const { pathname, search } = window.location;
   window.history.replaceState(window.history.state, '', `${pathname}${search}`);
 }

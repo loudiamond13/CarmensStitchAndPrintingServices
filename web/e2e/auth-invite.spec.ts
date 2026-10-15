@@ -20,9 +20,9 @@ test('@auth-invite an invited manager sets a password from the invite link and s
   await expect(page.getByRole('heading', { level: 1, name: 'Set your password' })).toBeVisible();
   await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
   expect(page.url()).not.toContain('token');
-  await expect(
-    page.getByText('Welcome to CSPS Admin. Choose a password for', { exact: false }),
-  ).toContainText(invited.email);
+  await expect(page.getByText('Welcome to CSPS Admin. Choose a password for', { exact: false })).toContainText(
+    invited.email,
+  );
   await expectNoAxeViolations(page);
 
   await page.getByLabel('New password', { exact: true }).fill(PASSWORD);

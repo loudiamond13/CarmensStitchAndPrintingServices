@@ -141,6 +141,9 @@ export const AUTH_COPY = {
     } satisfies EmailSentence,
     invalidTitle: 'This invite has expired',
     invalidBody: 'Invite links work for 72 hours and only once. Ask a Manager to send you a new invite.',
+    /** The invite could not be checked (network, 429, 5xx): the screen offers the check again. */
+    checkFailed: 'We could not check your invite yet.',
+    retry: 'Try Again',
     back: 'Back to sign in',
   },
 
