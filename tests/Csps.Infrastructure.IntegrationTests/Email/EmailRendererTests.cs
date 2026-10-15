@@ -109,6 +109,44 @@ public sealed class EmailRendererTests
     }
 
     [Theory]
+    [InlineData(AuthEmailKind.PasswordReset)]
+    [InlineData(AuthEmailKind.PasswordChanged)]
+    [InlineData(AuthEmailKind.DeactivatedNotice)]
+    [InlineData(AuthEmailKind.Invite)]
+    public async Task TheStaffAddressIsBoldInTheHtmlAndPlainInTheText(AuthEmailKind kind)
+    {
+        var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
+
+        var rendered = await RenderAsync(email);
+
+        rendered.Html.ShouldContain("<strong style=\"font-weight:700\">paolo.garcia@gmail.com</strong>");
+        CountOf(rendered.Html, "<strong").ShouldBe(1);
+        rendered.Text.ShouldContain("paolo.garcia@gmail.com");
+        rendered.Text.ShouldNotContain("<strong");
+        rendered.Text.ShouldNotContain("**");
+    }
+
+    [Fact]
+    public async Task TheBoldAddressIsStillHtmlEncoded()
+    {
+        var rendered = await RenderAsync(new DeactivatedNoticeEmail("a&b<x>@example.com"));
+
+        rendered.Html.ShouldContain("<strong style=\"font-weight:700\">a&amp;b&lt;x&gt;@example.com</strong>");
+        rendered.Html.ShouldNotContain("<x>");
+    }
+
+    [Theory]
+    [InlineData(AuthEmailKind.SignInCode)]
+    [InlineData(AuthEmailKind.AccountLocked)]
+    [InlineData(AuthEmailKind.ManagerReset)]
+    public async Task KindsThatDoNotShowTheAddressHaveNoBoldText(AuthEmailKind kind)
+    {
+        var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
+
+        (await RenderAsync(email)).Html.ShouldNotContain("<strong");
+    }
+
+    [Theory]
     [MemberData(nameof(AllKinds))]
     public async Task EverySentenceOfTheHtmlBodyIsInTheTextPart(AuthEmail email)
     {
