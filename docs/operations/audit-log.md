@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-14T23:55:00-05:00
+updated: 2026-10-14T23:50:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
