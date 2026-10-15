@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-31-PLAN.md
-last_updated: "2026-10-15T12:26:17.840Z"
+stopped_at: Completed 04-35-PLAN.md
+last_updated: "2026-10-15T12:37:43.431Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: c9453a16a5691f9e423b19714209c32f23a92e95
+state_head: 39d05de91162bbee21aa12ac3c109a190bb9be24
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 88
+  completed_plans: 89
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 33 of 35
+Plan: 34 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -147,6 +147,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P30 | 2h 0m | 3 tasks | 21 files |
 | Phase 04 P24 | 70 min | 2 tasks | 14 files |
 | Phase 04 P31 | 21 min | 3 tasks | 18 files |
+| Phase 04 P35 | 25m | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -376,6 +377,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-24: Retry-After on a per-IP 429 is the policy's whole window (sliding-window leases report no wait); E2E host sets auth limits to 100000
 - [Phase 04]: 04-31: the Password saved toast reaches the admin shell through a one-shot in the session module (AuthLayout's toast layer unmounts with its route)
 - [Phase 04]: 04-31: S3 and S6 show the shared banner with Try Again when the check could not be made, instead of calling the link expired
+- [Phase 04]: 04-35: bootstrap guard also refuses system databases and allows only CSPS_Dev/CSPS_E2E/CSPS_Test_<guid> on local servers; pending migrations are refused
 
 ### Pending Todos
 
@@ -422,6 +424,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T12:26:17.480Z
-Stopped at: Completed 04-31-PLAN.md
+Last session: 2026-10-15T12:37:43.065Z
+Stopped at: Completed 04-35-PLAN.md
 Resume file: None
