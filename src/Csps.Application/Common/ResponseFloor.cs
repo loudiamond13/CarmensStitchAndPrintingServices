@@ -13,8 +13,9 @@ public static class ResponseFloor
     {
         ArgumentNullException.ThrowIfNull(time);
 
-        var remaining = floor - time.GetElapsedTime(startedTimestamp);
-        if (remaining > TimeSpan.Zero)
+        // A timer can fire a few milliseconds early (Windows ticks are coarse), so measure again after every delay.
+        TimeSpan remaining;
+        while ((remaining = floor - time.GetElapsedTime(startedTimestamp)) > TimeSpan.Zero)
         {
             await Task.Delay(remaining, time, cancellationToken).ConfigureAwait(false);
         }
