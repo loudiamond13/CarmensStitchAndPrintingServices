@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Identity & Authentication
 status: executing
-stopped_at: Completed 04-27-PLAN.md
-last_updated: "2026-10-15T08:02:59.091Z"
+stopped_at: Completed 04-20-PLAN.md
+last_updated: "2026-10-15T08:23:03.771Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 04 execution started
-state_head: 7e6c2422e8aa42da472f3dc35dd252b3cde32ed3
+state_head: 32319ebc13ad5fbf6d64617c432e11a1d0963bf9
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 91
-  completed_plans: 80
+  completed_plans: 81
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-14T21:36:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 25 of 35
+Plan: 26 of 35
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 04 execution started
 
@@ -139,6 +139,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P26 | 22min | 3 tasks | 26 files |
 | Phase 04 P19 | 14 min | 2 tasks | 19 files |
 | Phase 04 P27 | 1h | 3 tasks | 21 files |
+| Phase 04 P20 | 35 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -352,6 +353,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: 04-19: a reset spends and saves the link first inside the transaction, evicts the session cache only after commit, and records auth.sessions-revoked (password-reset) on every completed reset
 - [Phase 04]: 04-27: Playwright's WebKit on Windows reports SameSite None for every cookie, so @auth-cookies asserts WebKit's SameSite from the Set-Cookie header and Chromium/Firefox from the jar; Phase 3 confirms real Safari
 - [Phase 04]: 04-27: the E2E guard ignores WebKit's late modulepreload warning for the app's own assets chunks only
+- [Phase 04]: 04-20: Idempotency gate runs after UseAuthorization and covers only endpoints that name POST; the /api fallback keeps its 404
+- [Phase 04]: 04-20: A response that sets a cookie, has a non-text body or is over 1 MB is never stored, on top of the status rule
+- [Phase 04]: 04-20: The Idempotency-Key must be a hyphenated UUID in one header; anything else is 400 idempotency.key-missing
+- [Phase 04]: 04-20: A duplicate in flight gets 409 immediately (sp_getapplock timeout 0); sp_getapplock is the one reviewed raw-SQL call
 
 ### Pending Todos
 
@@ -398,6 +403,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T08:02:58.728Z
-Stopped at: Completed 04-27-PLAN.md
+Last session: 2026-10-15T08:23:03.407Z
+Stopped at: Completed 04-20-PLAN.md
 Resume file: None
