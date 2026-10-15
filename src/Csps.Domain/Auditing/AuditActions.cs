@@ -1,0 +1,107 @@
+namespace Csps.Domain.Auditing;
+
+/// <summary>
+/// The audit action codes of Phase 4 (AUDIT-01). Each is a dotted lowercase code that <see cref="AuditEntry"/>
+/// accepts. Entries reference people by user id only: never an e-mail address, name, code, token or password.
+/// </summary>
+public static class AuditActions
+{
+    /// <summary>A sign-in attempt failed; the detail is one of <see cref="SignInFailureReasons"/>.</summary>
+    public const string SignInFailed = "auth.sign-in-failed";
+
+    /// <summary>An account was locked after repeated failures; the detail is one of <see cref="LockoutDetails"/>.</summary>
+    public const string Lockout = "auth.lockout";
+
+    /// <summary>A sign-in code was created and e-mailed.</summary>
+    public const string TwoFactorIssued = "auth.2fa-issued";
+
+    /// <summary>A new sign-in code was requested.</summary>
+    public const string TwoFactorResent = "auth.2fa-resent";
+
+    /// <summary>A sign-in code was entered correctly.</summary>
+    public const string TwoFactorVerified = "auth.2fa-verified";
+
+    /// <summary>A wrong sign-in code was entered.</summary>
+    public const string TwoFactorFailed = "auth.2fa-failed";
+
+    /// <summary>A sign-in code ran out of attempts.</summary>
+    public const string TwoFactorExhausted = "auth.2fa-exhausted";
+
+    /// <summary>A sign-in completed and a session started.</summary>
+    public const string SignedIn = "auth.signed-in";
+
+    /// <summary>A used refresh token was presented again, so the session was revoked.</summary>
+    public const string RefreshReuseDetected = "auth.refresh-reuse-detected";
+
+    /// <summary>A user signed out of the current session.</summary>
+    public const string SignedOut = "auth.signed-out";
+
+    /// <summary>Several sessions were revoked at once; the detail is one of <see cref="SessionsRevokedDetails"/>.</summary>
+    public const string SessionsRevoked = "auth.sessions-revoked";
+
+    /// <summary>One session was revoked.</summary>
+    public const string SessionRevoked = "auth.session-revoked";
+
+    /// <summary>A password reset was requested.</summary>
+    public const string PasswordResetRequested = "auth.password-reset-requested";
+
+    /// <summary>A password reset was completed.</summary>
+    public const string PasswordResetCompleted = "auth.password-reset-completed";
+
+    /// <summary>A reset link was used that is unknown, expired or already used.</summary>
+    public const string PasswordResetLinkInvalid = "auth.password-reset-link-invalid";
+
+    /// <summary>A signed-in user changed their own password.</summary>
+    public const string PasswordChanged = "auth.password-changed";
+
+    /// <summary>A chosen password was refused because it appears in a known breach.</summary>
+    public const string PasswordBreachFound = "auth.password-breach-found";
+
+    /// <summary>The breached-password lookup could not be reached.</summary>
+    public const string BreachCheckUnavailable = "auth.breach-check-unavailable";
+
+    /// <summary>An invited user set a password and activated the account.</summary>
+    public const string InviteAccepted = "auth.invite-accepted";
+
+    /// <summary>The first Manager account was created by the bootstrap command.</summary>
+    public const string BootstrapManagerCreated = "user.bootstrap-manager-created";
+
+    /// <summary>A user was invited.</summary>
+    public const string UserInvited = "user.invited";
+
+    /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
+    public static IReadOnlyList<string> SignInFailureReasons { get; } =
+        ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password"];
+
+    /// <summary>What triggered a lockout (the detail of <see cref="Lockout"/>).</summary>
+    public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];
+
+    /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
+    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset"];
+
+    /// <summary>Every action code, in declaration order.</summary>
+    public static IReadOnlyList<string> All { get; } =
+    [
+        SignInFailed,
+        Lockout,
+        TwoFactorIssued,
+        TwoFactorResent,
+        TwoFactorVerified,
+        TwoFactorFailed,
+        TwoFactorExhausted,
+        SignedIn,
+        RefreshReuseDetected,
+        SignedOut,
+        SessionsRevoked,
+        SessionRevoked,
+        PasswordResetRequested,
+        PasswordResetCompleted,
+        PasswordResetLinkInvalid,
+        PasswordChanged,
+        PasswordBreachFound,
+        BreachCheckUnavailable,
+        InviteAccepted,
+        BootstrapManagerCreated,
+        UserInvited,
+    ];
+}

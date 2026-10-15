@@ -1,3 +1,8 @@
+---
+created: 2026-10-07T12:06:23-05:00
+updated: 2026-10-14T20:15:00-05:00
+---
+
 # Audit log: append-only design and retention purge
 
 The audit log (`dbo.AuditLog`) records who did what and when: sign-ins, order changes, settings changes and other
@@ -19,7 +24,7 @@ D-32 replaces the "2-year audit retention" that older notes (for example the pro
 ## What "append-only" means here
 
 - **Adding entries** works normally. The application writes them through `IAuditTrail` (`AuditTrail` in
-  Infrastructure).
+  Infrastructure); see "How handlers write entries" below.
 - **Changing an entry** (SQL `UPDATE`) always fails with SQL error **51000**: "AuditLog is append-only: UPDATE is not
   allowed."
 - **Removing an entry** (SQL `DELETE`) fails with SQL error **51001**: "AuditLog is append-only: DELETE is not
@@ -48,6 +53,50 @@ login, such as a bug or an injected statement.
 
 Integration tests prove each layer: `AuditTrailTests` and `AuditLogAppendOnlyTests` in
 `tests/Csps.Infrastructure.IntegrationTests/Auditing`. One test also checks that the trigger exists and is enabled.
+
+## How handlers write entries
+
+`IAuditTrail` has two write paths. A handler commits through `IUnitOfWork` (`SaveChangesAsync`, or
+`InTransactionAsync` for several steps that must succeed or fail together).
+
+| Path | What it does | Use it for |
+|------|--------------|------------|
+| `Record(...)` | Only adds the entry to the request's context. The handler's own `IUnitOfWork.SaveChangesAsync` commits it together with the business change. If the change rolls back, so does the entry. It never saves other tracked changes by itself. | Events that belong to the change: sign-in success, reset completed |
+| `RecordIndependentlyAsync(...)` | Writes and saves the entry through its own short-lived database context, so it survives a rollback of the request's change and never saves the request's tracked changes. | Failures that must stay on record: sign-in failed, code failed, reuse detected |
+
+The client address is stored as a /24 (IPv4) or /48 (IPv6) network. Addresses that embed an IPv4 address (IPv4-mapped
+`::ffff:a.b.c.d`, 6to4 `2002::/16` and the NAT64 prefix `64:ff9b::/96`) are first mapped to that IPv4, so the visitor's
+network is still only a /24.
+
+## Phase 4 auth events (AUDIT-01)
+
+The codes are constants in `Csps.Domain.Auditing.AuditActions`; a test checks that each is valid, unique and at most
+64 characters. The target is the thing acted on, by id: `User` (the user id) or `UserSession` (the session id).
+Entries never contain an e-mail address, a name, a sign-in code, a token or a password.
+
+| Code | Written when | Target | Detail | Write path |
+|------|--------------|--------|--------|------------|
+| `auth.sign-in-failed` | A password sign-in is refused | `User` id when the account is known, otherwise none | `unknown-account`, `bad-password`, `locked`, `deactivated`, `unconfirmed` or `no-password` (an invited user who has not set a password yet) | `RecordIndependentlyAsync` |
+| `auth.lockout` | An account becomes locked after repeated failures | `User` id | `password` or `code` | `RecordIndependentlyAsync` |
+| `auth.2fa-issued` | A sign-in code is created and e-mailed | `User` id | none | `Record` |
+| `auth.2fa-resent` | A new sign-in code is requested | `User` id | none | `Record` |
+| `auth.2fa-verified` | A sign-in code is entered correctly | `User` id | none | `Record` |
+| `auth.2fa-failed` | A wrong sign-in code is entered | `User` id | none | `RecordIndependentlyAsync` |
+| `auth.2fa-exhausted` | A sign-in code runs out of attempts | `User` id | none | `RecordIndependentlyAsync` |
+| `auth.signed-in` | A sign-in completes and a session starts | `UserSession` id | none | `Record` |
+| `auth.refresh-reuse-detected` | A used refresh token is presented again and the session is revoked | `UserSession` id | none | `RecordIndependentlyAsync` |
+| `auth.signed-out` | A user signs out of the current session | `UserSession` id | none | `Record` |
+| `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others` or `password-reset` | `Record` |
+| `auth.session-revoked` | One session is revoked | `UserSession` id | none | `Record` |
+| `auth.password-reset-requested` | A password reset is requested for a known account | `User` id | none | `Record` |
+| `auth.password-reset-completed` | A password reset finishes | `User` id | none | `Record` |
+| `auth.password-reset-link-invalid` | A reset link is unknown, expired or already used | none | none | `RecordIndependentlyAsync` |
+| `auth.password-changed` | A signed-in user changes their own password | `User` id | none | `Record` |
+| `auth.password-breach-found` | A chosen password is refused because it is in a known breach | `User` id when known | none | `RecordIndependentlyAsync` |
+| `auth.breach-check-unavailable` | The breached-password lookup could not be reached | `User` id when known | none | `RecordIndependentlyAsync` |
+| `auth.invite-accepted` | An invited user sets a password and activates the account | `User` id | none | `Record` |
+| `user.bootstrap-manager-created` | The bootstrap command creates the first Manager | `User` id | none | `Record` |
+| `user.invited` | A user is invited | `User` id | none | `Record` |
 
 ## Residual risk
 

@@ -5,8 +5,9 @@ namespace Csps.Server.Logging;
 /// <summary>
 /// Decides which log property names hold secrets (FND-07, CWE-532). The rule is an exact name or a suffix, both
 /// case-insensitive, and never a substring: <c>StatusCode</c> contains "code" but is not a secret, while
-/// <c>Code</c> (a one-time code) is. The exact names include the Identity user's <c>PasswordHash</c> and
-/// <c>SecurityStamp</c>, which no suffix catches.
+/// <c>Code</c> (a one-time code) is. The exact names cover Identity and sign-in secrets such as <c>PasswordHash</c>,
+/// <c>SecurityStamp</c> and <c>CodeMac</c>; the suffixes <c>Hash</c>, <c>Stamp</c>, <c>Key</c> and <c>Mac</c> catch
+/// the rest (WR-05).
 /// </summary>
 public static class SensitiveDataMasking
 {
@@ -18,6 +19,19 @@ public static class SensitiveDataMasking
         "Password",
         "PasswordHash",
         "SecurityStamp",
+        "ConcurrencyStamp",
+        "AuthenticatorKey",
+        "RecoveryCodes",
+        "PrivateKey",
+        "Pfx",
+        "Ticket",
+        "CodeMac",
+        "TokenHash",
+        "RequestHash",
+        "ProtectedBody",
+        "ResetCode",
+        "VerificationCode",
+        "SigningKeyId",
         "Code",
         "Otp",
         "ApiKey",
@@ -31,7 +45,7 @@ public static class SensitiveDataMasking
         "Token",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly string[] Suffixes = ["Password", "Token", "Secret"];
+    private static readonly string[] Suffixes = ["Password", "Token", "Secret", "Hash", "Stamp", "Key", "Mac"];
 
     /// <summary>Returns whether a property with this name must be written as <see cref="Mask"/>.</summary>
     /// <param name="name">The property name.</param>
