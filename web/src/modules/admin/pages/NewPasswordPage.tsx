@@ -9,23 +9,16 @@
 //     to the validated return path or /admin.
 //   - "Use a different account" drops what this tab holds for the pending sign-in and returns to S1.
 import { zodResolver } from '@hookform/resolvers/zod';
-import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Button, hitAreaClasses, UiLink } from '@/components/actions';
-import { Icon } from '@/components/brand';
-import { loginBackClasses, loginCardClasses } from '@/components/layout/layout.recipe';
-import { ErrorState } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
-import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import { NewPasswordFields } from '@/modules/admin/components/NewPasswordFields';
+import { NewPasswordForm, type AuthBanner } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
-import type { ResetBanner } from '@/modules/admin/pages/ResetPasswordPage';
 import { passwordService, type SessionResponse } from '@/modules/admin/services/passwordService';
 import {
   clearSession,
@@ -50,7 +43,7 @@ export function NewPasswordRoute() {
   // Read once: the pending sign-in's email (for the hidden username input) and why the change is needed.
   const [email] = useState(getPendingEmail);
   const [reason] = useState(getPasswordChangeReason);
-  const [banner, setBanner] = useState<ResetBanner | null>(null);
+  const [banner, setBanner] = useState<AuthBanner | null>(null);
   // D-15: the pending email, when known, is kept out of the password; the server also checks the names.
   const schema = useMemo(() => newPasswordSchema({ email: email ?? '', firstName: null, lastName: null }), [email]);
   const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
@@ -123,34 +116,18 @@ export function NewPasswordRoute() {
   };
 
   return (
-    <form
-      ref={formRef}
-      aria-label={copy.title}
-      noValidate
-      className={loginCardClasses}
+    <NewPasswordForm
+      formRef={formRef}
+      control={control}
+      pending={pending}
+      email={email}
+      reason={reason === 'breach' ? 'breach' : 'temporary'}
+      banner={banner}
+      onBack={clearSession}
       onSubmit={(event) => {
         setBanner(null);
         void handleSubmit(onValid, onInvalid)(event);
       }}
-    >
-      <AuthHeader title={copy.title} subline={reason === 'breach' ? copy.sublineBreach : copy.sublineTemporary} />
-      {banner !== null && (
-        <ErrorState align="start" title={banner.title} message={banner.message} error={banner.error} />
-      )}
-      <NewPasswordFields control={control} email={email} />
-      <Button type="submit" variant="primary" size="lg" block iconRight="arrow-right" pending={pending}>
-        {pending ? copy.pending : copy.cta}
-      </Button>
-      <UiLink
-        to={SIGN_IN_PATH}
-        className={clsx(loginBackClasses, hitAreaClasses)}
-        onClick={() => {
-          clearSession();
-        }}
-      >
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </form>
+    />
   );
 }

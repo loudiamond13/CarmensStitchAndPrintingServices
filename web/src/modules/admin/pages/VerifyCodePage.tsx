@@ -13,20 +13,14 @@
 //     polite status speaks only when a send starts the cooldown and when it ends (OQ-6). The hourly cap names no wait
 //     (D-10).
 import { zodResolver } from '@hookform/resolvers/zod';
-import clsx from 'clsx';
-import { useEffect, useRef, useState, type Ref, type SyntheticEvent } from 'react';
-import { Controller, useForm, type Control } from 'react-hook-form';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Button, hitAreaClasses, UiLink } from '@/components/actions';
-import { Icon } from '@/components/brand';
-import { OtpInput } from '@/components/entry';
-import { loginBackClasses, loginCardClasses, srOnlyClasses } from '@/components/layout/layout.recipe';
-import { ErrorState, Note } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { verifySchema, type VerifyValues } from '@/modules/admin/authSchemas';
-import { AuthHeader } from '@/modules/admin/components/AuthHeader';
+import { VerifyCodeForm } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
 import { authService, type ResendCodeResponse, type VerifyCodeResponse } from '@/modules/admin/services/authService';
@@ -66,96 +60,6 @@ function secondsLeft(at: number | null, now: number): number {
 /** "1:00", "0:42". */
 function formatCountdown(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-export interface VerifyCodeFormProps {
-  control: Control<VerifyValues>;
-  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
-  /** The verify request is in flight (WEB-09). */
-  pending: boolean;
-  /** The address the code went to, or null after a refresh. */
-  email: string | null;
-  banner?: ErrorCopy | null;
-  /** Shows the "new code sent" note (a resend just worked). */
-  resent?: boolean;
-  /** The Resend button: its label and whether it is waiting (aria-disabled). */
-  resendLabel: string;
-  resendWaiting: boolean;
-  resendPending: boolean;
-  onResend: () => void;
-  /** The text of the one polite status ('' says nothing). */
-  status: string;
-  formRef?: Ref<HTMLFormElement>;
-}
-
-export function VerifyCodeForm({
-  control,
-  onSubmit,
-  pending,
-  email,
-  banner = null,
-  resent = false,
-  resendLabel,
-  resendWaiting,
-  resendPending,
-  onResend,
-  status,
-  formRef,
-}: VerifyCodeFormProps) {
-  const copy = AUTH_COPY.verify;
-  const subline =
-    email === null ? (
-      copy.sublineFallback
-    ) : (
-      <>
-        {copy.subline.before}
-        <strong>{email}</strong>
-        {copy.subline.after}
-      </>
-    );
-  return (
-    <form ref={formRef} aria-label={copy.title} noValidate className={loginCardClasses} onSubmit={onSubmit}>
-      <AuthHeader title={copy.title} subline={subline} />
-      {resent && <Note icon="circle-check">{copy.resent}</Note>}
-      {banner !== null && <ErrorState align="start" title={banner.title} message={banner.body} />}
-      <Controller
-        control={control}
-        name="code"
-        render={({ field, fieldState }) => (
-          <OtpInput
-            label={copy.legend}
-            hint={copy.hint}
-            required
-            value={field.value}
-            onChange={field.onChange}
-            error={fieldState.error?.message ?? ''}
-          />
-        )}
-      />
-      <Button type="submit" variant="primary" size="lg" block iconRight="arrow-right" pending={pending}>
-        {pending ? copy.pending : copy.cta}
-      </Button>
-      <Button
-        variant="secondary"
-        size="md"
-        block
-        aria-disabled={resendWaiting}
-        pending={resendPending}
-        onClick={onResend}
-      >
-        {resendLabel}
-      </Button>
-      {/* The only live region of the screen (OQ-6): it changes only when a cooldown starts and when it ends. */}
-      <p role="status" aria-live="polite" className={srOnlyClasses}>
-        {status}
-      </p>
-      <Note icon="shield-check">{copy.note}</Note>
-      <UiLink to={SIGN_IN_PATH} className={clsx(loginBackClasses, hitAreaClasses)}>
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </form>
-  );
 }
 
 export function VerifyCodeRoute() {

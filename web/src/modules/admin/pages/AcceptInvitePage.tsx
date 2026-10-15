@@ -13,15 +13,15 @@ import { useNavigate } from 'react-router';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { loginBackClasses, loginCardClasses } from '@/components/layout/layout.recipe';
-import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
+import { ErrorState, LoadingRegion } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import { NewPasswordFields } from '@/modules/admin/components/NewPasswordFields';
+import { CheckingCard, InviteFormCard, InviteInvalidCard, type AuthBanner } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { removeFragment, tokenFromHash, type ResetBanner } from '@/modules/admin/pages/ResetPasswordPage';
+import { removeFragment, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
 import { inviteService, type InviteLinkResponse } from '@/modules/admin/services/inviteService';
 import { setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
@@ -41,10 +41,9 @@ interface InviteFormProps {
 
 /** The form state: owns the form, the schema for this account and the save. */
 function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
-  const copy = AUTH_COPY.invite;
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
-  const [banner, setBanner] = useState<ResetBanner | null>(null);
+  const [banner, setBanner] = useState<AuthBanner | null>(null);
   // D-15: the checked invite names the account, so the password can be kept free of its email and first name.
   const schema = useMemo(
     () => newPasswordSchema({ email: invite.email, firstName: invite.firstName, lastName: null }),
@@ -129,56 +128,17 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
   };
 
   return (
-    <form
-      ref={formRef}
-      aria-label={copy.title}
-      noValidate
-      className={loginCardClasses}
+    <InviteFormCard
+      formRef={formRef}
+      control={control}
+      pending={pending}
+      email={invite.email}
+      banner={banner}
       onSubmit={(event) => {
         setBanner(null);
         void handleSubmit(onValid, onInvalid)(event);
       }}
-    >
-      <AuthHeader
-        title={copy.title}
-        subline={
-          <>
-            {copy.subline.before}
-            <strong>{invite.email}</strong>
-            {copy.subline.after}
-          </>
-        }
-      />
-      {banner !== null && (
-        <ErrorState align="start" title={banner.title} message={banner.message} error={banner.error} />
-      )}
-      <NewPasswordFields control={control} email={invite.email} />
-      <Button type="submit" variant="primary" size="lg" block iconRight="arrow-right" pending={pending}>
-        {pending ? AUTH_COPY.newPassword.pending : AUTH_COPY.newPassword.cta}
-      </Button>
-      <UiLink to={SIGN_IN_PATH} className={clsx(loginBackClasses, hitAreaClasses)}>
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </form>
-  );
-}
-
-/** The one state for every invite that does not work. Focus moves to its h1. */
-function InvalidInvite() {
-  const copy = AUTH_COPY.invite;
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-  return (
-    <div className={loginCardClasses}>
-      <AuthHeader title={copy.invalidTitle} subline={copy.invalidBody} headingRef={headingRef} />
-      <UiLink to={SIGN_IN_PATH} className={clsx(loginBackClasses, hitAreaClasses)}>
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </div>
+    />
   );
 }
 
@@ -228,7 +188,7 @@ export function AcceptInviteRoute() {
   }, [token, attempt]);
 
   if (token === null || phase.kind === 'invalid') {
-    return <InvalidInvite />;
+    return <InviteInvalidCard />;
   }
   if (phase.kind === 'failed') {
     const failure = describeHttpError(phase.error);
@@ -265,10 +225,7 @@ export function AcceptInviteRoute() {
       className="contents"
     >
       {phase.kind === 'checking' ? (
-        <div className={loginCardClasses}>
-          <AuthHeader title={copy.title} subline={AUTH_COPY.reset.checking} />
-          <SkeletonText />
-        </div>
+        <CheckingCard title={copy.title} />
       ) : (
         <InviteForm
           token={token}

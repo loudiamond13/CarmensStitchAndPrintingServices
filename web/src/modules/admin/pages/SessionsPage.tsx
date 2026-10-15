@@ -4,21 +4,12 @@
 // page root, because a ResponsiveTable cell is a paint-containment frame that would trap its scrim.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/actions';
 import { isHttpError } from '@/core/api/errors';
 import { useToast } from '@/components/feedback';
-import {
-  pageHeadClasses,
-  pageHeadTitleClasses,
-  pageSublineClasses,
-  pageTitleClasses,
-} from '@/components/layout/layout.recipe';
-import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
-import { Note } from '@/components/states';
-import { Badge } from '@/components/status';
 import { sessionsListKey } from '@/lib/query/keys';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
-import { deviceLabel, lastActiveText, rowSignOutName, signedInText } from '@/modules/admin/components/deviceSummary';
+import { deviceLabel } from '@/modules/admin/components/deviceSummary';
+import { SessionsView } from '@/modules/admin/components/SessionsView';
 import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
 import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -27,11 +18,6 @@ import { sessionsService, type SessionListItem } from '@/modules/admin/services/
 
 const COPY = AUTH_COPY.sessions;
 const HEADING = Symbol('heading');
-
-/** A time in a `<time>` element carrying the UTC value; null (the empty-value icon) when it cannot be read. */
-function timeCell(text: string | null, utcIso: string) {
-  return text === null ? null : <time dateTime={utcIso}>{text}</time>;
-}
 
 export function SessionsRoute() {
   const query = useSessionsQuery();
@@ -60,7 +46,6 @@ export function SessionsRoute() {
   });
 
   const rows = query.data;
-  const onlyThisDevice = rows !== undefined && rows.length > 0 && rows.every((item) => item.current);
   // "Last active" is read against the moment the list was fetched, so the same data always reads the same.
   const now = query.dataUpdatedAt;
 
@@ -126,88 +111,11 @@ export function SessionsRoute() {
     void queryClient.invalidateQueries({ queryKey: sessionsListKey });
   };
 
-  const columns: readonly ResponsiveTableColumn<SessionListItem>[] = [
-    {
-      key: 'device',
-      header: COPY.columns.device,
-      lead: true,
-      cell: (item) => (
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="wrap-anywhere">{deviceLabel(item)}</span>
-          {item.current && <Badge tone="info">{COPY.thisDevice}</Badge>}
-        </span>
-      ),
-    },
-    {
-      key: 'signedIn',
-      header: COPY.columns.signedIn,
-      cell: (item) => timeCell(signedInText(item), item.signedInAt),
-    },
-    {
-      key: 'lastActive',
-      header: COPY.columns.lastActive,
-      cell: (item) => timeCell(lastActiveText(item, now), item.lastActiveAt),
-    },
-    {
-      key: 'session',
-      header: COPY.columns.session,
-      cell: (item) => (item.persistent ? <Badge tone="neutral">{COPY.keepBadge}</Badge> : COPY.untilClose),
-    },
-    {
-      key: 'actions',
-      header: COPY.columns.actions,
-      actions: true,
-      cell: (item) =>
-        item.current ? null : (
-          <RowActions>
-            <RowAction
-              icon="log-out"
-              label={rowSignOutName(item)}
-              title={COPY.rowHint}
-              ref={(button) => {
-                if (button === null) {
-                  buttonRefs.current.delete(item.id);
-                } else {
-                  buttonRefs.current.set(item.id, button);
-                }
-              }}
-              onClick={() => {
-                setTarget(item);
-              }}
-            />
-          </RowActions>
-        ),
-    },
-  ];
-
   return (
     <>
-      <div className={pageHeadClasses}>
-        <div className={pageHeadTitleClasses}>
-          <h1 ref={headingRef} tabIndex={-1} className={pageTitleClasses}>
-            {COPY.title}
-          </h1>
-          <p className={pageSublineClasses}>{COPY.subline}</p>
-        </div>
-        <div className="pg-phone:w-full">
-          <Button
-            variant="secondary"
-            icon="log-out"
-            className="pg-phone:w-full"
-            onClick={() => {
-              setOthersOpen(true);
-            }}
-          >
-            {COPY.headerAction}
-          </Button>
-        </div>
-      </div>
-      <ResponsiveTable<SessionListItem>
-        caption={COPY.caption}
-        columns={columns}
+      <SessionsView
         rows={rows}
-        rowKey={(item) => item.id}
-        things={COPY.things}
+        now={now}
         pending={query.isPending}
         refetching={query.isFetching && rows !== undefined}
         failed={query.isError}
@@ -215,8 +123,19 @@ export function SessionsRoute() {
         onRetry={() => {
           void query.refetch();
         }}
+        onOpenOthers={() => {
+          setOthersOpen(true);
+        }}
+        onSignOut={setTarget}
+        headingRef={headingRef}
+        registerButton={(id, button) => {
+          if (button === null) {
+            buttonRefs.current.delete(id);
+          } else {
+            buttonRefs.current.set(id, button);
+          }
+        }}
       />
-      {onlyThisDevice && <Note icon="shield-check">{COPY.onlyThisDevice}</Note>}
       {othersOpen && (
         <SignOutOthersDialog
           onClose={() => {

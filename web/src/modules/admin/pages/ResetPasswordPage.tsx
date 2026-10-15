@@ -11,26 +11,30 @@
 //     session too, and S1 shows the "password changed" notice.
 import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef, useState, type Ref, type SyntheticEvent } from 'react';
-import { useForm, type Control, type FieldErrors } from 'react-hook-form';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { useNavigate } from 'react-router';
-import { Button, ButtonLink, hitAreaClasses, UiLink } from '@/components/actions';
+import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { loginBackClasses, loginCardClasses } from '@/components/layout/layout.recipe';
-import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
+import { ErrorState, LoadingRegion } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import { NewPasswordFields } from '@/modules/admin/components/NewPasswordFields';
+import {
+  CheckingCard,
+  ResetInvalidCard,
+  ResetPasswordForm,
+  type AuthBanner,
+} from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { passwordService } from '@/modules/admin/services/passwordService';
 import { clearSession, setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
 
 const SIGN_IN_PATH = '/admin/login';
-const FORGOT_PATH = '/admin/forgot-password';
 const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
@@ -46,61 +50,6 @@ export function removeFragment(): void {
   window.history.replaceState(window.history.state, '', `${pathname}${search}`);
 }
 
-/** The banner above the fields: the words, and the failure when its reference should show. */
-export interface ResetBanner {
-  readonly title: string;
-  readonly message: string;
-  readonly error?: unknown;
-}
-
-export interface ResetPasswordFormProps {
-  control: Control<NewPasswordValues>;
-  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
-  /** The save is in flight (WEB-09). */
-  pending: boolean;
-  /** The account the link is for, named in the subline and in the hidden username input. */
-  email: string | null;
-  banner?: ResetBanner | null | undefined;
-  formRef?: Ref<HTMLFormElement>;
-}
-
-export function ResetPasswordForm({
-  control,
-  onSubmit,
-  pending,
-  email,
-  banner = null,
-  formRef,
-}: ResetPasswordFormProps) {
-  const copy = AUTH_COPY.reset;
-  const subline =
-    email === null ? (
-      AUTH_COPY.newPassword.sublineTemporary
-    ) : (
-      <>
-        {copy.subline.before}
-        <strong>{email}</strong>
-        {copy.subline.after}
-      </>
-    );
-  return (
-    <form ref={formRef} aria-label={copy.title} noValidate className={loginCardClasses} onSubmit={onSubmit}>
-      <AuthHeader title={copy.title} subline={subline} />
-      {banner !== null && (
-        <ErrorState align="start" title={banner.title} message={banner.message} error={banner.error} />
-      )}
-      <NewPasswordFields control={control} email={email} />
-      <Button type="submit" variant="primary" size="lg" block iconRight="arrow-right" pending={pending}>
-        {pending ? AUTH_COPY.newPassword.pending : AUTH_COPY.newPassword.cta}
-      </Button>
-      <UiLink to={SIGN_IN_PATH} className={clsx(loginBackClasses, hitAreaClasses)}>
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </form>
-  );
-}
-
 interface ResetFormProps {
   token: string;
   email: string;
@@ -112,7 +61,7 @@ interface ResetFormProps {
 function ResetForm({ token, email, onLinkGone }: ResetFormProps) {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
-  const [banner, setBanner] = useState<ResetBanner | null>(null);
+  const [banner, setBanner] = useState<AuthBanner | null>(null);
   // D-15: the checked link names the account, so the password can be kept free of its email.
   const schema = useMemo(() => newPasswordSchema({ email, firstName: null, lastName: null }), [email]);
   const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
@@ -203,27 +152,6 @@ function ResetForm({ token, email, onLinkGone }: ResetFormProps) {
   );
 }
 
-/** The one state for every link that does not work. Focus moves to its h1. */
-function InvalidLink() {
-  const copy = AUTH_COPY.reset;
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-  return (
-    <div className={loginCardClasses}>
-      <AuthHeader title={copy.invalidTitle} subline={copy.invalidBody} headingRef={headingRef} />
-      <ButtonLink to={FORGOT_PATH} variant="primary" size="lg" block>
-        {copy.request}
-      </ButtonLink>
-      <UiLink to={SIGN_IN_PATH} className={clsx(loginBackClasses, hitAreaClasses)}>
-        <Icon name="chevron-left" size={16} />
-        {copy.back}
-      </UiLink>
-    </div>
-  );
-}
-
 type Phase =
   | { readonly kind: 'checking' }
   | { readonly kind: 'form'; readonly email: string }
@@ -270,7 +198,7 @@ export function ResetPasswordRoute() {
   }, [token, attempt]);
 
   if (token === null || phase.kind === 'invalid') {
-    return <InvalidLink />;
+    return <ResetInvalidCard />;
   }
   if (phase.kind === 'failed') {
     const failure = describeHttpError(phase.error);
@@ -307,10 +235,7 @@ export function ResetPasswordRoute() {
       className="contents"
     >
       {phase.kind === 'checking' ? (
-        <div className={loginCardClasses}>
-          <AuthHeader title={copy.title} subline={copy.checking} />
-          <SkeletonText />
-        </div>
+        <CheckingCard title={copy.title} />
       ) : (
         <ResetForm
           token={token}
