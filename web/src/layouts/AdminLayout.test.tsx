@@ -627,6 +627,46 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     expect(userButton()).toHaveFocus();
   });
 
+  it('refreshes the open Signed-in Devices list after Sign Out Other Devices from the menu', async () => {
+    acceptSession(sessionResponse());
+    const current = {
+      id: '00000000-0000-4000-8000-000000000001',
+      device: 'Chrome on Windows',
+      signedInAt: '2026-10-12T07:42:00Z',
+      lastActiveAt: new Date().toISOString(),
+      persistent: true,
+      current: true,
+    };
+    const phone = {
+      ...current,
+      id: '00000000-0000-4000-8000-000000000002',
+      device: 'Safari on iPhone',
+      current: false,
+    };
+    let devices = [current, phone];
+    server.use(
+      http.get('*/api/v1/sessions', () => HttpResponse.json(devices)),
+      http.post('*/api/v1/auth/sign-out-others', () => {
+        devices = [current];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText('Safari on iPhone', undefined, { timeout: 5000 })).toBeInTheDocument();
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Safari on iPhone')).toBeNull();
+    });
+    expect(screen.getByText('Chrome on Windows')).toBeInTheDocument();
+    clearSession();
+  });
+
   it('keeps the other devices signed in when the dialog is dismissed with Esc', async () => {
     await renderAt('/admin');
     await userEvent.click(userButton());

@@ -17,6 +17,7 @@
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLoaderData, useLocation, useNavigate, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry';
 import { Skeleton, ToastProvider } from '@/components/feedback';
@@ -34,6 +35,7 @@ import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admi
 import { useClearCacheOnSignOut } from '@/modules/admin/hooks/useClearCacheOnSignOut';
 import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
 import { useSessionCapWarning } from '@/modules/admin/hooks/useSessionCapWarning';
+import { refreshAfterSignedOutOthers } from '@/modules/admin/hooks/useSessionsQuery';
 import { setNavigator, signOut } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
 import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
@@ -131,6 +133,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
+  const queryClient = useQueryClient();
   useSessionCapWarning();
   usePostSignInToast();
   useClearCacheOnSignOut();
@@ -165,6 +168,9 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
       {/* The menu puts focus on its button before this opens, so the dialog's focus trap returns there on close. */}
       {signOutOthersOpen && (
         <SignOutOthersDialog
+          onSignedOut={() => {
+            refreshAfterSignedOutOthers(queryClient);
+          }}
           onClose={() => {
             setSignOutOthersOpen(false);
           }}

@@ -13,7 +13,7 @@ import { SessionsView } from '@/modules/admin/components/SessionsView';
 import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
 import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDialog';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { useSessionsQuery } from '@/modules/admin/hooks/useSessionsQuery';
+import { refreshAfterSignedOutOthers, useSessionsQuery } from '@/modules/admin/hooks/useSessionsQuery';
 import { sessionsService, type SessionListItem } from '@/modules/admin/services/sessionsService';
 
 const COPY = AUTH_COPY.sessions;
@@ -107,8 +107,7 @@ export function SessionsRoute() {
   };
 
   const afterSignedOutOthers = () => {
-    queryClient.setQueryData<SessionListItem[]>(sessionsListKey, (list) => list?.filter((item) => item.current));
-    void queryClient.invalidateQueries({ queryKey: sessionsListKey });
+    refreshAfterSignedOutOthers(queryClient);
   };
 
   return (
