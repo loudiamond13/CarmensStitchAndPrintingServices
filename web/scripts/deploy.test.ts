@@ -969,6 +969,25 @@ describe('main failure paths and actions', () => {
     expect(world.calls[0]?.args[0]).toBe('-verb:delete');
   });
 
+  it('makes the online action a whatif delete on a dry run, so nothing on the site changes', async () => {
+    const world = fakeWorld();
+
+    const code = await main({ ...ENV, INPUT_ACTION: 'online', INPUT_DRY_RUN: 'true' }, world.deps, []);
+
+    expect(code).toBe(0);
+    expect(world.calls).toHaveLength(1);
+    expect(world.calls[0]?.args).toContain('-verb:delete');
+    expect(world.calls[0]?.args).toContain('-whatif');
+  });
+
+  it('plans the online action with -whatif only on a dry run', () => {
+    const dry = planDeploy({ action: 'online', dryRun: true, packageDir: null, lastGood: null, config: CONFIG });
+    const real = planDeploy({ action: 'online', dryRun: false, packageDir: null, lastGood: null, config: CONFIG });
+
+    expect(dry[0]?.args).toContain('-whatif');
+    expect(real[0]?.args).not.toContain('-whatif');
+  });
+
   it('exits with the failure of the online action', async () => {
     const world = fakeWorld({ online: [1] });
 
