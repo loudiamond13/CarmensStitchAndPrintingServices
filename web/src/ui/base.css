@@ -143,10 +143,11 @@
 
 /* PERF-05 metric-matched fallback for Archivo Variable (body text), so the swap from the local font to the brand font
    does not shift the layout. Values from scripts/font-metrics.mjs (Archivo latin woff2 vs the recorded Windows Arial);
-   scripts/font-metrics.test.ts recomputes them on every run. */
+   scripts/font-metrics.test.ts recomputes them on every run. Liberation Sans and Arimo have Arial's exact metrics and are
+   what Linux has instead of Arial, so the same overrides hold there. */
 @font-face {
   font-family: "Archivo Fallback";
-  src: local("Arial");
+  src: local("Arial"), local("Liberation Sans"), local("Arimo");
   size-adjust: 101.85%;
   ascent-override: 86.21%;
   descent-override: 20.62%;
@@ -159,7 +160,7 @@
    Variable, the next brand family, never to a system font (research Pitfall 17). */
 @font-face {
   font-family: "Barlow Condensed Fallback";
-  src: local("Arial Narrow"), local("Arial");
+  src: local("Arial Narrow"), local("Arial"), local("Liberation Sans"), local("Arimo");
   unicode-range: U+0000-20B0, U+20B2-10FFFF;
   size-adjust: 68.92%;
   ascent-override: 145.1%;
