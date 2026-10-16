@@ -171,7 +171,7 @@ public sealed partial class HygieneWorkflowTests
             : [];
     }
 
-    [GeneratedRegex(@"^(?:\^|\(\?s\))*(?:\.\*|\.\+|\[\s\S\]\*|\[\s\S\]\+)?\$?$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:\^|\(\?s\))*(?:\.\*|\.\+|\[\\s\\S\]\*|\[\\s\\S\]\+)?\$?$", RegexOptions.CultureInvariant)]
     private static partial Regex BroadPattern();
 
     [GeneratedRegex(@"^\[\[?[A-Za-z_.]+\]\]?$", RegexOptions.CultureInvariant)]
@@ -189,6 +189,6 @@ public sealed partial class HygieneWorkflowTests
     [GeneratedRegex(@"'''(?<value>.*?)'''|""(?<value>[^""]*)""|'(?<value>[^']*)'", RegexOptions.CultureInvariant)]
     private static partial Regex QuotedValue();
 
-    [GeneratedRegex(@"^\^[A-Za-z0-9_/-]+(?:\\\.[A-Za-z0-9_/-]+)*\$$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\^(?:[A-Za-z0-9_/-]|\\\.)+\$$", RegexOptions.CultureInvariant)]
     private static partial Regex ExplicitFile();
 }
