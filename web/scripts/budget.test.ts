@@ -40,6 +40,7 @@ const SESSIONS_PAGE = 'src/modules/admin/pages/SessionsPage.tsx';
 const AUTH_LAYOUT = 'src/layouts/AuthLayout.tsx';
 const SIGN_IN_PAGE = 'src/modules/admin/pages/SignInPage.tsx';
 const GUARD = 'src/modules/admin/guard.ts';
+const QUERY_ROOT = 'src/core/routes/QueryRoot.tsx';
 const PREVIEW_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
 const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
@@ -67,7 +68,13 @@ function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes
         imports: [SHARED],
         moduleIds: [PUBLIC_PAGE],
       }),
-      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 2_000, {
+      chunk('assets/QueryRoot-Q5.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: QUERY_ROOT,
+        imports: [SHARED],
+        moduleIds: [QUERY_ROOT, 'node_modules/@tanstack/query-core/build/modern/queryClient.js'],
+      }),
+      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 3_000, {
         isDynamicEntry: true,
         facadeModuleId: ADMIN_LAYOUT,
         imports: [SHARED, adminShared],
@@ -154,12 +161,14 @@ describe('BUDGETS (PERF-01)', () => {
   it('names the public route module (the D-17 holding page) and the admin route modules', () => {
     expect(PUBLIC_ROUTE).toEqual(['src/modules/public/pages/HoldingPage.tsx']);
     expect(ADMIN_ROUTE).toEqual([
+      'src/core/routes/QueryRoot.tsx',
       'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
       'src/modules/admin/pages/SessionsPage.tsx',
       'src/modules/admin/guard.ts',
     ]);
     expect(ADMIN_SIGN_IN_ROUTE).toEqual([
+      'src/core/routes/QueryRoot.tsx',
       'src/layouts/AuthLayout.tsx',
       'src/modules/admin/pages/SignInPage.tsx',
       'src/modules/admin/guard.ts',
@@ -431,24 +440,13 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     expect(report.errors).toEqual([expect.stringContaining(`index-A1.js contains the dev-only module ${moduleId}`)]);
   });
 
-  it('allows the guarded admin app in production (D-20 reversed in Phase 4)', () => {
+  it('allows the guarded admin app in production (D-20 reversed in Phase 4) in its own lazy chunks, with only the route table in the entry', () => {
     const graph = productionGraph(120_000);
     const admin = graph.chunks.map((c) =>
-      c.fileName === ENTRY
-        ? {
-            ...c,
-            moduleIds: [
-              ...c.moduleIds,
-              'src/modules/admin/routes.tsx',
-              'src/modules/admin/guard.ts',
-              'src/modules/admin/services/session.ts',
-              'src/modules/admin/pages/AdminNotFoundPage.tsx',
-              'src/layouts/AdminLayout.tsx',
-            ],
-          }
-        : c,
+      c.fileName === ENTRY ? { ...c, moduleIds: [...c.moduleIds, 'src/modules/admin/routes.tsx'] } : c,
     );
     expect(evaluateBudgets({ ...graph, chunks: admin }, production).errors).toEqual([]);
+    expect(graph.chunks.some((c) => c.moduleIds.includes('src/modules/admin/guard.ts'))).toBe(true);
   });
 
   it('allows a module whose name only resembles a dev path', () => {
@@ -470,6 +468,58 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
       expect(report.errors).toEqual([expect.stringContaining(fileName)]);
     },
   );
+});
+
+describe('evaluateBudgets: the public initial JS carries no TanStack Query and no admin code (PERF-02)', () => {
+  const withEntryModule = (moduleId: string, build: typeof production | typeof devRoutes = production) => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) =>
+      c.fileName === ENTRY ? { ...c, moduleIds: [...c.moduleIds, moduleId] } : c,
+    );
+    return evaluateBudgets({ ...graph, chunks }, build);
+  };
+
+  it.each([
+    ['node_modules/@tanstack/query-core/build/modern/queryClient.js'],
+    ['node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js'],
+    ['node_modules/nuqs/dist/index.js'],
+    ['node_modules/react-hook-form/dist/index.esm.mjs'],
+    ['node_modules/zod/v4/classic/schemas.js'],
+    ['src/lib/query/queryClient.ts'],
+    ['src/lib/query/cacheOwner.ts'],
+    ['src/lib/url-state/UrlStateLayout.tsx'],
+    ['src/core/routes/QueryRoot.tsx'],
+    ['src/layouts/AdminLayout.tsx'],
+    ['src/layouts/AuthLayout.tsx'],
+    ['src/modules/admin/guard.ts'],
+    ['src/modules/admin/services/session.ts'],
+    ['src/modules/admin/pages/AdminNotFoundPage.tsx'],
+  ])('fails a public initial chunk that contains %s', (moduleId) => {
+    for (const build of [production, devRoutes]) {
+      const report = withEntryModule(moduleId, build);
+      expect(report.ok).toBe(false);
+      expect(report.errors).toEqual([
+        expect.stringContaining(`The public initial JS (index-A1.js) contains ${moduleId}`),
+      ]);
+    }
+  });
+
+  it('fails a shared chunk of the public route that contains TanStack Query', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) =>
+      c.fileName === SHARED
+        ? { ...c, moduleIds: [...c.moduleIds, 'node_modules/@tanstack/query-core/build/modern/query.js'] }
+        : c,
+    );
+    expect(evaluateBudgets({ ...graph, chunks }, production).errors).toEqual([
+      expect.stringContaining('The public initial JS (shared-B2.js) contains node_modules/@tanstack/query-core'),
+    ]);
+  });
+
+  it('allows the admin route table and the error boundaries in the entry', () => {
+    expect(withEntryModule('src/modules/admin/routes.tsx').errors).toEqual([]);
+    expect(withEntryModule('src/core/routes/ErrorBoundary.tsx').errors).toEqual([]);
+  });
 });
 
 describe('evaluateBudgets: the Phase 4 barrel-split trigger (research Flag 4)', () => {
