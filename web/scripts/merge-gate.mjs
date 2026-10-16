@@ -4,8 +4,13 @@
 //
 // A pull request may merge only when it is open, targets main, is not a draft, is 0 commits behind main, has no merge
 // conflicts, has a passing `gate (full)` or `gate (docs)` check on its head commit, has no check that failed, is still
-// running or was cancelled, and every task-list item under the Definition of Done heading in its body is ticked. Every rule fails
-// closed (T-03-10): zero checks, only `gate (fast)`, a missing section, or gh output that cannot be read all refuse.
+// running or was cancelled, and every task-list item under the Definition of Done heading in its body is ticked. Every
+// rule fails closed (T-03-10): zero checks, only `gate (fast)`, a missing section, or gh output that cannot be read all
+// refuse.
+//
+// `--local-gate` (D-16, for months when the free CI minutes run out) swaps the green-check rule for a "Local full gate"
+// section in the body that lists the five local commands, each on a line that says `exit 0`. Every other rule, including
+// the refusal of a failed check, still applies, and a loud warning goes to stderr.
 //
 // The /gsd-ship `[ci skip]` ship note (owner ruling "parent-rule", 2026-10-15T22:05-05:00, T-03-12): GitHub runs no checks
 // on a commit whose message has a skip token. A head commit with a skip token that changes nothing outside `.planning/`
@@ -31,6 +36,18 @@ export const SKIP_TOKENS = Object.freeze([
 export const GATE_CHECKS = Object.freeze(['gate (full)', 'gate (docs)']);
 /** The PR body heading whose task-list items must all be ticked (shared text contract with the PR template, plan 03-05). */
 export const DOD_HEADING = '## Definition of Done';
+/** The PR body heading for the pasted local gate output (D-16, shared text contract with the PR template). */
+export const LOCAL_GATE_HEADING = '## Local full gate';
+/** The five D-16 commands, as substrings matched against the lines of the Local full gate section. */
+export const LOCAL_GATE_COMMANDS = Object.freeze([
+  'dotnet build Csps.slnx',
+  'dotnet test --solution Csps.slnx',
+  'Invoke-CoverageGate.ps1',
+  'npm --prefix web run verify',
+  'npm --prefix web run e2e',
+]);
+export const LOCAL_GATE_WARNING =
+  'WARNING: merging on the local full gate (D-16) because the free CI minutes are used up. CI did not check this PR.';
 
 const FAST_CHECK = 'gate (fast)';
 const BASE_BRANCH = 'main';
@@ -43,14 +60,14 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const SHIP_NOTE_PREFIX = 'Ship note rule: ';
 const OK_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const USAGE = 'Usage: node web/scripts/merge-gate.mjs <pull-request-number>';
+const USAGE = 'Usage: node web/scripts/merge-gate.mjs <pull-request-number> [--local-gate]';
 
 /**
  * @typedef {{ number: number, state: string, isDraft: boolean, baseRefName: string, headRefOid: string, title: string, body: string, mergeable: string }} PullRequest
  * @typedef {{ name: string, bucket: string }} PrCheck
  * @typedef {{ message: string, parents: readonly string[], files: readonly string[] }} HeadCommit
  * @typedef {{ name: string, status: string, conclusion: string | null }} CheckRun
- * @typedef {{ pr: PullRequest, checks: readonly PrCheck[], behindBy: number | null, headCommit?: HeadCommit | undefined, parentChecks?: readonly CheckRun[] | undefined }} GateInput
+ * @typedef {{ pr: PullRequest, checks: readonly PrCheck[], behindBy: number | null, headCommit?: HeadCommit | undefined, parentChecks?: readonly CheckRun[] | undefined, localGate?: boolean | undefined }} GateInput
  * @typedef {{ allowed: boolean, reasons: string[] }} Verdict
  * @typedef {{ status: number | null, stdout?: string | null, stderr?: string | null }} RunResult
  * @typedef {(command: string, args: readonly string[]) => RunResult} GhRun
@@ -179,6 +196,39 @@ function definitionOfDoneReasons(body) {
 }
 
 /**
+ * True when every exit code written on the line is 0, and at least one is written. "exit 01" and "exit 10" are not 0.
+ * @param {string} line
+ * @returns {boolean}
+ */
+function saysExitZero(line) {
+  const codes = [...line.matchAll(/\bexit\s+(\d+)\b/gi)].map((match) => match[1]);
+  return codes.length > 0 && codes.every((code) => code === '0');
+}
+
+/**
+ * D-16: the body must hold a Local full gate section with a line for each of the five commands, and one of those lines
+ * must say exit 0. A fenced code block or another section does not count.
+ * @param {string} body
+ * @returns {string[]}
+ */
+function localGateReasons(body) {
+  const sections = sectionsUnder(body, LOCAL_GATE_HEADING);
+  if (sections.length === 0) {
+    return [`The pull request body has no "${LOCAL_GATE_HEADING}" section.`];
+  }
+  const lines = sections.flat();
+  return LOCAL_GATE_COMMANDS.flatMap((command) => {
+    const matching = lines.filter((line) => line.includes(command));
+    if (matching.length === 0) {
+      return [`The "${LOCAL_GATE_HEADING}" section has no line for "${command}".`];
+    }
+    return matching.some(saysExitZero)
+      ? []
+      : [`The "${LOCAL_GATE_HEADING}" line for "${command}" does not say exit 0.`];
+  });
+}
+
+/**
  * @param {string} bucket
  * @returns {string}
  */
@@ -253,12 +303,14 @@ function missingGateReasons({ pr, checks, headCommit, parentChecks }) {
 
 /**
  * The merge decision, pure over the data gh returned. Reasons come in a fixed order: pull request state, base branch,
- * draft, behind, conflicts, the green gate, other checks, then the Definition of Done.
+ * draft, behind, conflicts, the green gate (or, with `localGate`, the Local full gate section), other checks, then the
+ * Definition of Done.
  * @param {GateInput} input
  * @returns {Verdict}
  */
 export function decide(input) {
-  const { pr, checks, behindBy } = input;
+  const { pr, checks, behindBy, localGate = false } = input;
+  const body = typeof pr.body === 'string' ? pr.body : '';
   /** @type {string[]} */
   const reasons = [];
 
@@ -286,11 +338,15 @@ export function decide(input) {
     );
   }
 
-  const gateRuns = checks.filter((checkRun) => GATE_CHECKS.includes(checkRun.name));
-  const gatePassed = gateRuns.some((checkRun) => checkRun.bucket === 'pass');
-  const gateBad = gateRuns.some((checkRun) => checkRun.bucket !== 'pass' && checkRun.bucket !== 'skipping');
-  if (!gatePassed && !gateBad) {
-    reasons.push(...missingGateReasons(input));
+  if (localGate) {
+    reasons.push(...localGateReasons(body));
+  } else {
+    const gateRuns = checks.filter((checkRun) => GATE_CHECKS.includes(checkRun.name));
+    const gatePassed = gateRuns.some((checkRun) => checkRun.bucket === 'pass');
+    const gateBad = gateRuns.some((checkRun) => checkRun.bucket !== 'pass' && checkRun.bucket !== 'skipping');
+    if (!gatePassed && !gateBad) {
+      reasons.push(...missingGateReasons(input));
+    }
   }
 
   for (const checkRun of checks) {
@@ -299,7 +355,7 @@ export function decide(input) {
     }
   }
 
-  reasons.push(...definitionOfDoneReasons(typeof pr.body === 'string' ? pr.body : ''));
+  reasons.push(...definitionOfDoneReasons(body));
 
   return { allowed: reasons.length === 0, reasons };
 }
@@ -573,14 +629,27 @@ function spawnGh(command, args) {
 
 /**
  * @param {readonly string[]} argv
- * @returns {{ prNumber: number } | null}
+ * @returns {{ prNumber: number, localGate: boolean } | null}
  */
 function parseArguments(argv) {
-  const [first, ...rest] = argv;
-  if (rest.length > 0 || first === undefined || !/^[1-9]\d*$/.test(first)) {
+  let localGate = false;
+  /** @type {string[]} */
+  const numbers = [];
+  for (const arg of argv) {
+    if (arg === '--local-gate') {
+      if (localGate) {
+        return null;
+      }
+      localGate = true;
+    } else {
+      numbers.push(arg);
+    }
+  }
+  const [first] = numbers;
+  if (numbers.length !== 1 || first === undefined || !/^[1-9]\d*$/.test(first)) {
     return null;
   }
-  return { prNumber: Number(first) };
+  return { prNumber: Number(first), localGate };
 }
 
 /**
@@ -600,7 +669,10 @@ export function main(argv, deps = {}) {
     error(USAGE);
     return 2;
   }
-  const { prNumber } = parsed;
+  const { prNumber, localGate } = parsed;
+  if (localGate) {
+    error(LOCAL_GATE_WARNING);
+  }
 
   /** @type {Verdict} */
   let verdict;
@@ -608,7 +680,7 @@ export function main(argv, deps = {}) {
   let data;
   try {
     data = collect(prNumber, run);
-    verdict = decide(data);
+    verdict = decide({ ...data, localGate });
   } catch (caught) {
     if (!(caught instanceof GateInputError)) {
       throw caught;

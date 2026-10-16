@@ -973,6 +973,7 @@ describe('main with --local-gate', () => {
 
   it('refuses a body without the pasted local gate', () => {
     const { logs, errors, deps } = harness([
+      [has('pr view'), { status: 0, stdout: prJson({ body: '## Definition of Done\n- [x] done' }) }],
       [has('pr checks'), { status: 1, stdout: '', stderr: 'no checks reported' }],
       ...happyRoutes(),
     ]);
