@@ -6,7 +6,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: "2026-10-15T20:19:24-05:00"
-updated: "2026-10-15T20:19:24-05:00"
+updated: "2026-10-15T22:45:00-05:00"
 ---
 
 # Phase 03 — Validation Strategy
@@ -38,21 +38,34 @@ updated: "2026-10-15T20:19:24-05:00"
 
 ## Per-Task Verification Map
 
-Filled in by the planner/executor per task. Requirement-level map:
+Filled in by the planner (2026-10-15); execution updates status. The research's `CiRepoHygieneTests` became `RepoRulesTests` (03-05), `HygieneWorkflowTests` (03-10, 03-15), `DeployWorkflowTests` (03-12) and `CutoverRunbookTests` (03-14), each created by the plan that owns its files.
 
-| Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
-|-------------|----------|-----------|-------------------|-------------|--------|
-| OPS-01 | CODEOWNERS, PR template DoD, branch-rules doc, `.gitignore` entries | unit (repo-file lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CiRepoHygieneTests"` | ❌ W0 | ⬜ pending |
-| OPS-01 | Merge gate refuses draft / behind / red / pending / unticked DoD; allows planning-only `[ci skip]` head via parent | unit | `npm --prefix web test -- --run scripts/merge-gate.test.ts` | ❌ W0 | ⬜ pending |
-| OPS-02 | `ci.yml` step order, SHA pins, `permissions: {}`, timeouts, `persist-credentials: false`, no injection sinks | unit (text lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CiWorkflowTests"` | ❌ W0 | ⬜ pending |
-| OPS-02 | E2E harness honors `CSPS_E2E_CONNECTION` for seed and host | unit | `npm --prefix web test -- --run scripts/e2e.test.ts` | ✅ extend | ⬜ pending |
-| OPS-02 | Pipeline runs green on ubuntu | integration (real CI) | `gh pr checks <n>` | manual once | ⬜ pending |
-| OPS-03 | `dependabot.yml` ecosystems + 14-day cooldown; gitleaks checksum-verified | unit | `CiWorkflowTests` | ❌ W0 | ⬜ pending |
-| OPS-04 | msdeploy args and deploy orchestration (offline → sync → online → smoke → release / rollback) | unit | `npm --prefix web test -- --run scripts/deploy.test.ts` | ❌ W0 | ⬜ pending |
-| OPS-04 | `deploy.yml` dispatch-only, concurrency, `main` guard, input validation, least privilege | unit | `CiWorkflowTests` | ❌ W0 | ⬜ pending |
-| OPS-04 | Smoke checks pass and fail correctly against fake responses | unit | `npm --prefix web test -- --run scripts/smoke.test.ts` | ❌ W0 | ⬜ pending |
-| OPS-05 | `web.config` in-process, header removal, `urlCompression` off | unit | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*WebConfigTests"` | ✅ extend | ⬜ pending |
-| OPS-05 | Publish output has no `logs/`, no `appsettings.Development.json`, no `app_offline.htm` | unit + CI step | `npm --prefix web test -- --run scripts/package-check.test.ts` | ❌ W0 | ⬜ pending |
+| Requirement | Behavior | Test Type | Automated Command | Plan · Task | File Exists | Status |
+|-------------|----------|-----------|-------------------|-------------|-------------|--------|
+| OPS-02 | Every workflow: approved full-SHA pins, `permissions: {}`, timeouts, `persist-credentials: false`, no `pull_request_target`, no injection sinks, pinned runners; ci.yml triggers, concurrency, .NET stage order | unit (text lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CiWorkflowTests"` | 03-01 T3; extended 03-11 T1-T3, 03-13 T2 | ❌ W0 (03-01) | ⬜ pending |
+| OPS-02 | Draft PR shows `gate (fast)` pass on GitHub | integration (real CI) | `gh pr checks gsd/phase-03-ci-cd-staging-deploy --json name,bucket` | 03-01 T3, 03-11 T1 | n/a | ⬜ pending |
+| OPS-02 | E2E seed and host follow `CSPS_E2E_CONNECTION`; LocalDB default unchanged | unit + E2E | `npm --prefix web test -- --run scripts/e2e.test.ts`; `npm --prefix web run e2e -- --grep @smoke --project chromium` | 03-02 T1 | ✅ extend | ⬜ pending |
+| OPS-02 | Coverage gate runs with Linux-safe paths | integration (local) | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Invoke-CoverageGate.ps1` | 03-02 T2 | ✅ | ⬜ pending |
+| OPS-02 | CI modes docs/fast/full/package; empty diff is full; proven-tree reuse on main | unit + CLI | `npm --prefix web test -- --run scripts/ci-classify.test.ts` | 03-04 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-02 | Full OPS-02 order, verify.mjs order kept, audits before build, CI container loopback with generated password, weekly all engines | unit (text lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CiWorkflowTests"` | 03-11 T1-T3 | ❌ (03-01) | ⬜ pending |
+| OPS-02 | Ready Phase 3 PR passes `gate (full)` and every Hygiene check on GitHub | integration (real CI) | `gh pr checks gsd/phase-03-ci-cd-staging-deploy --json name,bucket` | 03-16 T2 | n/a | ⬜ pending |
+| OPS-01 | Merge gate refuses draft, behind, conflicting, red, pending, zero checks, unticked DoD; `[ci skip]` rule; local-gate mode | unit + real read-only gh | `npm --prefix web test -- --run scripts/merge-gate.test.ts`; `node web/scripts/merge-gate.mjs 3` (exit 1) | 03-03 T2-T3 | ❌ W0 | ⬜ pending |
+| OPS-01 | CODEOWNERS, PR template DoD and local-gate sections, .gitignore PRD entries, branch-rules doc, ruleset JSON, CLAUDE.md merge rule | unit (repo-file lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*RepoRulesTests"` | 03-05 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-01 | Conventional Commits on PR title and commits | unit + CLI on this branch | `npm --prefix web test -- --run scripts/commit-lint.test.ts` | 03-15 T1 | ❌ W0 | ⬜ pending |
+| OPS-03 | Dependabot nuget, npm (two manifests), github-actions with cooldown 14 | unit | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*RepoRulesTests"` | 03-05 T3 | ❌ W0 | ⬜ pending |
+| OPS-03 | gitleaks pinned and checksum-verified in CI and locally; narrow allowlist; hook | unit + local scan | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HygieneWorkflowTests"` | 03-10 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-03 | actionlint and zizmor jobs (as approved) | unit + local actionlint | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HygieneWorkflowTests"` | 03-15 T2 | ❌ (03-10) | ⬜ pending |
+| OPS-04 | msdeploy args, deploy plan, redaction, rollback, first deploy, online, probe, last-good selection | unit + `--plan` CLI | `npm --prefix web test -- --run scripts/deploy.test.ts` | 03-06 T2-T3 | ❌ W0 | ⬜ pending |
+| OPS-04 | Smoke checks pass and fail correctly; local API tracer run | unit + local | `npm --prefix web test -- --run scripts/smoke.test.ts` | 03-07 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-04 | deploy.yml dispatch-only, main-only, least privilege, no cancel, env-only inputs; offline page self-contained and never shipped | unit (text lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*DeployWorkflowTests"` | 03-12 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-04 | Package built only on push to main with migrations script, content check, secret scan | unit + local package | `npm --prefix web test -- --run scripts/package-check.test.ts`; `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CiWorkflowTests"` | 03-13 T1-T2 | ❌ W0 | ⬜ pending |
+| OPS-04 | Receipt script guards; runbook shape and host-setting names | unit + guard run | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*CutoverRunbookTests"` | 03-14 T2-T3 | ❌ W0 | ⬜ pending |
+| OPS-04 | Holding page (D-17): facts, axe, OR-4, budgets, Lighthouse, every public path | unit + E2E + Lighthouse | `npm --prefix web test -- --run src/modules/public/pages/HoldingPage.test.tsx scripts/budget.test.ts`; `npm --prefix web run e2e -- --grep "@smoke\|@public"`; `npm --prefix web run lighthouse` | 03-09 T2-T3 | ❌ W0 | ⬜ pending |
+| OPS-04 | Pipeline merged; main CI builds `csps-package-<sha>` | integration (real CI) | `gh run list --workflow ci.yml --branch main --limit 1 --json conclusion` | 03-17 T2 | n/a | ⬜ pending |
+| OPS-04 | Dry run, first deploy, release, live smoke | integration (live, owner Run) | `gh run list --workflow deploy.yml --limit 1 --json conclusion`; `node web/scripts/smoke.mjs --origin <SITE_ORIGIN>` | 03-20 T2, 03-21 T2, 03-22 T2 | n/a | ⬜ pending |
+| OPS-05 | web.config in-process, banners removed, body limit, `urlCompression` off, no rewrite until proven | unit + publish | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*WebConfigTests"` | 03-08 T1 | ✅ extend | ⬜ pending |
+| OPS-05 | win-x64 publish has no logs or Development settings; locked restore with win-x64 | unit (Release publish) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*PublishOutputTests"`; `dotnet restore Csps.slnx --locked-mode` | 03-08 T2 | ❌ W0 | ⬜ pending |
+| OPS-05 | HOSTING-RECORD rows (database, probe facts, smoke facts, sign-in facts) Verified and secret-free | unit (doc lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests"` | 03-19 T3, 03-20 T2, 03-21 T3, 03-22 T2 | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -60,10 +73,11 @@ Filled in by the planner/executor per task. Requirement-level map:
 
 ## Wave 0 Requirements
 
-- [ ] `tests/Csps.ArchitectureTests/CiWorkflowTests.cs` — workflow and Dependabot text assertions
-- [ ] `tests/Csps.ArchitectureTests/CiRepoHygieneTests.cs` — CODEOWNERS, PR template DoD, branch-rules doc
-- [ ] `web/scripts/merge-gate.test.ts`, `smoke.test.ts`, `deploy.test.ts`, `package-check.test.ts`
-- [ ] Extend `web/scripts/e2e.test.ts` and `WebConfigTests`
+- [ ] `tests/Csps.ArchitectureTests/CiWorkflowTests.cs` + `WorkflowText.cs` — workflow text assertions (03-01)
+- [ ] `tests/Csps.ArchitectureTests/RepoRulesTests.cs` — CODEOWNERS, PR template DoD, branch rules, Dependabot (03-05)
+- [ ] `tests/Csps.ArchitectureTests/HygieneWorkflowTests.cs` (03-10), `DeployWorkflowTests.cs` (03-12), `CutoverRunbookTests.cs` (03-14), `PublishOutputTests.cs` (03-08)
+- [ ] `web/scripts/merge-gate.test.ts`, `ci-classify.test.ts`, `smoke.test.ts`, `deploy.test.ts`, `package-check.test.ts`, `commit-lint.test.ts`
+- [ ] Extend `web/scripts/e2e.test.ts`, `web/scripts/budget.test.ts` and `WebConfigTests`
 - [ ] Framework install: none (no new test packages)
 
 ---

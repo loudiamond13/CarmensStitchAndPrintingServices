@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T21:00:48-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:45:00-05:00*
 
 ## Overview
 
@@ -341,7 +341,31 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, staging-site setup) need research. They build on Phase 1's hosting record and stay LOW confidence until verified.
 
-**Plans**: TBD
+**Plans:** 22 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — CI tracer: owner approves the CI actions and tools, decides the Phase 4 ordering; the draft PR gets a green, SHA-pinned, ordered `gate (fast)` (OPS-02)
+- [ ] 03-02-PLAN.md — E2E and Lighthouse follow one CSPS_E2E_CONNECTION override for the CI SQL container; coverage gate Linux-safe (OPS-02)
+- [ ] 03-03-PLAN.md — Process merge gate (D-08) and the one merge command, with the owner's `[ci skip]` rule and the D-16 local-gate mode (OPS-01)
+- [ ] 03-04-PLAN.md — CI modes: docs, fast, full and package (proven-tree reuse on main) from one tested classifier (D-14)
+- [ ] 03-05-PLAN.md — CODEOWNERS, PR template with the Definition of Done, written branch rules and ruleset, CLAUDE.md merge rule, Dependabot with a 14-day cooldown (OPS-01, OPS-03)
+- [ ] 03-06-PLAN.md — Web Deploy orchestrator: app_offline, sync, smoke, release, automatic rollback, first-deploy safety, online escape hatch, optional host probe (OPS-04)
+- [ ] 03-07-PLAN.md — Production smoke test: health with cold-start retry, ProblemDetails through IIS, HTTPS, headers, compression, caching, AllowedHosts, requestLimits (D-06)
+- [ ] 03-08-PLAN.md — web.config never compresses; the win-x64 package never carries dev logs or Development settings; lock files match (OPS-05)
+- [ ] 03-09-PLAN.md — Branded holding page with the owner's shop facts on every public path (D-17)
+- [ ] 03-10-PLAN.md — gitleaks secret scan on every PR and before every commit, pinned and checksum-verified (OPS-03)
+- [ ] 03-11-PLAN.md — Full OPS-02 order in CI with Playwright and Lighthouse on a CI SQL container; weekly all-engine run (OPS-02, D-15)
+- [ ] 03-12-PLAN.md — Manual-only, main-only, least-privilege deploy workflow; branded app_offline.htm; deploy runbook (OPS-04, D-11, D-12)
+- [ ] 03-13-PLAN.md — Deploy package on every push to main: publish, migration script, content check, secret scan, artifact (D-11, OPS-05)
+- [ ] 03-14-PLAN.md — Control-panel facts, guarded legacy-receipt script and the numbered D-18 cutover runbook
+- [ ] 03-15-PLAN.md — Conventional Commits check and actionlint/zizmor workflow lint, as approved (OPS-01, OPS-02)
+- [ ] 03-16-PLAN.md — Free repository settings applied; the ready Phase 3 PR passes the full gate on GitHub; CI minutes measured
+- [ ] 03-17-PLAN.md — Owner decides the mid-phase pipeline merge; the gated merge lands on main and builds the first package
+- [ ] 03-18-PLAN.md — Cutover step 1: fresh legacy .bak and files kept; local restore and names-and-counts receipt (D-04, D-05)
+- [ ] 03-19-PLAN.md — Cutover steps 2-3: receipt confirmed, legacy database retired, SQL Server 2025 database created and compatibility pinned (D-03)
+- [ ] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
+- [ ] 03-21-PLAN.md — Cutover steps 6-7: schema script applied, first CSPS deploy on the live site with smoke and release (OPS-04)
+- [ ] 03-22-PLAN.md — Cutover step 8: first Manager and sign-in on the live site; every first-deploy fact verified; CSPS accepted live (D-06)
 
 ### Phase 4: Identity & Authentication
 
