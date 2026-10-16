@@ -46,6 +46,11 @@
       "date": "2026-10-14",
       "by": "owner",
       "scope": "Phase 4 packages (D-36), approved before install: NuGet Microsoft.AspNetCore.Identity.EntityFrameworkCore 10.0.13, FluentValidation 12.1.1, MailKit 4.18.1, MimeKit 4.18.1, BouncyCastle.Cryptography 2.7.0, Microsoft.Extensions.Http.Resilience 10.10.0 and Microsoft.Extensions.Diagnostics.Testing 10.10.0 (tests only); npm react-hook-form 7.89.0, zod 4.6.5, @hookform/resolvers 5.9.1 and msw 3.0.1 (dev only); and the SecLists top-10k common-passwords data file that plan 04-17 adds. Identity.EntityFrameworkCore 10.0.13 is a security servicing release (D-35) and carries a cool-down exception. The four npm packages were flagged by the research seam's latest-tag and download heuristics, so they still pass a blocking human check at install time (plan 04-02 Task 2)."
+    },
+    {
+      "date": "2026-10-15",
+      "by": "owner",
+      "scope": "Phase 3 CI actions and binaries (plan 03-01 Task 1, reply approve-all), approved before any was pinned. GitHub Actions pinned by full commit SHA: actions/checkout v7.0.1 (3d3c42e5aac5ba805825da76410c181273ba90b1), actions/setup-dotnet v6.0.0 (a98b56852c35b8e3190ac28c8c2271da59106c68), actions/setup-node v7.0.0 (820762786026740c76f36085b0efc47a31fe5020), actions/cache v6.1.0 (55cc8345863c7cc4c66a329aec7e433d2d1c52a9), actions/upload-artifact v7.0.1 (043fb46d1a93c77aae656e7c1c64a875d1fc6a0a), zizmorcore/zizmor-action v0.6.4 (cc914d7f3750a2d13d75c7f184a1060aa0e9d482, runs zizmor 1.30.1; flagged suspicious only because zizmor 1.31.1 is one day old, the pinned 1.30.1 is 36 days old). CI binaries checked by SHA-256: gitleaks 8.30.1 (linux_x64.tar.gz 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb, windows_x64.zip d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e) and actionlint 1.7.12 (linux_amd64.tar.gz 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8, windows_amd64.zip 6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9). All MIT. Declined: none. Not part of this approval: the SQL Server test image stays mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04 (a newer 2025-CU9-GDR1 image is a separate owner decision). No npm, NuGet or PyPI package is added."
     }
   ],
   "packages": [

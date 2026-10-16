@@ -1,0 +1,98 @@
+# OPS-02: every pull request to main and every push to main runs one ordered gate.
+name: CI
+
+# OPS-02: no path filter, so the check always reports (a skipped workflow reports nothing).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# OPS-02: the token starts with no rights; each job asks only for what it needs.
+permissions: {}
+
+# OPS-02: a newer push to a PR cancels its older run; runs for main are never cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # D-14: a draft PR runs the fast part, everything else runs the full part.
+  classify:
+    name: classify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - name: mode
+        id: mode
+        env:
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          if [ "$PR_DRAFT" = "true" ]; then
+            echo "mode=fast" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+          fi
+
+  # OPS-02: restore, build, format, unit, integration and architecture tests, in that order.
+  gate:
+    name: gate (${{ needs.classify.outputs.mode }})
+    needs: classify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: cache nuget packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: 1 restore (locked)
+        run: |
+          dotnet restore Csps.slnx --locked-mode
+          dotnet tool restore
+
+      - name: 2 build
+        run: dotnet build Csps.slnx --no-restore -tl:off
+
+      - name: 2 format check
+        run: dotnet format Csps.slnx --verify-no-changes --no-restore
+
+      - name: 3 unit tests
+        run: |
+          dotnet test --project tests/Csps.Domain.UnitTests --no-build
+          dotnet test --project tests/Csps.Application.UnitTests --no-build
+
+      - name: 3 integration tests
+        if: needs.classify.outputs.mode == 'full'
+        env:
+          CSPS_TEST_SQL: container
+        run: |
+          dotnet test --project tests/Csps.Infrastructure.IntegrationTests --no-build
+          dotnet test --project tests/Csps.Server.IntegrationTests --no-build
+
+      - name: 3 architecture tests
+        run: dotnet test --project tests/Csps.ArchitectureTests --no-build
