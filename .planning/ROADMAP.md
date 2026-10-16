@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-14T21:00:48-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:25:00-05:00*
 
 ## Overview
 
@@ -503,6 +503,9 @@ Plans:
 - **C-35** apply the Phase 2 ruling on inactive-row contrast
 - **C-17** spec-gap screens: email-change confirmation, audit log
 - **OD-14**
+
+**Carried over from Phase 4** (owner, 2026-10-15; production was not deployed yet):
+- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. Phase 5 UAT runs it (from 04-UAT Test 2).
 
 **Research flag:** Standard patterns.
 
