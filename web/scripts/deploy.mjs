@@ -750,3 +750,15 @@ const invokedPath = process.argv[1];
 if (invokedPath !== undefined && path.resolve(invokedPath) === fileURLToPath(import.meta.url)) {
   process.exitCode = await main(process.env, defaultDeps(), process.argv.slice(2));
 }
+
+// RED skeleton for the host probe helpers (replaced in the GREEN commit).
+/** @param {string} xml @param {{ rewrite: boolean }} _options */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- RED skeleton
+export function injectProbeWebConfig(xml, _options) {
+  return xml;
+}
+/** @param {string} json @param {string} _key */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- RED skeleton
+export function withProbeKey(json, _key) {
+  return json;
+}

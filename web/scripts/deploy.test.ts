@@ -11,6 +11,7 @@ import {
   certificatePinOk,
   executeDeploy,
   findPackage,
+  injectProbeWebConfig,
   main,
   MSDEPLOY_PATH,
   OFFLINE_WAIT_MS,
@@ -22,6 +23,7 @@ import {
   releaseTag,
   selectLastGood,
   syncArgs,
+  withProbeKey,
 } from './deploy.mjs';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
@@ -70,6 +72,9 @@ function label(call: Call): string {
   if (call.command === process.execPath) {
     return text.includes(' probe ') || text.includes('smoke.mjs probe') ? 'smoke-probe' : 'smoke';
   }
+  if (call.command === 'dotnet') {
+    return 'dotnet publish';
+  }
   if (call.command === 'tar') {
     return text.includes('-c') ? 'zip' : 'unzip';
   }
@@ -95,7 +100,11 @@ interface World {
     readonly mkdir: (dir: string) => void;
     readonly appendFile: (file: string, text: string) => void;
     readonly connectTls: (host: string, port: number) => Promise<string>;
+    readonly readFile: (file: string) => string;
+    readonly writeFile: (file: string, text: string) => void;
   };
+  /** Files by base name, as read and written by the host probe preparation. */
+  readonly files: Map<string, string>;
 }
 
 interface FakeResult {
@@ -111,7 +120,9 @@ interface FakeResult {
 function fakeWorld(
   script: Readonly<Record<string, readonly number[]>> = {},
   stdout: Readonly<Record<string, string>> = {},
+  initialFiles: Readonly<Record<string, string>> = {},
 ): World {
+  const files = new Map<string, string>(Object.entries(initialFiles));
   const calls: Call[] = [];
   const logged: string[] = [];
   const sleeps: number[] = [];
@@ -124,6 +135,7 @@ function fakeWorld(
     sleeps,
     summary,
     made,
+    files,
     labels: () => calls.map(label),
     deps: {
       spawn: (command, args, options) => {
@@ -155,6 +167,10 @@ function fakeWorld(
         summary.push(text);
       },
       connectTls: () => Promise.resolve('AA:BB'),
+      readFile: (file) => files.get(path.basename(file)) ?? '',
+      writeFile: (file, text) => {
+        files.set(path.basename(file), text);
+      },
     },
   };
   return world;
@@ -695,5 +711,437 @@ describe('main', () => {
     await main(ENV, world.deps, []);
 
     expect(world.calls.some((call) => call.args.includes('-allowUntrusted'))).toBe(false);
+  });
+});
+
+describe('buildDestination hardening (CWE-88)', () => {
+  it.each([' ', '\t', '\n'])('refuses a password holding the whitespace %j without echoing it', (bad) => {
+    let message = '';
+    try {
+      buildDestination({ ...CONNECTION, password: `ab${bad}cd -verb:delete` });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toBe(
+      'The Web Deploy password contains a space or control character msdeploy cannot take. Choose one without it.',
+    );
+    expect(message).not.toContain('-verb:delete');
+  });
+});
+
+describe('executeDeploy failure paths', () => {
+  const deployPlan = (lastGood: typeof LAST_GOOD | null) =>
+    planDeploy({ action: 'deploy', dryRun: false, packageDir: PACKAGE_DIR, lastGood, config: CONFIG });
+  const executeDeps = (world: World) => ({ ...world.deps, secrets: [PASSWORD] });
+  const KIT = 'D-05 legacy rollback kit';
+
+  it('rolls back to the last good release when the smoke test fails: offline, sync it, online, smoke', async () => {
+    const world = fakeWorld({ smoke: [1, 0] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual([
+      'offline',
+      'sync',
+      'online',
+      'smoke',
+      'offline',
+      'sync-last-good',
+      'online',
+      'smoke',
+    ]);
+    expect(result.messages.join(' ')).toContain(`Rolled back to ${LAST_GOOD.tag}.`);
+    expect(result.releaseTag).toBeUndefined();
+    expect(world.sleeps).toEqual([5000, 5000]);
+  });
+
+  it('takes the same rollback path when the sync fails', async () => {
+    const world = fakeWorld({ sync: [1] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual(['offline', 'sync', 'offline', 'sync-last-good', 'online', 'smoke']);
+    expect(result.messages.join(' ')).toContain(`Rolled back to ${LAST_GOOD.tag}.`);
+  });
+
+  it('puts the offline page back and names the D-05 kit when the rollback smoke fails too', async () => {
+    const world = fakeWorld({ smoke: [1, 1] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels().slice(-2)).toEqual(['smoke', 'offline']);
+    const text = result.messages.join(' ');
+    expect(text).toContain(KIT);
+    expect(text).toContain('docs/operations/deploy.md');
+    expect(text).not.toContain('Rolled back to');
+  });
+
+  it('puts the offline page back when the rollback sync fails', async () => {
+    const world = fakeWorld({ smoke: [1], 'sync-last-good': [1] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels().slice(-2)).toEqual(['sync-last-good', 'offline']);
+    expect(result.messages.join(' ')).toContain(KIT);
+  });
+
+  it('on a first deploy with a failed smoke puts the offline page back, makes no release and names the D-05 kit', async () => {
+    const world = fakeWorld({ smoke: [1] });
+
+    const result = await executeDeploy(deployPlan(null), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual(['offline', 'sync', 'online', 'smoke', 'offline']);
+    expect(result.messages.join(' ')).toContain(KIT);
+    expect(result.messages.join(' ')).toContain('docs/operations/deploy.md');
+  });
+
+  it('keeps a live, smoke-tested site and reports it when only the release cannot be created', async () => {
+    const world = fakeWorld({ 'gh release create': [1] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual(['offline', 'sync', 'online', 'smoke', 'zip', 'gh release create']);
+    expect(result.messages.join(' ')).toContain('passed the smoke test');
+    expect(result.messages.join(' ')).not.toContain('Rolled back');
+  });
+
+  it('stops and changes nothing else when the offline page cannot be uploaded', async () => {
+    const world = fakeWorld({ offline: [1] });
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual(['offline', 'online']);
+    expect(result.messages.join(' ')).toContain('The site was not changed');
+  });
+
+  it('treats a spawn that throws as a failed step and still redacts the message', async () => {
+    const world = fakeWorld();
+    const deps = {
+      ...executeDeps(world),
+      spawn: (): never => {
+        throw new Error(`spawn failed for ${PASSWORD}`);
+      },
+    };
+
+    const result = await executeDeploy(deployPlan(null), deps);
+
+    expect(result.exitCode).toBe(1);
+    expect(everythingLogged(world)).not.toContain(PASSWORD);
+  });
+
+  it('never leaves app_offline.htm in place after a clean deploy', async () => {
+    const world = fakeWorld();
+
+    const result = await executeDeploy(deployPlan(LAST_GOOD), executeDeps(world));
+
+    const labels = world.labels();
+    expect(result.exitCode).toBe(0);
+    expect(labels.lastIndexOf('online')).toBeGreaterThan(labels.lastIndexOf('offline'));
+  });
+
+  it('fails a dry run without any rollback', async () => {
+    const world = fakeWorld({ whatif: [1] });
+    const plan = planDeploy({
+      action: 'deploy',
+      dryRun: true,
+      packageDir: PACKAGE_DIR,
+      lastGood: LAST_GOOD,
+      config: CONFIG,
+    });
+
+    const result = await executeDeploy(plan, executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(world.labels()).toEqual(['whatif']);
+  });
+});
+
+describe('main failure paths and actions', () => {
+  const ENV = {
+    INPUT_ACTION: 'deploy',
+    INPUT_SHA: SHA,
+    INPUT_DRY_RUN: 'false',
+    WEBDEPLOY_SERVER: 'host.example',
+    WEBDEPLOY_SITE: 'site1',
+    WEBDEPLOY_USERNAME: 'deployer',
+    WEBDEPLOY_PASSWORD: PASSWORD,
+    SITE_ORIGIN: ORIGIN,
+    RUNNER_TEMP: '/work',
+    GITHUB_STEP_SUMMARY: '/work/summary.md',
+  };
+  const runList = JSON.stringify([{ databaseId: 42, event: 'push', headSha: SHA }]);
+  const previous = [{ tagName: LAST_GOOD.tag, createdAt: '2026-10-19T01:01:05Z', isDraft: false }];
+
+  it('downloads the last good release before touching the site and rolls back to it when the smoke fails', async () => {
+    const world = fakeWorld({ smoke: [1, 0] }, { 'gh run list': runList, 'gh release list': JSON.stringify(previous) });
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual([
+      'gh run list',
+      'gh run download',
+      'gh release list',
+      'gh release download',
+      'unzip',
+      'offline',
+      'sync',
+      'online',
+      'smoke',
+      'offline',
+      'sync-last-good',
+      'online',
+      'smoke',
+    ]);
+    expect(world.summary.join('')).toContain(`Rolled back to ${LAST_GOOD.tag}.`);
+  });
+
+  it('refuses to deploy when the last good release cannot be downloaded', async () => {
+    const world = fakeWorld(
+      { 'gh release download': [1] },
+      { 'gh run list': runList, 'gh release list': JSON.stringify(previous) },
+    );
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual(['gh run list', 'gh run download', 'gh release list', 'gh release download']);
+    expect(world.logged.join('\n')).toContain(`The release ${LAST_GOOD.tag} could not be downloaded.`);
+  });
+
+  it('never rolls back onto the sha being deployed', async () => {
+    const same = [{ tagName: TAG, createdAt: '2026-10-20T03:04:10Z', isDraft: false }];
+    const world = fakeWorld({ smoke: [1] }, { 'gh run list': runList, 'gh release list': JSON.stringify(same) });
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual([
+      'gh run list',
+      'gh run download',
+      'gh release list',
+      'offline',
+      'sync',
+      'online',
+      'smoke',
+      'offline',
+    ]);
+  });
+
+  it('runs a dry run as the package lookup and one whatif sync, nothing else', async () => {
+    const world = fakeWorld({}, { 'gh run list': runList });
+
+    const code = await main({ ...ENV, INPUT_DRY_RUN: 'true' }, world.deps, []);
+
+    expect(code).toBe(0);
+    expect(world.labels()).toEqual(['gh run list', 'gh run download', 'whatif']);
+    expect(world.sleeps).toEqual([]);
+  });
+
+  it('runs the online action as exactly one msdeploy delete, with no sha needed', async () => {
+    const world = fakeWorld();
+    const env: Record<string, string | undefined> = { ...ENV, INPUT_ACTION: 'online' };
+    delete env.INPUT_SHA;
+    delete env.SITE_ORIGIN;
+
+    const code = await main(env, world.deps, []);
+
+    expect(code).toBe(0);
+    expect(world.labels()).toEqual(['online']);
+    expect(world.calls[0]?.args[0]).toBe('-verb:delete');
+  });
+
+  it('exits with the failure of the online action', async () => {
+    const world = fakeWorld({ online: [1] });
+
+    const code = await main({ ...ENV, INPUT_ACTION: 'online' }, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual(['online']);
+  });
+});
+
+describe('withProbeKey', () => {
+  it('sets HostProbe.Key and keeps every other setting', () => {
+    const json = '{"HostProbe":{"Key":""},"Logging":{"LogLevel":{"Default":"Warning"}},"AllowedHosts":"*"}';
+
+    const result = JSON.parse(withProbeKey(json, 'k'.repeat(40))) as Record<string, unknown>;
+
+    expect(result).toEqual({
+      HostProbe: { Key: 'k'.repeat(40) },
+      Logging: { LogLevel: { Default: 'Warning' } },
+      AllowedHosts: '*',
+    });
+  });
+});
+
+describe('injectProbeWebConfig', () => {
+  const WEB_CONFIG = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<configuration>',
+    '  <location path="." inheritInChildApplications="false">',
+    '    <system.webServer>',
+    '      <handlers>',
+    '        <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />',
+    '      </handlers>',
+    '      <aspNetCore processPath="dotnet" arguments=".\\Csps.HostProbe.dll" hostingModel="inprocess" />',
+    '    </system.webServer>',
+    '  </location>',
+    '</configuration>',
+  ].join('\n');
+  const COMPRESSION = '<urlCompression doStaticCompression="false" doDynamicCompression="false" />';
+
+  it('adds the urlCompression element and nothing else new, keeping the handlers', () => {
+    const result = injectProbeWebConfig(WEB_CONFIG, { rewrite: false });
+
+    expect(result.split(COMPRESSION).length - 1).toBe(1);
+    expect(result).not.toContain('<rewrite>');
+    expect(result).toContain('modules="AspNetCoreModuleV2"');
+    expect(result).toContain('hostingModel="inprocess"');
+  });
+
+  it('adds one HTTP-to-HTTPS rewrite rule inside system.webServer when asked', () => {
+    const result = injectProbeWebConfig(WEB_CONFIG, { rewrite: true });
+
+    expect(result.split('<rule ').length - 1).toBe(1);
+    expect(result).toContain('redirectType="Permanent"');
+    expect(result.indexOf('<rewrite>')).toBeGreaterThan(result.indexOf('<system.webServer>'));
+    expect(result.indexOf('</rewrite>')).toBeLessThan(result.indexOf('</system.webServer>'));
+  });
+
+  it('replaces an existing urlCompression instead of adding a second one (a duplicate gives a 500.19)', () => {
+    const withExisting = WEB_CONFIG.replace('</handlers>', '</handlers><urlCompression doStaticCompression="true" />');
+
+    const result = injectProbeWebConfig(withExisting, { rewrite: false });
+
+    expect(result.split('<urlCompression').length - 1).toBe(1);
+    expect(result).toContain(COMPRESSION);
+  });
+
+  it('refuses a web.config without a system.webServer element', () => {
+    expect(() => injectProbeWebConfig('<configuration></configuration>', { rewrite: false })).toThrow(
+      'The probe web.config has no system.webServer element.',
+    );
+  });
+});
+
+describe('hostprobe action', () => {
+  const KEY = `PROBEKEY-${'0123456789'.repeat(3)}`;
+  const SETTINGS = '{"HostProbe":{"Key":""},"AllowedHosts":"*"}';
+  const WEB = '<configuration><system.webServer><handlers /></system.webServer></configuration>';
+  const ENV = {
+    INPUT_ACTION: 'hostprobe',
+    INPUT_DRY_RUN: 'false',
+    INPUT_PROBE_REWRITE: 'false',
+    HOSTPROBE_KEY: KEY,
+    WEBDEPLOY_SERVER: 'host.example',
+    WEBDEPLOY_SITE: 'site1',
+    WEBDEPLOY_USERNAME: 'deployer',
+    WEBDEPLOY_PASSWORD: PASSWORD,
+    SITE_ORIGIN: ORIGIN,
+    RUNNER_TEMP: '/work',
+    GITHUB_STEP_SUMMARY: '/work/summary.md',
+  };
+  const probeWorld = (script: Readonly<Record<string, readonly number[]>> = {}) =>
+    fakeWorld(script, {}, { 'appsettings.json': SETTINGS, 'web.config': WEB });
+
+  it('plans offline, wait, sync, online and the probe reader, with no release and no rollback', () => {
+    const steps = planDeploy({
+      action: 'hostprobe',
+      dryRun: false,
+      packageDir: '/work/csps-deploy/probe',
+      lastGood: null,
+      config: CONFIG,
+    });
+
+    expect(steps.map((step) => step.name)).toEqual(['offline', 'wait', 'sync', 'online', 'smoke']);
+    expect(steps[4]?.args?.slice(1)).toEqual(['probe', '--origin', ORIGIN]);
+    expect(steps.rollback).toBeNull();
+  });
+
+  it('publishes the probe, writes the key and the compression setting, syncs it and reads it', async () => {
+    const world = probeWorld();
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(0);
+    expect(world.labels()).toEqual(['dotnet publish', 'offline', 'sync', 'online', 'smoke-probe']);
+    const publish = world.calls[0];
+    expect(publish?.args.slice(0, 1)).toEqual(['publish']);
+    expect(publish?.args).toContain('Release');
+    expect(JSON.parse(world.files.get('appsettings.json') ?? '{}')).toEqual({
+      HostProbe: { Key: KEY },
+      AllowedHosts: '*',
+    });
+    expect(world.files.get('web.config')).toContain('<urlCompression doStaticCompression="false"');
+    expect(world.files.get('web.config')).not.toContain('<rewrite>');
+  });
+
+  it('adds the HTTP-to-HTTPS rule only when INPUT_PROBE_REWRITE is true', async () => {
+    const world = probeWorld();
+
+    await main({ ...ENV, INPUT_PROBE_REWRITE: 'true' }, world.deps, []);
+
+    expect(world.files.get('web.config')).toContain('<rewrite>');
+  });
+
+  it('never logs the probe key or the password', async () => {
+    const world = probeWorld();
+
+    await main(ENV, world.deps, []);
+
+    expect(everythingLogged(world)).not.toContain(KEY);
+    expect(everythingLogged(world)).not.toContain(PASSWORD);
+  });
+
+  it('never passes the probe key as an argument; the smoke reader takes it from the environment', async () => {
+    const world = probeWorld();
+
+    await main(ENV, world.deps, []);
+
+    expect(world.calls.every((call) => !call.args.some((arg) => arg.includes(KEY)))).toBe(true);
+  });
+
+  it.each([
+    ['', 'HOSTPROBE_KEY is not set.'],
+    ['short-key', 'HOSTPROBE_KEY must be at least 32 characters.'],
+  ])('refuses the key %j before publishing anything', async (key, message) => {
+    const world = probeWorld();
+
+    const code = await main({ ...ENV, HOSTPROBE_KEY: key }, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.calls).toEqual([]);
+    expect(world.logged.join('\n')).toContain(message);
+    if (key !== '') {
+      expect(world.logged.join('\n')).not.toContain(key);
+    }
+  });
+
+  it('puts the offline page back, makes no release and does not roll back when the probe sync fails', async () => {
+    const world = probeWorld({ sync: [1] });
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual(['dotnet publish', 'offline', 'sync', 'offline']);
+    expect(world.labels().some((name) => name.startsWith('gh'))).toBe(false);
+  });
+
+  it('puts the offline page back when the probe cannot be read', async () => {
+    const world = probeWorld({ 'smoke-probe': [1] });
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels().slice(-2)).toEqual(['smoke-probe', 'offline']);
   });
 });
