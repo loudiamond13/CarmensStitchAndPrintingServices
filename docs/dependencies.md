@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-16T00:05:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-16T08:44:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -110,6 +110,21 @@ Phase 3 runs the checks on GitHub for every pull request. The owner approved the
 **zizmor carries a "suspicious" flag.** The automatic research check flagged it only because the newest zizmor release (1.31.1) is one day old. The pinned 1.30.1 is 36 days old, so it is past the 14-day wait. The owner approved it with that explanation.
 
 **Not part of this approval.** The SQL Server image for the integration tests stays `mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04`, as CLAUDE.md pins it. A newer security build (`2025-CU9-GDR1-ubuntu-24.04`) exists, and switching to it is a separate owner decision. No npm, NuGet or PyPI package was added.
+
+## Public repository: our license and two security checks (approved 2026-10-16)
+
+The repository is now public on GitHub. The owner approved the items below on **2026-10-16**, before anything was used. All of them are free.
+
+- **Our own license is MIT** (`LICENSE`, "Copyright (c) 2026 loudiamond13"). In plain words: anyone may read and reuse the code, and nobody may blame us if it breaks. It costs nothing and does not change what the shop owns or how the shop runs the site.
+- **CodeQL** reads the C# and the TypeScript for security mistakes (the kinds listed in the CWE Top 25) on every pull request, every push to `main` and once a week. It is free for open-source code on GitHub.com, and this repository is public and MIT-licensed, so it qualifies. Its findings show under the repository's Security tab, and no one is billed.
+- **Dependency review** checks each pull request for newly added packages that have a known security problem or a license we do not allow, and fails the check if so. GitHub Actions entries are the one thing it cannot read a license for (a known issue on GitHub's side), so those show "unknown license" and are let through. The allowed list is the one in this page: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC and 0BSD, plus MPL-2.0 and OFL-1.1.
+
+| Item | Version | Pinned as | License | What it does for the shop |
+|------|---------|-----------|---------|---------------------------|
+| github/codeql-action | v4.38.2 (bundles CodeQL 2.27.1) | commit 2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 | MIT (the action); CodeQL itself is free for open-source code | Scans the code for security mistakes. |
+| actions/dependency-review-action | v5.0.0 | commit a1d282b36b6f3519aa1f3fc636f609c47dddb294 | MIT | Blocks a pull request that adds a vulnerable or disallowed-license package. |
+
+Both are older than the 14-day wait and have no known advisories. They run only on GitHub's build machines and never ship to the website. `SecurityWorkflowTests` and `CiWorkflowTests` fail the build if a workflow uses either one at any other commit.
 
 ## The web app's packages (npm)
 

@@ -51,6 +51,11 @@
       "date": "2026-10-15",
       "by": "owner",
       "scope": "Phase 3 CI actions and binaries (plan 03-01 Task 1, reply approve-all), approved before any was pinned. GitHub Actions pinned by full commit SHA: actions/checkout v7.0.1 (3d3c42e5aac5ba805825da76410c181273ba90b1), actions/setup-dotnet v6.0.0 (a98b56852c35b8e3190ac28c8c2271da59106c68), actions/setup-node v7.0.0 (820762786026740c76f36085b0efc47a31fe5020), actions/cache v6.1.0 (55cc8345863c7cc4c66a329aec7e433d2d1c52a9), actions/upload-artifact v7.0.1 (043fb46d1a93c77aae656e7c1c64a875d1fc6a0a), zizmorcore/zizmor-action v0.6.4 (cc914d7f3750a2d13d75c7f184a1060aa0e9d482, runs zizmor 1.30.1; flagged suspicious only because zizmor 1.31.1 is one day old, the pinned 1.30.1 is 36 days old). CI binaries checked by SHA-256: gitleaks 8.30.1 (linux_x64.tar.gz 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb, windows_x64.zip d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e) and actionlint 1.7.12 (linux_amd64.tar.gz 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8, windows_amd64.zip 6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9). All MIT. Declined: none. Not part of this approval: the SQL Server test image stays mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04 (a newer 2025-CU9-GDR1 image is a separate owner decision). No npm, NuGet or PyPI package is added."
+    },
+    {
+      "date": "2026-10-16",
+      "by": "owner",
+      "scope": "Security workflows for the now-public repository (quick task 261016-pub), approved before any was pinned. GitHub Actions pinned by full commit SHA: github/codeql-action v4.38.2 (2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2, the commit the annotated tag points to; bundles CodeQL 2.27.1; used for init and analyze; action license MIT, and the CodeQL CLI it runs is free for open-source code on GitHub.com, which this repository now is: public, MIT-licensed) and actions/dependency-review-action v5.0.0 (a1d282b36b6f3519aa1f3fc636f609c47dddb294, MIT). Both are past the 14-day cool-down and have no known advisories. Also approved: the repository license, MIT, with the copyright line 'Copyright (c) 2026 loudiamond13'. No npm, NuGet or PyPI package is added."
     }
   ],
   "packages": [
