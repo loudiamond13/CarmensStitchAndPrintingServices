@@ -1,67 +1,752 @@
 // @ts-check
-// Skeleton for the RED commit: every export has its final shape and gives a wrong answer.
-/* eslint-disable @typescript-eslint/no-unused-vars -- RED skeleton, replaced in the GREEN commit */
+// `node web/scripts/deploy.mjs [--plan]` (OPS-04, D-11, D-12, D-13): the production deploy that deploy.yml runs on
+// windows-2025, driven by environment variables. A deploy is data first: pure builders make the msdeploy arguments,
+// planDeploy lists the steps, and executeDeploy runs them through an injected spawn.
+//   1. Upload the branded tools/deploy/app_offline.htm to the site root and wait 5 seconds (msdeploy's own AppOffline
+//      rule writes a different file name and cannot carry the branded page).
+//   2. Sync the package (skipping the host logs folder and app_offline.htm, deleting stale files).
+//   3. Delete app_offline.htm, run the smoke test, and on a pass create the release deploy-<UTC time>-<sha7>.
+// The Web Deploy password is redacted from every printed line (CWE-532) and never reaches a shell: msdeploy, gh, tar and
+// node are spawned directly. Node built-ins only, because deploy.yml runs this without `npm ci`.
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
+import tls from 'node:tls';
 import { fileURLToPath } from 'node:url';
 
-export const MSDEPLOY_PATH = '';
-export const APP_OFFLINE_PATH = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
-export const RELEASE_PATTERN = /^$/;
-export const OFFLINE_WAIT_MS = 0;
-
-/** @param {Record<string, string | undefined>} _values */
-export function buildDestination(_values) {
-  return '';
-}
-/** @param {Record<string, unknown>} _values @returns {string[]} */
-export function syncArgs(_values) {
-  return [];
-}
-/** @param {Record<string, unknown>} _values @returns {string[]} */
-export function offlineArgs(_values) {
-  return [];
-}
-/** @param {Record<string, unknown>} _values @returns {string[]} */
-export function onlineArgs(_values) {
-  return [];
-}
-/** @param {string} text @param {readonly (string | undefined)[]} _secrets */
-export function redact(text, _secrets) {
-  return text;
-}
-/** @param {Date} _date @param {string} _sha */
-export function releaseTag(_date, _sha) {
-  return '';
-}
-/** @param {readonly { tagName: string, createdAt: string, isDraft: boolean }[]} _releases @param {string} _sha */
-export function selectLastGood(_releases, _sha) {
-  return /** @type {{ tagName: string } | null} */ (null);
-}
 /**
- * @typedef {{ name: string, kind: string, command?: string, args?: readonly string[], verbatim?: boolean, ms?: number, commands?: readonly { command: string, args: readonly string[] }[] }} Step
- * @param {Record<string, unknown>} _values
+ * @typedef {{ server: string, site: string, userName: string, password: string }} Connection
+ * @typedef {{ command: string, args: readonly string[] }} Command
+ * @typedef {{ readonly name: string, readonly kind: 'run' | 'wait' | 'sequence', readonly command?: string,
+ *   readonly args?: readonly string[], readonly verbatim?: boolean, readonly ms?: number,
+ *   readonly commands?: readonly Command[], readonly tag?: string }} Step
+ * @typedef {{ tag: string, packageDir: string }} LastGood
+ * @typedef {{ connection: Connection, allowUntrusted: boolean, origin: string, sha: string, tag: string, workDir: string }} DeployConfig
+ * @typedef {readonly Step[] & { rollback: { tag: string, steps: readonly Step[] } | null }} Plan
+ * @typedef {{ windowsVerbatimArguments?: boolean, argv0?: string }} SpawnOptions
+ * @typedef {{ status: number | null, stdout?: string, stderr?: string }} SpawnResult
+ * @typedef {(command: string, args: readonly string[], options: SpawnOptions) => SpawnResult} Spawn
+ * @typedef {{ tagName: string, createdAt: string, isDraft: boolean }} Release
+ * @typedef {{ spawn: Spawn, sleep: (ms: number) => Promise<void>, log: (text: string) => void, secrets: readonly (string | undefined)[] }} ExecuteDeps
+ * @typedef {{ exitCode: number, results: { name: string, ok: boolean }[], messages: string[], releaseTag?: string }} DeployResult
+ * @typedef {{ spawn: Spawn, sleep: (ms: number) => Promise<void>, now: () => Date, log: (text: string) => void,
+ *   exists: (file: string) => boolean, mkdir: (dir: string) => void, appendFile: (file: string, text: string) => void,
+ *   connectTls: (host: string, port: number) => Promise<string> }} MainDeps
+ */
+
+export const MSDEPLOY_PATH = 'C:\\Program Files\\IIS\\Microsoft Web Deploy V3\\msdeploy.exe';
+export const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+export const APP_OFFLINE_PATH = path.join(REPO_ROOT, 'tools', 'deploy', 'app_offline.htm');
+/** A deploy release tag: deploy-<yyyyMMddHHmmss UTC>-<sha7>. Tags embed seconds, so two deploys never share one. */
+export const RELEASE_PATTERN = /^deploy-\d{14}-[0-9a-f]{7}$/;
+/** Time for the ASP.NET Core Module to shut the app down once app_offline.htm is in place. */
+export const OFFLINE_WAIT_MS = 5000;
+
+const SMOKE_PATH = fileURLToPath(new URL('./smoke.mjs', import.meta.url));
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const SHA_MESSAGE = 'The commit sha must be 40 lowercase hex characters.';
+const ACTIONS = Object.freeze(['deploy', 'online', 'hostprobe']);
+const WEB_DEPLOY_PORT = 8172;
+const SEPARATORS = /[,"';]/;
+
+/**
+ * msdeploy parses `-dest:key=value,key=value` itself, so a separator inside a value would change the command (CWE-88).
+ * @param {string} name
+ * @param {string | undefined} value
+ */
+function assertPlain(name, value) {
+  if (value === undefined || value === '') {
+    throw new Error(`The Web Deploy ${name} is not set.`);
+  }
+  if (SEPARATORS.test(value)) {
+    throw new Error(
+      `The Web Deploy ${name} contains a character msdeploy cannot take (comma, quote or semicolon). Choose one without it.`,
+    );
+  }
+}
+
+/**
+ * The `-dest:` value: the provider, the endpoint and the credentials. The error never contains the offending value.
+ * @param {Connection & { contentPath?: string }} values
+ * @returns {string}
+ */
+export function buildDestination({ server, site, userName, password, contentPath }) {
+  assertPlain('server', server);
+  assertPlain('site', site);
+  assertPlain('user name', userName);
+  assertPlain('password', password);
+  return (
+    `contentPath=${contentPath ?? site},computerName="https://${server}:${String(WEB_DEPLOY_PORT)}/msdeploy.axd?site=${site}",` +
+    `userName=${userName},password=${password},authType=Basic,includeAcls=False`
+  );
+}
+
+/** @param {string} value */
+function quoteIfNeeded(value) {
+  return /\s/.test(value) ? `"${value}"` : value;
+}
+
+/** @param {boolean} allowUntrusted @returns {string[]} */
+function retryAndTrust(allowUntrusted) {
+  return ['-retryAttempts:10', '-retryInterval:3000', ...(allowUntrusted ? ['-allowUntrusted'] : [])];
+}
+
+/**
+ * The package sync. Stale files are deleted (no DoNotDeleteRule); the host's logs folder and app_offline.htm are skipped.
+ * @param {{ sourceDir: string, destination: string, whatIf: boolean, allowUntrusted: boolean }} options
+ * @returns {string[]}
+ */
+export function syncArgs({ sourceDir, destination, whatIf, allowUntrusted }) {
+  return [
+    '-verb:sync',
+    `-source:contentPath=${quoteIfNeeded(sourceDir)}`,
+    `-dest:${destination}`,
+    '-skip:objectName=dirPath,absolutePath=\\\\logs$',
+    '-skip:objectName=filePath,absolutePath=\\\\app_offline\\.htm$',
+    '-retryAttempts:10',
+    '-retryInterval:3000',
+    ...(whatIf ? ['-whatif'] : []),
+    ...(allowUntrusted ? ['-allowUntrusted'] : []),
+  ];
+}
+
+/**
+ * Puts the branded offline page on the site root.
+ * @param {Connection & { allowUntrusted: boolean, appOfflinePath?: string }} options
+ * @returns {string[]}
+ */
+export function offlineArgs({ allowUntrusted, appOfflinePath = APP_OFFLINE_PATH, ...connection }) {
+  const destination = buildDestination({ ...connection, contentPath: `${connection.site}/app_offline.htm` });
+  return [
+    '-verb:sync',
+    `-source:contentPath=${quoteIfNeeded(appOfflinePath)}`,
+    `-dest:${destination}`,
+    ...retryAndTrust(allowUntrusted),
+  ];
+}
+
+/**
+ * Takes the offline page down.
+ * @param {Connection & { allowUntrusted: boolean }} options
+ * @returns {string[]}
+ */
+export function onlineArgs({ allowUntrusted, ...connection }) {
+  const destination = buildDestination({ ...connection, contentPath: `${connection.site}/app_offline.htm` });
+  return ['-verb:delete', `-dest:${destination}`, ...retryAndTrust(allowUntrusted)];
+}
+
+/**
+ * @param {string} text
+ * @param {readonly (string | undefined)[]} secrets
+ * @returns {string}
+ */
+export function redact(text, secrets) {
+  let result = text;
+  for (const secret of secrets) {
+    if (secret !== undefined && secret !== '') {
+      result = result.split(secret).join('***');
+    }
+  }
+  return result;
+}
+
+/**
+ * @param {Date} date
+ * @param {string} sha
+ * @returns {string}
+ */
+export function releaseTag(date, sha) {
+  const stamp = date.toISOString().slice(0, 19).replaceAll(/\D/g, '');
+  return `deploy-${stamp}-${sha.slice(0, 7)}`;
+}
+
+/**
+ * Deploy releases that could be a rollback target, newest first: creation time descending, ties by tag name descending.
+ * @param {readonly Release[]} releases
+ * @returns {Release[]}
+ */
+function deployReleasesNewestFirst(releases) {
+  return releases
+    .filter((release) => !release.isDraft && RELEASE_PATTERN.test(release.tagName))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || (a.tagName < b.tagName ? 1 : -1));
+}
+
+/**
+ * The newest deploy release whose sha suffix differs from the sha being deployed, so a failed redeploy of the live build
+ * never rolls back onto itself. Null on the first deploy.
+ * @param {readonly Release[]} releases
+ * @param {string} sha
+ * @returns {Release | null}
+ */
+export function selectLastGood(releases, sha) {
+  const suffix = `-${sha.slice(0, 7)}`;
+  return deployReleasesNewestFirst(releases).find((release) => !release.tagName.endsWith(suffix)) ?? null;
+}
+
+/**
+ * @param {string} name
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {Step}
+ */
+function runStep(name, command, args) {
+  return { name, kind: 'run', command, args, verbatim: command === MSDEPLOY_PATH };
+}
+
+/** @param {string} name @param {readonly string[]} args @returns {Step} */
+function msdeployStep(name, args) {
+  return runStep(name, MSDEPLOY_PATH, args);
+}
+
+/** @returns {Step} */
+function waitStep() {
+  return { name: 'wait', kind: 'wait', ms: OFFLINE_WAIT_MS };
+}
+
+/** @param {DeployConfig} config @returns {Step} */
+function smokeStep({ origin }) {
+  return runStep('smoke', process.execPath, [SMOKE_PATH, '--origin', origin]);
+}
+
+/**
+ * The offline, wait, sync, online part shared by the deploy, the rollback and the host probe.
+ * @param {DeployConfig} config
+ * @param {string} packageDir
  * @returns {Step[]}
  */
-export function planDeploy(_values) {
-  return [];
+function swapSteps(config, packageDir) {
+  const { connection, allowUntrusted } = config;
+  return [
+    msdeployStep('offline', offlineArgs({ ...connection, allowUntrusted })),
+    waitStep(),
+    msdeployStep(
+      'sync',
+      syncArgs({ sourceDir: packageDir, destination: buildDestination(connection), whatIf: false, allowUntrusted }),
+    ),
+    msdeployStep('online', onlineArgs({ ...connection, allowUntrusted })),
+  ];
 }
-/** @param {Record<string, unknown>} _values @returns {Step[]} */
-export function planRollback(_values) {
-  return [];
+
+/**
+ * Rollback to the last good release: the same offline, sync, online and smoke steps with that release's package.
+ * @param {{ config: DeployConfig, lastGood: LastGood }} options
+ * @returns {Step[]}
+ */
+export function planRollback({ config, lastGood }) {
+  return [...swapSteps(config, lastGood.packageDir), smokeStep(config)];
 }
-/** @param {{ host: string, expected: string | undefined, connect: (host: string, port: number) => Promise<string> }} _values */
-export function certificatePinOk(_values) {
-  return Promise.resolve(true);
+
+/** @param {DeployConfig} config @param {string} packageDir @returns {Step} */
+function releaseStep(config, packageDir) {
+  const zip = path.join(config.workDir, 'site.zip');
+  return {
+    name: 'release',
+    kind: 'sequence',
+    tag: config.tag,
+    commands: [
+      { command: 'tar', args: ['-a', '-c', '-f', zip, '-C', packageDir, '.'] },
+      {
+        command: 'gh',
+        args: [
+          'release',
+          'create',
+          config.tag,
+          zip,
+          '--target',
+          config.sha,
+          '--title',
+          config.tag,
+          '--notes',
+          `Deployed commit ${config.sha}.`,
+          '--latest=false',
+        ],
+      },
+    ],
+  };
 }
-/** @param {string} _sha @param {Record<string, unknown>} _deps @returns {Promise<{ source: string, packageDir: string }>} */
-export function findPackage(_sha, _deps) {
-  return Promise.resolve({ source: '', packageDir: '' });
+
+/**
+ * The deploy as data. A dry run is one whatif sync; `online` only deletes app_offline.htm. The returned list carries
+ * `rollback`, the steps that restore `lastGood` (null when there is none, as on the first deploy).
+ * @param {{ action: string, dryRun: boolean, packageDir: string | null, lastGood: LastGood | null, config: DeployConfig }} options
+ * @returns {Plan}
+ */
+export function planDeploy({ action, dryRun, packageDir, lastGood, config }) {
+  const { connection, allowUntrusted } = config;
+  if (action === 'online') {
+    return Object.assign([msdeployStep('online', onlineArgs({ ...connection, allowUntrusted }))], { rollback: null });
+  }
+  if (action !== 'deploy') {
+    throw new Error(`The ${action} action is not available.`);
+  }
+  if (packageDir === null) {
+    throw new Error('A deploy needs a package folder.');
+  }
+  if (dryRun) {
+    const args = syncArgs({
+      sourceDir: packageDir,
+      destination: buildDestination(connection),
+      whatIf: true,
+      allowUntrusted,
+    });
+    return Object.assign([msdeployStep('sync', args)], { rollback: null });
+  }
+  const steps = [...swapSteps(config, packageDir), smokeStep(config), releaseStep(config, packageDir)];
+  return Object.assign(steps, {
+    rollback: lastGood === null ? null : { tag: lastGood.tag, steps: planRollback({ config, lastGood }) },
+  });
 }
-/** @param {readonly Step[]} _steps @param {Record<string, unknown>} _deps @returns {Promise<{ exitCode: number, releaseTag?: string }>} */
-export function executeDeploy(_steps, _deps) {
-  return Promise.resolve({ exitCode: 1 });
+
+/**
+ * @param {string | undefined} value
+ * @returns {string}
+ */
+function normalizeFingerprint(value) {
+  return (value ?? '').replaceAll(/[:\s]/g, '').toLowerCase();
 }
-/** @param {Record<string, string | undefined>} _env @param {Record<string, unknown>} _deps @param {readonly string[]} _argv */
-export function main(_env, _deps, _argv) {
-  return Promise.resolve(0);
+
+/**
+ * True when the server's leaf certificate SHA-256 equals the expected fingerprint (T-03-26). With nothing expected it is
+ * false without connecting, so -allowUntrusted is never used.
+ * @param {{ host: string, expected: string | undefined, connect: (host: string, port: number) => Promise<string> }} options
+ * @returns {Promise<boolean>}
+ */
+export async function certificatePinOk({ host, expected, connect }) {
+  const wanted = normalizeFingerprint(expected);
+  if (wanted === '') {
+    return false;
+  }
+  return normalizeFingerprint(await connect(host, WEB_DEPLOY_PORT)) === wanted;
+}
+
+/**
+ * Reads the SHA-256 fingerprint of the server's leaf certificate without trusting it; only the pin decides.
+ * @param {string} host
+ * @param {number} port
+ * @returns {Promise<string>}
+ */
+function connectTls(host, port) {
+  return new Promise((resolve, reject) => {
+    const socket = tls.connect(
+      { host, port, servername: net.isIP(host) === 0 ? host : '', rejectUnauthorized: false, timeout: 15_000 },
+      () => {
+        const fingerprint = socket.getPeerCertificate().fingerprint256;
+        socket.end();
+        resolve(fingerprint);
+      },
+    );
+    socket.once('timeout', () => {
+      socket.destroy();
+      reject(new Error('timed out'));
+    });
+    socket.once('error', reject);
+  });
+}
+
+/**
+ * @param {Spawn} run
+ * @returns {Release[]}
+ */
+function listReleases(run) {
+  const listed = run('gh', ['release', 'list', '--json', 'tagName,createdAt,isDraft', '--limit', '100'], {});
+  if (listed.status !== 0) {
+    throw new Error('gh could not list the releases.');
+  }
+  return /** @type {Release[]} */ (parseJson(listed.stdout));
+}
+
+/**
+ * @param {string | undefined} text
+ * @returns {unknown}
+ */
+function parseJson(text) {
+  return JSON.parse(text ?? '[]');
+}
+
+/**
+ * Downloads a deploy release's site.zip and unpacks it to <dir>/site with the Windows built-in tar.
+ * @param {{ run: Spawn, mkdir: (dir: string) => void }} deps
+ * @param {string} tag
+ * @param {string} dir
+ * @returns {string} the package folder.
+ */
+function downloadRelease({ run, mkdir }, tag, dir) {
+  mkdir(dir);
+  if (run('gh', ['release', 'download', tag, '-p', 'site.zip', '-D', dir], {}).status !== 0) {
+    throw new Error(`The release ${tag} could not be downloaded.`);
+  }
+  const siteDir = path.join(dir, 'site');
+  mkdir(siteDir);
+  if (run('tar', ['-x', '-f', path.join(dir, 'site.zip'), '-C', siteDir], {}).status !== 0) {
+    throw new Error(`The package of the release ${tag} could not be unpacked.`);
+  }
+  return siteDir;
+}
+
+/**
+ * The package for a sha: the csps-package-<sha> artifact of a successful push run of ci.yml on main for exactly that
+ * commit, else the existing deploy release for that sha (a manual rollback beyond the 14-day artifact retention).
+ * Anything else is refused (T-03-28).
+ * @param {string} sha
+ * @param {{ run: Spawn, dir: string, mkdir: (dir: string) => void, exists: (file: string) => boolean }} deps
+ * @returns {Promise<{ source: 'artifact' | 'release', packageDir: string }>}
+ */
+export function findPackage(sha, deps) {
+  if (!SHA_PATTERN.test(sha)) {
+    return Promise.reject(new Error(SHA_MESSAGE));
+  }
+  const { run, dir, exists } = deps;
+  const siteDir = path.join(dir, 'site');
+  const listed = run(
+    'gh',
+    [
+      'run',
+      'list',
+      '--workflow',
+      'ci.yml',
+      '--branch',
+      'main',
+      '--commit',
+      sha,
+      '--status',
+      'success',
+      '--json',
+      'databaseId,event,headSha',
+    ],
+    {},
+  );
+  if (listed.status !== 0) {
+    return Promise.reject(new Error(`gh could not list the CI runs for ${sha.slice(0, 7)}.`));
+  }
+  const runs = /** @type {{ databaseId: number, event: string, headSha: string }[]} */ (parseJson(listed.stdout));
+  const ci = runs.find((candidate) => candidate.event === 'push' && candidate.headSha === sha);
+  if (ci !== undefined) {
+    const downloaded = run(
+      'gh',
+      ['run', 'download', String(ci.databaseId), '-n', `csps-package-${sha}`, '-D', dir],
+      {},
+    );
+    if (downloaded.status === 0 && exists(siteDir)) {
+      return Promise.resolve({ source: 'artifact', packageDir: siteDir });
+    }
+  }
+  const suffix = `-${sha.slice(0, 7)}`;
+  const release = deployReleasesNewestFirst(listReleases(run)).find((candidate) => candidate.tagName.endsWith(suffix));
+  if (release === undefined) {
+    return Promise.reject(new Error(`No CI-passed build or deploy release exists for ${sha.slice(0, 7)}.`));
+  }
+  return Promise.resolve({ source: 'release', packageDir: downloadRelease(deps, release.tagName, dir) });
+}
+
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {string}
+ */
+function describeCommand(command, args) {
+  return [command === MSDEPLOY_PATH ? 'msdeploy' : command, ...args].join(' ');
+}
+
+/**
+ * Runs one command, logging the redacted command line and the redacted output.
+ * @param {Command & { verbatim?: boolean }} command
+ * @param {ExecuteDeps} deps
+ * @returns {boolean}
+ */
+function runCommand({ command, args, verbatim = false }, { spawn, log, secrets }) {
+  log(`> ${redact(describeCommand(command, args), secrets)}`);
+  /** @type {SpawnOptions} */
+  const options = {};
+  if (verbatim) {
+    // Verbatim arguments keep msdeploy's own quoting; the program name must then be quoted by hand when it has spaces.
+    options.windowsVerbatimArguments = true;
+    if (/\s/.test(command)) {
+      options.argv0 = `"${command}"`;
+    }
+  }
+  try {
+    const result = spawn(command, args, options);
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+    if (output !== '') {
+      log(redact(output, secrets));
+    }
+    return result.status === 0;
+  } catch (error) {
+    log(redact(error instanceof Error ? error.message : String(error), secrets));
+    return false;
+  }
+}
+
+/**
+ * @param {Step} step
+ * @param {ExecuteDeps} deps
+ * @returns {Promise<boolean>}
+ */
+async function runStepOf(step, deps) {
+  if (step.kind === 'wait') {
+    deps.log(`> wait ${String(step.ms ?? 0)} ms`);
+    await deps.sleep(step.ms ?? 0);
+    return true;
+  }
+  const commands =
+    step.kind === 'sequence' ? (step.commands ?? []) : [{ command: step.command ?? '', args: step.args ?? [] }];
+  for (const command of commands) {
+    if (!runCommand({ ...command, verbatim: step.verbatim === true }, deps)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Runs the planned steps in order and stops at the first failure.
+ * @param {Plan} steps
+ * @param {ExecuteDeps} deps
+ * @returns {Promise<DeployResult>}
+ */
+export async function executeDeploy(steps, deps) {
+  /** @type {DeployResult} */
+  const result = { exitCode: 0, results: [], messages: [] };
+  for (const step of steps) {
+    const ok = await runStepOf(step, deps);
+    result.results.push({ name: step.name, ok });
+    if (!ok) {
+      result.exitCode = 1;
+      result.messages.push(`The ${step.name} step failed.`);
+      return result;
+    }
+    if (step.tag !== undefined) {
+      result.releaseTag = step.tag;
+    }
+  }
+  return result;
+}
+
+/**
+ * @param {Record<string, string | undefined>} env
+ * @param {string} name
+ * @returns {string}
+ */
+function required(env, name) {
+  const value = env[name]?.trim();
+  if (value === undefined || value === '') {
+    throw new Error(`${name} is not set.`);
+  }
+  return value;
+}
+
+/**
+ * @param {string} action
+ * @param {string} sha7
+ * @param {DeployResult} result
+ * @returns {string}
+ */
+function summaryMarkdown(action, sha7, result) {
+  const rows = result.results.map((row) => `| ${row.name} | ${row.ok ? 'pass' : 'FAIL'} |`);
+  return [
+    `## Web Deploy: ${action} ${sha7}`,
+    '',
+    '| Step | Result |',
+    '| --- | --- |',
+    ...rows,
+    '',
+    ...(result.releaseTag === undefined ? [] : [`Release: \`${result.releaseTag}\``, '']),
+    ...result.messages,
+    '',
+  ].join('\n');
+}
+
+/**
+ * @param {Record<string, string | undefined>} env
+ * @param {MainDeps} deps
+ * @param {readonly string[]} argv
+ * @param {(text: string) => void} log
+ * @returns {Promise<number>}
+ */
+async function run(env, deps, argv, log) {
+  const action = env.INPUT_ACTION?.trim() ?? '';
+  if (!ACTIONS.includes(action)) {
+    throw new Error('INPUT_ACTION must be deploy, online or hostprobe.');
+  }
+  const planOnly = argv.includes('--plan');
+  const connection = {
+    server: required(env, 'WEBDEPLOY_SERVER'),
+    site: required(env, 'WEBDEPLOY_SITE'),
+    userName: required(env, 'WEBDEPLOY_USERNAME'),
+    password: required(env, 'WEBDEPLOY_PASSWORD'),
+  };
+  buildDestination(connection);
+  const sha = env.INPUT_SHA?.trim() ?? '';
+  if (action === 'deploy' && !SHA_PATTERN.test(sha)) {
+    throw new Error(SHA_MESSAGE);
+  }
+  if (action === 'hostprobe') {
+    throw new Error('The hostprobe action is not available.');
+  }
+  const origin = action === 'online' ? '' : new URL(required(env, 'SITE_ORIGIN')).origin;
+  const dryRun = env.INPUT_DRY_RUN?.trim() === 'true';
+  const workDir = path.join(env.RUNNER_TEMP ?? os.tmpdir(), 'csps-deploy');
+  const packageDir = path.join(workDir, 'package', 'site');
+  const base = {
+    connection,
+    allowUntrusted: false,
+    origin,
+    sha,
+    tag: releaseTag(deps.now(), sha || '0'.repeat(7)),
+    workDir,
+  };
+
+  if (planOnly) {
+    const lastGood = { tag: 'deploy-<newest earlier release>', packageDir: path.join(workDir, 'last-good', 'site') };
+    const plan = planDeploy({ action, dryRun, packageDir, lastGood, config: base });
+    log(`Plan for ${action}${dryRun ? ' (dry run)' : ''}:`);
+    plan.forEach((step, index) => {
+      log(`${String(index + 1)}. ${step.name}: ${describeStep(step)}`);
+    });
+    if (plan.rollback !== null) {
+      log(`If the sync or the smoke test fails, roll back to ${plan.rollback.tag}:`);
+      plan.rollback.steps.forEach((step, index) => {
+        log(`  ${String(index + 1)}. ${step.name}: ${describeStep(step)}`);
+      });
+    }
+    return 0;
+  }
+
+  if (!deps.exists(MSDEPLOY_PATH)) {
+    throw new Error(
+      `msdeploy.exe was not found at ${MSDEPLOY_PATH}. The windows-2025 image should include Web Deploy.`,
+    );
+  }
+  const pin = env.WEBDEPLOY_CERT_SHA256?.trim() ?? '';
+  let allowUntrusted = false;
+  if (pin !== '') {
+    try {
+      allowUntrusted = await certificatePinOk({ host: connection.server, expected: pin, connect: deps.connectTls });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Could not read the certificate of ${connection.server} on port ${String(WEB_DEPLOY_PORT)}: ${reason}`,
+        { cause: error },
+      );
+    }
+    if (!allowUntrusted) {
+      throw new Error(
+        `The server certificate of ${connection.server} does not match WEBDEPLOY_CERT_SHA256. Nothing was deployed. If the host renewed its certificate, update the secret.`,
+      );
+    }
+  }
+  const config = { ...base, allowUntrusted };
+  /** @type {ExecuteDeps} */
+  const executeDeps = {
+    spawn: deps.spawn,
+    sleep: deps.sleep,
+    log,
+    secrets: [connection.password, env.HOSTPROBE_KEY, env.GH_TOKEN],
+  };
+
+  /** @type {Plan} */
+  let plan;
+  if (action === 'online') {
+    plan = planDeploy({ action, dryRun, packageDir: null, lastGood: null, config });
+  } else {
+    deps.mkdir(path.join(workDir, 'package'));
+    const found = await findPackage(sha, {
+      run: deps.spawn,
+      dir: path.join(workDir, 'package'),
+      mkdir: deps.mkdir,
+      exists: deps.exists,
+    });
+    /** @type {LastGood | null} */
+    let lastGood = null;
+    if (!dryRun) {
+      const release = selectLastGood(listReleases(deps.spawn), sha);
+      if (release !== null) {
+        lastGood = {
+          tag: release.tagName,
+          packageDir: downloadRelease(
+            { run: deps.spawn, mkdir: deps.mkdir },
+            release.tagName,
+            path.join(workDir, 'last-good'),
+          ),
+        };
+      }
+    }
+    plan = planDeploy({ action, dryRun, packageDir: found.packageDir, lastGood, config });
+  }
+  const result = await executeDeploy(plan, executeDeps);
+  const summaryFile = env.GITHUB_STEP_SUMMARY;
+  if (summaryFile !== undefined && summaryFile !== '') {
+    deps.appendFile(summaryFile, summaryMarkdown(action, sha.slice(0, 7), result));
+  }
+  return result.exitCode;
+}
+
+/**
+ * @param {Step} step
+ * @returns {string}
+ */
+function describeStep(step) {
+  if (step.kind === 'wait') {
+    return `wait ${String(step.ms ?? 0)} ms`;
+  }
+  const commands =
+    step.kind === 'sequence' ? (step.commands ?? []) : [{ command: step.command ?? '', args: step.args ?? [] }];
+  return commands.map((command) => describeCommand(command.command, command.args)).join(' && ');
+}
+
+/**
+ * The CLI body: returns the exit code and never throws, so a refusal reads as one plain line.
+ * @param {Record<string, string | undefined>} env
+ * @param {MainDeps} deps
+ * @param {readonly string[]} argv
+ * @returns {Promise<number>}
+ */
+export async function main(env, deps, argv) {
+  const secrets = [env.WEBDEPLOY_PASSWORD, env.HOSTPROBE_KEY, env.GH_TOKEN];
+  /** @param {string} text */
+  const log = (text) => {
+    deps.log(redact(text, secrets));
+  };
+  try {
+    return await run(env, deps, argv, log);
+  } catch (error) {
+    log(`deploy: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
+}
+
+/** @returns {MainDeps} */
+function defaultDeps() {
+  return {
+    spawn: (command, args, options) => {
+      const result = spawnSync(command, [...args], {
+        ...options,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        windowsHide: true,
+      });
+      return { status: result.status, stdout: result.stdout, stderr: `${result.stderr}${result.error?.message ?? ''}` };
+    },
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms);
+      }),
+    now: () => new Date(),
+    log: (text) => {
+      process.stdout.write(`${text}\n`);
+    },
+    exists: existsSync,
+    mkdir: (dir) => {
+      mkdirSync(dir, { recursive: true });
+    },
+    appendFile: appendFileSync,
+    connectTls,
+  };
+}
+
+const invokedPath = process.argv[1];
+if (invokedPath !== undefined && path.resolve(invokedPath) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await main(process.env, defaultDeps(), process.argv.slice(2));
 }
