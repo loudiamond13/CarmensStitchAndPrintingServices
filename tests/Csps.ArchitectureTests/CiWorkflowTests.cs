@@ -568,20 +568,27 @@ public sealed partial class CiWorkflowTests
     }
 
     [Fact]
-    public void PackageOnlyOnPushToMain()
+    public void PackagePipelineRunsBeforeTheMergeAndOnlyTheUploadWaitsForPush()
     {
         var package = PackageSteps();
         package.Count.ShouldBe(6, "Stage 7 is the six package steps (D-11).");
 
-        var offenders = package
-            .Where(step => !step.Any(line => line.Trim().StartsWith("if:", StringComparison.Ordinal)
-                && line.Contains("github.event_name == 'push'", StringComparison.Ordinal)
-                && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)
-                && line.Contains("needs.classify.outputs.mode == 'package'", StringComparison.Ordinal)))
-            .Select(WorkflowText.StepName)
-            .ToList();
+        bool InModes(IReadOnlyList<string> step) => step.Any(line => line.Trim().StartsWith("if:", StringComparison.Ordinal)
+            && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)
+            && line.Contains("needs.classify.outputs.mode == 'package'", StringComparison.Ordinal));
+        bool OnlyOnPush(IReadOnlyList<string> step) => step.Any(line => line.Trim().StartsWith("if:", StringComparison.Ordinal)
+            && line.Contains("github.event_name == 'push'", StringComparison.Ordinal));
 
-        offenders.ShouldBeEmpty("The package is built only on a push to main whose mode is full or package (D-11).");
+        package.Where(step => !InModes(step)).Select(WorkflowText.StepName).ToList()
+            .ShouldBeEmpty("Every package step runs only in full or package mode (D-11).");
+
+        var uploads = package.Where(step => WorkflowText.StepName(step) == "7 package upload").ToList();
+        uploads.Count.ShouldBe(1);
+        OnlyOnPush(uploads[0]).ShouldBeTrue("Only the artifact upload (the handoff to deploy) waits for a push to main.");
+
+        package.Where(step => WorkflowText.StepName(step) != "7 package upload" && OnlyOnPush(step))
+            .Select(WorkflowText.StepName).ToList()
+            .ShouldBeEmpty("Build, publish, migrations script, package check and secret scan must also run on a full pull request, so a failure shows before the merge (WR-06).");
     }
 
     [Fact]
