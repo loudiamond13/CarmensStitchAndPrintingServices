@@ -273,3 +273,46 @@ jobs:
             web/test-results
           retention-days: 7
           if-no-files-found: ignore
+
+      # D-11 / OPS-04 / OPS-05 stage 7: only a push to main builds the deploy package, after every gate above passed.
+      # The web build is repeated here so the package never carries the budget build's output.
+      - name: 7 package web build
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        run: npm --prefix web run build
+
+      - name: 7 package publish
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        run: dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false -o artifacts/package/site --no-restore -tl:off
+
+      # Prime Directive 11: the host database is changed only by this reviewed, idempotent script, never at startup.
+      - name: 7 package migrations script
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        run: dotnet ef migrations script --idempotent --project src/Csps.Infrastructure --startup-project src/Csps.Server --output artifacts/package/csps-migrations.sql
+
+      # OPS-05: secrets live only on the server; this check fails closed on logs, app_offline.htm, key material and env files.
+      - name: 7 package check
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        run: node web/scripts/package-check.mjs artifacts/package/site
+
+      # T-03-SC: the same pinned gitleaks 8.30.1 tarball and SHA-256 as the Hygiene workflow, checked before use (CWE-494).
+      - name: 7 package secret scan
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 --output gitleaks_8.30.1_linux_x64.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks_8.30.1_linux_x64.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          export PATH="$RUNNER_TEMP:$PATH"
+          cd "$GITHUB_WORKSPACE"
+          gitleaks dir artifacts/package --redact --no-banner --verbose
+
+      # D-11: stored under the commit id, which is the name deploy.mjs findPackage downloads. 14 days, about 35 MB each.
+      - name: 7 package upload
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: csps-package-${{ github.sha }}
+          path: artifacts/package
+          retention-days: 14
+          if-no-files-found: error

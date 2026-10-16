@@ -424,7 +424,9 @@ public sealed partial class CiWorkflowTests
             .ToList();
         verifySteps.ShouldNotBeEmpty();
 
+        // Stage 7 rebuilds the web app on purpose (the budget build overwrites the output), so it is outside the verify order.
         var called = WorkflowText.Steps(GateJob().Lines)
+            .Where(step => WorkflowText.StepName(step) is not { } name || !name.StartsWith("7 ", StringComparison.Ordinal))
             .SelectMany(step => WorkflowText.RunBlocks(step))
             .SelectMany(block => WebScript().Matches(block).Select(match => match.Groups["script"].Value))
             .Where(verifySteps.Contains)
@@ -501,7 +503,7 @@ public sealed partial class CiWorkflowTests
     public void FailureReportsAreUploadedForSevenDaysOnly()
     {
         var upload = WorkflowText.Steps(GateJob().Lines)
-            .Single(step => step.Any(line => line.Contains("actions/upload-artifact@", StringComparison.Ordinal)))
+            .Single(step => WorkflowText.StepName(step) == "6 upload failure reports")
             .Select(line => line.Trim())
             .ToList();
 
