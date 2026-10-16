@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T10:56:00-05:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:30:00-05:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -71,7 +71,7 @@ If the run summary says `app_offline.htm may still be on the site`, or visitors 
 gh workflow run deploy.yml --ref main -f action=online
 ```
 
-The **online** action needs no sha. It only deletes `app_offline.htm`. It does not copy files or run the smoke test, so check the site yourself afterwards.
+The **online** action needs no sha. It only deletes `app_offline.htm`. It does not copy files or run the smoke test, so check the site yourself afterwards. With **dry_run** on, it only asks Web Deploy what it would delete and changes nothing.
 
 ## The first deploy
 

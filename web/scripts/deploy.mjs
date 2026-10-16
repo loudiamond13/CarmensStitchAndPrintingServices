@@ -139,13 +139,13 @@ export function offlineArgs({ allowUntrusted, appOfflinePath = APP_OFFLINE_PATH,
 }
 
 /**
- * Takes the offline page down.
- * @param {Connection & { allowUntrusted: boolean }} options
+ * Takes the offline page down; with `whatIf` msdeploy only reports what it would delete.
+ * @param {Connection & { allowUntrusted: boolean, whatIf?: boolean }} options
  * @returns {string[]}
  */
-export function onlineArgs({ allowUntrusted, ...connection }) {
+export function onlineArgs({ allowUntrusted, whatIf = false, ...connection }) {
   const destination = buildDestination({ ...connection, contentPath: `${connection.site}/app_offline.htm` });
-  return ['-verb:delete', `-dest:${destination}`, ...retryAndTrust(allowUntrusted)];
+  return ['-verb:delete', `-dest:${destination}`, ...retryAndTrust(allowUntrusted), ...(whatIf ? ['-whatif'] : [])];
 }
 
 /**
@@ -284,7 +284,7 @@ function releaseStep(config, packageDir) {
 }
 
 /**
- * The run as data. A dry run is one whatif sync; `online` only deletes app_offline.htm; `hostprobe` swaps in the probe and
+ * The run as data. A dry run is one whatif sync (a whatif delete for `online`); `online` only deletes app_offline.htm; `hostprobe` swaps in the probe and
  * reads it, with no release. The returned list carries `rollback`, the steps that restore `lastGood` (null when there is
  * none, as on the first deploy), and `onFailure`, what the executor does when a step fails.
  * @param {{ action: string, dryRun: boolean, packageDir: string | null, lastGood: LastGood | null, config: DeployConfig }} options
@@ -293,7 +293,7 @@ function releaseStep(config, packageDir) {
 export function planDeploy({ action, dryRun, packageDir, lastGood, config }) {
   const { connection, allowUntrusted } = config;
   if (action === 'online') {
-    return Object.assign([msdeployStep('online', onlineArgs({ ...connection, allowUntrusted }))], {
+    return Object.assign([msdeployStep('online', onlineArgs({ ...connection, allowUntrusted, whatIf: dryRun }))], {
       rollback: null,
       onFailure: /** @type {OnFailure} */ ('none'),
     });
