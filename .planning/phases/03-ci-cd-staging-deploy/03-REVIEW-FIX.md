@@ -1,6 +1,6 @@
 ---
 created: 2026-10-16T17:15:00-05:00
-updated: 2026-10-16T17:15:00-05:00
+updated: 2026-10-16T16:40:00-05:00
 phase: 03-ci-cd-staging-deploy
 fixed_at: 2026-10-16T17:15:00-05:00
 review_path: .planning/phases/03-ci-cd-staging-deploy/03-REVIEW.md
@@ -39,25 +39,25 @@ Work ran in the main checkout on `gsd/phase-03-ci-cd-staging-deploy` because `wo
 **Commits:** 3b8a575 (RED), aac8dae (GREEN)
 **Applied fix:** `onlineArgs` takes a `whatIf` flag and `planDeploy` passes `dryRun` to it, so `online` with `dry_run` is a `-whatif` delete and changes nothing. Two tests cover the plan and the end-to-end `main` run. `deploy.md` now says so in "Recover with the online action". Chosen over refusing, because the workflow input text promises a read-only check.
 
-### WR-03: `hostprobe` action can replace a running CSPS site
+### WR-03: `hostprobe` action can replace a running CSPS site with the probe app; nothing enforces "once, before the first deploy"
 
 **Files modified:** `web/scripts/deploy.mjs`, `web/scripts/deploy.test.ts`, `docs/operations/deploy.md`, `tools/Csps.HostProbe/README.md`
 **Commits:** 5f142b8 (RED), 72d0de5 (GREEN)
 **Applied fix:** before publishing or touching the host, the action lists the GitHub releases and refuses when any non-draft `deploy-*` release exists. It also refuses when the release list cannot be read (it cannot show CSPS is not live). There is deliberately no override: after the first deploy the `deploy` action is the only way to change the site, and a re-probe would need a reviewed code change on `main`. Documented in `deploy.md` and the probe README. Tests cover refuse, fail-closed, and "drafts and non-deploy tags do not block". The existing hostprobe tests were updated for the extra `gh release list` call.
 
-### WR-04: Smoke `request-limit` check passes on any non-2xx answer
+### WR-04: Smoke `request-limit` check passes on any non-2xx answer, so it cannot show that the limit works
 
 **Files modified:** `web/scripts/smoke.mjs`, `web/scripts/smoke.test.ts`
 **Commits:** a463c0c (RED), 8bd3e64 (GREEN)
 **Applied fix:** the check now passes only on a 413 (labelled "the app" for ProblemDetails, "IIS" otherwise), or on a connection closed while the body is sent. 200/2xx, 400, 401, 403, 404 and 500 all fail with "expected 413". The healthy-site fixture now answers 413 ProblemDetails.
 
-### WR-05: `Restore-LegacyReceipt.ps1` drops before validating; receipt defaults to a tracked folder
+### WR-05: `Restore-LegacyReceipt.ps1` drops the existing restore before validating the new `.bak`, and its default receipt path is a tracked file in a public repo
 
 **Files modified:** `tools/scripts/Restore-LegacyReceipt.ps1`, `tests/Csps.ArchitectureTests/CutoverRunbookTests.cs`, `docs/operations/cutover-runbook.md`
 **Commits:** 0dd9865 (RED), 4405b80 (GREEN)
 **Applied fix:** (a) the `-Replace` drop moved after `RESTORE FILELISTONLY` and a new `RESTORE VERIFYONLY` (which checks backup checksums when the backup has them, and fails if the backup is unreadable), so a bad `.bak` never costs the existing restore. I used plain VERIFYONLY rather than `WITH CHECKSUM`, because a host-made backup may carry no checksums and `WITH CHECKSUM` would reject it. (b) The default receipt is now `_local\legacy-receipt.md` (git-ignored), and a `-ReceiptPath` inside the repository but outside `_local` is refused. Targets are unchanged: LocalDB default instance and `CSPS_Legacy_Restore` only. Two architecture tests pin the order and the path, and the runbook (Step 2) names the new path. The script parses cleanly; it was not run against a database, as instructed.
 
-### WR-06: The "7 package" stage runs only on a push to `main`
+### WR-06: The whole "7 package" stage runs only on a push to `main`, so it has never run and a failure surfaces after the merge
 
 **Files modified:** `.github/workflows/ci.yml`, `tests/Csps.ArchitectureTests/CiWorkflowTests.cs`, `docs/operations/ci.md`, `docs/development.md`
 **Commits:** 6ef8e6c (RED), 26badcc (GREEN)
