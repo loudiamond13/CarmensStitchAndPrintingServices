@@ -47,10 +47,10 @@ const HEALTH_POLL_MS = 1000;
 
 /**
  * The run as data, so the order and the exact commands are unit-tested without starting anything.
- * @param {{ portBusy: boolean, chromePath?: string }} options
+ * @param {{ portBusy: boolean, chromePath?: string, noSandbox?: boolean }} options
  * @returns {readonly Step[]}
  */
-export function planSteps({ portBusy, chromePath }) {
+export function planSteps({ portBusy, chromePath, noSandbox = false }) {
   if (portBusy) {
     return [{ kind: 'refuse', name: 'port-busy', message: PORT_BUSY_MESSAGE, exitCode: 1 }];
   }
@@ -88,7 +88,7 @@ export function planSteps({ portBusy, chromePath }) {
         '--no-enable-error-reporting',
         '--form-factor=mobile',
         // The host uses the ASP.NET Core development certificate.
-        '--chrome-flags=--headless=new --ignore-certificate-errors',
+        `--chrome-flags=--headless=new --ignore-certificate-errors${noSandbox ? ' --no-sandbox' : ''}`,
       ],
       cwd: WEB_DIRECTORY,
       env: chromePath === undefined ? {} : { CHROME_PATH: chromePath },
@@ -407,6 +407,8 @@ async function main() {
     const steps = planSteps({
       portBusy: await portIsBusy(),
       ...(chromePath === undefined ? {} : { chromePath }),
+      // The ubuntu CI runner blocks Chrome's sandbox; a developer machine keeps it.
+      noSandbox: process.platform === 'linux' && process.env.CI === 'true',
     });
     return await executeSteps(steps, {
       run: runStep,

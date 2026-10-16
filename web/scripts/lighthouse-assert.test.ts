@@ -310,6 +310,20 @@ describe('planSteps (lighthouse.mjs)', () => {
     expect(lighthouse).toMatchObject({ name: 'lighthouse', env: {} });
   });
 
+  // The ubuntu runner's user-namespace policy stops Chrome's sandbox, and lighthouse launches Chrome without Playwright's
+  // own --no-sandbox, so Chrome never opens its debugging port ("Unable to connect to Chrome"). Only the CI run opts in.
+  it('adds --no-sandbox to the Chrome flags only when asked, and nothing else changes', () => {
+    const flagsOf = (step: ReturnType<typeof planSteps>[number] | undefined) =>
+      step?.kind === 'run' ? step.args.filter((arg) => arg.startsWith('--chrome-flags=')) : [];
+    const plain = planSteps({ portBusy: false })[2];
+
+    expect(flagsOf(plain)).toEqual(['--chrome-flags=--headless=new --ignore-certificate-errors']);
+    expect(flagsOf(planSteps({ portBusy: false, noSandbox: true })[2])).toEqual([
+      '--chrome-flags=--headless=new --ignore-certificate-errors --no-sandbox',
+    ]);
+    expect(planSteps({ portBusy: false, noSandbox: false })[2]).toEqual(plain);
+  });
+
   it('asserts the report it wrote', () => {
     expect(planSteps({ portBusy: false })[3]).toEqual({ kind: 'assert', name: 'assert', reportPath: REPORT_PATH });
   });
