@@ -344,6 +344,7 @@ Plans:
 **Plans:** 23 plans
 
 Plans:
+**Wave 1**
 - [ ] 03-01-PLAN.md — CI tracer: owner approves the CI actions and tools, decides the Phase 4 ordering; the draft PR gets a green, SHA-pinned, ordered `gate (fast)` (OPS-02)
 - [ ] 03-02-PLAN.md — E2E and Lighthouse follow one CSPS_E2E_CONNECTION override for the CI SQL container; coverage gate Linux-safe (OPS-02)
 - [ ] 03-03-PLAN.md — Process merge gate (D-08) and the one merge command, with the owner's `[ci skip]` rule and the D-16 local-gate mode (OPS-01)
@@ -352,21 +353,41 @@ Plans:
 - [ ] 03-06-PLAN.md — Web Deploy orchestrator: app_offline, sync, smoke, release, automatic rollback, first-deploy safety, online escape hatch, optional host probe (OPS-04)
 - [ ] 03-07-PLAN.md — Production smoke test: health with cold-start retry, ProblemDetails through IIS, HTTPS, headers, compression, caching, AllowedHosts, requestLimits (D-06)
 - [ ] 03-08-PLAN.md — web.config never compresses; the win-x64 package never carries dev logs or Development settings; lock files match (OPS-05)
+- [ ] 03-23-PLAN.md — Owner approves the exact wording, then the Phase 3 entry, OPS-04 (and OPS-01), the Prime Directive 1 override and Phases 16 and 17 are amended to match 03-CONTEXT (wave 1, docs only)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-09-PLAN.md — Branded holding page with the owner's shop facts on every public path (D-17)
 - [ ] 03-10-PLAN.md — gitleaks secret scan on every PR and before every commit, pinned and checksum-verified (OPS-03)
 - [ ] 03-11-PLAN.md — Full OPS-02 order in CI with Playwright and Lighthouse on a CI SQL container; weekly all-engine run (OPS-02, D-15)
 - [ ] 03-12-PLAN.md — Manual-only, main-only, least-privilege deploy workflow; branded app_offline.htm; deploy runbook (OPS-04, D-11, D-12)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 03-13-PLAN.md — Deploy package on every push to main: publish, migration script, content check, secret scan, artifact (D-11, OPS-05)
 - [ ] 03-14-PLAN.md — Control-panel facts, guarded legacy-receipt script and the numbered D-18 cutover runbook
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 03-15-PLAN.md — Conventional Commits check and actionlint/zizmor workflow lint, as approved (OPS-01, OPS-02)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 03-16-PLAN.md — Free repository settings applied; the ready Phase 3 PR passes the full gate on GitHub; CI minutes measured
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 03-17-PLAN.md — Owner decides the mid-phase pipeline merge; the gated merge lands on main and builds the first package
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 03-18-PLAN.md — Cutover step 1: fresh legacy .bak and files kept; local restore and names-and-counts receipt (D-04, D-05)
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 03-19-PLAN.md — Cutover steps 2-3: receipt confirmed, legacy database retired, SQL Server 2025 database created and compatibility pinned (D-03)
+
+**Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
+
+**Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 03-21-PLAN.md — Cutover steps 6-7: schema script applied, first CSPS deploy on the live site with smoke and release (OPS-04)
+
+**Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 03-22-PLAN.md — Cutover step 8: first Manager and sign-in on the live site; every first-deploy fact verified; CSPS accepted live (D-06)
-- [ ] 03-23-PLAN.md — Owner approves the exact wording, then the Phase 3 entry, OPS-04 (and OPS-01), the Prime Directive 1 override and Phases 16 and 17 are amended to match 03-CONTEXT (wave 1, docs only)
 
 ### Phase 4: Identity & Authentication
 
