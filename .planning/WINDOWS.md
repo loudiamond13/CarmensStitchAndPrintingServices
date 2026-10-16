@@ -34,3 +34,7 @@ last_updated: 2026-10-16T15:45:12.233Z
   }
 ]
 ````
+
+## Notes
+
+- Entry 1, 2026-10-16: in CI and in `npm --prefix web run lighthouse`, LCP is report-only (`REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs`) until Phase 11. The 2000 ms limit is unchanged and every other Lighthouse assertion still fails the build. Remove the waiver in Phase 11 (reminder in ROADMAP Phase 11, "Owner decisions to close at discuss step").

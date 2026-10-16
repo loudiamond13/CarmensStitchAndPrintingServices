@@ -16,12 +16,12 @@
 // Lighthouse drives the Chromium build of the pinned Playwright version when it is installed (CHROME_PATH on that child
 // only), so the score does not move with the machine's own Chrome updates. Guide: docs/web/release-gates.md.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import https from 'node:https';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertReport, layoutShiftCulprits } from './lighthouse-assert.mjs';
+import { assertGateReport, layoutShiftCulprits } from './lighthouse-assert.mjs';
 import { acquireLock, E2E_PORT, LOCK_PATH, lockTimeoutMessage, PORT_BUSY_MESSAGE, WEB_DIRECTORY } from './e2e.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 
@@ -42,7 +42,7 @@ const HEALTH_POLL_MS = 1000;
  * @typedef {{ readonly kind: 'refuse', readonly name: 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {RunStep | HostStep | AssertStep | RefuseStep} Step
  * @typedef {{ stop(): Promise<void> }} RunningHost
- * @typedef {{ run(step: RunStep): number, startHost(step: HostStep): Promise<RunningHost>, readReport(file: string): unknown, log(line: string): void }} Deps
+ * @typedef {{ run(step: RunStep): number, startHost(step: HostStep): Promise<RunningHost>, readReport(file: string): unknown, log(line: string): void, summary?(text: string): void }} Deps
  */
 
 /**
@@ -143,13 +143,18 @@ export async function executeSteps(steps, deps) {
         }
         case 'assert': {
           const report = deps.readReport(step.reportPath);
-          const result = assertReport(report);
+          const result = assertGateReport(report);
           for (const line of result.lines) {
             deps.log(`lighthouse: ${line}`);
           }
           for (const failure of result.failures) {
             deps.log(`lighthouse: ${failure}`);
           }
+          for (const warning of result.warnings) {
+            deps.log(`lighthouse: WAIVED ${warning}`);
+          }
+          // The run page shows the scores and the waived LCP value against its target on every run.
+          deps.summary?.(`### Lighthouse\n\n${result.lines.map((line) => `- ${line}`).join('\n')}\n`);
           if (!result.passed) {
             for (const line of layoutShiftCulprits(report)) {
               deps.log(`lighthouse: ${line}`);
@@ -422,6 +427,12 @@ async function main() {
       readReport: (file) => (existsSync(file) ? /** @type {unknown} */ (JSON.parse(readFileSync(file, 'utf8'))) : null),
       log: (line) => {
         process.stdout.write(`${line}\n`);
+      },
+      summary: (text) => {
+        const file = process.env.GITHUB_STEP_SUMMARY;
+        if (file !== undefined && file !== '') {
+          appendFileSync(file, text);
+        }
       },
     });
   } finally {

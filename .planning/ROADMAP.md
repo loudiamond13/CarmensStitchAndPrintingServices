@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T23:28:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-16T14:00:00-05:00*
 
 ## Overview
 
@@ -773,6 +773,7 @@ Plans:
 - **C-35** apply the Phase 2 ruling on lightbox controls on phones
 - **C-17** spec-gap screens: site content and price-list management
 - **OD-14**
+- **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), then empty `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` so LCP fails the build again.
 
 **Owner prerequisites:** Real business content: prices, hours, address, phone numbers, Messenger URL and gallery photos. The phase doesn't need it, since the seed holds placeholders, but it must be entered through the management screens before cutover.
 

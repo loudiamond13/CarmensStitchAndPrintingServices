@@ -1,7 +1,7 @@
 ---
 phase: 03-ci-cd-staging-deploy
 created: "2026-10-16T08:35:00-05:00"
-updated: "2026-10-16T10:23:00-05:00"
+updated: "2026-10-16T14:00:00-05:00"
 ---
 
 # Phase 3 deferred items
@@ -65,3 +65,9 @@ The split is a real saving for every visitor on `/` (9.2 KB gzip less), but the 
 - (a) Serve build-time precompressed `.br` files (Brotli is about 15 percent smaller than the gzip the host sends; at 5 ms per KB that is roughly 90 ms; needs a small server change and a build step, no package).
 - (c) A second font preload did not help when measured earlier (see above); not recommended on its own.
 - (d) Run Lighthouse on the last Phase 2 commit on this machine to confirm the environment moved (the bare HTML page already shows the machine floor is 796 ms).
+
+## LCP is report-only in CI until Phase 11 (plan 03-16, owner decision 2026-10-16)
+
+status: waived until Phase 11 (WINDOWS.md entry 1)
+
+The first full gate on GitHub (ubuntu-24.04) measured LCP 2127 ms and 2131 ms against the 2000 ms limit, the same as the local 2.19 s. The owner chose "report LCP, do not fail". `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` lists LCP: the step still measures and prints it on every run (log line and GitHub run summary, with the 2000 ms target), and every other assertion stays a hard failure, pinned by `lighthouse-assert.test.ts`. The 2000 ms target is unchanged. **Phase 11 must revisit fonts (options above) and then empty `REPORT_ONLY_METRICS`.** The Phase 11 reminder is in `.planning/ROADMAP.md` under "Owner decisions to close at discuss step".

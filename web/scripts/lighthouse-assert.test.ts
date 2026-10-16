@@ -8,7 +8,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { assertReport, layoutShiftCulprits, THRESHOLDS } from './lighthouse-assert.mjs';
+import {
+  assertGateReport,
+  assertReport,
+  layoutShiftCulprits,
+  REPORT_ONLY_METRICS,
+  THRESHOLDS,
+} from './lighthouse-assert.mjs';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
   executeSteps,
@@ -233,6 +239,68 @@ describe('assertReport: every failure, in a fixed order (PERF-02 ordering edge)'
   });
 });
 
+// Owner decision 2026-10-16 (WINDOWS.md entry 1): until Phase 11 an LCP miss is reported on every run but does not fail the
+// build. The relaxation is one named list; every other assertion stays a hard failure, and these tests fail if one is downgraded.
+describe('LCP is report-only until Phase 11 (WINDOWS.md entry 1)', () => {
+  const missLcp = lighthouseReport({ metrics: { 'largest-contentful-paint': 2127.388 } });
+
+  it('waives exactly one metric, LCP, and keeps its 2000 ms target', () => {
+    expect([...REPORT_ONLY_METRICS]).toEqual(['largest-contentful-paint']);
+    expect(Object.isFrozen(REPORT_ONLY_METRICS)).toBe(true);
+    expect(THRESHOLDS.metrics.find((metric) => metric.id === 'largest-contentful-paint')?.below).toBe(2000);
+  });
+
+  it('passes an LCP-only miss for the gate, with the value and the target in a warning and a WAIVED line', () => {
+    const result = assertGateReport(missLcp);
+
+    expect(result.passed).toBe(true);
+    expect(result.failures).toEqual([]);
+    expect(result.warnings).toEqual([
+      'metric LCP (largest-contentful-paint): 2127.388 ms is not below 2000 ms (report only until Phase 11, WINDOWS.md entry 1)',
+    ]);
+    expect(result.lines).toContain('metric LCP (largest-contentful-paint): 2127.388 ms (needs < 2000 ms) WAIVED');
+  });
+
+  it('still fails an LCP-only miss when no waiver is passed (assertReport stays strict)', () => {
+    expect(assertReport(missLcp).passed).toBe(false);
+    expect(assertReport(missLcp).warnings).toEqual([]);
+  });
+
+  it.each(THRESHOLDS.categories.map((id) => [id]))('keeps category %s a hard failure', (id) => {
+    const result = assertGateReport(lighthouseReport({ scores: { [id]: 0.5 } }));
+
+    expect(result.passed).toBe(false);
+    expect(result.failures).toEqual([`category ${id}: score 0.5 is below 0.95`]);
+  });
+
+  it.each(
+    THRESHOLDS.metrics
+      .filter((metric) => !REPORT_ONLY_METRICS.includes(metric.id))
+      .map((metric): [string, number] => [metric.id, metric.below]),
+  )('keeps metric %s a hard failure', (id, below) => {
+    const result = assertGateReport(lighthouseReport({ metrics: { [id]: below * 10 } }));
+
+    expect(result.passed).toBe(false);
+    expect(result.failures).toHaveLength(1);
+  });
+
+  it('fails on a missing or empty LCP and on a category the report adds, so only a limit miss is waived', () => {
+    expect(assertGateReport(lighthouseReport({ metrics: { 'largest-contentful-paint': null } })).passed).toBe(false);
+    expect(assertGateReport(lighthouseReport({ scores: { pwa: 0.3 } })).passed).toBe(false);
+    expect(assertGateReport(null).passed).toBe(false);
+  });
+
+  it('fails on another miss next to the LCP miss and lists only that miss as a failure', () => {
+    const result = assertGateReport(
+      lighthouseReport({ metrics: { 'largest-contentful-paint': 2500, 'cumulative-layout-shift': 0.06 } }),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.failures).toEqual(['metric CLS (cumulative-layout-shift): 0.06 is not below 0.05']);
+    expect(result.warnings).toHaveLength(1);
+  });
+});
+
 describe('planSteps (lighthouse.mjs)', () => {
   it('refuses with the single E2E wait message when port 5199 is busy, and never plans a kill', () => {
     expect(planSteps({ portBusy: true })).toEqual([
@@ -382,6 +450,34 @@ describe('executeSteps (lighthouse.mjs)', () => {
       'stop host',
       'read report',
     ]);
+  });
+
+  it('returns 0 and prints the LCP value and target when only the waived LCP misses (WINDOWS.md entry 1)', async () => {
+    const { events, deps } = fakeDeps({ report: lighthouseReport({ metrics: { 'largest-contentful-paint': 2127 } }) });
+
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(0);
+    expect(events).toContain(
+      'log lighthouse: WAIVED metric LCP (largest-contentful-paint): 2127 ms is not below 2000 ms (report only until Phase 11, WINDOWS.md entry 1)',
+    );
+  });
+
+  it('writes the LCP value and target to the run summary when one is wired', async () => {
+    const { deps } = fakeDeps({ report: lighthouseReport({ metrics: { 'largest-contentful-paint': 2127 } }) });
+    const written: string[] = [];
+
+    await executeSteps(planSteps({ portBusy: false }), { ...deps, summary: (text: string) => written.push(text) });
+
+    expect(written.join('')).toContain('LCP');
+    expect(written.join('')).toContain('2127 ms');
+    expect(written.join('')).toContain('2000 ms');
+  });
+
+  it('returns 1 when a waived LCP miss comes with a CLS miss', async () => {
+    const { deps } = fakeDeps({
+      report: lighthouseReport({ metrics: { 'largest-contentful-paint': 2127, 'cumulative-layout-shift': 0.06 } }),
+    });
+
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(1);
   });
 
   it('returns 1 and logs every failure when the report misses a threshold', async () => {

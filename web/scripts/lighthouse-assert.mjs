@@ -8,7 +8,7 @@
 /**
  * @typedef {{ readonly id: string, readonly label: string, readonly below: number, readonly unit: string }} MetricRule
  * @typedef {{ readonly minCategoryScore: number, readonly categories: readonly string[], readonly metrics: readonly MetricRule[] }} Thresholds
- * @typedef {{ readonly passed: boolean, readonly failures: readonly string[], readonly lines: readonly string[] }} AssertResult
+ * @typedef {{ readonly passed: boolean, readonly failures: readonly string[], readonly warnings: readonly string[], readonly lines: readonly string[] }} AssertResult
  */
 
 /**
@@ -26,6 +26,14 @@ export const THRESHOLDS = Object.freeze({
     Object.freeze({ id: 'total-blocking-time', label: 'TBT', below: 200, unit: 'ms' }),
   ]),
 });
+
+/**
+ * TEMPORARY WAIVER (owner, 2026-10-16; .planning/WINDOWS.md entry 1). These metrics are measured and printed on every run, but
+ * missing the limit does not fail the build. Only a limit miss is waived: a missing or empty value still fails. The 2000 ms
+ * target in THRESHOLDS is unchanged. REMOVE IN PHASE 11 (empty this list) when the public pages revisit fonts.
+ * @type {readonly string[]}
+ */
+export const REPORT_ONLY_METRICS = Object.freeze(['largest-contentful-paint']);
 
 /**
  * @param {unknown} value
@@ -64,14 +72,18 @@ function byName(a, b) {
  * Checks a Lighthouse JSON result against the thresholds.
  * @param {unknown} report the parsed report.json.
  * @param {Thresholds} [thresholds]
- * @returns {AssertResult} `failures` holds one line per failing item; `lines` one summary line per item checked.
+ * @param {readonly string[]} [reportOnly] metric ids whose limit miss is a warning, not a failure (none by default).
+ * @returns {AssertResult} `failures` holds one line per failing item, `warnings` one per waived miss; `lines` one summary
+ *   line per item checked.
  */
-export function assertReport(report, thresholds = THRESHOLDS) {
+export function assertReport(report, thresholds = THRESHOLDS, reportOnly = []) {
   const root = asRecord(report);
   const categories = asRecord(root.categories);
   const audits = asRecord(root.audits);
   /** @type {string[]} */
   const failures = [];
+  /** @type {string[]} */
+  const warnings = [];
   /** @type {string[]} */
   const lines = [];
 
@@ -113,13 +125,27 @@ export function assertReport(report, thresholds = THRESHOLDS) {
       continue;
     }
     const ok = value < metric.below;
-    if (!ok) {
+    const waived = !ok && reportOnly.includes(metric.id);
+    if (waived) {
+      warnings.push(
+        `${name}: ${withUnit(value, metric.unit)} is not below ${limit} (report only until Phase 11, WINDOWS.md entry 1)`,
+      );
+    } else if (!ok) {
       failures.push(`${name}: ${withUnit(value, metric.unit)} is not below ${limit}`);
     }
-    lines.push(`${name}: ${withUnit(value, metric.unit)} (needs < ${limit}) ${ok ? 'ok' : 'FAIL'}`);
+    lines.push(`${name}: ${withUnit(value, metric.unit)} (needs < ${limit}) ${ok ? 'ok' : waived ? 'WAIVED' : 'FAIL'}`);
   }
 
-  return { passed: failures.length === 0, failures, lines };
+  return { passed: failures.length === 0, failures, warnings, lines };
+}
+
+/**
+ * The CI and local gate: the strict rule with the temporary LCP waiver (REPORT_ONLY_METRICS) applied.
+ * @param {unknown} report the parsed report.json.
+ * @returns {AssertResult}
+ */
+export function assertGateReport(report) {
+  return assertReport(report, THRESHOLDS, REPORT_ONLY_METRICS);
 }
 
 /**
