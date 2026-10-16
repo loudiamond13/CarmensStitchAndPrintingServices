@@ -96,7 +96,8 @@ function Measure-Assembly {
     Invoke-Native "Unit tests with coverage: $TestProject" @(
         'test', '--project', (Join-Path $repoRoot $TestProject),
         '--coverlet', '--coverlet-output-format', 'cobertura',
-        '--coverlet-include', "[$Assembly]*",
+        # One "--name=value" argument: on Linux PowerShell globs a bare "[Csps.Domain]*" against the folder's files.
+        "--coverlet-include=[$Assembly]*",
         '--results-directory', $resultsDirectory)
 
     # coverlet.MTP names its output coverage.cobertura.<timestamp>.xml, hence the glob.
