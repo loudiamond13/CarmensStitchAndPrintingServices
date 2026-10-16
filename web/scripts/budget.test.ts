@@ -305,8 +305,8 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     const chunks = graph.chunks.map((c) => (c.facadeModuleId === AUTH_LAYOUT ? { ...c, gzipSize: 200_000 } : c));
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
-    expect(report.adminJs).toBe(321_000);
-    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*321.00 KB.*250\.00 KB/)]);
+    expect(report.adminJs).toBe(322_000);
+    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*322.00 KB.*250\.00 KB/)]);
   });
 
   it.each([[SIGN_IN_PAGE], [GUARD], [SESSIONS_PAGE]])(
@@ -499,7 +499,7 @@ describe('evaluateBudgets: the public initial JS carries no TanStack Query and n
       const report = withEntryModule(moduleId, build);
       expect(report.ok).toBe(false);
       expect(report.errors).toEqual([
-        expect.stringContaining(`The public initial JS (index-A1.js) contains ${moduleId}`),
+        expect.stringContaining(`The public initial JS (assets/index-A1.js) contains ${moduleId}`),
       ]);
     }
   });
@@ -512,7 +512,7 @@ describe('evaluateBudgets: the public initial JS carries no TanStack Query and n
         : c,
     );
     expect(evaluateBudgets({ ...graph, chunks }, production).errors).toEqual([
-      expect.stringContaining('The public initial JS (shared-B2.js) contains node_modules/@tanstack/query-core'),
+      expect.stringContaining('The public initial JS (assets/shared-B2.js) contains node_modules/@tanstack/query-core'),
     ]);
   });
 

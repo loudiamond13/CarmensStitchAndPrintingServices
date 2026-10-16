@@ -74,6 +74,7 @@ function adminChunks(): Rollup.OutputChunk[] {
       moduleIds: [`${ROOT}/${relative}`],
     });
   return [
+    lazy('assets/QueryRoot-Q5.js', 'src/core/routes/QueryRoot.tsx'),
     lazy('assets/AdminLayout-H8.js', 'src/layouts/AdminLayout.tsx'),
     lazy('assets/UrlStateLayout-I9.js', 'src/lib/url-state/UrlStateLayout.tsx'),
     lazy('assets/SessionsPage-J1.js', 'src/modules/admin/pages/SessionsPage.tsx'),

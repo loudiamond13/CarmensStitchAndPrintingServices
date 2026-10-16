@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { routes } from '@/core/routes/router';
+import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { clearSession } from '@/modules/admin/services/session';
@@ -111,7 +111,7 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
