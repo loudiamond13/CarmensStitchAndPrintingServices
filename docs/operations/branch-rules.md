@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-15T22:41:00-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-15T23:27:56-05:00*
 
 This repository is private on GitHub Free, and that plan cannot enforce branch rules on a private repository. The rulesets API answered 403 ("Upgrade to GitHub Pro or make this repository public") on 2026-10-15. So the rules are enforced by process (D-08): CI checks every PR, and the merge command refuses to merge until the checks are green. The rules GitHub would enforce are written down here, ready to switch on if the repository is ever upgraded or made public.
 
@@ -21,7 +21,7 @@ This repository is private on GitHub Free, and that plan cannot enforce branch r
   - every line under "Definition of Done" in the PR body is ticked.
 - **Squash merges only.** The repository's merge buttons allow squash merges and nothing else, which keeps the history on `main` linear (set in plan 03-16, with the owner's approval).
 - **Owner review.** `.github/CODEOWNERS` names `@loudiamond13` for every path, including `.github/`. Required approvals stay at 0, because a solo owner cannot approve their own PR (D-09).
-- **The `/gsd-ship` ship note.** `/gsd-ship` adds one note commit marked `[ci skip]` that changes only `.planning/` files, so that commit has no checks of its own. How the gate treats it is the owner's ruling recorded in plan 03-03 and written into `web/scripts/merge-gate.mjs`.
+- **The `/gsd-ship` ship note.** `/gsd-ship` adds one note commit marked `[ci skip]` that changes only `.planning/` files, so that commit has no checks of its own. The owner chose the parent rule (plan 03-03, 2026-10-15): if that newest commit changes only `.planning/` files, the gate judges it by the commit before it, which must pass every check. Any other `[ci skip]` head is refused. The rule lives in `web/scripts/merge-gate.mjs`.
 
 ## Rules written down for later
 
