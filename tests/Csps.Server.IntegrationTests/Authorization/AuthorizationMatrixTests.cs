@@ -78,8 +78,11 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
             .SelectMany(_ => AuthorizationMatrix.Rows.SelectMany(row => Enum.GetValues<Caller>().Select(caller => (row, caller))))
             .ToList();
 
-        // Sixteen at a time still interleaves callers. Releasing every call at once starves a two-core CI runner, and the
-        // /health database check (3 second budget) then answers 503 for load alone.
+        // A fresh host builds its data model and warms its caches on the first request. /health has a 3 second budget, so on a
+        // two-core CI runner the cold requests of the burst below could time out and answer 503 for startup alone. One
+        // request first, then sixteen at a time, which still interleaves callers and tokens.
+        (await client.GetAsync("/health", TestContext.Current.CancellationToken)).Dispose();
+
         var statuses = new int[calls.Count];
         await Parallel.ForEachAsync(
             Enumerable.Range(0, calls.Count),
