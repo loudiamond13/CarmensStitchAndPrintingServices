@@ -13,12 +13,16 @@
       - It connects ONLY to (localdb)\MSSQLLocalDB and restores ONLY into CSPS_Legacy_Restore. Both are fixed in the
         script. They are not parameters, so a typo cannot point it at CSPS_Dev, CSPS_E2E or a BetsLLC_* database,
         which TheBETSLLC shares this instance with.
-      - If CSPS_Legacy_Restore already exists, it stops. -Replace drops that exact name and restores again. Nothing
-        else is ever dropped.
+      - If CSPS_Legacy_Restore already exists, it stops. -Replace drops that exact name and restores again, but only
+        after the new .bak has been read (RESTORE FILELISTONLY) and verified (RESTORE VERIFYONLY, which checks the
+        backup checksums when the backup has them), so a bad file never costs the restore already there. Nothing else
+        is ever dropped.
       - The receipt query reads catalog views only (sys.tables, sys.schemas, sys.partitions). It never reads a row
         of any user table, so no legacy value can reach the receipt, git or chat.
       - The receipt holds the .bak file name (not its folder), size, SHA-256, restore time, table count, total rows
-        and one row count per table.
+        and one row count per table. Those are production table names and volumes, so the receipt is written to the
+        git-ignored _local folder and never committed. A -ReceiptPath inside the repository but outside _local is
+        refused.
 
     Compatible with Windows PowerShell 5.1 (uses System.Data.SqlClient from the .NET Framework).
 
@@ -29,7 +33,7 @@
     Drop an existing CSPS_Legacy_Restore first, then restore.
 
 .PARAMETER ReceiptPath
-    Where to write the Markdown receipt. Default: .planning/phases/03-ci-cd-staging-deploy/03-LEGACY-RECEIPT.md.
+    Where to write the Markdown receipt. Default: _local\legacy-receipt.md (git-ignored).
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Restore-LegacyReceipt.ps1 -BakPath _local\legacy.bak
@@ -99,11 +103,17 @@ function ConvertTo-SqlLiteral([string]$value) {
 # Every refusal that depends only on the arguments happens here, before any connection is opened.
 $bakFull = Resolve-LocalBak $BakPath
 if ([string]::IsNullOrWhiteSpace($ReceiptPath)) {
-    $ReceiptPath = Join-Path $repoRoot '.planning\phases\03-ci-cd-staging-deploy\03-LEGACY-RECEIPT.md'
+    $ReceiptPath = Join-Path $repoRoot '_local\legacy-receipt.md'
 }
 $receiptFull = Get-FullPath $ReceiptPath
 if (-not $receiptFull.EndsWith('.md', [System.StringComparison]::OrdinalIgnoreCase)) {
     Stop-Script 'Refusing to run: -ReceiptPath must end in .md.'
+}
+$repoFull = Get-FullPath $repoRoot
+$localFull = Get-FullPath (Join-Path $repoRoot '_local')
+if ($receiptFull.StartsWith($repoFull + '\', [System.StringComparison]::OrdinalIgnoreCase) -and
+    -not $receiptFull.StartsWith($localFull + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    Stop-Script "Refusing to run: -ReceiptPath must be inside this project's _local folder when it is inside the repository (the receipt lists production table names and is never committed)."
 }
 
 Add-Type -AssemblyName System.Data
@@ -122,13 +132,6 @@ try {
     if ($present -and -not $Replace) {
         Stop-Script 'CSPS_Legacy_Restore already exists on (localdb)\MSSQLLocalDB. Nothing was changed. Use -Replace to drop it and restore again.'
     }
-    if ($present) {
-        $drop = $connection.CreateCommand()
-        $drop.CommandText = 'ALTER DATABASE [CSPS_Legacy_Restore] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [CSPS_Legacy_Restore];'
-        [void]$drop.ExecuteNonQuery()
-        Write-Host 'Dropped the existing CSPS_Legacy_Restore.'
-    }
-
     # The backup's file list says which files to restore and where to put them.
     $list = $connection.CreateCommand()
     $list.CommandText = 'RESTORE FILELISTONLY FROM DISK = @path;'
@@ -180,6 +183,26 @@ try {
         }
         $target = "$dataFolder\CSPS_Legacy_Restore_$safe.$extension"
         $moves.Add('MOVE ' + (ConvertTo-SqlLiteral $file.Logical) + ' TO ' + (ConvertTo-SqlLiteral $target))
+    }
+
+    # The backup must be readable and intact before anything is dropped.
+    Write-Host 'Verifying the backup...'
+    $verify = $connection.CreateCommand()
+    $verify.CommandText = 'RESTORE VERIFYONLY FROM DISK = @path;'
+    $verify.CommandTimeout = 0
+    [void]$verify.Parameters.AddWithValue('@path', $bakFull)
+    try {
+        [void]$verify.ExecuteNonQuery()
+    }
+    catch {
+        Stop-Script 'The backup failed RESTORE VERIFYONLY, so it is not usable. Nothing was dropped or changed.'
+    }
+
+    if ($present) {
+        $drop = $connection.CreateCommand()
+        $drop.CommandText = 'ALTER DATABASE [CSPS_Legacy_Restore] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [CSPS_Legacy_Restore];'
+        [void]$drop.ExecuteNonQuery()
+        Write-Host 'Dropped the existing CSPS_Legacy_Restore.'
     }
 
     Write-Host 'Restoring into CSPS_Legacy_Restore on (localdb)\MSSQLLocalDB...'

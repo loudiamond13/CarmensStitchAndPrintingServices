@@ -1,6 +1,6 @@
 # Runbook: switch the live site from the legacy app to CSPS
 
-*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-16T16:40:00-05:00*
+*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-16T17:00:00-05:00*
 
 This is the numbered plan for the day CSPS replaces the legacy site on the live host (D-01, D-18, OPS-04). You do every control-panel step. Claude checks each result before the next step starts. The legacy data is kept byte for byte in a verified backup (`.bak`) first (D-03, D-04), and the legacy site's files are kept as a rollback kit (D-05).
 
@@ -67,7 +67,7 @@ Go one step at a time. Do not start step N+1 until Claude has said step N is ver
 
 **What to do:**
 
-1. Claude runs the shared-machine preflight, then [`tools/scripts/Restore-LegacyReceipt.ps1`](../../tools/scripts/Restore-LegacyReceipt.ps1) with the `.bak` in `_local`. It restores only into `CSPS_Legacy_Restore` on `(localdb)\MSSQLLocalDB`, and writes `.planning/phases/03-ci-cd-staging-deploy/03-LEGACY-RECEIPT.md`: the `.bak` file name, size and SHA-256, the table count, the total rows and each table's name with its row count. No data value is read or written.
+1. Claude runs the shared-machine preflight, then [`tools/scripts/Restore-LegacyReceipt.ps1`](../../tools/scripts/Restore-LegacyReceipt.ps1) with the `.bak` in `_local`. It restores only into `CSPS_Legacy_Restore` on `(localdb)\MSSQLLocalDB`, and writes `_local/legacy-receipt.md`: the `.bak` file name, size and SHA-256, the table count, the total rows and each table's name with its row count. No data value is read or written. The receipt lists production table names and volumes, so it stays in the git-ignored `_local` folder and is never committed; the script refuses a receipt path inside the repository but outside `_local`. With `-Replace`, the script checks the new `.bak` (`RESTORE VERIFYONLY`) before it drops the restore already there.
 2. Claude pastes the receipt's table list into the chat.
 3. In the control panel's query tool (look only), you run this on the live legacy database and compare:
 
