@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-10-16T04:50:24.437Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-10-16T05:17:22.692Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: 1a39cf92149b0ce5561cbcd036b3f36bffc23f50
+state_head: 15c7808564b9f4b19cc8da2b0b07f9a5a4aa3d89
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 99
+  completed_plans: 100
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-15T23:28:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 9 of 23
+Plan: 10 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -158,6 +158,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P08 | 8 min | 2 tasks | 10 files |
 | Phase 03 P03 | 22 min | 3 tasks | 3 files |
 | Phase 03 P06 | 45 min | 3 tasks | 3 files |
+| Phase 03 P01 | 60 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -404,6 +405,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-03: merge gate [ci skip] ship note follows the owner's parent-rule (2026-10-15T22:05-05:00): a skip-token head changing only .planning/ with one parent is judged by that parent; any other skip-token head is refused
 - [Phase 03]: 03-03: merge gate refuses unless mergeable is exactly MERGEABLE, so UNKNOWN asks for a rerun; a skip-token head with an empty or 300-entry file list never qualifies
 - [Phase 03]: 03-06: owner allowed the one-time HostProbe on the site root (allow-probe, 2026-10-15T22:05-05:00); deploy.mjs refuses a certificate pin mismatch and refuses to deploy when the last good release cannot be downloaded
+- [Phase 03]: 03-01: gate is one ordered job named gate (<mode>) fed by a small classify job; ci.yml keeps an inline draft-or-full classify until plan 03-11 wires web/scripts/ci-classify.mjs (needs fetch-depth 0 and the job name gate (full))
+- [Phase 03]: 03-01: CiWorkflowTests hold every .yml in .github/workflows to SHA pins from the owner-approved ApprovedActions table, empty top-level permissions, job timeouts, persist-credentials false, pinned runners, no pull_request_target and no event data inside run:
+- [Phase 03]: 03-01: Linux CI surfaced a Windows-only assumption (stored Asia/Manila reports SupportsDaylightSavingTime on tzdata); tests assert the +08 offset instead, and dotnet format drift in nine Phase 4 files was fixed so the format step starts clean
 
 ### Pending Todos
 
@@ -452,6 +456,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T04:50:24.114Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-10-16T05:17:22.175Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
