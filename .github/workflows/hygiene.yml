@@ -60,3 +60,31 @@ jobs:
           fi
           echo "Scanning: $range"
           gitleaks git --config .gitleaks.toml --redact --no-banner --verbose --log-opts="$range" .
+
+  # OPS-01: the PR title (the squash commit on main) and every commit in the PR follow Conventional Commits.
+  commits:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
+      # T-03-24: the PR title is free text, so it reaches the script through env only (CWE-77).
+      - name: check subjects
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node web/scripts/commit-lint.mjs

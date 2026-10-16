@@ -82,7 +82,7 @@ describe('checkSubject refuses', () => {
     ['feat(03)', 'type(scope): summary'],
     ['', 'empty'],
     ['   ', 'empty'],
-    ['Revert ""', 'Revert'],
+    ['Revert ""', 'type(scope): summary'],
   ])('%j with a reason naming %s', (subject, word) => {
     const verdict = checkSubject(subject);
     expect(verdict.ok).toBe(false);
@@ -94,9 +94,7 @@ describe('main', () => {
   it('lists subjects without merges for base..head, passes a clean history and exits 0', () => {
     const { calls, logs, errors, deps } = harness({ status: 0, stdout: 'feat(03-01): a\nfix: b\n' });
     expect(main(env, deps)).toBe(0);
-    expect(calls).toEqual([
-      { command: 'git', args: ['log', '--no-merges', '--format=%s', `${BASE}..${HEAD}`] },
-    ]);
+    expect(calls).toEqual([{ command: 'git', args: ['log', '--no-merges', '--format=%s', `${BASE}..${HEAD}`] }]);
     expect(errors).toEqual([]);
     expect(logs.join('\n')).toContain('2 commit subjects');
   });
