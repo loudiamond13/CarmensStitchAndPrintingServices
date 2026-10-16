@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Xml.Linq;
+using Csps.Server.Http;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -27,11 +29,14 @@ public sealed class WebConfigTests
     }
 
     [Fact]
-    public void LimitsRequestBodiesToOneMebibyte()
+    public void IisCeilingSitsAboveTheAppBodyLimit()
     {
         var limits = Load().Descendants("security").Elements("requestFiltering").Elements("requestLimits").ShouldHaveSingleItem();
 
-        limits.Attribute("maxAllowedContentLength").ShouldNotBeNull().Value.ShouldBe("1048576");
+        var ceiling = limits.Attribute("maxAllowedContentLength").ShouldNotBeNull().Value;
+
+        ceiling.ShouldBe("2097152");
+        long.Parse(ceiling, CultureInfo.InvariantCulture).ShouldBeGreaterThan(RequestBodyLimitMiddleware.MaxBytes);
     }
 
     [Fact]
