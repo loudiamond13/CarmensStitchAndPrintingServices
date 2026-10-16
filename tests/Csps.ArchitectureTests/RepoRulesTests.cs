@@ -9,6 +9,7 @@ public sealed partial class RepoRulesTests
     private const string TemplatePath = ".github/pull_request_template.md";
     private const string DefinitionOfDoneHeading = "## Definition of Done";
     private const string LocalGateHeading = "## Local full gate";
+    private const string DependabotPath = ".github/dependabot.yml";
 
     // One key phrase per PRD section 22 item, in PRD order.
     private static readonly string[] DefinitionOfDoneKeys =
@@ -210,6 +211,50 @@ public sealed partial class RepoRulesTests
         text.ShouldContain("never `gh pr merge`", Case.Sensitive);
     }
 
+    [Fact]
+    public void DependabotCoversEveryEcosystem()
+    {
+        var lines = ReadLines(DependabotPath).Select(line => line.Trim()).Where(line => !IsCommentOrBlank(line)).ToList();
+        lines.ShouldContain("version: 2");
+
+        var entries = DependabotEntries();
+        entries.Keys.ShouldBe(["nuget", "npm", "github-actions"], ignoreOrder: true, "Exactly three ecosystems.");
+
+        entries["nuget"].ShouldContain("directory: \"/\"");
+        entries["github-actions"].ShouldContain("directory: \"/\"");
+
+        // Both npm manifests share one entry, so one grouped PR arrives instead of two racing ones.
+        entries["npm"].ShouldContain("- \"/web\"");
+        entries["npm"].ShouldContain("- \"/tools/openapi-gen\"");
+        entries["npm"].ShouldContain("directories:");
+    }
+
+    [Fact]
+    public void DependabotWaitsFourteenDays()
+    {
+        var entries = DependabotEntries();
+        entries.Count.ShouldBe(3);
+
+        var offenders = new List<string>();
+        foreach (var (ecosystem, lines) in entries)
+        {
+            var prefix = ecosystem == "github-actions" ? "ci" : "build";
+            string[] required =
+            [
+                "cooldown:",
+                "default-days: 14",
+                "interval: \"monthly\"",
+                "groups:",
+                "- \"*\"",
+                $"prefix: \"{prefix}\"",
+                "include: \"scope\"",
+            ];
+            offenders.AddRange(required.Where(line => !lines.Contains(line)).Select(line => $"{ecosystem}: {line}"));
+        }
+
+        offenders.ShouldBeEmpty("Every entry waits 14 days, runs monthly, groups all updates and uses a Conventional Commits prefix.");
+    }
+
     // A missing file reads as no lines, so a test fails on its assertion rather than on an IO error.
     private static string[] ReadLines(string relativePath)
     {
@@ -223,5 +268,32 @@ public sealed partial class RepoRulesTests
         return start < 0
             ? []
             : lines.Skip(start + 1).TakeWhile(line => !line.StartsWith("## ", StringComparison.Ordinal)).ToList();
+    }
+
+    private static bool IsCommentOrBlank(string trimmedLine) =>
+        trimmedLine.Length == 0 || trimmedLine.StartsWith('#');
+
+    // Splits dependabot.yml into one list of trimmed, non-comment lines per package-ecosystem entry.
+    private static Dictionary<string, List<string>> DependabotEntries()
+    {
+        const string Marker = "- package-ecosystem:";
+        var entries = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        List<string>? current = null;
+
+        foreach (var line in ReadLines(DependabotPath).Select(line => line.Trim()).Where(line => !IsCommentOrBlank(line)))
+        {
+            if (line.StartsWith(Marker, StringComparison.Ordinal))
+            {
+                var name = line[Marker.Length..].Trim().Trim('"');
+                current = [];
+                entries[name] = current;
+            }
+            else
+            {
+                current?.Add(line);
+            }
+        }
+
+        return entries;
     }
 }
