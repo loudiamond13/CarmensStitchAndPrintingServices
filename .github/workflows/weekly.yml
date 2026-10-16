@@ -12,7 +12,7 @@ permissions: {}
 jobs:
   all-engines:
     name: weekly all engines
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ form
     with:
       all-engines: true
     permissions:

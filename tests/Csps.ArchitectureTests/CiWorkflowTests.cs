@@ -96,6 +96,8 @@ public sealed partial class CiWorkflowTests
     {
         IsApprovedPin("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1").ShouldBeTrue();
         IsApprovedPin("./.github/workflows/reusable.yml").ShouldBeTrue();
+        IsApprovedPin("./.github/workflows/reusable.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form").ShouldBeTrue();
+        IsApprovedPin("./.github/workflows/reusable.yml # zizmor: ignore[unpinned-uses] x").ShouldBeFalse();
 
         IsApprovedPin("actions/checkout@v7").ShouldBeFalse();
         IsApprovedPin("actions/checkout@main").ShouldBeFalse();
@@ -617,7 +619,7 @@ public sealed partial class CiWorkflowTests
         jobs.Count.ShouldBe(1);
 
         var job = jobs[0].Lines.Select(line => line.Trim()).ToList();
-        job.ShouldContain("uses: ./.github/workflows/ci.yml");
+        job.ShouldContain(line => line == "uses: ./.github/workflows/ci.yml" || line.StartsWith("uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository] ", StringComparison.Ordinal));
         WorkflowText.Section(jobs[0].Lines, "with").Select(line => line.Trim()).ShouldBe(["all-engines: true"], customMessage: "The weekly run passes all-engines and nothing else.");
         WorkflowText.Section(jobs[0].Lines, "permissions").Select(line => line.Trim()).Order(StringComparer.Ordinal).ToList()
             .ShouldBe(["checks: read", "contents: read", "pull-requests: read"], customMessage: "The caller grants what ci.yml's jobs ask for, and no more.");
@@ -683,7 +685,7 @@ public sealed partial class CiWorkflowTests
             && string.Equals(version, match.Groups["version"].Value, StringComparison.Ordinal);
     }
 
-    [GeneratedRegex(@"^\./\.github/workflows/[A-Za-z0-9._-]+\.yml$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\./\.github/workflows/[A-Za-z0-9._-]+\.yml(?: # zizmor: ignore\[self-repository\] \S.*)?$", RegexOptions.CultureInvariant)]
     private static partial Regex LocalWorkflow();
 
     [GeneratedRegex(@"^(?<pin>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}) # (?<version>v\d+\.\d+\.\d+)$", RegexOptions.CultureInvariant)]
