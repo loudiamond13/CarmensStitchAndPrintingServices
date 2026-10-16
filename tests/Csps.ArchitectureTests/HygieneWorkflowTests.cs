@@ -20,6 +20,11 @@ public sealed partial class HygieneWorkflowTests
     private const string WindowsSha256 = "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e";
     private const string LinuxAsset = "gitleaks_8.30.1_linux_x64.tar.gz";
 
+    // Owner-approved in plan 03-01 Task 1: actionlint 1.7.12 (linux tarball) and zizmor-action v0.6.4 (runs zizmor 1.30.1).
+    private const string ActionlintAsset = "actionlint_1.7.12_linux_amd64.tar.gz";
+    private const string ActionlintLinuxSha256 = "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8";
+    private const string ZizmorActionCommit = "cc914d7f3750a2d13d75c7f184a1060aa0e9d482";
+
     // Patterns that would silence the scan for everything; the detector must catch each one.
     private static readonly string[] BroadSamples = ["", ".*", ".+", "^", "$", "^.*$", "^.+$", "(?s).*", "(?s).+", "[\\s\\S]*"];
 
@@ -157,6 +162,58 @@ public sealed partial class HygieneWorkflowTests
         lint.ShouldContain("BASE_SHA: ${{ github.event.pull_request.base.sha }}");
         lint.ShouldContain("HEAD_SHA: ${{ github.event.pull_request.head.sha }}");
         WorkflowText.RunBlocks(jobLines).ShouldAllBe(block => !block.Contains("${{", StringComparison.Ordinal));
+    }
+
+    // OPS-02 / T-03-23, T-03-SC: actionlint is approved (plan 03-01 Task 1, reply approve-all), so it must be checksum-pinned.
+    [Fact]
+    public void ActionlintIsPinned()
+    {
+        var job = WorkflowText.Jobs(WorkflowText.Lines(HygienePath)).SingleOrDefault(candidate => candidate.Id == "actionlint");
+        job.ShouldNotBeNull("hygiene.yml needs a job with the id actionlint (OPS-02).");
+        var jobLines = job.Lines.Select(line => line.Trim()).ToList();
+
+        jobLines.ShouldContain("name: actionlint");
+        jobLines.ShouldContain("runs-on: ubuntu-24.04");
+        jobLines.ShouldContain("timeout-minutes: 10");
+        WorkflowText.Section(job.Lines, "permissions").Select(line => line.Trim()).ShouldBe(["contents: read"]);
+
+        var checkout = WorkflowText.Steps(job.Lines).Single(step => WorkflowText.StepName(step) == "checkout").Select(line => line.Trim()).ToList();
+        checkout.ShouldContain("persist-credentials: false");
+
+        var text = string.Join('\n', WorkflowText.RunBlocks(job.Lines).SelectMany(block => block.Split('\n')));
+        text.ShouldContain(ActionlintAsset);
+        text.ShouldContain($"{ActionlintLinuxSha256}  {ActionlintAsset}");
+
+        var lines = text.Split('\n').ToList();
+        var checkLine = lines.FindIndex(line => line.Contains("sha256sum -c", StringComparison.Ordinal));
+        var extractLine = lines.FindIndex(line => ExtractCommand().IsMatch(line));
+        checkLine.ShouldBeGreaterThanOrEqualTo(0, "The download must be checked with sha256sum -c.");
+        extractLine.ShouldBeGreaterThan(checkLine, "The archive is extracted only after the checksum passed.");
+        lines.ShouldContain(line => line.StartsWith("actionlint ", StringComparison.Ordinal) || line == "actionlint", "The job must run actionlint.");
+    }
+
+    // OPS-02 / T-03-23, T-03-SC: zizmor is approved at the exact action commit and zizmor version.
+    [Fact]
+    public void ZizmorIsPinned()
+    {
+        var job = WorkflowText.Jobs(WorkflowText.Lines(HygienePath)).SingleOrDefault(candidate => candidate.Id == "zizmor");
+        job.ShouldNotBeNull("hygiene.yml needs a job with the id zizmor (OPS-02).");
+        var jobLines = job.Lines.Select(line => line.Trim()).ToList();
+
+        jobLines.ShouldContain("name: zizmor");
+        jobLines.ShouldContain("runs-on: ubuntu-24.04");
+        jobLines.ShouldContain("timeout-minutes: 10");
+        WorkflowText.Section(job.Lines, "permissions").Select(line => line.Trim()).ShouldBe(["contents: read"]);
+
+        var steps = WorkflowText.Steps(job.Lines);
+        var checkout = steps.Single(step => WorkflowText.StepName(step) == "checkout").Select(line => line.Trim()).ToList();
+        checkout.ShouldContain("persist-credentials: false");
+
+        var zizmor = steps.Single(step => step.Any(line => line.Contains("zizmorcore/zizmor-action", StringComparison.Ordinal))).Select(line => line.Trim()).ToList();
+        zizmor.ShouldContain(line => line.StartsWith($"uses: zizmorcore/zizmor-action@{ZizmorActionCommit} #", StringComparison.Ordinal));
+        zizmor.ShouldContain("version: 1.30.1");
+        zizmor.ShouldContain("advanced-security: false");
+        zizmor.ShouldContain("annotations: true");
     }
 
     [Fact]
