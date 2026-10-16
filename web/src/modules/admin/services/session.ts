@@ -9,6 +9,7 @@
 //     BroadcastChannel('csps-auth') carries only "refreshed" (with the new expiry) and "signed-out".
 import { configureSession } from '@/core/api/apiClient';
 import { isHttpError } from '@/core/api/errors';
+import { setCacheOwner } from '@/lib/query/cacheOwner';
 import type { Role } from '@/utils/csps';
 import { authService, type AuthService, type SessionResponse } from './authService';
 
@@ -356,6 +357,11 @@ export const {
   setResendAvailableAt,
   getResendAvailableAt,
 } = session;
+
+// The query cache follows the signed-in person for as long as the app runs, whichever routes are mounted.
+session.subscribeSession(() => {
+  setCacheOwner(session.getSessionUser()?.id ?? null);
+});
 
 configureSession({
   accessToken: session.accessToken,
