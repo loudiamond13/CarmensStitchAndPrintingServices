@@ -44,6 +44,7 @@ public static class IdempotencyAllowList
         new("POST /api/v1/auth/sign-out-others", "Naturally idempotent: a repeat finds nothing more to revoke; no answer worth storing.", Decision),
         new("POST /api/v1/auth/password/reset/check", "Read-only lookup; changes nothing.", Decision),
         new("POST /api/v1/auth/invite/check", "Read-only lookup; changes nothing.", Decision),
+        new("POST /api/v1/auth/password/set-new/check", "Read-only lookup; changes nothing.", Decision),
         new("POST /api/v1/auth/password/set-new", "The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.", Decision),
     ];
 

@@ -92,6 +92,7 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/auth/password/reset", "/api/v1/auth/password/reset", Anonymous: 400, Admin: 400, Manager: 400),
         // The must-change step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
         new("POST", "/api/v1/auth/password/set-new", "/api/v1/auth/password/set-new", Anonymous: 401, Admin: 401, Manager: 401),
+        new("POST", "/api/v1/auth/password/set-new/check", "/api/v1/auth/password/set-new/check", Anonymous: 401, Admin: 401, Manager: 401),
         // Invites are anonymous. With no body the check meets the invalid-invite 404 and the accept the missing-password 400.
         new("POST", "/api/v1/auth/invite/check", "/api/v1/auth/invite/check", Anonymous: 404, Admin: 404, Manager: 404),
         new("POST", "/api/v1/auth/invite/accept", "/api/v1/auth/invite/accept", Anonymous: 400, Admin: 400, Manager: 400),
@@ -126,6 +127,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/password/reset/check",
             "POST /api/v1/auth/password/reset",
             "POST /api/v1/auth/password/set-new",
+            "POST /api/v1/auth/password/set-new/check",
             "POST /api/v1/auth/invite/check",
             "POST /api/v1/auth/invite/accept",
             "* /api/{**path}",

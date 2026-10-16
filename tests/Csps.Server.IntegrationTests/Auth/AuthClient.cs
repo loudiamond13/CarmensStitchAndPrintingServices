@@ -107,6 +107,9 @@ internal static partial class AuthClient
     /// <summary>The set-new-password route (the must-change step).</summary>
     public const string SetNewPasswordRoute = "/api/v1/auth/password/set-new";
 
+    /// <summary>The must-change context route.</summary>
+    public const string CheckSetNewPasswordRoute = "/api/v1/auth/password/set-new/check";
+
     /// <summary>The invite-link check route.</summary>
     public const string InviteCheckRoute = "/api/v1/auth/invite/check";
 
@@ -503,6 +506,28 @@ internal static partial class AuthClient
         {
             Content = JsonContent.Create(new { newPassword }),
         };
+        if (csrf)
+        {
+            request.Headers.Add(CsrfHeader, "1");
+        }
+
+        if (ticket is not null)
+        {
+            request.Headers.Add("Cookie", $"{TicketCookieName}={ticket}");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Asks the must-change step who it is for and why, with the ticket cookie.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="csrf">Whether to send the anti-CSRF header.</param>
+    /// <param name="ticket">A ticket cookie value to send explicitly; null sends only the cookies of the client.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> CheckSetNewPasswordAsync(HttpClient client, bool csrf = true, string? ticket = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(CheckSetNewPasswordRoute, UriKind.Relative));
         if (csrf)
         {
             request.Headers.Add(CsrfHeader, "1");

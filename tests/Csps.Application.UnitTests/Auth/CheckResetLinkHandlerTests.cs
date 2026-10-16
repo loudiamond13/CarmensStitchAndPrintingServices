@@ -25,7 +25,7 @@ public sealed class CheckResetLinkHandlerTests
         var result = await harness.Handler.HandleAsync(new ResetTokenRequest(Secret), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Email.ShouldBe(Email);
+        result.Value.ShouldBe(new ResetLinkResponse(Email, "Paolo", "Reyes"));
         harness.Token.UsedAt.ShouldBeNull();
         harness.Audit.Entries.ShouldBeEmpty();
     }

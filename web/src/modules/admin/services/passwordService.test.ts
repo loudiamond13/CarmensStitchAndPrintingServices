@@ -69,9 +69,10 @@ describe('passwordService routes', () => {
   });
 
   it('checkResetLink posts the token in the body and never in the address', async () => {
-    const seen = answer('/api/v1/auth/password/reset/check', () => HttpResponse.json({ email: 'paolo@gmail.com' }));
+    const reply = { email: 'paolo@gmail.com', firstName: 'Paolo', lastName: 'Garcia' };
+    const seen = answer('/api/v1/auth/password/reset/check', () => HttpResponse.json(reply));
 
-    await expect(build().service.checkResetLink({ token: TOKEN })).resolves.toEqual({ email: 'paolo@gmail.com' });
+    await expect(build().service.checkResetLink({ token: TOKEN })).resolves.toEqual(reply);
 
     expect(seen[0]).toMatchObject({ method: 'POST', search: '', body: { token: TOKEN } });
     expect(seen[0]?.path).not.toContain(TOKEN);
@@ -107,12 +108,41 @@ describe('passwordService routes', () => {
   });
 });
 
+describe('passwordService must-change context', () => {
+  it('checkSetNewPassword posts to /auth/password/set-new/check with no body, the CSRF header and no auth refresh', async () => {
+    const context = { email: 'lito@gmail.com', firstName: 'Lito', lastName: 'Ramos', reason: 'breach' };
+    const arrived: { method: string; search: string; csrf: string | null; body: string }[] = [];
+    server.use(
+      http.post('*/api/v1/auth/password/set-new/check', async ({ request }) => {
+        arrived.push({
+          method: request.method,
+          search: new URL(request.url).search,
+          csrf: request.headers.get('X-CSPS-CSRF'),
+          body: await request.text(),
+        });
+        return HttpResponse.json(context);
+      }),
+    );
+    const { service, refresh } = build();
+
+    await expect(service.checkSetNewPassword()).resolves.toEqual(context);
+
+    expect(arrived).toEqual([{ method: 'POST', search: '', csrf: '1', body: '' }]);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
 describe('passwordService 401 handling (skipAuthRefresh)', () => {
   it.each([
     [
       'checkResetLink',
       '/api/v1/auth/password/reset/check',
       (s: ReturnType<typeof build>['service']) => s.checkResetLink({ token: TOKEN }),
+    ],
+    [
+      'checkSetNewPassword',
+      '/api/v1/auth/password/set-new/check',
+      (s: ReturnType<typeof build>['service']) => s.checkSetNewPassword(),
     ],
     [
       'setNewPassword',

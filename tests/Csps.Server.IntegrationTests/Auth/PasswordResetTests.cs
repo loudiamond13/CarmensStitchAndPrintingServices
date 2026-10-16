@@ -33,6 +33,8 @@ public sealed class PasswordResetTests(CspsDatabase database) : IClassFixture<Cs
         check.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var checkBody = JsonDocument.Parse(await check.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         checkBody.RootElement.GetProperty("email").GetString().ShouldBe(staff.Email);
+        checkBody.RootElement.GetProperty("firstName").GetString().ShouldBe("Paolo");
+        checkBody.RootElement.GetProperty("lastName").GetString().ShouldBe("Reyes");
 
         using var reset = await AuthClient.ResetPasswordAsync(client, token, NewPassword);
 
