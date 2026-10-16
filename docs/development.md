@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T00:32:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T08:42:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -75,7 +75,7 @@ Run these once, in this order.
 
 ## Secret scan before every commit (D-10)
 
-GitHub's own secret scanning is not available on this free private repository, so the project scans for secrets itself with gitleaks (free, MIT license). CI scans every pull request and every push to `main` (the `secret scan` check). The same scan can run on your machine before each commit, so a key never reaches the history.
+GitHub's secret scanning runs on this public repository too, and the project also scans for secrets itself with gitleaks (free, MIT license), so a key is caught before it is ever pushed. CI scans every pull request and every push to `main` (the `secret scan` check). The same scan can run on your machine before each commit, so a key never reaches the history.
 
 Turn it on once per clone:
 

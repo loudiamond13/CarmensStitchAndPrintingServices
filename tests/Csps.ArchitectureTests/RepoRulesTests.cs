@@ -92,8 +92,21 @@ public sealed partial class RepoRulesTests
 
         var security = items.Single(item => item.Contains("Security", StringComparison.Ordinal));
         security.ShouldContain("analyzers and ESLint clean", Case.Sensitive);
-        security.ShouldContain("CodeQL is not available on the free private repo", Case.Sensitive);
-        items.Count(item => item.Contains("CodeQL clean", StringComparison.Ordinal)).ShouldBe(0);
+        security.ShouldContain("CodeQL scans run on the public repo", Case.Sensitive);
+        security.ShouldNotContain("not available", Case.Sensitive);
+    }
+
+    [Fact]
+    public void LicenseIsMitForTheOwner()
+    {
+        var lines = ReadLines("LICENSE");
+
+        lines.ShouldNotBeEmpty("LICENSE is missing at the repository root.");
+        lines[0].ShouldBe("MIT License");
+        lines.ShouldContain("Copyright (c) 2026 loudiamond13");
+        lines.ShouldContain(line => line.StartsWith("Permission is hereby granted, free of charge", StringComparison.Ordinal));
+        lines.ShouldContain(line => line.StartsWith("THE SOFTWARE IS PROVIDED \"AS IS\"", StringComparison.Ordinal));
+        ReadLines("README.md").ShouldContain(line => line.Contains("MIT License", StringComparison.Ordinal));
     }
 
     [Fact]

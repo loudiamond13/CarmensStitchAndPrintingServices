@@ -1,4 +1,4 @@
-<!-- Created: 2026-10-15T22:39:00-05:00 · Updated: 2026-10-15T22:39:00-05:00 -->
+<!-- Created: 2026-10-15T22:39:00-05:00 · Updated: 2026-10-16T08:42:00-05:00 -->
 ## Summary
 
 What changed and why, in plain words.
@@ -21,7 +21,7 @@ Tick every item before merging. An item that does not apply is ticked with "N/A"
 - [ ] Responsive at every breakpoint, portrait and landscape; performance budgets and Lighthouse scores met; no bundle-size regressions.
 - [ ] API calls go through the module services and the shared core/api client; no axios; shared components reused.
 - [ ] WCAG 2.2 AA: axe reports zero violations and the keyboard pass is done.
-- [ ] Security: the relevant CWE rows are mitigated and tested, the authorization matrix is updated, no secrets are committed, and .NET analyzers and ESLint clean (CodeQL is not available on the free private repo, D-10).
+- [ ] Security: the relevant CWE rows are mitigated and tested, the authorization matrix is updated, no secrets are committed, and .NET analyzers and ESLint clean (CodeQL scans run on the public repo in CI and its alerts are resolved).
 - [ ] Comments are short and purposeful; no dead code; no unexplained suppressions.
 - [ ] Production data is untouched; migrations are reviewed and reversible where possible.
 - [ ] /gsd-secure-phase, /gsd-ui-review and /gsd-verify-work were completed before /gsd-ship.

@@ -1,5 +1,5 @@
-# OPS-03 / D-10: repository hygiene checks. GitHub's own secret scanning is not available on a free private repo,
-# so gitleaks (MIT, a checksum-verified release binary) scans every pull request and every push to main.
+# OPS-03 / D-10: repository hygiene checks. GitHub's own secret scanning also runs on the public repo, and
+# gitleaks (MIT, a checksum-verified release binary) scans every pull request and every push to main as well.
 name: Hygiene
 
 # OPS-03: no path filter, so the check always reports. "edited" re-scans when a PR changes its base branch.
