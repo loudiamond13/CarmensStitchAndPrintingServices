@@ -281,6 +281,109 @@ public sealed partial class CiWorkflowTests
         offenders.ShouldBeEmpty("A workflow must use the same SQL Server image as the test fixture.");
     }
 
+    [Fact]
+    public void ClassifyUsesTheTestedScript()
+    {
+        var classify = JobById("classify");
+
+        WorkflowText.Section(classify.Lines, "permissions").Select(line => line.Trim()).Order(StringComparer.Ordinal).ToList()
+            .ShouldBe(["checks: read", "contents: read", "pull-requests: read"], customMessage: "classify reads the repository, pull requests and checks only (T-03-02).");
+
+        var steps = WorkflowText.Steps(classify.Lines);
+
+        var checkout = steps.Single(step => step.Any(line => line.Contains("actions/checkout@", StringComparison.Ordinal)))
+            .Select(line => line.Trim()).ToList();
+        checkout.ShouldContain("persist-credentials: false");
+        checkout.ShouldContain("fetch-depth: 0", "The docs/fast diff and the proven-tree lookup need the full history.");
+
+        steps.Single(step => step.Any(line => line.Contains("actions/setup-node@", StringComparison.Ordinal)))
+            .Select(line => line.Trim()).ShouldContain("node-version: \"24.21.0\"");
+
+        var script = steps.Single(step => step.Any(line => line.Trim() == "run: node web/scripts/ci-classify.mjs"))
+            .Select(line => line.Trim()).ToList();
+        foreach (var key in new[] { "GITHUB_EVENT_NAME", "PR_DRAFT", "BASE_SHA", "HEAD_SHA", "GH_TOKEN" })
+        {
+            script.ShouldContain(line => line.StartsWith(key + ": ${{ ", StringComparison.Ordinal), $"{key} must reach the classifier through env: (T-03-04).");
+        }
+
+        classify.Lines.Select(line => line.Trim()).ShouldContain("timeout-minutes: 5");
+    }
+
+    [Fact]
+    public void GateSetsUpNodeWithAnNpmCache()
+    {
+        var node = WorkflowText.Steps(GateJob().Lines)
+            .Single(step => step.Any(line => line.Contains("actions/setup-node@", StringComparison.Ordinal)))
+            .Select(line => line.Trim()).ToList();
+
+        node.ShouldContain("node-version: \"24.21.0\"");
+        node.ShouldContain("cache: npm");
+        node.ShouldContain("web/package-lock.json");
+        node.ShouldContain("tools/openapi-gen/package-lock.json");
+    }
+
+    [Fact]
+    public void WebStageIsInTheFastPart()
+    {
+        var names = WorkflowText.StepNames(GateJob().Lines).ToList();
+        string[] order =
+        [
+            "1 restore (locked)",
+            "1 npm ci",
+            "1 audits",
+            "2 build",
+            "3 architecture tests",
+            "4 web typecheck",
+            "4 web lint",
+            "4 web prettier",
+            "4 web vitest + coverage",
+            "4 openapi types check",
+        ];
+        var positions = order.Select(name => names.IndexOf(name)).ToList();
+        positions.ShouldAllBe(position => position >= 0, "A web stage step is missing from the gate job.");
+        positions.ShouldBe([.. positions.Order()], "The web stage steps must follow the OPS-02 order.");
+
+        StepText("1 npm ci").ShouldContain("npm ci --prefix web");
+        StepText("1 npm ci").ShouldContain("npm ci --prefix tools/openapi-gen");
+        StepText("4 web typecheck").ShouldContain("npm --prefix web run typecheck");
+        StepText("4 web lint").ShouldContain("npm --prefix web run lint");
+        StepText("4 web prettier").ShouldContain("npm --prefix web run format:check");
+        StepText("4 web vitest + coverage").ShouldContain("npm --prefix web run test:coverage");
+        StepText("4 openapi types check").ShouldContain("npm --prefix tools/openapi-gen run check");
+        StepText("4 openapi types check").ShouldContain("npm --prefix tools/openapi-gen test");
+
+        foreach (var name in order.Where(name => name[0] is '1' or '4'))
+        {
+            StepLines(name).ShouldNotContain(line => line.StartsWith("if:", StringComparison.Ordinal), $"{name} belongs to the fast part and has no mode condition.");
+        }
+    }
+
+    [Fact]
+    public void AuditsComeBeforeBuild()
+    {
+        var names = WorkflowText.StepNames(GateJob().Lines).ToList();
+        names.IndexOf("1 audits").ShouldBeGreaterThanOrEqualTo(0);
+        names.IndexOf("1 audits").ShouldBeLessThan(names.IndexOf("2 build"));
+
+        StepText("1 audits").ShouldContain("npm --prefix web audit --audit-level=low");
+        StepText("1 audits").ShouldContain("npm --prefix tools/openapi-gen audit --audit-level=low");
+    }
+
+    private static WorkflowJob JobById(string id)
+    {
+        var job = WorkflowText.Jobs(WorkflowText.Lines(CiPath)).SingleOrDefault(candidate => candidate.Id == id);
+        job.ShouldNotBeNull($"ci.yml needs a job with the id {id}.");
+        return job;
+    }
+
+    private static List<string> StepLines(string name) =>
+        WorkflowText.Steps(GateJob().Lines)
+            .Single(step => WorkflowText.StepName(step) == name)
+            .Select(line => line.Trim())
+            .ToList();
+
+    private static string StepText(string name) => string.Join('\n', StepLines(name));
+
     private static WorkflowJob GateJob()
     {
         var gate = WorkflowText.Jobs(WorkflowText.Lines(CiPath)).SingleOrDefault(job => job.Id == "gate");
