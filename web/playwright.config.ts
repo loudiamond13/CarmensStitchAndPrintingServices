@@ -3,6 +3,7 @@
 // bundle first. Guide: docs/web/e2e.md.
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+import { e2eConnection } from './scripts/e2e.mjs';
 
 // The host serves the e2e bundle straight from web/.e2e-dist (git-ignored). It is never copied into the API's wwwroot,
 // so the dev routes in that bundle can never be deployed (D-20).
@@ -89,12 +90,14 @@ export default defineConfig({
     // routes (/api/testing/*, QUAL-05) and sends mail to the in-memory sink (D-27). Csps__Testing__LoadUserSecrets makes
     // the host read this developer's user-secrets for the JWT signing key and the Data Protection certificate (D-37);
     // nothing secret is passed or written here (T-02-25).
+    // ConnectionStrings__Csps is the LocalDB CSPS_E2E literal unless CSPS_E2E_CONNECTION is set for this run (CI only).
+    // The seed step in scripts/e2e.mjs reads the same value.
     env: {
       ASPNETCORE_ENVIRONMENT: 'Testing',
       Csps__Testing__LoadUserSecrets: 'true',
       App__PublicBaseUrl: origin,
       Email__Dispatcher__SweepInterval: '00:00:01',
-      ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+      ConnectionStrings__Csps: e2eConnection(),
       // Every worker and project signs in from this one address, so the per-address auth limits (D-39) are set very high
       // here, as in the .NET test host. Production keeps the owner's numbers (plan 04-24).
       RateLimits__Auth__SignIn__PermitLimit: noThrottle,

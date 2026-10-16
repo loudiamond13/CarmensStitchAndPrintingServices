@@ -6,7 +6,8 @@
 //      project's ports in use by another program, or another project's test processes listed), up to 15 minutes, then
 //      exits 1. It never stops any process (CLAUDE.md shared machine).
 //   3. Refuses to start when port 5199 is in use.
-//   4. Migrates and seeds CSPS_E2E on (localdb)\MSSQLLocalDB through the guarded dev-seed tool (idempotent).
+//   4. Migrates and seeds CSPS_E2E through the guarded dev-seed tool (idempotent): on (localdb)\MSSQLLocalDB, or, in CI
+//      only, on the server named by CSPS_E2E_CONNECTION (set for this one process; see e2eConnection).
 //   5. Builds the e2e bundle into web/.e2e-dist (vite build --mode e2e).
 //   6. Runs `playwright test` with this script's arguments (for example --grep @smoke --project webkit).
 // Every child inherits this terminal's environment unchanged; nothing is set at User or Machine level. The API host's
@@ -32,6 +33,9 @@ import { PREFLIGHT_SCRIPT, waitForSharedMachine } from './shared-machine.mjs';
 
 export { PREFLIGHT_SCRIPT };
 export const E2E_PORT = 5199;
+/** CI only: a connection string for a loopback SQL Server container, set per process. Blank counts as unset. */
+export const E2E_CONNECTION_VARIABLE = 'CSPS_E2E_CONNECTION';
+export const LOCALDB_E2E_CONNECTION = 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true';
 export const PORT_BUSY_MESSAGE = `Port ${String(E2E_PORT)} is in use by another process. Wait for it to finish; this script never stops other processes.`;
 export const WEB_DIRECTORY = fileURLToPath(new URL('..', import.meta.url));
 export const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -50,23 +54,37 @@ const LOCK_POLL_MS = 2000;
  */
 
 /**
+ * The connection string for CSPS_E2E: the trimmed CSPS_E2E_CONNECTION override, else LocalDB. The seed step and the
+ * Playwright host both use it, so they always point at the same database.
+ * @param {Readonly<Record<string, string | undefined>>} [env]
+ * @returns {string}
+ */
+export function e2eConnection(env = process.env) {
+  const override = env[E2E_CONNECTION_VARIABLE]?.trim();
+  return override === undefined || override === '' ? LOCALDB_E2E_CONNECTION : override;
+}
+
+/**
  * The run as data, so the order and the exact commands are unit-tested without starting anything.
- * @param {{ portBusy: boolean, extraArgs?: readonly string[] }} options
+ * @param {{ portBusy: boolean, extraArgs?: readonly string[], env?: Readonly<Record<string, string | undefined>> }} options
  * @returns {readonly Step[]}
  */
-export function planSteps({ portBusy, extraArgs = [] }) {
+export function planSteps({ portBusy, extraArgs = [], env = process.env }) {
   if (portBusy) {
     return [{ kind: 'refuse', name: 'port-busy', message: PORT_BUSY_MESSAGE, exitCode: 1 }];
   }
   /** @type {RunStep[]} */
   const steps = [];
+  const connection = e2eConnection(env);
+  const seedTarget = connection === LOCALDB_E2E_CONNECTION ? ['--database', 'CSPS_E2E'] : ['--connection', connection];
   steps.push(
-    // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on (localdb)\MSSQLLocalDB before any connection opens (T-02-24).
+    // DevSeedTargetGuard refuses anything but CSPS_Dev/CSPS_E2E on LocalDB or a loopback container before any connection
+    // opens (T-02-24, T-03-08). The override is for CI only; executeSteps never prints it (CWE-532).
     {
       kind: 'run',
       name: 'seed',
       command: 'dotnet',
-      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--database', 'CSPS_E2E'],
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', ...seedTarget],
       cwd: REPO_ROOT,
     },
     {

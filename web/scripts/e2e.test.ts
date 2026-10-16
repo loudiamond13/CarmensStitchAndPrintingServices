@@ -27,7 +27,8 @@ import {
 const webDirectory = fileURLToPath(new URL('..', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
-const containerConnection = 'Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=s3cret-Value;TrustServerCertificate=true';
+const containerConnection =
+  'Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=s3cret-Value;TrustServerCertificate=true';
 
 interface SpawnCall {
   readonly command: string;
@@ -158,7 +159,7 @@ describe('CSPS_E2E_CONNECTION (CI override)', () => {
   it('keeps --database CSPS_E2E for a blank override', () => {
     const seed = planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: '  ' } })[0];
 
-    expect(seed).toMatchObject({ args: expect.arrayContaining(['--database', 'CSPS_E2E']) });
+    expect(seed?.kind === 'run' && seed.args.slice(-2)).toEqual(['--database', 'CSPS_E2E']);
   });
 
   it('leaves the build and Playwright steps the same with an override', () => {
@@ -172,7 +173,9 @@ describe('CSPS_E2E_CONNECTION (CI override)', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { spawn } = fakeSpawner([1, 0, 0]);
 
-    expect(executeSteps(planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: containerConnection } }), spawn)).toBe(1);
+    expect(executeSteps(planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: containerConnection } }), spawn)).toBe(
+      1,
+    );
 
     expect(stderr).toHaveBeenCalledWith('e2e: seed failed with exit code 1.\n');
     const written = stderr.mock.calls.map((call) => String(call[0])).join('');
