@@ -346,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 12/23 plans executed
+**Plans:** 13/23 plans executed
 
 Plans:
 **Wave 1**
@@ -367,7 +367,7 @@ Plans:
 - [x] 03-12-PLAN.md — Manual-only, main-only, least-privilege deploy workflow; branded app_offline.htm; deploy runbook (OPS-04, D-11, D-12)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-13-PLAN.md — Deploy package on every push to main: publish, migration script, content check, secret scan, artifact (D-11, OPS-05)
+- [x] 03-13-PLAN.md — Deploy package on every push to main: publish, migration script, content check, secret scan, artifact (D-11, OPS-05)
 - [ ] 03-14-PLAN.md — Control-panel facts, guarded legacy-receipt script and the numbered D-18 cutover runbook
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -1052,7 +1052,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 12/23 | In Progress | - |
+| 3. CI/CD & Deploy | 13/23 | In Progress | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |

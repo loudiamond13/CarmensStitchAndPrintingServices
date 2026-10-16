@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-12-PLAN.md
-last_updated: "2026-10-16T06:39:19.115Z"
+stopped_at: Completed 03-13-PLAN.md
+last_updated: "2026-10-16T06:59:32.129Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: f0fafee03a94d2f5ffe630c3b0d5926ea3268e7f
+state_head: cace063e354289046ec9f07f1297a1cafd24d34f
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 103
+  completed_plans: 104
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-15T23:28:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 13 of 23
+Plan: 14 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -162,6 +162,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P10 | 20 min | 2 tasks | 7 files |
 | Phase 03 P11 | 39 min | 3 tasks | 7 files |
 | Phase 03 P12 | 14 min | 2 tasks | 5 files |
+| Phase 03 P13 | 14 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -416,6 +417,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-11: build-output.node.test.ts builds the web root itself on a clean checkout (NODE_ENV=production) because Vitest runs before the build step
 - [Phase 03]: 03-12: deploy.yml is the one workflow exempt (by name) from the no-deploy-credential CI test; DeployWorkflowTests pins its env-only use of secrets and inputs
 - [Phase 03]: 03-12: app_offline.htm inlines mark.svg with coordinates rounded to whole units (geometry unchanged) to fit the 8 KB cap; the page has no external reference
+- [Phase 03]: 03-13: stage 7 package steps sit after the failure-report upload and rebuild the web app, so the package never carries the budget build output; package-check refuses app_offline.htm at the root only and logs, env settings, key and env files at any depth
 
 ### Pending Todos
 
@@ -464,6 +466,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T06:39:18.786Z
-Stopped at: Completed 03-12-PLAN.md
+Last session: 2026-10-16T06:59:31.804Z
+Stopped at: Completed 03-13-PLAN.md
 Resume file: None
