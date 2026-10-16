@@ -1,15 +1,15 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:08:52-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:10:30-05:00*
 
 ## Overview
 
 CSPS replaces the shop's live legacy system with a strict, test-first .NET 10 + React 19 app. The work runs in four stretches:
 
-- **Platform (Phases 1–3).** The backend foundation comes first, with the SmarterASP.NET hosting facts verified before anything else. Next comes the UI-spec design system with every quality gate in place. CI and the staging deploy follow once the owner supplies the GitHub repo and host credentials.
+- **Platform (Phases 1–3).** The backend foundation comes first, with the SmarterASP.NET hosting facts verified before anything else. Next comes the UI-spec design system with every quality gate in place. CI and the deploy follow once the owner supplies the GitHub repo and host credentials. The Basic plan has only the live site, so every deploy goes there, and in Phase 3 CSPS replaces the legacy site (owner, 2026-10-15).
 - **Staff portal (Phases 4–10), in vertical slices.** Sign-in with mandatory email 2FA, then profiles and user management, then company expenses as the slice that proves the pattern. The order aggregate follows in three phases (domain and API, then screens, then images and maintenance jobs), and the dashboard comes last.
 - **Public site and hardening (Phases 11–14).** The public site and its content management, then consent, analytics and legal pages, then quote inquiries. Phase 14 hardens the complete app.
-- **Legacy data and cutover (Phases 15–17).** Phases 1–14 run on an empty, EF-migrated database. Only Phases 15–16 open the legacy `.bak`, and only Phase 17 touches the live legacy system, at the cutover the owner attends (Prime Directives 1 and 11).
+- **Legacy data and cutover (Phases 15 to 17).** The legacy site and database are retired in Phase 3 (owner override of Prime Directive 1, 2026-10-15), and the legacy data is kept unchanged in a verified `.bak`. Phase 3 reads that `.bak` once, for table names and row counts only. Phases 1 to 14 build and test on an empty, EF-migrated database, and the live CSPS database starts empty too. Phase 15 maps the `.bak`, Phase 16 builds and rehearses the import, and Phase 17 runs it on the live database with the owner present (Prime Directive 11).
 
 ## Roadmap Conventions
 
@@ -68,8 +68,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
 - [ ] **Phase 14: Hardening & Release Readiness** - Full security review and ZAP, manual accessibility passes, PWA, View Transitions, runbooks and DSR/breach procedures
 - [ ] **Phase 15: Legacy Discovery & Mapping** - Read-only restore, `LEGACY-SCHEMA.md`, owner-approved `LEGACY-MAPPING.md`
-- [ ] **Phase 16: Legacy Data Import** - Test-driven idempotent ETL, image and user migration, 100% reconciliation, staging dress rehearsal
-- [ ] **Phase 17: Production Cutover** - Runbook executed with the owner present, with a rollback plan and post-go-live monitoring
+- [ ] **Phase 16: Legacy Data Import** - Test-driven idempotent ETL from the verified `.bak`, image and user migration, 100% reconciliation, a timed local dress rehearsal
+- [ ] **Phase 17: Legacy Data Cutover** - The legacy data import runs on the live CSPS database with the owner present, with a rollback plan and post-go-live monitoring; CSPS has served the live site since Phase 3
 
 ## Phase Details
 
@@ -397,7 +397,7 @@ Plans:
 
 **Goal**: Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Mode:** mvp
-**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. **Owner decision (2026-10-14): runs before Phase 3**, so auth is gated by the local build/test/lint run until the Phase 3 pipeline exists, and its first staging deploy happens in Phase 3.
+**Depends on**: Phase 2, because the sign-in screens use the layouts and OtpInput/PasswordInput. **Owner decision (2026-10-14): runs before Phase 3**, so auth is gated by the local build/test/lint run until the Phase 3 pipeline exists, and its first deploy, to the live site, happens in Phase 3.
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13, QUAL-05, SEC-03, SEC-06, A11Y-03, AUDIT-01
 **Success Criteria** (what must be TRUE):
   1. **Sign-in with the emailed code.** A staff member enters email and password, receives a 6-digit code by email, pastes or types it (`autocomplete="one-time-code"`) and reaches the admin portal. An unknown email, a wrong password and a deactivated or locked account all get the same generic error with similar timing, and none gets a session.
@@ -580,6 +580,7 @@ Plans:
 - **OD-21** whether an expense can be paid by the company (e.g. from the business bank or GCash account) instead of a staff member (default: no, a staff member is required)
 - **OD-14**
 - **Sequencing check:** research recommends this slice before Orders. If the owner prefers Orders first, Phase 7 becomes the slice that sets the pattern.
+- **No staging site** (Phase 3, owner 2026-10-15): where the p95 < 300 ms check in criterion 5 runs, since CSPS serves the live site and the Basic plan has no second site
 
 **Research flag:** Standard patterns.
 
@@ -881,6 +882,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 - **OD-13** confirm OpenAPI exposure in production
 - **C-32** confirm the Data Protection key-protection ruling, or record risk acceptance
 - any open **OD-14** item, which must close before release
+- **No staging site** (Phase 3, owner 2026-10-15): where the ZAP baseline (criterion 1, SEC-05) and the Lighthouse re-audit (criterion 5) run, since CSPS serves the live site and the Basic plan has no second site
 
 **Owner prerequisites:** The owner reviews and signs the security checklist.
 
@@ -918,7 +920,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 ### Phase 16: Legacy Data Import
 
-**Goal**: Every legacy order, payment, discount, expense, image and user lands in a fresh EF-migrated database with 100% reconciliation, proven by a timed dress rehearsal on staging.
+**Goal**: Every legacy order, payment, discount, expense, image and user in the verified `.bak` is proven to land in the EF-migrated CSPS schema with 100% reconciliation by a timed local dress rehearsal, ready for the Phase 17 import into the database that already serves CSPS.
 **Mode:** mvp
 **Depends on**: Phase 15 (approved mapping)
 **Requirements**: MIG-03, MIG-04, MIG-05, MIG-06, MIG-07, MIG-08, MIG-09, MIG-10
@@ -938,25 +940,25 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - Total/Paid/Balance per order
 
      It lists every transformed or rejected row with a reason, and blocks cutover unless reconciliation is 100% with zero unexplained differences.
-  5. **Dress rehearsal.** A timed dress rehearsal on the staging site, using a fresh `.bak`, runs end to end and passes reconciliation.
+  5. **Dress rehearsal.** A timed dress rehearsal with the verified `.bak` runs end to end into a local `CSPS_` database built from the production migration script, and passes reconciliation. The Basic plan has only the live site, so the rehearsal runs locally.
   6. **Payment receivers.** Every migrated payment has a Received by under the approved OD-15 rule. None was dropped or changed, and reconciliation covers them all.
   7. **Expense payers and record attribution.** Every migrated company and order expense has a Paid by, and every migrated record has its creator attribution ("Legacy import" when the creator is unknown), under the approved OD-15 rules. No expense or record was dropped or changed, and reconciliation covers them all.
 
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
 - How each class of rejected row is treated.
+- How imported legacy orders and numbers fit with the orders staff have already recorded in CSPS (order numbers, per-year counters, duplicates), and the name of the local rehearsal database (`CSPS_` prefix).
 
 **Owner prerequisites:**
-- A fresh `.bak` of the legacy database for the dress rehearsal.
-- Enough staging DB quota for the rehearsal.
+- The verified legacy `.bak` kept in Phase 3. The legacy database no longer exists on the host, so it is the only source.
 
-**Research flag:** Needs research. `.bak` restore on the host is unverified (LOW confidence), and whether the image mapping can resume depends on how legacy images turn out to be stored.
+**Research flag:** Needs research. The import route into the live database (the host's one database has been CSPS's since Phase 3) is LOW confidence, and whether the image mapping can resume depends on how legacy images turn out to be stored.
 
 **Plans**: TBD
 
-### Phase 17: Production Cutover
+### Phase 17: Legacy Data Cutover
 
-**Goal**: The shop moves from the legacy system to CSPS in one cutover with the owner present and a rollback path, and runs on CSPS from then on.
+**Goal**: The shop's legacy data moves into the live CSPS database in one cutover with the owner present and a rollback path, and the shop runs on CSPS with its full history from then on. CSPS has served the live site since Phase 3, so no site switch remains.
 **Mode:** mvp
 **Depends on**: Phase 16
 **Requirements**: CUT-01, CUT-02, CUT-03
@@ -966,15 +968,13 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
      - scheduled DB backups, with one restore tested
      - a live TLS certificate, with HSTS enabled after verification
      - SPF/DKIM/DMARC passing on the sender domain
-     - a SQL Server 2025 database created in the control panel (D-33; SmarterASP.NET confirmed 2026-10-07 that there is no in-place upgrade, so the data arrives by `.bak` restore). Its compatibility level is verified, `SqlCompatibility.Level` is re-pinned from the provisional 160 to that level (170 expected), and `MigrationScriptTests` is re-run at the new pin
+     - the SQL Server 2025 database created in Phase 3 (D-03), with its compatibility level still matching the pinned `SqlCompatibility.Level`
   2. **Runbook executed.** The cutover runbook is executed with the owner present. The point of no return and the rollback plan are written down beforehand. The steps:
-     1. maintenance notice
-     2. legacy set read-only
-     3. fresh legacy backup, kept as the rollback
-     4. ETL with 100% reconciliation
-     5. deploy and smoke test
-     6. the owner checks sample orders and totals
-     7. domain switch
+     1. maintenance notice (`app_offline.htm`)
+     2. a fresh backup of the live CSPS database, kept as the rollback
+     3. ETL from the verified legacy `.bak` with 100% reconciliation
+     4. deploy and smoke test
+     5. the owner checks sample orders and totals
   3. **Post-go-live.** After go-live, logs, errors and the key flows (sign-in, order create, payments) are monitored for the agreed period, and migrated users have received their set-password emails.
 
 **Owner decisions to close at discuss step:** The cutover window, the post-go-live monitoring period, how long to keep the legacy backup, and the point of no return (PRD §19.4).
@@ -984,9 +984,8 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 - Control of the production domain and DNS.
 - The production SQL login and scheduled backups, enabled in the SmarterASP.NET control panel.
 - The production TLS certificate.
-- SmarterASP.NET's answer on whether the Basic plan (1 database) allows a temporary second database, at no extra cost, while the live one still exists (D-33). If not, the runbook takes the live site offline from deleting the old database until the restore finishes.
 
-**Research flag:** Needs research: restoring a `.bak` on the host vs running the ETL locally and then restoring on the host (LOW confidence).
+**Research flag:** Needs research: how the ETL reaches the live database, since the host's one database has been CSPS's since Phase 3 and a `.bak` restore there would replace it (LOW confidence).
 
 **Plans**: TBD
 
@@ -998,7 +997,7 @@ Owner decisions are [OWNER DECISION] items. Each one is asked at the listed poin
 |---|---|---|
 | **Before Phase 1** | C-45 prerequisites (SmarterASP.NET access, sender domain), OD-1, OD-2, OD-12, OD-13, C-20, C-28 (CLAUDE.md wording), C-29, C-30, C-31, C-32, S-3, S-4, S-5, S-10, S-11 | Hosting record, SiteSettings defaults, business calendar, test-DB setup, license gate, compatibility-level pin |
 | **Phase 2 discuss** | OD-14, C-10 (with S-12), C-11, C-22, C-25, C-34, C-35, S-1, S-2, S-6, S-7, S-8 | Design-system import/reconcile, golden-vector expectations, lint and a11y gates |
-| **Before Phase 3** | C-27 / S-9, C-45 (owner creates the GitHub repo; Web Deploy credentials; secrets) | CI security set, branch protection, staging deploy |
+| **Before Phase 3** | C-27 / S-9, C-45 (owner creates the GitHub repo; Web Deploy credentials; secrets) | CI security set, the process merge gate, the deploy to the live site |
 | **Before Phase 4 starts** (one security batch) | OD-12, C-4, C-5, C-6, C-7, C-8, C-9, C-19, C-23, C-33 | Sign-in, 2FA, reset, onboarding and email change. Email is a hard sign-in dependency, so send this batch early |
 | **Phase 5 discuss** | C-41 (+ C-4 and C-9 if still open) | User delete semantics, onboarding, email change |
 | **Phase 6 discuss** | OD-5 (expenses), OD-8, C-43, OD-21 | Expense schema and categories, expense payer |
@@ -1049,7 +1048,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Staging Deploy | 0/TBD | Not started | - |
+| 3. CI/CD & Deploy | 0/TBD | Not started | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
@@ -1063,7 +1062,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
-| 17. Production Cutover | 0/TBD | Not started | - |
+| 17. Legacy Data Cutover | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -1094,4 +1093,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-15T22:08:52-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
+*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*

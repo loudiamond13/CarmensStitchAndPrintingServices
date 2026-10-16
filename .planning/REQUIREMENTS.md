@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-15T22:08:52-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-15T22:10:30-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -55,7 +55,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### CI/CD & Hosting (OPS)
 
-- [ ] **OPS-01**: The GitHub repo exists with a protected `main` (PR required, green checks, linear history, CODEOWNERS), a PR template with the DoD checklist, Conventional Commits and `.gitignore` per PRD §18 ⚑ C-45 (owner creates the repo)
+- [ ] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
 - [ ] **OPS-02**: The CI pipeline on every PR runs locked restore → .NET build → format check → unit → integration → architecture tests → web typecheck/lint/Prettier/Vitest + coverage → web build → Playwright → Lighthouse CI → coverage gates → license notices. Actions are pinned by SHA with least-privilege permissions
 - [ ] **OPS-03**: Supply-chain security runs in CI: Dependabot (NuGet, npm, Actions) with cooldown, plus CodeQL, secret scanning with push protection and dependency review, or the owner-approved substitute set ⚑ C-27/S-9
 - [ ] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
@@ -258,18 +258,18 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [ ] **MIG-01**: The legacy `.bak` is restored read-only into a local, `CSPS_`-prefixed disposable database, and `.planning/LEGACY-SCHEMA.md` documents every table, column, type, key, relationship, row count, value shape (no real customer data), data-quality issues, image storage and user accounts ⚑ C-28
 - [ ] **MIG-02**: `.planning/LEGACY-MAPPING.md` maps every legacy field to the new model (or "not migrated — reason"), proposing any new columns/tables. The owner approves it before any ETL code is written
 - [ ] **MIG-03**: Approved legacy-only columns (`LegacyId`, legacy order number) are added as nullable via normal migrations
-- [ ] **MIG-04**: The `tools/Csps.LegacyMigration` ETL is test-driven, idempotent and re-runnable, with `--dry-run`, batched transactions and clear logs. It writes through the domain into a fresh EF-migrated database, preserving legacy keys and order numbers, and seeds the per-year order counters from them
+- [ ] **MIG-04**: The `tools/Csps.LegacyMigration` ETL is test-driven, idempotent and re-runnable, with `--dry-run`, batched transactions and clear logs. It writes through the domain into the EF-migrated database that already serves CSPS (live since Phase 3), preserving legacy keys and order numbers, and seeds the per-year order counters from them; how they fit with orders staff have already recorded in CSPS is settled at the Phase 16 discuss step
 - [ ] **MIG-05**: Legacy images (if any) are uploaded to Cloudinary with a resumable mapping record
 - [ ] **MIG-06**: Legacy user accounts (if any) become profiles. Passwords are not carried over unless verifiably compatible, and users get a "set your password" email at go-live
 - [ ] **MIG-07**: An automated reconciliation report compares legacy source vs new: row counts per entity; Σ items, payments, discounts, order expenses and company expenses; per-order Total/Paid/Balance. Every transformed or rejected row is listed with a reason. Cutover is blocked unless it is 100% with zero unexplained differences
-- [ ] **MIG-08**: A timed dress rehearsal on the staging site with a fresh `.bak` succeeds end to end
+- [ ] **MIG-08**: A timed local dress rehearsal with the verified legacy `.bak` kept in Phase 3 succeeds end to end (the Basic plan has only the live site)
 - [ ] **MIG-09**: Every migrated payment gets a Received by (ORD-22) under the rule in the approved `LEGACY-MAPPING.md`, because legacy payments probably name no receiver. Example rules: a designated "Legacy / unassigned" holder that can't sign in, or an owner-chosen staff user. No migrated payment is dropped or changed (amount, date, method, reference and order link stay exact), and MIG-07 reconciliation covers every one. The same ruling says whether migrated payments count toward money on hand (MONEY-01) ⚑ OD-15
 - [ ] **MIG-10**: Every migrated company expense and order expense gets a Paid by (CEXP-05, ORD-23), and every migrated record gets its SEC-08 attribution, under the rules in the approved `LEGACY-MAPPING.md` (owner, 2026-10-07). A record whose legacy creator is unknown is attributed to a fixed "Legacy import" identity that can't sign in. Its CreatedAt comes from the legacy timestamp where the mapping finds one (converted to UTC), otherwise from the import time. No migrated expense or record is dropped or changed (amount, date, category, description and order link stay exact), and MIG-07 reconciliation covers every one. The OD-15 ruling says who the Paid by is for migrated expenses, whether those expenses count toward money on hand (MONEY-01), and whether a legacy record that names its creator keeps that creator as a migrated user (MIG-06) ⚑ OD-15
 
 ### Cutover (CUT)
 
 - [ ] **CUT-01**: Production hosting is ready: production SQL login with least privilege, scheduled DB backups enabled, a restore procedure tested once, TLS certificate and HSTS active after verification, and SPF/DKIM/DMARC configured on the sender domain
-- [ ] **CUT-02**: A production cutover runbook exists and is executed with the owner present: maintenance notice, legacy read-only, fresh legacy backup kept as rollback, ETL + 100% reconciliation, deploy + smoke test, owner verifies sample orders and totals, domain switch, a documented point of no return and a rollback plan
+- [ ] **CUT-02**: A legacy data cutover runbook exists and is executed with the owner present: maintenance notice, a fresh backup of the live CSPS database kept as the rollback, ETL from the verified legacy `.bak` + 100% reconciliation, deploy + smoke test, owner verifies sample orders and totals, a documented point of no return and a rollback plan. The site switch already happened in Phase 3 (owner, 2026-10-15)
 - [ ] **CUT-03**: After go-live, logs, errors and key flows (sign-in, order create, payments) are monitored for an agreed period, and migrated users receive their set-password emails
 
 ## v2 Requirements
@@ -320,7 +320,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Embedded Google Maps iframe | CSP, privacy and performance. The UI spec's stylized SVG map + "Directions" link is used |
 | Instant online price calculator | Pricing is quote-based via mockup |
 | Drag-only Kanban board / real-time sync | Not needed at ~5 staff. Drag-only violates WCAG 2.5.7 |
-| Touching the live legacy DB/site before approved cutover | Prime Directive 1 |
+| Modifying legacy data, on the host or anywhere else | Prime Directive 1 as amended (owner, 2026-10-15): the legacy site and database are retired in Phase 3 after a verified `.bak` is kept; legacy data reaches CSPS only through the Phase 16/17 import |
 | Deriving the schema from the legacy `.bak` | Prime Directive 11. Legacy data is reshaped to fit the new schema |
 
 ## Traceability
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-15T22:08:52-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*
+*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*
