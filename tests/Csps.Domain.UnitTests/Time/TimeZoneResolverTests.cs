@@ -14,7 +14,8 @@ public sealed class TimeZoneResolverTests
 
         source.ShouldBe(ZoneSource.Stored);
         zone.BaseUtcOffset.ShouldBe(Manila);
-        zone.SupportsDaylightSavingTime.ShouldBeFalse();
+        zone.GetUtcOffset(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)).ShouldBe(Manila);
+        zone.GetUtcOffset(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)).ShouldBe(Manila);
     }
 
     [Fact]
