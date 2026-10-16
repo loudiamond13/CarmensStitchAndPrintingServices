@@ -3,7 +3,7 @@
     Measures .NET unit-test coverage per assembly and fails when a threshold is not met (QUAL-03, D-17, D-31).
 
 .DESCRIPTION
-    One command for the local machine and for CI (Phase 3 calls this script unchanged):
+    One command for the local machine and for CI. CI (ubuntu, PowerShell 7) and Windows PowerShell 5.1 run it the same way:
 
       1. Deletes artifacts/coverage.
       2. Runs tests/Csps.Domain.UnitTests with coverlet.MTP, instrumenting only Csps.Domain, and
@@ -64,8 +64,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $invariant = [System.Globalization.CultureInfo]::InvariantCulture
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$coverageRoot = Join-Path $repoRoot 'artifacts\coverage'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+$coverageRoot = Join-Path $repoRoot 'artifacts/coverage'
 
 function Format-Percent([double]$value) {
     return $value.ToString('0.##', $invariant)
@@ -181,9 +181,9 @@ try {
     Invoke-Native 'Restore local dotnet tools' @('tool', 'restore')
 
     $results = @(
-        (Measure-Assembly -Assembly 'Csps.Domain' -TestProject 'tests\Csps.Domain.UnitTests' -Slug 'domain' `
+        (Measure-Assembly -Assembly 'Csps.Domain' -TestProject 'tests/Csps.Domain.UnitTests' -Slug 'domain' `
             -LineThreshold $DomainLineThreshold -BranchThreshold $DomainBranchThreshold),
-        (Measure-Assembly -Assembly 'Csps.Application' -TestProject 'tests\Csps.Application.UnitTests' -Slug 'application' `
+        (Measure-Assembly -Assembly 'Csps.Application' -TestProject 'tests/Csps.Application.UnitTests' -Slug 'application' `
             -LineThreshold $ApplicationLineThreshold -BranchThreshold $null)
     )
 }
@@ -206,7 +206,7 @@ foreach ($result in $results) {
         Write-Host "    $($result.Failures)"
     }
 }
-Write-Host "  HTML reports: $coverageRoot\<assembly>\report\index.html"
+Write-Host "  HTML reports: $coverageRoot/<assembly>/report/index.html"
 
 $failed = @($results | Where-Object { -not $_.Passed })
 if ($failed.Count -gt 0) {
