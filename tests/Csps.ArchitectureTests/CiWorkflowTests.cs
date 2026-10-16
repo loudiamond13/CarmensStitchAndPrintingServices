@@ -599,7 +599,7 @@ public sealed partial class CiWorkflowTests
     [GeneratedRegex(@"(?:MSSQL_SA_PASSWORD|\bPassword)=(?!\$|""\$)\S", RegexOptions.CultureInvariant)]
     private static partial Regex LiteralPassword();
 
-    [GeneratedRegex(@"secrets\.(?!GITHUB_TOKEN\b)|\b(?:MSDEPLOY|WEBDEPLOY|PRODUCTION)_\w*(?:SECRET|PASSWORD|TOKEN)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\$\{\{\s*secrets\.(?!GITHUB_TOKEN\b)|\b(?:MSDEPLOY|WEBDEPLOY|PRODUCTION)_\w*(?:SECRET|PASSWORD|TOKEN)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ProductionSecret();
 
     [GeneratedRegex(@"^(?<stage>[1-7]) ", RegexOptions.CultureInvariant)]

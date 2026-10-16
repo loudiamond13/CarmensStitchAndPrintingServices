@@ -151,3 +151,118 @@ jobs:
         run: |
           npm --prefix tools/openapi-gen run check
           npm --prefix tools/openapi-gen test
+
+      # OPS-02 stage 5: the production build and the dev-route budget build, in the order of web/scripts/verify.mjs.
+      - name: 5 web build
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run build
+
+      - name: 5 web budget build
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run build:budget
+
+      # T-03-41: a throwaway SQL Server bound to loopback only. The password is generated here, masked at once and
+      # never committed. Readiness comes from the server's own log line, because 2025 images may ship without sqlcmd.
+      - name: 5 sql container
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          set -eu
+          password="$(openssl rand -hex 24)Aa1"
+          echo "::add-mask::$password"
+          echo "SQL_SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          export MSSQL_SA_PASSWORD="$password"
+          docker run -d --name csps-sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD -p 127.0.0.1:1433:1433 mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04
+          for attempt in $(seq 1 60); do
+            logs="$(docker logs csps-sql 2>&1 || true)"
+            case "$logs" in
+              *"ready for client connections"*)
+                echo "SQL Server is ready (check $attempt)"
+                exit 0
+                ;;
+            esac
+            sleep 2
+          done
+          docker logs --tail 50 csps-sql
+          exit 1
+
+      # OPS-02: the dev secrets the E2E and Lighthouse hosts read from user-secrets, and the HTTPS certificate they serve.
+      - name: 5 test secrets
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          pwsh -NoProfile -File tools/scripts/Initialize-DevSecrets.ps1
+          dotnet dev-certs https
+
+      - name: 5 playwright cache
+        if: needs.classify.outputs.mode == 'full'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
+      # D-15: pull requests install Chromium only; the weekly run installs every engine.
+      - name: 5 playwright browsers
+        if: needs.classify.outputs.mode == 'full' && !inputs.all-engines
+        run: node web/node_modules/@playwright/test/cli.js install --with-deps chromium
+
+      - name: 5 playwright browsers all engines
+        if: needs.classify.outputs.mode == 'full' && inputs.all-engines
+        run: node web/node_modules/@playwright/test/cli.js install --with-deps
+
+      # D-15: the E2E seed and host read the container through CSPS_E2E_CONNECTION, set for this one command.
+      - name: 5 playwright
+        if: needs.classify.outputs.mode == 'full' && !inputs.all-engines
+        run: |
+          set -eu
+          CSPS_E2E_CONNECTION="Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true" npm --prefix web run e2e -- --project chromium --project pixel
+
+      - name: 5 playwright all engines
+        if: needs.classify.outputs.mode == 'full' && inputs.all-engines
+        run: |
+          set -eu
+          CSPS_E2E_CONNECTION="Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true" npm --prefix web run e2e
+
+      # PERF-02: the Development host needs Smtp settings to start; these are dummy values and no mail is sent.
+      - name: 5 lighthouse
+        if: needs.classify.outputs.mode == 'full'
+        env:
+          Smtp__Host: smtp.invalid
+          Smtp__Port: "587"
+          Smtp__Security: StartTls
+          Smtp__UserName: ci
+          Smtp__Password: not-a-secret
+        run: |
+          set -eu
+          connection="Server=127.0.0.1,1433;Database=CSPS_Dev;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true"
+          dotnet run --project tools/Csps.DevSeed -- --connection "$connection"
+          ConnectionStrings__Csps="$connection" npm --prefix web run lighthouse
+
+      # OPS-02 stage 6: coverage thresholds, then the licence and notice gates for npm and NuGet.
+      - name: 6 coverage gate
+        if: needs.classify.outputs.mode == 'full'
+        run: pwsh -NoProfile -File tools/scripts/Invoke-CoverageGate.ps1
+
+      - name: 6 web licenses
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run license:check
+
+      - name: 6 web notices
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run notices:check
+
+      - name: 6 nuget licenses + notices
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          pwsh -NoProfile -File tools/scripts/New-ThirdPartyNotices.ps1
+          git diff --exit-code -- THIRD-PARTY-NOTICES.md
+
+      # T-03-42: only the Playwright report and results leave the runner, only on failure, for seven days.
+      - name: 6 upload failure reports
+        if: failure() && needs.classify.outputs.mode == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-failure-reports
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
