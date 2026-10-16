@@ -81,11 +81,8 @@ export const BARREL_SPLIT_TRIGGER = 135_000;
 /** The HTML entry whose chunk every route loads first. */
 export const MAIN_ENTRY = 'index.html';
 
-/** The route modules the public site renders on first load: the public layout and the placeholder page (02-29). */
-export const PUBLIC_ROUTE: readonly string[] = Object.freeze([
-  'src/layouts/PublicLayout.tsx',
-  'src/modules/public/pages/PublicPlaceholderPage.tsx',
-]);
+/** The route module the public site renders on first load: the D-17 holding page (PublicLayout returns with Phase 11). */
+export const PUBLIC_ROUTE: readonly string[] = Object.freeze(['src/modules/public/pages/HoldingPage.tsx']);
 
 /** The shipped modules a signed-in `/admin` visit loads first: the guard, the admin layout, the URL-state layout and the devices page. */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([

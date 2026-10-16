@@ -117,8 +117,8 @@ describe('routePreloadPlugin (PERF-02)', () => {
 
   it('preloads each route chunk and the chunks it imports, once each, in route order, never the entry', async () => {
     expect(await run(routePreloadPlugin(PUBLIC_ROUTE), productionBundle())).toEqual([
-      preload('/assets/shared-C3.js'),
       preload('/assets/HoldingPage-D4.js'),
+      preload('/assets/shared-C3.js'),
     ]);
   });
 
@@ -134,7 +134,7 @@ describe('routePreloadPlugin (PERF-02)', () => {
 
   it('prefixes the configured base path', async () => {
     const tags = await run(routePreloadPlugin(PUBLIC_ROUTE), productionBundle(), { base: '/app/', root: ROOT });
-    expect(tags[0]?.attrs?.href).toBe('/app/assets/shared-C3.js');
+    expect(tags[0]?.attrs?.href).toBe('/app/assets/HoldingPage-D4.js');
   });
 
   it('fails the build through this.error, naming the module, when a route module has no chunk of its own', async () => {

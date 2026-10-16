@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY, RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
+import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { lazyRoute, routes } from './router';
 
 const CRASH = new Error('Kaboom in a render');
@@ -24,9 +25,9 @@ interface TreeOptions {
   readonly page?: Partial<RouteObject>;
 }
 
-/** The app's own route tree with the layout or page swapped for a failing one; every boundary stays as defined. */
+/** The public layout route tree (Phase 11 shape) with the layout or page swapped for a failing one; every boundary stays as defined. */
 function appTree({ layout, page }: TreeOptions): RouteObject[] {
-  const root = routes[0];
+  const root = publicLayoutRoutes[0];
   const layoutRoute = root?.children?.[0];
   const pageRoute = layoutRoute?.children?.[0];
   if (root === undefined || layoutRoute === undefined || pageRoute === undefined) {
@@ -148,14 +149,37 @@ describe('the root error boundary (WEB-05)', () => {
   });
 });
 
+describe('the holding page failing (D-17)', () => {
+  it('shows the error screen in a page root of its own when the app holding page crashes', async () => {
+    const [root] = routes;
+    const children = (root?.children ?? []).map((child) =>
+      child.path === '*' ? { ...child, lazy: crashingModule } : child,
+    );
+    const { container } = await renderTree([{ ...root, children } as RouteObject], '/products');
+
+    expect(container.firstElementChild).toHaveAttribute('data-theme', 'light');
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
+    expectErrorScreen(screen.getByRole('main'));
+    expectOnlyReportsOf(CRASH);
+  });
+});
+
 describe('the boundaries in the route tree', () => {
-  it('puts RootErrorBoundary on the root route and RouteErrorBoundary on the layout children', () => {
-    const root = routes[0];
+  it('puts RootErrorBoundary on the root route and RouteErrorBoundary on the layout children (Phase 11 shape)', () => {
+    const root = publicLayoutRoutes[0];
     expect(root?.ErrorBoundary).toBe(RootErrorBoundary);
     expect(root?.children?.[0]?.ErrorBoundary).toBeUndefined();
     for (const child of root?.children?.[0]?.children ?? []) {
       expect(child.ErrorBoundary).toBe(RouteErrorBoundary);
     }
+  });
+
+  it('leaves the standalone holding page to RootErrorBoundary, which brings its own page root and main (D-17)', () => {
+    const root = routes[0];
+    expect(root?.ErrorBoundary).toBe(RootErrorBoundary);
+    const holding = root?.children?.find((child) => child.path === '*');
+    expect(holding).toBeDefined();
+    expect(holding?.ErrorBoundary).toBeUndefined();
   });
 
   it('lazyRoute passes a loaded module through and turns a failed load into a component that throws that error', async () => {

@@ -6,16 +6,16 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { Root } from '@/core/routes/Root';
-import { routes } from '@/core/routes/router';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
 import { SITE_CONTACT } from '@/modules/public/components/siteContact';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
 
-/** The app's own route tree in a memory router at `path`, settled once the page's h1 is on screen. */
+/** The public layout route tree (src/test/publicLayoutRoutes.ts) in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const router = createMemoryRouter(publicLayoutRoutes, { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
   await screen.findByRole('heading', { level: 1 });
   return { ...view, router };
@@ -242,7 +242,7 @@ describe('PublicLayout route chunks (UI consideration: loading)', () => {
 
 describe('Root and ShellFallback (research Pattern 2, Pitfall 10)', () => {
   it('shows the Blush page root while the first route chunks load, then the page', async () => {
-    const router = createMemoryRouter(routes, { initialEntries: ['/'] });
+    const router = createMemoryRouter(publicLayoutRoutes, { initialEntries: ['/'] });
     const { container } = render(<RouterProvider router={router} />);
     const fallback = container.firstElementChild;
     expect(fallback).toHaveAttribute('data-theme', 'light');

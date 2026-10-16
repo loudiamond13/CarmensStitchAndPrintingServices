@@ -89,8 +89,8 @@ export const REVIEW_TARGETS = Object.freeze([
   {
     path: '/',
     slug: 'public-home',
-    title: 'Public site (home page placeholder)',
-    h1: 'Site update in progress.',
+    title: 'Public site (holding page)',
+    h1: 'New website on the way.',
     themes: BLUSH_ONLY,
   },
   { path: '/admin', slug: 'admin-dashboard', title: 'Admin: Dashboard', h1: 'Dashboard', themes: BOTH },

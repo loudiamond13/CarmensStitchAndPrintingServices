@@ -7,6 +7,12 @@ import { HoldingPage } from './HoldingPage';
 // Values the owner gave on 2026-10-16 (plan 03-09, Task 1). A change here is an owner decision.
 const HEADING = 'New website on the way.';
 
+// En dash and em dash by code point, so this file holds no long dash itself (OR-4).
+const LONG_DASH = new RegExp(`[${String.fromCharCode(0x2013)}${String.fromCharCode(0x2014)}]`);
+
+/** The phone and Facebook links (the skip link is the other link on the page). */
+const contactLinks = () => screen.getAllByRole('link').filter((link) => link.getAttribute('href') !== '#main');
+
 describe('HoldingPage (D-17)', () => {
   it('renders exactly one h1, named with the approved heading', () => {
     render(<HoldingPage />);
@@ -40,10 +46,10 @@ describe('HoldingPage (D-17)', () => {
 
   it('shows no placeholder or invented fact (T-03-38): no brackets, no # link, no long dash', () => {
     const { container } = render(<HoldingPage />);
-    const text = container.textContent ?? '';
+    const text = container.textContent;
     expect(text).not.toMatch(/[[\]]/);
-    expect(text).not.toMatch(/[–—]/);
-    for (const link of screen.getAllByRole('link')) {
+    expect(text).not.toMatch(LONG_DASH);
+    for (const link of contactLinks()) {
       expect(link.getAttribute('href')).not.toBe('#');
       expect(link.getAttribute('href')).toMatch(/^(tel:\+63|https:\/\/)/);
     }
@@ -62,9 +68,17 @@ describe('HoldingPage (D-17)', () => {
     expect(container.querySelector('[style]')).toBeNull();
   });
 
+  it('keeps the skip link first, pointing at main (A11Y-02)', () => {
+    render(<HoldingPage />);
+    const [first] = screen.getAllByRole('link');
+    expect(first).toHaveAccessibleName('Skip to main content');
+    expect(first).toHaveAttribute('href', '#main');
+  });
+
   it('keeps every link at least 44 px tall (min-h-11)', () => {
     render(<HoldingPage />);
-    for (const link of screen.getAllByRole('link')) {
+    expect(contactLinks()).toHaveLength(2);
+    for (const link of contactLinks()) {
       expect(link).toHaveClass('min-h-11');
     }
   });

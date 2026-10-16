@@ -115,11 +115,11 @@ function devTree(): RouteObject[] {
 }
 
 describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
-  it('the production routes have no /dev/components: it falls through to the public placeholder', async () => {
+  it('the production routes have no /dev/components: it falls through to the public holding page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /Site update/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 

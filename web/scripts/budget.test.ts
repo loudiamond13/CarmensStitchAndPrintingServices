@@ -171,9 +171,9 @@ describe('BUDGETS (PERF-01)', () => {
 describe('routeInitialSize', () => {
   it('counts a chunk shared by the entry and a route chunk once', () => {
     const graph = productionGraph(100_000);
-    const result = routeInitialSize(graph.chunks, [ENTRY, 'assets/PublicLayout-C3.js']);
-    expect(result.files.toSorted()).toEqual([ENTRY, 'assets/PublicLayout-C3.js', SHARED].toSorted());
-    expect(result.bytes).toBe(97_000 + 1_000 + 1_500);
+    const result = routeInitialSize(graph.chunks, [ENTRY, 'assets/HoldingPage-D4.js']);
+    expect(result.files.toSorted()).toEqual([ENTRY, 'assets/HoldingPage-D4.js', SHARED].toSorted());
+    expect(result.bytes).toBe(97_000 + 1_000 + 2_000);
   });
 
   it('follows static imports transitively', () => {
