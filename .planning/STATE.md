@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-10-16T04:26:57.655Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-10-16T04:50:24.437Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: 754d4c20386c50236355ee4d6c900b4ae047a165
+state_head: 1a39cf92149b0ce5561cbcd036b3f36bffc23f50
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 98
+  completed_plans: 99
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-15T23:28:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 8 of 23
+Plan: 9 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -157,6 +157,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P07 | 20 min | 2 tasks | 2 files |
 | Phase 03 P08 | 8 min | 2 tasks | 10 files |
 | Phase 03 P03 | 22 min | 3 tasks | 3 files |
+| Phase 03 P06 | 45 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -402,6 +403,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-08: RuntimeIdentifiers win-x64 lives in the src-only block of Directory.Build.props; the four src lock files carry the win-x64 section; tests that run dotnet build or publish on the Server project share the DotnetBuildCollection
 - [Phase 03]: 03-03: merge gate [ci skip] ship note follows the owner's parent-rule (2026-10-15T22:05-05:00): a skip-token head changing only .planning/ with one parent is judged by that parent; any other skip-token head is refused
 - [Phase 03]: 03-03: merge gate refuses unless mergeable is exactly MERGEABLE, so UNKNOWN asks for a rerun; a skip-token head with an empty or 300-entry file list never qualifies
+- [Phase 03]: 03-06: owner allowed the one-time HostProbe on the site root (allow-probe, 2026-10-15T22:05-05:00); deploy.mjs refuses a certificate pin mismatch and refuses to deploy when the last good release cannot be downloaded
 
 ### Pending Todos
 
@@ -449,6 +451,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T04:26:57.074Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-10-16T04:50:24.114Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
