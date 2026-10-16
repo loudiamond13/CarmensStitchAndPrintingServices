@@ -1,0 +1,348 @@
+using System.Text.RegularExpressions;
+
+namespace Csps.ArchitectureTests;
+
+/// <summary>
+/// OPS-02 rules over every file in .github/workflows: SHA pins, empty default permissions, timeouts, no injection
+/// sinks, triggers and the order of the gate steps (threats T-03-01 to T-03-06).
+/// </summary>
+public sealed partial class CiWorkflowTests
+{
+    private const string CiPath = ".github/workflows/ci.yml";
+
+    // Owner-approved actions (plan 03-01 Task 1, 2026-10-15): "owner/repo@commit" to its version comment.
+    private static readonly Dictionary<string, string> ApprovedActions = new(StringComparer.Ordinal)
+    {
+        ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"] = "v7.0.1",
+        ["actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68"] = "v6.0.0",
+        ["actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"] = "v7.0.0",
+        ["actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"] = "v6.1.0",
+        ["actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"] = "v7.0.1",
+        ["zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482"] = "v0.6.4",
+    };
+
+    private static readonly string[] PinnedRunners = ["ubuntu-24.04", "windows-2025"];
+
+    // OPS-02 order of the .NET steps in the gate job.
+    private static readonly string[] RequiredDotnetSteps =
+    [
+        "1 restore (locked)",
+        "2 build",
+        "2 format check",
+        "3 unit tests",
+        "3 integration tests",
+        "3 architecture tests",
+    ];
+
+    // Each detector is paired with a sample it must catch, so a broken pattern cannot pass silently.
+    private static readonly (Regex Pattern, string Sample)[] RunSinkDetectors =
+    [
+        (EventExpression(), "echo ${{ github.event.pull_request.title }}"),
+        (InputsExpression(), "echo ${{ inputs.target }}"),
+        (HeadRefExpression(), "git checkout ${{ github.head_ref }}"),
+    ];
+
+    [Fact]
+    public void WorkflowFilesExistAndAreAllYml()
+    {
+        WorkflowText.Files().ShouldContain(CiPath, "ci.yml is the OPS-02 gate and must exist.");
+        WorkflowText.UnreadFiles().ShouldBeEmpty("Use the .yml extension only; these tests read no other workflow file.");
+    }
+
+    [Fact]
+    public void EveryUsesIsAnApprovedShaPin()
+    {
+        WorkflowText.Files().ShouldNotBeEmpty();
+
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.UsesValues(WorkflowText.Lines(path))
+                .Where(value => !IsApprovedPin(value))
+                .Select(value => $"{path}: {value}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("Every uses: must be a local workflow or an owner-approved owner/repo@<40-hex sha> # vX.Y.Z (T-03-01).");
+    }
+
+    [Fact]
+    public void PinDetectorCatchesLooseAndUnapprovedReferences()
+    {
+        IsApprovedPin("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1").ShouldBeTrue();
+        IsApprovedPin("./.github/workflows/reusable.yml").ShouldBeTrue();
+
+        IsApprovedPin("actions/checkout@v7").ShouldBeFalse();
+        IsApprovedPin("actions/checkout@main").ShouldBeFalse();
+        IsApprovedPin("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1").ShouldBeFalse();
+        IsApprovedPin("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.2").ShouldBeFalse();
+        IsApprovedPin("actions/checkout@3D3C42E5AAC5BA805825DA76410C181273BA90B1 # v7.0.1").ShouldBeFalse();
+        IsApprovedPin("evil/action@0123456789abcdef0123456789abcdef01234567 # v1.0.0").ShouldBeFalse();
+        IsApprovedPin("docker://alpine:3.20").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TopLevelPermissionsAreEmpty()
+    {
+        WorkflowText.Files().ShouldNotBeEmpty();
+
+        var offenders = WorkflowText.Files()
+            .Where(path => !WorkflowText.Lines(path).Any(line => line.TrimEnd() == "permissions: {}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("Every workflow starts from no token permissions: top-level permissions: {} (T-03-02).");
+    }
+
+    [Fact]
+    public void NoWorkflowGrantsBroadPermissions()
+    {
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Lines(path)
+                .Where(line => BroadPermission().IsMatch(line))
+                .Select(line => $"{path}: {line.Trim()}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("read-all and write-all are not allowed; name the single scope a job needs (T-03-02).");
+    }
+
+    [Fact]
+    public void CiJobsNeverGrantWrite()
+    {
+        var jobs = WorkflowText.Jobs(WorkflowText.Lines(CiPath));
+        jobs.ShouldNotBeEmpty();
+
+        var offenders = jobs
+            .SelectMany(job => WorkflowText.Section(job.Lines, "permissions")
+                .Where(line => line.TrimEnd().EndsWith(": write", StringComparison.Ordinal))
+                .Select(line => $"{job.Id}: {line.Trim()}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("CI only reads the repository (T-03-02).");
+    }
+
+    [Fact]
+    public void EveryJobHasATimeout()
+    {
+        WorkflowText.Files().ShouldNotBeEmpty();
+
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Jobs(WorkflowText.Lines(path))
+                .Where(job => !job.Lines.Any(line => JobUses().IsMatch(line)))
+                .Where(job => !job.Lines.Any(line => JobTimeout().IsMatch(line)))
+                .Select(job => $"{path}: {job.Id}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("Every job sets timeout-minutes so a hang cannot burn the free minutes (T-03-06).");
+    }
+
+    [Fact]
+    public void CheckoutNeverPersistsCredentials()
+    {
+        var checkouts = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Jobs(WorkflowText.Lines(path))
+                .SelectMany(job => WorkflowText.Steps(job.Lines).Select(step => (Location: $"{path}: {job.Id}", Step: step))))
+            .Where(item => item.Step.Any(line => UsesKey().IsMatch(line) && line.Contains("actions/checkout@", StringComparison.Ordinal)))
+            .ToList();
+
+        checkouts.ShouldNotBeEmpty();
+
+        var offenders = checkouts
+            .Where(item => !item.Step.Any(line => line.Trim() == "persist-credentials: false"))
+            .Select(item => item.Location)
+            .ToList();
+
+        offenders.ShouldBeEmpty("Every actions/checkout sets persist-credentials: false (T-03-03).");
+    }
+
+    [Fact]
+    public void RunnersArePinned()
+    {
+        var runners = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Lines(path)
+                .Select(line => RunsOn().Match(line))
+                .Where(match => match.Success)
+                .Select(match => (Path: path, Runner: match.Groups["runner"].Value)))
+            .ToList();
+
+        runners.ShouldNotBeEmpty();
+
+        var offenders = runners
+            .Where(item => !PinnedRunners.Contains(item.Runner, StringComparer.Ordinal))
+            .Select(item => $"{item.Path}: {item.Runner}")
+            .ToList();
+
+        offenders.ShouldBeEmpty("Runner labels are ubuntu-24.04 or windows-2025, never a moving label.");
+    }
+
+    [Fact]
+    public void NoWorkflowUsesPullRequestTarget()
+    {
+        WorkflowText.Files().ShouldNotBeEmpty();
+
+        var offenders = WorkflowText.Files()
+            .Where(path => WorkflowText.Lines(path).Any(line => PullRequestTarget().IsMatch(line)))
+            .ToList();
+
+        offenders.ShouldBeEmpty("pull_request_target would run PR code with secrets (T-03-05).");
+        PullRequestTarget().IsMatch("  pull_request_target:").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RunDetectorsCatchTheirSamples()
+    {
+        foreach (var (pattern, sample) in RunSinkDetectors)
+        {
+            pattern.IsMatch(sample).ShouldBeTrue($"The detector {pattern} must catch: {sample}");
+        }
+    }
+
+    [Fact]
+    public void NoExpressionSinkInRun()
+    {
+        WorkflowText.Files().ShouldNotBeEmpty();
+
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.RunBlocks(WorkflowText.Lines(path))
+                .Where(block => RunSinkDetectors.Any(detector => detector.Pattern.IsMatch(block)))
+                .Select(block => $"{path}: {block}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("Event data reaches scripts through env: only, never inside run: (CWE-77, T-03-04).");
+    }
+
+    [Fact]
+    public void CiTriggersAndConcurrency()
+    {
+        var lines = WorkflowText.Lines(CiPath);
+        var triggers = WorkflowText.Section(lines, "on");
+        var pullRequest = WorkflowText.Section(triggers, "pull_request").Select(line => line.Trim()).ToList();
+        var push = WorkflowText.Section(triggers, "push").Select(line => line.Trim()).ToList();
+
+        pullRequest.ShouldContain("branches: [main]");
+        pullRequest.ShouldContain("types: [opened, synchronize, reopened, ready_for_review]");
+        push.ShouldContain("branches: [main]");
+        triggers.Any(line => line.TrimEnd() == "  workflow_dispatch:").ShouldBeTrue("ci.yml needs workflow_dispatch.");
+        triggers.Any(line => PathFilter().IsMatch(line)).ShouldBeFalse("A path filter would skip the workflow and report no check.");
+
+        var concurrency = WorkflowText.Section(lines, "concurrency").Select(line => line.Trim()).ToList();
+        concurrency.ShouldContain("group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}");
+        concurrency.ShouldContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+    }
+
+    [Fact]
+    public void GateCheckNameCarriesTheMode()
+    {
+        var gate = GateJob();
+
+        gate.Lines.Select(line => line.Trim()).ShouldContain("name: gate (${{ needs.classify.outputs.mode }})");
+        gate.Lines.Select(line => line.Trim()).ShouldContain("needs: classify");
+        gate.Lines.Select(line => line.Trim()).ShouldContain("runs-on: ubuntu-24.04");
+    }
+
+    [Fact]
+    public void GateStepsFollowOpsOrder()
+    {
+        var names = WorkflowText.StepNames(GateJob().Lines);
+
+        var stages = names
+            .Select(name => StageDigit().Match(name))
+            .Where(match => match.Success)
+            .Select(match => int.Parse(match.Groups["stage"].Value, System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        stages.ShouldBe([.. stages.Order()], "Stage digits in step names must never decrease.");
+
+        var positions = RequiredDotnetSteps.Select(name => names.ToList().IndexOf(name)).ToList();
+        positions.ShouldAllBe(position => position >= 0, "A required .NET step is missing from the gate job.");
+        positions.ShouldBe([.. positions.Order()], "The .NET steps must run in the OPS-02 order.");
+    }
+
+    [Fact]
+    public void IntegrationTestsRunOnlyInFullModeAgainstTheContainer()
+    {
+        var step = WorkflowText.Steps(GateJob().Lines)
+            .Single(candidate => WorkflowText.StepName(candidate) == "3 integration tests")
+            .Select(line => line.Trim())
+            .ToList();
+
+        step.ShouldContain("if: needs.classify.outputs.mode == 'full'");
+        step.ShouldContain("CSPS_TEST_SQL: container");
+    }
+
+    [Fact]
+    public void ContainerImageMatchesTheFixture()
+    {
+        var fixture = ContainerImageLiteral().Match(File.ReadAllText(RepoRoot.PathOf("tests/Csps.Testing/SqlServerInstance.cs")));
+        fixture.Success.ShouldBeTrue("SqlServerInstance.ContainerImage literal not found.");
+
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Lines(path)
+                .SelectMany(line => SqlImage().Matches(line).Select(match => match.Value))
+                .Where(image => !string.Equals(image, fixture.Groups["image"].Value, StringComparison.Ordinal))
+                .Select(image => $"{path}: {image}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("A workflow must use the same SQL Server image as the test fixture.");
+    }
+
+    private static WorkflowJob GateJob()
+    {
+        var gate = WorkflowText.Jobs(WorkflowText.Lines(CiPath)).SingleOrDefault(job => job.Id == "gate");
+        gate.ShouldNotBeNull("ci.yml needs a job with the id gate.");
+        return gate;
+    }
+
+    private static bool IsApprovedPin(string value)
+    {
+        if (LocalWorkflow().IsMatch(value))
+        {
+            return true;
+        }
+
+        var match = ShaPin().Match(value);
+        return match.Success
+            && ApprovedActions.TryGetValue(match.Groups["pin"].Value, out var version)
+            && string.Equals(version, match.Groups["version"].Value, StringComparison.Ordinal);
+    }
+
+    [GeneratedRegex(@"^\./\.github/workflows/[A-Za-z0-9._-]+\.yml$", RegexOptions.CultureInvariant)]
+    private static partial Regex LocalWorkflow();
+
+    [GeneratedRegex(@"^(?<pin>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}) # (?<version>v\d+\.\d+\.\d+)$", RegexOptions.CultureInvariant)]
+    private static partial Regex ShaPin();
+
+    [GeneratedRegex(@"\b(?:read-all|write-all)\b", RegexOptions.CultureInvariant)]
+    private static partial Regex BroadPermission();
+
+    [GeneratedRegex(@"^    timeout-minutes: \d+\s*$", RegexOptions.CultureInvariant)]
+    private static partial Regex JobTimeout();
+
+    [GeneratedRegex(@"^    uses:", RegexOptions.CultureInvariant)]
+    private static partial Regex JobUses();
+
+    [GeneratedRegex(@"^\s*(?:- )?uses:", RegexOptions.CultureInvariant)]
+    private static partial Regex UsesKey();
+
+    [GeneratedRegex(@"^\s*runs-on:\s*(?<runner>\S.*?)\s*$", RegexOptions.CultureInvariant)]
+    private static partial Regex RunsOn();
+
+    [GeneratedRegex(@"^[^#]*\bpull_request_target\b", RegexOptions.CultureInvariant)]
+    private static partial Regex PullRequestTarget();
+
+    [GeneratedRegex(@"\$\{\{\s*github\.event\b", RegexOptions.CultureInvariant)]
+    private static partial Regex EventExpression();
+
+    [GeneratedRegex(@"\$\{\{\s*inputs\.", RegexOptions.CultureInvariant)]
+    private static partial Regex InputsExpression();
+
+    [GeneratedRegex(@"\$\{\{\s*github\.head_ref\b", RegexOptions.CultureInvariant)]
+    private static partial Regex HeadRefExpression();
+
+    [GeneratedRegex(@"^\s*paths(?:-ignore)?\s*:", RegexOptions.CultureInvariant)]
+    private static partial Regex PathFilter();
+
+    [GeneratedRegex(@"^(?<stage>[1-7]) ", RegexOptions.CultureInvariant)]
+    private static partial Regex StageDigit();
+
+    [GeneratedRegex("ContainerImage\\s*=\\s*\"(?<image>[^\"]+)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex ContainerImageLiteral();
+
+    [GeneratedRegex(@"mcr\.microsoft\.com/mssql/server:[^\s""']+", RegexOptions.CultureInvariant)]
+    private static partial Regex SqlImage();
+}
