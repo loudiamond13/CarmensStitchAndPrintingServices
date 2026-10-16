@@ -28,6 +28,19 @@ public sealed partial class RepoRulesTests
         "/gsd-secure-phase",
     ];
 
+    // The ruleset's required checks (owner decision 2026-10-16): the one gate result plus every Hygiene and Security check.
+    private static readonly string[] RequiredChecks =
+    [
+        "gate result",
+        "secret scan",
+        "commit messages",
+        "actionlint",
+        "zizmor",
+        "dependency review",
+        "analyze (csharp)",
+        "analyze (javascript-typescript)",
+    ];
+
     private static readonly string[] LocalGateCommands =
     [
         "dotnet build Csps.slnx",
@@ -210,7 +223,47 @@ public sealed partial class RepoRulesTests
             .GetProperty("parameters");
         statusChecks.GetProperty("strict_required_status_checks_policy").GetBoolean().ShouldBeTrue();
         statusChecks.GetProperty("required_status_checks").EnumerateArray()
-            .Select(check => check.GetProperty("context").GetString()).ShouldBe(["gate (full)"]);
+            .Select(check => check.GetProperty("context").GetString()).ShouldBe(RequiredChecks);
+    }
+
+    // Every required check is reported on every pull request: the workflow triggers on pull_request with no path filter,
+    // and the job has no condition that could skip it (a skipped required check would let a pull request through).
+    [Fact]
+    public void EveryRequiredCheckRunsOnEveryPullRequest()
+    {
+        (string Context, string File, string NameLine, string? ExtraLine)[] expected =
+        [
+            ("gate result", "ci.yml", "name: gate result", null),
+            ("secret scan", "hygiene.yml", "name: secret scan", null),
+            ("commit messages", "hygiene.yml", "name: commit messages", null),
+            ("actionlint", "hygiene.yml", "name: actionlint", null),
+            ("zizmor", "hygiene.yml", "name: zizmor", null),
+            ("dependency review", "hygiene.yml", "name: dependency review", null),
+            ("analyze (csharp)", "codeql.yml", "name: analyze (${{ matrix.language }})", "- language: csharp"),
+            ("analyze (javascript-typescript)", "codeql.yml", "name: analyze (${{ matrix.language }})", "- language: javascript-typescript"),
+        ];
+        expected.Select(item => item.Context).ShouldBe(RequiredChecks, "This table and the ruleset list the same checks.");
+
+        foreach (var (context, file, nameLine, extraLine) in expected)
+        {
+            var lines = WorkflowText.Lines($".github/workflows/{file}");
+            lines.ShouldNotBeEmpty($"{file} must exist.");
+            var trimmed = lines.Select(line => line.Trim()).ToList();
+
+            WorkflowText.Section(lines, "on").Select(line => line.Trim()).ShouldContain("pull_request:", $"{context}: {file} must trigger on pull_request.");
+            trimmed.ShouldNotContain(line => line.StartsWith("paths:", StringComparison.Ordinal) || line.StartsWith("paths-ignore:", StringComparison.Ordinal), $"{context}: a path filter would skip the check.");
+
+            var job = WorkflowText.Jobs(lines).Single(candidate => candidate.Lines.Any(line => line.Trim() == nameLine));
+            if (extraLine is not null)
+            {
+                trimmed.ShouldContain(extraLine, $"{context}: the matrix must include this language.");
+            }
+
+            var conditions = job.Lines.Select(line => line.Trim()).Where(line => line.StartsWith("if:", StringComparison.Ordinal)).ToList();
+            conditions.ShouldAllBe(
+                condition => condition == "if: github.event_name == 'pull_request'" || condition == "if: ${{ always() }}",
+                $"{context}: only a pull request condition or always() may guard a required job.");
+        }
     }
 
     [Theory]

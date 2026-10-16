@@ -283,6 +283,40 @@ public sealed partial class CiWorkflowTests
         gate.Lines.Select(line => line.Trim()).ShouldContain("runs-on: ubuntu-24.04");
     }
 
+    // The ruleset requires this one name. It must pass for a full or docs run (and the package run on main) only, so a
+    // docs-only pull request can merge, a draft cannot, and a skipped or failed gate never counts as success.
+    [Fact]
+    public void GateResultJobIsTheRequiredCheck()
+    {
+        var result = JobById("result");
+        var lines = result.Lines.Select(line => line.Trim()).ToList();
+
+        lines.ShouldContain("name: gate result");
+        lines.ShouldContain("needs: [classify, gate]");
+        lines.ShouldContain("if: ${{ always() }}", "The result runs even when the gate failed or was skipped, so it can report that.");
+        lines.ShouldContain("runs-on: ubuntu-24.04");
+        lines.ShouldContain("permissions: {}");
+        lines.ShouldNotContain(line => line.StartsWith("uses:", StringComparison.Ordinal), "The result job runs no third-party code.");
+
+        var step = WorkflowText.Steps(result.Lines).Single().Select(line => line.Trim()).ToList();
+        step.ShouldContain("MODE: ${{ needs.classify.outputs.mode }}", "Event and job data reach the script through env only (CWE-77).");
+        step.ShouldContain("GATE: ${{ needs.gate.result }}");
+
+        var script = string.Join('\n', step);
+        script.ShouldContain("full:success|docs:success|package:success)");
+        script.ShouldNotContain("fast:success", Case.Sensitive, "A draft run never satisfies the required check.");
+        script.ShouldContain("exit 1");
+    }
+
+    [Fact]
+    public void GateKeepsOneNamePerModeAndNeverNamesItselfLikeTheResult()
+    {
+        // ci-classify accepts only a run named exactly "gate (full)" as proof of a full run (Pattern 9), so the result
+        // job must never share that name and the gate job must keep the mode in its name.
+        JobById("result").Lines.Select(line => line.Trim()).ShouldNotContain("name: gate (full)");
+        GateJob().Lines.Select(line => line.Trim()).ShouldContain("name: gate (${{ needs.classify.outputs.mode }})");
+    }
+
     [Fact]
     public void GateStepsFollowOpsOrder()
     {
