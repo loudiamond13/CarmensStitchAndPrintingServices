@@ -499,8 +499,9 @@ const OVERSIZED_BODY_BYTES = 1_500_000;
 const CLOSED_WHILE_SENDING = new Set(['ECONNRESET', 'EPIPE', 'ECONNABORTED']);
 
 /**
- * A 1.5 MB POST is never accepted. A ProblemDetails answer means the app refused it; any other answer (or a closed
- * connection) means IIS refused it before the app saw it.
+ * A 1.5 MB POST must reach the app (the IIS backstop is 2 MiB) and get its 413. Any other status proves nothing, because an
+ * anonymous POST to an unknown API route is answered 401 or 404 with or without a body limit. A connection closed while the
+ * body was sent also counts as a refusal.
  * @param {Context} ctx
  * @returns {Promise<Verdict>}
  */
@@ -520,11 +521,11 @@ async function checkRequestLimit(ctx) {
       ? { ok: true, detail: `refused by IIS (connection closed while the body was sent: ${reason})` }
       : { ok: false, detail: `no answer (${reason}), so no refusal was seen` };
   }
-  if (response.status >= 200 && response.status < 300) {
-    return { ok: false, detail: `a 1.5 MB POST was answered ${String(response.status)}, expected a refusal` };
+  if (response.status !== 413) {
+    return { ok: false, detail: `a 1.5 MB POST was answered ${String(response.status)}, expected 413` };
   }
   const layer = mediaType(response) === 'application/problem+json' ? 'the app' : 'IIS';
-  return { ok: true, detail: `refused by ${layer} with ${String(response.status)}` };
+  return { ok: true, detail: `refused by ${layer} with 413` };
 }
 
 /** The smoke checks in the order they run. */
