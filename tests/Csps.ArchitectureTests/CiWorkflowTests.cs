@@ -10,6 +10,7 @@ public sealed partial class CiWorkflowTests
 {
     private const string CiPath = ".github/workflows/ci.yml";
     private const string WeeklyPath = ".github/workflows/weekly.yml";
+    private const string DeployPath = ".github/workflows/deploy.yml";
 
     // Owner-approved actions (plan 03-01 Task 1, 2026-10-15): "owner/repo@commit" to its version comment.
     private static readonly Dictionary<string, string> ApprovedActions = new(StringComparer.Ordinal)
@@ -508,13 +509,16 @@ public sealed partial class CiWorkflowTests
     [Fact]
     public void NoWorkflowCarriesAProductionSecret()
     {
+        // deploy.yml is the one workflow that holds the deploy credentials; DeployWorkflowTests pins how it uses them.
         var offenders = WorkflowText.Files()
+            .Where(path => path != DeployPath)
             .SelectMany(path => WorkflowText.Lines(path)
                 .Where(line => ProductionSecret().IsMatch(line))
                 .Select(line => $"{path}: {line.Trim()}"))
             .ToList();
 
         offenders.ShouldBeEmpty("CI uses only its own loopback container and holds no production secret or deploy credential (T-03-43).");
+        WorkflowText.Files().ShouldContain(DeployPath, "The exemption above names the deploy workflow, which must exist.");
     }
 
     [Fact]

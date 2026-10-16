@@ -1,0 +1,84 @@
+# OPS-04 / D-11: the production deploy. The owner pressing Run is the approval; nothing deploys on a merge.
+name: Deploy
+
+# D-11: workflow_dispatch is the only trigger (the Run workflow button, or `gh workflow run deploy.yml --ref main`).
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: deploy puts a CI-passed build live; online removes a stuck offline page; hostprobe is the one-time host check
+        type: choice
+        options:
+          - deploy
+          - online
+          - hostprobe
+        default: deploy
+      sha:
+        description: Full 40-character commit sha of a main build that passed CI (needed for deploy)
+        type: string
+        default: ""
+      dry_run:
+        description: Read-only check of the login, the port and the certificate; nothing is changed
+        type: boolean
+        default: false
+      probe_rewrite:
+        description: hostprobe only, also tests whether the host has URL Rewrite
+        type: boolean
+        default: false
+
+# OPS-04: the token starts with no rights; the one job asks for what it needs.
+permissions: {}
+
+# T-03-51: two deploys never run at once, and a running deploy is never cancelled half way.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy
+    # D-11: the job runs only on main, so a dispatch from any other branch does nothing.
+    if: github.ref == 'refs/heads/main'
+    # OPS-04: Web Deploy (msdeploy) ships with the Windows runner image.
+    runs-on: windows-2025
+    timeout-minutes: 30
+    # T-03-49: contents write creates the deploy release, actions read finds the CI package.
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # T-03-SC: deploy.mjs uses Node built-ins only, so no npm package is installed or cached.
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
+      # OPS-04: only the one-time host probe publishes a .NET project.
+      - name: setup dotnet
+        if: inputs.action == 'hostprobe'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # T-03-48: dispatch inputs and secrets reach the script through env only (CWE-77); the script validates the sha.
+      - name: deploy
+        env:
+          INPUT_ACTION: ${{ inputs.action }}
+          INPUT_SHA: ${{ inputs.sha }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_PROBE_REWRITE: ${{ inputs.probe_rewrite }}
+          WEBDEPLOY_SERVER: ${{ secrets.WEBDEPLOY_SERVER }}
+          WEBDEPLOY_SITE: ${{ secrets.WEBDEPLOY_SITE }}
+          WEBDEPLOY_USERNAME: ${{ secrets.WEBDEPLOY_USERNAME }}
+          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}
+          WEBDEPLOY_CERT_SHA256: ${{ secrets.WEBDEPLOY_CERT_SHA256 }}
+          HOSTPROBE_KEY: ${{ secrets.HOSTPROBE_KEY }}
+          SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node web/scripts/deploy.mjs
