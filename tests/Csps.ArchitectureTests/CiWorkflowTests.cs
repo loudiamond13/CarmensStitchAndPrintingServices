@@ -23,15 +23,35 @@ public sealed partial class CiWorkflowTests
 
     private static readonly string[] PinnedRunners = ["ubuntu-24.04", "windows-2025"];
 
-    // OPS-02 order of the .NET steps in the gate job.
-    private static readonly string[] RequiredDotnetSteps =
+    // OPS-02 order of every step in the gate job (stage digit first, then the step).
+    private static readonly string[] RequiredGateSteps =
     [
         "1 restore (locked)",
+        "1 npm ci",
+        "1 audits",
         "2 build",
         "2 format check",
         "3 unit tests",
         "3 integration tests",
         "3 architecture tests",
+        "4 web typecheck",
+        "4 web lint",
+        "4 web prettier",
+        "4 web vitest + coverage",
+        "4 openapi types check",
+        "5 web build",
+        "5 web budget build",
+        "5 sql container",
+        "5 test secrets",
+        "5 playwright browsers",
+        "5 playwright browsers all engines",
+        "5 playwright",
+        "5 playwright all engines",
+        "5 lighthouse",
+        "6 coverage gate",
+        "6 web licenses",
+        "6 web notices",
+        "6 nuget licenses + notices",
     ];
 
     // Each detector is paired with a sample it must catch, so a broken pattern cannot pass silently.
@@ -248,9 +268,9 @@ public sealed partial class CiWorkflowTests
             .ToList();
         stages.ShouldBe([.. stages.Order()], "Stage digits in step names must never decrease.");
 
-        var positions = RequiredDotnetSteps.Select(name => names.ToList().IndexOf(name)).ToList();
-        positions.ShouldAllBe(position => position >= 0, "A required .NET step is missing from the gate job.");
-        positions.ShouldBe([.. positions.Order()], "The .NET steps must run in the OPS-02 order.");
+        var positions = RequiredGateSteps.Select(name => names.ToList().IndexOf(name)).ToList();
+        positions.ShouldAllBe(position => position >= 0, "A required gate step is missing from the gate job.");
+        positions.ShouldBe([.. positions.Order()], "The gate steps must run in the OPS-02 order.");
     }
 
     [Fact]
@@ -369,6 +389,133 @@ public sealed partial class CiWorkflowTests
         StepText("1 audits").ShouldContain("npm --prefix tools/openapi-gen audit --audit-level=low");
     }
 
+    [Fact]
+    public void GateRunsTheWholeOpsOrder()
+    {
+        var names = WorkflowText.StepNames(GateJob().Lines).ToList();
+
+        RequiredGateSteps.ShouldAllBe(name => names.Contains(name), "Every OPS-02 step must be in the gate job.");
+
+        var stages = names
+            .Select(name => StageDigit().Match(name))
+            .Where(match => match.Success)
+            .Select(match => int.Parse(match.Groups["stage"].Value, System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        stages.Distinct().Order().ToList().ShouldBe([1, 2, 3, 4, 5, 6]);
+        stages.ShouldBe([.. stages.Order()], "Stage digits in step names must never decrease.");
+    }
+
+    [Fact]
+    public void WebScriptsKeepVerifyOrder()
+    {
+        var verify = File.ReadAllText(RepoRoot.PathOf("web/scripts/verify.mjs"));
+        var stepsBlock = VerifySteps().Match(verify);
+        stepsBlock.Success.ShouldBeTrue("The STEPS array was not found in web/scripts/verify.mjs.");
+        var verifySteps = Regex.Matches(stepsBlock.Groups["steps"].Value, "'(?<script>[^']+)'")
+            .Select(match => match.Groups["script"].Value)
+            .ToList();
+        verifySteps.ShouldNotBeEmpty();
+
+        var called = WorkflowText.Steps(GateJob().Lines)
+            .SelectMany(step => WorkflowText.RunBlocks(step))
+            .SelectMany(block => WebScript().Matches(block).Select(match => match.Groups["script"].Value))
+            .Where(verifySteps.Contains)
+            .ToList();
+
+        called.ShouldBe(verifySteps, customMessage: "The gate runs the web scripts in the order of verify.mjs STEPS, each once.");
+    }
+
+    [Fact]
+    public void E2eUsesChromiumAndPhone()
+    {
+        StepLines("5 playwright").ShouldContain(line => line.StartsWith("if:", StringComparison.Ordinal)
+            && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)
+            && line.Contains("!inputs.all-engines", StringComparison.Ordinal));
+        StepText("5 playwright").ShouldContain("npm --prefix web run e2e -- --project chromium --project pixel");
+        StepText("5 playwright").ShouldContain("CSPS_E2E_CONNECTION=");
+
+        StepLines("5 playwright all engines").ShouldContain(line => line.StartsWith("if:", StringComparison.Ordinal)
+            && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)
+            && line.Contains("&& inputs.all-engines", StringComparison.Ordinal));
+        StepText("5 playwright all engines").ShouldContain("npm --prefix web run e2e");
+        StepText("5 playwright all engines").ShouldNotContain("--project");
+        StepText("5 playwright all engines").ShouldContain("CSPS_E2E_CONNECTION=");
+    }
+
+    [Fact]
+    public void ContainerIsLoopbackAndSecretIsGenerated()
+    {
+        var fixture = ContainerImageLiteral().Match(File.ReadAllText(RepoRoot.PathOf("tests/Csps.Testing/SqlServerInstance.cs")));
+        fixture.Success.ShouldBeTrue();
+
+        var container = StepText("5 sql container");
+        container.ShouldContain("docker run");
+        container.ShouldContain("127.0.0.1:1433:1433");
+        container.ShouldContain(fixture.Groups["image"].Value);
+        container.ShouldContain("openssl rand");
+        container.ShouldContain("::add-mask::");
+        container.ShouldContain("-e MSSQL_SA_PASSWORD ");
+        container.ShouldContain("ACCEPT_EULA=Y");
+
+        foreach (var path in WorkflowText.Files())
+        {
+            var lines = WorkflowText.Lines(path);
+            lines.ShouldNotContain(line => PublishedPort().IsMatch(line), $"{path}: a published container port must bind 127.0.0.1 (T-03-41).");
+            lines.ShouldNotContain(line => LiteralPassword().IsMatch(line), $"{path}: no literal password; it is generated in the run (T-03-41).");
+        }
+
+        LiteralPassword().IsMatch("MSSQL_SA_PASSWORD=hunter2").ShouldBeTrue();
+        LiteralPassword().IsMatch("User Id=sa;Password=hunter2;").ShouldBeTrue();
+        LiteralPassword().IsMatch("Password=${SQL_SA_PASSWORD};").ShouldBeFalse();
+        PublishedPort().IsMatch("-p 1433:1433").ShouldBeTrue();
+        PublishedPort().IsMatch("-p 127.0.0.1:1433:1433").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void HeavyStepsRunOnlyInFullMode()
+    {
+        var heavy = WorkflowText.Steps(GateJob().Lines)
+            .Where(step => WorkflowText.StepName(step) is { } name
+                && (name.StartsWith("5 ", StringComparison.Ordinal) || name.StartsWith("6 ", StringComparison.Ordinal)))
+            .ToList();
+        heavy.ShouldNotBeEmpty();
+
+        var offenders = heavy
+            .Where(step => !step.Any(line => line.Trim().StartsWith("if:", StringComparison.Ordinal)
+                && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)))
+            .Select(WorkflowText.StepName)
+            .ToList();
+
+        offenders.ShouldBeEmpty("Stage 5 and 6 steps run only in full mode (D-14).");
+    }
+
+    [Fact]
+    public void FailureReportsAreUploadedForSevenDaysOnly()
+    {
+        var upload = WorkflowText.Steps(GateJob().Lines)
+            .Single(step => step.Any(line => line.Contains("actions/upload-artifact@", StringComparison.Ordinal)))
+            .Select(line => line.Trim())
+            .ToList();
+
+        upload.ShouldContain(line => line.StartsWith("if: failure()", StringComparison.Ordinal));
+        upload.ShouldContain("retention-days: 7");
+        upload.ShouldContain("web/playwright-report");
+        upload.ShouldContain("web/test-results");
+        upload.ShouldNotContain(line => line.Contains("secrets", StringComparison.OrdinalIgnoreCase), "User-secrets are never uploaded (T-03-42).");
+    }
+
+    [Fact]
+    public void NoWorkflowCarriesAProductionSecret()
+    {
+        var offenders = WorkflowText.Files()
+            .SelectMany(path => WorkflowText.Lines(path)
+                .Where(line => ProductionSecret().IsMatch(line))
+                .Select(line => $"{path}: {line.Trim()}"))
+            .ToList();
+
+        offenders.ShouldBeEmpty("CI uses only its own loopback container and holds no production secret or deploy credential (T-03-43).");
+    }
+
     private static WorkflowJob JobById(string id)
     {
         var job = WorkflowText.Jobs(WorkflowText.Lines(CiPath)).SingleOrDefault(candidate => candidate.Id == id);
@@ -439,6 +586,21 @@ public sealed partial class CiWorkflowTests
 
     [GeneratedRegex(@"^\s*paths(?:-ignore)?\s*:", RegexOptions.CultureInvariant)]
     private static partial Regex PathFilter();
+
+    [GeneratedRegex(@"STEPS\s*=\s*Object\.freeze\(\[(?<steps>[^\]]*)\]", RegexOptions.CultureInvariant)]
+    private static partial Regex VerifySteps();
+
+    [GeneratedRegex(@"npm --prefix web run (?<script>[A-Za-z0-9:_-]+)", RegexOptions.CultureInvariant)]
+    private static partial Regex WebScript();
+
+    [GeneratedRegex(@"(?:^|\s)-p\s+(?!127\.0\.0\.1:)\S*\d+:\d+", RegexOptions.CultureInvariant)]
+    private static partial Regex PublishedPort();
+
+    [GeneratedRegex(@"(?:MSSQL_SA_PASSWORD|\bPassword)=(?!\$|""\$)\S", RegexOptions.CultureInvariant)]
+    private static partial Regex LiteralPassword();
+
+    [GeneratedRegex(@"secrets\.(?!GITHUB_TOKEN\b)|\b(?:MSDEPLOY|WEBDEPLOY|PRODUCTION)_\w*(?:SECRET|PASSWORD|TOKEN)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ProductionSecret();
 
     [GeneratedRegex(@"^(?<stage>[1-7]) ", RegexOptions.CultureInvariant)]
     private static partial Regex StageDigit();
