@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Csps.ArchitectureTests;
 
 /// <summary>Repository rules written down as files: code owners, the PR template and .gitignore (OPS-01, D-08, D-09, D-16).</summary>
@@ -88,8 +90,8 @@ public sealed partial class RepoRulesTests
         missing.ShouldBeEmpty("Each PRD item appears once, in PRD order.");
 
         var security = items.Single(item => item.Contains("Security", StringComparison.Ordinal));
-        security.ShouldContain("analyzers and ESLint clean");
-        security.ShouldContain("CodeQL is not available on the free private repo");
+        security.ShouldContain("analyzers and ESLint clean", Case.Sensitive);
+        security.ShouldContain("CodeQL is not available on the free private repo", Case.Sensitive);
         items.Count(item => item.Contains("CodeQL clean", StringComparison.Ordinal)).ShouldBe(0);
     }
 
@@ -119,10 +121,10 @@ public sealed partial class RepoRulesTests
 
         lines.ShouldNotBeEmpty();
         var first = lines[0];
-        first.ShouldStartWith("<!--");
-        first.ShouldContain("Created:");
-        first.ShouldContain("Updated:");
-        first.TrimEnd().ShouldEndWith("-->");
+        first.ShouldStartWith("<!--", Case.Sensitive);
+        first.ShouldContain("Created:", Case.Sensitive);
+        first.ShouldContain("Updated:", Case.Sensitive);
+        first.TrimEnd().ShouldEndWith("-->", Case.Sensitive);
         first.ShouldNotBe("---");
     }
 
@@ -144,6 +146,68 @@ public sealed partial class RepoRulesTests
         var missing = PrdGitignoreEntries.Where(entry => !lines.Contains(entry)).ToList();
 
         missing.ShouldBeEmpty("CSPS-PRD.md section 18 entries must stay in .gitignore.");
+    }
+
+    [Fact]
+    public void BranchRulesDocCoversTheProcessGate()
+    {
+        var lines = ReadLines("docs/operations/branch-rules.md");
+        var text = string.Join(Environment.NewLine, lines);
+
+        string[] headings =
+        [
+            "## What is enforced today",
+            "## Rules written down for later",
+            "## How to merge",
+            "## When CI minutes run out",
+        ];
+        headings.Where(heading => !lines.Contains(heading)).ShouldBeEmpty("Every section is present.");
+
+        string[] names = ["Merge-PullRequest.ps1", "`gate (full)`", "D-08", "D-16"];
+        names.Where(name => !text.Contains(name, StringComparison.Ordinal)).ShouldBeEmpty("Every key name is mentioned.");
+    }
+
+    [Fact]
+    public void RulesetIsReadyToApply()
+    {
+        var path = RepoRoot.PathOf("docs/operations/main-ruleset.json");
+        File.Exists(path).ShouldBeTrue("docs/operations/main-ruleset.json is missing.");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var root = document.RootElement;
+
+        root.GetProperty("name").GetString().ShouldBe("main");
+        root.GetProperty("target").GetString().ShouldBe("branch");
+        root.GetProperty("enforcement").GetString().ShouldBe("active");
+        root.GetProperty("conditions").GetProperty("ref_name").GetProperty("include")
+            .EnumerateArray().Select(item => item.GetString()).ShouldBe(["~DEFAULT_BRANCH"]);
+        root.GetProperty("bypass_actors").GetArrayLength().ShouldBe(0, "No one bypasses the rules.");
+
+        var rules = root.GetProperty("rules").EnumerateArray().ToList();
+        var types = rules.Select(rule => rule.GetProperty("type").GetString()).ToList();
+        types.ShouldContain("required_linear_history");
+        types.ShouldContain("deletion");
+        types.ShouldContain("non_fast_forward");
+
+        var pullRequest = rules.Single(rule => rule.GetProperty("type").GetString() == "pull_request");
+        pullRequest.GetProperty("parameters").GetProperty("required_approving_review_count").GetInt32().ShouldBe(0);
+
+        var statusChecks = rules.Single(rule => rule.GetProperty("type").GetString() == "required_status_checks")
+            .GetProperty("parameters");
+        statusChecks.GetProperty("strict_required_status_checks_policy").GetBoolean().ShouldBeTrue();
+        statusChecks.GetProperty("required_status_checks").EnumerateArray()
+            .Select(check => check.GetProperty("context").GetString()).ShouldBe(["gate (full)"]);
+    }
+
+    [Theory]
+    [InlineData("CLAUDE.md")]
+    [InlineData(".claude/CLAUDE.md")]
+    public void ClaudeFilesStateTheMergeRule(string file)
+    {
+        var text = string.Join(Environment.NewLine, ReadLines(file));
+
+        text.ShouldContain("Merge-PullRequest.ps1", Case.Sensitive);
+        text.ShouldContain("never `gh pr merge`", Case.Sensitive);
     }
 
     // A missing file reads as no lines, so a test fails on its assertion rather than on an IO error.
