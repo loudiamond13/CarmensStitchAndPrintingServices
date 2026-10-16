@@ -1,12 +1,15 @@
 // @vitest-environment node
 // The production build output is CSP-safe and carries the CSPS token theme (WEB-01, D-33, D-35, T-02-05, T-02-06).
 // Every check reads the git-ignored web root that `npm run build` writes. A missing file fails an expect, never a
-// thrown error, so the RED run fails on the behaviour itself (L-26).
+// thrown error, so the RED run fails on the behaviour itself (L-26). On a clean checkout (CI) nothing has built yet,
+// because the build step follows the tests in the pipeline order, so the suite builds once when index.html is missing.
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
+const webDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const webRoot = fileURLToPath(new URL('../../../src/Csps.Server/wwwroot/', import.meta.url));
 const assetsDir = join(webRoot, 'assets');
 
@@ -26,6 +29,18 @@ const builtCss = (): string =>
     .join('\n');
 
 describe('production build output in src/Csps.Server/wwwroot', () => {
+  beforeAll(() => {
+    if (!existsSync(join(webRoot, 'index.html'))) {
+      // Vitest sets NODE_ENV=test, which would build the development React bundle and break the size budgets.
+      const env = { ...process.env, NODE_ENV: 'production' };
+      spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build'], {
+        cwd: webDirectory,
+        env,
+        stdio: 'inherit',
+      });
+    }
+  }, 300_000);
+
   it('writes index.html', () => {
     expect(existsSync(join(webRoot, 'index.html'))).toBe(true);
   });
@@ -112,6 +127,38 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   it.each(['CSPS Admin', 'returnUrl'])('ships the guarded admin app: an asset carries "%s"', (copy) => {
     const files = listAll(webRoot).filter((name) => name.endsWith('.js'));
     expect(files.filter((name) => readText(join(webRoot, name)).includes(copy)).length).toBeGreaterThan(0);
+  });
+
+  // PERF-02: the scripts `/` loads (the entry and every modulepreload) carry no TanStack Query; it ships with the admin
+  // chunks. "No QueryClient set" is the production message of useQueryClient, so it marks the library's code.
+  const publicInitialScripts = (): string[] =>
+    [
+      ...indexHtml().matchAll(
+        /(?:<script\b[^>]*\ssrc|<link\b[^>]*rel="modulepreload"[^>]*\shref)="\/assets\/([^"]+\.js)"/g,
+      ),
+    ]
+      .map((match) => match[1] ?? '')
+      .filter((name) => name !== '');
+
+  it('loads the entry and its preloads, all present in /assets', () => {
+    const scripts = publicInitialScripts();
+    expect(scripts.length).toBeGreaterThan(1);
+    expect(scripts.filter((name) => !existsSync(join(assetsDir, name)))).toEqual([]);
+  });
+
+  it('keeps TanStack Query out of every script the public route loads first (PERF-02)', () => {
+    const scripts = publicInitialScripts();
+    expect(scripts.length).toBeGreaterThan(0);
+    expect(scripts.filter((name) => readText(join(assetsDir, name)).includes('No QueryClient set'))).toEqual([]);
+  });
+
+  it('still ships TanStack Query, in the admin chunks', () => {
+    const initial = new Set(publicInitialScripts());
+    const carriers = list(assetsDir).filter(
+      (name) => name.endsWith('.js') && readText(join(assetsDir, name)).includes('No QueryClient set'),
+    );
+    expect(carriers.length).toBeGreaterThan(0);
+    expect(carriers.filter((name) => initial.has(name))).toEqual([]);
   });
 
   it('ships no source map and no .vite folder (D-35)', () => {

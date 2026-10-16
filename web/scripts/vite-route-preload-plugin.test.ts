@@ -44,17 +44,13 @@ function bundleOf(...outputs: (Rollup.OutputChunk | Rollup.OutputAsset)[]): Roll
   return Object.fromEntries(outputs.map((output) => [output.fileName, output]));
 }
 
-/** The production shape: the entry, the two lazy public route chunks (the layout imports a shared chunk), the CSS. */
+/** The production shape: the entry, the lazy holding page chunk (it imports a shared chunk), the CSS. */
 function productionBundle(): Rollup.OutputBundle {
   return bundleOf(
     chunk('assets/index-A1.js', { isEntry: true, facadeModuleId: `${ROOT}/index.html` }),
-    chunk('assets/PublicLayout-B2.js', {
-      facadeModuleId: `${ROOT}/src/layouts/PublicLayout.tsx`,
-      imports: ['assets/index-A1.js', 'assets/shared-C3.js'],
-    }),
     chunk('assets/shared-C3.js', { imports: ['assets/index-A1.js'] }),
-    chunk('assets/PublicPlaceholderPage-D4.js', {
-      facadeModuleId: `${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx`,
+    chunk('assets/HoldingPage-D4.js', {
+      facadeModuleId: `${ROOT}/src/modules/public/pages/HoldingPage.tsx`,
       imports: ['assets/index-A1.js', 'assets/shared-C3.js'],
     }),
     { type: 'asset', fileName: 'assets/index-E5.css', source: '' } as unknown as Rollup.OutputAsset,
@@ -121,9 +117,8 @@ describe('routePreloadPlugin (PERF-02)', () => {
 
   it('preloads each route chunk and the chunks it imports, once each, in route order, never the entry', async () => {
     expect(await run(routePreloadPlugin(PUBLIC_ROUTE), productionBundle())).toEqual([
-      preload('/assets/PublicLayout-B2.js'),
+      preload('/assets/HoldingPage-D4.js'),
       preload('/assets/shared-C3.js'),
-      preload('/assets/PublicPlaceholderPage-D4.js'),
     ]);
   });
 
@@ -139,12 +134,14 @@ describe('routePreloadPlugin (PERF-02)', () => {
 
   it('prefixes the configured base path', async () => {
     const tags = await run(routePreloadPlugin(PUBLIC_ROUTE), productionBundle(), { base: '/app/', root: ROOT });
-    expect(tags[0]?.attrs?.href).toBe('/app/assets/PublicLayout-B2.js');
+    expect(tags[0]?.attrs?.href).toBe('/app/assets/HoldingPage-D4.js');
   });
 
   it('fails the build through this.error, naming the module, when a route module has no chunk of its own', async () => {
     const bundle = bundleOf(chunk('assets/index-A1.js', { isEntry: true }));
-    await expect(run(routePreloadPlugin(PUBLIC_ROUTE), bundle)).rejects.toThrow(/src\/layouts\/PublicLayout\.tsx/);
+    await expect(run(routePreloadPlugin(PUBLIC_ROUTE), bundle)).rejects.toThrow(
+      /src\/modules\/public\/pages\/HoldingPage\.tsx/,
+    );
   });
 
   it('fails when the hook runs without a bundle', async () => {

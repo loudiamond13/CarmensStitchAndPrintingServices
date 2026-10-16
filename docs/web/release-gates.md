@@ -1,6 +1,6 @@
 # Release gates: every check the web app must pass, and the order to run them
 
-*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-14T10:45:00-05:00*
+*Created: 2026-10-09T04:45:00-05:00 · Updated: 2026-10-16T14:00:00-05:00*
 
 This page lists every automated gate for the web app (Phase 2, plan 02-35), the command that runs it and the rule it passes on. Run them in the order of section 3 before `/gsd-verify-work`. A gate that fails is fixed in the code. **No gate is ever passed by loosening a limit, adding a tolerance or skipping a check.** If the only fix would change how an approved screen looks, its words or its accessibility structure, stop and take it to the owner (decision D-08).
 
@@ -26,7 +26,7 @@ This page lists every automated gate for the web app (Phase 2, plan 02-35), the 
 | Third-party notices | `npm --prefix web run notices:check` | `web/THIRD-PARTY-NOTICES.txt` matches the production dependencies (run `npm --prefix web run notices` and commit it when they change). | — |
 | Browser tests (E2E) | `npm --prefix web run e2e` | Every Playwright test passes in all seven projects: the five (chromium, firefox, webkit, Pixel 7, iPhone 15) plus the two Chromium scrollbar projects (`chromium-classic-scrollbars` and `chromium-overlay-scrollbars`), which run only `dialog-scrollbars.spec.ts`, with no console, page-error, CSP, failed-response or axe finding. | [e2e.md](e2e.md) |
 | Look-equality proof | `npm --prefix web run parity` (no filter: every group, the reduced-motion pass and the touch pass) | Every case is equal to the approved design in Chromium, Firefox and WebKit: computed styles and boxes, pixels (0 differing), zero axe and zero CSP findings on both sides. | [parity.md](parity.md) |
-| Lighthouse | `npm --prefix web run lighthouse` | On the production build served by the real host, mobile profile: every category (performance, accessibility, best practices, SEO) ≥ 0.95, LCP < 2000 ms, CLS < 0.05, TBT < 200 ms (the lab stand-in for INP). | section 2 |
+| Lighthouse | `npm --prefix web run lighthouse` | On the production build served by the real host, mobile profile: every category (performance, accessibility, best practices, SEO) ≥ 0.95, LCP < 2000 ms, CLS < 0.05, TBT < 200 ms (the lab stand-in for INP). **Temporary waiver (owner, 2026-10-16): LCP is measured and printed on every run but a miss does not fail the step until Phase 11 (`.planning/WINDOWS.md` entry 1). Every other limit still fails the step.** | section 2 |
 | API contract drift | `npm --prefix tools/openapi-gen run check` | The generated `web/src/types/api.generated.ts` matches the committed OpenAPI snapshot. | [api.md](api.md) |
 | .NET tests | `dotnet test --solution Csps.slnx` | Every .NET test passes (architecture, authorization matrix, API, migrations). | `docs/development.md` |
 
@@ -62,6 +62,8 @@ The JSON report is written to `artifacts/lighthouse/report.json`. The whole `art
 
 The check (`web/scripts/lighthouse-assert.mjs`) reads the raw numbers and never rounds them: a score of 0.95 passes and 0.949 fails; LCP 1999 ms passes and 2000 ms fails. A category or metric that is missing or has no value fails. It prints one line per category and metric, then every failure, categories first and then metrics, so one run shows everything that needs fixing.
 
+**Temporary LCP waiver (remove in Phase 11).** The owner decided on 2026-10-16 that the public LCP (about 2.1 to 2.2 s against the 2000 ms limit) is reported but does not fail the build until the Phase 11 public pages revisit fonts. It is one named list, `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs`, used by `assertGateReport`, which both CI and `npm --prefix web run lighthouse` run. A waived miss prints `WAIVED metric LCP ... (report only until Phase 11, WINDOWS.md entry 1)` and appears in the GitHub run summary with the value and the 2000 ms target. The target itself is unchanged, a missing or empty LCP value still fails, and `lighthouse-assert.test.ts` fails if any other category or metric stops being a hard failure. To end the waiver, empty that list.
+
 ## 3. The order to run them before `/gsd-verify-work`
 
 Run them one after another, not in parallel: they share CPU, and the E2E and Lighthouse runs share port 5199 and its lock.
@@ -83,4 +85,4 @@ These are open questions or follow-ups, logged in `.planning/phases/02-web-found
 - **Tablet list tables, 22px at 768px (owner item).** The visually hidden "Actions" header of a list table that scrolls inside its frame lets the page scroll sideways. No Phase 2 page shows such a list outside a showcase frame, and `@responsive` finds no sideways scroll on any page at 768px; `web/visual/lists-overflow.spec.ts` records the list's own result.
 - **Footer headings h1 → h4 (owner item).** Lighthouse's best-practice audit "heading order" flags the approved footer column titles; the accessibility score is 0.98, above the 0.95 gate.
 - **Dialogs on phones.** `@keyboard` runs axe over the open dialog only: the page behind a phone bottom sheet is not `inert`, so axe measures the half-covered buttons behind it (`target-size`). Follow-up for Phase 4.
-- **Lighthouse LCP margin.** LCP measures 1958–1965 ms against the 2000 ms limit. About 8 KB more on the public route's first load would fail it; the follow-up options are in deferred-items.md. Never raise the limit.
+- **Lighthouse LCP is over the limit (open since plan 03-09).** LCP measured 1958–1965 ms in Phase 2. On 2026-10-16 `npm run lighthouse` measures about 2187 ms against the 2000 ms limit, with FCP about 1960 ms. Quick task 261016 moved TanStack Query out of the public entry (public initial JS 128.79 KB to 119.56 KB gzip) and the number did not move: JavaScript costs about 5 ms per gzip KB here, and the web fonts the first paint needs (about 81 KB, Archivo alone about 230 ms) are the larger part. The measurements and the options are in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`. Never raise the limit.

@@ -1,4 +1,4 @@
-// The root route owns the query client, and the client is cleared when its owner ends or changes, whichever routes are
+// The query route owns the query client, and the client is cleared when its owner ends or changes, whichever routes are
 // mounted at that moment (shared workstation, WR-14, CWE-200).
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
@@ -9,9 +9,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { sessionsListKey } from '@/lib/query/keys';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { Root } from './Root';
+import { QueryRoot } from './QueryRoot';
 
-// The client Root created, as seen from the page that is mounted.
+// The client QueryRoot created, as seen from the page that is mounted.
 const seen: { client?: QueryClient | undefined } = {};
 
 /** Stands in for an admin page that fills the cache. */
@@ -37,7 +37,7 @@ function renderApp() {
   const router = createMemoryRouter(
     [
       {
-        Component: Root,
+        Component: QueryRoot,
         children: [
           { path: '/admin/seed', Component: SeedingPage },
           { path: '/admin/reset-password', Component: PlainPage },
@@ -57,7 +57,7 @@ afterEach(() => {
   seen.client = undefined;
 });
 
-describe('Root cache owner', () => {
+describe('QueryRoot cache owner', () => {
   it('empties the cache on sign-out after the admin page unmounted', async () => {
     acceptSession(sessionResponse());
     const { router } = renderApp();
@@ -119,5 +119,23 @@ describe('Root cache owner', () => {
     });
 
     expect(client?.getQueryData(sessionsListKey)).toBeDefined();
+  });
+
+  it('gives its routes one query client with the shared defaults (no retries, 30 s stale time)', async () => {
+    function Probe() {
+      const client = useQueryClient();
+      const defaults = client.getDefaultOptions().queries;
+      return <p>{`retry ${String(defaults?.retry)}, stale ${String(defaults?.staleTime)}`}</p>;
+    }
+    const router = createMemoryRouter([{ Component: QueryRoot, children: [{ index: true, Component: Probe }] }]);
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText('retry false, stale 30000')).toBeInTheDocument();
+  });
+
+  it('re-renders from the React Compiler memo cache with the same output (L-13)', () => {
+    const view = render(<QueryRoot />);
+    const first = view.container.innerHTML;
+    view.rerender(<QueryRoot />);
+    expect(view.container.innerHTML).toBe(first);
   });
 });

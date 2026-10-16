@@ -7,7 +7,7 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { devRoutes } from '@/modules/admin/routes';
-import { routes } from '@/core/routes/router';
+import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
 import { ICONS } from '@/components/brand/icons';
@@ -418,7 +418,7 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 describe('/dev/components route (D-20, D-22)', () => {

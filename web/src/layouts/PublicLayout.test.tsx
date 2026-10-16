@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -6,16 +5,15 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { Root } from '@/core/routes/Root';
-import { routes } from '@/core/routes/router';
+import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
 import { SITE_CONTACT } from '@/modules/public/components/siteContact';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
 
-/** The app's own route tree in a memory router at `path`, settled once the page's h1 is on screen. */
+/** The public layout route tree (src/test/publicLayoutRoutes.ts) in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const router = createMemoryRouter(publicLayoutRoutes, { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
   await screen.findByRole('heading', { level: 1 });
   return { ...view, router };
@@ -240,9 +238,9 @@ describe('PublicLayout route chunks (UI consideration: loading)', () => {
   });
 });
 
-describe('Root and ShellFallback (research Pattern 2, Pitfall 10)', () => {
+describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => {
   it('shows the Blush page root while the first route chunks load, then the page', async () => {
-    const router = createMemoryRouter(routes, { initialEntries: ['/'] });
+    const router = createMemoryRouter(publicLayoutRoutes, { initialEntries: ['/'] });
     const { container } = render(<RouterProvider router={router} />);
     const fallback = container.firstElementChild;
     expect(fallback).toHaveAttribute('data-theme', 'light');
@@ -251,13 +249,7 @@ describe('Root and ShellFallback (research Pattern 2, Pitfall 10)', () => {
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
-  it('Root and SiteFooter re-render from the React Compiler memo cache with the same output (L-13)', () => {
-    const root = render(<Root />);
-    const firstRoot = root.container.innerHTML;
-    root.rerender(<Root />);
-    expect(root.container.innerHTML).toBe(firstRoot);
-    root.unmount();
-
+  it('SiteFooter re-renders from the React Compiler memo cache with the same output (L-13)', () => {
     const footer = render(
       <MemoryRouter>
         <SiteFooter />
@@ -279,16 +271,5 @@ describe('Root and ShellFallback (research Pattern 2, Pitfall 10)', () => {
     const root = container.firstElementChild;
     expect(root).toHaveAttribute('data-theme', 'light');
     expect(root?.childElementCount).toBe(0);
-  });
-
-  it('Root gives its routes one query client with the shared defaults (no retries, 30 s stale time)', async () => {
-    function Probe() {
-      const client = useQueryClient();
-      const defaults = client.getDefaultOptions().queries;
-      return <p>{`retry ${String(defaults?.retry)}, stale ${String(defaults?.staleTime)}`}</p>;
-    }
-    const router = createMemoryRouter([{ Component: Root, children: [{ index: true, Component: Probe }] }]);
-    render(<RouterProvider router={router} />);
-    expect(await screen.findByText('retry false, stale 30000')).toBeInTheDocument();
   });
 });

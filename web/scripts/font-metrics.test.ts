@@ -146,7 +146,7 @@ describe('committed PERF-05 fallback faces in base.css', () => {
     const barlow = fontFace('Barlow Condensed Fallback');
     expect(Object.fromEntries(archivo)).toEqual({
       'font-family': '"Archivo Fallback"',
-      src: 'local("Arial")',
+      src: 'local("Arial"), local("Liberation Sans"), local("Arimo")',
       'size-adjust': '101.85%',
       'ascent-override': '86.21%',
       'descent-override': '20.62%',
@@ -154,7 +154,7 @@ describe('committed PERF-05 fallback faces in base.css', () => {
     });
     expect(Object.fromEntries(barlow)).toEqual({
       'font-family': '"Barlow Condensed Fallback"',
-      src: 'local("Arial Narrow"), local("Arial")',
+      src: 'local("Arial Narrow"), local("Arial"), local("Liberation Sans"), local("Arimo")',
       'unicode-range': 'U+0000-20B0, U+20B2-10FFFF',
       'size-adjust': '68.92%',
       'ascent-override': '145.1%',

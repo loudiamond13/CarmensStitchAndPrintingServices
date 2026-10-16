@@ -1,8 +1,8 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Identity;
-using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Email;
+using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;

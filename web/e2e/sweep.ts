@@ -33,7 +33,7 @@ const THEMES: readonly Theme[] = ['light', 'dark'];
 
 /** `/` in Blush, then every admin page in Blush and in Espresso. */
 export const PAGES: readonly PageCase[] = [
-  { name: '/ (light)', path: '/', theme: 'light', h1: 'Site update in progress.', admin: false },
+  { name: '/ (light)', path: '/', theme: 'light', h1: 'New website on the way.', admin: false },
   ...ADMIN_PAGES.flatMap(({ path, h1 }) =>
     THEMES.map((theme) => ({ name: `${path} (${theme})`, path, theme, h1, admin: true })),
   ),

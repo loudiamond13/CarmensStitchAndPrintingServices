@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-15T07:36:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T17:10:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -72,6 +72,22 @@ Run these once, in this order.
    ```
 
    `--reset` drops `CSPS_Dev` first and rebuilds it from the migrations. Leave it off to keep existing data. Use `--database CSPS_E2E` for the E2E database.
+
+## Secret scan before every commit (D-10)
+
+GitHub's secret scanning runs on this public repository too, and the project also scans for secrets itself with gitleaks (free, MIT license), so a key is caught before it is ever pushed. CI scans every pull request and every push to `main` (the `secret scan` check). The same scan can run on your machine before each commit, so a key never reaches the history.
+
+Turn it on once per clone:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Install-Gitleaks.ps1 -SetHooksPath
+```
+
+The script downloads gitleaks 8.30.1 into `artifacts/tools/gitleaks/8.30.1` (git-ignored), refuses it unless its SHA-256 matches the approved value, and sets only this repository's `core.hooksPath` to `.githooks`. It changes nothing at User or Machine level.
+
+- **What a block looks like.** `git commit` stops with a gitleaks report that names the file and line and hides the secret (`REDACTED`). Remove the secret from the staged file, then commit again. If it was a real secret that was ever pushed, treat it as leaked and tell the owner so it can be rotated.
+- **If gitleaks is not installed,** the hook prints one warning that points to `Install-Gitleaks.ps1` and lets the commit through. CI still scans.
+- **Never bypass with `--no-verify` for a real finding.** For a fake value in a test, add the file by exact path to `.gitleaks.toml` with a description (the `AllowlistsAreNarrow` test rejects broad entries).
 
 ## Running the API
 
@@ -203,3 +219,98 @@ Never reach a gate by lowering a threshold, excluding production code from cover
 - **Environment variables:** never set `ASPNETCORE_URLS`, `ASPNETCORE_HTTPS_PORT`, `ASPNETCORE_ENVIRONMENT`, `CSPS_TEST_SQL` or any other variable at User or Machine level, and never change system settings. Set them only inside one terminal or process.
 - **`_local/`** holds a production database backup. Never commit, upload or deploy it, and never open it outside the legacy-discovery phase. It is restored only into `(localdb)\MSSQLLocalDB` as `CSPS_Legacy_Restore`, never over `CSPS_Dev`.
 - **One session per folder.** Never work in `C:\Work\TheBETSLLC` from a CSPS session.
+
+## How CI/CD works
+
+This section explains, in plain words, what happens on GitHub from the moment a change is pushed to the moment it is live. The detailed runbooks are [operations/ci.md](operations/ci.md), [operations/branch-rules.md](operations/branch-rules.md) and [operations/deploy.md](operations/deploy.md).
+
+### The big picture
+
+1. You (or Claude) work on a branch and open a pull request (PR) to `main`.
+2. GitHub runs the checks automatically on every push to that PR. Nobody presses a button.
+3. When every check is green and the PR's Definition of Done checklist is ticked, the PR is merged with the one merge command (`tools/scripts/Merge-PullRequest.ps1`).
+4. The merge to `main` runs the checks once more and builds a **deploy package** tied to that exact commit.
+5. Nothing goes live by itself. The site changes only when the owner opens the Actions tab and presses **Run workflow** on the deploy workflow, picking a package of `main` that passed CI.
+
+CI (continuous integration) is steps 2 to 4: build and test every change. CD (continuous delivery) is step 5: a tested package that is ready to deploy, released by the owner's click.
+
+### What starts each check
+
+Each check is defined in a workflow file in `.github/workflows/`. The file says which GitHub event starts it. GitHub then rents a fresh Linux machine (a "runner"), checks out the code and runs the steps. Each job shows as one line in the PR's checks list.
+
+| Event | Workflows that run |
+|---|---|
+| A PR to `main` is opened, gets a new commit, is reopened or is marked ready for review | `ci.yml`, `hygiene.yml`, `codeql.yml` |
+| The PR title is edited | `hygiene.yml` only (it checks the title) |
+| A merge (push) lands on `main` | `ci.yml` (with the deploy package), `hygiene.yml`, `codeql.yml` |
+| Every Sunday, 18:00 UTC | `weekly.yml`: the full CI with every browser engine |
+| Every Sunday, 19:23 UTC | `codeql.yml`: a fresh security scan for newly found vulnerability patterns |
+| The owner presses Run workflow | `deploy.yml` (the only workflow that never starts by itself), `weekly.yml` or `ci.yml` on demand |
+
+### The checks, one by one
+
+**Main gate (`ci.yml`)**
+
+- **`classify`** looks at what changed and picks the run's mode:
+
+  | Mode | When | What runs |
+  |---|---|---|
+  | `docs` | Only documentation or planning files changed | A quick sanity pass |
+  | `fast` | The PR is a draft | The core .NET and web checks, about 10 minutes |
+  | `full` | The PR is ready for review | Everything, including the slow browser and coverage stages |
+  | `package` | A push to `main` whose PR already passed the full gate on the same files | Reuses that proof and only builds the deploy package |
+
+  When the classifier is unsure, it chooses `full`. It never chooses a cheaper mode by mistake.
+- **`gate (<mode>)`** runs the stages in a fixed order and stops at the first failure:
+  1. **Restore:** NuGet packages in locked mode (exact versions from the lock files) and `npm ci`, then `npm audit` for known vulnerabilities.
+  2. **Build:** the .NET solution with zero warnings, plus a formatting check.
+  3. **Tests:** unit tests, integration tests (full mode only, against a throwaway SQL Server 2025 container) and architecture tests.
+  4. **Web checks:** type check, lint, Prettier and the Vitest tests with coverage, plus the OpenAPI checks.
+  5. **Browser stage (full mode only):** the web build with its size budgets, Playwright end-to-end tests and Lighthouse. Until Phase 11 Lighthouse reports the LCP value without failing on it (`docs/web/release-gates.md`); every other limit still fails.
+  6. **Final gates (full mode only):** the coverage thresholds and the license and `THIRD-PARTY-NOTICES` checks.
+  7. **Package (full and package mode):** builds the deploy package, checks that it holds no logs, development settings, keys or secret files, scans it with gitleaks and writes the idempotent database script. This runs on a ready pull request too, so a packaging failure shows before the merge. Only a push to `main` stores the package, for 14 days as `csps-package-<commit sha>`.
+
+  If a full run fails in the browser stage, the Playwright report is kept for 7 days to show what went wrong.
+
+**Hygiene (`hygiene.yml`)**
+
+| Check | What it does |
+|---|---|
+| `secret scan` | gitleaks looks at the new commits for passwords, keys and tokens. |
+| `commit messages` | The PR title and every commit message must follow Conventional Commits (`type(scope): summary`). |
+| `actionlint` | Checks the workflow files for YAML and shell mistakes. |
+| `zizmor` | Checks the workflow files for known attack patterns (for example a workflow that could leak its token). |
+| `dependency review` | When a PR adds or upgrades a package, checks it for known vulnerabilities and that its license is on the allowed list. |
+
+**Security scan (`codeql.yml`)**
+
+- `analyze (csharp)` and `analyze (javascript-typescript)` run GitHub's free CodeQL scanner over the C# and the TypeScript code and look for security bugs such as injection and unsafe data handling.
+- `Code scanning results / CodeQL` is GitHub's summary of those two scans. Alerts appear under the repository's Security tab.
+
+### How `main` is protected
+
+- **The merge command.** `Merge-PullRequest.ps1` refuses to merge unless every check on the PR's newest commit passed and the Definition of Done checklist is ticked. It squash-merges, so `main` stays a straight line of one commit per PR. Never use GitHub's merge button or `gh pr merge` directly.
+- **GitHub's rules on `main`.** Because the repository is public, GitHub can enforce the same rules itself: required checks, linear history, no force-push, no deletion and no bypass. The required checks are `gate result` (a small last job in `ci.yml` that passes only when the mode's own gate succeeded, so a docs-only PR can satisfy it too) plus the Hygiene and Security checks. The ruleset was switched on in plan 03-16 once the full gate had passed on GitHub (`docs/operations/branch-rules.md` has the read-back).
+- **Pinned actions.** Every third-party action is pinned to an exact, owner-approved commit (listed in `docs/dependencies.json`), so a moved tag can never swap in different code. Architecture tests (`CiWorkflowTests`) enforce this.
+- **Least privilege.** Every workflow starts with no rights (`permissions: {}`), and each job asks only for what it needs, usually just reading the code.
+
+### How a deploy works
+
+1. A merge to `main` passes CI and stores its deploy package.
+2. The owner opens Actions, chooses the deploy workflow, presses **Run workflow** and gives the commit sha of that build. A **dry run** option checks the login, the port and the certificate without changing anything.
+3. The deploy runs on a Windows runner: it puts up the branded "site is updating" page (`app_offline.htm`), syncs the package to SmarterASP.NET with Web Deploy, takes the page down again and runs the read-only **smoke test** (`web/scripts/smoke.mjs`).
+4. If the smoke test fails, the last good package is put back automatically and the run is marked failed.
+5. Database changes are never made by the deploy. The owner applies the reviewed idempotent script first, as the runbook says.
+
+The full procedure, rollback by hand and the first deploy are in [operations/deploy.md](operations/deploy.md) and [operations/cutover-runbook.md](operations/cutover-runbook.md).
+
+### Reading a result
+
+- **Green tick:** the check passed. **Red cross:** open it, then **Details**, to see the failing step and its log. **Yellow dot:** still running.
+- A failure in `gate` names the stage in its step name (for example `3 integration tests`), so you can run the same command locally from [Quality gates](#quality-gates).
+- A red `secret scan` means a secret may be in a commit. Remove it, and if it was a real secret, treat it as leaked and rotate it.
+- GitHub emails you about a failed run on your PR. Weekly-run failures show on the Actions tab.
+
+### Cost
+
+The repository is public, so CI on GitHub's standard runners is free. If the repository ever becomes private again, the free plan has 2,000 minutes a month; when they run out, a merge needs the local full gate with its output pasted into the PR (see the "Local full gate" section of the PR template).

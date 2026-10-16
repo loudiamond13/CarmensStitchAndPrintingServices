@@ -81,22 +81,21 @@ export const BARREL_SPLIT_TRIGGER = 135_000;
 /** The HTML entry whose chunk every route loads first. */
 export const MAIN_ENTRY = 'index.html';
 
-/** The route modules the public site renders on first load: the public layout and the placeholder page (02-29). */
-export const PUBLIC_ROUTE: readonly string[] = Object.freeze([
-  'src/layouts/PublicLayout.tsx',
-  'src/modules/public/pages/PublicPlaceholderPage.tsx',
-]);
+/** The route module the public site renders on first load: the D-17 holding page (PublicLayout returns with Phase 11). */
+export const PUBLIC_ROUTE: readonly string[] = Object.freeze(['src/modules/public/pages/HoldingPage.tsx']);
 
-/** The shipped modules a signed-in `/admin` visit loads first: the guard, the admin layout, the URL-state layout and the devices page. */
+/** The shipped modules a signed-in `/admin` visit loads first: the query client route, the guard, the admin layout, the URL-state layout and the devices page. */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
+  'src/core/routes/QueryRoot.tsx',
   'src/layouts/AdminLayout.tsx',
   'src/lib/url-state/UrlStateLayout.tsx',
   'src/modules/admin/pages/SessionsPage.tsx',
   'src/modules/admin/guard.ts',
 ]);
 
-/** The shipped modules a signed-out visit to `/admin` loads first: the guard, the auth layout and the sign-in page. */
+/** The shipped modules a signed-out visit to `/admin` loads first: the query client route, the guard, the auth layout and the sign-in page. */
 export const ADMIN_SIGN_IN_ROUTE: readonly string[] = Object.freeze([
+  'src/core/routes/QueryRoot.tsx',
   'src/layouts/AuthLayout.tsx',
   'src/modules/admin/pages/SignInPage.tsx',
   'src/modules/admin/guard.ts',
@@ -112,6 +111,29 @@ export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'src/dev/',
   'visual/',
 ]);
+
+/**
+ * Module ids the public initial JS must never contain (PERF-02): TanStack Query and the admin app load with the admin
+ * chunks, so `/` ships only what the holding page needs. The admin route table (`routes.tsx`) is the one admin module
+ * the entry holds; its page, layout and service imports are all lazy.
+ */
+export const PUBLIC_FORBIDDEN_MODULE_PREFIXES: readonly string[] = Object.freeze([
+  'node_modules/@tanstack/',
+  'node_modules/nuqs/',
+  'node_modules/react-hook-form/',
+  'node_modules/@hookform/',
+  'node_modules/zod/',
+  'src/lib/query/',
+  'src/lib/url-state/',
+  'src/lib/forms/',
+  'src/core/routes/QueryRoot',
+  'src/layouts/AdminLayout',
+  'src/layouts/AuthLayout',
+  'src/modules/admin/',
+]);
+
+/** The admin modules the public entry may hold: only the route table. */
+export const PUBLIC_ALLOWED_ADMIN_MODULES: readonly string[] = Object.freeze(['src/modules/admin/routes.tsx']);
 
 /** Output folders of the parity reference (web/.reference-dist, web/visual/.reference-src); never inside a build (02-13). */
 export const REFERENCE_FOLDERS: readonly string[] = Object.freeze(['.reference-dist', '.reference-src']);
@@ -277,6 +299,25 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   for (const m of measurements) {
     if (m.bytes !== null && m.bytes > m.limit) {
       errors.push(`${m.label} is ${formatKb(m.bytes)}, over its ${formatKb(m.limit)} limit.`);
+    }
+  }
+
+  // PERF-02: every chunk of the public route's initial JS is free of TanStack Query and admin code. The dev-only ids are
+  // reported by the production rule above, so they are not named twice.
+  const publicFiles = new Set(measurements[0]?.files ?? []);
+  for (const c of graph.chunks.filter((candidate) => publicFiles.has(candidate.fileName))) {
+    for (const id of c.moduleIds) {
+      const devOnly =
+        options.build === 'production' && DEV_ONLY_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix));
+      if (
+        !devOnly &&
+        !PUBLIC_ALLOWED_ADMIN_MODULES.includes(id) &&
+        PUBLIC_FORBIDDEN_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix))
+      ) {
+        errors.push(
+          `The public initial JS (${c.fileName}) contains ${id}: TanStack Query and admin code must load with the admin chunks (PERF-02).`,
+        );
+      }
     }
   }
 

@@ -12,6 +12,6 @@ test('@smoke the home page loads clean', async ({ page }) => {
   expect(policy).toContain("style-src 'self';");
   expect(policy).not.toContain('unsafe-');
   await expect(page.locator('h1')).toHaveCount(1);
-  await expect(page.locator('h1')).toHaveText('Site update in progress.');
+  await expect(page.locator('h1')).toHaveText('New website on the way.');
   await expectNoAxeViolations(page);
 });

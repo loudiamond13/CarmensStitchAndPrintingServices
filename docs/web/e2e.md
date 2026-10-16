@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T11:32:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-16T07:40:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -17,6 +17,8 @@ This page explains how to run the browser tests in `web/e2e/` (requirements QUAL
 | The Playwright browsers for the pinned Playwright version | `npx --prefix web playwright install --list` | `npx --prefix web playwright install chromium firefox webkit` (a download only, not a package change) |
 
 The tests use the `CSPS_E2E` database only. It is created, migrated and seeded through the guarded dev-seed tool, which refuses every database except `CSPS_Dev` and `CSPS_E2E` on `(localdb)\MSSQLLocalDB`.
+
+**CI only: `CSPS_E2E_CONNECTION`.** On the ubuntu runner there is no LocalDB, so the CI job sets this variable for that one process to the connection string of a SQL Server container on the runner. The seed step then runs with `--connection <value>` instead of `--database CSPS_E2E`, and `web/playwright.config.ts` gives the host the same value as `ConnectionStrings__Csps` (both read `e2eConnection()` from `web/scripts/e2e.mjs`). The guard is unchanged: it still allows only the database `CSPS_E2E` or `CSPS_Dev`, on `(localdb)\MSSQLLocalDB` or on `127.0.0.1,<port>` / `localhost,<port>`, and refuses any other server before a connection opens. Unset or blank, nothing changes and the run uses LocalDB as above. Never set it at User or Machine level; the runner prints only the step name and exit code when a step fails, never the value.
 
 ## 2. Run the preflight, then the tests
 
@@ -45,7 +47,7 @@ Everything after `--` goes straight to `playwright test`. Always start through `
 1. **Takes the run lock** `web/.locks/e2e.lock`. The file is created exclusively, so only one E2E, parity or Lighthouse run (they all start the same host) can hold it. A second run waits for it, up to 15 minutes, then exits 1 and asks you to wait and run again. The lock is removed when the run ends, including after Ctrl+C or a closed terminal (SIGHUP). A lock left behind by a run that was killed (Task Manager, `taskkill /F`, a power loss) is taken over at once when its process is no longer running (checked read-only with `tasklist`/`ps`), or when it is older than 3 hours (TOOL-WR-09). Never delete a lock that another run holds; the timeout message names the file to delete only when no run is going on.
 2. **Waits for the shared machine.** Runs the shared-machine wait (`web/scripts/shared-machine.mjs`): it runs the preflight report and waits, up to 15 minutes, while one of this project's ports is in use by another program or TheBETSLLC's dev/test processes are listed, then exits 1. It never stops anything. Without the preflight script (CI) it says so and goes on.
 3. **Refuses a busy port.** If anything answers on port 5199, it prints "Port 5199 is in use by another process. Wait for it to finish; this script never stops other processes." and exits 1. It never kills, stops or reuses that process.
-4. **Seeds `CSPS_E2E`:** `dotnet run --project tools/Csps.DevSeed -- --database CSPS_E2E` (idempotent).
+4. **Seeds `CSPS_E2E`:** `dotnet run --project tools/Csps.DevSeed -- --database CSPS_E2E` (idempotent). When `CSPS_E2E_CONNECTION` is set for the run (CI only), it is `-- --connection <value>` instead.
 5. **Builds the e2e bundle** into `web/.e2e-dist` (`vite build --mode e2e`). That folder is git-ignored and is never copied into the API's `wwwroot`, so its dev-only routes can't be deployed.
 6. **Runs Playwright.** `web/playwright.config.ts` starts the real API host with `dotnet run --project src/Csps.Server --no-launch-profile -- --urls https://localhost:5199 --webroot <web/.e2e-dist> --staticWebAssets <a file that does not exist>`, waits for `https://localhost:5199/health`, runs the tests, then stops the host it started. The `--staticWebAssets` argument turns off the Development static web assets loader for this host: that loader always maps `src/Csps.Server/wwwroot`, and a production build left there would otherwise be served instead of the e2e bundle (plan 02-29).
 
@@ -105,9 +107,10 @@ Put the tag at the start of the test title so `--grep` can select it.
 
 | Tag | What it covers | Added by |
 |---|---|---|
-| `@smoke` | The home page loads clean in all five projects | plan 02-09 |
+| `@smoke` | The home page (the D-17 holding page) loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
 | `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404 | plan 02-09 |
-| `@public`, `@admin`, `@showcase` | The public frame, the admin shell and the Component Showcase, with page-level axe | plans 02-29, 02-31, 02-34 |
+| `@public` | Every public path (`/`, `/products`, `/gallery`, `/contact`, a deep path) shows the one D-17 holding page: one h1, one main, no site header or footer, the phone as a `tel:` link and the Facebook page as an https link, the skip link, the 320 px fit with no sideways scroll, and page-level axe | plans 02-29, 03-09 |
+| `@admin`, `@showcase` | The admin shell and the Component Showcase, with page-level axe | plans 02-31, 02-34 |
 | `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |

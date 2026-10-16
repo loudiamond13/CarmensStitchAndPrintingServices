@@ -12,8 +12,9 @@
 // The screens never show the error itself (CWE-209). They log nothing; in production the createRoot and RouterProvider
 // error callbacks are no-ops too (main.tsx), so a crash leaves the console empty. The wrapper around the EmptyState is
 // the `.s-wrap` container with page-head spacing, so the screen lines up with the page content.
-import { Button } from '@/components/actions';
-import { EmptyState } from '@/components/feedback';
+// Direct imports: the barrels would pull the toast code into the public entry (PERF-02).
+import { Button } from '@/components/actions/Button';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 
 /** The Copywriting strings (UI-SPEC "Global error boundary"). The admin body is for the admin layout (plan 02-31). */

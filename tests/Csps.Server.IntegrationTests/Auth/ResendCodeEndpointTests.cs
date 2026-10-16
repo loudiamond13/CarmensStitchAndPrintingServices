@@ -85,7 +85,7 @@ public sealed class ResendCodeEndpointTests(CspsDatabase database) : IClassFixtu
         var problem = await ProblemJson.ReadAsync(capped, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("auth.resend-cap");
         problem.GetProperty("detail").GetString().ShouldBe("You've asked for too many codes.");
-        (await AuthClient.ReadEmailsAsync(client, staff.Email)).Count.ShouldBe(5);
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 5)).Count.ShouldBe(5);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class ResendCodeEndpointTests(CspsDatabase database) : IClassFixtu
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("auth.csrf-check-failed");
-        (await AuthClient.ReadEmailsAsync(client, staff.Email)).Count.ShouldBe(1);
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email)).Count.ShouldBe(1);
     }
 
     [Fact]

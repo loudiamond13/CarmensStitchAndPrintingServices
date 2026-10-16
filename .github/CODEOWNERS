@@ -1,0 +1,3 @@
+# D-09: the owner reviews every change. Required approvals stay at 0 because a solo owner cannot approve their own PR.
+* @loudiamond13
+/.github/ @loudiamond13

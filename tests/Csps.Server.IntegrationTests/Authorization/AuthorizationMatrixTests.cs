@@ -78,14 +78,24 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
             .SelectMany(_ => AuthorizationMatrix.Rows.SelectMany(row => Enum.GetValues<Caller>().Select(caller => (row, caller))))
             .ToList();
 
-        var statuses = await Task.WhenAll(calls.Select(async call =>
-        {
-            using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
-            request.Headers.Add(CsrfHeader, "1");
-            request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
-            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            return (int)response.StatusCode;
-        }));
+        // A fresh host builds its data model and warms its caches on the first request. /health has a 3 second budget, so on a
+        // two-core CI runner the cold requests of the burst below could time out and answer 503 for startup alone. One
+        // request first, then sixteen at a time, which still interleaves callers and tokens.
+        (await client.GetAsync("/health", TestContext.Current.CancellationToken)).Dispose();
+
+        var statuses = new int[calls.Count];
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, calls.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = 16, CancellationToken = TestContext.Current.CancellationToken },
+            async (index, cancellationToken) =>
+            {
+                var call = calls[index];
+                using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
+                request.Headers.Add(CsrfHeader, "1");
+                request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+                using var response = await client.SendAsync(request, cancellationToken);
+                statuses[index] = (int)response.StatusCode;
+            });
 
         for (var i = 0; i < calls.Count; i++)
         {

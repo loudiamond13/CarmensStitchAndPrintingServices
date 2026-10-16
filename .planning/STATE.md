@@ -1,20 +1,21 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 04
-current_phase_name: Identity & Authentication
-status: "Phase 4 shipped, PR #4"
-stopped_at: Completed 04-32-PLAN.md
-last_updated: "2026-10-16T04:43:49.697Z"
+current_phase: 03
+current_phase_name: CI/CD & Staging Deploy
+status: executing
+stopped_at: Completed 03-16-PLAN.md
+last_updated: "2026-10-16T19:37:35.341Z"
 last_activity: 2026-10-15
-state_head: 9ed29db782deecc1cbf61d9d81942633ab857207
+last_activity_desc: Phase 03 execution started
+state_head: ea1a2d54198938f2686669826d6d2ca656fc6e00
 progress:
   total_phases: 17
   completed_phases: 2
-  total_plans: 91
-  completed_plans: 91
+  total_plans: 114
+  completed_plans: 108
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-14T21:36:00-05:00"
+updated: "2026-10-16T10:34:00-05:00"
 ---
 
 # Project State
@@ -24,14 +25,14 @@ updated: "2026-10-14T21:36:00-05:00"
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 04 — Identity & Authentication
+**Current focus:** Phase 03 — CI/CD & Staging Deploy
 
 ## Current Position
 
-Phase: 04 (Identity & Authentication) — EXECUTING
-Plan: 35 of 35
-Status: Phase 4 shipped, PR #4
-Last activity: 2026-10-15 - Completed quick task 261015-vmf: Address Copilot review on PR 4
+Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
+Plan: 18 of 23
+Status: Ready to execute
+Last activity: 2026-10-15 — Phase 03 execution started
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -149,6 +150,23 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 04 P35 | 25m | 2 tasks | 13 files |
 | Phase 04 P23 | 1h 0m | 3 tasks | 21 files |
 | Phase 04 P32 | 5 hours | 3 tasks | 28 files |
+| Phase 03 P23 | 5 min | 3 tasks | 3 files |
+| Phase 03 P02 | 18 min | 2 tasks | 5 files |
+| Phase 03 P04 | 9 min | 2 tasks | 2 files |
+| Phase 03 P05 | 11 min | 3 tasks | 8 files |
+| Phase 03 P07 | 20 min | 2 tasks | 2 files |
+| Phase 03 P08 | 8 min | 2 tasks | 10 files |
+| Phase 03 P03 | 22 min | 3 tasks | 3 files |
+| Phase 03 P06 | 45 min | 3 tasks | 3 files |
+| Phase 03 P01 | 60 min | 3 tasks | 15 files |
+| Phase 03 P10 | 20 min | 2 tasks | 7 files |
+| Phase 03 P11 | 39 min | 3 tasks | 7 files |
+| Phase 03 P12 | 14 min | 2 tasks | 5 files |
+| Phase 03 P13 | 14 min | 2 tasks | 4 files |
+| Phase 03 P15 | 30 min | 2 tasks | 6 files |
+| Phase 03 P09 | 47 min | 3 tasks | 21 files |
+| Phase 03 P14 | 15 min | 3 tasks | 3 files |
+| Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
 
 ## Accumulated Context
 
@@ -383,6 +401,32 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 04]: Plan 04-23: email HTML has one style block with a 480 px media query for phone padding, and the text part prints Label: URL for the button; owner accepted
 - [Phase 04]: Plan 04-23: staff address is bold (strong, font-weight 700, HTML-encoded) in the reset-link, password-changed, deactivated and invite email HTML; text part unchanged; owner requested
 - [Phase 04]: OQ-8 and OQ-9 (owner, 04-32): the sign-in brand panel keeps the dot mesh, and its words sit above a bottom zone for the slab
+- [Phase 03]: Plan 03-23: owner approved (2026-10-15T22:05-05:00, no edits) the contract amendment; ROADMAP/REQUIREMENTS/PROJECT.md now say no staging site, live-site deploy, Prime Directive 1 override, Phase 16/17 import into the live CSPS database
+- [Phase 03]: Blank or whitespace-only CSPS_E2E_CONNECTION counts as unset; seed keeps --database CSPS_E2E for the LocalDB default and uses --connection only for the CI override
+- [Phase 03]: 03-04: CI mode comes from web/scripts/ci-classify.mjs; every rule fails toward full and the git diff runs with --no-renames so a move cannot hide code as docs
+- [Phase 03]: 03-04: findProvenTree returns { proven, reason } and a push is package only for one merged PR, equal tree ids and a successful gate (full) run on the PR head; the job name gate (full) must stay unchanged in ci.yml
+- [Phase 03]: 03-05: the PR template carries its timestamps in one HTML comment on line 1 so they never render into a PR body; the ruleset leaves require_code_owner_review false because a solo owner cannot approve their own PR
+- [Phase 03]: 03-07: request-limit counts a connection closed while the 1.5 MB body is sent (ECONNRESET, EPIPE, ECONNABORTED) as refused by IIS; host-filter fails on no answer; both responses stay out of the no-banners check (HTTP.sys may add its own Server header)
+- [Phase 03]: 03-07: smoke.mjs probe checks HOSTPROBE_KEY (32+ characters) before any request, sends it over https only and replaces it with [hidden] in all output; the http /probe redirect report is information only
+- [Phase 03]: 03-08: IIS compression is off in web.config (urlCompression static and dynamic false), no rewrite section and no httpCompression until the host probe proves A4 and A5
+- [Phase 03]: 03-08: RuntimeIdentifiers win-x64 lives in the src-only block of Directory.Build.props; the four src lock files carry the win-x64 section; tests that run dotnet build or publish on the Server project share the DotnetBuildCollection
+- [Phase 03]: 03-03: merge gate [ci skip] ship note follows the owner's parent-rule (2026-10-15T22:05-05:00): a skip-token head changing only .planning/ with one parent is judged by that parent; any other skip-token head is refused
+- [Phase 03]: 03-03: merge gate refuses unless mergeable is exactly MERGEABLE, so UNKNOWN asks for a rerun; a skip-token head with an empty or 300-entry file list never qualifies
+- [Phase 03]: 03-06: owner allowed the one-time HostProbe on the site root (allow-probe, 2026-10-15T22:05-05:00); deploy.mjs refuses a certificate pin mismatch and refuses to deploy when the last good release cannot be downloaded
+- [Phase 03]: 03-01: gate is one ordered job named gate (<mode>) fed by a small classify job; ci.yml keeps an inline draft-or-full classify until plan 03-11 wires web/scripts/ci-classify.mjs (needs fetch-depth 0 and the job name gate (full))
+- [Phase 03]: 03-01: CiWorkflowTests hold every .yml in .github/workflows to SHA pins from the owner-approved ApprovedActions table, empty top-level permissions, job timeouts, persist-credentials false, pinned runners, no pull_request_target and no event data inside run:
+- [Phase 03]: 03-01: Linux CI surfaced a Windows-only assumption (stored Asia/Manila reports SupportsDaylightSavingTime on tzdata); tests assert the +08 offset instead, and dotnet format drift in nine Phase 4 files was fixed so the format step starts clean
+- [Phase 03]: 03-10: gitleaks allowlists are file-scoped to rule generic-api-key (15 named test, fixture and planning files); scan range comes from env only and falls back to the pushed commit when 'before' is zero or unknown
+- [Phase 03]: 03-11: SQL container readiness is read from the server log line, not the image's sqlcmd (2025 images may ship without it); the SA password is openssl hex plus Aa1, passed to docker by variable name
+- [Phase 03]: 03-11: build-output.node.test.ts builds the web root itself on a clean checkout (NODE_ENV=production) because Vitest runs before the build step
+- [Phase 03]: 03-12: deploy.yml is the one workflow exempt (by name) from the no-deploy-credential CI test; DeployWorkflowTests pins its env-only use of secrets and inputs
+- [Phase 03]: 03-12: app_offline.htm inlines mark.svg with coordinates rounded to whole units (geometry unchanged) to fit the 8 KB cap; the page has no external reference
+- [Phase 03]: 03-13: stage 7 package steps sit after the failure-report upload and rebuild the web app, so the package never carries the budget build output; package-check refuses app_offline.htm at the root only and logs, env settings, key and env files at any depth
+- [Phase 03]: weekly.yml keeps ./ for its self-call with an inline zizmor ignore for self-repository, because actionlint 1.7.12 rejects the $/ form that zizmor 1.30.1 asks for
+- [Phase 03]: 03-09: the public * route has no RouteErrorBoundary of its own; RootErrorBoundary brings the page root and main for the standalone holding page
+- [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
+- [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
+- [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
 
 ### Pending Todos
 
@@ -420,6 +464,8 @@ None yet.
 | 261014-gqz | Fix NuGetAudit restore failure: bump .NET 10.0.12 packages to 10.0.13 and pin patched System.Security.Cryptography.Pkcs/Xml | 2026-10-14 | 190fc19 | [261014-gqz-fix-nugetaudit-restore-failure-bump-net-](./quick/261014-gqz-fix-nugetaudit-restore-failure-bump-net-/) |
 | 261015-m51 | Phase 4 review follow-ups: CR-01 keep signed in, WR-12 back to /64, record owner rulings | 2026-10-15 | 0fc3387 | [261015-m51-phase-4-review-follow-ups-cr-01-keep-sig](./quick/261015-m51-phase-4-review-follow-ups-cr-01-keep-sig/) |
 | 261015-vmf | Address Copilot review on PR 4: savepoint per unit-of-work attempt, names for every password form, must-change check endpoint, cache owner outside React, IIS 2 MiB backstop | 2026-10-15 | 9ed29db | [261015-vmf-address-copilot-review-on-pr-4-phase-4](./quick/261015-vmf-address-copilot-review-on-pr-4-phase-4/) |
+| 261016-pub | Public repository: MIT license, CodeQL (C# and JS/TS) and dependency review workflows pinned by commit, owner approvals recorded | 2026-10-16 | a53a79a | [261016-pub-public-repo-license-codeql](./quick/261016-pub-public-repo-license-codeql/) |
+| 261016-lcp | Move TanStack Query out of the public entry (lazy QueryRoot, new budget rule); public JS 128.79 to 119.56 KB gzip, but LCP stays 2187 ms (fonts are the main cost), unmet-truth stays open | 2026-10-16 | 5d1da43 | [261016-lcp-split-public-entry](./quick/261016-lcp-split-public-entry/) |
 
 ## Deferred Items
 
@@ -431,6 +477,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T17:04:59.994Z
-Stopped at: Completed 04-32-PLAN.md
+Last session: 2026-10-16T19:37:34.800Z
+Stopped at: Completed 03-16-PLAN.md
 Resume file: None

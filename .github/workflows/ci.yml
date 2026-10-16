@@ -1,0 +1,346 @@
+# OPS-02: every pull request to main and every push to main runs one ordered gate.
+name: CI
+
+# OPS-02: no path filter, so the check always reports (a skipped workflow reports nothing).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # D-15: weekly.yml calls this workflow with every Playwright engine.
+  workflow_call:
+    inputs:
+      all-engines:
+        description: Run every Playwright project instead of Chromium and the phone viewport
+        type: boolean
+        default: false
+
+# OPS-02: the token starts with no rights; each job asks only for what it needs.
+permissions: {}
+
+# OPS-02: a newer push to a PR cancels its older run; runs for main are never cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # D-14: the tested script picks fast (draft), docs, package (proven tree on main) or full; event data arrives through env only.
+  classify:
+    name: classify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      # D-14: full history, because the script diffs base...head and looks up the pull request's tree.
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
+      - name: mode
+        id: mode
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node web/scripts/ci-classify.mjs
+
+  # OPS-02: restore, build, format, unit, integration and architecture tests, in that order.
+  gate:
+    name: gate (${{ needs.classify.outputs.mode }})
+    needs: classify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # OPS-02: one Node for every web and tooling step; npm's download cache is keyed on both lock files.
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            tools/openapi-gen/package-lock.json
+
+      - name: cache nuget packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: 1 restore (locked)
+        run: |
+          dotnet restore Csps.slnx --locked-mode
+          dotnet tool restore
+
+      # OPS-02: exact installs from the lock files; a lock file that disagrees with package.json fails here.
+      - name: 1 npm ci
+        run: |
+          npm ci --prefix web
+          npm ci --prefix tools/openapi-gen
+
+      # OPS-03: npm audit at the lowest level, before any build or test. NuGetAudit already ran inside the locked restore.
+      - name: 1 audits
+        run: |
+          npm --prefix web audit --audit-level=low
+          npm --prefix tools/openapi-gen audit --audit-level=low
+
+      - name: 2 build
+        run: dotnet build Csps.slnx --no-restore -tl:off
+
+      - name: 2 format check
+        run: dotnet format Csps.slnx --verify-no-changes --no-restore
+
+      - name: 3 unit tests
+        run: |
+          dotnet test --project tests/Csps.Domain.UnitTests --no-build
+          dotnet test --project tests/Csps.Application.UnitTests --no-build
+
+      - name: 3 integration tests
+        if: needs.classify.outputs.mode == 'full'
+        env:
+          CSPS_TEST_SQL: container
+        run: |
+          dotnet test --project tests/Csps.Infrastructure.IntegrationTests --no-build
+          dotnet test --project tests/Csps.Server.IntegrationTests --no-build
+
+      - name: 3 architecture tests
+        run: dotnet test --project tests/Csps.ArchitectureTests --no-build
+
+      # OPS-02 stage 4, in the order of web/scripts/verify.mjs: typecheck, lint, format check, tests with coverage.
+      - name: 4 web typecheck
+        run: npm --prefix web run typecheck
+
+      - name: 4 web lint
+        run: npm --prefix web run lint
+
+      - name: 4 web prettier
+        run: npm --prefix web run format:check
+
+      - name: 4 web vitest + coverage
+        run: npm --prefix web run test:coverage
+
+      # OPS-02: the committed API types must match the OpenAPI snapshot, and the checker's own tests must pass.
+      - name: 4 openapi types check
+        run: |
+          npm --prefix tools/openapi-gen run check
+          npm --prefix tools/openapi-gen test
+
+      # OPS-02 stage 5: the production build and the dev-route budget build, in the order of web/scripts/verify.mjs.
+      - name: 5 web build
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run build
+
+      - name: 5 web budget build
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run build:budget
+
+      # T-03-41: a throwaway SQL Server bound to loopback only. The password is generated here, masked at once and
+      # never committed. Readiness comes from the server's own log line, because 2025 images may ship without sqlcmd.
+      - name: 5 sql container
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          set -eu
+          password="$(openssl rand -hex 24)Aa1"
+          echo "::add-mask::$password"
+          echo "SQL_SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          export MSSQL_SA_PASSWORD="$password"
+          docker run -d --name csps-sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD -p 127.0.0.1:1433:1433 mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04
+          for attempt in $(seq 1 60); do
+            logs="$(docker logs csps-sql 2>&1 || true)"
+            case "$logs" in
+              *"ready for client connections"*)
+                echo "SQL Server is ready (check $attempt)"
+                exit 0
+                ;;
+            esac
+            sleep 2
+          done
+          docker logs --tail 50 csps-sql
+          exit 1
+
+      # OPS-02: the dev secrets the E2E and Lighthouse hosts read from user-secrets, and the HTTPS certificate they serve.
+      - name: 5 test secrets
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          pwsh -NoProfile -File tools/scripts/Initialize-DevSecrets.ps1
+          dotnet dev-certs https
+
+      - name: 5 playwright cache
+        if: needs.classify.outputs.mode == 'full'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
+      # D-15: pull requests install Chromium only; the weekly run installs every engine.
+      - name: 5 playwright browsers
+        if: needs.classify.outputs.mode == 'full' && !inputs.all-engines
+        run: node web/node_modules/@playwright/test/cli.js install --with-deps chromium
+
+      - name: 5 playwright browsers all engines
+        if: needs.classify.outputs.mode == 'full' && inputs.all-engines
+        run: node web/node_modules/@playwright/test/cli.js install --with-deps
+
+      # D-15: the E2E seed and host read the container through CSPS_E2E_CONNECTION, set for this one command.
+      - name: 5 playwright
+        if: needs.classify.outputs.mode == 'full' && !inputs.all-engines
+        run: |
+          set -eu
+          CSPS_E2E_CONNECTION="Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true" npm --prefix web run e2e -- --project chromium --project pixel
+
+      - name: 5 playwright all engines
+        if: needs.classify.outputs.mode == 'full' && inputs.all-engines
+        run: |
+          set -eu
+          CSPS_E2E_CONNECTION="Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true" npm --prefix web run e2e
+
+      # PERF-02: the Development host needs Smtp settings to start; these are dummy values and no mail is sent.
+      - name: 5 lighthouse
+        if: needs.classify.outputs.mode == 'full'
+        env:
+          Smtp__Host: smtp.invalid
+          Smtp__Port: "587"
+          Smtp__Security: StartTls
+          Smtp__UserName: ci
+          Smtp__Password: not-a-secret
+        run: |
+          set -eu
+          connection="Server=127.0.0.1,1433;Database=CSPS_Dev;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=true"
+          dotnet run --project tools/Csps.DevSeed -- --connection "$connection"
+          ConnectionStrings__Csps="$connection" npm --prefix web run lighthouse
+
+      # OPS-02 stage 6: coverage thresholds, then the licence and notice gates for npm and NuGet.
+      - name: 6 coverage gate
+        if: needs.classify.outputs.mode == 'full'
+        run: pwsh -NoProfile -File tools/scripts/Invoke-CoverageGate.ps1
+
+      - name: 6 web licenses
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run license:check
+
+      - name: 6 web notices
+        if: needs.classify.outputs.mode == 'full'
+        run: npm --prefix web run notices:check
+
+      - name: 6 nuget licenses + notices
+        if: needs.classify.outputs.mode == 'full'
+        run: |
+          pwsh -NoProfile -File tools/scripts/New-ThirdPartyNotices.ps1
+          git diff --exit-code -- THIRD-PARTY-NOTICES.md
+
+      # T-03-42: only the Playwright report and results leave the runner, only on failure, for seven days.
+      - name: 6 upload failure reports
+        if: failure() && needs.classify.outputs.mode == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-failure-reports
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # D-11 / OPS-04 / OPS-05 stage 7: the deploy package is built after every gate above passed, on a full pull request as well
+      # as on main, so a packaging failure shows before the merge. Only the upload below waits for a push to main.
+      # The web build is repeated here so the package never carries the budget build's output.
+      - name: 7 package web build
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
+        run: npm --prefix web run build
+
+      - name: 7 package publish
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
+        run: dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false -o artifacts/package/site --no-restore -tl:off
+
+      # Prime Directive 11: the host database is changed only by this reviewed, idempotent script, never at startup.
+      - name: 7 package migrations script
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
+        run: dotnet ef migrations script --idempotent --project src/Csps.Infrastructure --startup-project src/Csps.Server --output artifacts/package/csps-migrations.sql
+
+      # OPS-05: secrets live only on the server; this check fails closed on logs, app_offline.htm, key material and env files.
+      - name: 7 package check
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
+        run: node web/scripts/package-check.mjs artifacts/package/site
+
+      # T-03-SC: the same pinned gitleaks 8.30.1 tarball and SHA-256 as the Hygiene workflow, checked before use (CWE-494).
+      - name: 7 package secret scan
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 --output gitleaks_8.30.1_linux_x64.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks_8.30.1_linux_x64.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          export PATH="$RUNNER_TEMP:$PATH"
+          cd "$GITHUB_WORKSPACE"
+          gitleaks dir artifacts/package --redact --no-banner --verbose
+
+      # D-11: stored under the commit id, which is the name deploy.mjs findPackage downloads. 14 days, about 35 MB each.
+      - name: 7 package upload
+        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: csps-package-${{ github.sha }}
+          path: artifacts/package
+          retention-days: 14
+          if-no-files-found: error
+
+  # OPS-02 / D-08: the one check the main ruleset requires. The gate job's name carries its mode, so a docs-only pull request
+  # reports "gate (docs)" and could never satisfy a fixed "gate (full)". This job always runs and passes only when the
+  # mode's own gate succeeded for a mode that may merge (full, docs, package). A draft (fast), a failed, skipped or
+  # cancelled gate, or a classify failure all fail it. "gate (full)" stays unique to full runs, which ci-classify relies on.
+  result:
+    name: gate result
+    needs: [classify, gate]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: report
+        env:
+          MODE: ${{ needs.classify.outputs.mode }}
+          GATE: ${{ needs.gate.result }}
+        run: |
+          case "${MODE}:${GATE}" in
+            full:success|docs:success|package:success)
+              echo "gate result: ${MODE} gate succeeded"
+              ;;
+            *)
+              echo "gate result: not mergeable (mode '${MODE}', gate '${GATE}')"
+              exit 1
+              ;;
+          esac

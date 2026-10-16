@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -753,6 +753,43 @@ describe('scrim close rule: only a press and click on the scrim that does not sc
 
     pressAndRelease(region, { clientX: 500, clientY: 100 });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // On Linux a middle press pastes the X11 selection into the focused field wherever the press lands, so the dark area
+  // cancels the default of a middle press (down and up). A primary press, and a middle press inside the dialog, are left alone.
+  it.each([
+    ['mouseDown', 1],
+    ['mouseUp', 1],
+  ] as const)('cancels the default of %s with button %i on the dark area', (type, button) => {
+    const region = renderInRegion(vi.fn());
+    const event = createEvent[type](region, { button });
+
+    fireEvent(region, event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ['mouseDown', 0],
+    ['mouseUp', 0],
+    ['mouseDown', 2],
+    ['mouseUp', 2],
+  ] as const)('leaves the default of %s with button %i on the dark area alone', (type, button) => {
+    const region = renderInRegion(vi.fn());
+    const event = createEvent[type](region, { button });
+
+    fireEvent(region, event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it.each(['mouseDown', 'mouseUp'] as const)('leaves a middle %s inside the dialog alone', (type) => {
+    renderInRegion(vi.fn());
+    const event = createEvent[type](screen.getByRole('dialog'), { button: 1 });
+
+    fireEvent(screen.getByRole('dialog'), event);
+
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('never closes on a primary press followed by a click with another button', () => {

@@ -9,7 +9,7 @@ import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
-import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
+import { lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -27,7 +27,7 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 interface AdminTreeOptions {
@@ -53,19 +53,23 @@ function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
     {
       ...root,
       children: [
-        {
-          ...admin,
-          ...layout,
-          children: [
-            {
-              ...urlState,
-              children: [
-                { ...dashboard, ...page } as RouteObject,
-                ...others.map((route) => (route.path === 'orders' ? ({ ...route, ...orders } as RouteObject) : route)),
-              ],
-            } as RouteObject,
-          ],
-        } as RouteObject,
+        queryBranch([
+          {
+            ...admin,
+            ...layout,
+            children: [
+              {
+                ...urlState,
+                children: [
+                  { ...dashboard, ...page } as RouteObject,
+                  ...others.map((route) =>
+                    route.path === 'orders' ? ({ ...route, ...orders } as RouteObject) : route,
+                  ),
+                ],
+              } as RouteObject,
+            ],
+          } as RouteObject,
+        ]),
         ...(root?.children ?? []).filter((route) => route.path !== 'admin'),
       ],
     } as RouteObject,

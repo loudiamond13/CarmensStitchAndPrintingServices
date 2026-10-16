@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { routes } from '@/core/routes/router';
+import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { clearSession } from '@/modules/admin/services/session';
@@ -111,15 +111,15 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
-  it('the production routes have no /dev/components: it falls through to the public placeholder', async () => {
+  it('the production routes have no /dev/components: it falls through to the public holding page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /Site update/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 

@@ -68,7 +68,7 @@ public sealed class ListSessionsHandlerTests
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
 
         var twinIds = new[] { twinA.Id, twinB.Id }.Order().ToList();
-        result.Value.Select(item => item.Id).ShouldBe([current.Id, ..twinIds, newer.Id, older.Id]);
+        result.Value.Select(item => item.Id).ShouldBe([current.Id, .. twinIds, newer.Id, older.Id]);
     }
 
     [Fact]

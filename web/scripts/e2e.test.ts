@@ -9,10 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   acquireLock,
+  E2E_CONNECTION_VARIABLE,
+  e2eConnection,
   executeSteps,
   LOCK_MAX_AGE_MS,
   LOCK_PATH,
   LOCK_TIMEOUT_MS,
+  LOCALDB_E2E_CONNECTION,
   lockTimeoutMessage,
   planSteps,
   PORT_BUSY_MESSAGE,
@@ -23,6 +26,9 @@ import {
 
 const webDirectory = fileURLToPath(new URL('..', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+const containerConnection =
+  'Server=127.0.0.1,1433;Database=CSPS_E2E;User Id=sa;Password=s3cret-Value;TrustServerCertificate=true';
 
 interface SpawnCall {
   readonly command: string;
@@ -113,6 +119,79 @@ describe('planSteps', () => {
   it('resolves the web folder and the repository root from the script location', () => {
     expect(WEB_DIRECTORY).toBe(webDirectory);
     expect(REPO_ROOT).toBe(repoRoot);
+  });
+});
+
+describe('CSPS_E2E_CONNECTION (CI override)', () => {
+  it('names the variable and keeps the LocalDB literal as the default', () => {
+    expect(E2E_CONNECTION_VARIABLE).toBe('CSPS_E2E_CONNECTION');
+    expect(LOCALDB_E2E_CONNECTION).toBe('Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true');
+    expect(e2eConnection({})).toBe(LOCALDB_E2E_CONNECTION);
+  });
+
+  it('returns the override as is when it is set', () => {
+    expect(e2eConnection({ CSPS_E2E_CONNECTION: containerConnection })).toBe(containerConnection);
+  });
+
+  it.each(['', '   ', '\t\n'])('treats a blank override (%j) as unset', (blank) => {
+    expect(e2eConnection({ CSPS_E2E_CONNECTION: blank })).toBe(LOCALDB_E2E_CONNECTION);
+  });
+
+  it('seeds through --database CSPS_E2E when no override is set', () => {
+    const seed = planSteps({ portBusy: false, env: {} })[0];
+
+    expect(seed).toMatchObject({
+      name: 'seed',
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--database', 'CSPS_E2E'],
+    });
+  });
+
+  it('seeds through --connection with the exact override, and no --database, when it is set', () => {
+    const seed = planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: containerConnection } })[0];
+
+    expect(seed).toMatchObject({
+      name: 'seed',
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--connection', containerConnection],
+    });
+    expect(seed?.kind === 'run' && seed.args.includes('--database')).toBe(false);
+  });
+
+  it('keeps --database CSPS_E2E for a blank override', () => {
+    const seed = planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: '  ' } })[0];
+
+    expect(seed?.kind === 'run' && seed.args.slice(-2)).toEqual(['--database', 'CSPS_E2E']);
+  });
+
+  it('leaves the build and Playwright steps the same with an override', () => {
+    const plain = planSteps({ portBusy: false, env: {} });
+    const overridden = planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: containerConnection } });
+
+    expect(overridden.slice(1)).toEqual(plain.slice(1));
+  });
+
+  it('reports a failing seed by step name and exit code only, never the connection value (CWE-532)', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const { spawn } = fakeSpawner([1, 0, 0]);
+
+    expect(executeSteps(planSteps({ portBusy: false, env: { CSPS_E2E_CONNECTION: containerConnection } }), spawn)).toBe(
+      1,
+    );
+
+    expect(stderr).toHaveBeenCalledWith('e2e: seed failed with exit code 1.\n');
+    const written = stderr.mock.calls.map((call) => String(call[0])).join('');
+    expect(written).not.toContain('s3cret-Value');
+    expect(written).not.toContain('127.0.0.1');
+  });
+
+  it('reads process.env when no env is passed', () => {
+    vi.stubEnv('CSPS_E2E_CONNECTION', containerConnection);
+    try {
+      expect(e2eConnection()).toBe(containerConnection);
+      const seed = planSteps({ portBusy: false })[0];
+      expect(seed?.kind === 'run' && seed.args.at(-1)).toBe(containerConnection);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

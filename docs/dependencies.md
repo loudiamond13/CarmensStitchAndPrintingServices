@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T22:55:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-16T08:44:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -91,6 +91,40 @@ When a new password is saved, CSPS asks a free breach-check service whether that
 - **Data, not code.** It is a plain text file with one password per line, embedded in the app and never changed.
 - **Exactly the file we checked.** `docs/dependencies.json` records the address it came from (pinned to one exact commit, 913b327, from 2026-09-08, so more than 14 days old), the license and a SHA-256 fingerprint of the file. `DependencyRegistryTests` fails the build if the file's bytes ever differ, or if another data file is embedded without a record.
 - **Registry kind `data`.** Unlike a package, a data record has no version pin to match. It names `source`, `sha256` and `path` instead.
+
+## CI actions and tools (Phase 3)
+
+Phase 3 runs the checks on GitHub for every pull request. The owner approved the items below on **2026-10-15**, before any was used (plan 03-01, reply "approve-all"). Every one is free. MIT means free to use in a business, and we only keep the author's notice. None of them is installed in the app or shipped to the website: they run only on GitHub's build machines or on a developer machine. A workflow can only use an action that is on this list, pinned to the exact commit shown (`CiWorkflowTests` fails the build otherwise).
+
+| Item | Version | Pinned as | License | What it does for the shop |
+|------|---------|-----------|---------|---------------------------|
+| actions/checkout | v7.0.1 | commit 3d3c42e5aac5ba805825da76410c181273ba90b1 | MIT | Fetches the code onto the build machine. |
+| actions/setup-dotnet | v6.0.0 | commit a98b56852c35b8e3190ac28c8c2271da59106c68 | MIT | Installs the .NET version named in `global.json`. |
+| actions/setup-node | v7.0.0 | commit 820762786026740c76f36085b0efc47a31fe5020 | MIT | Installs Node 24.21.0 for the web checks. The newer v7.1.0 is inside the 14-day wait. |
+| actions/cache | v6.1.0 | commit 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 | MIT | Reuses downloaded packages between runs to save free build minutes. |
+| actions/upload-artifact | v7.0.1 | commit 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a | MIT | Stores the deploy package and failure reports. The newer v7.0.2 is inside the 14-day wait. |
+| zizmorcore/zizmor-action | v0.6.4 (runs zizmor 1.30.1) | commit cc914d7f3750a2d13d75c7f184a1060aa0e9d482 | MIT | Scans the workflow files for known attack patterns. |
+| gitleaks | 8.30.1 | release files checked by SHA-256 (Linux 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb, Windows d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e) | MIT | Looks for passwords and keys in the code before they can be committed (D-10). |
+| actionlint | 1.7.12 | release files checked by SHA-256 (Linux 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8, Windows 6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9) | MIT | Finds mistakes in the workflow files and their shell commands. |
+
+**zizmor carries a "suspicious" flag.** The automatic research check flagged it only because the newest zizmor release (1.31.1) is one day old. The pinned 1.30.1 is 36 days old, so it is past the 14-day wait. The owner approved it with that explanation.
+
+**Not part of this approval.** The SQL Server image for the integration tests stays `mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04`, as CLAUDE.md pins it. A newer security build (`2025-CU9-GDR1-ubuntu-24.04`) exists, and switching to it is a separate owner decision. No npm, NuGet or PyPI package was added.
+
+## Public repository: our license and two security checks (approved 2026-10-16)
+
+The repository is now public on GitHub. The owner approved the items below on **2026-10-16**, before anything was used. All of them are free.
+
+- **Our own license is MIT** (`LICENSE`, "Copyright (c) 2026 loudiamond13"). In plain words: anyone may read and reuse the code, and nobody may blame us if it breaks. It costs nothing and does not change what the shop owns or how the shop runs the site.
+- **CodeQL** reads the C# and the TypeScript for security mistakes (the kinds listed in the CWE Top 25) on every pull request, every push to `main` and once a week. It is free for open-source code on GitHub.com, and this repository is public and MIT-licensed, so it qualifies. Its findings show under the repository's Security tab, and no one is billed.
+- **Dependency review** checks each pull request for newly added packages that have a known security problem or a license we do not allow, and fails the check if so. GitHub Actions entries are the one thing it cannot read a license for (a known issue on GitHub's side), so those show "unknown license" and are let through. The allowed list is the one in this page: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC and 0BSD, plus MPL-2.0 and OFL-1.1.
+
+| Item | Version | Pinned as | License | What it does for the shop |
+|------|---------|-----------|---------|---------------------------|
+| github/codeql-action | v4.38.2 (bundles CodeQL 2.27.1) | commit 2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 | MIT (the action); CodeQL itself is free for open-source code | Scans the code for security mistakes. |
+| actions/dependency-review-action | v5.0.0 | commit a1d282b36b6f3519aa1f3fc636f609c47dddb294 | MIT | Blocks a pull request that adds a vulnerable or disallowed-license package. |
+
+Both are older than the 14-day wait and have no known advisories. They run only on GitHub's build machines and never ship to the website. `SecurityWorkflowTests` and `CiWorkflowTests` fail the build if a workflow uses either one at any other commit.
 
 ## The web app's packages (npm)
 

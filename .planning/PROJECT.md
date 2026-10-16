@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-14T10:28:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-15T22:10:30-05:00*
 
 ## What This Is
 
@@ -57,8 +57,8 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 - [ ] **Consent & analytics:** cookie banner (accept, reject, customize), GPC, clear-my-data, consented analytics, cookieless aggregates, Manager metrics dashboard, retention (ANL-01..09)
 - [ ] **Legal pages:** Privacy, Cookie, Terms and Accessibility Statement, versioned and marked DRAFT until the owner approves (PRD §13)
 - [ ] **Hardening:** MITRE CWE/ATT&CK review, ZAP, manual a11y audit, performance budgets, backup/restore test, runbooks (PRD §11, §12, §7.1, §19)
-- [ ] **Legacy migration:** read-only discovery of the `.bak` → mapping that the owner approves → test-driven ETL → 100% reconciliation → dress rehearsal (PRD §16)
-- [ ] **Production cutover:** a runbook executed with the owner present, plus post-go-live monitoring (PRD §19.4)
+- [ ] **Legacy migration:** read-only discovery of the `.bak` → mapping that the owner approves → test-driven ETL → 100% reconciliation → local dress rehearsal (PRD §16)
+- [ ] **Legacy data cutover:** a runbook that imports the legacy data into the live CSPS database, executed with the owner present, plus post-go-live monitoring (PRD §19.4). CSPS itself replaces the legacy site in Phase 3
 
 ### Out of Scope
 
@@ -70,7 +70,7 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 - Marketing emails: transactional email only, no marketing without separate consent (PRD §13, §23)
 - Inventory: not part of the shop's workflow in this release (PRD §23)
 - Financial reporting beyond the order summary, company-expense totals, dashboard KPIs and visitor metrics (PRD §23)
-- Touching the live legacy database or site before the approved cutover: Prime Directive 1
+- Modifying legacy data anywhere: Prime Directive 1 as amended (2026-10-15). The legacy site and database are retired in Phase 3 after a verified `.bak` is kept, and legacy data reaches CSPS only through the Phase 16/17 import
 - Designing the schema from the legacy `.bak`: Prime Directive 11. The app owns its schema, and legacy data is reshaped to fit it
 
 ## Context
@@ -83,9 +83,9 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 
 None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps.slnx`, `src/Csps.{Domain,Application,Infrastructure,Server}`, `web/`, `tests/`, `tools/`). Phase 1 keeps the port assignments the scaffold already uses: Vite 5180 (`strictPort`), API 5115 http / 7028 https.
 
-**Legacy system.** A live production site and database exist today on SmarterASP.NET (legacy DB name pattern `csptailoringdb`). A production backup from 2026-10-06 sits in `_local/` (gitignored). The legacy schema is unknown and intentionally unexamined until the legacy-discovery phase.
+**Legacy system.** A live production site and database exist today on SmarterASP.NET (legacy DB name pattern `csptailoringdb`). A production backup from 2026-10-06 sits in `_local/` (gitignored). The legacy schema is unknown and intentionally unexamined until the legacy-discovery phase. It is retired in Phase 3 (owner, 2026-10-15): after a fresh `.bak` and the site files are kept and the restore receipt is confirmed, the legacy database is deleted and CSPS takes over the live site.
 
-**Version control.** Local git repo initialized 2026-10-06 on branch `main`, with a repo-local author identity. There's no GitHub remote yet. The owner will create a new GitHub repo when asked. Ask before Phase 1's CI, branch protection and staging-deploy work, which needs the remote and its repository secrets.
+**Version control.** Local git repo initialized 2026-10-06 on branch `main`, with a repo-local author identity. The owner created the private GitHub repo, and pull requests target `main`. It stays private on GitHub Free (03-CONTEXT D-07), which can't enforce branch rules there, so merges go through the process merge gate (D-08).
 
 **Machine & tooling (verified 2026-10-06).** Windows 11 Pro. .NET SDK 10.0.401, Node 24.21, Docker 29.8.1, SQL Server LocalDB (`MSSQLLocalDB`), git 2.56. The machine is shared with another project, TheBETSLLC (see Constraints).
 
@@ -127,7 +127,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
   - LCP < 2.0 s, CLS < 0.05, INP < 200 ms; API p95 < 300 ms for list endpoints.
 - **Responsive**: Mobile-first, 320 px to 1920 px, portrait and landscape, touch targets ≥ 44 px, no horizontal scroll. Visual QA uses the UI spec's 1440 / 820 / 390 px plus the PRD breakpoints.
 - **Hosting (PRD §19)**: SmarterASP.NET (Windows/IIS), Web Deploy from GitHub Actions, in-process hosting. Shared-hosting limits apply: app pools recycle, Data Protection keys live in the DB, and jobs must be short and idempotent.
-- **Data safety (Prime Directives 1, 2)**: The live legacy DB and site stay untouched until the approved cutover. The `.bak` lives only in `_local/`, is never committed, uploaded or deployed, and is only restored into a local disposable instance.
+- **Data safety (Prime Directives 1, 2)**: Prime Directive 1 as amended by the owner (2026-10-15, 03-CONTEXT D-01): the legacy site and database are retired in Phase 3, and only after a fresh `.bak` and the legacy site files are kept off the host and a local restore receipt is confirmed (D-04, D-05). Legacy data is never modified: it stays as it is in the `.bak` until the Phase 16/17 import. The `.bak` lives only in `_local/`, is never committed, uploaded or deployed, and is only restored into a local disposable `CSPS_` database.
 - **Shared machine (CLAUDE.md, binding)**:
   - Ports: Vite 5180, API 5115 / 7028, Playwright host 5199 (`reuseExistingServer: false`).
   - Never use 5173, 5023 or 5099. Avoid 49152–65535.
@@ -141,7 +141,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 
 | Decision | Rationale | Outcome |
 |---|---|---|
-| SQL Server 2025 is the production target; compatibility level stays pinned at 160 until the 2025 database exists (D-33) | SmarterASP.NET offers 2025 only as a new database plus `.bak` restore, not an in-place upgrade; the Basic plan has 1 database. The move happens at the Phase 17 cutover | — Pending |
+| SQL Server 2025 is the production target; compatibility level stays pinned at 160 until the 2025 database exists (D-33) | SmarterASP.NET offers 2025 only as a new database plus `.bak` restore, not an in-place upgrade; the Basic plan has 1 database. The move happens in Phase 3 (03-CONTEXT D-03): after the backup proof the legacy database is deleted, a new SQL Server 2025 database is created, and the pin moves to its verified level | — Pending |
 | Two free Microsoft runtime parts of the SQL Server driver ship under an exact-version license exception (`docs/license-exceptions.json`) | They are free but not open source; Microsoft.Data.SqlClient needs them on Windows. Any other version needs a new owner approval | ✓ Good (Phase 1) |
 | The dev seed runs only on `(localdb)\MSSQLLocalDB` or a loopback test container, and only against `CSPS_Dev` or `CSPS_E2E` (code review WR-04; instance changed by the owner, 2026-10-14, quick 261014-ctx) | Keeps sample data and `--reset` away from the live host and TheBETSLLC's databases. The database name is now the guard, because TheBETSLLC shares the instance | ✓ Good (quick 261007-p98, 261014-ctx) |
 | Owner conventions 2026-10-14 (OR-1..OR-6): default `MSSQLLocalDB` with separate `CSPS_*` databases; minimal comments; client-side (zod) validation of every backend rule before any request; no long dash in the client; API calls per module in `modules/*/services` with the shared client in `core/api`; the owner's `web/src` layout | Standing rules set before Phase 4. Recorded in `.claude/CLAUDE.md` Conventions, the PRD (§9) and REQUIREMENTS (WEB-02/03/04/09, QUAL-03) | ✓ Adopted (quick 261014-ctx) |
@@ -150,11 +150,12 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 | Replace the VS template scaffold with the PRD §3.1 layout and keep its port config | The template layout (`*.Server` + `*.client` + SpaProxy) doesn't match the onion layout or the build-into-`wwwroot` model | — Pending |
 | `CSPS-UI-SPEC.md` governs visuals, copy and component markup. The PRD governs behavior, security, a11y and data rules | PRD Prime Directive 5. Where they conflict on security or a11y, stop and ask the owner | — Pending |
 | Server is authoritative for all money math. The client uses the UI-spec `orderTotals()` only for live previews | PRD §3.3 and UI-SPEC §9.2 both require it, and both must produce identical figures | — Pending |
-| Legacy `.bak` is opened only in the legacy-discovery phase | Prime Directive 11 and PRD §16 | — Pending |
+| Legacy `.bak` is opened only in the legacy-discovery phase; one owner-approved exception in Phase 3 reads table names and row counts only, as the backup proof (03-CONTEXT D-04) | Prime Directive 11 and PRD §16 | — Pending |
 | TDD mode on for every phase | PRD Prime Directive 3 and §14 | ✓ Good |
 | **OD-19 resolved** and owner answers (2026-10-07): only the Manager role deletes money transfers (Admin 403); an Admin sees only their own money on hand and transfers, a Manager sees everyone's; every state-changing form post is idempotent (SEC-06, WEB-09); concurrency guarantees are explicit (SEC-07) | The owner answered in chat. The rulings match PRD §4, where the Manager is the senior role. Duplicate posts and lost updates would break the Core Value of correct, server-computed money | ✓ Owner decided (2026-10-07) |
 | Owner answers on expenses and record attribution (2026-10-07): (1) an expense's "Paid by" reduces that staff member's money on hand, so the balance is payments received + transfers in − transfers out − expenses paid, computed server-side (MONEY-01); (2) every record staff create or edit stores and shows `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock and never from the client, with "Legacy import" for migrated records whose creator is unknown (SEC-08, MIG-10); (3) company and order expenses both have a required, server-validated "Paid by" naming an active Admin or Manager, and a payer change is audited (CEXP-05, ORD-23) | The owner asked that a payment show who received it and who entered it, and that expenses record who paid them, then answered three follow-up questions in chat. Received by (ORD-22) and Recorded by (SEC-08) are separate fields. Attribution that the client can't forge, plus audited payer changes, keeps staff balances explainable (Core Value) | ✓ Owner decided (2026-10-07) |
 | URL query-string state with nuqs (owner, 2026-10-07): (1) list and page view state (filters, search, sort, page, page size, tab, view mode) lives in the URL query string through nuqs 2.10.1 (MIT, free), approved after a check for security advisories, deprecation and the 14-day cool-down; switching to any newer version, such as a stable 2.10.2, needs the owner's approval at the Phase 2 install; (2) free-text search goes in the URL too, chosen over the privacy-conservative default of keeping it out, with mitigations: no query string in analytics, Core Web Vitals, client error reports or server logs, the strict Referrer-Policy, a 100-character server cap and no tokens or secrets in URLs; (3) the public gallery keeps its category filter in the URL as well, about 5.6 KB gz within the 150 KB public budget (WEB-10, ORD-10, GAL-01, ANL-05, SEC-03) | The owner asked for query-string URLs using nuqs. URL state lets Back, refresh, bookmarks and shared links reopen the same list view. Usage rules in WEB-10 avoid three known nuqs bugs (#1567, #1563, #1245), and ORD-10's saved view becomes the fallback when the URL has no valid view | ✓ Owner decided (2026-10-07) |
+| **Prime Directive 1 override** (owner, 2026-10-15): CSPS deploys to the live site and replaces the legacy app in Phase 3; the legacy site and database are retired then, not at the end of the project. There is no staging site (Basic plan, Phase 1 D-11) | The owner chose to surrender the legacy site now, accepting that staff have no order screens until the order phases ship. Legacy data is kept unchanged in a verified `.bak` (receipt confirmed before the delete) and imported in Phases 16 and 17. Until the owner accepts CSPS live, the legacy rollback kit (site files plus the `.bak`) can put the legacy site back | ✓ Owner decided (2026-10-15) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -229,4 +230,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-14 after Phase 2 (Web Foundation & Design System)*
+*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 recorded the Prime Directive 1 override (Phase 3 planning)*

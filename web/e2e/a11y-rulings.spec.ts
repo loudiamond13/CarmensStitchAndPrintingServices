@@ -8,7 +8,8 @@
 //   - D-03: current and selected items (site link, sidebar item, tab-bar item, selected tab) are weight 700, their
 //     inactive siblings 600.
 //   - D-BL-02: the current sidebar row hides its "Manager" tag; on other rows it shows at full opacity (FYI-01).
-//   - O-3: the current public drawer link is 800 italic with aria-current="page".
+//   - O-3: the current public drawer link is 800 italic with aria-current="page" (the showcase's opened SiteHeader drawer,
+//     because the public route is the standalone holding page, D-17, until the Phase 11 public layout).
 //   - O-6: under reduced motion the skeleton shimmer and the modal, slide-over and toast entry animations are none.
 // Opacity is read as the effective value (the product of the element's and its ancestors' computed opacity), because a
 // faded parent fades its text as much as the text's own opacity would.
@@ -116,6 +117,7 @@ async function tabThrough(page: Page): Promise<{ stops: number; hidden: string[]
 for (const pageCase of PAGES) {
   test(`@a11y-rulings D-05 no focused element on ${pageCase.name} computes to opacity 0 or visibility hidden while Tabbing`, async ({
     page,
+    browserName,
   }) => {
     // The showcase has a few hundred Tab stops; WebKit under a full parallel run takes up to five minutes for them.
     test.setTimeout(isShowcase(pageCase) ? 600_000 : 60_000);
@@ -124,13 +126,15 @@ for (const pageCase of PAGES) {
 
     const { stops, hidden } = await tabThrough(page);
     // WebKit's Tab skips links (Safari's default), so its walk is shorter, but it still reaches every button and field.
-    expect(stops).toBeGreaterThan(0);
+    // The D-17 holding page at `/` has links only, so WebKit has no stop there.
+    if (!(browserName === 'webkit' && pageCase.path === '/')) {
+      expect(stops).toBeGreaterThan(0);
+    }
     expect(hidden).toEqual([]);
   });
 }
 
 const SHOWCASE_LIGHT = PAGES.find((pageCase) => isShowcase(pageCase) && pageCase.theme === 'light');
-const PUBLIC = PAGES.find((pageCase) => pageCase.path === '/');
 
 function required<T>(value: T | undefined, what: string): T {
   if (value === undefined) {
@@ -220,9 +224,12 @@ for (const pageCase of PAGES) {
         }
       }
     }
-    // Every page has a current item somewhere: the site link Home on /, a sidebar or tab-bar item on the admin pages,
-    // and the showcase's navigation and tab cases (its own sidebar marks none current, plan 02-34).
-    expect(currentSeen).toBeGreaterThan(0);
+    // Every page has a current item somewhere: a sidebar or tab-bar item on the admin pages, and the showcase's
+    // navigation and tab cases (its own sidebar marks none current, plan 02-34). The D-17 holding page at `/` has no
+    // navigation, so it has none.
+    if (pageCase.path !== '/') {
+      expect(currentSeen).toBeGreaterThan(0);
+    }
     expect(problems).toEqual([]);
   });
 }
@@ -276,14 +283,13 @@ interface DrawerLink {
 
 test('@a11y-rulings O-3 the current public drawer link is 800 italic with aria-current="page"', async ({ page }) => {
   await page.setViewportSize(PHONE);
-  await openPage(page, required(PUBLIC, '/'));
-  await page.getByRole('button', { name: 'Menu' }).click();
-  const drawer = page.getByRole('navigation', { name: 'Mobile' });
+  await openPage(page, required(SHOWCASE_LIGHT, '/dev/components'));
+  const drawer = page.locator('[data-case="site-header-drawer-open"]').getByRole('navigation', { name: 'Mobile' });
   await expect(drawer).toBeVisible();
 
   const links = await page.evaluate<
     DrawerLink[]
-  >(`[...document.querySelectorAll('nav[aria-label="Mobile"] a')].map((element) => ({
+  >(`[...document.querySelectorAll('[data-case="site-header-drawer-open"] nav[aria-label="Mobile"] a')].map((element) => ({
     text: (element.textContent || '').trim(),
     current: element.getAttribute('aria-current'),
     weight: getComputedStyle(element).fontWeight,

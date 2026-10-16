@@ -1,6 +1,6 @@
 using Csps.Application.Ports;
-using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.IntegrationTests.Auditing;
+using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;

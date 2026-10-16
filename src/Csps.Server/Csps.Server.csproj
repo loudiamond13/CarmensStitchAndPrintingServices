@@ -10,6 +10,13 @@
     <UserSecretsId>7d33a131-9aea-4f9c-90eb-213d2b59cbee</UserSecretsId>
   </PropertyGroup>
 
+  <!-- OPS-05: developer logs and Development settings never reach the deploy package. -->
+  <ItemGroup>
+    <Content Remove="logs\**" />
+    <None Remove="logs\**" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Infrastructure\Csps.Infrastructure.csproj" />
   </ItemGroup>

@@ -44,7 +44,7 @@ public sealed class SignInEndpointTests(CspsDatabase database) : IClassFixture<C
         var mail = await AuthClient.LatestEmailAsync(client, staff.Email);
         mail.Subject.ShouldMatch(@"^\d{6} is your CSPS sign-in code$");
         mail.Text.ShouldContain("from Chrome on Android");
-        (await AuthClient.ReadEmailsAsync(client, staff.Email)).ShouldHaveSingleItem();
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email)).ShouldHaveSingleItem();
 
         await using var context = database.CreateContext();
         var challenge = (await context.TwoFactorChallenges.AsNoTracking().Where(c => c.UserId == staff.Id).ToListAsync(TestContext.Current.CancellationToken))

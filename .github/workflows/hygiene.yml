@@ -1,0 +1,158 @@
+# OPS-03 / D-10: repository hygiene checks. GitHub's own secret scanning also runs on the public repo, and
+# gitleaks (MIT, a checksum-verified release binary) scans every pull request and every push to main as well.
+name: Hygiene
+
+# OPS-03: no path filter, so the check always reports. "edited" re-scans when a PR changes its base branch.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches: [main]
+
+# OPS-03: the token starts with no rights; the job asks only to read the repository.
+permissions: {}
+
+# OPS-03: a newer push to a PR cancels its older scan; scans of main are never cancelled.
+concurrency:
+  group: hygiene-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # D-10: fails on any finding in the commits of the PR (base..head) or of the push.
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # OPS-03: full history, because the scan walks the commits between the base and the head.
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # T-03-20: the binary is used only after sha256sum -c matches the owner-approved checksum (CWE-494).
+      - name: install gitleaks 8.30.1 (checksum verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 --output gitleaks_8.30.1_linux_x64.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks_8.30.1_linux_x64.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          ./gitleaks version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # T-03-19: event values reach the script through env only (CWE-77). A zero "before" means a new branch,
+      # and an unknown "before" means a rewritten history; both scan the pushed commit alone.
+      - name: scan commits
+        env:
+          SCAN_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "$SCAN_BASE" ] && [ "$SCAN_BASE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${SCAN_BASE}^{commit}"; then
+            range="${SCAN_BASE}..${SCAN_HEAD}"
+          else
+            range="-1 ${SCAN_HEAD}"
+          fi
+          echo "Scanning: $range"
+          gitleaks git --config .gitleaks.toml --redact --no-banner --verbose --log-opts="$range" .
+
+  # OPS-01: the PR title (the squash commit on main) and every commit in the PR follow Conventional Commits.
+  commits:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
+      # T-03-24: the PR title is free text, so it reaches the script through env only (CWE-77).
+      - name: check subjects
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node web/scripts/commit-lint.mjs
+
+  # OPS-02 / T-03-23: actionlint finds YAML, expression and shell mistakes (it uses the runner's shellcheck for run scripts).
+  # T-03-SC: the binary is used only after sha256sum -c matches the owner-approved checksum (CWE-494).
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: install actionlint 1.7.12 (checksum verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 --output actionlint_1.7.12_linux_amd64.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint_1.7.12_linux_amd64.tar.gz" | sha256sum -c -
+          tar -xzf actionlint_1.7.12_linux_amd64.tar.gz actionlint
+          ./actionlint -version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # Run from the repository root: actionlint finds every file under .github/workflows by itself.
+      - name: lint workflows
+        run: actionlint -color
+
+  # OPS-02 / T-03-23: zizmor finds known workflow attack patterns. advanced-security stays false because SARIF upload needs
+  # GitHub Advanced Security, so findings show as annotations. T-03-SC: the action commit and the zizmor version are pinned.
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: zizmor 1.30.1
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          advanced-security: false
+          annotations: true
+
+  # Owner approval 2026-10-16: a pull request that adds or changes a package with a known security problem (any severity),
+  # or with a license outside the project allow-list (docs/dependencies.json), fails. GitHub cannot read the license of a
+  # GitHub Action (a known upstream gap), so those show as unknown and are let through; the SHA-pin tests cover actions.
+  # contents: read only, so the summary stays on the run page instead of a PR comment.
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, MPL-2.0, OFL-1.1
+          comment-summary-in-pr: never

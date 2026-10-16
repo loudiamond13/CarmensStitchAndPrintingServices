@@ -1,0 +1,46 @@
+# OPS-03 / D-10: gitleaks configuration. The default rules stay on; the allowlists below name single files only.
+# Each entry covers the generic-api-key rule in files that hold fake test values. A new file needs its own entry,
+# and a real secret is never allowlisted: report it to the owner instead.
+title = "CSPS gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Sample passwords and tokens in .NET integration tests (fake values used to exercise sign-in, reset and masking)."
+targetRules = ['generic-api-key']
+paths = [
+  '''^tests/Csps\.Infrastructure\.IntegrationTests/Identity/UserAccountsTests\.cs$''',
+  '''^tests/Csps\.Infrastructure\.IntegrationTests/Passwords/HibpPwnedPasswordsTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Auth/BreachRecheckTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Auth/InactiveAccountTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Auth/MustChangePasswordTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Auth/PasswordResetTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Logging/SensitiveDataMaskingTests\.cs$''',
+]
+
+[[allowlists]]
+description = "Sample password cases for the shared password-policy fixture (fake values, no real account)."
+targetRules = ['generic-api-key']
+paths = [
+  '''^tests/fixtures/password-policy-cases\.json$''',
+]
+
+[[allowlists]]
+description = "Sample tokens and passwords in web tests and the web smoke script (fake values for a mocked API)."
+targetRules = ['generic-api-key']
+paths = [
+  '''^web/scripts/smoke\.test\.ts$''',
+  '''^web/src/modules/admin/pages/AcceptInvitePage\.test\.tsx$''',
+  '''^web/src/modules/admin/pages/ResetPasswordPage\.test\.tsx$''',
+]
+
+[[allowlists]]
+description = "Planning documents that quote sample test passwords or hyphenated words that look like keys (no real credential)."
+targetRules = ['generic-api-key']
+paths = [
+  '''^\.planning/phases/02-web-foundation-design-system/02-20-PLAN\.md$''',
+  '''^\.planning/phases/04-identity-authentication/04-08-PLAN\.md$''',
+  '''^\.planning/phases/04-identity-authentication/04-19-PLAN\.md$''',
+  '''^\.planning/phases/04-identity-authentication/04-CONTEXT\.md$''',
+]
