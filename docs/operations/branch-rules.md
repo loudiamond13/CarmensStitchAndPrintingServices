@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T14:50:00-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T17:21:19-05:00*
 
 This repository is public on GitHub, and GitHub enforces branch rules on a public repository for free. Until 2026-10-16 the repository was private, and GitHub Free could not enforce rules there (the rulesets API answered 403 on 2026-10-15), so the rules were kept by process (D-08): CI checked every PR and the merge command refused to merge until the checks were green. Both layers stay: GitHub now refuses a bad merge on its own, and the merge command still runs its gate first, because the gate also checks the Definition of Done list in the PR body, which GitHub cannot see.
 
@@ -18,7 +18,8 @@ This repository is public on GitHub, and GitHub enforces branch rules on a publi
   - the branch is not behind `main` and has no conflicts;
   - `gate (full)` (or `gate (docs)`) passed on the PR's newest commit;
   - no other check failed, is still running or was cancelled;
-  - every line under "Definition of Done" in the PR body is ticked.
+  - every line under "Definition of Done" in the PR body is ticked;
+  - the PR title has no GitHub skip marker, no double quote and no control character, so the squash commit message is safe.
 - **Squash merges only.** The repository's merge buttons allow squash merges and nothing else, which keeps the history on `main` linear. Automatic deletion of merged branches stays off, because the merge command deletes branches itself and the pipeline merge must be able to keep a branch.
 - **Owner review.** `.github/CODEOWNERS` names `@loudiamond13` for every path, including `.github/`. Required approvals stay at 0, because a solo owner cannot approve their own PR (D-09).
 - **The `/gsd-ship` ship note.** `/gsd-ship` adds one note commit marked `[ci skip]` that changes only `.planning/` files, so that commit has no checks of its own. The owner chose the parent rule (plan 03-03, 2026-10-15): if that newest commit changes only `.planning/` files, the merge gate judges it by the commit before it, which must pass every check. Any other `[ci skip]` head is refused. The rule lives in `web/scripts/merge-gate.mjs`. With the ruleset on, GitHub itself waits for the required checks on the head commit, so a `[ci skip]` head blocks the merge button until another commit is pushed. Push the note without `[ci skip]` (a docs-only commit runs only the cheap `gate (docs)`), or push one more small commit.
@@ -89,6 +90,10 @@ tools/scripts/Merge-PullRequest.ps1 -Pr <number>
 ```
 
 It runs the merge gate, and only if the gate allows it, squash-merges the PR and deletes the branch. Add `-KeepBranch` to keep the branch. Never use `gh pr merge` directly, and never use the merge button in the GitHub page, because both skip the gate's Definition of Done check. GitHub's ruleset still applies to them, but it does not read that list.
+
+The command also sets the squash commit message itself. The subject is `<PR title> (#<number>)` and the body is one line naming the PR number and the head commit the gate approved. It is never GitHub's default of every commit message in the PR. On 2026-10-16 that default message for PR #1 (fb9b20c) included an old commit that quoted a skip marker, so GitHub ran no workflow on `main` and no deploy package was built.
+
+The gate refuses a PR whose title holds a skip marker (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]` or `[actions skip]` in any letter case, or a `skip-checks: true` line), a double quote (Windows PowerShell 5.1 would split it into extra `gh` arguments) or a control character. Fix it by editing the title (`gh pr edit <number> --title "..."`) and running the command again. The `/gsd-ship` ship note is not affected: it is a commit on the branch, and commit messages no longer reach the squash message.
 
 If the gate refuses, it prints each reason in plain English. Fix the reason (wait for the checks, update the branch, tick the list) and run the command again.
 

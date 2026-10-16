@@ -17,8 +17,13 @@
 // and has exactly one parent is judged by that parent instead, which must have a passing gate check and nothing failed or
 // running. Any other skip-token head is refused until a commit without a skip token runs CI.
 //
+// The merge command also takes the squash commit subject and body from this gate. They are built from the PR title
+// (`<title> (#<n>)`), never GitHub's default of every commit message, and the gate refuses a title that holds a skip
+// marker, a double quote or a control character.
+//
 // Node built-ins only, and the preinstalled GitHub CLI (gh.exe is spawned directly; it is not a .cmd shim). This file
 // never merges anything: it only reads.
+import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,6 +65,8 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const SHIP_NOTE_PREFIX = 'Ship note rule: ';
 const OK_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+/** Any skip marker GitHub reads, in any letter case and with spaces inside the brackets. */
+const SKIP_MARKER = /\[\s*(?:skip\s*ci|ci\s*skip|no\s*ci|skip\s*actions|actions\s*skip)\s*\]|skip-checks\s*:\s*true/gi;
 const USAGE = 'Usage: node web/scripts/merge-gate.mjs <pull-request-number> [--local-gate]';
 
 /**
@@ -69,6 +76,7 @@ const USAGE = 'Usage: node web/scripts/merge-gate.mjs <pull-request-number> [--l
  * @typedef {{ name: string, status: string, conclusion: string | null }} CheckRun
  * @typedef {{ pr: PullRequest, checks: readonly PrCheck[], behindBy: number | null, headCommit?: HeadCommit | undefined, parentChecks?: readonly CheckRun[] | undefined, localGate?: boolean | undefined }} GateInput
  * @typedef {{ allowed: boolean, reasons: string[] }} Verdict
+ * @typedef {{ subject: string, body: string }} SquashMessage
  * @typedef {{ status: number | null, stdout?: string | null, stderr?: string | null }} RunResult
  * @typedef {(command: string, args: readonly string[]) => RunResult} GhRun
  * @typedef {{ run?: GhRun, log?: (line: string) => void, error?: (line: string) => void }} Deps
@@ -88,6 +96,73 @@ function isRecord(value) {
 /** @param {string} message */
 function hasSkipToken(message) {
   return SKIP_TOKENS.some((token) => message.includes(token));
+}
+
+/**
+ * Every skip marker in the text, as written.
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function skipMarkersIn(text) {
+  return [...text.matchAll(SKIP_MARKER)].map((match) => match[0]);
+}
+
+/**
+ * The squash commit message: the PR title and a fixed one-line body. The PR body and the commit log never enter it.
+ * @param {PullRequest} pr
+ * @returns {SquashMessage}
+ */
+export function squashMessage(pr) {
+  const number = String(pr.number);
+  return {
+    subject: `${pr.title.trim()} (#${number})`,
+    body: `Merged from pull request #${number} at head commit ${pr.headRefOid} by tools/scripts/Merge-PullRequest.ps1.`,
+  };
+}
+
+/**
+ * @param {string} text
+ * @returns {boolean}
+ */
+function hasControlCharacter(text) {
+  for (const character of text) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Why the squash message cannot be used: an empty title, a character that would split the gh arguments, or a skip marker
+ * that would stop every workflow on main.
+ * @param {PullRequest} pr
+ * @returns {string[]}
+ */
+function squashMessageReasons(pr) {
+  const title = pr.title.trim();
+  /** @type {string[]} */
+  const reasons = [];
+  if (title === '') {
+    reasons.push('The pull request title is empty. Give it a title first.');
+  }
+  if (title.includes('"')) {
+    reasons.push(
+      'The pull request title has a double quote ("), which the merge command cannot pass to gh safely. Remove it from the title.',
+    );
+  }
+  if (hasControlCharacter(title)) {
+    reasons.push('The pull request title has a control character. Remove it from the title.');
+  }
+  const message = squashMessage(pr);
+  const text = [message.subject, message.body].join('\n');
+  for (const match of skipMarkersIn(text)) {
+    reasons.push(
+      `The squash commit message would contain the GitHub skip marker "${match}", so no workflow would run on main after the merge. Remove it from the pull request title.`,
+    );
+  }
+  return reasons;
 }
 
 /**
@@ -303,8 +378,8 @@ function missingGateReasons({ pr, checks, headCommit, parentChecks }) {
 
 /**
  * The merge decision, pure over the data gh returned. Reasons come in a fixed order: pull request state, base branch,
- * draft, behind, conflicts, the green gate (or, with `localGate`, the Local full gate section), other checks, then the
- * Definition of Done.
+ * draft, behind, conflicts, the green gate (or, with `localGate`, the Local full gate section), other checks, the
+ * Definition of Done, then the squash commit message.
  * @param {GateInput} input
  * @returns {Verdict}
  */
@@ -356,6 +431,7 @@ export function decide(input) {
   }
 
   reasons.push(...definitionOfDoneReasons(body));
+  reasons.push(...squashMessageReasons(pr));
 
   return { allowed: reasons.length === 0, reasons };
 }
@@ -653,7 +729,8 @@ function parseArguments(argv) {
 }
 
 /**
- * The CLI: exit 0 and print `head=<sha>` when the merge is allowed, exit 1 and print each reason when it is refused, exit 2
+ * The CLI: exit 0 and print `head=<sha>` and the base64 squash subject and body when the merge is allowed, exit 1 and
+ * print each reason when it is refused, exit 2
  * for bad arguments.
  * @param {readonly string[]} argv
  * @param {Deps} [deps]
@@ -697,7 +774,11 @@ export function main(argv, deps = {}) {
     return 1;
   }
   log(`Merge gate allows pull request #${String(prNumber)}.`);
+  const message = squashMessage(data.pr);
+  log(`Squash commit subject: ${message.subject}`);
   log(`head=${data.pr.headRefOid}`);
+  log(`subject-base64=${Buffer.from(message.subject, 'utf8').toString('base64')}`);
+  log(`body-base64=${Buffer.from(message.body, 'utf8').toString('base64')}`);
   return 0;
 }
 

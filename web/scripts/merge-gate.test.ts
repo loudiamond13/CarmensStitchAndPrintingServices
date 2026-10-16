@@ -7,6 +7,10 @@
 // The `[ci skip]` ship-note rule is the owner's "parent-rule" ruling (2026-10-15T22:05-05:00): a head commit with a skip
 // token that changes nothing outside .planning/ and has exactly one parent is judged by that parent, which must pass the
 // gate check and have nothing failed or running. Any other skip-token head is refused (T-03-12).
+//
+// The merge command sets the squash message from the PR title, and the gate refuses a title that would put a skip marker,
+// a double quote or a control character into it.
+import { Buffer } from 'node:buffer';
 import { describe, expect, it } from 'vitest';
 import {
   collect,
@@ -20,6 +24,8 @@ import {
   LOCAL_GATE_WARNING,
   main,
   SKIP_TOKENS,
+  skipMarkersIn,
+  squashMessage,
 } from './merge-gate.mjs';
 
 type GateInput = Parameters<typeof decide>[0];
@@ -343,6 +349,8 @@ describe('decide: the ship note rule (parent-rule, T-03-12)', () => {
 
   it('allows a ship note with no checks when its single parent passed the gate', () => {
     expect(decide(shipped())).toEqual({ allowed: true, reasons: [] });
+    const message = squashMessage(pr());
+    expect(skipMarkersIn(`${message.subject}\n${message.body}`)).toEqual([]);
   });
 
   it('accepts gate (docs) on the parent, and parent checks that were skipped or neutral', () => {
@@ -1000,5 +1008,156 @@ describe('main with --local-gate', () => {
     expect(calls).toEqual([]);
     expect(errors.join('\n')).toContain('Usage: node web/scripts/merge-gate.mjs <pull-request-number> [--local-gate]');
     expect(errors).not.toContain(LOCAL_GATE_WARNING);
+  });
+});
+
+// ---- the squash commit message ----
+
+const b64 = (text: string) => Buffer.from(text, 'utf8').toString('base64');
+const fromB64 = (text: string) => Buffer.from(text, 'base64').toString('utf8');
+const BODY_LINE = `Merged from pull request #7 at head commit ${HEAD} by tools/scripts/Merge-PullRequest.ps1.`;
+const markerReason = (match: string) =>
+  `The squash commit message would contain the GitHub skip marker "${match}", so no workflow would run on main after the merge. Remove it from the pull request title.`;
+
+describe('squashMessage', () => {
+  it('builds "<title> (#<n>)" with a one-line body naming the pull request and the approved head', () => {
+    expect(squashMessage(pr())).toEqual({ subject: 'feat(03-03): something (#7)', body: BODY_LINE });
+  });
+
+  it('trims the title', () => {
+    expect(squashMessage(pr({ title: '  fix: x  ' })).subject).toBe('fix: x (#7)');
+  });
+
+  it('never takes the pull request body into the message (the fb9b20c regression)', () => {
+    const body = `${TICKED_BODY}\n\nAn old commit said [skip ci] once.`;
+    const request = pr({ body });
+    const message = squashMessage(request);
+
+    expect(decide(input({ pr: request }))).toEqual({ allowed: true, reasons: [] });
+    expect(`${message.subject}\n${message.body}`).not.toContain('skip ci');
+    expect(skipMarkersIn(`${message.subject}\n${message.body}`)).toEqual([]);
+  });
+});
+
+describe('skipMarkersIn', () => {
+  it.each([...SKIP_TOKENS])('finds %s inside a sentence', (token) => {
+    expect(skipMarkersIn(`docs: tidy ${token} please`)).toEqual([token]);
+  });
+
+  it.each([
+    ['[SKIP CI]'],
+    ['[Ci Skip]'],
+    ['[skip  ci]'],
+    ['[ skip ci]'],
+    ['[no ci ]'],
+    ['[ACTIONS   SKIP]'],
+    ['skip-checks:true'],
+    ['Skip-Checks:  TRUE'],
+  ])('finds the variant %s as written', (variant) => {
+    expect(skipMarkersIn(`feat: x ${variant}`)).toEqual([variant]);
+  });
+
+  it.each([
+    'feat: skip the CI cache step',
+    'docs: explain the ci skip rule',
+    'fix: skip-checks: false',
+    'feat(03-03): something (#7)',
+  ])('finds nothing in "%s"', (text) => {
+    expect(skipMarkersIn(text)).toEqual([]);
+  });
+
+  it('returns every match in text order, as written', () => {
+    expect(skipMarkersIn('a [No CI] b [skip actions] c')).toEqual(['[No CI]', '[skip actions]']);
+  });
+});
+
+describe('decide: the squash commit message', () => {
+  it.each([...SKIP_TOKENS.filter((token) => token !== 'skip-checks: true'), '[SKIP CI]'])(
+    'refuses a title holding %s',
+    (token) => {
+      expect(refusalOf({ pr: pr({ title: `feat: x ${token}` }) })).toEqual([markerReason(token)]);
+    },
+  );
+
+  it('refuses a title holding a skip-checks line', () => {
+    expect(refusalOf({ pr: pr({ title: 'feat: x skip-checks:true' }) })).toEqual([markerReason('skip-checks:true')]);
+  });
+
+  it('refuses a title with a double quote', () => {
+    expect(refusalOf({ pr: pr({ title: 'feat: x" --admin "y' }) })).toEqual([
+      'The pull request title has a double quote ("), which the merge command cannot pass to gh safely. Remove it from the title.',
+    ]);
+  });
+
+  it.each([
+    ['a bell character', `feat: x${String.fromCodePoint(7)}y`],
+    ['a tab', 'feat:\tx'],
+  ])('refuses a title with %s', (_name, title) => {
+    expect(refusalOf({ pr: pr({ title }) })).toEqual([
+      'The pull request title has a control character. Remove it from the title.',
+    ]);
+  });
+
+  it('refuses a title with only whitespace', () => {
+    expect(refusalOf({ pr: pr({ title: '   ' }) })).toEqual([
+      'The pull request title is empty. Give it a title first.',
+    ]);
+  });
+
+  it('puts the title reasons after the Definition of Done reasons', () => {
+    expect(refusalOf({ pr: pr({ title: 'feat: x [skip ci]', body: '' }) })).toEqual([
+      'The pull request body has no "## Definition of Done" section.',
+      markerReason('[skip ci]'),
+    ]);
+  });
+
+  it('also refuses in local gate mode', () => {
+    const verdict = decide(
+      localInput({ localGate: true, pr: pr({ title: 'feat: x [ci skip]', body: bodyWithLocalGate() }) }),
+    );
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.reasons).toEqual([markerReason('[ci skip]')]);
+  });
+});
+
+describe('main: the squash message lines', () => {
+  it('prints the subject, head and base64 subject and body once each when allowed', () => {
+    const { logs, errors, deps } = harness();
+
+    expect(main(['7'], deps)).toBe(0);
+
+    expect(logs.filter((line) => line === 'Squash commit subject: feat: x (#7)')).toHaveLength(1);
+    expect(logs.filter((line) => line === `head=${HEAD}`)).toHaveLength(1);
+    expect(logs.filter((line) => line === `subject-base64=${b64('feat: x (#7)')}`)).toHaveLength(1);
+    expect(logs.filter((line) => line === `body-base64=${b64(BODY_LINE)}`)).toHaveLength(1);
+    expect(errors).toEqual([]);
+  });
+
+  it('carries a title with the peso sign unchanged through base64', () => {
+    const { logs, deps } = harness([
+      [has('pr view'), { status: 0, stdout: prJson({ title: 'fix: show ₱ totals' }) }],
+      ...happyRoutes(),
+    ]);
+
+    expect(main(['7'], deps)).toBe(0);
+
+    const line = logs.find((entry) => entry.startsWith('subject-base64='));
+    expect(fromB64(line?.slice('subject-base64='.length) ?? '')).toBe('fix: show ₱ totals (#7)');
+  });
+
+  it('refuses a title with a skip marker and prints none of the merge lines', () => {
+    const { logs, errors, deps } = harness([
+      [has('pr view'), { status: 0, stdout: prJson({ title: 'feat: x [skip ci]' }) }],
+      ...happyRoutes(),
+    ]);
+
+    expect(main(['7'], deps)).toBe(1);
+
+    expect(errors.join('\n')).toContain(markerReason('[skip ci]'));
+    expect(errors.join('\n')).toContain('#7');
+    for (const prefix of ['head=', 'subject-base64=', 'body-base64=']) {
+      expect(logs.some((line) => line.startsWith(prefix))).toBe(false);
+    }
   });
 });

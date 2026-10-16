@@ -11,9 +11,12 @@
          `gate (full)` or `gate (docs)` check on its newest commit, has no failed, running or cancelled check, and every
          item under "Definition of Done" in the pull request body is ticked. Otherwise it prints each reason in plain
          English and this script stops without merging anything.
-      2. Reads `head=<sha>` from the gate output: the exact commit the gate approved.
-      3. Runs `gh pr merge <Pr> --squash --match-head-commit <sha>`, so GitHub refuses the merge if anyone pushed a new
-         commit between the check and the merge. The branch is deleted afterwards unless -KeepBranch is given.
+         The gate also refuses a pull request title that holds a GitHub skip marker, a double quote or a control character.
+      2. Reads from the gate output `head=<sha>` (the exact commit the gate approved) and the squash commit message: the
+         subject `<PR title> (#<n>)` and a short body naming the pull request and the approved commit, never the commit log.
+      3. Runs `gh pr merge <Pr> --squash --match-head-commit <sha> --subject <subject> --body <body>`, so GitHub refuses
+         the merge if anyone pushed a new commit between the check and the merge, and the squash commit gets that message.
+         The branch is deleted afterwards unless -KeepBranch is given.
 
     Merge only when the owner says to, and never with `gh pr merge` directly or the merge button: both skip the gate.
 
@@ -72,19 +75,29 @@ finally {
 }
 
 foreach ($line in $gateOutput) {
-    Write-Host $line
+    if ("$line" -notmatch '^(subject|body)-base64=') {
+        Write-Host $line
+    }
 }
 if ($gateExit -ne 0) {
     throw "The merge gate refused pull request #$Pr (exit code $gateExit). Nothing was merged."
 }
 
-$headLines = @($gateOutput | Where-Object { "$_" -match '^head=[0-9a-f]{40}$' })
-if ($headLines.Count -ne 1) {
-    throw "The merge gate did not print exactly one head=<sha> line, so the approved commit is unknown. Nothing was merged."
+function Get-GateValue {
+    param([string]$Name, [string]$Pattern)
+    $found = @($gateOutput | Where-Object { "$_" -match "^$Name=($Pattern)$" })
+    if ($found.Count -ne 1) {
+        throw "The merge gate did not print exactly one $Name= line, so the merge cannot go ahead. Nothing was merged."
+    }
+    return ("$($found[0])").Substring($Name.Length + 1)
 }
-$headSha = ("$($headLines[0])").Substring('head='.Length)
 
-$mergeArguments = @('pr', 'merge', "$Pr", '--squash', '--match-head-commit', $headSha)
+$headSha = Get-GateValue -Name 'head' -Pattern '[0-9a-f]{40}'
+# The gate sends the message as base64 of UTF-8, because Windows PowerShell 5.1 decodes node output with the console code page.
+$subject = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-GateValue -Name 'subject-base64' -Pattern '[A-Za-z0-9+/]+={0,2}')))
+$body = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-GateValue -Name 'body-base64' -Pattern '[A-Za-z0-9+/]+={0,2}')))
+
+$mergeArguments = @('pr', 'merge', "$Pr", '--squash', '--match-head-commit', $headSha, '--subject', $subject, '--body', $body)
 if (-not $KeepBranch) {
     $mergeArguments += '--delete-branch'
 }
@@ -101,4 +114,4 @@ if ($mergeExit -ne 0) {
     throw "gh could not merge pull request #$Pr (exit code $mergeExit). If a new commit was pushed after the gate ran, run this command again."
 }
 
-Write-Host "Merged pull request #$Pr at commit $headSha."
+Write-Host "Merged pull request #$Pr at commit $headSha with the subject: $subject"
