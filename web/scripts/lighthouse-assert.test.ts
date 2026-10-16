@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { assertReport, THRESHOLDS } from './lighthouse-assert.mjs';
+import { assertReport, layoutShiftCulprits, THRESHOLDS } from './lighthouse-assert.mjs';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
   executeSteps,
@@ -473,4 +473,29 @@ describe('stopHostSync (TOOL-WR-10)', () => {
       expect(handler.indexOf('stopRunningHostsSync()')).toBeLessThan(handler.indexOf('process.exit(130)'));
     },
   );
+});
+
+describe('layoutShiftCulprits (lighthouse-assert.mjs)', () => {
+  const report = (items: unknown) => ({ audits: { 'layout-shifts': { details: { items } } } });
+
+  it('names each shifted element with its score, biggest first, and cuts a long snippet', () => {
+    const lines = layoutShiftCulprits(
+      report([
+        { score: 0.01, node: { selector: 'body > p', snippet: '<p>' } },
+        { score: 0.0498, node: { snippet: '<h1 class="' + 'x'.repeat(200) + '">' } },
+      ]),
+    );
+
+    expect(lines).toEqual(['layout shift 0.0498: <h1 class="' + 'x'.repeat(89) + '...', 'layout shift 0.01: body > p']);
+  });
+
+  it.each([
+    ['no report', null],
+    ['no audit', {}],
+    ['no items', report(undefined)],
+    ['items that are not objects', report([1, null, 'x'])],
+    ['an item without a node or score', report([{}, { score: 0.1 }, { node: {} }])],
+  ])('gives no lines for %s', (_name, input) => {
+    expect(layoutShiftCulprits(input)).toEqual([]);
+  });
 });

@@ -21,7 +21,7 @@ import https from 'node:https';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertReport } from './lighthouse-assert.mjs';
+import { assertReport, layoutShiftCulprits } from './lighthouse-assert.mjs';
 import { acquireLock, E2E_PORT, LOCK_PATH, lockTimeoutMessage, PORT_BUSY_MESSAGE, WEB_DIRECTORY } from './e2e.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 
@@ -142,12 +142,18 @@ export async function executeSteps(steps, deps) {
           break;
         }
         case 'assert': {
-          const result = assertReport(deps.readReport(step.reportPath));
+          const report = deps.readReport(step.reportPath);
+          const result = assertReport(report);
           for (const line of result.lines) {
             deps.log(`lighthouse: ${line}`);
           }
           for (const failure of result.failures) {
             deps.log(`lighthouse: ${failure}`);
+          }
+          if (!result.passed) {
+            for (const line of layoutShiftCulprits(report)) {
+              deps.log(`lighthouse: ${line}`);
+            }
           }
           deps.log(
             result.passed

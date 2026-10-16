@@ -121,3 +121,28 @@ export function assertReport(report, thresholds = THRESHOLDS) {
 
   return { passed: failures.length === 0, failures, lines };
 }
+
+/**
+ * One line per element that shifted, biggest first, from the report's layout-shifts audit. Printed when a threshold is
+ * missed, so a failed CI run names the culprit without the report file. Anything missing or malformed gives no lines.
+ * @param {unknown} report the parsed report.json.
+ * @returns {string[]}
+ */
+export function layoutShiftCulprits(report) {
+  const items = asRecord(asRecord(asRecord(asRecord(report).audits)['layout-shifts']).details).items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  /** @type {{ score: number, label: string }[]} */
+  const shifts = [];
+  for (const item of /** @type {unknown[]} */ (items)) {
+    const record = asRecord(item);
+    const node = asRecord(record.node);
+    const score = finiteAt(record, 'score');
+    const label = [node.selector, node.snippet].find((text) => typeof text === 'string' && text !== '');
+    if (score !== null && typeof label === 'string') {
+      shifts.push({ score, label: label.length > 100 ? `${label.slice(0, 100)}...` : label });
+    }
+  }
+  return shifts.sort((a, b) => b.score - a.score).map((shift) => `layout shift ${String(shift.score)}: ${shift.label}`);
+}
