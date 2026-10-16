@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T22:23:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-16T07:40:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -107,9 +107,10 @@ Put the tag at the start of the test title so `--grep` can select it.
 
 | Tag | What it covers | Added by |
 |---|---|---|
-| `@smoke` | The home page loads clean in all five projects | plan 02-09 |
+| `@smoke` | The home page (the D-17 holding page) loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
 | `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404 | plan 02-09 |
-| `@public`, `@admin`, `@showcase` | The public frame, the admin shell and the Component Showcase, with page-level axe | plans 02-29, 02-31, 02-34 |
+| `@public` | Every public path (`/`, `/products`, `/gallery`, `/contact`, a deep path) shows the one D-17 holding page: one h1, one main, no site header or footer, the phone as a `tel:` link and the Facebook page as an https link, the skip link, the 320 px fit with no sideways scroll, and page-level axe | plans 02-29, 03-09 |
+| `@admin`, `@showcase` | The admin shell and the Component Showcase, with page-level axe | plans 02-31, 02-34 |
 | `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |

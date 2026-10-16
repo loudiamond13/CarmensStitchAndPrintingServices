@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-15T14:30:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-16T07:40:00-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -29,7 +29,7 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 
 | Route | Route modules |
 |---|---|
-| Public (`/`) | `src/layouts/PublicLayout.tsx`, `src/modules/public/pages/PublicPlaceholderPage.tsx` |
+| Public (`/`) | `src/modules/public/pages/HoldingPage.tsx` (the D-17 holding page; `PublicLayout` returns to this row with Phase 11) |
 | Admin, signed in (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
 | Admin, signed out (`/admin/login`) | `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
 
@@ -108,7 +108,7 @@ The session, guard and sign-out code load in the admin chunks only; the router k
 
 ## Public route imports
 
-The public layout (`src/layouts/PublicLayout.tsx`) imports `SiteHeader`, `SkipLink` and `ToastProvider` from their own modules, never from the `@/components/navigation`, `@/components/entry` or `@/components/feedback` barrels. A barrel re-exports admin-only components (Sidebar, Topbar, UserMenu, MobileNavDrawer, MoneyInput, ...). In a build that uses them (the admin routes, the showcase, the parity page) the bundler cannot drop them, so a public module that imports the barrel pulled them, and the forms, overlays and HTTP-client modules they need, into the chunks the public route loads. In production it also kept about 4 KB of their module-level code. Keep new public-route imports on the component modules; the Phase 4 barrel split (research Flag 4) makes this the rule for every barrel.
+The public route modules (today `src/modules/public/pages/HoldingPage.tsx`, which imports `SkipLink`, `Logo` and `layout.recipe` from their own modules; later `src/layouts/PublicLayout.tsx`, which imports `SiteHeader`, `SkipLink` and `ToastProvider` the same way) never import from the `@/components/navigation`, `@/components/entry` or `@/components/feedback` barrels. A barrel re-exports admin-only components (Sidebar, Topbar, UserMenu, MobileNavDrawer, MoneyInput, ...). In a build that uses them (the admin routes, the showcase, the parity page) the bundler cannot drop them, so a public module that imports the barrel pulled them, and the forms, overlays and HTTP-client modules they need, into the chunks the public route loads. In production it also kept about 4 KB of their module-level code. Keep new public-route imports on the component modules; the Phase 4 barrel split (research Flag 4) makes this the rule for every barrel.
 
 Measured after that change (2026-10-13, code-review fix):
 

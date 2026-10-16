@@ -1,26 +1,19 @@
-// Public layout E2E (WEB-05, A11Y-01, A11Y-02, A11Y-04): the real host serves the SPA for every non-API path, and each
-// public path renders the frame on the data router in all five projects: one h1, the matching header link current
-// (none on an unknown path), the skip link first in the keyboard order moving focus to main without a hash in the URL,
-// and no console, page, CSP, response (the guard) or axe findings.
+// Holding page E2E (D-17, WEB-05, A11Y-01, A11Y-02): the real host serves the SPA for every non-API path, and each public
+// path shows the one standalone holding page in all five projects: one h1 with the approved heading, one main, no
+// banner or contentinfo (no site frame), the phone as a tel: link and the Facebook page as an https link, the skip link
+// first in the keyboard order moving focus to main without a hash in the URL, and no console, page, CSP, response (the
+// guard) or axe findings.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 
-interface PublicPath {
-  readonly path: string;
-  /** The header link that is current there, or null for none (the catch-all). */
-  readonly current: string | null;
-}
+const HEADING = 'New website on the way.';
 
-const PATHS: readonly PublicPath[] = [
-  { path: '/', current: 'Home' },
-  { path: '/products', current: 'Products' },
-  { path: '/some/unknown', current: null },
-];
+const PATHS: readonly string[] = ['/', '/products', '/gallery', '/contact', '/some/deep/path'];
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;
 
-for (const { path, current } of PATHS) {
-  test(`@public ${path} renders the public frame with ${current ?? 'no'} current link`, async ({
+for (const path of PATHS) {
+  test(`@public ${path} shows the holding page with the shop facts and no site frame`, async ({
     page,
     browserName,
   }) => {
@@ -28,18 +21,18 @@ for (const { path, current } of PATHS) {
 
     expect(response?.status()).toBe(200);
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1')).toHaveText('Site update in progress.');
-    await expect(page.getByRole('banner')).toHaveCount(1);
+    await expect(page.locator('h1')).toHaveText(HEADING);
     await expect(page.getByRole('main')).toHaveCount(1);
-    await expect(page.getByRole('contentinfo')).toHaveCount(1);
+    await expect(page.getByRole('banner')).toHaveCount(0);
+    await expect(page.getByRole('contentinfo')).toHaveCount(0);
 
-    const currentLinks = page.locator('[aria-current="page"]');
-    if (current === null) {
-      await expect(currentLinks).toHaveCount(0);
-    } else {
-      await expect(currentLinks).toHaveCount(1);
-      await expect(page.locator('nav[aria-label="Main"] a[aria-current="page"]')).toHaveText(current);
-    }
+    const phone = page.getByRole('link', { name: '0976 287 1938' });
+    await expect(phone).toBeVisible();
+    await expect(phone).toHaveAttribute('href', 'tel:+639762871938');
+    const facebook = page.getByRole('link', { name: 'Facebook page' });
+    await expect(facebook).toBeVisible();
+    await expect(facebook).toHaveAttribute('href', 'https://www.facebook.com/csptailoring2025');
+    await expect(facebook).toHaveAttribute('rel', 'noopener noreferrer');
 
     // A11Y-02: the skip link is the first stop of the keyboard order; it moves focus to main and leaves the URL alone.
     const skip = page.getByRole('link', { name: 'Skip to main content' });
@@ -63,7 +56,7 @@ for (const { path, current } of PATHS) {
   });
 }
 
-/** Where the placeholder h1 sits in its wrapper (read in the page). */
+/** Where the holding page h1 sits in its wrapper (read in the page). */
 interface H1Fit {
   readonly pageWidth: number;
   readonly viewport: number;
@@ -76,13 +69,13 @@ interface H1Fit {
   readonly fontSize: string;
 }
 
-// Long-text backstop (UI-SPEC "long-text | Public placeholder H1"): at 320px the 52px H1 "SITE UPDATE IN PROGRESS."
+// Long-text backstop (UI-SPEC "long-text | Public placeholder H1"): at 320px the 52px H1 "NEW WEBSITE ON THE WAY."
 // wraps inside its wrapper; nothing is clipped and the page never scrolls sideways.
-test('@public at 320px the placeholder h1 wraps inside its wrapper with no horizontal scroll', async ({ page }) => {
+test('@public at 320px the holding page h1 wraps inside its wrapper with no horizontal scroll', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/');
   const heading = page.locator('h1');
-  await expect(heading).toHaveText('Site update in progress.');
+  await expect(heading).toHaveText(HEADING);
 
   const fit = await page.evaluate<H1Fit>(`(() => {
     const h1 = document.querySelector('h1');
