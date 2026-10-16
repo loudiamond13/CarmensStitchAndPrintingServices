@@ -344,6 +344,15 @@ export async function runSmoke({
 }
 
 /**
+ * @param {{ origin: string, key: string, send?: Send, insecureTls?: boolean }} _options
+ * @returns {Promise<{ ok: boolean, lines: string[] }>}
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function readProbe(_options) {
+  return Promise.resolve({ ok: false, lines: [] });
+}
+
+/**
  * @typedef {{ origin: URL, only: string[] | undefined, insecureTls: boolean }} Parsed
  * @param {readonly string[]} argv
  * @returns {{ error: string } | Parsed}
