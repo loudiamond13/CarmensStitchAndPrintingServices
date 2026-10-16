@@ -15,7 +15,7 @@
     },
     {
       "number": "3",
-      "name": "CI/CD & Staging Deploy",
+      "name": "CI/CD & Deploy",
       "status": "pending"
     },
     {
@@ -85,7 +85,7 @@
     },
     {
       "number": "17",
-      "name": "Production Cutover",
+      "name": "Legacy Data Cutover",
       "status": "pending"
     }
   ],
@@ -94,5 +94,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 03 of 17 · 12% · executing"
   },
-  "updated_at": "2026-10-16T03:02:54.884Z"
+  "updated_at": "2026-10-16T03:11:42.626Z"
 }

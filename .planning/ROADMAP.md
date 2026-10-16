@@ -332,6 +332,7 @@ Plans:
      The smoke test checks each of these. Production secrets exist only on the server. The first deploy also verifies every "Verify on the first deploy (Phase 3)" row in the hosting record, and the owner bootstraps the first Manager and signs in (D-06).
   5. **Legacy retired safely.** Before the legacy database is deleted, the owner keeps a fresh `.bak` and the legacy site files off the host and confirms a local restore receipt of table names and row counts (D-04, D-05). CSPS then gets a new, empty SQL Server 2025 database with its compatibility level verified and pinned (D-03). Legacy data is never changed on the host.
   6. **Holding page.** Until the Phase 11 public pages, every public path shows one branded holding page (shop name, a short "new website on the way" line, phone, Facebook link, address and hours) that passes the axe, Lighthouse, bundle-budget and no-long-dash gates (D-17). The admin portal stays as built in Phase 4.
+
 **Owner decisions to close at discuss step:**
 - **C-27 / S-9** private-repo security tooling: make the repo public, pay for GitHub code and secret security, or accept the weaker free substitute set
 - **C-45** the repo and host prerequisites below
@@ -345,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 23 plans
+**Plans:** 1/23 plans executed
 
 Plans:
 **Wave 1**
@@ -357,7 +358,7 @@ Plans:
 - [ ] 03-06-PLAN.md — Web Deploy orchestrator: app_offline, sync, smoke, release, automatic rollback, first-deploy safety, online escape hatch, optional host probe (OPS-04)
 - [ ] 03-07-PLAN.md — Production smoke test: health with cold-start retry, ProblemDetails through IIS, HTTPS, headers, compression, caching, AllowedHosts, requestLimits (D-06)
 - [ ] 03-08-PLAN.md — web.config never compresses; the win-x64 package never carries dev logs or Development settings; lock files match (OPS-05)
-- [ ] 03-23-PLAN.md — Owner approves the exact wording, then the Phase 3 entry, OPS-04 (and OPS-01), the Prime Directive 1 override and Phases 16 and 17 are amended to match 03-CONTEXT (wave 1, docs only)
+- [x] 03-23-PLAN.md — Owner approves the exact wording, then the Phase 3 entry, OPS-04 (and OPS-01), the Prime Directive 1 override and Phases 16 and 17 are amended to match 03-CONTEXT (wave 1, docs only)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-09-PLAN.md — Branded holding page with the owner's shop facts on every public path (D-17)
@@ -1048,7 +1049,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 0/TBD | Not started | - |
+| 3. CI/CD & Deploy | 1/23 | In Progress | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
