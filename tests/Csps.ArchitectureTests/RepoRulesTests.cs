@@ -259,7 +259,8 @@ public sealed partial class RepoRulesTests
                 trimmed.ShouldContain(extraLine, $"{context}: the matrix must include this language.");
             }
 
-            var conditions = job.Lines.Select(line => line.Trim()).Where(line => line.StartsWith("if:", StringComparison.Ordinal)).ToList();
+            // Job-level keys sit at four spaces; step conditions are indented deeper and may skip a step, not the job.
+            var conditions = job.Lines.Where(line => line.StartsWith("    if:", StringComparison.Ordinal)).Select(line => line.Trim()).ToList();
             conditions.ShouldAllBe(
                 condition => condition == "if: github.event_name == 'pull_request'" || condition == "if: ${{ always() }}",
                 $"{context}: only a pull request condition or always() may guard a required job.");

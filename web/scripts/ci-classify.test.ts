@@ -380,8 +380,14 @@ describe('findProvenTree', () => {
     ['a head commit without a tree', { headTree: json({ tree: {} }) }],
     ['no check runs', { checks: checkRuns() }],
     ['only another check', { checks: checkRuns({ name: 'gate (fast)', status: 'completed', conclusion: 'success' }) }],
-    ['only a docs-only gate run', { checks: checkRuns({ name: 'gate (docs)', status: 'completed', conclusion: 'success' }) }],
-    ['only the required gate result', { checks: checkRuns({ name: 'gate result', status: 'completed', conclusion: 'success' }) }],
+    [
+      'only a docs-only gate run',
+      { checks: checkRuns({ name: 'gate (docs)', status: 'completed', conclusion: 'success' }) },
+    ],
+    [
+      'only the required gate result',
+      { checks: checkRuns({ name: 'gate result', status: 'completed', conclusion: 'success' }) },
+    ],
     ['a failed gate run', { checks: checkRuns(gateRun('failure')) }],
     ['a cancelled gate run', { checks: checkRuns(gateRun('cancelled')) }],
     ['a skipped gate run', { checks: checkRuns(gateRun('skipped')) }],

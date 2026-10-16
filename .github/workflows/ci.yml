@@ -316,3 +316,30 @@ jobs:
           path: artifacts/package
           retention-days: 14
           if-no-files-found: error
+
+  # OPS-02 / D-08: the one check the main ruleset requires. The gate job's name carries its mode, so a docs-only pull request
+  # reports "gate (docs)" and could never satisfy a fixed "gate (full)". This job always runs and passes only when the
+  # mode's own gate succeeded for a mode that may merge (full, docs, package). A draft (fast), a failed, skipped or
+  # cancelled gate, or a classify failure all fail it. "gate (full)" stays unique to full runs, which ci-classify relies on.
+  result:
+    name: gate result
+    needs: [classify, gate]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: report
+        env:
+          MODE: ${{ needs.classify.outputs.mode }}
+          GATE: ${{ needs.gate.result }}
+        run: |
+          case "${MODE}:${GATE}" in
+            full:success|docs:success|package:success)
+              echo "gate result: ${MODE} gate succeeded"
+              ;;
+            *)
+              echo "gate result: not mergeable (mode '${MODE}', gate '${GATE}')"
+              exit 1
+              ;;
+          esac
