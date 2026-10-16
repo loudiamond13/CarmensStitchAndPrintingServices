@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-10-PLAN.md
-last_updated: "2026-10-16T05:33:52.573Z"
+stopped_at: Completed 03-11-PLAN.md
+last_updated: "2026-10-16T06:19:34.899Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: dbac8f4a052ef64b493e784273bef2bd4a502134
+state_head: d75b8a4c5c21c6e471f222bf74904703afff45f7
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 101
+  completed_plans: 102
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-15T23:28:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 11 of 23
+Plan: 12 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -160,6 +160,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P06 | 45 min | 3 tasks | 3 files |
 | Phase 03 P01 | 60 min | 3 tasks | 15 files |
 | Phase 03 P10 | 20 min | 2 tasks | 7 files |
+| Phase 03 P11 | 39 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -410,6 +411,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-01: CiWorkflowTests hold every .yml in .github/workflows to SHA pins from the owner-approved ApprovedActions table, empty top-level permissions, job timeouts, persist-credentials false, pinned runners, no pull_request_target and no event data inside run:
 - [Phase 03]: 03-01: Linux CI surfaced a Windows-only assumption (stored Asia/Manila reports SupportsDaylightSavingTime on tzdata); tests assert the +08 offset instead, and dotnet format drift in nine Phase 4 files was fixed so the format step starts clean
 - [Phase 03]: 03-10: gitleaks allowlists are file-scoped to rule generic-api-key (15 named test, fixture and planning files); scan range comes from env only and falls back to the pushed commit when 'before' is zero or unknown
+- [Phase 03]: 03-11: SQL container readiness is read from the server log line, not the image's sqlcmd (2025 images may ship without it); the SA password is openssl hex plus Aa1, passed to docker by variable name
+- [Phase 03]: 03-11: build-output.node.test.ts builds the web root itself on a clean checkout (NODE_ENV=production) because Vitest runs before the build step
 
 ### Pending Todos
 
@@ -458,6 +461,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T05:33:52.245Z
-Stopped at: Completed 03-10-PLAN.md
+Last session: 2026-10-16T06:19:34.579Z
+Stopped at: Completed 03-11-PLAN.md
 Resume file: None
