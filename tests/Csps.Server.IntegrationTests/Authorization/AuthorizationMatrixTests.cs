@@ -78,14 +78,21 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
             .SelectMany(_ => AuthorizationMatrix.Rows.SelectMany(row => Enum.GetValues<Caller>().Select(caller => (row, caller))))
             .ToList();
 
-        var statuses = await Task.WhenAll(calls.Select(async call =>
-        {
-            using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
-            request.Headers.Add(CsrfHeader, "1");
-            request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
-            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            return (int)response.StatusCode;
-        }));
+        // Sixteen at a time still interleaves callers. Releasing every call at once starves a two-core CI runner, and the
+        // /health database check (3 second budget) then answers 503 for load alone.
+        var statuses = new int[calls.Count];
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, calls.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = 16, CancellationToken = TestContext.Current.CancellationToken },
+            async (index, cancellationToken) =>
+            {
+                var call = calls[index];
+                using var request = ApiRequests.Create(call.row.RequestMethod, call.row.SamplePath, tokens[call.caller]);
+                request.Headers.Add(CsrfHeader, "1");
+                request.Headers.Add(IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+                using var response = await client.SendAsync(request, cancellationToken);
+                statuses[index] = (int)response.StatusCode;
+            });
 
         for (var i = 0; i < calls.Count; i++)
         {
