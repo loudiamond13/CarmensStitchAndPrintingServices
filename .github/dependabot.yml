@@ -1,0 +1,55 @@
+# Dependabot version updates (OPS-03, D-10). Every entry is monthly and grouped to save CI minutes, and waits 14 days
+# after a release before proposing it (D-19 cool-down). Security updates still arrive at once, because the cool-down
+# applies to version updates only.
+#
+# A NuGet or npm bump fails CI by design until docs/dependencies.json records the new version with the owner's
+# approval. A NuGet bump may also need `dotnet restore --force-evaluate` on its branch if Dependabot leaves
+# packages.lock.json stale (research A9).
+version: 2
+updates:
+  # NuGet packages pinned in Directory.Packages.props.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      nuget:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  # Both npm manifests share one entry, so one grouped PR arrives instead of two racing ones.
+  - package-ecosystem: "npm"
+    directories:
+      - "/web"
+      - "/tools/openapi-gen"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      npm:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  # GitHub Actions used by the workflows (pinned by commit SHA).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
