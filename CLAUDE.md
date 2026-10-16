@@ -1,5 +1,5 @@
 # CarmensStitchAndPrintingServices
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-14T11:51:00-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-15T22:42:00-05:00*
 
 ## Shared machine: do not collide with TheBETSLLC (C:\Work\TheBETSLLC)
 
@@ -38,3 +38,4 @@ Full detail is in `.claude/CLAUDE.md` under Conventions. This copy stays if that
 - **OR-4 No long dash:** no em dash or en dash in the client (code, copy, comments). Where a long dash would be used as a symbol, such as an empty value, show an icon (`EmptyValue`: the minus icon plus hidden "Not set"). Prose uses ordinary punctuation. The minus sign U+2212 in money stays.
 - **OR-5 API calls:** per module in `modules/{public,admin}/services/`. The shared client and interceptors live in `core/api/`.
 - **OR-6 Layout:** `web/src` follows the owner tree: `assets, components, core, hooks, layouts, lib, modules, types, ui, utils` (plus `dev` and `test`).
+- **Merges (D-08):** only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's instruction; never `gh pr merge` directly.

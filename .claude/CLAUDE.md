@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-14T12:21:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-15T22:42:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -131,6 +131,7 @@ Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the ro
   - `modules/*`: module-wide files such as `routes.tsx` and `copy.ts` sit at the module root.
 - **Imports:** `@/` across folders and `./` within one. `dev/scenarios` files use relative imports.
 - **Enforcement:** `source-layout.node.test.ts` (layout), `no-long-dash.node.test.ts` (OR-4), `EmptyValue.test.tsx` (OR-4 empty value) and the ESLint WEB-04 rules (transport and `apiClient` boundaries).
+- **Merges (D-08):** only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's instruction; never `gh pr merge` directly. GitHub Free cannot enforce branch rules on this private repo, so the wrapper runs the merge gate first. The rules and the reasons are in `docs/operations/branch-rules.md`.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
