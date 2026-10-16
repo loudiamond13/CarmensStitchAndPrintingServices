@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-10-16T12:58:46.547Z"
+stopped_at: Completed 03-14-PLAN.md
+last_updated: "2026-10-16T13:20:27.683Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: d045f56e97adc158674d1f6c304635d514ad46db
+state_head: ea1aa6a11b4caad5dc1e4bfc30bf8262bc2de5a4
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 106
+  completed_plans: 107
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-15T23:28:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 16 of 23
+Plan: 17 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -165,6 +165,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P13 | 14 min | 2 tasks | 4 files |
 | Phase 03 P15 | 30 min | 2 tasks | 6 files |
 | Phase 03 P09 | 47 min | 3 tasks | 21 files |
+| Phase 03 P14 | 15 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -423,6 +424,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: weekly.yml keeps ./ for its self-call with an inline zizmor ignore for self-repository, because actionlint 1.7.12 rejects the $/ form that zizmor 1.30.1 asks for
 - [Phase 03]: 03-09: the public * route has no RouteErrorBoundary of its own; RootErrorBoundary brings the page root and main for the standalone holding page
 - [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
+- [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
 
 ### Pending Todos
 
@@ -471,6 +473,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T12:58:46.218Z
-Stopped at: Completed 03-09-PLAN.md
+Last session: 2026-10-16T13:20:27.345Z
+Stopped at: Completed 03-14-PLAN.md
 Resume file: None
