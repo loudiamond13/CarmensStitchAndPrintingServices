@@ -346,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 16/23 plans executed
+**Plans:** 17/23 plans executed
 
 Plans:
 **Wave 1**
@@ -374,7 +374,7 @@ Plans:
 - [x] 03-15-PLAN.md — Conventional Commits check and actionlint/zizmor workflow lint, as approved (OPS-01, OPS-02)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 03-16-PLAN.md — Free repository settings applied; the ready Phase 3 PR passes the full gate on GitHub; CI minutes measured
+- [x] 03-16-PLAN.md — Free repository settings applied; the ready Phase 3 PR passes the full gate on GitHub; CI minutes measured
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 03-17-PLAN.md — Owner decides the mid-phase pipeline merge; the gated merge lands on main and builds the first package
@@ -1053,7 +1053,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 16/23 | In Progress | - |
+| 3. CI/CD & Deploy | 17/23 | In Progress | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |

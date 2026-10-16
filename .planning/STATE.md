@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: "Halted 03-16-PLAN.md: gate (full) fails only waived LCP; ruleset not applied"
-last_updated: "2026-10-16T18:25:21.005Z"
+stopped_at: Completed 03-16-PLAN.md
+last_updated: "2026-10-16T19:37:35.341Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: 4cdaec932a24f32d3d92f7ae5d48a6c902dd8fd4
+state_head: ea1a2d54198938f2686669826d6d2ca656fc6e00
 progress:
   total_phases: 17
   completed_phases: 2
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 17 of 23
+Plan: 18 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -166,6 +166,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P15 | 30 min | 2 tasks | 6 files |
 | Phase 03 P09 | 47 min | 3 tasks | 21 files |
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
+| Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
 
 ## Accumulated Context
 
@@ -425,6 +426,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-09: the public * route has no RouteErrorBoundary of its own; RootErrorBoundary brings the page root and main for the standalone holding page
 - [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
 - [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
+- [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
 
 ### Pending Todos
 
@@ -442,7 +444,6 @@ None yet.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
-- Plan 03-16 halted: gate (full) on PR 1 fails only Lighthouse LCP (2127 ms vs 2000 ms, owner-waived until Phase 11); stage 6 not yet reached on Linux; ruleset not applied; owner decision needed before 03-17.
 
 ### Quick Tasks Completed
 
@@ -476,6 +477,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T18:25:15.029Z
-Stopped at: Halted 03-16-PLAN.md: gate (full) fails only waived LCP; ruleset not applied
+Last session: 2026-10-16T19:37:34.800Z
+Stopped at: Completed 03-16-PLAN.md
 Resume file: None
