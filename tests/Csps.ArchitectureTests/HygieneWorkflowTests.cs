@@ -11,6 +11,8 @@ public sealed partial class HygieneWorkflowTests
     private const string HygienePath = ".github/workflows/hygiene.yml";
     private const string InstallerPath = "tools/scripts/Install-Gitleaks.ps1";
     private const string ConfigPath = ".gitleaks.toml";
+    private const string HookPath = ".githooks/pre-commit";
+    private const string AttributesPath = ".gitattributes";
 
     // Research "Supporting (CLI tools)" table, owner-approved in plan 03-01 Task 1.
     private const string Version = "8.30.1";
@@ -126,6 +128,31 @@ public sealed partial class HygieneWorkflowTests
         jobLines.ShouldContain(line => TimeoutLine().IsMatch(line));
         WorkflowText.Section(job.Lines, "permissions").Select(line => line.Trim()).ShouldBe(["contents: read"]);
     }
+
+    [Fact]
+    public void HookScansStagedChanges()
+    {
+        var path = RepoRoot.PathOf(HookPath);
+        File.Exists(path).ShouldBeTrue($"{HookPath} must exist.");
+
+        var text = File.ReadAllText(path);
+        text.ShouldStartWith("#!/bin/sh\n");
+        text.Contains('\r').ShouldBeFalse("A hook with CRLF line endings fails under sh.");
+
+        var local = text.IndexOf("artifacts/tools/gitleaks/8.30.1/gitleaks.exe", StringComparison.Ordinal);
+        var onPath = text.IndexOf("command -v gitleaks", StringComparison.Ordinal);
+        local.ShouldBeGreaterThanOrEqualTo(0, "The hook looks for the pinned local install first.");
+        onPath.ShouldBeGreaterThan(local, "Then for gitleaks on PATH.");
+
+        text.ShouldContain("gitleaks git --pre-commit --staged --redact --config .gitleaks.toml");
+        text.ShouldContain("Install-Gitleaks.ps1");
+        text.ShouldContain("exit 0");
+        text.ShouldNotContain("--no-verify");
+    }
+
+    [Fact]
+    public void HookHasLfEndings() =>
+        WorkflowText.Lines(AttributesPath).Select(line => line.Trim()).ShouldContain(".githooks/** text eol=lf");
 
     private static bool IsBroad(string value) => BroadPattern().IsMatch(value.Trim());
 
