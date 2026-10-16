@@ -3,7 +3,7 @@
 //   fast     a draft pull request
 //   docs     a ready pull request whose changed files are all documentation
 //   full     every other ready pull request, and any run this script cannot be sure about
-//   package  a push to main (added by the proven-tree check)
+//   package  a push to main whose tree already passed `gate (full)` on its pull request (research Pattern 9)
 // Every rule fails toward `full`, because a wrong `docs` answer would skip real checks. Node built-ins only: the classify
 // job runs this file without `npm ci`. Inputs arrive through env (never inline in the workflow): GITHUB_EVENT_NAME,
 // PR_DRAFT, BASE_SHA, HEAD_SHA, GITHUB_SHA, GITHUB_REPOSITORY, GH_TOKEN, GITHUB_OUTPUT.
@@ -17,12 +17,16 @@ export const MODES = Object.freeze({ docs: 'docs', fast: 'fast', full: 'full', p
 /** Top-level folders whose markdown still counts as code: tests read it, or the build and workflows live there. */
 const CODE_FOLDERS = new Set(['src', 'web', 'tests', 'tools', '.github']);
 const COMMIT_ID = /^[0-9a-f]{7,64}$/i;
+const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+/** The job name of the full gate, which is also the name of its check run. */
+const GATE_CHECK = 'gate (full)';
 const MAX_DIFF_BYTES = 16 * 1024 * 1024;
 
 /**
  * @typedef {{ status: number | null, stdout?: string | null }} SpawnResult
  * @typedef {(command: string, args: readonly string[], options: { encoding: 'utf8', maxBuffer: number }) => SpawnResult} Spawner
  * @typedef {{ spawn?: Spawner, appendOutput?: (file: string, text: string) => void, log?: (line: string) => void, error?: (line: string) => void }} Deps
+ * @typedef {(args: readonly string[]) => SpawnResult} GhRunner
  * @typedef {{ mode: string, reason: string }} Decision
  */
 
@@ -67,12 +71,139 @@ export function classify({ event, draft, changedFiles, treeProven }) {
 }
 
 /**
- * Skeleton so the RED tests load.
- * @param {{ sha: string, repo: string, gh: (args: readonly string[]) => SpawnResult }} input
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** @param {string} repo */
+function isRepositoryName(repo) {
+  const parts = repo.split('/');
+  return REPOSITORY.test(repo) && parts.every((part) => part !== '.' && part !== '..');
+}
+
+/**
+ * One `gh api` call whose answer must be valid JSON. The reason never repeats gh's output or error text.
+ * @param {GhRunner} gh
+ * @param {string} endpoint
+ * @param {string} label
+ * @returns {{ ok: true, value: unknown } | { ok: false, reason: string }}
+ */
+function ghJson(gh, endpoint, label) {
+  /** @type {SpawnResult} */
+  let result;
+  try {
+    result = gh(['api', endpoint]);
+  } catch {
+    return { ok: false, reason: `gh could not run for ${label}` };
+  }
+  if (result.status !== 0) {
+    return { ok: false, reason: `gh failed for ${label}` };
+  }
+  try {
+    return { ok: true, value: JSON.parse(result.stdout ?? '') };
+  } catch {
+    return { ok: false, reason: `gh returned invalid JSON for ${label}` };
+  }
+}
+
+/**
+ * @param {GhRunner} gh
+ * @param {string} repo
+ * @param {string} commit
+ * @returns {{ ok: true, tree: string } | { ok: false, reason: string }}
+ */
+function treeOf(gh, repo, commit) {
+  const answer = ghJson(gh, `repos/${repo}/git/commits/${commit}`, 'the commit tree lookup');
+  if (!answer.ok) {
+    return answer;
+  }
+  const tree = isRecord(answer.value) && isRecord(answer.value.tree) ? answer.value.tree.sha : undefined;
+  return typeof tree === 'string' && tree !== ''
+    ? { ok: true, tree }
+    : { ok: false, reason: 'a commit answer has no tree id' };
+}
+
+/**
+ * Pattern 9: a commit pushed to main may skip the heavy suite only when the pull request that produced it already passed
+ * it on the identical tree. Proven means all of: exactly one merged PR claims the commit as its merge commit, that PR's
+ * head commit has the same git tree id, and the head has a completed, successful `gate (full)` run. Any missing data,
+ * mismatch or API failure is not proven.
+ * @param {{ sha: string, repo: string, gh: GhRunner }} input
  * @returns {{ proven: boolean, reason: string }}
  */
 export function findProvenTree({ sha, repo, gh }) {
-  return { proven: sha === repo && gh.length === 0, reason: 'not implemented' };
+  /** @param {string} reason */
+  const unproven = (reason) => ({ proven: false, reason });
+  if (!COMMIT_ID.test(sha)) {
+    return unproven('GITHUB_SHA is missing or not a commit id');
+  }
+  if (!isRepositoryName(repo)) {
+    return unproven('GITHUB_REPOSITORY is missing or not owner/name');
+  }
+
+  const pulls = ghJson(gh, `repos/${repo}/commits/${sha}/pulls`, 'the pull request lookup');
+  if (!pulls.ok) {
+    return unproven(pulls.reason);
+  }
+  if (!Array.isArray(pulls.value)) {
+    return unproven('the pull request lookup did not return a list');
+  }
+  /** @type {unknown[]} */
+  const answers = pulls.value;
+  const claimants = answers.filter(
+    (pr) => isRecord(pr) && typeof pr.merged_at === 'string' && pr.merged_at !== '' && pr.merge_commit_sha === sha,
+  );
+  if (claimants.length === 0) {
+    return unproven('no merged pull request produced this commit');
+  }
+  const [pr] = claimants;
+  if (claimants.length > 1 || !isRecord(pr)) {
+    return unproven('more than one merged pull request claims this commit');
+  }
+  const headSha = isRecord(pr.head) ? pr.head.sha : undefined;
+  if (typeof headSha !== 'string' || !COMMIT_ID.test(headSha)) {
+    return unproven('the merged pull request has no head commit id');
+  }
+
+  const pushedTree = treeOf(gh, repo, sha);
+  if (!pushedTree.ok) {
+    return unproven(pushedTree.reason);
+  }
+  const headTree = treeOf(gh, repo, headSha);
+  if (!headTree.ok) {
+    return unproven(headTree.reason);
+  }
+  if (pushedTree.tree !== headTree.tree) {
+    return unproven('the pushed tree differs from the pull request head tree');
+  }
+
+  const checks = ghJson(gh, `repos/${repo}/commits/${headSha}/check-runs?per_page=100`, 'the check run lookup');
+  if (!checks.ok) {
+    return unproven(checks.reason);
+  }
+  const runList = isRecord(checks.value) ? checks.value.check_runs : undefined;
+  if (!Array.isArray(runList)) {
+    return unproven('the check run lookup did not return a list');
+  }
+  /** @type {unknown[]} */
+  const runs = runList;
+  const gateRuns = runs.filter((run) => isRecord(run) && run.name === GATE_CHECK);
+  if (gateRuns.length === 0) {
+    return unproven(`the pull request head has no ${GATE_CHECK} run`);
+  }
+  const allPassed = gateRuns.every(
+    (run) => isRecord(run) && run.status === 'completed' && run.conclusion === 'success',
+  );
+  if (!allPassed) {
+    return unproven(`the ${GATE_CHECK} run on the pull request head did not succeed`);
+  }
+  return {
+    proven: true,
+    reason: `tree ${pushedTree.tree.slice(0, 12)} already passed ${GATE_CHECK} on the pull request`,
+  };
 }
 
 /**
@@ -147,7 +278,14 @@ function decide(env, spawn) {
     };
   }
   if (event === 'push') {
-    return fullBecause('a push to main needs the proven-tree check, so the full gate runs');
+    const proven = findProvenTree({
+      sha: env.GITHUB_SHA?.trim() ?? '',
+      repo: env.GITHUB_REPOSITORY?.trim() ?? '',
+      gh: (args) => spawn('gh', args, { encoding: 'utf8', maxBuffer: MAX_DIFF_BYTES }),
+    });
+    return proven.proven
+      ? { mode: classify({ event, treeProven: true }), reason: proven.reason }
+      : fullBecause(`${proven.reason}, so the full gate runs`);
   }
   return fullBecause(`${event === '' ? 'unknown' : event} event runs the full gate`);
 }
