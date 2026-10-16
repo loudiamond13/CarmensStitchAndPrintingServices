@@ -1,12 +1,15 @@
 // @vitest-environment node
 // The production build output is CSP-safe and carries the CSPS token theme (WEB-01, D-33, D-35, T-02-05, T-02-06).
 // Every check reads the git-ignored web root that `npm run build` writes. A missing file fails an expect, never a
-// thrown error, so the RED run fails on the behaviour itself (L-26).
+// thrown error, so the RED run fails on the behaviour itself (L-26). On a clean checkout (CI) nothing has built yet,
+// because the build step follows the tests in the pipeline order, so the suite builds once when index.html is missing.
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
+const webDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const webRoot = fileURLToPath(new URL('../../../src/Csps.Server/wwwroot/', import.meta.url));
 const assetsDir = join(webRoot, 'assets');
 
@@ -26,6 +29,18 @@ const builtCss = (): string =>
     .join('\n');
 
 describe('production build output in src/Csps.Server/wwwroot', () => {
+  beforeAll(() => {
+    if (!existsSync(join(webRoot, 'index.html'))) {
+      // Vitest sets NODE_ENV=test, which would build the development React bundle and break the size budgets.
+      const env = { ...process.env, NODE_ENV: 'production' };
+      spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build'], {
+        cwd: webDirectory,
+        env,
+        stdio: 'inherit',
+      });
+    }
+  }, 300_000);
+
   it('writes index.html', () => {
     expect(existsSync(join(webRoot, 'index.html'))).toBe(true);
   });
