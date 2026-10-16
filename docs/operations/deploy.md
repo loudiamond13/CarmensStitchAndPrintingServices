@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:40:00-05:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:50:00-05:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -86,7 +86,7 @@ Before the first deploy:
 2. Make sure the secrets and the variable below are set.
 3. Have the legacy rollback kit ready.
 4. Apply the migration script (see "Migrations before a deploy"). The site never migrates its own database.
-5. Optional: the one-time host check (action `hostprobe`) answers questions about the host, such as whether it accepts the compression setting CSPS ships. It needs the `HOSTPROBE_KEY` secret and may be used only once, after the legacy site is retired and before the first CSPS deploy. Its rules are in `tools/Csps.HostProbe/README.md`. The next deploy removes the probe.
+5. Optional: the one-time host check (action `hostprobe`) answers questions about the host, such as whether it accepts the compression setting CSPS ships. It needs the `HOSTPROBE_KEY` secret and may be used only once, after the legacy site is retired and before the first CSPS deploy. Its rules are in `tools/Csps.HostProbe/README.md`. The next deploy removes the probe. The workflow enforces the "once": it refuses the `hostprobe` action as soon as any `deploy-*` release exists, because the probe would replace the live site. There is no override; after the first deploy, use the `deploy` action.
 
 ## The legacy rollback kit (D-05)
 

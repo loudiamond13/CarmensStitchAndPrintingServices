@@ -396,6 +396,19 @@ function parseJson(text) {
 }
 
 /**
+ * The host probe replaces the site root, so it is refused once any deploy release exists (CSPS has been live). There is no
+ * override. A failed release listing refuses too, because it cannot show that CSPS is not live.
+ * @param {Spawn} run
+ */
+function assertNoDeployRelease(run) {
+  if (deployReleasesNewestFirst(listReleases(run)).length > 0) {
+    throw new Error(
+      'The host check runs only before the first deploy, and a deploy release already exists, so it would replace the live site. Nothing was changed.',
+    );
+  }
+}
+
+/**
  * Downloads a deploy release's site.zip and unpacks it to <dir>/site with the Windows built-in tar.
  * @param {{ run: Spawn, mkdir: (dir: string) => void }} deps
  * @param {string} tag
@@ -833,6 +846,7 @@ async function run(env, deps, argv, log) {
   if (action === 'online') {
     plan = planDeploy({ action, dryRun, packageDir: null, lastGood: null, config });
   } else if (action === 'hostprobe') {
+    assertNoDeployRelease(deps.spawn);
     const rewrite = env.INPUT_PROBE_REWRITE?.trim() === 'true';
     const probeDir = prepareProbe(deps, executeDeps, { workDir, key: probeKey, rewrite });
     plan = planDeploy({ action, dryRun, packageDir: probeDir, lastGood: null, config });

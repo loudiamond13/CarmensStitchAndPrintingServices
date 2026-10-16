@@ -1174,7 +1174,7 @@ describe('hostprobe action', () => {
 
     expect(code).toBe(1);
     expect(world.labels()).toEqual(['gh release list', 'dotnet publish', 'offline', 'sync', 'offline']);
-    expect(world.labels().some((name) => name.startsWith('gh'))).toBe(false);
+    expect(world.labels().includes('gh release create')).toBe(false);
   });
 
   it('refuses to replace a site that already has a deploy release, before publishing or touching the host', async () => {

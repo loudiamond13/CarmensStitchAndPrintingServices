@@ -1,5 +1,5 @@
 # Csps.HostProbe: one-time host check (FND-13)
-*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-15T23:50:00-05:00*
+*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-16T16:50:00-05:00*
 
 This is a tiny, throwaway web app. It reports the facts about the SmarterASP.NET server that only the server itself
 can show: the exact .NET version, whether the site runs inside IIS ("in-process"), how visitor addresses reach the
@@ -14,7 +14,7 @@ once, and is then deleted (the owner's D-28 decision, option-a, 2026-10-07). The
 
 - **Only once on the CSPS site root.** Put the probe on the site root only after the legacy site is retired (D-01) and
   before the first CSPS deploy, through the deploy workflow's `hostprobe` action (see below). The next CSPS deploy
-  removes the probe's files. Never do this while the legacy site is in use: then the probe always gets its own new
+  removes the probe's files. The action refuses to run once any `deploy-*` release exists. Never do this while the legacy site is in use: then the probe always gets its own new
   site or sub-address, as in the steps below. Owner decision: 2026-10-15T22:05-05:00 (plan 03-06, `allow-probe`).
 - **Never touch the live database.** The probe does not connect to any database.
 - **Keep the probe key secret.** Do not paste it into chat, email, the hosting record or git. Make a new key every
