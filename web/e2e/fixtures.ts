@@ -222,6 +222,12 @@ export const test = base.extend<{ guard: Guard }>({
  * contrast rule stays on here, unlike in jsdom. Rejects with one `<rule id>: <targets>` line per violation, sorted.
  */
 export async function expectNoAxeViolations(page: Page): Promise<void> {
+  // Axe reads colors as painted, so a toast or dialog still fading in fails contrast. Finite animations finish first.
+  await page.evaluate<boolean>(`(async () => {
+    const running = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.allSettled(running.map((animation) => animation.finished));
+    return true;
+  })()`);
   const results = await new AxeBuilder({ page }).withTags([...AXE_TAGS]).analyze();
   const lines = results.violations
     .map((violation) => ({

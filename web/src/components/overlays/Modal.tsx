@@ -138,8 +138,15 @@ function OpenModal({
     // WR-01), so any scroll between the press and the click is a scroll gesture and blocks the close (review WR-02,
     // plan 02-43).
     let pendingPress: { positions: number[] } | null = null;
+    // Linux pastes the X11 selection into the focused field on a middle press anywhere, so the dark area cancels it.
+    const cancelMiddlePaste = (event: MouseEvent) => {
+      if (event.button === 1 && scrims.some((scrim) => scrim === event.target)) {
+        event.preventDefault();
+      }
+    };
     const onMouseDown = (event: MouseEvent) => {
       pendingPress = null;
+      cancelMiddlePaste(event);
       if (event.button !== 0) {
         return;
       }
@@ -173,12 +180,14 @@ function OpenModal({
     };
     for (const scrim of scrims) {
       scrim.addEventListener('mousedown', onMouseDown);
+      scrim.addEventListener('mouseup', cancelMiddlePaste);
       scrim.addEventListener('click', onClick);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => {
       for (const scrim of scrims) {
         scrim.removeEventListener('mousedown', onMouseDown);
+        scrim.removeEventListener('mouseup', cancelMiddlePaste);
         scrim.removeEventListener('click', onClick);
       }
       window.removeEventListener('keydown', onKeyDown);
