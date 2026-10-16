@@ -42,6 +42,7 @@ function httpError(status: number, traceId?: string, errors: Record<string, stri
       detail: 'at Csps.Server.Orders.Handler line 42',
       instance: undefined,
       traceId,
+      code: undefined,
       errors,
     },
   });
@@ -105,6 +106,22 @@ describe('ErrorState markup and look (App. C .s-banner.is-danger)', () => {
   it('has no axe violations', async () => {
     const { container } = render(<ErrorState things="orders" error={httpError(500, 'abc123')} onRetry={vi.fn()} />);
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('ErrorState align (plan 04-26; App. E.5 banner)', () => {
+  it('keeps the icon and text centred by default (App. E.8)', () => {
+    render(<ErrorState title="Oops" message="Try again." />);
+
+    expect(tokens(screen.getByRole('alert').className)).toEqual(tokens(BANNER));
+  });
+
+  it('align="start" puts the icon and text at the top, as the .s-banner default (App. E.5)', () => {
+    render(<ErrorState title="Email or password is incorrect." message="Check for typos." align="start" />);
+
+    const banner = screen.getByRole('alert');
+    expect(tokens(banner.className)).toEqual(tokens(BANNER.replace('items-center', 'items-start')));
+    expect(banner.querySelector('strong')?.textContent).toBe('Email or password is incorrect.');
   });
 });
 

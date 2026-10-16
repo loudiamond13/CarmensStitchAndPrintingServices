@@ -49,6 +49,45 @@ public sealed class ErrorTests
     public void ForbiddenSetsKindCodeAndMessage() =>
         AssertSimple(Error.Forbidden("user.forbidden", "Only an Admin can do that."), ErrorKind.Forbidden, "user.forbidden", "Only an Admin can do that.");
 
+    [Fact]
+    public void UnauthenticatedSetsKindCodeAndMessageWithNoFieldErrors()
+    {
+        var error = Error.Unauthenticated("auth.invalid-credentials", "Email or password is incorrect.");
+
+        AssertSimple(error, ErrorKind.Unauthenticated, "auth.invalid-credentials", "Email or password is incorrect.");
+        error.RetryAfter.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TooManyRequestsKeepsTheRetryAfter()
+    {
+        var error = Error.TooManyRequests("auth.resend-cooldown", "Wait a moment before asking again.", TimeSpan.FromSeconds(42));
+
+        AssertSimple(error, ErrorKind.TooManyRequests, "auth.resend-cooldown", "Wait a moment before asking again.");
+        error.RetryAfter.ShouldBe(TimeSpan.FromSeconds(42));
+    }
+
+    [Fact]
+    public void TooManyRequestsWithoutARetryAfterHasNone() =>
+        Error.TooManyRequests("auth.resend-cap", "Too many codes were sent.").RetryAfter.ShouldBeNull();
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void TooManyRequestsRejectsAZeroOrNegativeRetryAfter(int seconds) =>
+        Should.Throw<ArgumentOutOfRangeException>(() =>
+            Error.TooManyRequests("auth.resend-cooldown", "Wait a moment.", TimeSpan.FromSeconds(seconds)));
+
+    [Fact]
+    public void OtherFactoriesHaveNoRetryAfter()
+    {
+        Error.NotFound("a.b", "m").RetryAfter.ShouldBeNull();
+        Error.Conflict("a.b", "m").RetryAfter.ShouldBeNull();
+        Error.BusinessRule("a.b", "m").RetryAfter.ShouldBeNull();
+        Error.Forbidden("a.b", "m").RetryAfter.ShouldBeNull();
+        Error.Validation("a.b", "m", OneFieldError).RetryAfter.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

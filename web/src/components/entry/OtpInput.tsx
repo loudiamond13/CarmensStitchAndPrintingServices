@@ -7,8 +7,9 @@
 //     and Tab are left to the browser.
 //   - Only ASCII 0-9 count (full-width or other-script digits are ignored), as the server parses codes.
 //   - Paste is always allowed (PRD §12 accessible authentication): the digits of the pasted text fill from the focused
-//     box, then focus goes to the next empty box (or the last). A value written straight into a box (the first box's
-//     autofill, a virtual keyboard) goes through the same fill.
+//     box, then focus goes to the next empty box (or the last). A whole code (six digits or more) fills all six boxes
+//     from the first, whichever box it was pasted into. A value written straight into a box (the first box's autofill, a
+//     virtual keyboard) goes through the same fill.
 //   - onComplete(code) fires each time an edit leaves all six boxes filled. Nothing validates before a submit: the
 //     caller checks the code with `otpInputError` and passes the error, which marks every box invalid.
 // Codes are never logged.
@@ -115,12 +116,16 @@ export function OtpInput({
     commit(slots.map((slot, at) => (at === index ? digit : slot)));
   };
 
-  /** Puts the digits into the boxes from `index` on, then focuses the next empty box after them (or the last box). */
-  const fill = (index: number, digits: string) => {
+  /**
+   * Puts the digits into the boxes from `index` on, then focuses the next empty box after them (or the last box). A whole
+   * code (six digits or more) lands in the same six boxes wherever it arrives.
+   */
+  const fill = (at: number, digits: string) => {
+    const index = digits.length >= LENGTH ? 0 : at;
     const chars = digits.slice(0, LENGTH - index).split('');
-    const next = slots.map((slot, at) => chars[at - index] ?? slot);
+    const next = slots.map((slot, position) => chars[position - index] ?? slot);
     commit(next);
-    const after = next.findIndex((slot, at) => at >= index + chars.length && slot === '');
+    const after = next.findIndex((slot, position) => position >= index + chars.length && slot === '');
     focusBox(after < 0 ? LENGTH - 1 : after);
   };
 

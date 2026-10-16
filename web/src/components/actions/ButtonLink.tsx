@@ -10,6 +10,8 @@ import { UiLink, type UiLinkProps } from './UiLink';
 export interface ButtonLinkProps extends UiLinkProps {
   variant?: ButtonVariant | undefined;
   size?: ButtonSize | undefined;
+  /** Fills the width of its container, as Button's `block` does. */
+  block?: boolean | undefined;
   icon?: IconName | undefined;
   iconRight?: IconName | undefined;
 }
@@ -17,6 +19,7 @@ export interface ButtonLinkProps extends UiLinkProps {
 export function ButtonLink({
   variant = 'secondary',
   size = 'md',
+  block = false,
   icon,
   iconRight,
   to,
@@ -45,7 +48,7 @@ export function ButtonLink({
       aria-label={ariaLabel}
       aria-current={ariaCurrent}
       aria-describedby={ariaDescribedBy}
-      className={buttonClasses({ variant, size, className })}
+      className={buttonClasses({ variant, size, block, className })}
     >
       {icon !== undefined && <Icon name={icon} size={iconSize} />}
       {children}

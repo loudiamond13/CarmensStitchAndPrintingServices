@@ -129,7 +129,10 @@ test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) =
 
 test('@keyboard @admin the user menu opens from its button, moves with the arrow keys and closes on Esc back to the button', async ({
   page,
+  guard,
 }) => {
+  // Logout lands on the sign-in page, which asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
   const response = await page.goto('/admin');
   expect(response?.status()).toBe(200);
   await expect(page.locator('h1')).toHaveText('Dashboard');
@@ -145,6 +148,8 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
   await expect(button).toHaveAttribute('aria-expanded', 'true');
   expect(await button.getAttribute('aria-controls')).toBe(await menu.getAttribute('id'));
   const profile = menu.getByRole('menuitem', { name: 'My Profile' });
+  const devices = menu.getByRole('menuitem', { name: 'Signed-in Devices' });
+  const signOutOthers = menu.getByRole('menuitem', { name: 'Sign Out Other Devices' });
   const logout = menu.getByRole('menuitem', { name: 'Logout' });
   await expect(profile).toBeFocused();
 
@@ -156,6 +161,10 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
   const viewport = page.viewportSize();
   expect((menuBox?.x ?? 0) + (menuBox?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0);
 
+  await page.keyboard.press('ArrowDown');
+  await expect(devices).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(signOutOthers).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(logout).toBeFocused();
   await page.keyboard.press('ArrowDown');
@@ -174,15 +183,38 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
   await expect(button).toBeFocused();
   await expect(button).toHaveAttribute('aria-expanded', 'false');
 
-  // Logout from the keyboard: the dev toast, the menu closed, focus back on the button.
+  // Logout from the keyboard: it signs out and leaves the shell for the sign-in page (Phase 4).
   await page.keyboard.press('ArrowUp');
   await expect(logout).toBeFocused();
   await page.keyboard.press('Enter');
-  // The toast layer is the live region; a toast in it has no role of its own (UI-WR-04).
-  await expect(page.locator('[data-ui="s-toast-layer"]').getByText('Not available yet')).toBeVisible();
-  await expect(menu).toHaveCount(0);
-  await expect(button).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/login$/);
+});
+
+test('@keyboard @admin "Sign Out Other Devices" opens a dialog over an inert page, and Esc returns focus to the menu button', async ({
+  page,
+}) => {
+  await openAdminOnPhone(page);
+  const button = page.locator('button[aria-haspopup="menu"]');
+
+  await button.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  const item = page.getByRole('menuitem', { name: 'Sign Out Other Devices' });
+  await expect(item).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  const dialog = page.getByRole('dialog', { name: 'Sign out of other devices?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Keep Others Signed In' })).toBeFocused();
+  // R2-10: the shell behind the dialog is inert, so page-level axe on a phone no longer measures it.
+  expect(await page.evaluate(`document.querySelector('main#main')?.closest('[inert]') !== null`)).toBe(true);
   await expectNoAxeViolations(page);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(button).toBeFocused();
+  expect(await page.evaluate(`document.querySelector('[inert]') === null`)).toBe(true);
 });
 
 test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({ page }) => {

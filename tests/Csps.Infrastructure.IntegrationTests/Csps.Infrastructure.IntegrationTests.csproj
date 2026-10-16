@@ -4,6 +4,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Csps.Testing\Csps.Testing.csproj" />
     <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\Csps.BootstrapManager\Csps.BootstrapManager.csproj" />
+    <ProjectReference Include="..\..\tools\Csps.EmailPreview\Csps.EmailPreview.csproj" />
   </ItemGroup>
 
 </Project>

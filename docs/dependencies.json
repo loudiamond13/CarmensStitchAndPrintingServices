@@ -41,9 +41,27 @@
       "date": "2026-10-14",
       "by": "owner",
       "scope": "Security update (quick task 261014-gqz): every 10.0.12 package in Directory.Packages.props (EF Core SqlServer and Design, DataProtection.EntityFrameworkCore, JwtBearer, OpenApi, Mvc.Testing) and the dotnet-ef tool bumped to 10.0.13, plus new central pins System.Security.Cryptography.Pkcs 10.0.13 and System.Security.Cryptography.Xml 10.0.13 that lift the vulnerable transitive copies (Pkcs 9.0.11 and 10.0.12, Xml 10.0.12). 10.0.13 was published 2026-10-13, so each record carries a security-fix cool-down exception. Advisories: GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83. The 10.0.13 packages also move three transitive packages, approved the same day: Microsoft.Data.SqlClient 6.1.6 to 6.1.7 (published 2026-09-10, no advisories, cool-down met), Microsoft.Data.SqlClient.SNI.runtime 6.0.2 to 6.0.3 (published 2026-08-14, same Microsoft license terms, no advisories; the version-pinned license exception moves to 6.0.3) and Microsoft.OpenApi 2.12.0 to 2.12.2 (published 2026-08-20, MIT, no advisories)."
+    },
+    {
+      "date": "2026-10-14",
+      "by": "owner",
+      "scope": "Phase 4 packages (D-36), approved before install: NuGet Microsoft.AspNetCore.Identity.EntityFrameworkCore 10.0.13, FluentValidation 12.1.1, MailKit 4.18.1, MimeKit 4.18.1, BouncyCastle.Cryptography 2.7.0, Microsoft.Extensions.Http.Resilience 10.10.0 and Microsoft.Extensions.Diagnostics.Testing 10.10.0 (tests only); npm react-hook-form 7.89.0, zod 4.6.5, @hookform/resolvers 5.9.1 and msw 3.0.1 (dev only); and the SecLists top-10k common-passwords data file that plan 04-17 adds. Identity.EntityFrameworkCore 10.0.13 is a security servicing release (D-35) and carries a cool-down exception. The four npm packages were flagged by the research seam's latest-tag and download heuristics, so they still pass a blocking human check at install time (plan 04-02 Task 2)."
     }
   ],
   "packages": [
+    {
+      "id": "BouncyCastle.Cryptography",
+      "version": "2.7.0",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Cryptography code that MimeKit (inside MailKit) needs to build and sign mail; pinned so it cannot drift.",
+      "license": "MIT",
+      "publisher": "Legion of the Bouncy Castle Inc. (nuget.org owner bouncycastle)",
+      "legitimacy": "Well-known cryptography library; source github.com/bcgit/bc-csharp; advisories only affect versions below 2.3.1; no slop signal",
+      "published": "2026-07-30",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
     {
       "id": "coverlet.MTP",
       "version": "10.0.1",
@@ -84,6 +102,32 @@
       "coolDown": "aged"
     },
     {
+      "id": "FluentValidation",
+      "version": "12.1.1",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Rules that check each request (email, password, code) inside the use-case handlers. 12.2.0 is younger than the cool-down.",
+      "license": "Apache-2.0",
+      "publisher": "Jeremy Skinner (nuget.org verified owner)",
+      "legitimacy": "1.07B downloads, source github.com/FluentValidation/FluentValidation; the FluentValidation.AspNetCore add-on stays forbidden; no slop signal",
+      "published": "2025-12-03",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
+      "id": "MailKit",
+      "version": "4.18.1",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Sends the sign-in code and password-reset emails over an encrypted SMTP connection (AUTH-13).",
+      "license": "MIT",
+      "publisher": "Jeffrey Stedfast (nuget.org verified owner)",
+      "legitimacy": "271M downloads, source github.com/jstedfast/MailKit; advisory GHSA-9j88 affects only versions below 4.16.0; no slop signal",
+      "published": "2026-09-27",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
       "id": "Microsoft.AspNetCore.Authentication.JwtBearer",
       "version": "10.0.13",
       "kind": "nuget",
@@ -108,6 +152,19 @@
       "published": "2026-10-13",
       "adopted": "2026-10-14",
       "coolDown": "accepted: security servicing release 10.0.13, adopted with the patched System.Security.Cryptography.Pkcs and System.Security.Cryptography.Xml 10.0.13 (CVE-2026-70162, CVE-2026-84008, CVE-2026-96958, CVE-2026-96959, CVE-2026-96960) so every 10.0.x pin stays on one servicing level; owner-approved 2026-10-14 (quick 261014-gqz); 14 days old on 2026-10-27."
+    },
+    {
+      "id": "Microsoft.AspNetCore.Identity.EntityFrameworkCore",
+      "version": "10.0.13",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Staff accounts and roles in the database: password hashing, lockout and the user tables (AUTH-01).",
+      "license": "MIT",
+      "publisher": "Microsoft (nuget.org owner Microsoft, verified reserved prefix)",
+      "legitimacy": "293.7M downloads, source github.com/dotnet/dotnet; no slop signal",
+      "published": "2026-10-13",
+      "adopted": "2026-10-14",
+      "coolDown": "accepted: security servicing release 10.0.13 (D-35), owner-approved 2026-10-14 (D-36); 14 days old on 2026-10-27"
     },
     {
       "id": "Microsoft.AspNetCore.Mvc.Testing",
@@ -188,6 +245,32 @@
       "coolDown": "aged"
     },
     {
+      "id": "Microsoft.Extensions.Diagnostics.Testing",
+      "version": "10.10.0",
+      "kind": "nuget",
+      "scope": "test",
+      "purpose": "FakeLogger, so tests can prove that no secret or code is ever written to a log.",
+      "license": "MIT",
+      "publisher": "Microsoft (nuget.org owner Microsoft, verified reserved prefix)",
+      "legitimacy": "17.8M downloads, source github.com/dotnet/extensions; no slop signal",
+      "published": "2026-09-09",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
+      "id": "Microsoft.Extensions.Http.Resilience",
+      "version": "10.10.0",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Timeout and retry rules for the breached-password lookup (AUTH-11). 10.11.0 is younger than the cool-down.",
+      "license": "MIT",
+      "publisher": "Microsoft (nuget.org owner Microsoft, verified reserved prefix)",
+      "legitimacy": "158M downloads, source github.com/dotnet/extensions; no slop signal",
+      "published": "2026-09-09",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
       "id": "Microsoft.Extensions.TimeProvider.Testing",
       "version": "10.10.0",
       "kind": "nuget",
@@ -211,6 +294,19 @@
       "legitimacy": "1,896M downloads, source github.com/microsoft/vstest; no slop signal",
       "published": "2026-09-15",
       "adopted": "2026-10-07",
+      "coolDown": "aged"
+    },
+    {
+      "id": "MimeKit",
+      "version": "4.18.1",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Builds the email messages MailKit sends; pinned so MailKit's mail and crypto stack cannot drift.",
+      "license": "MIT",
+      "publisher": "Jeffrey Stedfast (nuget.org verified owner)",
+      "legitimacy": "Same author and repository as MailKit, source github.com/jstedfast/MimeKit; advisories only affect versions up to 4.15.0; no slop signal",
+      "published": "2026-09-19",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {
@@ -264,6 +360,23 @@
       "published": "2026-09-22",
       "adopted": "2026-10-07",
       "coolDown": "aged"
+    },
+    {
+      "id": "SecLists-10k-most-common",
+      "version": "913b327317496d062bcc7cace524aaad8a693be2",
+      "kind": "data",
+      "scope": "runtime",
+      "purpose": "Floor of common passwords when the breach-check service is down (D-14): a plain text list of the 10,000 most common passwords, embedded in the app.",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2018 Daniel Miessler",
+      "publisher": "Daniel Miessler (github.com/danielmiessler/SecLists)",
+      "legitimacy": "Well-known security wordlist repository (about 74,000 stars, created 2012, not archived); GitHub reports the repository license as MIT; the file is plain ASCII, 10,000 entries, last changed 2026-09-08 (commit 913b327); owner approved it in D-36 on 2026-10-14; a test pins its SHA-256",
+      "published": "2026-09-08",
+      "adopted": "2026-10-14",
+      "coolDown": "aged",
+      "source": "https://raw.githubusercontent.com/danielmiessler/SecLists/913b327317496d062bcc7cace524aaad8a693be2/Passwords/Common-Credentials/10k-most-common.txt",
+      "sha256": "68782d6a4a19a4768d5f15dd66bd534e7a33055cc755411e33f16d18c50fdcce",
+      "path": "src/Csps.Infrastructure/Passwords/common-passwords-10k.txt"
     },
     {
       "id": "Serilog.AspNetCore",
@@ -465,6 +578,20 @@
       "legitimacy": "411k weekly downloads; source github.com/fontsource/font-files; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
       "published": "2026-07-19",
       "adopted": "2026-10-08",
+      "coolDown": "aged"
+    },
+    {
+      "id": "@hookform/resolvers",
+      "version": "5.9.1",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Connects the zod rules to react-hook-form so field errors show inline.",
+      "license": "MIT",
+      "publisher": "react-hook-form team (npm owners bluebill1049, kotarella1110, jorisre)",
+      "legitimacy": "43.9M weekly downloads; source github.com/react-hook-form/resolvers; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-08-17",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {
@@ -874,6 +1001,20 @@
       "coolDown": "accepted: owner waiver D-11 (lucide-react follows the newest stable release; no cool-down) and owner choice of 1.53.0 (D-34). All 56 spec icons are byte-identical to 1.52.0; no advisory."
     },
     {
+      "id": "msw",
+      "version": "3.0.1",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "test",
+      "purpose": "Fakes the server in component and service tests and fails any request without a handler. Never ships.",
+      "license": "MIT",
+      "publisher": "Artem Zakharchenko (npm owner kettanaito)",
+      "legitimacy": "23.0M weekly downloads; source github.com/mswjs/msw; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36). npm warns that vitest's optional msw ^2 peer does not match 3.0.1; vitest only uses it in browser mode, which CSPS does not use",
+      "published": "2026-09-30",
+      "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
       "id": "nuqs",
       "version": "2.10.1",
       "kind": "npm",
@@ -941,6 +1082,20 @@
       "legitimacy": "211.6M weekly downloads; source github.com/react/react; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
       "published": "2026-09-09",
       "adopted": "2026-10-08",
+      "coolDown": "aged"
+    },
+    {
+      "id": "react-hook-form",
+      "version": "7.89.0",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Keeps the state of each form (values, errors, touched fields) in the browser.",
+      "license": "MIT",
+      "publisher": "Bill Luo (npm owner bluebill1049)",
+      "legitimacy": "53.7M weekly downloads; source github.com/react-hook-form/react-hook-form; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-09-26",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {
@@ -1039,6 +1194,20 @@
       "legitimacy": "142.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
       "published": "2026-09-15",
       "adopted": "2026-10-08",
+      "coolDown": "aged"
+    },
+    {
+      "id": "zod",
+      "version": "4.6.5",
+      "kind": "npm",
+      "manifest": "web",
+      "scope": "runtime",
+      "purpose": "Checks every form field in the browser before anything is sent, with the same rules the server checks (OR-3).",
+      "license": "MIT",
+      "publisher": "Colin McDonnell (npm owner colinhacks)",
+      "legitimacy": "346.9M weekly downloads; source github.com/colinhacks/zod; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
+      "published": "2026-09-13",
+      "adopted": "2026-10-14",
       "coolDown": "aged"
     },
     {

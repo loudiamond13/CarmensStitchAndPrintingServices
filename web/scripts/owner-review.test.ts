@@ -10,9 +10,12 @@ import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
+import { scenarios as authGapScenarios } from '../src/dev/scenarios/groups/auth-gaps.ts';
 import {
   assertSwapsApplied,
   assertWritable,
+  AUTH_REVIEW_CASES,
+  AUTH_REVIEW_RULINGS,
   BEFORE_AFTER_CASES,
   beforeAfterScript,
   E2E_DIST,
@@ -20,6 +23,7 @@ import {
   OUTPUT_DIR,
   OUTPUT_NOT_IGNORED_MESSAGE,
   parseDifferencesTable,
+  planAuthReviewShots,
   planBeforeAfterShots,
   planReview,
   planShots,
@@ -213,6 +217,7 @@ describe('planReview: the run', () => {
       shots: planShots(),
       specGap: planSpecGapShots(),
       beforeAfter: planBeforeAfterShots(),
+      authReview: planAuthReviewShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -424,6 +429,112 @@ describe('SPEC_GAP_CASES (primitives the approved design never drew)', () => {
   it('shows the phone drawer at phone width and every other case at laptop width', () => {
     for (const shot of planSpecGapShots()) {
       expect(shot.width, shot.id).toBe(shot.id === 'drawer-open' ? 390 : 1440);
+    }
+  });
+});
+
+describe('AUTH_REVIEW_CASES (the Phase 4 sign-in screens and devices, plan 04-32, D-06 and D-41)', () => {
+  const ids = AUTH_REVIEW_CASES.map((entry) => entry.id);
+
+  it('covers S1 to S7, the Note uses, both sign-out dialogs open and failed, the four-item menu and the toasts', () => {
+    for (const id of [
+      'note-uses',
+      'signin-notice',
+      'signin-banner-trace',
+      'verify-default',
+      'verify-code-error',
+      'verify-resend-waiting',
+      'verify-resend-cap',
+      'verify-long-email',
+      'new-password-temporary',
+      'new-password-breach',
+      'forgot-form',
+      'forgot-sent',
+      'forgot-long-email',
+      'reset-checking',
+      'reset-form',
+      'reset-invalid',
+      'reset-long-email',
+      'invite-checking',
+      'invite-form',
+      'invite-invalid',
+      'invite-fail-closed',
+      'invite-long-email',
+      'devices-loading',
+      'devices-error',
+      'devices-only-this-device',
+      'devices-populated',
+      'signout-others-open',
+      'signout-others-failed',
+      'signout-device-open',
+      'signout-device-failed',
+      'session-menu-open',
+      'toast-session-ending',
+      'toast-device-signed-out',
+      'toast-already-signed-out',
+      'toast-signed-out-others',
+      'toast-password-saved',
+    ]) {
+      expect(ids, id).toContain(id);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words and every case is a scenario of the auth-gaps group', () => {
+    const scenarioIds = authGapScenarios.map((scenario) => scenario.id);
+    for (const entry of AUTH_REVIEW_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.label, entry.id).not.toMatch(/^[a-z0-9-]+$/);
+      expect(scenarioIds, entry.id).toContain(entry.id);
+    }
+    // Nothing in the group is left out of the pack.
+    expect(scenarioIds.filter((id) => !ids.includes(id))).toEqual([]);
+  });
+
+  it('opens a fixed-position case (the dialogs) by its demo button and the menu by "Show this example"', () => {
+    for (const scenario of authGapScenarios) {
+      const entry = AUTH_REVIEW_CASES.find((candidate) => candidate.id === scenario.id);
+      if (scenario.frame === 'viewport') {
+        expect(entry?.kind, scenario.id).toBe('dialog');
+      } else if (scenario.id === 'session-menu-open') {
+        expect(entry?.kind, scenario.id).toBe('menu');
+      } else {
+        expect(entry?.kind, scenario.id).toBe('frame');
+      }
+    }
+  });
+
+  it('plans each case at 390, 820 and 1440 px under auth-review/, the cards in Blush and the rest in both themes', () => {
+    const shots = planAuthReviewShots();
+    const themesOf = (id: string) => [...new Set(shots.filter((shot) => shot.id === id).map((shot) => shot.theme))];
+
+    expect(new Set(shots.map((shot) => shot.width))).toEqual(new Set([390, 820, 1440]));
+    for (const shot of shots) {
+      expect(shot.file).toBe(`auth-review/${shot.id}-${shot.theme}-${String(shot.width)}.png`);
+    }
+    for (const scenario of authGapScenarios) {
+      expect(themesOf(scenario.id), scenario.id).toEqual([...scenario.themes]);
+    }
+    expect(shots).toHaveLength(
+      authGapScenarios.reduce((total, scenario) => total + scenario.themes.length * REVIEW_WIDTHS.length, 0),
+    );
+  });
+});
+
+describe('AUTH_REVIEW_RULINGS (OQ-1 to OQ-7)', () => {
+  it('lists the seven open questions with the default the contract applies', () => {
+    expect(AUTH_REVIEW_RULINGS.map((ruling) => ruling.id)).toEqual([
+      'OQ-1',
+      'OQ-2',
+      'OQ-3',
+      'OQ-4',
+      'OQ-5',
+      'OQ-6',
+      'OQ-7',
+    ]);
+    for (const ruling of AUTH_REVIEW_RULINGS) {
+      expect(ruling.question.trim(), ruling.id).not.toBe('');
+      expect(ruling.default.trim(), ruling.id).not.toBe('');
     }
   });
 });
@@ -839,5 +950,55 @@ describe('renderIndex: wording changes for the owner to confirm (D-41 R2-06)', (
     const html = renderIndex({ generatedAt: 'now', shots: [], problems: [] });
 
     expect(html).not.toContain('Wording changes for you to confirm');
+  });
+});
+
+describe('renderIndex: the Phase 4 sign-in screens and devices (plan 04-32)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const html = renderIndex({
+    generatedAt: 'now',
+    shots: [],
+    problems: [],
+    specGap: planSpecGapShots(),
+    authReview: planAuthReviewShots(),
+  });
+
+  it('shows the section before the SPEC-GAP section, with every open question and its default', () => {
+    const section = html.indexOf('Sign-in screens and devices (Phase 4)');
+
+    expect(section).toBeGreaterThan(-1);
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    for (const ruling of AUTH_REVIEW_RULINGS) {
+      expect(html).toContain(ruling.id);
+      expect(html).toContain(escaped(ruling.question));
+    }
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('shows every picture with its plain label', () => {
+    for (const shot of planAuthReviewShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of AUTH_REVIEW_CASES) {
+      expect(html).toContain(escaped(entry.label));
+    }
+  });
+
+  it('lists the words of every new screen, dialog, notice and toast for the OQ-7 wording check', () => {
+    expect(html).toContain('Words on the new screens');
+    expect(html).toContain('Sign out of other devices?');
+    expect(html).toContain('Your session ends soon');
+    expect(html).toContain('This link has expired');
+    expect(html).toContain('No other devices are signed in.');
+  });
+
+  it('is left out when no Phase 4 pictures were taken', () => {
+    expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain('Sign-in screens and devices');
   });
 });

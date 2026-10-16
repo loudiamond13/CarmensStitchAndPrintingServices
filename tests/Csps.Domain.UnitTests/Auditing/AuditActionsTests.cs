@@ -1,0 +1,49 @@
+using Csps.Domain.Auditing;
+
+namespace Csps.Domain.UnitTests.Auditing;
+
+/// <summary>AUDIT-01: the Phase 4 action catalog is valid, unique and complete.</summary>
+public sealed class AuditActionsTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void CatalogHoldsTheTwentyOneAuthCodes()
+    {
+        AuditActions.All.Count.ShouldBe(21);
+        AuditActions.All.ShouldContain(AuditActions.SignInFailed);
+        AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void EveryCodeIsAcceptedByAuditEntry()
+    {
+        foreach (var action in AuditActions.All)
+        {
+            action.Length.ShouldBeLessThanOrEqualTo(AuditEntry.ActionMaxLength);
+
+            var entry = AuditEntry.Create(Now, null, action, null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null);
+
+            entry.Action.ShouldBe(action);
+        }
+    }
+
+    [Fact]
+    public void CatalogHasNoDuplicates()
+    {
+        AuditActions.All.Distinct(StringComparer.Ordinal).Count().ShouldBe(AuditActions.All.Count);
+    }
+
+    [Fact]
+    public void SignInFailureReasonsAreTheSixDocumentedOnes()
+    {
+        AuditActions.SignInFailureReasons.ShouldBe(["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password"]);
+    }
+
+    [Fact]
+    public void LockoutAndSessionRevokeDetailsAreFixed()
+    {
+        AuditActions.LockoutDetails.ShouldBe(["password", "code"]);
+        AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset"]);
+    }
+}

@@ -4,6 +4,261 @@
  */
 
 export interface paths {
+    "/api/v1/auth/invite/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets the first password from an invite. It issues no session. */
+        post: operations["AcceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/invite/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the accept-invite page whether its link still works and which account it is for. */
+        post: operations["CheckInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Emails a reset link when the address belongs to an active staff account. Every well-formed address gets the same answer. */
+        post: operations["ForgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets a new password from a reset link. It ends every session and signs nobody in. */
+        post: operations["ResetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/reset/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the reset page whether its link still works and which account it is for. */
+        post: operations["CheckResetLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/set-new": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22). */
+        post: operations["SetNewPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/set-new/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the must-change screen who the pending sign-in is for and why, on every arrival. It never spends the ticket. */
+        post: operations["CheckSetNewPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renews the access token with the refresh cookie and rotates the cookie. */
+        post: operations["Refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the email and password and sends the sign-in code. */
+        post: operations["SignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ends this device's session and clears the refresh cookie. It succeeds with no cookie too. */
+        post: operations["SignOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sign-out-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ends every other session of the signed-in user and keeps this one. It succeeds when there is nothing to end. */
+        post: operations["SignOutOthers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/two-factor/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a new sign-in code for the pending ticket, after the cooldown and within the hourly cap. */
+        post: operations["ResendCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/two-factor/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the emailed code and starts the session, or hands over to the set-new-password step. */
+        post: operations["VerifyCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the caller's own active sessions: this device first, then the rest by recent activity, at most 100. */
+        get: operations["ListSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Signs out one of the caller's other devices. Repeating the call is a success. */
+        delete: operations["RevokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -11,6 +266,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Returns the site settings. */
         get: operations["GetSiteSettings"];
         put?: never;
         post?: never;
@@ -24,6 +280,166 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The accept-invite form: the token from the emailed link and the first password (D-29). */
+        AcceptInviteRequest: {
+            /** @description The password as typed. */
+            newPassword: null | string;
+            /** @description The 43-character token from the link. */
+            token: null | string;
+        };
+        /** @description The forgot-password form: the email the reset link goes to (D-16). */
+        ForgotPasswordRequest: {
+            /** @description The email address. */
+            email: null | string;
+        };
+        /** @description The answer to a usable invite link. */
+        InviteLinkResponse: {
+            /** @description The address of the account the invite belongs to, so the page can name it. */
+            email: string;
+            /** @description The invited person's given name, for the greeting and the password rule. */
+            firstName: string;
+            /** @description The invited person's family name, for the password rule. */
+            lastName: string;
+        };
+        /** @description The body of an invite-link check: the token from the emailed link. It travels in the body, never in a URL. */
+        InviteTokenRequest: {
+            /** @description The 43-character token. */
+            token: null | string;
+        };
+        ProblemDetails: {
+            detail?: null | string;
+            instance?: null | string;
+            /** Format: int32 */
+            status?: null | number | string;
+            title?: null | string;
+            type?: null | string;
+        };
+        /** @description What a resend answers: how long to wait before asking again. */
+        ResendCodeResponse: {
+            /**
+             * Format: int32
+             * @description Whole seconds.
+             */
+            resendAfterSeconds: number | string;
+        };
+        /** @description The answer to a usable reset link. */
+        ResetLinkResponse: {
+            /** @description The address of the account the link belongs to, so the page can name it. */
+            email: string;
+            /** @description The account given name, for the password rule. */
+            firstName: string;
+            /** @description The account family name, for the password rule. */
+            lastName: string;
+        };
+        /** @description The reset form: the token from the emailed link and the new password (AUTH-09). */
+        ResetPasswordRequest: {
+            /** @description The new password as typed. */
+            newPassword: null | string;
+            /** @description The 43-character token from the link. */
+            token: null | string;
+        };
+        /** @description The body of a reset-link check: the token from the emailed link. It travels in the body, never in a URL. */
+        ResetTokenRequest: {
+            /** @description The 43-character token. */
+            token: null | string;
+        };
+        /** @description The answer to a per-device sign-out. */
+        RevokeSessionResponse: {
+            /** @description True when the session had already ended, so nothing was changed. */
+            alreadySignedOut: boolean;
+        };
+        /** @description One signed-in device in the caller's devices list (D-43). */
+        SessionListItem: {
+            /** @description True for the device making this request. */
+            current: boolean;
+            /** @description The coarse browser-and-device label (D-32). */
+            device: string;
+            /**
+             * Format: uuid
+             * @description The session id, used to sign that device out.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description The device's last refresh, or the sign-in.
+             */
+            lastActiveAt: string;
+            /** @description True when "Keep me signed in" was chosen. */
+            persistent: boolean;
+            /**
+             * Format: date-time
+             * @description When the device signed in.
+             */
+            signedInAt: string;
+        };
+        /** @description What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here. */
+        SessionResponse: {
+            /** @description The 15-minute bearer token. A secret. */
+            accessToken: string;
+            /**
+             * Format: date-time
+             * @description When the access token expires.
+             */
+            accessTokenExpiresAt: string;
+            /** @description True for "Keep me signed in". */
+            persistent: boolean;
+            /**
+             * Format: date-time
+             * @description The fixed end of the session.
+             */
+            sessionExpiresAt: string;
+            /** @description The signed-in user. */
+            user: components["schemas"]["SessionUser"];
+        };
+        /** @description The signed-in user as the client sees it. */
+        SessionUser: {
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description Family name. */
+            lastName: string;
+            /** @description The role, `Admin` or `Manager`. */
+            role: string;
+        };
+        /** @description What the must-change screen needs to apply the password rule in the browser. */
+        SetNewPasswordContextResponse: {
+            /** @description The account email. */
+            email: string;
+            /** @description The account given name. */
+            firstName: string;
+            /** @description The account family name. */
+            lastName: string;
+            /** @description Why a new password is needed: `temporary` or `breach`. */
+            reason: string;
+        };
+        /** @description The must-change form: the new password the person chose after the emailed code (D-13). */
+        SetNewPasswordRequest: {
+            /** @description The new password as typed. */
+            newPassword: null | string;
+        };
+        /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
+        SignInRequest: {
+            /** @description The email address. */
+            email: null | string;
+            /** @description True for a 90-day session, false for a browser session. */
+            keepSignedIn: boolean;
+            /** @description The password, exactly as typed. */
+            password: null | string;
+        };
+        /** @description What a successful sign-in step answers: how long to wait before asking for a new code. */
+        SignInResponse: {
+            /**
+             * Format: int32
+             * @description Whole seconds.
+             */
+            resendAfterSeconds: number | string;
+        };
         /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
         SiteSettingsDto: {
             /** @description Public shop address. */
@@ -45,6 +461,19 @@ export interface components {
             /** @description The business time zone id. */
             timeZoneId: string;
         };
+        /** @description The code step form: the six digits from the email (AUTH-02). */
+        VerifyCodeRequest: {
+            /** @description The code, exactly as typed. */
+            code: null | string;
+        };
+        /** @description What a correct code answers: the next step and, when signed in, the session. */
+        VerifyCodeResponse: {
+            /** @description Either `signed-in` or `set-new-password`. */
+            next: string;
+            /** @description Why a new password is needed (`temporary` or `breach`); null when signed in. */
+            reason: null | string;
+            session: null | components["schemas"]["SessionResponse"];
+        };
     };
     responses: never;
     parameters: never;
@@ -54,7 +483,286 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    GetSiteSettings: {
+    AcceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AcceptInviteRequest"];
+                "application/json": null | components["schemas"]["AcceptInviteRequest"];
+                "text/json": null | components["schemas"]["AcceptInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["InviteTokenRequest"];
+                "application/json": null | components["schemas"]["InviteTokenRequest"];
+                "text/json": null | components["schemas"]["InviteTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteLinkResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ForgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ForgotPasswordRequest"];
+                "application/json": null | components["schemas"]["ForgotPasswordRequest"];
+                "text/json": null | components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ResetPasswordRequest"];
+                "application/json": null | components["schemas"]["ResetPasswordRequest"];
+                "text/json": null | components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckResetLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ResetTokenRequest"];
+                "application/json": null | components["schemas"]["ResetTokenRequest"];
+                "text/json": null | components["schemas"]["ResetTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetLinkResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetNewPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SetNewPasswordRequest"];
+                "application/json": null | components["schemas"]["SetNewPasswordRequest"];
+                "text/json": null | components["schemas"]["SetNewPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckSetNewPassword: {
         parameters: {
             query?: never;
             header?: never;
@@ -64,6 +772,410 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetNewPasswordContextResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SignInRequest"];
+                "application/json": null | components["schemas"]["SignInRequest"];
+                "text/json": null | components["schemas"]["SignInRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SignOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SignOutOthers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResendCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResendCodeResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    VerifyCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["VerifyCodeRequest"];
+                "application/json": null | components["schemas"]["VerifyCodeRequest"];
+                "text/json": null | components["schemas"]["VerifyCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyCodeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The session to sign out. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokeSessionResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSiteSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings, or the failure as ProblemDetails. */
             200: {
                 headers: {
                     [name: string]: unknown;

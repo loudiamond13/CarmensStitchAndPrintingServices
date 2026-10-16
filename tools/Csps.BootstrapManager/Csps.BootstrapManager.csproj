@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The bootstrap-manager command (AUTH-12, D-29). Usage text: Csps.Infrastructure.Seeding.BootstrapManagerOptions.Usage.
+    It never migrates.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

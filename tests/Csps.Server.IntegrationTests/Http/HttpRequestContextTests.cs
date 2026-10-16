@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using Csps.Application.Ports;
+using Csps.Server.Composition;
 using Csps.Server.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Builder;
@@ -60,6 +61,39 @@ public sealed class HttpRequestContextTests
     }
 
     [Fact]
+    public void SessionIdComesFromTheSidClaim()
+    {
+        var sessionId = Guid.NewGuid();
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(SecurityRegistration.SessionClaim, sessionId.ToString())], "Test")),
+        };
+
+        For(context).SessionId.ShouldBe(sessionId);
+    }
+
+    [Fact]
+    public void SessionIdIsNullWithoutASidClaim()
+    {
+        For(new DefaultHttpContext()).SessionId.ShouldBeNull();
+        For(new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", Guid.NewGuid().ToString())], "Test")) })
+            .SessionId.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("not-a-guid")]
+    [InlineData("")]
+    public void SessionIdIsNullWhenTheSidClaimIsMalformed(string sid)
+    {
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(SecurityRegistration.SessionClaim, sid)], "Test")),
+        };
+
+        For(context).SessionId.ShouldBeNull();
+    }
+
+    [Fact]
     public void UserAgentIsTheRawHeader()
     {
         const string UserAgent = "Mozilla/5.0 (Linux; Android 14) CspsTest/1.0";
@@ -86,6 +120,7 @@ public sealed class HttpRequestContextTests
         var requestContext = new HttpRequestContext(new HttpContextAccessor());
 
         requestContext.UserId.ShouldBeNull();
+        requestContext.SessionId.ShouldBeNull();
         requestContext.RemoteIp.ShouldBeNull();
         requestContext.UserAgent.ShouldBeNull();
         requestContext.CorrelationId.ShouldMatch(TraceIdPattern);

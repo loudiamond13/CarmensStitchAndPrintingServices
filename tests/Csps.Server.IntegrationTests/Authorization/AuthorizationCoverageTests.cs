@@ -139,6 +139,16 @@ public sealed class AuthorizationCoverageTests
     }
 
     [Fact]
+    public void ControllerRoutesGetTheLeadingSlashAndOtherPatternsAreUnchanged()
+    {
+        // Controller attribute routes report RawText without a leading slash.
+        AuthorizationCoverage.KeysOf(Endpoint("api/v1/site-settings", "GET")).ShouldBe(["GET /api/v1/site-settings"]);
+        AuthorizationCoverage.KeysOf(Endpoint("/api/v1/site-settings", "GET")).ShouldBe(["GET /api/v1/site-settings"]);
+        AuthorizationCoverage.KeysOf(Endpoint("{*path:nonfile}", "GET")).ShouldBe(["GET {*path:nonfile}"]);
+        AuthorizationCoverage.KeysOf(Endpoint("{*path:file}", null)).ShouldBe(["* {*path:file}"]);
+    }
+
+    [Fact]
     public void PolicyNamesAreThePoliciesConstants() =>
         AuthorizationCoverage.PolicyNames.ShouldBe([Policies.Staff, Policies.Manager], ignoreOrder: true);
 

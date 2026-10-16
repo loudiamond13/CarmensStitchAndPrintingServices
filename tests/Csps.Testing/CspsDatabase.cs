@@ -19,9 +19,9 @@ public sealed class CspsDatabase : IAsyncLifetime
     private const int MinCompatibilityLevel = 100;
     private const int MaxCompatibilityLevel = 170;
 
-    // Never reset: migration history, the migration-seeded SiteSettings row, and the append-only audit log with its
-    // empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
-    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AuditLog", "AuditLogTruncateGuard"];
+    // Never reset: migration history, the migration-seeded SiteSettings row and AspNetRoles (Pitfall 7), and the
+    // append-only audit log with its empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
+    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AspNetRoles", "AuditLog", "AuditLogTruncateGuard"];
 
     private SqlServerInstance? _server;
     private Respawner? _respawner;
@@ -87,7 +87,7 @@ public sealed class CspsDatabase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Deletes the rows of every user table with Respawn, except the migration history and the migration-seeded
+    /// Deletes the rows of every user table with Respawn, except the migration history, the migration-seeded roles and the migration-seeded
     /// SiteSettings row (research Pattern 11). The Respawner is built on first use, so tables a test created
     /// before its first reset are included. Respawn deletes with DELETE, which the append-only trigger rejects, so
     /// AuditLog and its AuditLogTruncateGuard are never reset (research Pitfall 1). Audit tests therefore find their

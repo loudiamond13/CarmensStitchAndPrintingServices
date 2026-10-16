@@ -341,8 +341,11 @@ function sendWithXhr(
   });
 }
 
-/** Statuses that carry no body by definition. A HEAD answer never has one either. */
-const noContentStatuses: ReadonlySet<number> = new Set([204, 205]);
+/**
+ * Statuses that may carry no body: 204 and 205 by definition, and 202 ("accepted", like the forgot-password answer, which
+ * says the same thing for every address). A HEAD answer never has one either. A 202 with a JSON body is still parsed.
+ */
+const noContentStatuses: ReadonlySet<number> = new Set([202, 204, 205]);
 
 /** Turns a received answer into the response data, or throws an HttpError. */
 function toHttpResponse(raw: RawResponse, method: HttpMethod): HttpResponse {

@@ -1,4 +1,5 @@
 # CSPS — UI Implementation Spec (strict)
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-15T16:21:29-05:00*
 
 **Carmen's Stitch & Printing Services** — public website + staff admin
 Spec version 1.1 · Oct 6, 2026 · **Target stack: React + TypeScript + Tailwind CSS v4 (Vite)**
@@ -982,6 +983,11 @@ Two silhouettes, both `viewBox="0 0 400 480"`, filled with three colors: c1 body
 - Sidebar hidden; topbar shows the menu button; user name and kbd hint hidden.
 - Body padding 20 16 32, gap 20; H1 30px.
 - The bottom tab bar is visible.
+
+**Logout** (Sidebar footer, phone drawer, user menu; owner ruling 2026-10-15)
+
+- Success: the server ends this device's session; the app clears the local session, tells other open tabs and opens `/admin/login` with "You've signed out.".
+- Failure (no connection, timeout, rate limit, server error, or a save race that fails again after one retry): the person stays signed in on the same page; nothing is cleared, other tabs are not told, no notice is shown, and a danger toast (stays until closed) reads **"We couldn’t sign you out."** / "Check your connection and try again.". Pressing Logout again retries.
 
 ### 8.2 Login (`/admin/login`) — Appendix E · Login
 

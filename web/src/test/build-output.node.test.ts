@@ -98,17 +98,21 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     expect(css).not.toMatch(/data:(?:font|application\/(?:x-)?font)/i);
   });
 
-  // D-20, CWE-489 (T-02-69): the admin shell, its preview pages and the /dev showcase exist in development and in the
-  // e2e and budget builds only. Nothing unprotected may be deployed before Phase 4 adds sign-in, so no production asset
-  // may carry their copy.
-  it.each(['Open Component Showcase', 'Component Showcase', 'CSPS Admin'])(
-    'contains no admin or /dev module: no asset carries "%s" (D-20)',
+  // D-20, CWE-489 (T-02-69), reversed in Phase 4 (plan 04-25): the guarded admin app and its sign-in ship, but the dev
+  // showcase and the dev-only preview pages never do, so no production asset may carry their copy.
+  it.each(['Open Component Showcase', 'Component Showcase', 'Development only'])(
+    'contains no dev or showcase module: no asset carries "%s" (D-20)',
     (copy) => {
       const files = listAll(webRoot).filter((name) => /\.(?:js|html|css)$/.test(name));
       expect(files.length).toBeGreaterThan(0);
       expect(files.filter((name) => readText(join(webRoot, name)).includes(copy))).toEqual([]);
     },
   );
+
+  it.each(['CSPS Admin', 'returnUrl'])('ships the guarded admin app: an asset carries "%s"', (copy) => {
+    const files = listAll(webRoot).filter((name) => name.endsWith('.js'));
+    expect(files.filter((name) => readText(join(webRoot, name)).includes(copy)).length).toBeGreaterThan(0);
+  });
 
   it('ships no source map and no .vite folder (D-35)', () => {
     const files = listAll(webRoot);

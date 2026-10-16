@@ -23,18 +23,8 @@ public sealed record AuditRow(
 /// <summary>Shared helpers for the audit tests: compose the trail like the Server does, and read or change rows with raw SQL.</summary>
 internal static class AuditLogSql
 {
-    /// <summary>
-    /// Builds Infrastructure exactly as the Server does, with the given clock and request facts, and appends one entry
-    /// through the real <see cref="IAuditTrail"/> registration.
-    /// </summary>
-    public static async Task AppendAsync(
-        CspsDatabase database,
-        TimeProvider time,
-        IRequestContext request,
-        string action,
-        string? targetType,
-        string? targetId,
-        string? detail)
+    /// <summary>Builds Infrastructure exactly as the Server does, with the given clock and request facts.</summary>
+    public static ServiceProvider BuildProvider(CspsDatabase database, TimeProvider time, IRequestContext request)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { [DependencyInjection.ConnectionStringKey] = database.ConnectionString })
@@ -45,14 +35,27 @@ internal static class AuditLogSql
         services.AddSingleton(request);
         services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });
 
-        var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+    }
+
+    /// <summary>Records one entry through the real <see cref="IAuditTrail"/> registration and commits it with the unit of work.</summary>
+    public static async Task AppendAsync(
+        CspsDatabase database,
+        TimeProvider time,
+        IRequestContext request,
+        string action,
+        string? targetType,
+        string? targetId,
+        string? detail)
+    {
+        var provider = BuildProvider(database, time, request);
         await using (provider)
         {
             var scope = provider.CreateAsyncScope();
             await using (scope)
             {
-                await scope.ServiceProvider.GetRequiredService<IAuditTrail>()
-                    .AppendAsync(action, targetType, targetId, detail, TestContext.Current.CancellationToken);
+                scope.ServiceProvider.GetRequiredService<IAuditTrail>().Record(action, targetType, targetId, detail);
+                await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
             }
         }
     }

@@ -235,6 +235,16 @@ describe('ButtonLink', () => {
     expect(onlyLink().querySelector('svg')).toHaveAttribute('width', '16');
   });
 
+  it('fills the width of its container with block, as Button does', () => {
+    inRouter(
+      <ButtonLink to="/products" variant="primary" size="lg" block>
+        Products
+      </ButtonLink>,
+    );
+    expect(onlyLink().className).toBe(buttonClasses({ variant: 'primary', size: 'lg', block: true }));
+    expect(onlyLink()).toHaveClass('w-full');
+  });
+
   it('navigates in-app through the router', async () => {
     const user = userEvent.setup();
     inRouter(<ButtonLink to="/products">Products</ButtonLink>);

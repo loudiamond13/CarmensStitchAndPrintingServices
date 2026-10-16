@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { adminRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/routes';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
@@ -25,10 +25,17 @@ const SECTION_TITLES = [
   'Media',
   'Navigation',
   'Marketing',
+  'Sign-in and devices',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
-const LAYOUT_GROUPS = new Set(['layouts-admin', 'layouts-admin-boundaries', 'layouts-public']);
+const LAYOUT_GROUPS = new Set([
+  'auth-brand',
+  'layouts-admin',
+  'layouts-admin-boundaries',
+  'layouts-auth',
+  'layouts-public',
+]);
 
 function renderShowcase() {
   return render(
@@ -129,6 +136,9 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Media')).toContainElement(caseFrame('media-placeholder-4x3'));
     expect(section('Navigation')).toContainElement(caseFrame('drawer-open'));
     expect(section('Marketing')).toContainElement(caseFrame('process-steps'));
+    expect(section('Sign-in and devices')).toContainElement(caseFrame('verify-default'));
+    expect(section('Sign-in and devices')).toContainElement(caseFrame('devices-populated'));
+    expect(section('Sign-in and devices')).toContainElement(caseFrame('signout-others-open'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
@@ -309,6 +319,69 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('shows the four-item session menu only on request', async () => {
+    const user = userEvent.setup();
+    renderShowcase();
+    const frame = within(caseFrame('session-menu-open'));
+    expect(frame.queryByRole('menu')).toBeNull();
+
+    await user.click(frame.getByRole('button', { name: 'Show this example' }));
+    const menu = await frame.findByRole('menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['My Profile', 'Signed-in Devices', 'Sign Out Other Devices', 'Logout']);
+  });
+
+  it.each([
+    ['signout-others-open', 'Open Sign Out Others', 'Sign out of other devices?', 'Keep Others Signed In'],
+    ['signout-others-failed', 'Open Sign Out Others (fails)', 'Sign out of other devices?', 'Keep Others Signed In'],
+    ['signout-device-open', 'Open Sign Out Device', 'Sign out Safari on iPhone?', 'Keep Signed In'],
+    ['signout-device-failed', 'Open Sign Out Device (fails)', 'Sign out Safari on iPhone?', 'Keep Signed In'],
+  ] as const)('opens the %s demo with focus on its dismiss button, and closes it', async (id, trigger, title, keep) => {
+    const user = userEvent.setup();
+    renderShowcase();
+
+    await user.click(within(caseFrame(id)).getByRole('button', { name: trigger }));
+    const dialog = await screen.findByRole('dialog', { name: title });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: keep })).toHaveFocus();
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: keep }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows the failed sign-out demos with the error line and its reference', async () => {
+    const user = userEvent.setup();
+    renderShowcase();
+
+    await user.click(
+      within(caseFrame('signout-device-failed')).getByRole('button', { name: 'Open Sign Out Device (fails)' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Sign Out Device' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/00-4bf92f3577b34da6a3ce929d0e0e4736-01/);
+  });
+
+  it('raises the session toasts from their triggers, each with its own copy', async () => {
+    const user = userEvent.setup();
+    renderShowcase();
+    const frame = within(caseFrame('showcase-session-toasts'));
+
+    await user.click(frame.getByRole('button', { name: 'Show session ending toast' }));
+    expect(toastLayer()).toHaveTextContent('Your session ends soon');
+    expect(toastLayer()).toHaveTextContent("You'll be signed out at 3:42 PM. Save your work, then sign in again.");
+
+    await user.click(frame.getByRole('button', { name: 'Show device signed out toast' }));
+    expect(toastLayer()).toHaveTextContent('Device signed out');
+    expect(toastLayer()).toHaveTextContent(
+      'Samsung Internet on Galaxy Tab S9 Ultra at the front counter will have to sign in again.',
+    );
+  });
+
   it('shows the open user menu only on request, so the page never moves focus by itself', async () => {
     const user = userEvent.setup();
     renderShowcase();
@@ -340,17 +413,17 @@ describe('ComponentShowcase accessibility (A11Y-01)', () => {
 });
 
 /** The app's route tree as a dev build has it (tests run with the production `__DEV_ROUTES__` value, false). */
-function devRoutes(): RouteObject[] {
+function devTree(): RouteObject[] {
   const [root, ...rest] = routes;
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...(root.children ?? []), ...adminRoutes] } as RouteObject, ...rest];
+  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 describe('/dev/components route (D-20, D-22)', () => {
   it('shows the showcase inside the admin shell, with no sidebar item current', async () => {
-    const router = createMemoryRouter(devRoutes(), { initialEntries: ['/dev/components'] });
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1 }, { timeout: 10_000 })).toHaveTextContent(

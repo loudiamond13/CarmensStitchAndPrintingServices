@@ -1,5 +1,7 @@
 using Csps.Infrastructure.Auditing;
+using Csps.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Csps.Infrastructure.Persistence;
 
@@ -23,6 +25,12 @@ public static class CspsDbContextOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
         builder.AddInterceptors(AuditLogAppendOnlyInterceptor.Instance);
+
+        // Without a host (dotnet ef, tests, tools) Identity would build its model as schema version 1.
+        if (builder.Options.FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider is null)
+        {
+            builder.UseApplicationServiceProvider(IdentityRegistration.ModelServices);
+        }
 
         return builder.UseSqlServer(
             connectionString,

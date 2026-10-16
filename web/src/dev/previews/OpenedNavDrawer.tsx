@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { AdminFrame } from '@/layouts/AdminLayout';
 import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
+import { DEV_USER } from '@/modules/admin/sections';
 
 function noop(): undefined {
   return undefined;
@@ -23,7 +24,7 @@ export function OpenedNavDrawer() {
   }, []);
   return (
     <div ref={frame}>
-      <AdminFrame section="dashboard" theme="light" onLogout={noop}>
+      <AdminFrame section="dashboard" user={DEV_USER} theme="light" onLogout={noop}>
         <AdminPreviewPage section="dashboard" />
       </AdminFrame>
     </div>

@@ -19,8 +19,18 @@ const serverProject = fileURLToPath(new URL('../src/Csps.Server', import.meta.ur
 // Playwright port (CLAUDE.md).
 const origin = 'https://localhost:5199';
 
+// The per-address auth limit the E2E host runs with: high enough that no worker count can reach it (plan 04-24).
+const noThrottle = '100000';
+
 // The fixture self-tests prove the guards once per engine; the phone projects reuse those engines.
 const engineOnly = ['**/fixture-selftest.spec.ts'];
+
+// The Testing host smoke calls API routes only, so one engine proves it (plan 04-10).
+const chromiumOnly = ['**/testing-host.spec.ts'];
+
+// The cookie attributes belong to the engine, not the screen size; the phone projects reuse the same engines (plan 04-27).
+// The two-tab session proof (Web Locks, BroadcastChannel) is likewise per engine (plan 04-30).
+const desktopEnginesOnly = ['**/auth-cookies.spec.ts', '**/auth-multitab.spec.ts'];
 
 // The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
 const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];
@@ -34,10 +44,18 @@ export default defineConfig({
   use: { baseURL: 'https://localhost:5199', ignoreHTTPSErrors: true, trace: 'retain-on-failure' },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: scrollbarSpecs },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: scrollbarSpecs },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: scrollbarSpecs },
-    { name: 'pixel', use: { ...devices['Pixel 7'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
-    { name: 'iphone', use: { ...devices['iPhone 15'] }, testIgnore: [...engineOnly, ...scrollbarSpecs] },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: [...chromiumOnly, ...scrollbarSpecs] },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: [...chromiumOnly, ...scrollbarSpecs] },
+    {
+      name: 'pixel',
+      use: { ...devices['Pixel 7'] },
+      testIgnore: [...engineOnly, ...chromiumOnly, ...desktopEnginesOnly, ...scrollbarSpecs],
+    },
+    {
+      name: 'iphone',
+      use: { ...devices['iPhone 15'] },
+      testIgnore: [...engineOnly, ...chromiumOnly, ...desktopEnginesOnly, ...scrollbarSpecs],
+    },
     // Headless Chromium starts with --hide-scrollbars, so no project above ever presses a real scrollbar. These two show
     // them again: classic scrollbars, which take about 15px of the window as in Chrome on Windows (the owner's setup),
     // and overlay scrollbars, which take no space as on macOS with a trackpad and on ChromeOS. They run only
@@ -67,11 +85,24 @@ export default defineConfig({
     // Never attach to a server someone else started on 5199: a busy port is an error (CLAUDE.md shared machine).
     reuseExistingServer: false,
     timeout: 120_000,
-    // Set on the host process only, never at User or Machine level. Development loads the JWT signing key and the Data
-    // Protection certificate from this developer's user-secrets (D-30); no secret is passed or written here (T-02-25).
+    // Set on the host process only, never at User or Machine level. The Testing environment serves the Testing-only
+    // routes (/api/testing/*, QUAL-05) and sends mail to the in-memory sink (D-27). Csps__Testing__LoadUserSecrets makes
+    // the host read this developer's user-secrets for the JWT signing key and the Data Protection certificate (D-37);
+    // nothing secret is passed or written here (T-02-25).
     env: {
-      ASPNETCORE_ENVIRONMENT: 'Development',
+      ASPNETCORE_ENVIRONMENT: 'Testing',
+      Csps__Testing__LoadUserSecrets: 'true',
+      App__PublicBaseUrl: origin,
+      Email__Dispatcher__SweepInterval: '00:00:01',
       ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+      // Every worker and project signs in from this one address, so the per-address auth limits (D-39) are set very high
+      // here, as in the .NET test host. Production keeps the owner's numbers (plan 04-24).
+      RateLimits__Auth__SignIn__PermitLimit: noThrottle,
+      RateLimits__Auth__Verify__PermitLimit: noThrottle,
+      RateLimits__Auth__Resend__PermitLimit: noThrottle,
+      RateLimits__Auth__Forgot__PermitLimit: noThrottle,
+      RateLimits__Auth__Reset__PermitLimit: noThrottle,
+      RateLimits__Auth__Refresh__PermitLimit: noThrottle,
     },
   },
 });

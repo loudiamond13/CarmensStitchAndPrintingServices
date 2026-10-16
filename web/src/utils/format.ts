@@ -47,6 +47,55 @@ export function formatBusinessDate(utcIso: string, zone: string = BUSINESS_ZONE)
   return formatterFor(zone).format(new Date(utcIso));
 }
 
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+const NON_BREAKING_SPACES = /[\u202F\u00A0]/g;
+
+/** One cached en-US "Oct 12, 2026, 3:42 PM" formatter per zone. */
+function dateTimeFormatterFor(zone: string): Intl.DateTimeFormat {
+  let formatter = dateTimeFormatters.get(zone);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    dateTimeFormatters.set(zone, formatter);
+  }
+  return formatter;
+}
+
+/**
+ * "Oct 12, 2026, 3:42 PM": a UTC instant from the API as seen in the business zone. Newer ICU puts a narrow no-break
+ * space before AM/PM; it becomes a plain space so the text matches what staff read and type. Any other input gives
+ * null (render EmptyValue).
+ */
+export function formatBusinessDateTime(utcIso: string, zone: string = BUSINESS_ZONE): string | null {
+  if (calendarParts(INSTANT.exec(utcIso)) === null) return null;
+  return dateTimeFormatterFor(zone).format(new Date(utcIso)).replace(NON_BREAKING_SPACES, ' ');
+}
+
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** One cached en-US "3:42 PM" formatter per zone. */
+function timeFormatterFor(zone: string): Intl.DateTimeFormat {
+  let formatter = timeFormatters.get(zone);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true });
+    timeFormatters.set(zone, formatter);
+  }
+  return formatter;
+}
+
+/** "3:42 PM": the time of day of a UTC instant from the API in the business zone. Any other input gives null. */
+export function formatBusinessTime(utcIso: string, zone: string = BUSINESS_ZONE): string | null {
+  if (calendarParts(INSTANT.exec(utcIso)) === null) return null;
+  return timeFormatterFor(zone).format(new Date(utcIso)).replace(NON_BREAKING_SPACES, ' ');
+}
+
 /** "Oct 6, 2026" for a plain YYYY-MM-DD business date, with no zone shift. Any other text gives null (render EmptyValue). */
 export function formatCalendarDate(ymd: string): string | null {
   const parts = calendarParts(CALENDAR_DATE.exec(ymd));

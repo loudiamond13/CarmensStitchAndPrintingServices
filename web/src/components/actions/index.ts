@@ -6,4 +6,4 @@ export { ButtonLink } from './ButtonLink';
 export type { ButtonLinkProps } from './ButtonLink';
 export { LinkProvider, UiLink } from './UiLink';
 export type { LinkProviderProps, UiLinkProps } from './UiLink';
-export { buttonClasses } from './button.recipe';
+export { buttonClasses, hitAreaClasses } from './button.recipe';

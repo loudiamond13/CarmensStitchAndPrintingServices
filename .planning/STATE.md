@@ -1,21 +1,20 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 4
+current_phase: 04
 current_phase_name: Identity & Authentication
-status: "Phases 01+02 shipped — PR #1"
-stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-10-14T17:23:31.810Z"
-last_activity: 2026-10-14
-last_activity_desc: "Completed quick task 261014-g0q: icon in place of the long dash"
-state_head: 190fc19f329f9239b9a0106d34f182ab5865384b
+status: "Phase 4 shipped, PR #4"
+stopped_at: Completed 04-32-PLAN.md
+last_updated: "2026-10-16T04:43:49.697Z"
+last_activity: 2026-10-15
+state_head: 9ed29db782deecc1cbf61d9d81942633ab857207
 progress:
   total_phases: 17
   completed_phases: 2
-  total_plans: 56
-  completed_plans: 56
+  total_plans: 91
+  completed_plans: 91
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-14T05:57:52-05:00"
+updated: "2026-10-14T21:36:00-05:00"
 ---
 
 # Project State
@@ -25,14 +24,14 @@ updated: "2026-10-14T05:57:52-05:00"
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 04 — Identity & Authentication (Phase 3 deferred until after Phase 4)
+**Current focus:** Phase 04 — Identity & Authentication
 
 ## Current Position
 
-Phase: 4 — Identity & Authentication
-Plan: Not started
-Status: Phases 01+02 shipped — PR #1
-Last activity: 2026-10-14 - Completed quick task 261014-gqz: fix NuGetAudit restore failure (.NET 10.0.13 security bump)
+Phase: 04 (Identity & Authentication) — EXECUTING
+Plan: 35 of 35
+Status: Phase 4 shipped, PR #4
+Last activity: 2026-10-15 - Completed quick task 261015-vmf: Address Copilot review on PR 4
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -115,6 +114,41 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 02 P41 | 40 min | 3 tasks | 13 files |
 | Phase 02 P42 | 89 min | 3 tasks | 13 files |
 | Phase 02 P43 | ~7h elapsed | 3 tasks | 9 files |
+| Phase 04 P01 | 3h25m | 3 tasks | 4 files |
+| Phase 04 P02 | 75min | 3 tasks | 16 files |
+| Phase 04 P03 | 55min | 3 tasks | 20 files |
+| Phase 04 P04 | 25min | 3 tasks | 10 files |
+| Phase 04 P05 | 9min | 3 tasks | 10 files |
+| Phase 04 P06 | 9min | 3 tasks | 7 files |
+| Phase 04 P07 | 20min | 3 tasks | 32 files |
+| Phase 04 P08 | 16min | 3 tasks | 19 files |
+| Phase 04 P09 | 17min | 2 tasks | 31 files |
+| Phase 04 P10 | 45min | 3 tasks | 21 files |
+| Phase 04 P11 | 35min | 3 tasks | 20 files |
+| Phase 04 P17 | 40min | 3 tasks | 24 files |
+| Phase 04 P33 | 35 min | 2 tasks | 7 files |
+| Phase 04 P12 | 70min | 3 tasks | 26 files |
+| Phase 04 P13 | 40 min | 2 tasks | 31 files |
+| Phase 04 P34 | 15min | 2 tasks | 7 files |
+| Phase 04 P14 | 75min | 3 tasks | 28 files |
+| Phase 04 P15 | ~40min | 3 tasks | 25 files |
+| Phase 04 P16 | 25min | 2 tasks | 17 files |
+| Phase 04 P25 | 31min | 3 tasks | 31 files |
+| Phase 04 P18 | 40min | 2 tasks | 26 files |
+| Phase 04 P26 | 22min | 3 tasks | 26 files |
+| Phase 04 P19 | 14 min | 2 tasks | 19 files |
+| Phase 04 P27 | 1h | 3 tasks | 21 files |
+| Phase 04 P20 | 35 min | 3 tasks | 21 files |
+| Phase 04 P28 | 35min | 2 tasks | 23 files |
+| Phase 04 P21 | 14 min | 2 tasks | 19 files |
+| Phase 04 P29 | 57min | 2 tasks | 21 files |
+| Phase 04 P22 | 40 min | 2 tasks | 29 files |
+| Phase 04 P30 | 2h 0m | 3 tasks | 21 files |
+| Phase 04 P24 | 70 min | 2 tasks | 14 files |
+| Phase 04 P31 | 21 min | 3 tasks | 18 files |
+| Phase 04 P35 | 25m | 2 tasks | 13 files |
+| Phase 04 P23 | 1h 0m | 3 tasks | 21 files |
+| Phase 04 P32 | 5 hours | 3 tasks | 28 files |
 
 ## Accumulated Context
 
@@ -291,6 +325,64 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 02]: Phase close (2026-10-14): UAT 202/202 passed; owner accepted 02-43 WR-01 (focusFirst() fallback may scroll the backdrop) and ruled WR-02 + IN-01..IN-05 to be fixed in a follow-up quick task (02-REVIEW-g199-43-DISPOSITION.md)
 - [Phase 02]: Dialogs follow D-42: centred on the whole window, the 140px top gap shrinks on short windows and the backdrop scrolls as a last resort; non-primary presses and scrollbar drags never close
 - [Phase 02]: Order math uses the PRD names (Subtotal before discount, Total after discount; D-41 R2-06); browser totals are preview-only, saved orders show server figures
+- [Phase 04]: 04-01: mail results recorded as public facts only (domain, DKIM selector, pass results); app sets its own From display name
+- [Phase 04]: 04-02: MSW 3 uses onUnhandledFrame (not onUnhandledRequest); setup.ts errors on unhandled requests in every jsdom test
+- [Phase 04]: 04-03: Record only adds the audit entry and IUnitOfWork commits it; failure audits use RecordIndependentlyAsync through IDbContextFactory so a rollback cannot erase them
+- [Phase 04]: 04-03: log masking treats any property ending in Hash, Stamp, Key or Mac as a secret (CWE-532), accepting that names like CacheKey are masked too
+- [Phase 04]: 04-04: password number is Unicode Nd, symbol is P* or S*, a space is neither; an email without @ is used whole for the D-15 check
+- [Phase 04]: 04-05: TwoFactorChallenge Verify order is closed, expiry, exhausted, then fixed-time compare; an expired or exhausted code never counts an attempt
+- [Phase 04]: 04-06: sibling cap counts the original rotation child, so the 5th grace sibling works and the 6th is reuse; Revoke keeps the first reason but still ends open tokens
+- [Phase 04]: 04-07: [Produces(application/json)] on controllers keeps the OpenAPI contract JSON-only; the problem code extension is 4xx only; Retry-After is whole seconds rounded up, min 1
+- [Phase 04]: 04-08: Identity schema version 2 is forced for host-less contexts (design-time, tests) through CspsDbContextOptions so migrations match the host model
+- [Phase 04]: 04-08: passwords are NFC-normalized and hashed directly (no Identity password validators, one atomic save with the security stamp); CreateAsync confirms the email only when a password is given
+- [Phase 04]: 04-09: the outbox signal fires after the commit (deferred to the outer transaction's commit, dropped on rollback), so the dispatcher never races an uncommitted row
+- [Phase 04]: 04-09: Smtp:Security is read as exact text (StartTls or SslOnConnect); any other value fails the start-up check without echoing it
+- [Phase 04]: 04-09: Production needs the host setting App:PublicBaseUrl (https) besides Smtp:*; test hosts carry placeholder Smtp values for a host that is never contacted
+- [Phase 04]: 04-10: a Debug build refuses Production unless Csps:Testing:AllowProductionEnvironment is true, set only by CspsApiFactory
+- [Phase 04]: 04-10: the deactivated fixture user goes through a Debug-only TestingAccountActivation, keeping IUserAccounts unchanged
+- [Phase 04]: 04-11: concurrency tokens on TwoFactorCode FailedAttempts/SupersededAt/ConsumedAt guard double verification, since Verify never touches the challenge row
+- [Phase 04]: 04-11: InvalidateOpenAsync does not save; handlers save it with the new challenge in one unit of work
+- [Phase 04]: 04-17: HIBP address is an absolute constant URI on every call, one 250 ms retry inside a 3 s limit; SecLists top-10k pinned at commit 913b327 and hash-checked via registry kind data
+- [Phase 04]: 04-33: retry delay counts from the failed attempt; claim lease 2 min; transport errors stored only as smtp-connect/auth/send/unknown
+- [Phase 04]: 04-12: auth.lockout for a password lockout is recorded in the same unit of work as the count and the email (Record), not independently; audit-log.md updated
+- [Phase 04]: 04-12: ResponseFloor re-measures after each delay because a coarse timer can fire early; state checks run before the password result so blocked accounts are never counted
+- [Phase 04]: 04-13: session cache keyed by sid (60 s, user tag), unknown and revoked sessions cached too; RefreshTokens.ParentId has no self FK
+- [Phase 04]: 04-14: IssuedSession carries the session id so auth.signed-in targets the UserSession; the code-cap lock length is AuthSettings.CodeLockoutDuration (15 min)
+- [Phase 04]: 04-14: locked or deactivated accounts get 401 auth.ticket-expired on verify and resend; expired codes are not audited or counted
+- [Phase 04]: Refresh, sign-out and sign-out-others: a second lost save race answers 409 auth.session-busy (cookie kept) instead of 401 or a false 204
+- [Phase 04]: sign-out-others without a user and sid in the request context revokes nothing and answers 401
+- [Phase 04]: Inactive-account revocation on refresh is audited as auth.session-revoked; the lock check uses UserAccount.LockoutEnd with the injected clock
+- [Phase 04]: 04-25: only a 401 from refresh ends the web session; a busy 409 refresh is retried once and other failures keep the session
+- [Phase 04]: 04-25: admin app ships in production behind the route guard; dev previews, showcase and their copy stay dev-only
+- [Phase 04]: 04-18: only active, email-confirmed accounts get a reset link; unconfirmed answered like unknown
+- [Phase 04]: 04-18: per-account sp_getapplock serializes forgot-password so the hourly cap and one-live-link rule hold under concurrency
+- [Phase 04]: 04-26: any 401 from sign-in shows the one generic banner (D-02); email and password use aria-required so the approved App. E.5 labels gain no asterisk
+- [Phase 04]: 04-26: the sign-in page loader checks for a live session, so a guard redirect to /admin/login makes a second refresh request (2 in total)
+- [Phase 04]: 04-19: an unconfirmed (invited, not yet accepted) account reads as an invalid reset link, matching 04-18
+- [Phase 04]: 04-19: a reset spends and saves the link first inside the transaction, evicts the session cache only after commit, and records auth.sessions-revoked (password-reset) on every completed reset
+- [Phase 04]: 04-27: Playwright's WebKit on Windows reports SameSite None for every cookie, so @auth-cookies asserts WebKit's SameSite from the Set-Cookie header and Chromium/Firefox from the jar; Phase 3 confirms real Safari
+- [Phase 04]: 04-27: the E2E guard ignores WebKit's late modulepreload warning for the app's own assets chunks only
+- [Phase 04]: 04-20: Idempotency gate runs after UseAuthorization and covers only endpoints that name POST; the /api fallback keeps its 404
+- [Phase 04]: 04-20: A response that sets a cookie, has a non-text body or is over 1 MB is never stored, on top of the status rule
+- [Phase 04]: 04-20: The Idempotency-Key must be a hyphenated UUID in one header; anything else is 400 idempotency.key-missing
+- [Phase 04]: 04-20: A duplicate in flight gets 409 immediately (sp_getapplock timeout 0); sp_getapplock is the one reviewed raw-SQL call
+- [Phase 04]: 04-28: the reset link check names only the email, so the browser keeps the email local part out of the password and the server checks first and last name
+- [Phase 04]: 04-28: a reset link check that gets no answer (network, 429, 5xx) shows the shared banner and Try Again, never the expired state
+- [Phase 04]: 04-28: the shared HTTP client treats an empty 202 as no content (forgot-password answer)
+- [Phase 04]: 04-21: a locked account also gets 401 at set-new, like the code step
+- [Phase 04]: 04-21: breach found at sign-in sets must-change reason Breach (overrides Temporary)
+- [Phase 04]: 04-29: a 404 on a per-device sign-out is 'already signed out' (info toast, row removed); the devices list is stale at once so window focus and page opens refetch
+- [Phase 04]: 04-22: invite acceptance confirms the email (ConfirmEmailAsync); the bootstrap Manager is created unconfirmed and passwordless
+- [Phase 04]: 04-30: Modal makes the page behind it inert (only the newest dialog decides); inline mock-up dialogs stay live
+- [Phase 04]: 04-30: session-cap warning is a warning-tone toast 5 minutes before the 12-hour cap of a browser session (OQ-4)
+- [Phase 04]: 04-24: Retry-After on a per-IP 429 is the policy's whole window (sliding-window leases report no wait); E2E host sets auth limits to 100000
+- [Phase 04]: 04-31: the Password saved toast reaches the admin shell through a one-shot in the session module (AuthLayout's toast layer unmounts with its route)
+- [Phase 04]: 04-31: S3 and S6 show the shared banner with Try Again when the check could not be made, instead of calling the link expired
+- [Phase 04]: 04-35: bootstrap guard also refuses system databases and allows only CSPS_Dev/CSPS_E2E/CSPS_Test_<guid> on local servers; pending migrations are refused
+- [Phase 04]: Plan 04-23: compiled-in base64 logo (EmailLogoPng.cs generated from the committed PNG) instead of an EmbeddedResource, because the dependency registry treats embedded files as third-party data; owner accepted
+- [Phase 04]: Plan 04-23: email HTML has one style block with a 480 px media query for phone padding, and the text part prints Label: URL for the button; owner accepted
+- [Phase 04]: Plan 04-23: staff address is bold (strong, font-weight 700, HTML-encoded) in the reset-link, password-changed, deactivated and invite email HTML; text part unchanged; owner requested
+- [Phase 04]: OQ-8 and OQ-9 (owner, 04-32): the sign-in brand panel keeps the dot mesh, and its words sit above a bottom zone for the slab
 
 ### Pending Todos
 
@@ -299,7 +391,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1 → 3/4/17]: Hosting record still has Unverified facts: probe facts (runtime patch, content root, logs, client IP, HTTPS, Manila/en-PH, PFX, memory) verified on the Phase 3 first deploy; Gmail SPF/DKIM/DMARC pass (D2) before Phase 4. SmarterASP.NET confirmed SQL Server 2025 is offered (new DB + `.bak` restore, no in-place upgrade); still ask whether a temporary second database is allowed at no cost (Phase 17 prerequisite, D-33).
-- [Phase 4]: Code review WR-02 (IpPrefix 6to4/NAT64 → IPv4 before truncation) is owner-deferred and MUST be fixed before any code path writes audit rows. Also triage the remaining open review items (WR-01, WR-03, WR-05..WR-09, IN-*) before shipping.
+- [Phase 4]: Resolved in 04-03 (2026-10-14): WR-01, WR-02, WR-03, WR-05, WR-06 fixed before any audit write; the other Phase 1 review items are triaged in 01-REVIEW-DISPOSITION.md (IN-04 and IN-06 planned in 04-13 and 04-09, the rest deferred to Phase 3 or Phase 14).
 - [Phase 2+]: API style is now controller-based (owner, 2026-10-07); `GET /api/v1/site-settings` converts to a controller when a phase touches it.
 - [Phase 2 → follow-up]: Fix 02-43 review items WR-02 (docs/web/e2e.md @dialog-fit row says a scrollbar drag leaves scrollTop unchanged; the test asserts it scrolls) and IN-01..IN-05 (test/comment hygiene). UI review 02-UI-REVIEW.md (18/24) lists 3 priority warnings (admin sidebar height at 1440x900, undocumented arbitrary px literals, no measured contrast table) for owner triage.
 - [Phase 3]: GitHub repo exists (private, default branch `dev`; PRs target `dev`). The owner must still provide Web Deploy credentials and secrets. C-27 (security tooling cost) must be ruled before CI.
@@ -326,6 +418,8 @@ None yet.
 | 261014-ctx | Adopt owner conventions 2026-10-14: MSSQLLocalDB with CSPS_* DBs, web/src modules layout + per-module services, no long dash in client, rules recorded | 2026-10-14 | 3b2daf6 | [261014-ctx-adopt-2026-10-14-conventions-switch-loca](./quick/261014-ctx-adopt-2026-10-14-conventions-switch-loca/) |
 | 261014-g0q | Show a minus icon (EmptyValue) wherever a long dash would mark an empty value; OR-4 amended | 2026-10-14 | 5bb3879 | [261014-g0q-show-an-icon-wherever-a-long-dash-would-](./quick/261014-g0q-show-an-icon-wherever-a-long-dash-would-/) |
 | 261014-gqz | Fix NuGetAudit restore failure: bump .NET 10.0.12 packages to 10.0.13 and pin patched System.Security.Cryptography.Pkcs/Xml | 2026-10-14 | 190fc19 | [261014-gqz-fix-nugetaudit-restore-failure-bump-net-](./quick/261014-gqz-fix-nugetaudit-restore-failure-bump-net-/) |
+| 261015-m51 | Phase 4 review follow-ups: CR-01 keep signed in, WR-12 back to /64, record owner rulings | 2026-10-15 | 0fc3387 | [261015-m51-phase-4-review-follow-ups-cr-01-keep-sig](./quick/261015-m51-phase-4-review-follow-ups-cr-01-keep-sig/) |
+| 261015-vmf | Address Copilot review on PR 4: savepoint per unit-of-work attempt, names for every password form, must-change check endpoint, cache owner outside React, IIS 2 MiB backstop | 2026-10-15 | 9ed29db | [261015-vmf-address-copilot-review-on-pr-4-phase-4](./quick/261015-vmf-address-copilot-review-on-pr-4-phase-4/) |
 
 ## Deferred Items
 
@@ -337,6 +431,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T13:26:22.975Z
-Stopped at: Phase 4 UI-SPEC approved
-Resume file: .planning/phases/04-identity-authentication/04-UI-SPEC.md
+Last session: 2026-10-15T17:04:59.994Z
+Stopped at: Completed 04-32-PLAN.md
+Resume file: None

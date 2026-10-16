@@ -54,7 +54,7 @@ describe('PublicLayout current link (A11Y-04)', () => {
     expect(currentLinks(container)).toEqual([label]);
   });
 
-  it.each(['/nope', '/some/unknown', '/admin/orders'])(
+  it.each(['/nope', '/some/unknown', '/administrator'])(
     '%s marks no link current, so nothing is bold (empty edge)',
     async (path) => {
       const { container } = await renderAt(path);

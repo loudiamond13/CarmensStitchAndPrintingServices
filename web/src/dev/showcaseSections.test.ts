@@ -17,7 +17,7 @@ function scenario(id: string, group: string): Scenario {
 }
 
 describe('scenariosBySection', () => {
-  it('lists the sections in the UI-SPEC order, then Navigation and Marketing', () => {
+  it('lists the sections in the UI-SPEC order, then Navigation, Marketing and Sign-in and devices', () => {
     expect(SHOWCASE_SECTIONS.map((section) => section.title)).toEqual([
       'Brand & icons',
       'Buttons',
@@ -28,6 +28,7 @@ describe('scenariosBySection', () => {
       'Media',
       'Navigation',
       'Marketing',
+      'Sign-in and devices',
     ]);
   });
 

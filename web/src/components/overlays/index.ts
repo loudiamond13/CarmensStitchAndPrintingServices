@@ -9,3 +9,4 @@ export type { ModalVariant } from './overlays.recipe';
 export { useBodyScrollLock } from './useBodyScrollLock';
 export { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 export type { FocusTrapOptions } from './useFocusTrap';
+export { useInertOutside } from './useInertOutside';

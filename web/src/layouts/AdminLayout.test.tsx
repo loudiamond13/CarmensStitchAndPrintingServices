@@ -2,24 +2,32 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
 import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
-import { adminRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/routes';
+import { ADMIN_COPY } from '@/modules/admin/copy';
+import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
+import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
+import { AdminFrame } from '@/layouts/AdminLayout';
 
 /**
- * The app's route tree as a dev build has it: the root route with the admin branch next to the public layout. Tests run
- * with `__DEV_ROUTES__` false (the production value), so they add the branch themselves, as router.tsx does in dev.
+ * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
+ * routes. Tests run with `__DEV_ROUTES__` false (the production value), so they add the previews themselves, as
+ * router.tsx does in dev.
  */
-function devRoutes(): RouteObject[] {
+function devTree(): RouteObject[] {
   const [root, ...rest] = routes;
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [...(root.children ?? []), ...adminRoutes] } as RouteObject, ...rest];
+  return [{ ...root, children: [...devRoutes, ...(root.children ?? [])] } as RouteObject, ...rest];
 }
 
 interface AdminTreeOptions {
@@ -33,14 +41,14 @@ interface AdminTreeOptions {
 
 /** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
 function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
-  const admin = adminRoutes[0];
+  const admin = devRoutes[0];
   const urlState = admin?.children?.[0];
   const pages = urlState?.children ?? [];
   const [dashboard, ...others] = pages;
   if (admin === undefined || urlState === undefined || dashboard === undefined) {
     throw new Error('The admin routes changed shape: expected admin > url state > pages.');
   }
-  const [root] = devRoutes();
+  const [root] = devTree();
   return [
     {
       ...root,
@@ -79,7 +87,7 @@ function expectOnlyReportsOf(error: Error): void {
 
 /** The dev route tree in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(devRoutes(), { initialEntries: [path] });
+  const router = createMemoryRouter(devTree(), { initialEntries: [path] });
   const view = render(<RouterProvider router={router} />);
   // The first render transforms the lazy route modules on demand, which can take over the default 1 s in a full run.
   await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
@@ -98,16 +106,30 @@ function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
 
-/** The toast titled `title` in the toast layer (UI-WR-04: the layer is the live region, so a toast has no role). */
-async function findToast(title: string): Promise<HTMLElement> {
-  const heading = await screen.findByText(title);
-  const layer = document.querySelector('[data-ui="s-toast-layer"]');
-  const toast = [...(layer?.children ?? [])].find((item) => item.contains(heading));
-  if (!(toast instanceof HTMLElement)) {
-    throw new Error(`No toast titled "${title}" in the toast layer.`);
-  }
-  return toast;
+/** What POST /auth/sign-out answers: a status, or `'network'` for a dropped connection. */
+type SignOutAnswer = number | 'network';
+
+/**
+ * Answers POST /auth/sign-out with `answers` in order (the last one repeats); the returned function says how many calls
+ * arrived. Leaving for the real sign-in page makes its loader look for a session, so POST /auth/refresh answers 401
+ * (the confirmed sign-out deleted the cookie).
+ */
+function answerSignOut(...answers: SignOutAnswer[]): () => number {
+  const list: SignOutAnswer[] = answers.length === 0 ? [204] : answers;
+  let calls = 0;
+  server.use(
+    http.post('*/api/v1/auth/refresh', () =>
+      HttpResponse.json({ title: 'Sign in again', status: 401 }, { status: 401 }),
+    ),
+    http.post('*/api/v1/auth/sign-out', () => {
+      const answer = list[Math.min(calls, list.length - 1)] ?? 204;
+      calls += 1;
+      return answer === 'network' ? HttpResponse.error() : new HttpResponse(null, { status: answer });
+    }),
+  );
+  return () => calls;
 }
+
 describe('AdminLayout tracer (WEB-05, D-20)', () => {
   it('on /admin/users shows the admin shell with Users current, its preview page and the document title', async () => {
     await renderAt('/admin/users');
@@ -202,14 +224,103 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     expect(router.state.location.hash).toBe('');
   });
 
-  it('shows the info toast "Not available yet" when Logout is pressed (dev shell)', async () => {
-    await renderAt('/admin/users');
+  it('Logout signs out on the server, leaves the shell for /admin/login and shows the signed-out notice on the sign-in page', async () => {
+    const calls = answerSignOut();
+    const { router } = await renderAt('/admin/users');
+
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
-    const toast = await findToast('Not available yet');
-    expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    const layer = document.querySelector('[data-ui="s-toast-layer"]');
-    expect(layer).toContainElement(toast);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(calls()).toBe(1);
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
+  });
+
+  it('keeps the owner copy for a failed Logout word for word (D-45)', () => {
+    expect(`${ADMIN_COPY.signOutFailed.title} ${ADMIN_COPY.signOutFailed.message}`).toBe(
+      'We couldn’t sign you out. Check your connection and try again.',
+    );
+  });
+
+  it.each<[string, SignOutAnswer]>([
+    ['a 500', 500],
+    ['a 503', 503],
+    ['a 429', 429],
+    ['a network error', 'network'],
+  ])(
+    'a Logout that fails with %s keeps the person signed in on the same page with the danger toast',
+    async (_name, answer) => {
+      acceptSession(sessionResponse());
+      const calls = answerSignOut(answer);
+      const { router } = await renderAt('/admin/users');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+      expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+      expect(screen.getByText(ADMIN_COPY.signOutFailed.message)).toBeInTheDocument();
+      expect(calls()).toBe(1);
+      expect(router.state.location.pathname).toBe('/admin/users');
+      expect(screen.queryByText("You've signed out.")).toBeNull();
+      expect(getSessionUser()).not.toBeNull();
+    },
+  );
+
+  it('a 409 twice makes two calls and then shows the same failure state', async () => {
+    acceptSession(sessionResponse());
+    const calls = answerSignOut(409);
+    const { router } = await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    expect(calls()).toBe(2);
+    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(getSessionUser()).not.toBeNull();
+  });
+
+  it('a second failed press replaces the toast instead of stacking another', async () => {
+    acceptSession(sessionResponse());
+    const calls = answerSignOut(500);
+    await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    await waitFor(() => {
+      expect(calls()).toBe(2);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText(ADMIN_COPY.signOutFailed.title)).toHaveLength(1);
+    });
+  });
+
+  it('pressing Logout again after a failure retries and leaves for /admin/login', async () => {
+    acceptSession(sessionResponse());
+    answerSignOut(500, 204);
+    const { router } = await renderAt('/admin/users');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Carmen Reyes/ }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(await screen.findByText("You've signed out.")).toBeInTheDocument();
+    expect(getSessionUser()).toBeNull();
+  });
+
+  it('has no axe violations with the sign-out failure toast showing', async () => {
+    acceptSession(sessionResponse());
+    answerSignOut(500);
+    const { container } = await renderAt('/admin/users');
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+    await screen.findByText(ADMIN_COPY.signOutFailed.title);
+
+    await expectNoAxeViolations(container);
   });
 
   it('has no axe violations', async () => {
@@ -273,6 +384,8 @@ const RAIL = 'pg-tablet:in-data-[ui=s-admin-side]:';
 
 afterEach(() => {
   window.localStorage.clear();
+  clearSession();
+  takeSignInNotice();
 });
 
 describe('AdminLayout theme (D-13)', () => {
@@ -482,16 +595,19 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     expect(document.activeElement).toBe(openNavigation());
   });
 
-  it('shows the Logout toast from the drawer and keeps the drawer open', async () => {
-    await renderAt('/admin');
+  it('signs out from the drawer and leaves for /admin/login', async () => {
+    answerSignOut();
+    const { router } = await renderAt('/admin');
     await userEvent.click(openNavigation());
 
     await userEvent.click(
       within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: 'Logout' }),
     );
 
-    expect(await findToast('Not available yet')).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('has no axe violations with the drawer open', async () => {
@@ -507,17 +623,19 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     return screen.getByRole('button', { name: /Carmen Reyes/ });
   }
 
-  it('opens the user menu from the Topbar user button; Logout shows the dev toast', async () => {
-    await renderAt('/admin');
+  it('opens the user menu from the Topbar user button; Logout signs out and leaves for /admin/login', async () => {
+    answerSignOut();
+    const { router } = await renderAt('/admin');
     expect(userButton()).toHaveAttribute('aria-expanded', 'false');
 
     await userEvent.click(userButton());
     expect(userButton()).toHaveAttribute('aria-expanded', 'true');
     await userEvent.click(screen.getByRole('menuitem', { name: 'Logout' }));
 
-    const toast = await findToast('Not available yet');
-    expect(toast).toHaveTextContent('Sign-out comes with the sign-in phase.');
-    expect(screen.queryByRole('menu')).toBeNull();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent("You've signed out.");
   });
 
   it('takes the user to My Profile from the user menu', async () => {
@@ -535,5 +653,143 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     await userEvent.click(userButton());
 
     await expectNoAxeViolations(container);
+  });
+
+  it('lists the session items between My Profile and Logout (D-04, D-43, OQ-3)', async () => {
+    await renderAt('/admin');
+
+    await userEvent.click(userButton());
+
+    expect(screen.getAllByRole('menuitem').map((element) => element.textContent)).toEqual([
+      'My Profile',
+      'Signed-in Devices',
+      'Sign Out Other Devices',
+      'Logout',
+    ]);
+    expect(screen.getByRole('menuitem', { name: 'Signed-in Devices' })).toHaveAttribute('href', '/admin/sessions');
+  });
+
+  it('opens the sign-out-others dialog from the menu, signs the others out, toasts and returns focus to the menu button', async () => {
+    let calls = 0;
+    server.use(
+      http.post('*/api/v1/auth/sign-out-others', () => {
+        calls += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Others Signed In' })).toHaveFocus();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+
+    expect(await screen.findByText('Signed out of other devices')).toBeInTheDocument();
+    expect(calls).toBe(1);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Sign out of other devices?' })).toBeNull();
+    });
+    expect(userButton()).toHaveFocus();
+  });
+
+  it('refreshes the open Signed-in Devices list after Sign Out Other Devices from the menu', async () => {
+    acceptSession(sessionResponse());
+    const current = {
+      id: '00000000-0000-4000-8000-000000000001',
+      device: 'Chrome on Windows',
+      signedInAt: '2026-10-12T07:42:00Z',
+      lastActiveAt: new Date().toISOString(),
+      persistent: true,
+      current: true,
+    };
+    const phone = {
+      ...current,
+      id: '00000000-0000-4000-8000-000000000002',
+      device: 'Safari on iPhone',
+      current: false,
+    };
+    let devices = [current, phone];
+    server.use(
+      http.get('*/api/v1/sessions', () => HttpResponse.json(devices)),
+      http.post('*/api/v1/auth/sign-out-others', () => {
+        devices = [current];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText('Safari on iPhone', undefined, { timeout: 5000 })).toBeInTheDocument();
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Safari on iPhone')).toBeNull();
+    });
+    expect(screen.getByText('Chrome on Windows')).toBeInTheDocument();
+    clearSession();
+  });
+
+  it('keeps the other devices signed in when the dialog is dismissed with Esc', async () => {
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(userButton()).toHaveFocus();
+  });
+});
+
+describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
+  it('AdminFrame shows the user it is given, with the role', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="orders" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getAllByText('Lito Santos').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
+  });
+
+  it('shows the error screen, not a made-up user, when the route gives no signed-in user', async () => {
+    const router = createMemoryRouter(adminTree({ layout: { loader: () => null } }), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    const main = await screen.findByRole('main');
+    expect(await within(main).findByRole('heading', { level: 2, name: ERROR_BOUNDARY_COPY.title })).toBeVisible();
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+    collectConsole();
+  });
+
+  it('a session that ends in the API client sends the shell to /admin/login with the session-ended notice', async () => {
+    acceptSession(sessionResponse());
+    server.use(
+      http.get('*/api/v1/site-settings', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
+      http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
+    );
+    const { router } = await renderAt('/admin/users');
+
+    await expect(siteSettingsService.get()).rejects.toMatchObject({ status: 401 });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent('Your session ended. Sign in again.');
+    clearSession();
   });
 });

@@ -34,7 +34,8 @@ export interface LogoProps {
    * The region the lockup sits in, set by the src/components component that renders it (UI-SPEC rule 7a): `sidebar` takes the
    * nav ink of the Sidebar (App. B `.csp-sidebar .csp-logo`), `siteHeader` the smaller phone tagline of the public
    * header (App. C `.csp-site-header .csp-logo-tag`), `footer` the smaller phone md lockup of the public footer (App. C
-   * `.s-foot .csp-logo-md`). Defaults to the plain look.
+   * `.s-foot .csp-logo-md`), `login` the smaller phone lg lockup of the auth brand panel (App. C `.s-login-brand
+   * .csp-logo-lg`). Defaults to the plain look.
    */
   context?: LogoContext;
   /** Layout glue only. */

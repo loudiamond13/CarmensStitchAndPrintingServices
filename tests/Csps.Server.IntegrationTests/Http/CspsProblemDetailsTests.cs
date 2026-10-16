@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Csps.Server.Http;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Csps.Server.IntegrationTests.Http;
@@ -100,6 +101,48 @@ public sealed class CspsProblemDetailsTests
         CorrelationId.For(new DefaultHttpContext()).ShouldNotBe(first, "each request gets its own id");
     }
 
+    [Fact]
+    public void TheRequestsOwnActivityWinsOverANestedRootActivity()
+    {
+        using var request = new Activity("request");
+        request.Start();
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpActivityFeature>(new RequestActivityFeature(request));
+
+        // Code that starts its own root activity (no parent) changes Activity.Current to a different trace.
+        Activity.Current = null;
+        using var nested = new Activity("nested-root");
+        nested.Start();
+        nested.TraceId.ShouldNotBe(request.TraceId);
+
+        try
+        {
+            CorrelationId.For(context).ShouldBe(request.TraceId.ToHexString());
+        }
+        finally
+        {
+            nested.Stop();
+            request.Stop();
+            Activity.Current = null;
+        }
+    }
+
+    [Fact]
+    public void ACurrentActivityIsUsedWhenTheRequestHasNone()
+    {
+        using var current = new Activity("current");
+        current.Start();
+        try
+        {
+            CorrelationId.For(new DefaultHttpContext()).ShouldBe(current.TraceId.ToHexString());
+        }
+        finally
+        {
+            current.Stop();
+            Activity.Current = null;
+        }
+    }
+
     [Theory]
     [InlineData(400, "Some details need fixing.")]
     [InlineData(401, "Please sign in to continue.")]
@@ -117,5 +160,10 @@ public sealed class CspsProblemDetailsTests
     public void TitlesArePlainEnglish(int status, string title)
     {
         PlainEnglish.TitleFor(status).ShouldBe(title);
+    }
+
+    private sealed class RequestActivityFeature(Activity activity) : IHttpActivityFeature
+    {
+        public Activity Activity { get; set; } = activity;
     }
 }

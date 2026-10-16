@@ -4,4 +4,8 @@
     <ProjectReference Include="..\Csps.Domain\Csps.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
 </Project>

@@ -30,7 +30,10 @@ public static class AuthorizationCoverage
     {
         ArgumentNullException.ThrowIfNull(endpoint);
 
-        var pattern = endpoint.RoutePattern.RawText ?? string.Empty;
+        var raw = endpoint.RoutePattern.RawText ?? string.Empty;
+
+        // Controller attribute routes report no leading slash; minimal endpoints and the SPA fallbacks ("{*path...}") do.
+        var pattern = raw.StartsWith('/') || raw.StartsWith('{') ? raw : "/" + raw;
         var methods = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods;
         return methods is null || methods.Count == 0
             ? [$"{AnyMethod} {pattern}"]

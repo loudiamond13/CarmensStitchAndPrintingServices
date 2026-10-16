@@ -8,18 +8,15 @@
 //   - ConfirmDialog with no type-to-confirm field (Delete Payment): focus starts on Cancel, and Cancel by keyboard
 //     closes it and returns focus; with the field (Delete Order) focus starts on the field;
 //   - Toast: a danger toast stays until it is closed, and its Dismiss button is reachable and works by keyboard.
-// Axe runs over each open dialog. It is scoped to the dialog, because the showcase page behind a phone bottom sheet is
-// not inert: its demo buttons that the sheet half covers stay in the page and axe reports their visible part as too
-// small (target-size), which no user can reach while the dialog is open (deferred-items.md, plan 02-35).
+// Axe runs over the whole page with each dialog open. An open Modal makes the page behind it inert (R2-10, plan 04-30),
+// so the demo buttons that a phone bottom sheet half covers are no longer measured.
 // The drawer and user-menu journeys live in admin-keyboard.spec.ts (plan 02-32).
 //
 // WebKit's Tab stops on buttons and form fields only (Safari includes links only with "Press Tab to highlight each
 // item"), so the webkit and iphone projects check that nothing focusable comes before the skip link and focus it
 // directly; every other journey here uses buttons and fields, which WebKit's Tab reaches.
-import { AxeBuilder } from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { AXE_TAGS } from '../src/test/axeTags.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { openPage, PAGES } from './sweep.ts';
 
 const SHOWCASE = PAGES.find((pageCase) => pageCase.path === '/dev/components' && pageCase.theme === 'light');
@@ -35,13 +32,9 @@ async function openShowcase(page: Page): Promise<void> {
   await openPage(page, SHOWCASE);
 }
 
-/** Axe over the open dialog only (see the header), with the A11Y-01 tags. */
+/** Page-level axe with a dialog open (see the header), with the A11Y-01 tags. */
 async function expectDialogAxeClean(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .withTags([...AXE_TAGS])
-    .analyze();
-  expect(results.violations.map((violation) => violation.id)).toEqual([]);
+  await expectNoAxeViolations(page);
 }
 
 for (const path of ['/', '/admin']) {

@@ -99,7 +99,8 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
 
         // A real Staff endpoint whose reader throws. (Phase 1 threw from a terminal middleware on an unmatched path;
         // since Phase 2 every page path matches an endpoint, the SPA shell, so nothing falls through to it, WEB-01.)
-        using var request = ApiRequests.Get(SiteSettingsRoute, TestTokens.For(Roles.Manager, TimeProvider.System));
+        var started = await TestSessions.StartAsync(baseFactory);
+        using var request = ApiRequests.Get(SiteSettingsRoute, started.AccessToken);
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);

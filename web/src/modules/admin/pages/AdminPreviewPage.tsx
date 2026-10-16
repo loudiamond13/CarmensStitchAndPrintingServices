@@ -14,6 +14,7 @@ import {
 } from '@/components/layout/layout.recipe';
 import { ADMIN_NAV, type AdminSection } from '@/components/navigation';
 import { ADMIN_COPY } from '@/modules/admin/copy';
+import { PREVIEW_COPY } from '@/modules/admin/previewCopy';
 import { adminNavItemForPath } from '@/modules/admin/sections';
 
 export interface AdminPreviewPageProps {
@@ -31,16 +32,16 @@ export function AdminPreviewPage({ section }: AdminPreviewPageProps) {
       <div className={pageHeadClasses}>
         <div className={pageHeadTitleClasses}>
           <h1 className={pageTitleClasses}>{label}</h1>
-          <p className={pageSublineClasses}>{ADMIN_COPY.preview.subline}</p>
+          <p className={pageSublineClasses}>{PREVIEW_COPY.subline}</p>
         </div>
       </div>
       <EmptyState
         icon={item?.icon}
-        title={ADMIN_COPY.preview.emptyTitle}
-        message={ADMIN_COPY.preview.emptyMessage}
+        title={PREVIEW_COPY.emptyTitle}
+        message={PREVIEW_COPY.emptyMessage}
         action={
           <ButtonLink variant="primary" size="md" to="/dev/components">
-            {ADMIN_COPY.preview.showcase}
+            {PREVIEW_COPY.showcase}
           </ButtonLink>
         }
       />

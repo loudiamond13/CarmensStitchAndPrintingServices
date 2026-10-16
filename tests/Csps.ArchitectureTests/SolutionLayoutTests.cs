@@ -23,7 +23,9 @@ public sealed class SolutionLayoutTests
         "tests/Csps.Server.IntegrationTests/Csps.Server.IntegrationTests.csproj",
         "tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj",
         "tests/Csps.Testing/Csps.Testing.csproj",
+        "tools/Csps.BootstrapManager/Csps.BootstrapManager.csproj",
         "tools/Csps.DevSeed/Csps.DevSeed.csproj",
+        "tools/Csps.EmailPreview/Csps.EmailPreview.csproj",
         "tools/Csps.HostProbe/Csps.HostProbe.csproj",
     ];
 

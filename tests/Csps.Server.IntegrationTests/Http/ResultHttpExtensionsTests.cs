@@ -90,6 +90,79 @@ public sealed class ResultHttpExtensionsTests : IDisposable
     }
 
     [Fact]
+    public async Task UnauthenticatedIs401WithTheCodeAndNoChallengeHeader()
+    {
+        using var activity = new Activity("csps-test").Start();
+        var http = _harness.NewContext();
+        var result = Result.Failure(Error.Unauthenticated("auth.invalid-credentials", "Email or password is incorrect."));
+
+        var (_, problem) = await ResultHarness.ExecuteAsync(result.ToHttpResult(http, () => TypedResults.NoContent()), http);
+
+        http.Response.StatusCode.ShouldBe(StatusCodes.Status401Unauthorized);
+        problem.GetProperty("title").GetString().ShouldBe("Please sign in to continue.");
+        problem.GetProperty("detail").GetString().ShouldBe("Email or password is incorrect.");
+        problem.GetProperty("code").GetString().ShouldBe("auth.invalid-credentials");
+        problem.GetProperty("traceId").GetString().ShouldBe(activity.TraceId.ToHexString());
+        http.Response.Headers.ContainsKey("WWW-Authenticate").ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData(41.2, "42")]
+    [InlineData(0.3, "1")]
+    [InlineData(60.0, "60")]
+    public async Task TooManyRequestsIs429WithAWholeSecondRetryAfter(double seconds, string header)
+    {
+        var http = _harness.NewContext();
+        var error = Error.TooManyRequests("auth.resend-cooldown", "Wait a moment.", TimeSpan.FromSeconds(seconds));
+
+        var (_, problem) = await ResultHarness.ExecuteAsync(Result.Failure(error).ToHttpResult(http, () => TypedResults.NoContent()), http);
+
+        http.Response.StatusCode.ShouldBe(StatusCodes.Status429TooManyRequests);
+        http.Response.Headers.RetryAfter.ToString().ShouldBe(header);
+        problem.GetProperty("code").GetString().ShouldBe("auth.resend-cooldown");
+        problem.GetProperty("title").GetString().ShouldBe("Too many requests. Please wait a moment and try again.");
+    }
+
+    [Fact]
+    public async Task TooManyRequestsWithoutARetryAfterSendsNoHeader()
+    {
+        var http = _harness.NewContext();
+        var error = Error.TooManyRequests("auth.resend-cap", "Too many codes were sent.");
+
+        var (_, problem) = await ResultHarness.ExecuteAsync(Result.Failure(error).ToHttpResult(http, () => TypedResults.NoContent()), http);
+
+        http.Response.StatusCode.ShouldBe(StatusCodes.Status429TooManyRequests);
+        http.Response.Headers.ContainsKey("Retry-After").ShouldBeFalse();
+        problem.GetProperty("code").GetString().ShouldBe("auth.resend-cap");
+    }
+
+    [Fact]
+    public async Task ValidationCarriesTheCodeAndTheErrors()
+    {
+        var http = _harness.NewContext();
+        var fieldErrors = new Dictionary<string, string[]>(StringComparer.Ordinal) { ["email"] = ["Enter an email."] };
+        var result = Result.Failure(Error.Validation("auth.invalid", "Check the highlighted fields.", fieldErrors));
+
+        var (_, problem) = await ResultHarness.ExecuteAsync(result.ToHttpResult(http, () => TypedResults.NoContent()), http);
+
+        http.Response.StatusCode.ShouldBe(StatusCodes.Status400BadRequest);
+        problem.GetProperty("code").GetString().ShouldBe("auth.invalid");
+        problem.GetProperty("errors").GetProperty("email")[0].GetString().ShouldBe("Enter an email.");
+    }
+
+    [Fact]
+    public async Task ServerErrorBodiesNeverCarryACode()
+    {
+        var http = _harness.NewContext();
+        var problem = CspsProblemDetails.Build(http, StatusCodes.Status500InternalServerError, "secret text", code: "leak.me");
+
+        var (_, json) = await ResultHarness.ExecuteAsync(TypedResults.Problem(problem), http);
+
+        json.TryGetProperty("code", out _).ShouldBeFalse();
+        json.GetProperty("detail").GetString().ShouldStartWith("Something went wrong. Reference: ");
+    }
+
+    [Fact]
     public void SuccessInvokesTheSuccessCallback()
     {
         var http = _harness.NewContext();

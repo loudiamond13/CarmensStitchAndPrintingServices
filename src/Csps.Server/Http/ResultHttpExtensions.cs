@@ -1,3 +1,4 @@
+using System.Globalization;
 using Csps.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -6,7 +7,8 @@ namespace Csps.Server.Http;
 /// <summary>
 /// Turns use-case results into HTTP results. Every failure maps here, in one switch, to an RFC 9457
 /// ProblemDetails (FND-05, D-26): Validation 400 with <c>errors</c>, NotFound 404, Conflict 409,
-/// BusinessRule 422, Forbidden 403.
+/// BusinessRule 422, Forbidden 403, Unauthenticated 401,
+/// TooManyRequests 429 (with Retry-After). 4xx bodies carry the error's machine code.
 /// </summary>
 public static class ResultHttpExtensions
 {
@@ -48,10 +50,19 @@ public static class ResultHttpExtensions
             ErrorKind.Conflict => StatusCodes.Status409Conflict,
             ErrorKind.BusinessRule => StatusCodes.Status422UnprocessableEntity,
             ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
+            ErrorKind.TooManyRequests => StatusCodes.Status429TooManyRequests,
             _ => throw new ArgumentOutOfRangeException(nameof(error), error.Kind, "Unknown error kind."),
         };
 
-        return TypedResults.Problem(CspsProblemDetails.Build(http, status, error.Message, SortedFieldErrors(error)));
+        if (error is { Kind: ErrorKind.TooManyRequests, RetryAfter: { } wait })
+        {
+            // Whole seconds, rounded up and never below 1 (SEC-03 precision edge).
+            var seconds = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds));
+            http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return TypedResults.Problem(CspsProblemDetails.Build(http, status, error.Message, SortedFieldErrors(error), error.Code));
     }
 
     // Ordinal key order, messages in insertion order: identical failures serialize identically (FND-05 ordering edge).

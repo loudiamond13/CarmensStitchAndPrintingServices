@@ -9,7 +9,7 @@ namespace Csps.Domain.Common;
 [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "C#-only solution; 'Error' is the PRD section 3.3 name and is only a keyword in VB.")]
 public sealed record Error
 {
-    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors)
+    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors, TimeSpan? retryAfter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
@@ -18,6 +18,7 @@ public sealed record Error
         Code = code;
         Message = message;
         FieldErrors = fieldErrors;
+        RetryAfter = retryAfter;
     }
 
     /// <summary>The kind of failure, which decides the HTTP status.</summary>
@@ -31,6 +32,9 @@ public sealed record Error
 
     /// <summary>Messages per field. Set for <see cref="ErrorKind.Validation"/> only, and never empty there.</summary>
     public IReadOnlyDictionary<string, string[]>? FieldErrors { get; }
+
+    /// <summary>How long the caller should wait. Set by <see cref="TooManyRequests"/> only.</summary>
+    public TimeSpan? RetryAfter { get; }
 
     /// <summary>The input breaks field rules. At least one field error is required, so a 400 always explains itself.</summary>
     /// <param name="code">A stable machine-readable code.</param>
@@ -73,4 +77,26 @@ public sealed record Error
     /// <param name="message">A short plain-English message.</param>
     /// <returns>The error.</returns>
     public static Error Forbidden(string code, string message) => new(ErrorKind.Forbidden, code, message, null);
+
+    /// <summary>The caller is not signed in, or the credentials are wrong.</summary>
+    /// <param name="code">A stable machine-readable code.</param>
+    /// <param name="message">A short plain-English message.</param>
+    /// <returns>The error.</returns>
+    public static Error Unauthenticated(string code, string message) => new(ErrorKind.Unauthenticated, code, message, null);
+
+    /// <summary>The caller must slow down.</summary>
+    /// <param name="code">A stable machine-readable code.</param>
+    /// <param name="message">A short plain-English message.</param>
+    /// <param name="retryAfter">How long to wait, when known; must be positive.</param>
+    /// <returns>The error.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">When <paramref name="retryAfter"/> is zero or negative.</exception>
+    public static Error TooManyRequests(string code, string message, TimeSpan? retryAfter = null)
+    {
+        if (retryAfter is { } wait)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(wait, TimeSpan.Zero, nameof(retryAfter));
+        }
+
+        return new Error(ErrorKind.TooManyRequests, code, message, null, retryAfter);
+    }
 }

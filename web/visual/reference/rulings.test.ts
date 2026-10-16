@@ -34,6 +34,9 @@ const RULING_IDS = [
   'D-41 R2-02',
   'D-41 R2-03',
   'D-42',
+  'OQ-5',
+  'OQ-8',
+  'OQ-9',
 ] as const;
 
 interface Group {
@@ -352,6 +355,70 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([
       ['.s-overlay', 'padding-top: 0;'],
       ['.s-overlay::before', 'flex-basis: 96px;'],
+    ]);
+  });
+
+  it('OQ-5: the sign-in small link, checkbox label and back link get the invisible 44px ::before tap area, nothing else', () => {
+    const groupsOfOq5 = byRuling('OQ-5');
+    const selectors = groupsOfOq5.flatMap((group) => selectorsOf(group.prelude));
+
+    expect(selectors.sort()).toEqual(
+      [
+        '.s-login-card .s-back',
+        '.s-login-card .s-back::before',
+        '.s-login-card .s-check',
+        '.s-login-card .s-check::before',
+        '.s-login-card .s-link',
+        '.s-login-card .s-link::before',
+      ].sort(),
+    );
+    expect(declarations('OQ-5')).toContain('position: relative;');
+    expect(declarations('OQ-5')).toContain(
+      'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
+    );
+  });
+
+  it('OQ-8: the sign-in brand panel keeps the dot mesh the spec text asks for (the approved render lost it), nothing else', () => {
+    const groupsOfOq8 = byRuling('OQ-8');
+
+    expect(groupsOfOq8.map((group) => group.prelude)).toEqual(['.s-login-brand.s-mesh']);
+    expect(
+      normalize(groupsOfOq8[0]?.body ?? '')
+        .replace(/\( /g, '(')
+        .replace(/ \)/g, ')'),
+    ).toBe(
+      'background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.6px); background-size: 6px 6px;',
+    );
+  });
+
+  it('OQ-9: the brand panel reserves a bottom zone for the slab, so the eyebrow and the headline never sit on it', () => {
+    const groupsOfOq9 = byRuling('OQ-9');
+    const rulesOf = (prelude: string) =>
+      groupsOfOq9
+        .filter((group) => group.prelude === prelude)
+        .flatMap((group) => groupsOf(group.body))
+        .map((rule) => [selectorsOf(rule.prelude).join(', '), normalize(rule.body)]);
+
+    // Desktop and tablet (the base): a 32px gap, 324px of bottom padding, a 300px slab at the bottom, the numeral in the zone.
+    const base = groupsOfOq9
+      .filter((group) => !group.prelude.startsWith('@'))
+      .map((group) => [selectorsOf(group.prelude).join(', '), normalize(group.body)]);
+    expect(base).toEqual([
+      ['.s-login-brand', 'gap: var(--space-8); padding-bottom: 324px;'],
+      ['.s-login-slab, .s-login-bands', 'bottom: 0; height: 300px;'],
+      ['.s-login-num', 'bottom: 24px;'],
+    ]);
+    // Tablet pages: a 180px slab, 204px of bottom padding, a 160px numeral.
+    expect(rulesOf('@container pg (min-width: 768px) and (max-width: 1023px)')).toEqual([
+      ['.s-login-brand', 'padding-bottom: 204px;'],
+      ['.s-login-slab, .s-login-bands', 'height: 180px;'],
+      ['.s-login-num', 'font-size: 160px; bottom: 16px;'],
+    ]);
+    // Phone pages keep App. C exactly (the quote is hidden there).
+    expect(rulesOf('@container pg (max-width: 767px)')).toEqual([
+      ['.s-login-brand', 'padding-bottom: var(--space-6);'],
+      ['.s-login-slab, .s-login-bands', 'bottom: -6%; height: 80%;'],
+      ['.s-login-num', 'bottom: 10%;'],
     ]);
   });
 

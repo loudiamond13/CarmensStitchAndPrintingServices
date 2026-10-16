@@ -7,25 +7,41 @@
     never changed, because replacing it would sign out every local session that used the old value.
 
       - Jwt:SigningKey  48 random bytes from RandomNumberGenerator, base64-encoded (HS256 needs at least 32).
+      - Auth:CodeMacKey 32 random bytes, base64-encoded. The HMAC-SHA256 key that binds each emailed sign-in code
+                        to its ticket and user (AUTH-03). Created once and never changed, because replacing it
+                        would invalidate every pending code.
       - DataProtection:CertificateBase64 and DataProtection:CertificatePassword
                         A self-signed RSA-3072 certificate ("CN=Csps Dev Data Protection", valid 10 years),
                         created entirely in memory (never in the Windows certificate store), exported as a PFX
                         under a random password. It encrypts the local Data Protection key ring (SEC-04, D-15).
                         Regenerating it would make the stored dev keys unreadable, so an existing one is kept.
 
+    With -Smtp the script also asks for the mail settings of no-reply@cspstailoring.com
+    (docs/operations/mail-setup.md) and stores Smtp:Host, Smtp:Port, Smtp:Security (StartTls or SslOnConnect
+    only), Smtp:UserName and Smtp:Password. -Smtp replaces earlier Smtp values on purpose, because the owner is
+    re-entering them.
+
     The values are written only to this user's user-secrets file for the project's UserSecretsId
     (%APPDATA%\Microsoft\UserSecrets\<id>\secrets.json). Nothing goes into git, into environment variables or
-    into machine settings, and no secret value is ever printed. The certificate pair is passed to
-    "dotnet user-secrets" through standard input, so it never appears on a command line.
+    into machine settings, and no secret value is ever printed. Every value is passed to "dotnet user-secrets"
+    through standard input, so none appears on a command line.
 
-    Production never uses user-secrets: the host settings supply these values there
-    (docs/operations/data-protection-rotation.md). Compatible with Windows PowerShell 5.1.
+    Production never uses user-secrets: the host settings supply these values there (Phase 3,
+    docs/operations/data-protection-rotation.md). Compatible with Windows PowerShell 5.1.
+
+.PARAMETER Smtp
+    Prompts for the five Smtp:* values and stores them. The password is read as a SecureString.
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1
+
+.EXAMPLE
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1 -Smtp
 #>
 [CmdletBinding()]
-param()
+param(
+    [switch] $Smtp
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -50,14 +66,6 @@ function Get-SecretNames {
     return @($lines | Where-Object { $_ -match ' = ' } | ForEach-Object { ($_ -split ' = ', 2)[0].Trim() })
 }
 
-# Stores one secret. "dotnet user-secrets set" echoes the value, so its output is discarded.
-function Set-Secret([string] $name, [string] $value) {
-    & dotnet user-secrets set $name $value --project $project *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet user-secrets set $name failed with exit code $LASTEXITCODE."
-    }
-}
-
 function New-RandomBase64([int] $byteCount) {
     $bytes = New-Object byte[] $byteCount
     $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -79,6 +87,15 @@ function Set-SecretsFromStdin([hashtable] $secrets) {
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet user-secrets set (standard input) failed with exit code $LASTEXITCODE."
     }
+}
+
+# Asks for a value. An empty answer takes the default, or is refused when there is none.
+function Read-Setting([string] $prompt, [string] $default) {
+    $suffix = if ($default) { " [$default]" } else { '' }
+    $answer = (Read-Host "$prompt$suffix").Trim()
+    if (-not $answer) { $answer = $default }
+    if (-not $answer) { throw "$prompt is required." }
+    return $answer
 }
 
 # Creates the dev Data Protection certificate in memory only: an RSA-3072 key, a self-signed certificate valid for
@@ -113,6 +130,7 @@ function New-DataProtectionPfx {
 }
 
 $signingKeyName = 'Jwt:SigningKey'
+$codeMacKeyName = 'Auth:CodeMacKey'
 $certificateName = 'DataProtection:CertificateBase64'
 $certificatePasswordName = 'DataProtection:CertificatePassword'
 $existing = Get-SecretNames
@@ -121,12 +139,24 @@ if ($existing -contains $signingKeyName) {
     Write-Host "$signingKeyName already exists in user-secrets. Left unchanged."
 }
 else {
-    Set-Secret $signingKeyName (New-RandomBase64 48)
+    Set-SecretsFromStdin @{ $signingKeyName = (New-RandomBase64 48) }
     if (-not ((Get-SecretNames) -contains $signingKeyName)) {
         throw "$signingKeyName was not found in user-secrets after setting it."
     }
 
     Write-Host "$signingKeyName created in user-secrets (48 random bytes, base64). The value is not shown."
+}
+
+if ($existing -contains $codeMacKeyName) {
+    Write-Host "$codeMacKeyName already exists in user-secrets. Left unchanged."
+}
+else {
+    Set-SecretsFromStdin @{ $codeMacKeyName = (New-RandomBase64 32) }
+    if (-not ((Get-SecretNames) -contains $codeMacKeyName)) {
+        throw "$codeMacKeyName was not found in user-secrets after setting it."
+    }
+
+    Write-Host "$codeMacKeyName created in user-secrets (32 random bytes, base64). The value is not shown."
 }
 
 if ($existing -contains $certificateName) {
@@ -149,4 +179,51 @@ else {
     }
 
     Write-Host "$certificateName and $certificatePasswordName created in user-secrets (RSA-3072, 10 years, in memory only). The values are not shown."
+}
+
+if ($Smtp) {
+    $smtpHost = Read-Setting 'Smtp:Host (the SMTP server name shown in the mail panel)' ''
+    $smtpPort = Read-Setting 'Smtp:Port' '587'
+    if ($smtpPort -notmatch '^\d{1,5}$' -or [int] $smtpPort -lt 1 -or [int] $smtpPort -gt 65535) {
+        throw 'Smtp:Port must be a number from 1 to 65535.'
+    }
+
+    $smtpSecurity = Read-Setting 'Smtp:Security (StartTls or SslOnConnect)' 'StartTls'
+    if (@('StartTls', 'SslOnConnect') -cnotcontains $smtpSecurity) {
+        throw 'Smtp:Security must be StartTls or SslOnConnect. Mail without TLS is not allowed (D-26).'
+    }
+
+    $smtpUser = Read-Setting 'Smtp:UserName' 'no-reply@cspstailoring.com'
+    $secure = Read-Host 'Smtp:Password (not shown)' -AsSecureString
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try {
+        $smtpPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    }
+    finally {
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        $secure.Dispose()
+    }
+
+    if ([string]::IsNullOrEmpty($smtpPassword)) {
+        throw 'Smtp:Password is required.'
+    }
+
+    Set-SecretsFromStdin @{
+        'Smtp:Host'     = $smtpHost
+        'Smtp:Port'     = $smtpPort
+        'Smtp:Security' = $smtpSecurity
+        'Smtp:UserName' = $smtpUser
+        'Smtp:Password' = $smtpPassword
+    }
+    $smtpPassword = $null
+
+    $after = Get-SecretNames
+    $smtpNames = @('Smtp:Host', 'Smtp:Port', 'Smtp:Security', 'Smtp:UserName', 'Smtp:Password')
+    foreach ($name in $smtpNames) {
+        if (-not ($after -contains $name)) {
+            throw "$name was not found in user-secrets after setting it."
+        }
+    }
+
+    Write-Host ('Stored in user-secrets: ' + ($smtpNames -join ', ') + '. The values are not shown.')
 }

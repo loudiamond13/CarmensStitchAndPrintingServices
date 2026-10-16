@@ -17,4 +17,10 @@ public enum ErrorKind
 
     /// <summary>The caller may not do this (403).</summary>
     Forbidden,
+
+    /// <summary>The caller is not signed in, or the credentials are wrong (401).</summary>
+    Unauthenticated,
+
+    /// <summary>The caller must slow down (429).</summary>
+    TooManyRequests,
 }

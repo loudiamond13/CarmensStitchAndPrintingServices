@@ -3,16 +3,29 @@ using Csps.Infrastructure;
 using Csps.Server.Composition;
 using Csps.Server.Endpoints;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+#if CSPS_TESTING
+// D-37, Pitfall 10: the Playwright host may read the developer's user-secrets; no other Testing host does.
+Csps.Server.Testing.TestingConfiguration.AddUserSecretsWhenAsked(builder, args);
+#endif
+
 // Serilog with the request's W3C trace id on every event; files under {contentRoot}/logs (FND-07, D-21, D-22).
 builder.Services.AddCspsLogging(builder.Configuration, builder.Environment);
 
-// No "Server: Kestrel" banner (SEC-01). IIS removes its own banner through web.config.
-builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+// No "Server: Kestrel" banner (SEC-01); IIS removes its own through web.config. 1 MB body cap on Kestrel (SEC-03).
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+    options.Limits.MaxRequestBodySize = RequestBodyLimitMiddleware.MaxBytes;
+});
+
+// The same 1 MB cap for IIS in-process; web.config requestFiltering is the IIS-level twin (SEC-03).
+builder.Services.Configure<IISServerOptions>(options => options.MaxRequestBodySize = RequestBodyLimitMiddleware.MaxBytes);
 
 // Plain HTTP is redirected to HTTPS on the real host. Development and the "Testing" integration-test environment
 // (CspsApiFactory.EnvironmentName) are exempt so they can exercise both transports.
@@ -42,8 +55,23 @@ builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 // user plus the named Staff and Manager policies (SEC-02). The API refuses to start without valid Jwt settings.
 builder.Services.AddCspsSecurity();
 
+// Sign-in settings (D-39 defaults) and request validators.
+builder.Services.AddCspsAuth(builder.Configuration);
+
+// Per-address limits on the auth endpoints (SEC-03, D-39), answered by the limiter before any handler runs.
+builder.Services.AddCspsRateLimiting(builder.Configuration);
+
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
+
+// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers.
+var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+
+#if CSPS_TESTING
+// Debug builds only: the Testing-only controllers exist in the Testing environment alone, and a Debug build never runs as
+// Production (QUAL-05, D-37).
+Csps.Server.Testing.TestingHostRegistration.AddTestingFeatures(mvc, builder);
+#endif
 
 // OpenAPI is registered in Development only (D-14).
 builder.Services.AddCspsOpenApi(builder.Environment);
@@ -61,15 +89,18 @@ app.Environment.WebRootFileProvider = new HiddenSegmentFileProvider(app.Environm
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
+// Refuses bodies above 1 MB with a 413 before anything else reads them (SEC-03).
+app.UseMiddleware<RequestBodyLimitMiddleware>();
+
 if (redirectToHttps)
 {
     app.UseHttpsRedirection();
 }
 
-// Unhandled exceptions become a generic 500 with a reference, never exception text (D-27).
+// Unhandled exceptions become a generic 500 with a reference, never exception text (D-27); a bad request keeps its 4xx.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
-    ExceptionHandler = static context => CspsProblemDetails.WriteAsync(context, StatusCodes.Status500InternalServerError),
+    ExceptionHandler = CspsProblemDetails.WriteExceptionAsync,
 });
 
 // Empty error responses (404, 405, ...) become ProblemDetails, written as JSON whatever the Accept header says.
@@ -91,13 +122,20 @@ app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
 
+// After routing so [EnableRateLimiting] sees the endpoint; before authentication so a throttled request costs nothing (SEC-03).
+app.UseRateLimiter();
+
 // Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Every POST needs an Idempotency-Key unless it is exempt with a written reason (SEC-06, D-40). It runs after routing and
+// authorization so the endpoint and the user are known and a refused request never takes a key.
+app.UseMiddleware<IdempotencyMiddleware>();
+
 app.MapCspsHealth();
 app.MapApiFallback();
-app.MapSiteSettings();
+app.MapControllers();
 app.MapCspsApiDocs();
 
 // The SPA host (WEB-01): a missing file is a 404, never a 401 (research Pitfall 11); outside Development /openapi and

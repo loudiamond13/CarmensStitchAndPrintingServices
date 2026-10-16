@@ -1,6 +1,6 @@
 ---
 created: "2026-10-14T07:55:00-05:00"
-updated: "2026-10-14T11:05:00-05:00"
+updated: "2026-10-15T16:21:29-05:00"
 phase: 04-identity-authentication
 kind: context
 ---
@@ -57,7 +57,7 @@ Two rulings below **pull small pieces into Phase 4** that were not in the origin
 - **D-22:** Signing in with a temporary password **still requires the emailed 6-digit code**, then the D-13 "Set your new password" step.
 - **D-23 (C-4):** New staff onboarding (Phase 5) offers **both**: an emailed invitation link (the person sets their own password; same `AccountTokens` machinery, Purpose=Invitation) or a Manager-set temporary password (D-21). USER-02 ("without the Manager ever seeing or setting their password") must be amended in Phase 5 to allow the temporary-password route.
 - **D-24:** When a Manager sets a temporary password (Phase 5), **all of that person's sessions are revoked** and they get a "your password was reset by a Manager" email.
-- **D-25:** The **lockout email** explains the 15-minute lock and when it ends, and says "If this wasn't you, reset your password", linking to the Forgot-password **page** (not a ready-made reset token).
+- **D-25:** The **lockout email** explains the 15-minute lock and when it ends, and says "If this wasn't you, reset your password", linking to the Forgot-password **page** (not a ready-made reset token). The lock length is `AuthSettings.PasswordLockoutDuration`, 15 minutes by default (D-48).
 
 ### Email
 - **D-26 (OD-12):** The sender is a **new dedicated mailbox `no-reply@cspstailoring.com`**, used only by the app, with display name **"Carmen's Stitch & Printing"** and **no Reply-To**. The body says replies aren't read. Mail goes through SmarterASP.NET's SMTP over TLS (`SecureSocketOptions.StartTls` or SSL, never `None`), and DKIM is aligned to `cspstailoring.com`. SPF and DMARC are **merged, never replaced** (HOSTING-RECORD D-12: SPF `-all`, DMARC `p=reject`).
@@ -104,6 +104,7 @@ Two rulings below **pull small pieces into Phase 4** that were not in the origin
   - per-IP refresh: 60/min
   
   Per-IP limits use `RemoteIpAddress` only until Phase 3 verifies the proxy topology.
+  - Amended 2026-10-15 (owner): IPv6 per-IP buckets are /64 (D-49), and a temporary lockout refuses refresh without ending the session (D-46).
 - **D-40 (AD-7):** Idempotency stores and replays **successes and input-error answers (400, 404, 422)**. 401, 403, 409, 429 and 5xx are not stored, so they may run again with the same key, matching the Phase 2 client rule R2-08. Allow-listed (no key, responses never stored): sign-in, 2FA verify, resend, refresh, sign-out and sign-out-all, each with a written reason. The planner confirms the final allow-list. Forgot-password and reset **are** covered (a repeated forgot post queues one email).
 - **D-41 (OD-14):** Design-vs-WCAG clashes on these screens (e.g. the small "Forgot password?" target, countdown announcements, error-banner focus) are **ruled item by item in `/gsd-ui-phase 4`** with before/after, as in Phase 2.
 
@@ -202,6 +203,16 @@ The owner made these in chat during the UI-consideration probe. They are binding
 
   The schema stays relational (no JSON columns, D-13 of Phase 1).
 - **D-44 (owner, R-2):** "Sign out of other devices" is **always allowed**, even when no other session exists, and shows the same success message. The action needs no session count. This applies both in the user menu and on the D-43 page.
+
+### Owner decisions after the Phase 4 code review (2026-10-15)
+
+The owner gave these in chat while closing `04-REVIEW-FIX.md`. They are binding, like D-01..D-44.
+
+- **D-45 (owner, CR-01):** a failed Logout keeps the person signed in. When the sign-out call still fails after the one 409 retry (network, timeout, 403, 429, 5xx or a second 409), the client keeps the local session, tells no other tab, does not navigate and shows no "signed out" notice. It shows the danger toast with the owner copy "We couldn’t sign you out. Check your connection and try again." (title "We couldn’t sign you out.", message "Check your connection and try again.", curly apostrophe kept), and the person retries from Logout. This replaces the `04-UI-SPEC.md` rule for a failed request. The 863c547 in-memory suppression is removed, because a confirmed sign-out deletes the cookie and revokes the family on the server (CWE-613). Built by quick 261015-m51, commit 881c1d3.
+- **D-46 (owner, WR-04):** accepted. A temporary lockout refuses refresh (401) without revoking, saving or rotating anything, so the session works again when the lock ends. A deactivated or missing account still revokes. AUTH-10 still holds. Amends T-04-53. Commit 6d35838.
+- **D-47 (owner, WR-01):** the message "Choose a different password from your current one." is approved. Commits 2d3c916 and 50d93b8.
+- **D-48 (owner, WR-08):** `AuthSettings.PasswordLockoutDuration` (default 15 minutes, validated, configurable) is approved as the one source of the password lockout length, used by Identity and by the lockout email. Commit 9d5e242.
+- **D-49 (owner, WR-12):** per-IP auth limits bucket IPv6 by /64, so devices that share one /48 do not share a limit. Per-account lockout (WR-05, commit 12051a0) and the per-account caps in D-39 guard against address rotation. The audit log keeps its /48 prefix (Phase 1 audit rules), unchanged. Commit bc992a9 reverts 3918aeb.
 </added_decisions>
 
 ---

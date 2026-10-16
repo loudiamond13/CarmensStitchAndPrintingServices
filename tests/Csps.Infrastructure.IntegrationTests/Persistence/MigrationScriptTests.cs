@@ -107,6 +107,20 @@ public sealed partial class MigrationScriptTests
     }
 
     [Fact]
+    public void IdempotentScriptHasNoPasskeyTable()
+    {
+        // Identity schema version 3 adds AspNetUserPasskeys with a JSON column (D-13 of Phase 1, T-04-25).
+        var context = CreateUnopenedContext();
+        using (context)
+        {
+            var script = context.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
+
+            script.ShouldContain("AspNetUsers", Case.Sensitive, "The Identity tables must be in the script.");
+            script.ShouldNotContain("AspNetUserPasskeys", Case.Insensitive);
+        }
+    }
+
+    [Fact]
     public void ModelHasNoJsonMappings()
     {
         var context = CreateUnopenedContext();

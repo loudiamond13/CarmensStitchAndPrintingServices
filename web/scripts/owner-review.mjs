@@ -44,12 +44,15 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly kind: 'frame' | 'menu' | 'dialog' }} AuthReviewCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly kind: 'frame' | 'menu' | 'dialog', readonly theme: Theme, readonly width: number, readonly file: string }} AuthReviewShot
+ * @typedef {{ readonly id: string, readonly question: string, readonly default: string }} AuthReviewRuling
  * @typedef {{ readonly before: string, readonly after: string }} WordingSwap
  * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterCase
  * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly side: 'before' | 'after', readonly theme: Theme, readonly width: number, readonly file: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterShot
@@ -234,6 +237,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       shots: planShots(),
       specGap: planSpecGapShots(),
       beforeAfter: planBeforeAfterShots(),
+      authReview: planAuthReviewShots(),
     },
     {
       kind: 'report',
@@ -563,7 +567,7 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
 export function renderIndex({
@@ -572,6 +576,7 @@ export function renderIndex({
   problems,
   specGap = [],
   beforeAfter = [],
+  authReview = [],
   parity,
   otherReports = [],
 }) {
@@ -607,6 +612,7 @@ ${others}
 ${problemList}
 ${pageSections(shots)}
 ${beforeAfterSection(beforeAfter)}
+${authReviewSection(authReview)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -669,6 +675,439 @@ export function planSpecGapShots(cases = SPEC_GAP_CASES) {
       file: `spec-gap/${entry.id}-${theme}.png`,
     })),
   );
+}
+
+/**
+ * The Phase 4 screens the owner reviews for wording and design (plan 04-32; D-06, D-41; UI-SPEC "Look-Equality Proof"):
+ * the sign-in cards S1 to S6 in their states (Blush only: the auth pages are always Blush), S7 Signed-in devices, both
+ * sign-out dialogs, the user menu with its four items and the session toasts (Blush and Espresso, since they live in the
+ * admin shell). Each is a case of the auth-gaps group on /dev/components, named by its `[data-case]` id.
+ *   - `frame`: the case frame is photographed;
+ *   - `menu`: opened with its "Show this example" button first;
+ *   - `dialog`: a fixed-position case, opened with its demo button (the "fails" ones are then confirmed, so the failure line
+ *     shows) and photographed as the screen.
+ * @type {readonly AuthReviewCase[]}
+ */
+export const AUTH_REVIEW_CASES = Object.freeze([
+  {
+    id: 'note-uses',
+    label: 'Notes in their three uses (notice, success, shield)',
+    group: 'Notes',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'signin-notice',
+    label: 'S1 Sign in with a notice above the form ("Your session ended")',
+    group: 'S1 Sign in',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'signin-banner-trace',
+    label: 'S1 Sign in with a server error banner and its reference number',
+    group: 'S1 Sign in',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'verify-default',
+    label: 'S2 Check your email: the code boxes',
+    group: 'S2 Check your email',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'verify-code-error',
+    label: 'S2 Check your email: a wrong code',
+    group: 'S2 Check your email',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'verify-resend-waiting',
+    label: 'S2 Check your email: "new code sent" and the Resend countdown',
+    group: 'S2 Check your email',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'verify-resend-cap',
+    label: 'S2 Check your email: too many codes asked for',
+    group: 'S2 Check your email',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'verify-long-email',
+    label: 'S2 Check your email: a 64-character address',
+    group: 'S2 Check your email',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'new-password-temporary',
+    label: 'S3 Set a new password: after a temporary password',
+    group: 'S3 Set a new password',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'new-password-breach',
+    label: 'S3 Set a new password: after a breached password',
+    group: 'S3 Set a new password',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'forgot-form',
+    label: 'S4 Reset your password: the form',
+    group: 'S4 Reset your password',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'forgot-sent',
+    label: 'S4 Reset your password: "Check your email" after sending',
+    group: 'S4 Reset your password',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'forgot-long-email',
+    label: 'S4 Reset your password: sent, with a 64-character address',
+    group: 'S4 Reset your password',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'reset-checking',
+    label: 'S5 New password from the email link: checking the link',
+    group: 'S5 New password from the email link',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'reset-form',
+    label: 'S5 New password from the email link: the form',
+    group: 'S5 New password from the email link',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'reset-invalid',
+    label: 'S5 New password from the email link: the link has expired',
+    group: 'S5 New password from the email link',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'reset-long-email',
+    label: 'S5 New password from the email link: a 64-character address',
+    group: 'S5 New password from the email link',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'invite-checking',
+    label: 'S6 Set your password from an invite: checking the invite',
+    group: 'S6 Set your password from an invite',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'invite-form',
+    label: 'S6 Set your password from an invite: the form',
+    group: 'S6 Set your password from an invite',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'invite-invalid',
+    label: 'S6 Set your password from an invite: the invite has expired',
+    group: 'S6 Set your password from an invite',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'invite-fail-closed',
+    label: 'S6 Set your password from an invite: the password check could not run',
+    group: 'S6 Set your password from an invite',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'invite-long-email',
+    label: 'S6 Set your password from an invite: a 64-character address',
+    group: 'S6 Set your password from an invite',
+    themes: BLUSH_ONLY,
+    kind: 'frame',
+  },
+  {
+    id: 'devices-loading',
+    label: 'S7 Signed-in devices: loading',
+    group: 'S7 Signed-in devices',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'devices-error',
+    label: 'S7 Signed-in devices: could not load',
+    group: 'S7 Signed-in devices',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'devices-only-this-device',
+    label: 'S7 Signed-in devices: only this device',
+    group: 'S7 Signed-in devices',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'devices-populated',
+    label: 'S7 Signed-in devices: several devices, one with a 60-character name, two with the same name',
+    group: 'S7 Signed-in devices',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'signout-others-open',
+    label: 'Dialog: Sign out of other devices?',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'dialog',
+  },
+  {
+    id: 'signout-others-failed',
+    label: 'Dialog: Sign out of other devices?, after the request failed',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'dialog',
+  },
+  {
+    id: 'signout-device-open',
+    label: 'Dialog: Sign out one device?',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'dialog',
+  },
+  {
+    id: 'signout-device-failed',
+    label: 'Dialog: Sign out one device?, after the request failed',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'dialog',
+  },
+  {
+    id: 'session-menu-open',
+    label: 'Account menu with its four items',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'menu',
+  },
+  {
+    id: 'toast-session-ending',
+    label: 'Toast: "Your session ends soon" (12-hour limit warning)',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'toast-device-signed-out',
+    label: 'Toast: "Device signed out" with a 60-character device name',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'toast-already-signed-out',
+    label: 'Toast: "Already signed out"',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'toast-signed-out-others',
+    label: 'Toast: "Signed out of other devices"',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'frame',
+  },
+  {
+    id: 'toast-password-saved',
+    label: 'Toast: "Password saved"',
+    group: 'Dialogs, menu and toasts',
+    themes: BOTH,
+    kind: 'frame',
+  },
+]);
+
+/**
+ * One picture per case, per theme the case lists, at 390, 820 and 1440 px.
+ * @param {readonly AuthReviewCase[]} [cases]
+ * @returns {AuthReviewShot[]}
+ */
+export function planAuthReviewShots(cases = AUTH_REVIEW_CASES) {
+  return cases.flatMap((entry) =>
+    entry.themes.flatMap((theme) =>
+      REVIEW_WIDTHS.map((width) => ({
+        id: entry.id,
+        label: entry.label,
+        group: entry.group,
+        kind: entry.kind,
+        theme,
+        width,
+        file: `auth-review/${entry.id}-${theme}-${String(width)}.png`,
+      })),
+    ),
+  );
+}
+
+/**
+ * The owner rulings still open for Phase 4 (UI-SPEC "Owner Rulings Needed"). The contract default is built until the owner
+ * rules; OQ-5 and OQ-6 have no picture to judge, so they are applied unless the owner objects.
+ * @type {readonly AuthReviewRuling[]}
+ */
+export const AUTH_REVIEW_RULINGS = Object.freeze([
+  {
+    id: 'OQ-1',
+    question: 'After "Email or password is incorrect.", where does the keyboard cursor go?',
+    default:
+      'A: to the Password field (the red message is read out automatically). B: to the message box. C: stays on Sign In.',
+  },
+  {
+    id: 'OQ-2',
+    question:
+      'The password strength bar can say "Good" for a password the rule still refuses (for example "Abcdefgh1" has no symbol). Keep the design bar?',
+    default:
+      'A: keep the design bar; the rule is always written under the field. B: the bar shows at most "Weak" until the rule is met.',
+  },
+  {
+    id: 'OQ-3',
+    question: 'What is the menu item that signs out every other device called?',
+    default: 'A: "Sign Out Other Devices" (also on the Signed-in devices page). B: "Sign Out of All Devices".',
+  },
+  {
+    id: 'OQ-4',
+    question: 'Warn before the 12-hour limit for a sign-in without "Keep me signed in"?',
+    default: 'A: a warning toast 5 minutes before ("Your session ends soon"). B: no warning.',
+  },
+  {
+    id: 'OQ-5',
+    question: 'Invisible 44px tap areas on "Forgot password?", the "Keep me signed in" label and the back links?',
+    default: 'Applied (nothing drawn changes): same size, colour and place.',
+  },
+  {
+    id: 'OQ-6',
+    question: 'The "Resend code in 0:42" countdown and screen readers: say it only at the start and the end?',
+    default: 'Applied: announced when the countdown starts and when it ends, never every second.',
+  },
+  {
+    id: 'OQ-7',
+    question:
+      'The wording of every new screen, dialog, notice and toast (the table below), and whether the one-word "Logout" stays.',
+    default: 'As written; "Logout" kept (the approved design binds it).',
+  },
+]);
+
+// The Phase 4 copy is plain data, loaded by address so this script's own type check does not follow it into the app's
+// components (it imports types from them).
+/** @type {unknown} */
+const authCopyModule = await import(new URL('../src/modules/admin/authCopy.ts', import.meta.url).href);
+const AUTH_COPY = /** @type {{ AUTH_COPY: unknown }} */ (authCopyModule).AUTH_COPY;
+
+/**
+ * Every sentence of the Phase 4 copy (AUTH_COPY), one row per string, for the owner's wording check (OQ-7). A sentence with
+ * a person's address in it shows `{email}` there; a function shows its placeholders as `{x}` and `{y}`.
+ * @param {unknown} [copy]
+ * @returns {{ place: string, text: string }[]}
+ */
+export function authWords(copy = AUTH_COPY) {
+  /** @type {{ place: string, text: string }[]} */
+  const rows = [];
+  /** @param {unknown} value @param {readonly string[]} trail */
+  const walk = (value, trail) => {
+    const place = trail.join(' > ');
+    if (typeof value === 'string') {
+      rows.push({ place, text: value });
+    } else if (typeof value === 'function') {
+      try {
+        const words = /** @type {(...args: string[]) => unknown} */ (/** @type {unknown} */ (value));
+        /** @type {unknown} */
+        const text = words('{x}', '{y}');
+        if (typeof text === 'string') {
+          rows.push({ place, text });
+        }
+      } catch {
+        // A function that needs real data has no fixed words to show.
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      const entries = Object.entries(value);
+      const sentence = /** @type {{ before?: unknown, after?: unknown }} */ (value);
+      if (entries.length === 2 && typeof sentence.before === 'string' && typeof sentence.after === 'string') {
+        rows.push({ place, text: `${sentence.before}{email}${sentence.after}` });
+        return;
+      }
+      for (const [key, child] of entries) {
+        if (key !== 'icon') {
+          walk(child, [...trail, key]);
+        }
+      }
+    }
+  };
+  walk(copy, []);
+  return rows;
+}
+
+/** @param {readonly AuthReviewShot[]} authReview @returns {string} */
+function authReviewSection(authReview) {
+  if (authReview.length === 0) {
+    return '';
+  }
+  const rulings = AUTH_REVIEW_RULINGS.map(
+    (ruling) =>
+      `<tr><td>${escapeHtml(ruling.id)}</td><td>${escapeHtml(ruling.question)}</td><td>${escapeHtml(ruling.default)}</td></tr>`,
+  ).join('');
+  const words = authWords()
+    .map((row) => `<tr><td>${escapeHtml(row.place)}</td><td>${escapeHtml(row.text)}</td></tr>`)
+    .join('');
+  const groups = [...new Set(authReview.map((shot) => shot.group))];
+  const sections = groups
+    .map((group) => {
+      const ids = [...new Set(authReview.filter((shot) => shot.group === group).map((shot) => shot.id))];
+      const cases = ids
+        .map((id) => {
+          const ofCase = authReview.filter((shot) => shot.id === id);
+          const label = ofCase[0]?.label ?? id;
+          const figures = ofCase
+            .map(
+              (shot) =>
+                `<figure class="gap"><figcaption>${escapeHtml(themeName(shot.theme))}, ${String(shot.width)} px</figcaption>` +
+                `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+                  `${label}, ${themeName(shot.theme)}, ${String(shot.width)} px`,
+                )}"></a></figure>`,
+            )
+            .join('');
+          return `<h4>${escapeHtml(label)}</h4><div class="row">${figures}</div>`;
+        })
+        .join('\n');
+      return `<h3>${escapeHtml(group)}</h3>\n${cases}`;
+    })
+    .join('\n');
+  return `<section><h2>Sign-in screens and devices (Phase 4)</h2>
+<p class="note">None of these screens, dialogs or toasts is in the approved design, so the automatic look check cannot
+compare them. Please look at each one on the phone (390 px), the tablet (820 px) and the laptop (1440 px), in Blush and
+(for the signed-in devices page, the dialogs, the menu and the toasts) in Espresso. Then rule on each open question
+below: say "approved" to take the default, or tell me what to change. The seven emails are checked separately in the
+email preview (the D-30 review).</p>
+<h3>Rulings for you (OQ-1 to OQ-7)</h3>
+<table><thead><tr><th>Question</th><th>What it is</th><th>What is built now (the default)</th></tr></thead><tbody>${rulings}</tbody></table>
+<h3>Words on the new screens</h3>
+<p class="note">Every sentence the new screens, dialogs, notices and toasts say. <strong>{email}</strong> stands for the
+address of the person; <strong>{x}</strong> and <strong>{y}</strong> are values the app fills in.</p>
+<table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
+${sections}</section>`;
 }
 
 /**
@@ -1058,6 +1497,97 @@ async function captureSpecGap(browser, origin, shots, problems) {
   }
 }
 
+/** Hides every sticky or fixed element outside the case with this id (a page script, run as an expression). */
+const hideStickyOutside = (/** @type {string} */ caseId) => `((id) => {
+  const frame = document.querySelector('[data-case="' + id + '"]');
+  for (const element of document.querySelectorAll('*')) {
+    const position = getComputedStyle(element).position;
+    if ((position === 'sticky' || position === 'fixed') && !frame.contains(element) && !element.contains(frame)) {
+      element.setAttribute('data-review-hidden', element.style.visibility);
+      element.style.visibility = 'hidden';
+    }
+  }
+})(${JSON.stringify(caseId)})`;
+
+/** Puts back what hideStickyOutside hid. */
+const SHOW_STICKY = `(() => {
+  for (const element of document.querySelectorAll('[data-review-hidden]')) {
+    element.style.visibility = element.getAttribute('data-review-hidden');
+    element.removeAttribute('data-review-hidden');
+  }
+})()`;
+
+/**
+ * Takes the Phase 4 pictures on /dev/components, one page load per theme and width. A `frame` case is photographed as its
+ * `[data-case]` frame; the account menu is opened with its "Show this example" button first; a `dialog` case is opened with
+ * its demo button, confirmed when it is a "fails" demo (so the failure line shows), and photographed as the screen, then
+ * closed again with its first footer button.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {string} origin
+ * @param {readonly AuthReviewShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function captureAuthReview(browser, origin, shots, problems) {
+  const showcase = REVIEW_TARGETS.find((target) => target.path === '/dev/components');
+  if (showcase === undefined) {
+    throw new Error('The review targets have no /dev/components page.');
+  }
+  const pages = [...new Set(shots.map((shot) => `${shot.theme}|${String(shot.width)}`))];
+  for (const key of pages) {
+    const [theme, width] = key.split('|');
+    const group = shots.filter((shot) => shot.theme === theme && String(shot.width) === width);
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const opened = await openReviewPage(
+      browser,
+      origin,
+      { ...showcase, theme: first.theme, width: first.width },
+      problems,
+    );
+    try {
+      const { page } = opened;
+      for (const shot of group) {
+        const frame = page.locator(`[data-case="${shot.id}"]`);
+        if ((await frame.count()) !== 1) {
+          throw new Error(`/dev/components has no single case "${shot.id}"; update AUTH_REVIEW_CASES.`);
+        }
+        await frame.scrollIntoViewIfNeeded();
+        const target = assertWritable(path.join(OUTPUT_DIR, shot.file));
+        if (shot.kind === 'dialog') {
+          await frame.getByRole('button').first().click();
+          const dialog = page.getByRole('dialog');
+          await dialog.waitFor();
+          if (shot.id.endsWith('-failed')) {
+            await dialog.locator('footer button').last().click();
+            await dialog.getByRole('alert').waitFor();
+          }
+          await page.evaluate(SETTLE);
+          await page.screenshot({ path: target });
+          await dialog.locator('footer button').first().click();
+          await dialog.waitFor({ state: 'detached' });
+        } else {
+          if (shot.kind === 'menu') {
+            await frame.getByRole('button', { name: 'Show this example' }).click();
+            await frame.getByRole('menu').first().waitFor();
+          }
+          await page.evaluate(SETTLE);
+          // A case taller than the window is photographed in pieces; the shell's sticky top bar and tab bar would show up
+          // in the middle of the picture, so they are hidden while the frame is taken.
+          await page.evaluate(hideStickyOutside(shot.id));
+          await frame.screenshot({ path: target });
+          await page.evaluate(SHOW_STICKY);
+        }
+        process.stdout.write(`review: ${shot.file}\n`);
+      }
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
 /**
  * Takes the before/after pictures of the wording changes on /dev/components (D-41 R2-06). Per case it photographs the
  * `[data-case]` frame as the app shows it (after), then writes the approved wording back with beforeAfterScript and
@@ -1117,7 +1647,7 @@ async function captureBeforeAfter(browser, origin, shots, problems) {
  */
 async function captureShots(step) {
   const { chromium } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap', 'before-after']) {
+  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review']) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
@@ -1136,10 +1666,17 @@ async function captureShots(step) {
     }
     await captureSpecGap(browser, step.origin, step.specGap, problems);
     await captureBeforeAfter(browser, step.origin, step.beforeAfter, problems);
+    await captureAuthReview(browser, step.origin, step.authReview, problems);
   } finally {
     await browser.close();
   }
-  return { captured: step.shots, specGap: step.specGap, beforeAfter: step.beforeAfter, problems };
+  return {
+    captured: step.shots,
+    specGap: step.specGap,
+    beforeAfter: step.beforeAfter,
+    authReview: step.authReview,
+    problems,
+  };
 }
 
 /**
@@ -1179,6 +1716,7 @@ function writeReport(step, result) {
       shots: result.captured,
       specGap: result.specGap ?? [],
       beforeAfter: result.beforeAfter ?? [],
+      authReview: result.authReview ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),

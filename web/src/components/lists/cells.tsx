@@ -8,7 +8,7 @@
 //   - RowActions and RowAction: App. E.7/E.12's `.s-acts` group of 36px `.s-iconbtn` buttons (18px icons), each named
 //     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`.
 // The looks are in lists.recipe.ts.
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { Icon, type IconName } from '@/components/brand';
 import { WALK_IN_CUSTOMER } from '@/components/data';
 import { Avatar } from '@/components/status';
@@ -76,12 +76,21 @@ export interface RowActionProps {
   /** The `.is-danger` hover (Delete). */
   danger?: boolean | undefined;
   onClick?: (() => void) | undefined;
+  /** The button element, for a screen that moves focus to it after a row changes. */
+  ref?: Ref<HTMLButtonElement> | undefined;
 }
 
-export function RowAction({ icon, label, title, danger = false, onClick }: RowActionProps) {
+export function RowAction({ icon, label, title, danger = false, onClick, ref }: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
   return (
-    <button type="button" aria-label={label} title={title} className={rowActionClasses[tone]} onClick={onClick}>
+    <button
+      type="button"
+      aria-label={label}
+      title={title}
+      className={rowActionClasses[tone]}
+      onClick={onClick}
+      ref={ref}
+    >
       <Icon name={icon} size={18} />
     </button>
   );

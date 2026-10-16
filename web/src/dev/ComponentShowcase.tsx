@@ -41,7 +41,7 @@ import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from './ShowcaseDemos
 const BY_SECTION = scenariosBySection(scenarios);
 
 /** Cases whose wrapper acts on mount and moves focus (the open user menu): shown only when asked for. */
-const ON_DEMAND: ReadonlySet<string> = new Set(['user-menu-open']);
+const ON_DEMAND: ReadonlySet<string> = new Set(['user-menu-open', 'session-menu-open']);
 
 interface CaseFrameProps {
   id: string;

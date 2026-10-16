@@ -1,13 +1,17 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace Csps.ArchitectureTests;
 
 /// <summary>
 /// Validates docs/dependencies.json against the pinned packages, tools and npm packages (QUAL-06, D-00, D-18, D-19,
 /// L-08). Pure: takes the registry text and the pins, returns every problem found (empty means valid). An npm entry
-/// names its manifest folder; it matches the pin <c>{manifest}:{id}</c>, and the list is sorted by that key.
+/// names its manifest folder; it matches the pin <c>{manifest}:{id}</c>, and the list is sorted by that key. A
+/// <c>data</c> entry records a bundled file (source at a commit SHA, SHA-256, repo path) instead of a pin; its bytes
+/// are checked against the hash when the data files are supplied (D-36, T-04-61).
 /// </summary>
 internal static class DependencyRegistry
 {
@@ -16,10 +20,19 @@ internal static class DependencyRegistry
     private const string DateFormat = "yyyy-MM-dd";
     private const string AcceptedPrefix = "accepted:";
     private const string NpmKind = "npm";
+    private const string DataKind = "data";
 
-    private static readonly string[] Kinds = ["nuget", "tool", NpmKind];
+    private static readonly string[] Kinds = ["nuget", "tool", NpmKind, DataKind];
     private static readonly string[] Scopes = ["runtime", "build", "test", "tool", "font"];
     private static readonly string[] RequiredText = ["purpose", "license", "publisher", "legitimacy"];
+
+    // An https URL with a full 40-character commit SHA as a path segment (never a branch name).
+    private static readonly Regex CommitPinnedUrl = new(
+        @"^https://[^\s/]+/(?:[^\s/]+/)*[0-9a-f]{40}/[^\s]+$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex LowerHexSha256 = new("^[0-9a-f]{64}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     // One exact semver version: no range operator, wildcard, tag or alias.
     private static readonly Regex ExactNpmVersion = new(
@@ -28,7 +41,7 @@ internal static class DependencyRegistry
         TimeSpan.FromSeconds(1));
 
     /// <summary>Returns every rule violation in <paramref name="json"/> given the repository pins.</summary>
-    public static List<string> Validate(string? json, IReadOnlyCollection<PackagePin> pins)
+    public static List<string> Validate(string? json, IReadOnlyCollection<PackagePin> pins, DataFiles? files = null)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -63,6 +76,11 @@ internal static class DependencyRegistry
 
             ValidateOrder(entries, problems);
             ValidateAgainstPins(entries, pins, problems);
+            if (files is not null)
+            {
+                ValidateDataFiles(entries, files, problems);
+            }
+
             return problems;
         }
     }
@@ -125,7 +143,10 @@ internal static class DependencyRegistry
                 Text(item, "published"),
                 Text(item, "adopted"),
                 Text(item, "coolDown"),
-                Text(item, "manifest")))
+                Text(item, "manifest"),
+                Text(item, "source"),
+                Text(item, "sha256"),
+                Text(item, "path")))
             .ToList();
     }
 
@@ -159,6 +180,8 @@ internal static class DependencyRegistry
             problems.Add($"{label}: only npm entries name a manifest.");
         }
 
+        ValidateDataFields(label, entry, problems);
+
         if (!Scopes.Contains(entry.Scope, StringComparer.Ordinal))
         {
             problems.Add($"{label}: scope '{entry.Scope}' must be one of {string.Join(", ", Scopes)}.");
@@ -174,6 +197,59 @@ internal static class DependencyRegistry
 
         ValidateLicense(label, entry, policy, problems);
         ValidateCoolDown(label, entry, policy, problems);
+    }
+
+    private static void ValidateDataFields(string label, Entry entry, List<string> problems)
+    {
+        if (!string.Equals(entry.Kind, DataKind, StringComparison.Ordinal))
+        {
+            if (entry.Source.Length > 0 || entry.Sha256.Length > 0 || entry.Path.Length > 0)
+            {
+                problems.Add($"{label}: only data entries name a source, a sha256 or a path.");
+            }
+
+            return;
+        }
+
+        if (!CommitPinnedUrl.IsMatch(entry.Source))
+        {
+            problems.Add($"{label}: source must be an https URL pinned to a 40-character commit SHA, not a branch.");
+        }
+
+        if (!LowerHexSha256.IsMatch(entry.Sha256))
+        {
+            problems.Add($"{label}: sha256 must be 64 lowercase hex characters.");
+        }
+
+        if (entry.Path.Length == 0)
+        {
+            problems.Add($"{label}: path is empty; name the repo-relative file.");
+        }
+    }
+
+    private static void ValidateDataFiles(List<Entry> entries, DataFiles files, List<string> problems)
+    {
+        var dataEntries = entries.Where(entry => string.Equals(entry.Kind, DataKind, StringComparison.Ordinal)).ToList();
+        foreach (var entry in dataEntries.Where(entry => entry.Path.Length > 0 && LowerHexSha256.IsMatch(entry.Sha256)))
+        {
+            var bytes = files.Read(entry.Path);
+            if (bytes is null)
+            {
+                problems.Add($"{entry.Key}: file is missing at {entry.Path}.");
+                continue;
+            }
+
+            var actual = Convert.ToHexStringLower(SHA256.HashData(bytes));
+            if (!string.Equals(actual, entry.Sha256, StringComparison.Ordinal))
+            {
+                problems.Add($"{entry.Key}: sha256 of {entry.Path} is {actual} but the registry records {entry.Sha256}.");
+            }
+        }
+
+        foreach (var path in files.EmbeddedPaths.Where(path => !dataEntries.Any(entry => string.Equals(entry.Path, path, StringComparison.Ordinal))))
+        {
+            problems.Add($"{path}: embedded file has no data record in the registry.");
+        }
     }
 
     private static void ValidateLicense(string label, Entry entry, Policy policy, List<string> problems)
@@ -246,8 +322,10 @@ internal static class DependencyRegistry
         }
     }
 
-    private static void ValidateAgainstPins(List<Entry> entries, IReadOnlyCollection<PackagePin> pins, List<string> problems)
+    private static void ValidateAgainstPins(List<Entry> allEntries, IReadOnlyCollection<PackagePin> pins, List<string> problems)
     {
+        // A data entry records a bundled file, not a pinned package, so it neither matches a pin nor goes stale.
+        var entries = allEntries.Where(entry => !string.Equals(entry.Kind, DataKind, StringComparison.Ordinal)).ToList();
         foreach (var pin in pins)
         {
             var isNpm = string.Equals(pin.Source, PackagePins.NpmSource, StringComparison.Ordinal);
@@ -303,9 +381,53 @@ internal static class DependencyRegistry
         string Published,
         string Adopted,
         string CoolDown,
-        string Manifest)
+        string Manifest,
+        string Source,
+        string Sha256,
+        string Path)
     {
         /// <summary>The id a pin matches: <c>{manifest}:{id}</c> for npm entries, the plain id otherwise.</summary>
         public string Key => string.Equals(Kind, NpmKind, StringComparison.Ordinal) ? $"{Manifest}:{Id}" : Id;
     }
+}
+
+/// <summary>
+/// The bundled data files the registry covers: a way to read a repo-relative file and the repo-relative paths of
+/// every <c>EmbeddedResource</c> under <c>src/</c> (a <c>.resx</c> is not data).
+/// </summary>
+/// <param name="Read">Returns the bytes of a repo-relative file, or null when it does not exist.</param>
+/// <param name="EmbeddedPaths">The repo-relative paths (forward slashes) of the embedded data files.</param>
+internal sealed record DataFiles(Func<string, byte[]?> Read, IReadOnlyCollection<string> EmbeddedPaths)
+{
+    /// <summary>Reads the files and the embedded-resource list from the repository.</summary>
+    public static DataFiles FromRepository()
+    {
+        var root = RepoRoot.Find();
+        var embedded = new List<string>();
+        foreach (var project in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.csproj", SearchOption.AllDirectories))
+        {
+            var directory = Path.GetRelativePath(root, Path.GetDirectoryName(project)!).Replace('\\', '/');
+            embedded.AddRange(ReadEmbeddedPaths(File.ReadAllText(project), directory));
+        }
+
+        return new DataFiles(
+            path =>
+            {
+                var full = RepoRoot.PathOf(path);
+                return File.Exists(full) ? File.ReadAllBytes(full) : null;
+            },
+            embedded);
+    }
+
+    /// <summary>Lists the embedded resources of one project file as repo-relative paths, skipping <c>.resx</c> files.</summary>
+    /// <param name="csprojXml">The project file text.</param>
+    /// <param name="projectDirectory">The project folder, repo-relative with forward slashes.</param>
+    /// <returns>The repo-relative paths.</returns>
+    public static List<string> ReadEmbeddedPaths(string csprojXml, string projectDirectory) =>
+        XDocument.Parse(csprojXml).Descendants()
+            .Where(element => element.Name.LocalName == "EmbeddedResource")
+            .Select(element => (string?)element.Attribute("Include") ?? string.Empty)
+            .Where(include => include.Length > 0 && !include.EndsWith(".resx", StringComparison.OrdinalIgnoreCase))
+            .Select(include => $"{projectDirectory}/{include.Replace('\\', '/')}")
+            .ToList();
 }

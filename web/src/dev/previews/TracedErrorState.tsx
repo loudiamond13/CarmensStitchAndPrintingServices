@@ -24,6 +24,7 @@ export function TracedErrorState({ things, traceId, onRetry }: TracedErrorStateP
       detail: 'at Csps.Server.Orders.Handler line 42',
       instance: undefined,
       traceId,
+      code: undefined,
       errors: {},
     },
   });

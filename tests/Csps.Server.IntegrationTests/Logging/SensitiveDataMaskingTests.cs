@@ -1,4 +1,5 @@
 using System.Globalization;
+using Csps.Infrastructure.Identity;
 using Csps.Server.Logging;
 using Csps.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,10 +38,29 @@ public sealed class SensitiveDataMaskingTests
     [InlineData("PasswordHash")]
     [InlineData("passwordhash")]
     [InlineData("SecurityStamp")]
+    [InlineData("Ticket")]
+    [InlineData("CodeMac")]
+    [InlineData("TokenHash")]
+    [InlineData("RequestHash")]
+    [InlineData("ProtectedBody")]
+    [InlineData("AuthenticatorKey")]
+    [InlineData("RecoveryCodes")]
+    [InlineData("PrivateKey")]
+    [InlineData("Pfx")]
+    [InlineData("ResetCode")]
+    [InlineData("VerificationCode")]
+    [InlineData("SigningKeyId")]
+    [InlineData("RowVersionHash")]
+    [InlineData("ConcurrencyStamp")]
+    [InlineData("UserKey")]
+    [InlineData("SessionMac")]
     public void SecretNamesAreSensitive(string name) => SensitiveDataMasking.IsSensitive(name).ShouldBeTrue();
 
     [Theory]
     [InlineData("StatusCode")]
+    [InlineData("Kind")]
+    [InlineData("Id")]
+    [InlineData("Email")]
     [InlineData("ZipCode")]
     [InlineData("RequestPath")]
     [InlineData("TokenCount")]
@@ -90,6 +110,56 @@ public sealed class SensitiveDataMaskingTests
 
         var login = sink.Events.ShouldHaveSingleItem().Properties["Login"].ShouldBeOfType<StructureValue>();
         AssertMaskedLogin(login);
+    }
+
+    [Fact]
+    public void PolicyMasksIdentityUserSecrets()
+    {
+        var sink = new CollectingSink();
+        using (var logger = new LoggerConfiguration().Destructure.With<SensitiveDataDestructuringPolicy>().WriteTo.Sink(sink).CreateLogger())
+        {
+            logger.Information("{@User}", new IdentityShapedUser(Guid.NewGuid(), "staff@example.com", SecretValue, SecretValue, SecretValue));
+        }
+
+        var logEvent = sink.Events.ShouldHaveSingleItem();
+        var user = logEvent.Properties["User"].ShouldBeOfType<StructureValue>();
+        var properties = user.Properties.ToDictionary(static p => p.Name, static p => ((ScalarValue)p.Value).Value, StringComparer.Ordinal);
+        properties["Email"].ShouldBe("staff@example.com");
+        properties["PasswordHash"].ShouldBe(SensitiveDataMasking.Mask);
+        properties["SecurityStamp"].ShouldBe(SensitiveDataMasking.Mask);
+        properties["ConcurrencyStamp"].ShouldBe(SensitiveDataMasking.Mask);
+        Render(logEvent).ShouldNotContain(SecretValue);
+    }
+
+    [Fact]
+    public void PolicyMasksTheApplicationUserSecrets()
+    {
+        var sink = new CollectingSink();
+        using (var logger = new LoggerConfiguration().Destructure.With<SensitiveDataDestructuringPolicy>().WriteTo.Sink(sink).CreateLogger())
+        {
+            logger.Information(
+                "{@User}",
+                new ApplicationUser
+                {
+                    Id = Guid.NewGuid(),
+                    UserName = "staff@example.com",
+                    Email = "staff@example.com",
+                    FirstName = "Maria",
+                    LastName = "Santos",
+                    PasswordHash = SecretValue,
+                    SecurityStamp = SecretValue,
+                    ConcurrencyStamp = SecretValue,
+                });
+        }
+
+        var logEvent = sink.Events.ShouldHaveSingleItem();
+        var user = logEvent.Properties["User"].ShouldBeOfType<StructureValue>();
+        var properties = user.Properties.ToDictionary(static p => p.Name, static p => p.Value, StringComparer.Ordinal);
+        properties["Email"].ShouldBeOfType<ScalarValue>().Value.ShouldBe("staff@example.com");
+        properties["PasswordHash"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
+        properties["SecurityStamp"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
+        properties["ConcurrencyStamp"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(SensitiveDataMasking.Mask);
+        Render(logEvent).ShouldNotContain(SecretValue);
     }
 
     [Fact]
@@ -161,6 +231,9 @@ public sealed class SensitiveDataMaskingTests
 
     /// <summary>A login request shape with a secret at the top level and one nested inside.</summary>
     private sealed record LoginAttempt(string Email, string Password, Credentials Credentials);
+
+    /// <summary>The shape of an Identity user as it would be logged.</summary>
+    private sealed record IdentityShapedUser(Guid Id, string Email, string PasswordHash, string SecurityStamp, string ConcurrencyStamp);
 
     /// <summary>A nested object whose only property is a secret.</summary>
     private sealed record Credentials(string RefreshToken);

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using Csps.Application.Ports;
+using Csps.Server.Composition;
 
 namespace Csps.Server.Http;
 
@@ -21,6 +22,10 @@ public sealed class HttpRequestContext(IHttpContextAccessor accessor) : IRequest
     /// <inheritdoc />
     public Guid? UserId =>
         Guid.TryParse(Current?.User.FindFirst(SubjectClaimType)?.Value, out var userId) ? userId : null;
+
+    /// <inheritdoc />
+    public Guid? SessionId =>
+        Guid.TryParse(Current?.User.FindFirst(SecurityRegistration.SessionClaim)?.Value, out var sessionId) ? sessionId : null;
 
     /// <inheritdoc />
     public IPAddress? RemoteIp => Current?.Connection.RemoteIpAddress;

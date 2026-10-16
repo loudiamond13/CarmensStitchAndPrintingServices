@@ -97,3 +97,11 @@ export function buttonClasses(options: ButtonClassOptions): string {
     options.className,
   );
 }
+
+// SPEC-DEVIATION: OQ-5 small inline links and labels (Forgot password?, the Keep me signed in label, the back link) are 18
+// to 20px tall in App. C. This adds an invisible `::before` box fixed at 44px tall, centred on the element and as wide
+// as it, so the tap target reaches 44px and nothing drawn changes. The element keeps its size, colour and place.
+/** An invisible 44px-tall tap area for a small inline link or label. */
+export const hitAreaClasses = tw(
+  "relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-['']",
+);

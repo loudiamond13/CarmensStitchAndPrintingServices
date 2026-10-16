@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-14T10:28:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-14T20:26:27-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -50,7 +50,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **QUAL-02**: TypeScript/ESLint/Prettier run with zero warnings (`--max-warnings 0`). The tsconfig and ESLint rule sets follow PRD §17.2 (no `any`, no non-null assertions, no `console`, no `dangerouslySetInnerHTML`, jsx-a11y strict) ⚑ S-2
 - [x] **QUAL-03**: Coverage gates are enforced: Domain 100% line + branch, Application ≥ 95%, `core/api` 100%, web overall ≥ 90% ⚑ S-4
 - [x] **QUAL-04**: Playwright E2E runs on its own host port 5199 (`reuseExistingServer: false`) across Chromium, Firefox, WebKit + Pixel/iPhone viewports, and fails on any console error/warning, CSP violation or axe violation. The preflight script runs before dev servers, Playwright and full test runs
-- [ ] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
+- [x] **QUAL-05**: A Testing-environment-only email sink lets E2E read 2FA codes and links. A test proves it is absent from Release builds
 - [x] **QUAL-06**: Dependency hygiene: every package has a recorded purpose, license (MIT/Apache-2.0/BSD/ISC, or an owner-approved exception) and legitimacy check. A `THIRD-PARTY-NOTICES` file is generated in CI. A release cool-down policy is recorded ⚑ S-5, S-10
 
 ### CI/CD & Hosting (OPS)
@@ -74,17 +74,17 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Authentication (AUTH)
 
-- [ ] **AUTH-01**: Staff can sign in with email + password. Failures show one generic error ("Email or password is incorrect.") and never reveal whether the email exists, with similar timing either way ⚑ C-8
-- [ ] **AUTH-02**: After a correct password, staff must enter a 6-digit code emailed to them before any session is issued. The code is bound to a pending-login ticket cookie and user, and required on every new sign-in ⚑ C-6, OD-12
-- [ ] **AUTH-03**: The 6-digit code is valid 15 minutes, single-use, and invalidated after 5 wrong attempts. It is stored only as HMAC-SHA256 and compared in fixed time. A per-account cross-ticket attempt cap applies
-- [ ] **AUTH-04**: Staff can resend the code after a 60-second cooldown, up to 5 sends per hour per account. A new code invalidates the previous one
-- [ ] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
-- [ ] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
-- [ ] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
+- [x] **AUTH-01**: Staff can sign in with email + password. Failures show one generic error ("Email or password is incorrect.") and never reveal whether the email exists, with similar timing either way ⚑ C-8
+- [x] **AUTH-02**: After a correct password, staff must enter a 6-digit code emailed to them before any session is issued. The code is bound to a pending-login ticket cookie and user, and required on every new sign-in ⚑ C-6, OD-12
+- [x] **AUTH-03**: The 6-digit code is valid 15 minutes, single-use, and invalidated after 5 wrong attempts. It is stored only as HMAC-SHA256 and compared in fixed time. A per-account cross-ticket attempt cap applies
+- [x] **AUTH-04**: Staff can resend the code after a 60-second cooldown, up to 5 sends per hour per account. A new code invalidates the previous one
+- [x] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
+- [x] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
+- [x] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
 - [ ] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
-- [ ] **AUTH-09**: Resetting a password enforces the password policy, revokes all sessions and sends a "your password was changed" email ⚑ C-5
+- [ ] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
 - [ ] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
-- [ ] **AUTH-11**: Passwords follow the NIST SP 800-63B policy (12–128 chars, any printable characters, no composition or rotation rules). They are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only) or if they contain the user's email or name. A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
+- [ ] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
 - [ ] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
 - [ ] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
 
@@ -239,7 +239,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 - [x] **A11Y-01**: Every page passes axe with zero violations for `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa` (vitest-axe per component, `@axe-core/playwright` per page)
 - [x] **A11Y-02**: All functionality is keyboard-operable with visible focus, a skip-to-content link, focus trapping and return in dialogs, landmarks with labels, and one `h1` per page
-- [ ] **A11Y-03**: Accessible authentication: paste allowed in password and OTP fields, `autocomplete` attributes set, no cognitive puzzles
+- [x] **A11Y-03**: Accessible authentication: paste allowed in password and OTP fields, `autocomplete` attributes set, no cognitive puzzles
 - [x] **A11Y-04**: UI-spec items that conflict with WCAG 2.2 AA (contrast, target size, drag-only, hover-only, auto-dismissing danger toasts) are flagged to the owner and resolved before release ⚑ OD-14, C-35
 - [ ] **A11Y-05**: Manual keyboard-only and screen-reader (NVDA + VoiceOver) passes are recorded for critical flows before release
 
@@ -356,7 +356,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 2 | Complete |
-| QUAL-05 | Phase 4 | Pending |
+| QUAL-05 | Phase 4 | Complete |
 | QUAL-06 | Phase 1 | Complete |
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Pending |
@@ -371,13 +371,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-06 | Phase 4 | Pending |
 | SEC-07 | Phase 5 | Pending |
 | SEC-08 | Phase 5 | Pending |
-| AUTH-01 | Phase 4 | Pending |
-| AUTH-02 | Phase 4 | Pending |
-| AUTH-03 | Phase 4 | Pending |
-| AUTH-04 | Phase 4 | Pending |
-| AUTH-05 | Phase 4 | Pending |
-| AUTH-06 | Phase 4 | Pending |
-| AUTH-07 | Phase 4 | Pending |
+| AUTH-01 | Phase 4 | Complete |
+| AUTH-02 | Phase 4 | Complete |
+| AUTH-03 | Phase 4 | Complete |
+| AUTH-04 | Phase 4 | Complete |
+| AUTH-05 | Phase 4 | Complete |
+| AUTH-06 | Phase 4 | Complete |
+| AUTH-07 | Phase 4 | Complete |
 | AUTH-08 | Phase 4 | Pending |
 | AUTH-09 | Phase 4 | Pending |
 | AUTH-10 | Phase 4 | Pending |
@@ -486,7 +486,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEGAL-06 | Phase 14 | Pending |
 | A11Y-01 | Phase 2 | Complete |
 | A11Y-02 | Phase 2 | Complete |
-| A11Y-03 | Phase 4 | Pending |
+| A11Y-03 | Phase 4 | Complete |
 | A11Y-04 | Phase 2 | Complete |
 | A11Y-05 | Phase 14 | Pending |
 | PERF-01 | Phase 2 | Complete |
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10; ORD-10 precedence; USER-01, AUDIT-02, CEXP-01, ORD-02, ORD-07, DASH-03, MONEY-02, GAL-01, INQ-05, ANL-05, ANL-08 and SEC-03 sharpened; 180/180 mapped)*
+*Last updated: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*

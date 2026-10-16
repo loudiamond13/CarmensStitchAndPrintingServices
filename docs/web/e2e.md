@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-14T10:05:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-15T11:32:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -51,7 +51,7 @@ Everything after `--` goes straight to `playwright test`. Always start through `
 
 Details that matter on this machine:
 
-- **Environment variables** for the host (`ASPNETCORE_ENVIRONMENT=Development` and the `CSPS_E2E` connection string) are set on that one child process only. Nothing is set at User or Machine level, and no secret is passed or written anywhere: Development reads the JWT key and the Data Protection certificate from your user-secrets.
+- **Environment variables** for the host (`ASPNETCORE_ENVIRONMENT=Testing`, `Csps__Testing__LoadUserSecrets=true`, `App__PublicBaseUrl`, a 1-second email dispatcher sweep and the `CSPS_E2E` connection string) are set on that one child process only. Nothing is set at User or Machine level, and no secret is passed or written anywhere: the host reads the JWT key and the Data Protection certificate from your user-secrets because of `Csps__Testing__LoadUserSecrets`. Environment variables and the command line still win over user-secrets. See [the Testing environment](#8-the-testing-environment-and-its-helpers).
 - **`reuseExistingServer: false`:** Playwright never attaches to a server someone else started on 5199. A busy port is an error.
 - Node tools run on the current Node binary with their JS entry (`node_modules/vite/bin/vite.js`, `node_modules/@playwright/test/cli.js`), because Windows can't start the `.cmd` shims without a shell.
 - MSBuild worker processes can linger for a few minutes after `dotnet run`. They are not servers; leave them alone.
@@ -112,10 +112,64 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
 | `@fonts` | One font preload, same-origin woff2 only, ₱ drawn in Archivo Variable | plan 02-35 |
 | `@a11y-rulings` | The owner's accessibility rulings on computed styles (D-02, D-03, D-05, D-BL-02, O-3, O-6) | plan 02-35 |
+| `@testing-host` | The Testing environment on the E2E host: `createStaff` makes a staff user under `csps.test` and `readEmails` returns an empty mailbox for it (Chromium only) | plan 04-10 |
+| `@auth` | Sign-in end to end in all five projects: S1, the emailed code read from the sink, S2 (`Check your email`), the admin shell and a reload that keeps the session through the refresh cookie; page-level axe on S1 and S2; the six boxes never submit by themselves | plan 04-27 |
+| `@auth-cookies` | The refresh cookie `__Secure-csps_rt` in chromium, firefox and webkit (the phone projects skip it), with and without "Keep me signed in": the Set-Cookie header the server sent and the cookie jar both show HttpOnly, Secure, Path `/api/v1/auth`; SameSite Strict in the header everywhere and in the jar for chromium and firefox; about 90 days with the box ticked, a session cookie without it; `document.cookie` cannot see it; the ticket cookie is gone; a visit to `/admin/login` goes on to `/admin` because the cookie still holds the session | plan 04-27 |
+| `@auth-reset` | Forgot a password end to end in all five projects: S1 `Forgot password?`, S4 (`Reset your password`, then the same `Check your email` card with focus on its h1), the reset email's link opening S5 with the token gone from the address bar, a new password saved, S1 with the `Your password was changed` notice, signing in with the new password and a fresh emailed code, and a second browser context whose refresh cookie no longer works (D-19); page-level axe on S4 (both states) and S5 | plan 04-28 |
+| `@auth-invite` | Invite acceptance end to end in all five projects: a Manager made in the `invited` state opens `/admin/accept-invite#token=...`, the token leaves the address bar at once, S6 (`Set your password`) names the email, a valid password is saved, S1 shows `Your password is set. Sign in to continue.`, and the new password plus the emailed code signs in; a second test sends the breach stand-in sample `Hibp-Down#2026`, sees the `We couldn't check your password right now.` banner with focus on `Save Password` (D-14, fail closed), then saves a different password with the same invite; page-level axe on S6 and S1 | plan 04-31 |
+| `@auth-must-change` | The must-set-a-new-password step in all five projects: an account with a temporary password signs in with the password and the emailed code and lands on S3 (`Set a new password`, temporary wording, focus on `New password`), a second tab opening `/admin` is sent to sign in because no session exists yet, a valid new password opens the shell with the `Password saved` toast; an account with a breached password sees the breach wording and is replaced the same way; page-level axe on S3 | plan 04-31 |
+| `@sessions` | Signed-in devices end to end in all five projects: one staff member signed in on two browser contexts (the second with an Edge-on-Windows User-Agent so the rows differ), `/admin/sessions` listing both with `This device` first and no button on it, the header `Sign Out Other Devices` button enabled, page-level axe in Blush and Espresso, the per-device confirm dialog (`Keep Signed In` focused), the `Device signed out` toast, the row gone with focus on the page heading, this session still working after a reload, and the other browser sent to sign in at its next session check; no horizontal scroll | plan 04-29 |
+| `@session-menu` | The user menu's session items in all five projects: the four items in order (`My Profile`, `Signed-in Devices`, `Sign Out Other Devices`, `Logout`), Esc back to the menu button, `Sign Out Other Devices` opening the dialog with `Keep Others Signed In` focused and page-level axe clean with the dialog open, the toast `Signed out of other devices`, focus back on the menu button, this session still working after a reload, a second browser context sent to sign in, the same dialog flow and toast when nothing else is signed in, and `Signed-in Devices` opening `/admin/sessions` | plan 04-30 |
+| `@auth-multitab` | Two tabs of one browser share one session, in the three desktop engines: both tabs of the devices page reload at the same moment and both stay signed in (single-flight refresh, no false reuse sign-out), `Logout` in one tab sends the other to sign in with `Your session ended. Sign in again.` without a reload, and a listener on `BroadcastChannel('csps-auth')` records the sign-out message and no message carries a token or the email | plan 04-30 |
+| `@auth-overflow` | The overflow and accessibility sweep of the sign-in screens in all five projects: S1 (and S1 with a 5xx banner carrying its reference), S2 and S4 (sent) with a 64-character address, S3, S5 and S6 (form and invalid), each at 320, 375, 414, 768, 1024, 1280, 1536 and 1920 px wide in portrait and landscape (the phone projects check their own screen both ways): no horizontal scroll, one `h1` and one `main#main`, the skip link first, page-level axe clean; S7 `Signed-in devices` in Blush and Espresso with a 60-character device label and two rows with one label (table, scrolling wrapper and stacked cards); and the session-cap and S7 toasts inside a 320px window. The answers that need a real invite, reset link or code are served by `page.route`, so the sweep sends no mail and never meets the per-address limits | plan 04-32 |
 | `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects); from a scrolled backdrop (1280x420) a middle or right press and a press or drag on the backdrop's scrollbar keep the caret in the confirm field and the backdrop's scrollTop unchanged (Firefox's own middle-button scroll is the one documented exception), and on the phone screens a right press above the sheet keeps the caret (the focus trap returns focus without scrolling) | plans 02-41, 02-42, 02-43 (D-42) |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 
-## 8. Reports
+## 8. The Testing environment and its helpers
+
+The E2E host runs in the **Testing** environment of a **Debug** build, the same environment the .NET integration tests use. That gives E2E tests two things they need, because every sign-in ends with an emailed code (plan 04-10, QUAL-05):
+
+- `GET /api/testing/emails?after=<id>&to=<address>` returns the mail the app delivered to the in-memory sink as `[{ id, to, subject, text, html, sentAt }]`, oldest first. **E2E never sends real mail** (D-27): in Testing every email goes to the sink, and nothing is sent over SMTP.
+- `POST /api/testing/staff` with `{ "role": "Admin" | "Manager", "state"?: "active" | "deactivated" }` creates a fresh staff user (`e2e-<guid>@csps.test`, a random 16-character password that meets the password rule) and returns `{ userId, email, password }`. Every test makes its own user, so one test's resend cooldown, caps and lockouts never reach another.
+
+Both routes are compiled into Debug builds only (`CSPS_TESTING`), mapped only in the Testing environment, and a Release build is proven to contain none of it (`ReleaseHasNoEmailSinkTests`). A Debug build refuses to start as Production.
+
+Use the helpers in `web/e2e/testing-api.ts` (they take the Playwright `request` fixture):
+
+```ts
+import { expect, test } from './fixtures.ts';
+import { createStaff, latestEmail, readEmails } from './testing-api.ts';
+
+test('@example a staff user gets a code by email', async ({ request }) => {
+  const staff = await createStaff(request, 'Manager'); // { userId, email, password }
+  // ... trigger a sign-in for staff.email ...
+  const mail = await latestEmail(request, staff.email, { subject: 'sign-in code' }); // waits up to 15 s
+  expect(mail.text).toMatch(/\b\d{6}\b/);
+  expect(await readEmails(request, { to: staff.email, after: mail.id })).toEqual([]);
+});
+```
+
+`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject?, after? })` are the whole API. `after` is the id of the last mail already seen, so a test that signs in twice reads the second code and not the first.
+
+`web/e2e/auth.ts` builds on them for the sign-in flow (plan 04-27):
+
+- `codeFromEmail(email)` reads the six digits from the subject of a sign-in code email (`123456 is your CSPS sign-in code`).
+- `signInAs(page, request, staff, { keepSignedIn? })` opens `/admin/login`, types the email and password, ticks "Keep me signed in" when asked, reads the code from the sink, types it into the six boxes, presses Verify Code and resolves with the user the server named once the admin shell shows.
+- `typeCode(page, code)` types a code into the six boxes from the first one.
+
+Every auth spec makes its own staff user with `createStaff` and calls `guard.expectStatus('/api/v1/auth/refresh', 401)` for a page that opens without a session: the sign-in routes ask the refresh cookie for a session first, and with none that answer is a 401. The e2e bundle has the dev-only admin previews, which shadow the guarded `/admin`, `/admin/orders` and so on, so the shell there shows the placeholder user; the server's own answer (the verify response) and the redirect from `/admin/login` back to `/admin` are what prove the real session in E2E. `testing-host.spec.ts` (`@testing-host`, Chromium only) proves the host is in the Testing environment.
+
+User-secrets load in the Testing environment only when `Csps:Testing:LoadUserSecrets` is true. Only the Playwright `webServer.env` sets it; the .NET test factory never does, so a developer's secrets cannot change an integration test.
+
+### Cookie attributes and the WebKit jar (plan 04-27)
+
+`@auth-cookies` reads each cookie two ways: the `Set-Cookie` header on the verify answer (what the server sent) and the browser's cookie jar (what the engine stored). Playwright's WebKit on Windows reports `sameSite: "None"` for every cookie in its jar, even one added with `sameSite: "Strict"`, so the jar's SameSite is asserted in chromium and firefox only; WebKit's SameSite rests on the header. Real Safari honouring Strict over HTTPS is checked in Phase 3 on the staging host. The same engines run the phone projects, so `@auth-cookies` skips `pixel` and `iphone`.
+
+### WebKit and late module preloads
+
+WebKit writes a console warning ("... was preloaded using link preload but not used within a few seconds from the window's load event") when a route's lazy chunk is fetched, through a Vite `modulepreload` link, more than about 3 seconds after the page loaded. The chunk is used, but WebKit does not count a module-map hit as a use. Typing a password and a code takes that long, so the guard in `fixtures.ts` ignores exactly this warning for the app's own `/assets/*.js` chunks. Nothing else is ignored.
+
+## 9. Reports
 
 The list reporter prints to the terminal. The HTML report goes to `web/playwright-report/` and failure traces to `web/test-results/`; both are git-ignored. Open the report with `npx --prefix web playwright show-report web/playwright-report`.

@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-14T10:45:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-15T14:30:00-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -30,7 +30,10 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 | Route | Route modules |
 |---|---|
 | Public (`/`) | `src/layouts/PublicLayout.tsx`, `src/modules/public/pages/PublicPlaceholderPage.tsx` |
-| Admin (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/AdminPreviewPage.tsx` |
+| Admin, signed in (`/admin`) | `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed out (`/admin/login`) | `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
+
+The admin number is the larger of the two admin rows. Both ship in every build, so admin JS is measured in the production build too. The dev-only `AdminPreviewPage` is never part of it.
 
 A route module is usually the start of its own lazy chunk. In the parity build the parity page imports some of them directly, so they end up inside a shared chunk; the plugin then measures that shared chunk, because it is what the router downloads.
 
@@ -42,7 +45,7 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 
 | Command | Mode | Output folder | What it measures |
 |---|---|---|---|
-| `npm run build` | `production` | `src/Csps.Server/wwwroot` (what ships) | public JS and CSS, plus the "no dev code" rules below |
+| `npm run build` | `production` | `src/Csps.Server/wwwroot` (what ships) | public JS, admin JS and CSS, plus the "no dev code" rules below |
 | `npm run build:budget` | `budget` | `web/.budget-dist` (git-ignored) | public JS, admin JS and CSS with the admin routes built in |
 | `npm run build:e2e` (run by `npm run e2e`) | `e2e` | `web/.e2e-dist` (git-ignored) | the same as the budget build |
 | `npm run parity` (its app build) | `parity` | `web/.parity-dist` (git-ignored) | the same, with the parity page added |
@@ -54,8 +57,8 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 ## Rules that fail the build besides the limits
 
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
-- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/modules/admin/`, `src/layouts/AdminLayout`, `src/dev/` or `web/visual/`, or when it has an entry other than `index.html`. These rules follow the mode, never a flag.
-- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example `src/modules/admin/routes.tsx` behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
+- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/dev/`, `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), or when it has an entry other than `index.html`. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
+- **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example the dev preview page behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 
 ## The numbers file
@@ -65,7 +68,7 @@ Every build writes its numbers to the git-ignored `artifacts/budget/` folder at 
 - `budget.json`: the latest build,
 - `budget.<mode>.json`: the latest build of each mode (`budget.production.json`, `budget.budget.json`, `budget.e2e.json`, `budget.parity.json`).
 
-Each file holds `mode`, `build` (`production`, `dev-routes` or `parity`), the `limits`, `publicJs`, `adminJs` (`null` in production), `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
+Each file holds `mode`, `build` (`production`, `dev-routes` or `parity`), the `limits`, `publicJs`, `adminJs`, `css`, every measurement with its file list, the `errors` and the `notes`. The build also prints the size table.
 
 ## The 135 KB note (Phase 4 barrel split)
 
@@ -93,6 +96,15 @@ Measured after the parity page left the budget and e2e builds (2026-10-13, code-
 | Parity (admin + parity page) | 149.99 KB | 155.13 KB | 12.92 KB |
 
 Since plan 02-34 the dev-only showcase (`/dev/components`) also imports nearly every component, so without the parity page the budget build saved only 0.29 KB. The real cause was the barrels, fixed next.
+
+Measured at plan 04-25 (2026-10-15), when the guarded admin app began to ship in production:
+
+| Build | Public JS | Admin JS | CSS |
+|---|---|---|---|
+| Production (guarded admin included, admin not measured) | 130.16 KB | — | 13.04 KB |
+| Budget and e2e (admin + dev showcase, no parity page) | 132.75 KB | 160.67 KB | 13.04 KB |
+
+The session, guard and sign-out code load in the admin chunks only; the router keeps them out of the public entry through dynamic imports.
 
 ## Public route imports
 

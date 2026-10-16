@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-14T10:05:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-15T07:36:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -46,11 +46,13 @@ Run these once, in this order.
    dotnet tool restore
    ```
 
-3. **Create your development secrets.** This writes the JWT signing key and the Data Protection certificate to *your* user-secrets store (`%APPDATA%\Microsoft\UserSecrets\...`), never to git, environment variables or machine settings. The API refuses to start without them. Safe to re-run, because existing values are kept.
+3. **Create your development secrets.** This writes the JWT signing key, the sign-in code key and the Data Protection certificate to *your* user-secrets store (`%APPDATA%\Microsoft\UserSecrets\...`), never to git, environment variables or machine settings. Every value goes in through standard input, so none shows on a command line. The API refuses to start without them. Safe to re-run, because existing values are kept.
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Initialize-DevSecrets.ps1
    ```
+
+   Sign-in emails need the mail settings too. Add `-Smtp` and follow [docs/operations/mail-setup.md](operations/mail-setup.md). Local sign-in always sends a real email to the address you sign in with (D-27); automated tests never send mail.
 
 4. **Build the schema from the migrations.** Every table comes from EF Core migrations, so an empty database becomes the full schema with no backup file.
 
@@ -91,6 +93,30 @@ Run these once, in this order.
 
 The launch profile sets `ASPNETCORE_ENVIRONMENT=Development` for that process only. Never set it, or any other variable, at User or Machine level.
 
+## Signing in locally
+
+Staff sign in with their password and an emailed 6-digit code. The refresh cookie `__Secure-csps_rt` is HttpOnly, Secure, SameSite Strict and scoped to `/api/v1/auth`.
+
+- Local sign-in works in Chrome, Edge and Firefox on `http://localhost:5180`. Safari refuses Secure cookies on plain localhost, so WebKit is covered by the HTTPS E2E host (`https://localhost:5199`) instead (research Pitfall 2, assumption A8). `npm --prefix web run e2e -- --grep @auth-cookies` proves the cookie's attributes in Chromium, Firefox and WebKit.
+- A session without "Keep me signed in" uses a session cookie, but closing the browser ends it only when the browser does not restore its session (Chrome's "Continue where you left off" and Safari's reopened windows bring session cookies back). The server's 12-hour cap is the real limit (research Pitfall 3).
+- Sign-in codes are emailed. In the Testing environment (the E2E host) they go to an in-memory sink instead, and nothing is ever sent (see [the Testing environment](web/e2e.md#8-the-testing-environment-and-its-helpers)).
+
+To get your own login on `CSPS_Dev` (the database has no staff accounts until you create the first Manager):
+
+1. Make sure `CSPS_Dev` is migrated and seeded (see the dev seed above) and that your mail settings are in user-secrets (`Initialize-DevSecrets.ps1 -Smtp`, see [mail-setup](operations/mail-setup.md)). The invite and the sign-in code are real emails.
+2. Start the API and the web dev server (`npm --prefix web run dev`, port 5180). Leave them running: the API's background sender emails the invite within a minute.
+3. In another terminal, queue the invite with your own email. `DOTNET_ENVIRONMENT=Development` makes the command read your user-secrets (the Data Protection certificate). The connection string goes in an environment variable for that terminal only, never in an argument:
+
+   ```powershell
+   $env:DOTNET_ENVIRONMENT = 'Development'
+   $env:CSPS_BOOTSTRAP_CONNECTION = 'Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true'
+   dotnet run --project tools/Csps.BootstrapManager -- --email you@example.com --first-name You --last-name Dev --confirm-database CSPS_Dev --public-base-url http://localhost:5180
+   ```
+
+4. Open the link in the invite email in your browser, set a password, then sign in at `/admin/login`. The 6-digit code arrives by email (D-27). There is no way to skip the code.
+
+The command refuses a second run while an active Manager exists. The full runbook, including the production run, is [operations/bootstrap-manager.md](operations/bootstrap-manager.md).
+
 ## How the API serves the web app
 
 The API also hosts the React app, so the site and the API share one origin and one strict CSP.
@@ -116,6 +142,7 @@ Run the preflight check (above) before a full test run.
 
 - **Database tests** create their own `CSPS_Test_<guid>` database on `(localdb)\MSSQLLocalDB` and drop it when they finish.
 - **`CSPS_TEST_SQL`** picks the SQL backend for integration tests: unset or `localdb` uses LocalDB (the only local option), and `container` uses a SQL Server 2025 container (CI only). Set it only for a single process or terminal, for example `$env:CSPS_TEST_SQL = 'localdb'` in one PowerShell window. Never set it at User or Machine level.
+- **Breached-password check.** Tests never reach the internet. In the Testing environment (Debug builds only) an offline stand-in replaces the HIBP service: `Pwned#Pass2026` is reported as found in a breach, `Hibp-Down#2026` simulates the service being down, and every other password is reported clean. The real client is tested with recorded responses. One opt-in smoke test against the live service (`HibpLiveTests`) runs only when `CSPS_LIVE_HIBP=1` is set for that single process, for example `$env:CSPS_LIVE_HIBP = '1'` in one PowerShell window.
 - **Leftover test databases** from a crashed run can be listed, and then removed, with:
 
   ```powershell
@@ -166,7 +193,7 @@ Never reach a gate by lowering a threshold, excluding production code from cover
 ## Hosting and operations
 
 - `.planning/HOSTING-RECORD.md` is the SmarterASP.NET Basic hosting checklist the owner runs, with the facts found on the host and what they mean for later phases. Check it before relying on a host detail such as the runtime version or the database compatibility level.
-- `docs/operations/` holds the runbooks: `data-protection-rotation.md` (rotating the Data Protection certificate) and `audit-log.md`.
+- `docs/operations/` holds the runbooks: `data-protection-rotation.md` (rotating the Data Protection certificate), `audit-log.md`, `mail-setup.md` and `bootstrap-manager.md` (the first Manager on an empty database).
 - `tools/Csps.HostProbe/README.md` explains the one-time host probe. It never goes on the live site.
 
 ## Shared-machine rules

@@ -1,11 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- QUAL-05: the Testing email sink is compiled into Debug builds only, so a Release build cannot contain it. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);CSPS_TESTING</DefineConstants>
+  </PropertyGroup>
+
+  <!-- The SecLists top-10k common passwords (MIT), pinned by hash in docs/dependencies.json (D-14, D-36). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Passwords\common-passwords-10k.txt" LogicalName="Csps.Infrastructure.Passwords.common-passwords-10k.txt" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Csps.Application\Csps.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Csps.Infrastructure.IntegrationTests" />
+    <!-- The preview tool composes the internal renderer and transport the site uses (D-30). -->
+    <InternalsVisibleTo Include="Csps.EmailPreview" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +30,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 
 </Project>

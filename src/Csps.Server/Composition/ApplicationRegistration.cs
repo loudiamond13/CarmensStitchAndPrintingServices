@@ -1,4 +1,6 @@
+using Csps.Application.Auth;
 using Csps.Application.Content;
+using Csps.Application.Users;
 
 namespace Csps.Server.Composition;
 
@@ -13,6 +15,23 @@ public static class ApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<GetSiteSettingsHandler>();
+        services.AddScoped<SignInHandler>();
+        services.AddScoped<VerifyCodeHandler>();
+        services.AddScoped<ResendCodeHandler>();
+        services.AddScoped<SessionIssuer>();
+        services.AddScoped<RefreshHandler>();
+        services.AddScoped<SignOutHandler>();
+        services.AddScoped<SignOutOthersHandler>();
+        services.AddScoped<ListSessionsHandler>();
+        services.AddScoped<RevokeSessionHandler>();
+        services.AddScoped<ForgotPasswordHandler>();
+        services.AddScoped<CheckResetLinkHandler>();
+        services.AddScoped<ResetPasswordHandler>();
+        services.AddScoped<SetNewPasswordHandler>();
+        services.AddScoped<CheckSetNewPasswordHandler>();
+        services.AddScoped<CheckInviteHandler>();
+        services.AddScoped<AcceptInviteHandler>();
+        services.AddScoped<BootstrapManagerHandler>();
         return services;
     }
 }

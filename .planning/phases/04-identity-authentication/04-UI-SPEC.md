@@ -6,7 +6,7 @@ reviewed_at: "2026-10-14T09:05:00-05:00"
 shadcn_initialized: false
 preset: none
 created: "2026-10-14T08:10:00-05:00"
-updated: "2026-10-14T11:51:00-05:00"
+updated: "2026-10-15T23:40:00-05:00"
 ---
 
 # Phase 4 — UI Design Contract
@@ -76,7 +76,7 @@ The command counts the PascalCase value exports of the 15 area barrels that `web
 | ErrorState | `@/components` | The danger banner on auth forms, with a caller `title` and `message` and **no** `onRetry`. Gets the `align` prop below. |
 | LoadingRegion, SkeletonText | `@/components` | The "checking your link" state of the reset and invite screens. (S7 gets its loading state through ResponsiveTable.) |
 | Modal | `@/components` | The "Sign out of other devices?" dialog and the S7 per-device "Sign out {device}?" dialog. Both are composed from Modal, not ConfirmDialog, because ConfirmDialog is hard-wired to the danger button and `trash-2` icon of a delete. |
-| ToastProvider / `useToast` | `@/components` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7). Optional session-cap warning (OQ-4). |
+| ToastProvider / `useToast` | `@/components` | Success toasts after sign-out-others, after a per-device sign-out (S7) and after saving a must-change password; an info toast when a device was already signed out (S7); a danger toast when Logout fails (D-45). Optional session-cap warning (OQ-4). |
 | UserMenu, Sidebar, Topbar | `@/components` | Real sign-out wiring, plus the two new menu items below. |
 | ResponsiveTable | `@/components` | The S7 device list: table on desktop, in-wrapper scroll on tablet, stacked cards on phones (spec §8.4, P2), with its `pending` (SkeletonTable), `failed` + `onRetry` (ErrorState) states. |
 | RowActions, RowAction | `@/components` | The per-row `log-out` icon action on S7, the same 36px row-action pattern as the Users list (§8.9; P2 O-8). |
@@ -237,7 +237,7 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 |-------|--------|-------------|-----------------|
 | `/admin/login` | S1 Sign in | **App. E.5** (approved) | With a live session, it redirects to `/admin` |
 | `/admin/login/verify` | S2 Check your email (code step) | SPEC-GAP (D-01) | With a live session, it redirects to `/admin`. It renders without an in-memory step, so refresh works (D-01). |
-| `/admin/login/new-password` | S3 Set a new password (must-change gate, D-13/D-18) | SPEC-GAP | Reached only from S2. Opened directly with no pending gate, the first save fails and redirects to S1 with the "timed out" notice. |
+| `/admin/login/new-password` | S3 Set a new password (must-change gate, D-13/D-18) | SPEC-GAP | Reached only from S2. On every arrival (a reload included) it checks the pending gate first; with no usable gate the check answers 401 and the person goes to S1 with the "timed out" notice. |
 | `/admin/forgot-password` | S4 Reset your password (request) | SPEC-GAP | Anonymous |
 | `/admin/reset-password#token=…` | S5 Set a new password (from the email link) | SPEC-GAP | Anonymous. The token is read from `location.hash` and removed at once with `history.replaceState` (RESEARCH Pattern 8). |
 | `/admin/accept-invite#token=…` | S6 Set your password (invite, D-29) | SPEC-GAP | Anonymous. Same fragment handling as S5. |
@@ -290,9 +290,10 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 
 ### S3 Set a new password — `/admin/login/new-password` (SPEC-GAP, D-13, D-18, D-22)
 
-1. AuthHeader: `h1` "Set a new password". The subline has two variants, chosen by the reason the server returns: **temporary** (D-21/D-22) or **breach** (D-18, verbatim).
+0. **Checking state:** on every arrival the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your sign-in…" then "Sign-in checked.". The check (`POST /api/v1/auth/password/set-new/check`, ticket cookie) answers the account email, first name, last name and reason. A 401 goes to S1 with the "timed out" notice. Any other failure shows the card with "We could not check your sign-in yet.", the shared error and a "Try Again" button that runs the check again.
+1. AuthHeader: `h1` "Set a new password". The subline has two variants, chosen by the reason the check returns: **temporary** (D-21/D-22) or **breach** (D-18, verbatim).
 2. Error slot: `ErrorState align="start"` for the shared mapper.
-3. A hidden username input for password managers: `<input type="email" autoComplete="username" value={email} hidden readOnly>`, only when `{email}` is in memory.
+3. A hidden username input for password managers: `<input type="email" autoComplete="username" value={email} hidden readOnly>`, with the `{email}` from the check.
 4. `PasswordField` "New password": `autoComplete="new-password"`, `showStrength`, `hint` = the password rule hint, required.
 5. `PasswordField` "Confirm new password": `autoComplete="new-password"`, required.
 6. `Button` primary lg block, `iconRight="arrow-right"`, "Save Password". Pending: "Saving".
@@ -317,7 +318,7 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 
 ### S5 Set a new password from the email link — `/admin/reset-password#token=…` (SPEC-GAP, AUTH-08/09)
 
-- **Checking state:** the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your link…". The token check returns the account email or "invalid".
+- **Checking state:** the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your link…". The token check returns the account email and both names, or "invalid"; the names and email feed the password rule in the browser (S3, S5 and S6 alike).
 - **Form state:**
   - subline with `{email}`
   - the hidden username input with `{email}`
@@ -389,7 +390,7 @@ An ordinary admin-shell page (`AdminLayout`, the user's D-13 theme, both Blush a
 
 | Item | Contract |
 |------|----------|
-| **Logout** (UserMenu and Sidebar, the existing P2 D-27 button) | Real sign-out. No confirm step. The current session is revoked, other tabs are told over `BroadcastChannel('csps-auth')`, and the user goes to `/admin/login` with the "signed out" notice. If the request fails (network), the local session is still cleared and the same navigation happens. |
+| **Logout** (UserMenu and Sidebar, the existing P2 D-27 button) | Real sign-out. No confirm step. The current session is revoked, other tabs are told over `BroadcastChannel('csps-auth')`, and the user goes to `/admin/login` with the "signed out" notice. If the request fails (owner ruling 2026-10-15, D-45), the person stays signed in on the same page: the local session is kept, other tabs are not told, there is no navigation and no "signed out" notice. A danger toast (persists until closed) reads **"We couldn’t sign you out."** / "Check your connection and try again.". Pressing Logout again retries, and a second failure replaces the toast. |
 | **Signed-in Devices** (UserMenu, D-43) | A link item to `/admin/sessions` (S7). It closes the menu like "My Profile". |
 | **Sign Out Other Devices** (UserMenu and the S7 page header, OQ-3) | Opens SignOutOthersDialog. Focus goes to the dismiss button **"Keep Others Signed In"** on open. The primary `log-out` button shows a pending state. On success the dialog closes, focus returns to the button that opened it (the user-menu button, or the S7 header button), and a success toast appears. On S7 the list then refetches. On failure the dialog stays open and shows the mapper line above the buttons with `role="alert"`, the button becomes clickable again and takes focus (P2 ConfirmDialog failure rule). The current session stays (D-05). **Always allowed (D-44):** the item and the S7 button are never hidden or disabled for lack of other sessions, the client never counts sessions first, and success with nothing to revoke shows the same dialog flow and the same success toast. |
 | **Other tabs** | A broadcast sign-out, or a 401 after a failed refresh in any tab, sends that tab to `/admin/login` with the "session ended" notice (R2-09). |
@@ -456,6 +457,8 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | S3 h1 *(SPEC-GAP)* | "Set a new password" |
 | S3 subline, temporary *(SPEC-GAP)* | "You signed in with a temporary password. Choose your own password to continue." |
 | S3 subline, breach | "Your password appeared in a data breach. Set a new one." (D-18) |
+| S3 checking *(SPEC-GAP)* | "Checking your sign-in…" → "Sign-in checked." |
+| S3 check failed *(SPEC-GAP)* | "We could not check your sign-in yet." · button "Try Again" |
 | S3 back link | "Use a different account" |
 | Password fields *(SPEC-GAP labels from App. E.13)* | "New password" · "Confirm new password" |
 | Password rule hint *(SPEC-GAP)* | "Use 8 to 64 characters with at least one number and one symbol. Don't use your name or email." |
@@ -516,6 +519,7 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | Sign-out dialog *(SPEC-GAP)* | Title "Sign out of other devices?" · body "You'll stay signed in on this device. Any other phone, tablet or computer signed in to your account will be signed out. Use this if you signed in on a shared or lost device." · buttons "Keep Others Signed In" (secondary, dismisses; Esc and the scrim do the same) / "Sign Out Other Devices" (primary) |
 | Sign-out-others success toast *(SPEC-GAP, success)* | "Signed out of other devices" / "You're still signed in on this device." (D-05: says "other devices") |
 | Must-change saved toast *(SPEC-GAP, success)* | "Password saved" / "You're signed in. Use your new password next time." |
+| Sign-out failed toast *(owner, 2026-10-15, D-45; danger, persists)* | "We couldn’t sign you out." / "Check your connection and try again." |
 | Session-cap warning toast *(SPEC-GAP, warning, persists; OQ-4)* | "Your session ends soon" / "You'll be signed out at {h:mm AM/PM}. Save your work, then sign in again." |
 | Loading (live region) | "Checking your link…" → "Link checked." (P2 loading pattern) |
 
@@ -611,6 +615,8 @@ The contract **does not decide these for the owner**. Until the owner rules, the
 | **OQ-6 (W-4)** | The "Resend code in 0:42" countdown and screen readers | Not specified | Announce only when the countdown starts and when it ends, never every second | No | **Apply** |
 | **OQ-7 (D-06)** | Wording of every *(SPEC-GAP)* string in § Copywriting and of all 7 emails | — | As written in this file. FYI: the one-word "Logout" (UserMenu and Sidebar) is kept because App. D.3 binds it (`ADMIN_NAV`, the P2 D-27 button, parity-pinned); the owner may rename it to "Sign Out", which would be a text-only look change across both places. | Text | As written; "Logout" kept |
 
+**Owner ruling, 2026-10-15 (plan 04-32 review pack, `artifacts/owner-review/index.html`, section "Sign-in screens and devices"):** the owner replied "Approve" to all seven items, with the built defaults. OQ-1 A (focus to Password), OQ-2 A (design meter kept), OQ-3 A ("Sign Out Other Devices"), OQ-4 A (warning toast 5 minutes before the 12-hour cap), OQ-5 applied (invisible 44px tap areas), OQ-6 applied (countdown announced at start and end only), OQ-7 the wording as written in this file, with "Logout" kept. The 138-row wording table of the pack and the S2 to S7, dialog, menu and toast pictures were approved with them. Two more rulings came during the plan (see the register): OQ-8 and OQ-9.
+
 Already ruled in CONTEXT and recorded here, not re-asked: no auto-submit (D-01), the generic error (D-02), unticked "Keep me signed in" (D-03), the code in the subject (D-08), no remembered email (D-09), no wait time at the resend cap (D-10), and the design password wording (D-11).
 
 ---
@@ -625,7 +631,9 @@ Each item carries a `// SPEC-DEVIATION: <ID>` comment at its site.
 | D-16 | §8.2: "Forgot password?" shows the toast "Ask a Manager to reset your password." | A link to `/admin/forgot-password` | Owner, C-7 |
 | D-02 | §8.2: a "This account is deactivated." / "Ask a Manager to reactivate it." banner | Not built; the generic error for every failure | Owner, C-8 (CWE-204) |
 | D-01 | (no design) | The code step on its own route, `/admin/login/verify` | Owner, C-6 |
-| OQ-5 | App. C small links | Invisible 44px tap areas (no visual change) | Pending owner (default applied) |
+| OQ-5 | App. C small links | Invisible 44px tap areas (no visual change) | Owner, approved 2026-10-15 |
+| OQ-8 | App. C `.s-login-brand` background rule wipes out the dot mesh the spec text asks for | The sign-in brand panel keeps the dot mesh | Owner, 2026-10-15 (plan 04-32 checkpoint, option B) |
+| OQ-9 | App. E.5 brand panel: the eyebrow and the headline run over the slab and its stripes | A bottom zone for the slab below the words (324px, 204px on tablet pages; slab 300px, 180px; numeral 160px on tablet pages); phone pages unchanged | Owner, approved 2026-10-15 after the before/after pictures |
 | R2-10 | P2 Modal: focus trap only | The page behind any open Modal is `inert` | Owner, D-41 R2-10 (carried to Phase 4) |
 
 ---
@@ -656,10 +664,11 @@ Applicable state considerations resolved: 44 covered (verification: explicit), 7
 |----------|------------|--------|---------------------|
 | empty | S1 form on first visit | ✅ covered | The Email and Password fields are empty and never pre-filled or remembered (D-09). Browser and password-manager autofill still works (`autocomplete="username"` / `current-password`). |
 | empty | S2 with no in-memory email (refresh, direct visit) | ✅ covered | The subline uses the "your email" fallback; the screen still works through the ticket cookie (D-01). |
-| empty | S3/S5/S6 with no email for the hidden username input | ✅ covered | The hidden input is omitted; the form still works. |
+| empty | S3/S5/S6 hidden username input | ✅ covered | The email always comes from the S3, S5 or S6 check, so a reload keeps it; nothing is held in a URL or storage. |
 | empty | S5/S6 opened with no `#token` | ✅ covered | Shows the invalid state (the same copy as expired). |
 | loading | Every auth submit | ✅ covered | The WEB-09 pending state with the pending labels in § Copywriting; one request per double-click. |
 | loading | S5/S6 token check | ✅ covered | `LoadingRegion` + `SkeletonText` inside the card; "Checking your link…" → "Link checked." |
+| loading | S3 sign-in check | ✅ covered | The same pattern; "Checking your sign-in…" → "Sign-in checked." |
 | loading | Admin boot (`ensureSession`) | ✅ covered | `ShellFallback` (an empty Blush page root) until the session resolves or redirects; no layout shift. |
 | loading | Sign-out-others | ✅ covered | The dialog's primary button pending "Signing out"; Esc, the scrim and "Keep Others Signed In" are ignored while pending (P2 Modal `loading`). |
 | error | Credential failure (any cause) | ✅ covered | One generic banner, verbatim App. E.5, with similar timing (D-02); see Copywriting → Error states. |
@@ -670,7 +679,7 @@ Applicable state considerations resolved: 44 covered (verification: explicit), 7
 | error | Password rule failures (client and server) | ✅ covered | The first failing rule's message under the field, focus to the first invalid field; the server message wins. |
 | error | Breach check unavailable | ✅ covered | Reset and must-change: fail open with the local list (D-14), no UI difference. Invite: fail closed with the banner copy. |
 | error | 429 / network / 5xx on any auth form | ✅ covered | The P2 shared-mapper banner, with "Reference: {traceId}" on 5xx. |
-| error | Logout request fails | ✅ covered | Local session is cleared anyway; navigate to S1 with `signed-out`. |
+| error | Logout request fails | ✅ covered | Owner ruling 2026-10-15 (D-45): the session is kept, no broadcast, no navigation; the danger toast with the owner copy; Logout retries. |
 | error | Sign-out-others fails | ✅ covered | The dialog stays open with the mapper line (`role="alert"`) above the buttons; retry allowed (P2 ConfirmDialog failure rule). |
 | error | Mail outage (D-33) | ✅ covered | Nothing on screen changes; S2 shows normally, and Resend is available after 60s. |
 | populated | S1 notice slot | ✅ covered | At most one notice (the five keys in Copywriting), shown once, cleared on submit. |

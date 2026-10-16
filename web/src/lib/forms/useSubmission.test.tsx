@@ -118,6 +118,7 @@ function validationError(status: number, errors: Readonly<Record<string, readonl
       detail: undefined,
       instance: undefined,
       traceId: '00-4bf92f3577b34da6-01',
+      code: undefined,
       errors,
     },
   });

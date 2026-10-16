@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Xml.Linq;
+using Csps.Server.Http;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -24,6 +26,17 @@ public sealed class WebConfigTests
         var requestFiltering = Load().Descendants("security").Elements("requestFiltering").ShouldHaveSingleItem();
 
         requestFiltering.Attribute("removeServerHeader").ShouldNotBeNull().Value.ShouldBe("true");
+    }
+
+    [Fact]
+    public void IisCeilingSitsAboveTheAppBodyLimit()
+    {
+        var limits = Load().Descendants("security").Elements("requestFiltering").Elements("requestLimits").ShouldHaveSingleItem();
+
+        var ceiling = limits.Attribute("maxAllowedContentLength").ShouldNotBeNull().Value;
+
+        ceiling.ShouldBe("2097152");
+        long.Parse(ceiling, CultureInfo.InvariantCulture).ShouldBeGreaterThan(RequestBodyLimitMiddleware.MaxBytes);
     }
 
     [Fact]

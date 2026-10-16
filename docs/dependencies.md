@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T12:21:46-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-14T22:55:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -61,13 +61,44 @@ The owner approved the full Phase 1 list on **2026-10-07**, before anything was 
 
 On **2026-10-14** the owner approved the .NET 10.0.13 security update and the two crypto pins (quick task 261014-gqz), together with the SqlClient 6.1.7, SNI.runtime 6.0.3 and Microsoft.OpenApi 2.12.2 moves that come with it. It is recorded under `approvals`.
 
+## Phase 4 packages (approved 2026-10-14)
+
+For staff sign-in, the owner approved these packages on **2026-10-14** (decision D-36), before anything was installed. Every one is free: MIT or Apache-2.0 means free to use in a business, and we only keep the author's notice in `THIRD-PARTY-NOTICES.md`.
+
+| Package | What it does for the shop | License |
+|---------|---------------------------|---------|
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore 10.0.13 | Stores staff accounts and roles in the database and handles password hashing and lockout after too many wrong tries. | MIT |
+| FluentValidation 12.1.1 | Checks each request (email, password, sign-in code) against clear rules before the server acts on it. | Apache-2.0 |
+| MailKit 4.18.1 | Sends the sign-in code emails over an encrypted connection. | MIT |
+| MimeKit 4.18.1 | Builds the email messages that MailKit sends. Pinned so MailKit cannot quietly pull a different version. | MIT |
+| BouncyCastle.Cryptography 2.7.0 | The encryption code MimeKit uses. Pinned for the same reason. | MIT |
+| Microsoft.Extensions.Http.Resilience 10.10.0 | Adds a time limit and a retry to the check that a new password has not appeared in a known data breach. | MIT |
+| Microsoft.Extensions.Diagnostics.Testing 10.10.0 | Tests only. Lets a test read the log and prove that no secret or code is ever written to it. Never ships. | MIT |
+| react-hook-form 7.89.0 (web) | Keeps the state of each form in the browser: what was typed and which fields have errors. | MIT |
+| zod 4.6.5 (web) | Checks every field in the browser before anything is sent, with the same rules the server checks (OR-3). | MIT |
+| @hookform/resolvers 5.9.1 (web) | Connects the zod rules to the form so errors show next to the field. | MIT |
+| msw 3.0.1 (web, tests only) | Fakes the server in tests and fails any test that tries a real network call. Never ships. | MIT |
+
+**Security exception.** Identity.EntityFrameworkCore 10.0.13 was published on 2026-10-13, so it is younger than the 14-day wait. It is a Microsoft security servicing release (D-35) that matches the other 10.0.13 pins, and the owner approved it on 2026-10-14 (D-36). Its registry record says `accepted:` and it reaches 14 days on 2026-10-27.
+
+**The four web packages were checked by the owner first.** The research tool flagged them as suspicious only because of how it reads npm's "latest" tag and download counts. At install time Claude checked each exact version (license MIT, no install script, no known security problem, 14 to 58 days old) and the owner replied "approved" on 2026-10-14. When npm installs msw it prints a notice that vitest's optional msw 2 link does not match msw 3.0.1. Vitest only uses that link for its browser mode, which CSPS does not use, so nothing is affected.
+
+## A bundled list of common passwords (approved 2026-10-14)
+
+When a new password is saved, CSPS asks a free breach-check service whether that password has leaked before. If the service cannot be reached, staff must not be locked out of changing their password, so the app falls back to a small list that ships inside it: the 10,000 most common passwords (the SecLists "10k-most-common" list).
+
+- **Free.** It is under the MIT license, so it costs nothing and may be used in a business. We keep the author's copyright line in `THIRD-PARTY-NOTICES.md`.
+- **Data, not code.** It is a plain text file with one password per line, embedded in the app and never changed.
+- **Exactly the file we checked.** `docs/dependencies.json` records the address it came from (pinned to one exact commit, 913b327, from 2026-09-08, so more than 14 days old), the license and a SHA-256 fingerprint of the file. `DependencyRegistryTests` fails the build if the file's bytes ever differ, or if another data file is embedded without a record.
+- **Registry kind `data`.** Unlike a package, a data record has no version pin to match. It names `source`, `sha256` and `path` instead.
+
 ## The web app's packages (npm)
 
 The web app in `web/` and the API type generator in `tools/openapi-gen/` use packages from npm, the JavaScript package registry. They are under the same rules as the .NET packages, and they are free too.
 
 - **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`.
 - **Exact versions only.** A range such as `^1.2.0` would let npm pick a newer version on its own, so the automated check fails on any range. An alias such as `"typescript": "npm:@typescript/typescript6@6.0.2"` is checked as the real package it installs (`@typescript/typescript6` 6.0.2).
-- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
+- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react, react-hook-form, zod, @hookform/resolvers and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
 - **Cool-down exceptions are written down.** Four npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), and source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07).
 - **nuqs is installed.** It was approved on 2026-10-07 and installed in Phase 2 at 2.10.1. A newer 2.10.2 came out on 2026-10-08, so it is not 14 days old until 2026-10-22, and switching to it needs the owner's OK.
 
@@ -91,6 +122,6 @@ The tools that build, test and check the web app pull in a few packages under li
 
 1. Record its purpose, license, maintenance status and a legitimacy check in the phase RESEARCH.md, and get the owner's OK.
 2. Pin an exact version that is at least 14 days old: in `Directory.Packages.props` (or `.config/dotnet-tools.json` for a tool) for .NET, or in `web/package.json` (or `tools/openapi-gen/package.json`) for npm. npm already saves exact versions and refuses too-new ones (`web/.npmrc`).
-3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id. For npm, the id is sorted as `{manifest}:{id}`, for example `web:vite`.
+3. Add an entry to `docs/dependencies.json`, keeping the list sorted by id. For npm, the id is sorted as `{manifest}:{id}`, for example `web:vite`. A bundled data file gets a `"kind": "data"` entry with its `source` (an https address pinned to a full commit SHA), `sha256` (lowercase) and repo-relative `path`.
 4. Run `dotnet test --project tests/Csps.ArchitectureTests`. It fails if anything is missing, mismatched, unsorted, duplicated or under a license we do not allow.
 5. For npm, run `npm --prefix web run license:check` and `npm --prefix web run notices`, and commit the updated `web/THIRD-PARTY-NOTICES.txt`. For .NET, run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/New-ThirdPartyNotices.ps1`. It checks the license of every package the new one pulls in, and regenerates `THIRD-PARTY-NOTICES.md`. Commit the updated notices. If it reports a package it does not allow, ask the owner first. Never widen `docs/allowed-licenses.json` or `docs/license-exceptions.json` to make it pass.

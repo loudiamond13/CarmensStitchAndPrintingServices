@@ -2,8 +2,11 @@
 // The Topbar's user menu (CSPS-UI-SPEC.md §6.6, where the menu is "not drawn"; UI-SPEC "SPEC-GAP Primitive Specs" →
 // UserMenu; plan 02-32; A11Y-02). The trigger is App. D.3's user-menu button, unchanged in markup and look (the avatar,
 // the name over the role, the chevron); the popover under it is composed from existing tokens (navigation.recipe.ts)
-// and its items use the nav-item recipe with 20px icons: "My Profile" (`user-round`, a link to the profile page) and
-// "Logout" (`log-out`, a button that calls onLogout; the Phase 2 shell shows the dev toast).
+// and its items use the nav-item recipe with 20px icons: "My Profile" (`user-round`, a link to the profile page),
+// "Signed-in Devices" (`shield-check`, a link to `devicesPath`), "Sign Out Other Devices" (`lock`, a button that calls
+// onSignOutOthers) and "Logout" (`log-out`, a button that calls onLogout; the Phase 2 shell shows the dev toast). The
+// two session items render only when their prop is given, so the Phase 2 showcase keeps its two-item menu (D-04, D-43, OQ-3).
+// SPEC-GAP: UserMenu session items
 // Keyboard (WAI-ARIA APG menu button pattern):
 //   - the button (`aria-haspopup="menu"`, `aria-expanded`, `aria-controls` while open): Enter, Space or a click open
 //     the menu on its first item, ArrowDown on the first, ArrowUp on the last; a second click closes it;
@@ -38,12 +41,16 @@ export interface UserMenuProps {
   role: Role;
   /** "Logout" (the Phase 2 shell shows the dev toast; Phase 4 signs out). */
   onLogout?: (() => void) | undefined;
+  /** Where "Signed-in Devices" goes; no item without it. */
+  devicesPath?: string | undefined;
+  /** "Sign Out Other Devices" opens the confirm dialog; no item without it. */
+  onSignOutOthers?: (() => void) | undefined;
 }
 
 /** Which item takes focus when the menu opens. */
 type OpenAt = 'first' | 'last';
 
-export function UserMenu({ user, role, onLogout }: UserMenuProps) {
+export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }: UserMenuProps) {
   const [openAt, setOpenAt] = useState<OpenAt | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const buttonId = useId();
@@ -94,6 +101,8 @@ export function UserMenu({ user, role, onLogout }: UserMenuProps) {
           buttonRef={buttonRef}
           onClose={close}
           onLogout={onLogout}
+          devicesPath={devicesPath}
+          onSignOutOthers={onSignOutOthers}
         />
       )}
     </>
@@ -108,6 +117,8 @@ interface MenuPopoverProps {
   /** Closes the menu; `true` puts focus back on the button. */
   onClose: (focusButton: boolean) => void;
   onLogout?: (() => void) | undefined;
+  devicesPath?: string | undefined;
+  onSignOutOthers?: (() => void) | undefined;
 }
 
 /** The menu's items, in order. */
@@ -115,7 +126,16 @@ function menuItems(menu: HTMLElement): HTMLElement[] {
   return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
 }
 
-function MenuPopover({ id, labelledBy, openAt, buttonRef, onClose, onLogout }: MenuPopoverProps) {
+function MenuPopover({
+  id,
+  labelledBy,
+  openAt,
+  buttonRef,
+  onClose,
+  onLogout,
+  devicesPath,
+  onSignOutOthers,
+}: MenuPopoverProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const requestClose = useEffectEvent(onClose);
 
@@ -181,6 +201,35 @@ function MenuPopover({ id, labelledBy, openAt, buttonRef, onClose, onLogout }: M
         <Icon name="user-round" size={20} />
         <span>My Profile</span>
       </UiLink>
+      {devicesPath !== undefined && (
+        <UiLink
+          to={devicesPath}
+          role="menuitem"
+          tabIndex={-1}
+          className={navItemClasses()}
+          onClick={() => {
+            onClose(true);
+          }}
+        >
+          <Icon name="shield-check" size={20} />
+          <span>Signed-in Devices</span>
+        </UiLink>
+      )}
+      {onSignOutOthers !== undefined && (
+        <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
+          className={clsx(navItemClasses(), navButtonClasses)}
+          onClick={() => {
+            onSignOutOthers();
+            onClose(true);
+          }}
+        >
+          <Icon name="lock" size={20} />
+          <span>Sign Out Other Devices</span>
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"

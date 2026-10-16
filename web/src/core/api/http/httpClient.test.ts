@@ -130,17 +130,26 @@ describe('createHttpClient: GET round trip', () => {
     expect(onlyCall(fake.calls).method).toBe('GET');
   });
 
-  it('resolves 204, 205 and a HEAD answer to undefined', async () => {
+  it('resolves 202, 204, 205 and a HEAD answer to undefined', async () => {
     const fake = createFakeFetch([
+      { status: 202 },
       { status: 204 },
       { status: 205 },
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ]);
     const client = createHttpClient({ fetch: fake.fetch });
 
+    await expect(client.post('/a', { email: 'a@b.ph' })).resolves.toBeUndefined();
     await expect(client.delete('/a')).resolves.toBeUndefined();
     await expect(client.put('/a', { name: 'Jersey' })).resolves.toBeUndefined();
     await expect(client.request({ method: 'HEAD', url: '/b' })).resolves.toBeUndefined();
+  });
+
+  it('still parses a 202 that carries JSON', async () => {
+    const fake = createFakeFetch([{ status: 202, body: { queued: true } }]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    await expect(client.post('/a', {})).resolves.toEqual({ queued: true });
   });
 
   it.each([

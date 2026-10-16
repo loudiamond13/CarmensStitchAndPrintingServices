@@ -2,9 +2,14 @@ using Csps.Application.Ports;
 using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.DataProtection;
+using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Health;
+using Csps.Infrastructure.Idempotency;
+using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,8 +40,9 @@ public static class DependencyInjection
 
     /// <summary>
     /// Adds persistence, the in-process HybridCache, the SiteSettings ports, the business calendar, the audit trail,
-    /// Data Protection (key ring in the database, encrypted with the <c>DataProtection</c> certificate) and the
-    /// <c>database</c> and <c>time-zone</c> health checks, reading the connection string from configuration.
+    /// Data Protection (key ring in the database, encrypted with the <c>DataProtection</c> certificate), the email
+    /// outbox with its dispatcher, and the <c>database</c> and <c>time-zone</c> health checks, reading the connection
+    /// string from configuration.
     /// The host must also register <see cref="IRequestContext"/>, which the audit trail reads.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -73,6 +79,12 @@ public static class DependencyInjection
 
         // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
         services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
+
+        services.AddCspsIdentity();
+        services.AddCspsIdempotency();
+        services.AddCspsEmail(configuration, environment);
+        services.AddCspsPasswordChecks(environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
         services.AddCspsDataProtection(configuration);
@@ -89,7 +101,11 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Adds <see cref="CspsDbContext"/> configured through <see cref="CspsDbContextOptions.Configure"/>.</summary>
+    /// <summary>
+    /// Adds an <see cref="IDbContextFactory{TContext}"/> for <see cref="CspsDbContext"/> (short-lived contexts for caches
+    /// and independent audit writes) and, with it, the scoped context that handlers and Identity use, both configured
+    /// through <see cref="CspsDbContextOptions.Configure"/>.
+    /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="connectionString">The SQL Server connection string.</param>
     /// <returns>The same service collection.</returns>
@@ -98,7 +114,11 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        services.AddDbContext<CspsDbContext>(options => CspsDbContextOptions.Configure(options, connectionString));
+        // The interceptor wakes the email dispatcher after a commit that added outbox rows.
+        services.TryAddSingleton<OutboxSignal>();
+        services.TryAddSingleton<OutboxSignalInterceptor>();
+        services.AddDbContextFactory<CspsDbContext>((provider, options) =>
+            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(provider.GetRequiredService<OutboxSignalInterceptor>()));
         return services;
     }
 }

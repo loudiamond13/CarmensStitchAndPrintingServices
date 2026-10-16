@@ -7,3 +7,6 @@ tests/fixtures/** text eol=lf
 # Binary assets: never normalized.
 *.woff2 binary
 *.png binary
+
+# The bundled common-password list is hash-pinned (docs/dependencies.json), so git must never rewrite its line endings.
+src/Csps.Infrastructure/Passwords/common-passwords-10k.txt -text

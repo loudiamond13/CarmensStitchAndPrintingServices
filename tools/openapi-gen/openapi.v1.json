@@ -1,6 +1,418 @@
 {
   "components": {
     "schemas": {
+      "AcceptInviteRequest": {
+        "description": "The accept-invite form: the token from the emailed link and the first password (D-29).",
+        "properties": {
+          "newPassword": {
+            "description": "The password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "token": {
+            "description": "The 43-character token from the link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object"
+      },
+      "ForgotPasswordRequest": {
+        "description": "The forgot-password form: the email the reset link goes to (D-16).",
+        "properties": {
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
+      "InviteLinkResponse": {
+        "description": "The answer to a usable invite link.",
+        "properties": {
+          "email": {
+            "description": "The address of the account the invite belongs to, so the page can name it.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "The invited person's given name, for the greeting and the password rule.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The invited person's family name, for the password rule.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object"
+      },
+      "InviteTokenRequest": {
+        "description": "The body of an invite-link check: the token from the emailed link. It travels in the body, never in a URL.",
+        "properties": {
+          "token": {
+            "description": "The 43-character token.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "ProblemDetails": {
+        "properties": {
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ResendCodeResponse": {
+        "description": "What a resend answers: how long to wait before asking again.",
+        "properties": {
+          "resendAfterSeconds": {
+            "description": "Whole seconds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "resendAfterSeconds"
+        ],
+        "type": "object"
+      },
+      "ResetLinkResponse": {
+        "description": "The answer to a usable reset link.",
+        "properties": {
+          "email": {
+            "description": "The address of the account the link belongs to, so the page can name it.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "The account given name, for the password rule.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The account family name, for the password rule.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object"
+      },
+      "ResetPasswordRequest": {
+        "description": "The reset form: the token from the emailed link and the new password (AUTH-09).",
+        "properties": {
+          "newPassword": {
+            "description": "The new password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "token": {
+            "description": "The 43-character token from the link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object"
+      },
+      "ResetTokenRequest": {
+        "description": "The body of a reset-link check: the token from the emailed link. It travels in the body, never in a URL.",
+        "properties": {
+          "token": {
+            "description": "The 43-character token.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "RevokeSessionResponse": {
+        "description": "The answer to a per-device sign-out.",
+        "properties": {
+          "alreadySignedOut": {
+            "description": "True when the session had already ended, so nothing was changed.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "alreadySignedOut"
+        ],
+        "type": "object"
+      },
+      "SessionListItem": {
+        "description": "One signed-in device in the caller's devices list (D-43).",
+        "properties": {
+          "current": {
+            "description": "True for the device making this request.",
+            "type": "boolean"
+          },
+          "device": {
+            "description": "The coarse browser-and-device label (D-32).",
+            "type": "string"
+          },
+          "id": {
+            "description": "The session id, used to sign that device out.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastActiveAt": {
+            "description": "The device's last refresh, or the sign-in.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "persistent": {
+            "description": "True when \"Keep me signed in\" was chosen.",
+            "type": "boolean"
+          },
+          "signedInAt": {
+            "description": "When the device signed in.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "device",
+          "signedInAt",
+          "lastActiveAt",
+          "persistent",
+          "current"
+        ],
+        "type": "object"
+      },
+      "SessionResponse": {
+        "description": "What a started or refreshed session hands to the client; the refresh token travels in a cookie, never here.",
+        "properties": {
+          "accessToken": {
+            "description": "The 15-minute bearer token. A secret.",
+            "type": "string"
+          },
+          "accessTokenExpiresAt": {
+            "description": "When the access token expires.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "persistent": {
+            "description": "True for \"Keep me signed in\".",
+            "type": "boolean"
+          },
+          "sessionExpiresAt": {
+            "description": "The fixed end of the session.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SessionUser",
+            "description": "The signed-in user."
+          }
+        },
+        "required": [
+          "accessToken",
+          "accessTokenExpiresAt",
+          "sessionExpiresAt",
+          "persistent",
+          "user"
+        ],
+        "type": "object"
+      },
+      "SessionUser": {
+        "description": "The signed-in user as the client sees it.",
+        "properties": {
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "role": {
+            "description": "The role, `Admin` or `Manager`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "role"
+        ],
+        "type": "object"
+      },
+      "SetNewPasswordContextResponse": {
+        "description": "What the must-change screen needs to apply the password rule in the browser.",
+        "properties": {
+          "email": {
+            "description": "The account email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "The account given name.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The account family name.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a new password is needed: `temporary` or `breach`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName",
+          "lastName",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "SetNewPasswordRequest": {
+        "description": "The must-change form: the new password the person chose after the emailed code (D-13).",
+        "properties": {
+          "newPassword": {
+            "description": "The new password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "newPassword"
+        ],
+        "type": "object"
+      },
+      "SignInRequest": {
+        "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
+        "properties": {
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "keepSignedIn": {
+            "description": "True for a 90-day session, false for a browser session.",
+            "type": "boolean"
+          },
+          "password": {
+            "description": "The password, exactly as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "keepSignedIn"
+        ],
+        "type": "object"
+      },
+      "SignInResponse": {
+        "description": "What a successful sign-in step answers: how long to wait before asking for a new code.",
+        "properties": {
+          "resendAfterSeconds": {
+            "description": "Whole seconds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "resendAfterSeconds"
+        ],
+        "type": "object"
+      },
       "SiteSettingsDto": {
         "description": "The site settings as the API returns them (D-29). Read-only for now; editing comes later.",
         "properties": {
@@ -53,6 +465,55 @@
           "rowVersion"
         ],
         "type": "object"
+      },
+      "VerifyCodeRequest": {
+        "description": "The code step form: the six digits from the email (AUTH-02).",
+        "properties": {
+          "code": {
+            "description": "The code, exactly as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "VerifyCodeResponse": {
+        "description": "What a correct code answers: the next step and, when signed in, the session.",
+        "properties": {
+          "next": {
+            "description": "Either `signed-in` or `set-new-password`.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a new password is needed (`temporary` or `breach`); null when signed in.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "session": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SessionResponse",
+                "description": "The started session; null when a new password is needed."
+              }
+            ]
+          }
+        },
+        "required": [
+          "next",
+          "reason",
+          "session"
+        ],
+        "type": "object"
       }
     }
   },
@@ -62,6 +523,1004 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/auth/invite/accept": {
+      "post": {
+        "operationId": "AcceptInvite",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptInviteRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sets the first password from an invite. It issues no session.",
+        "tags": [
+          "Invite"
+        ]
+      }
+    },
+    "/api/v1/auth/invite/check": {
+      "post": {
+        "operationId": "CheckInvite",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InviteTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteLinkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Tells the accept-invite page whether its link still works and which account it is for.",
+        "tags": [
+          "Invite"
+        ]
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "operationId": "ForgotPassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ForgotPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ForgotPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ForgotPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Emails a reset link when the address belongs to an active staff account. Every well-formed address gets the same answer.",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "operationId": "ResetPassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Sets a new password from a reset link. It ends every session and signs nobody in.",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/reset/check": {
+      "post": {
+        "operationId": "CheckResetLink",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResetTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetLinkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Tells the reset page whether its link still works and which account it is for.",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/set-new": {
+      "post": {
+        "operationId": "SetNewPassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetNewPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22).",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/set-new/check": {
+      "post": {
+        "operationId": "CheckSetNewPassword",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetNewPasswordContextResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Tells the must-change screen who the pending sign-in is for and why, on every arrival. It never spends the ticket.",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "Refresh",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Renews the access token with the refresh cookie and rotates the cookie.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "operationId": "SignIn",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SignInRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Checks the email and password and sends the sign-in code.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "operationId": "SignOut",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Ends this device's session and clears the refresh cookie. It succeeds with no cookie too.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out-others": {
+      "post": {
+        "operationId": "SignOutOthers",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Ends every other session of the signed-in user and keeps this one. It succeeds when there is nothing to end.",
+        "tags": [
+          "AuthSession"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/resend": {
+      "post": {
+        "operationId": "ResendCode",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResendCodeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sends a new sign-in code for the pending ticket, after the cooldown and within the hourly cap.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/verify": {
+      "post": {
+        "operationId": "VerifyCode",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VerifyCodeRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyCodeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Checks the emailed code and starts the session, or hands over to the set-new-password step.",
+        "tags": [
+          "SignIn"
+        ]
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "operationId": "ListSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the caller's own active sessions: this device first, then the rest by recent activity, at most 100.",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "delete": {
+        "operationId": "RevokeSession",
+        "parameters": [
+          {
+            "description": "The session to sign out.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeSessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Signs out one of the caller's other devices. Repeating the call is a success.",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
     "/api/v1/site-settings": {
       "get": {
         "operationId": "GetSiteSettings",
@@ -74,11 +1533,12 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "The settings, or the failure as ProblemDetails."
           }
         },
+        "summary": "Returns the site settings.",
         "tags": [
-          "SiteSettingsEndpoints"
+          "SiteSettings"
         ]
       }
     }
@@ -90,7 +1550,22 @@
   ],
   "tags": [
     {
-      "name": "SiteSettingsEndpoints"
+      "name": "AuthSession"
+    },
+    {
+      "name": "Invite"
+    },
+    {
+      "name": "Password"
+    },
+    {
+      "name": "Sessions"
+    },
+    {
+      "name": "SignIn"
+    },
+    {
+      "name": "SiteSettings"
     }
   ]
 }

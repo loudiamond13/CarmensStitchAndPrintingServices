@@ -8,13 +8,15 @@ import { isHttpError } from '@/core/api/errors';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { STATES_COPY } from './copy';
-import { bannerClasses, bannerTextClasses } from './states.recipe';
+import { bannerClasses, bannerStartClasses, bannerTextClasses } from './states.recipe';
 
 interface ErrorStateCommon {
   /** The failure. An HttpError with a traceId ends the second line with "Reference: {traceId}". */
   error?: unknown;
   /** The query's refetch, behind "Try Again". No button without it. */
   onRetry?: (() => void) | undefined;
+  /** Where the icon and text sit: centred (App. E.8, the default) or at the top (App. E.5's sign-in banner). */
+  align?: 'center' | 'start' | undefined;
 }
 
 /** A failed list load: "Couldn't load {things}." over the approved reassurance line. */
@@ -36,7 +38,7 @@ interface CustomError extends ErrorStateCommon {
 export type ErrorStateProps = ListLoadError | CustomError;
 
 export function ErrorState(props: ErrorStateProps) {
-  const { error, onRetry } = props;
+  const { error, onRetry, align = 'center' } = props;
   const title = props.things === undefined ? props.title : STATES_COPY.error.loadFailedTitle(props.things);
   const message = props.things === undefined ? (props.message ?? '') : STATES_COPY.error.loadFailedBody;
   const traceId = isHttpError(error) ? error.traceId : undefined;
@@ -44,7 +46,7 @@ export function ErrorState(props: ErrorStateProps) {
   // The 5xx mapper copy already ends with the reference; never say it twice.
   const body = reference === '' || message.includes(reference) ? message : `${message} ${reference}`.trim();
   return (
-    <div className={bannerClasses} role="alert">
+    <div className={align === 'start' ? bannerStartClasses : bannerClasses} role="alert">
       <Icon name="triangle-alert" size={20} />
       <div className={bannerTextClasses}>
         <strong>{title}</strong>

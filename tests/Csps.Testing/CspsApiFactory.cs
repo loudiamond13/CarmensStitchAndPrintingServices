@@ -1,3 +1,4 @@
+using Csps.Application.Ports;
 using Csps.Infrastructure;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Hosting;
@@ -82,11 +83,32 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(TestJwt.AudienceSetting, TestJwt.Audience);
         builder.UseSetting(TestJwt.SigningKeySetting, TestJwt.SigningKeyBase64);
 
+        // Test-only sign-in code key (TestSecrets), derived in-process.
+        builder.UseSetting(TestSecrets.CodeMacKeySetting, TestSecrets.CodeMacKeyBase64);
+
         // Test-only Data Protection certificate (TestCertificates, D-15), created in memory once per run. Rotation and
         // fail-fast tests override these two keys, or add DataProtection:PreviousCertificates, through
         // WithWebHostBuilder(b => b.UseSetting(...)), which runs after this method.
         builder.UseSetting(TestCertificates.CertificateBase64Setting, TestCertificates.Current.Base64);
         builder.UseSetting(TestCertificates.CertificatePasswordSetting, TestCertificates.Current.Password);
+
+        // Links in emails are built from this address only (IN-06). The dispatcher is off without a database; with one
+        // it sweeps every second, so a test sees its mail quickly even if the commit signal were missed.
+        builder.UseSetting("App:PublicBaseUrl", "https://localhost");
+        builder.UseSetting("Email:Dispatcher:Enabled", _withoutDatabase ? "false" : "true");
+        builder.UseSetting("Email:Dispatcher:SweepInterval", "00:00:01");
+
+        // A Debug build refuses to run as Production (D-37); in-process hosts that test Production behaviour opt out.
+        // The key is set nowhere else: not in appsettings, not in the Playwright host.
+        builder.UseSetting("Csps:Testing:AllowProductionEnvironment", "true");
+
+        // Placeholder mailbox settings so a host that a test switches to Development or Production passes the start-up
+        // check. They are not secrets and nothing connects to them: the Testing environment uses the in-memory sink (D-27).
+        builder.UseSetting("Smtp:Host", "smtp.test.invalid");
+        builder.UseSetting("Smtp:Port", "587");
+        builder.UseSetting("Smtp:Security", "StartTls");
+        builder.UseSetting("Smtp:UserName", "no-reply@test.invalid");
+        builder.UseSetting("Smtp:Password", "test-only-placeholder");
 
         // Tests never write log files: the content root is src/Csps.Server, so a file sink would write into the
         // repository (research Pitfall 8). Logs go to the in-memory sink instead.
@@ -106,6 +128,16 @@ public class CspsApiFactory : WebApplicationFactory<Program>
             // Replaces only the key store; the certificate encryptor stays the production one.
             builder.ConfigureTestServices(services => services.PostConfigure<KeyManagementOptions>(
                 options => options.XmlRepository = new InMemoryXmlRepository()));
+
+            // No database to look sessions up in: accept every sid. The real cache is proven by SessionRevocationTests.
+            builder.ConfigureTestServices(services => services.AddSingleton<ISessionCache, AcceptingSessionCache>());
+        }
+
+        // Suites never throttle themselves: every per-address auth limit is set very high. The RateLimit tests restore
+        // the real values through ConfigureSettings.
+        foreach (var policy in new[] { "SignIn", "Verify", "Resend", "Forgot", "Reset", "Refresh" })
+        {
+            builder.UseSetting($"RateLimits:Auth:{policy}:PermitLimit", "100000");
         }
 
         ConfigureSettings(builder);

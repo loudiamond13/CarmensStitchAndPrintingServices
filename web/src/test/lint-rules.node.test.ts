@@ -125,6 +125,10 @@ describe('WEB-04: the HTTP transport stays in core/api and endpoint calls in mod
     },
   );
 
+  it('bare fetch in the MSW harness test is clean', () => {
+    expect(lint(fetchCall, 'src/test/msw.test.ts')).toEqual([]);
+  });
+
   it('bare fetch inside core/api/http is clean', () => {
     expect(lint(fetchCall, 'src/core/api/http/httpClient.ts')).toEqual([]);
   });

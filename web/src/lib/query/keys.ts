@@ -8,3 +8,6 @@ export function listKey<const R extends string, const P extends object>(
 ): readonly [R, 'list', P] {
   return [resource, 'list', params] as const;
 }
+
+/** The signed-in devices list (S7): one list per signed-in person, so no params. */
+export const sessionsListKey = listKey('sessions', {});

@@ -276,6 +276,12 @@ export const architectureRules = [
     rules: { 'no-console': 'off' },
   },
   {
+    // The MSW harness test sends raw requests on purpose, to prove an unhandled one fails (plan 04-02).
+    name: 'csps/restrictions/msw-harness',
+    files: ['src/test/msw.test.ts'],
+    rules: { 'no-restricted-globals': 'off' },
+  },
+  {
     // Recorded D-33 exception (plan 02-13): the parity reference entry imports its stylesheet, which is the verbatim
     // approved App. A.2 CSS chain plus the test-only rulings layer. It is never shipped, and nothing else may import it.
     name: 'csps/restrictions/visual-reference-entry',

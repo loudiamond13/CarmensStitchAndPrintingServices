@@ -1,6 +1,6 @@
 ---
 created: "2026-10-08T20:20:00-05:00"
-updated: "2026-10-13T20:45:00-05:00"
+updated: "2026-10-15T06:08:00-05:00"
 ---
 
 # Phase 02 deferred items
@@ -41,11 +41,12 @@ Out-of-scope findings logged by plan executors (not fixed by the plan that found
   **Resolution (tooling code-review fix, 2026-10-13):** by then the dev-route public JS was **149.99 KB** (0.01 KB headroom). Two changes, no limit raised: (1) the orchestrator-approved measurement fix: the `budget` and `e2e` modes are built without the parity entry (`index.html` is their only entry and they fail on a second one), and a new `parity` mode (`npm run parity`, `web/.parity-dist`) is the only build with `parity.html`. That alone gave only 0.29 KB (149.70 KB), because the 02-34 showcase also imports nearly every component. (2) The approved alternative, in its smallest form: `src/app/public/PublicLayout.tsx` imports `SiteHeader`, `SkipLink` and `ToastProvider` from their own modules instead of the `@/ui/navigation`, `@/ui/entry` and `@/ui/feedback` barrels, which had pulled Sidebar, Topbar, UserMenu, MobileNavDrawer, the money/OTP inputs, forms, overlays and the HTTP client into the public route's chunks. Now: production public 126.18 KB (was 130.40), budget and e2e public 131.57 KB / admin 156.43 KB, parity public 131.13 KB / admin 155.88 KB, CSS 12.92 KB. The dev-route builds are back under the 135 KB barrel-split trigger. The parity build is not near its limit, so it measures the same way as the others (no special rule). Splitting every barrel stays Phase 4 work (research Flag 4). See docs/web/budgets.md.
 
 - The page behind an open Modal stays live for axe on phones (plan 02-35, accessibility follow-up for Phase 4, not failing a gate)
-  status: open
+  status: resolved (2026-10-15, plan 04-30)
   **Found by:** plan 02-35, the @keyboard journeys with a page-level axe run while the Add Payment modal or the Add User slide-over was open on the Pixel 7 and iPhone 15 profiles.
   **What:** on phones the Modal is a bottom sheet. The showcase's Delete Order demo buttons behind it are half covered, and axe's `target-size` rule (WCAG 2.5.8) reported their visible part as smaller than 24px. Nobody can reach them while the dialog is open: the focus trap keeps Tab inside, the scrim takes the taps and `aria-modal` hides them from screen readers. But the page behind is not `inert`, so axe still measures it. The phone navigation drawer already makes the frame behind it `inert` (plan 02-32); the Modal and ConfirmDialog do not. The @keyboard spec therefore runs axe over the open dialog only. The existing @showcase test (an inline ConfirmDialog in an Overlay) and every page-level axe run with no dialog open stay unscoped and clean.
   **Why deferred:** making the page behind a dialog inert changes how the approved Modal behaves for assistive technology and is a shared-component change (D-08 territory); no Phase 2 screen opens a Modal outside the dev-only showcase.
   **Next step:** when Phase 4 opens real dialogs from the admin screens, have the layout set `inert` on its frame while a Modal or ConfirmDialog is open (as AdminFrame does for the drawer), then run page-level axe with the dialog open again.
+  **Resolution (plan 04-30, R2-10, 2026-10-15):** `Modal` (so every `ConfirmDialog` and both sign-out dialogs) now calls `useInertOutside`, which marks everything outside the newest open dialog `inert`, except the toast layer, and restores it on close. An inline dialog in an Overlay region (a static mock-up) leaves the page alone. The keyboard journeys in `web/e2e/keyboard.spec.ts` run page-level axe with the dialog open again, and `web/e2e/session-menu.spec.ts` does the same for the sign-out dialog.
 
 - @showcase timing under a full five-project E2E run (plan 02-35, flake in a spec this plan did not change)
   status: resolved (2026-10-13, webui code-review fix)
