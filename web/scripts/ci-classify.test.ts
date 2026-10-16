@@ -1,9 +1,11 @@
 // @vitest-environment node
 // Pins the CI mode decision (OPS-02, D-14): drafts run the fast part, documentation-only pull requests run the fast part
 // too, every other ready pull request runs the full gate, and anything uncertain (an empty or failed diff) runs the
-// full gate. A wrong `docs` answer would skip real checks, so each rule fails toward `full`.
+// full gate. A wrong `docs` answer would skip real checks, so each rule fails toward `full`. A push to main builds the
+// deploy package only when the merged pull request's head has the identical git tree and a green `gate (full)` run
+// (Pattern 9); any missing data, mismatch or API failure runs the full gate.
 import { describe, expect, it } from 'vitest';
-import { classify, isDocsPath, main, MODES } from './ci-classify.mjs';
+import { classify, findProvenTree, isDocsPath, main, MODES } from './ci-classify.mjs';
 
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
@@ -287,5 +289,220 @@ describe('main output file', () => {
 
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('GITHUB_OUTPUT');
+  });
+});
+
+const MERGE = 'c'.repeat(40);
+const PR_HEAD = 'd'.repeat(40);
+const REPO = 'owner/repo';
+const TREE = 'e'.repeat(40);
+
+interface GhReply {
+  readonly status: number | null;
+  readonly stdout?: string;
+}
+
+/** The four GitHub answers of a healthy merge; a test replaces the piece it wants to break. */
+function healthy(overrides: Partial<Record<'pulls' | 'mergeTree' | 'headTree' | 'checks', GhReply>> = {}) {
+  const ok = (value: unknown): GhReply => ({ status: 0, stdout: JSON.stringify(value) });
+  return {
+    pulls: ok([{ merged_at: '2026-10-15T12:00:00Z', merge_commit_sha: MERGE, head: { sha: PR_HEAD } }]),
+    mergeTree: ok({ tree: { sha: TREE } }),
+    headTree: ok({ tree: { sha: TREE } }),
+    checks: ok({ check_runs: [{ name: 'gate (full)', status: 'completed', conclusion: 'success' }] }),
+    ...overrides,
+  };
+}
+
+/** A fake gh that answers by endpoint and records every argument list. */
+function fakeGh(replies: ReturnType<typeof healthy>) {
+  const calls: (readonly string[])[] = [];
+  const gh = (args: readonly string[]): GhReply => {
+    calls.push(args);
+    const endpoint = args[1] ?? '';
+    if (endpoint === `repos/${REPO}/commits/${MERGE}/pulls`) return replies.pulls;
+    if (endpoint === `repos/${REPO}/git/commits/${MERGE}`) return replies.mergeTree;
+    if (endpoint === `repos/${REPO}/git/commits/${PR_HEAD}`) return replies.headTree;
+    if (endpoint.startsWith(`repos/${REPO}/commits/${PR_HEAD}/check-runs`)) return replies.checks;
+    return { status: 1, stdout: '' };
+  };
+  return { calls, gh };
+}
+
+describe('findProvenTree', () => {
+  it('is proven when the merged PR head has the same tree and a successful gate (full) run', () => {
+    const { calls, gh } = fakeGh(healthy());
+
+    const result = findProvenTree({ sha: MERGE, repo: REPO, gh });
+
+    expect(result.proven).toBe(true);
+    expect(result.reason).not.toBe('');
+
+    expect(calls.every((args) => args[0] === 'api')).toBe(true);
+    expect(calls.map((args) => args[1])).toEqual([
+      `repos/${REPO}/commits/${MERGE}/pulls`,
+      `repos/${REPO}/git/commits/${MERGE}`,
+      `repos/${REPO}/git/commits/${PR_HEAD}`,
+      expect.stringContaining(`repos/${REPO}/commits/${PR_HEAD}/check-runs`),
+    ]);
+  });
+
+  it('ignores associated PRs that did not produce this commit', () => {
+    const replies = healthy({
+      pulls: {
+        status: 0,
+        stdout: JSON.stringify([
+          { merged_at: null, merge_commit_sha: MERGE, head: { sha: 'f'.repeat(40) } },
+          { merged_at: '2026-10-14T12:00:00Z', merge_commit_sha: 'a'.repeat(40), head: { sha: 'f'.repeat(40) } },
+          { merged_at: '2026-10-15T12:00:00Z', merge_commit_sha: MERGE, head: { sha: PR_HEAD } },
+        ]),
+      },
+    });
+
+    expect(findProvenTree({ sha: MERGE, repo: REPO, gh: fakeGh(replies).gh }).proven).toBe(true);
+  });
+
+  const json = (value: unknown): GhReply => ({ status: 0, stdout: JSON.stringify(value) });
+  const mergedPr = { merged_at: '2026-10-15T12:00:00Z', merge_commit_sha: MERGE, head: { sha: PR_HEAD } };
+  const gateRun = (conclusion: string | null, status = 'completed') => ({ name: 'gate (full)', status, conclusion });
+  const checkRuns = (...runs: object[]): GhReply => json({ check_runs: runs });
+
+  it.each<[string, Partial<ReturnType<typeof healthy>>]>([
+    ['no associated PR', { pulls: json([]) }],
+    ['a PR that was never merged', { pulls: json([{ ...mergedPr, merged_at: null }]) }],
+    ['a PR whose merge commit is another commit', { pulls: json([{ ...mergedPr, merge_commit_sha: 'a'.repeat(40) }]) }],
+    ['two merged PRs claiming the commit', { pulls: json([mergedPr, mergedPr]) }],
+    ['a PR with no head commit', { pulls: json([{ ...mergedPr, head: {} }]) }],
+    ['a PR head that is not a commit id', { pulls: json([{ ...mergedPr, head: { sha: '../x' } }]) }],
+    ['a pulls answer that is not a list', { pulls: json({ message: 'Not Found' }) }],
+    ['different trees', { headTree: json({ tree: { sha: '1'.repeat(40) } }) }],
+    ['a pushed commit without a tree', { mergeTree: json({}) }],
+    ['a head commit without a tree', { headTree: json({ tree: {} }) }],
+    ['no check runs', { checks: checkRuns() }],
+    ['only another check', { checks: checkRuns({ name: 'gate (fast)', status: 'completed', conclusion: 'success' }) }],
+    ['a failed gate run', { checks: checkRuns(gateRun('failure')) }],
+    ['a cancelled gate run', { checks: checkRuns(gateRun('cancelled')) }],
+    ['a skipped gate run', { checks: checkRuns(gateRun('skipped')) }],
+    ['a gate run still running', { checks: checkRuns(gateRun(null, 'in_progress')) }],
+    ['a queued gate run', { checks: checkRuns(gateRun(null, 'queued')) }],
+    ['a success next to a failure of the same gate', { checks: checkRuns(gateRun('success'), gateRun('failure')) }],
+    ['a check list that is missing', { checks: json({}) }],
+    ['a pulls call that fails', { pulls: { status: 1, stdout: '[]' } }],
+    ['a merge tree call that fails', { mergeTree: { status: 4, stdout: '{}' } }],
+    ['a head tree call that fails', { headTree: { status: 1, stdout: '{}' } }],
+    ['a check-runs call that fails', { checks: { status: 1, stdout: '{}' } }],
+    ['a call killed by a signal', { checks: { status: null } }],
+    ['a pulls answer that is not JSON', { pulls: { status: 0, stdout: '<html>' } }],
+    ['a tree answer that is not JSON', { mergeTree: { status: 0, stdout: 'oops' } }],
+    ['an empty check answer', { checks: { status: 0, stdout: '' } }],
+    ['a JSON null', { pulls: { status: 0, stdout: 'null' } }],
+  ])('is not proven for %s, with a one-line reason', (_name, overrides) => {
+    const result = findProvenTree({ sha: MERGE, repo: REPO, gh: fakeGh(healthy(overrides)).gh });
+
+    expect(result.proven).toBe(false);
+    expect(result.reason).not.toBe('');
+    expect(result.reason).not.toContain('\n');
+  });
+
+  it('asks for no checks when the trees already differ', () => {
+    const { calls, gh } = fakeGh(healthy({ headTree: json({ tree: { sha: '1'.repeat(40) } }) }));
+
+    findProvenTree({ sha: MERGE, repo: REPO, gh });
+
+    expect(calls.some((args) => (args[1] ?? '').includes('check-runs'))).toBe(false);
+  });
+
+  it('is not proven when gh throws', () => {
+    const gh = (): GhReply => {
+      throw new Error('spawn gh ENOENT');
+    };
+
+    const result = findProvenTree({ sha: MERGE, repo: REPO, gh });
+
+    expect(result.proven).toBe(false);
+    expect(result.reason).not.toContain('\n');
+  });
+
+  it.each([
+    ['a sha that is not a commit id', 'main', REPO],
+    ['a blank sha', '', REPO],
+    ['a repository without an owner', MERGE, 'repo'],
+    ['a repository that tries to climb', MERGE, '../x/y'],
+    ['a blank repository', MERGE, ''],
+  ])('is not proven for %s, without calling gh', (_name, sha, repo) => {
+    const { calls, gh } = fakeGh(healthy());
+
+    expect(findProvenTree({ sha, repo, gh }).proven).toBe(false);
+
+    expect(calls).toEqual([]);
+  });
+
+  it('never repeats the gh answer in its reason', () => {
+    const replies = healthy({ pulls: { status: 1, stdout: 'ghp_secret-token-value' } });
+
+    const result = findProvenTree({ sha: MERGE, repo: REPO, gh: fakeGh(replies).gh });
+
+    expect(result.reason).not.toContain('ghp_secret');
+  });
+});
+
+describe('main for a push to main', () => {
+  const pushEnv = { GITHUB_EVENT_NAME: 'push', GITHUB_SHA: MERGE, GITHUB_REPOSITORY: REPO, GITHUB_OUTPUT: '/tmp/out' };
+
+  /** main spawns gh directly, so the router answers through the same spawn seam. */
+  function routed(replies: ReturnType<typeof healthy>) {
+    const { calls, gh } = fakeGh(replies);
+    const spawn = (command: string, args: readonly string[]): GhReply => {
+      if (command !== 'gh') return { status: 127 };
+      return gh(args);
+    };
+    return { calls, spawn };
+  }
+
+  it('writes mode=package when the tree was proven on the pull request', () => {
+    const { calls, spawn } = routed(healthy());
+    const { written, logs, deps } = harness(spawn);
+
+    expect(main(pushEnv, deps)).toBe(0);
+
+    expect(calls).toHaveLength(4);
+    expect(written).toEqual([{ file: '/tmp/out', text: 'mode=package\n' }]);
+    expect(logs).toHaveLength(1);
+  });
+
+  it('writes mode=full and logs the reason when the gate run did not pass', () => {
+    const failed = {
+      status: 0,
+      stdout: JSON.stringify({ check_runs: [{ name: 'gate (full)', status: 'completed', conclusion: 'failure' }] }),
+    };
+    const { written, logs, deps } = harness(routed(healthy({ checks: failed })).spawn);
+
+    expect(main(pushEnv, deps)).toBe(0);
+
+    expect(written).toEqual([{ file: '/tmp/out', text: 'mode=full\n' }]);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toContain('mode=full');
+    expect(logs[0]).toContain('gate (full)');
+  });
+
+  it('writes mode=full when the GitHub API fails', () => {
+    const { written, deps } = harness(routed(healthy({ pulls: { status: 1, stdout: '' } })).spawn);
+
+    expect(main(pushEnv, deps)).toBe(0);
+
+    expect(written).toEqual([{ file: '/tmp/out', text: 'mode=full\n' }]);
+  });
+
+  it.each([
+    ['GITHUB_SHA', { GITHUB_SHA: undefined }],
+    ['GITHUB_REPOSITORY', { GITHUB_REPOSITORY: ' ' }],
+  ])('writes mode=full without calling gh when %s is missing', (_name, override) => {
+    const { calls, spawn } = routed(healthy());
+    const { written, deps } = harness(spawn);
+
+    expect(main({ ...pushEnv, ...override }, deps)).toBe(0);
+
+    expect(calls).toEqual([]);
+    expect(written).toEqual([{ file: '/tmp/out', text: 'mode=full\n' }]);
   });
 });

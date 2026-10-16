@@ -67,6 +67,15 @@ export function classify({ event, draft, changedFiles, treeProven }) {
 }
 
 /**
+ * Skeleton so the RED tests load.
+ * @param {{ sha: string, repo: string, gh: (args: readonly string[]) => SpawnResult }} input
+ * @returns {{ proven: boolean, reason: string }}
+ */
+export function findProvenTree({ sha, repo, gh }) {
+  return { proven: sha === repo && gh.length === 0, reason: 'not implemented' };
+}
+
+/**
  * @param {string} reason
  * @returns {Decision}
  */
