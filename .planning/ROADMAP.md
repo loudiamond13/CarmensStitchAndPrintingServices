@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:45:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T21:37:00-05:00*
 
 ## Overview
 
@@ -341,7 +341,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, staging-site setup) need research. They build on Phase 1's hosting record and stay LOW confidence until verified.
 
-**Plans:** 22 plans
+**Plans:** 23 plans
 
 Plans:
 - [ ] 03-01-PLAN.md — CI tracer: owner approves the CI actions and tools, decides the Phase 4 ordering; the draft PR gets a green, SHA-pinned, ordered `gate (fast)` (OPS-02)
@@ -366,6 +366,7 @@ Plans:
 - [ ] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
 - [ ] 03-21-PLAN.md — Cutover steps 6-7: schema script applied, first CSPS deploy on the live site with smoke and release (OPS-04)
 - [ ] 03-22-PLAN.md — Cutover step 8: first Manager and sign-in on the live site; every first-deploy fact verified; CSPS accepted live (D-06)
+- [ ] 03-23-PLAN.md — Owner approves the exact wording, then the Phase 3 entry, OPS-04 (and OPS-01), the Prime Directive 1 override and Phases 16 and 17 are amended to match 03-CONTEXT (wave 1, docs only)
 
 ### Phase 4: Identity & Authentication
 

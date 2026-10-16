@@ -6,7 +6,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: "2026-10-15T20:19:24-05:00"
-updated: "2026-10-15T22:45:00-05:00"
+updated: "2026-10-15T21:37:00-05:00"
 ---
 
 # Phase 03 — Validation Strategy
@@ -66,6 +66,8 @@ Filled in by the planner (2026-10-15); execution updates status. The research's 
 | OPS-05 | web.config in-process, banners removed, body limit, `urlCompression` off, no rewrite until proven | unit + publish | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*WebConfigTests"` | 03-08 T1 | ✅ extend | ⬜ pending |
 | OPS-05 | win-x64 publish has no logs or Development settings; locked restore with win-x64 | unit (Release publish) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*PublishOutputTests"`; `dotnet restore Csps.slnx --locked-mode` | 03-08 T2 | ❌ W0 | ⬜ pending |
 | OPS-05 | HOSTING-RECORD rows (database, probe facts, smoke facts, sign-in facts) Verified and secret-free | unit (doc lint) | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests"` | 03-19 T3, 03-20 T2, 03-21 T3, 03-22 T2 | ✅ | ⬜ pending |
+| OPS-04 | Owner-approved wording applied: Phase 3 title and goal, success criteria, OPS-04 line and the Prime Directive 1 override match D-01 to D-19; GSD still resolves Phase 3, its requirement IDs and its branch | doc check (GSD lookups + region-scoped grep) | `node ~/.claude/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 3 --pick phase_name`; `grep -E '^- \[.\] \*\*OPS-04\*\*' .planning/REQUIREMENTS.md \| grep -ci staging` (prints 0) | 03-23 T2 | n/a | ⬜ pending |
+| OPS-01 | Phases 16 and 17, MIG-04, MIG-08, CUT-02, OPS-01 and the remaining legacy-retirement text carry the approved wording; phase set still 17 | doc check (GSD lookups + region-scoped grep) | `node ~/.claude/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 16 --pick section \| grep -ci staging` (prints 0); `node ~/.claude/gsd-core/bin/gsd-tools.cjs query roadmap.milestone-scope --pick phase_count` (prints 17) | 03-23 T3 | n/a | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
