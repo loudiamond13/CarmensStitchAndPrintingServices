@@ -15,6 +15,9 @@ import {
   GATE_CHECKS,
   GateInputError,
   isPlanningOnlySkipHead,
+  LOCAL_GATE_COMMANDS,
+  LOCAL_GATE_HEADING,
+  LOCAL_GATE_WARNING,
   main,
   SKIP_TOKENS,
 } from './merge-gate.mjs';
@@ -761,5 +764,240 @@ describe('main', () => {
 
     expect(calls).toEqual([]);
     expect(errors.join('\n')).toContain('Usage: node web/scripts/merge-gate.mjs <pull-request-number>');
+  });
+});
+
+// ---- local full gate (D-16) ----
+
+const LOCAL_LINES = [
+  '- `dotnet build Csps.slnx` : exit 0, Build succeeded',
+  '- `dotnet test --solution Csps.slnx` : exit 0, 1200 passed',
+  '- `tools/scripts/Invoke-CoverageGate.ps1` : exit 0',
+  '- `npm --prefix web run verify` : exit 0',
+  '- `npm --prefix web run e2e` : exit 0, 80 passed',
+];
+
+/** A body with a ticked Definition of Done and the given lines under the Local full gate heading. */
+const bodyWithLocalGate = (lines: readonly string[] = LOCAL_LINES) =>
+  ['## Definition of Done', '- [x] done', '', '## Local full gate', '', 'Output pasted below.', '', ...lines, ''].join(
+    '\n',
+  );
+
+const localInput = (overrides: Partial<GateInput> = {}): GateInput =>
+  input({ checks: [], pr: pr({ body: bodyWithLocalGate() }), ...overrides });
+
+describe('local full gate constants', () => {
+  it('lists the five D-16 commands and the heading, and cannot be changed', () => {
+    expect([...LOCAL_GATE_COMMANDS]).toEqual([
+      'dotnet build Csps.slnx',
+      'dotnet test --solution Csps.slnx',
+      'Invoke-CoverageGate.ps1',
+      'npm --prefix web run verify',
+      'npm --prefix web run e2e',
+    ]);
+    expect(LOCAL_GATE_HEADING).toBe('## Local full gate');
+    expect(Object.isFrozen(LOCAL_GATE_COMMANDS)).toBe(true);
+  });
+
+  it('has a warning that says CI did not check the pull request and has no long dash', () => {
+    expect(LOCAL_GATE_WARNING).toBe(
+      'WARNING: merging on the local full gate (D-16) because the free CI minutes are used up. CI did not check this PR.',
+    );
+  });
+});
+
+describe('decide: local full gate mode (D-16)', () => {
+  it('waives the green-gate rule when every command line says exit 0, even with zero checks', () => {
+    expect(decide(localInput({ localGate: true }))).toEqual({ allowed: true, reasons: [] });
+  });
+
+  it('does not waive the green-gate rule when the mode is off', () => {
+    expect(decide(localInput()).reasons).toEqual(['No checks have run on the newest commit (aaaaaaa).']);
+  });
+
+  it('allows the mode with only gate (fast) or unrelated passing checks', () => {
+    expect(decide(localInput({ localGate: true, checks: [check('gate (fast)'), check('classify')] })).allowed).toBe(
+      true,
+    );
+  });
+
+  it('still refuses a check that failed, is running or was cancelled', () => {
+    for (const [bucket, reason] of [
+      ['fail', 'The check "gate (full)" failed.'],
+      ['pending', 'The check "gate (full)" is still running.'],
+      ['cancel', 'The check "gate (full)" was cancelled.'],
+    ] as const) {
+      const verdict = decide(localInput({ localGate: true, checks: [check('gate (full)', bucket)] }));
+
+      expect(verdict.reasons).toEqual([reason]);
+    }
+  });
+
+  it('still applies every other rule', () => {
+    const verdict = decide(
+      localInput({
+        localGate: true,
+        behindBy: 4,
+        pr: pr({
+          isDraft: true,
+          body: `## Definition of Done\n- [ ] open\n\n## Local full gate\n${LOCAL_LINES.join('\n')}`,
+        }),
+      }),
+    );
+
+    expect(verdict.reasons).toEqual([
+      'The pull request is a draft. Mark it ready for review first.',
+      'The branch is 4 commits behind main. Update it first.',
+      'Definition of Done item not ticked: open',
+    ]);
+  });
+
+  it('does not use the ship note rule, so a skip-token head needs no parent checks', () => {
+    expect(decide(localInput({ localGate: true, headCommit: shipNote(), parentChecks: undefined })).allowed).toBe(true);
+    expect(decide(localInput({ localGate: true, headCommit: shipNote({ files: ['web/src/App.tsx'] }) })).allowed).toBe(
+      true,
+    );
+  });
+
+  it('refuses a body with no Local full gate section', () => {
+    const body = '## Definition of Done\n- [x] done';
+
+    expect(decide(localInput({ localGate: true, pr: pr({ body }) })).reasons).toEqual([
+      'The pull request body has no "## Local full gate" section.',
+    ]);
+  });
+
+  it('refuses a placeholder section that has not been filled in', () => {
+    const lines = LOCAL_LINES.map((line) => line.replace(/ : exit 0.*/, ' : exit code and output'));
+    const reasons = decide(localInput({ localGate: true, pr: pr({ body: bodyWithLocalGate(lines) }) })).reasons;
+
+    expect(reasons).toHaveLength(5);
+    expect(reasons[0]).toBe('The "## Local full gate" line for "dotnet build Csps.slnx" does not say exit 0.');
+  });
+
+  it.each(LOCAL_GATE_COMMANDS)('refuses a section with no line for %s and names the command', (command) => {
+    const lines = LOCAL_LINES.filter((line) => !line.includes(command));
+    const verdict = decide(localInput({ localGate: true, pr: pr({ body: bodyWithLocalGate(lines) }) }));
+
+    expect(verdict.reasons).toEqual([`The "## Local full gate" section has no line for "${command}".`]);
+  });
+
+  it.each(LOCAL_GATE_COMMANDS)('refuses a %s line that does not say exit 0, and names the command', (command) => {
+    const lines = LOCAL_LINES.map((line) => (line.includes(command) ? `- \`${command}\` : it passed` : line));
+    const verdict = decide(localInput({ localGate: true, pr: pr({ body: bodyWithLocalGate(lines) }) }));
+
+    expect(verdict.reasons).toEqual([`The "## Local full gate" line for "${command}" does not say exit 0.`]);
+  });
+
+  it.each(['exit 1', 'exit 0 then exit 2', 'exit 10', 'exit 01'])(
+    'refuses a line that says "%s" instead of a clean exit 0',
+    (text) => {
+      const lines = LOCAL_LINES.map((line) =>
+        line.includes('web run verify') ? `- \`npm --prefix web run verify\` : ${text}` : line,
+      );
+
+      expect(decide(localInput({ localGate: true, pr: pr({ body: bodyWithLocalGate(lines) }) })).reasons).toEqual([
+        'The "## Local full gate" line for "npm --prefix web run verify" does not say exit 0.',
+      ]);
+    },
+  );
+
+  it('accepts the command on a line other than the first when one line says exit 0', () => {
+    const lines = ['PS> npm --prefix web run verify', ...LOCAL_LINES];
+
+    expect(decide(localInput({ localGate: true, pr: pr({ body: bodyWithLocalGate(lines) }) })).allowed).toBe(true);
+  });
+
+  it('ignores a command line that sits in another section or inside a code fence', () => {
+    const lines = LOCAL_LINES.slice(0, 4);
+    const body = [
+      '## Definition of Done',
+      '- [x] done',
+      '## Local full gate',
+      ...lines,
+      '```',
+      LOCAL_LINES[4] ?? '',
+      '```',
+      '## Notes',
+      LOCAL_LINES[4] ?? '',
+    ].join('\n');
+
+    expect(decide(localInput({ localGate: true, pr: pr({ body }) })).reasons).toEqual([
+      'The "## Local full gate" section has no line for "npm --prefix web run e2e".',
+    ]);
+  });
+
+  it('reads Windows line endings', () => {
+    const body = bodyWithLocalGate().replaceAll('\n', '\r\n');
+
+    expect(decide(localInput({ localGate: true, pr: pr({ body }) })).allowed).toBe(true);
+  });
+});
+
+describe('main with --local-gate', () => {
+  const localRoutes = (): Route[] => [
+    [has('pr view'), { status: 0, stdout: prJson({ body: bodyWithLocalGate() }) }],
+    [has('pr checks'), { status: 1, stdout: '', stderr: "no checks reported on the 'x' branch" }],
+    ...happyRoutes(),
+  ];
+
+  it('allows the merge on the local gate, prints head=<sha>, and writes the warning once to stderr', () => {
+    const { logs, errors, deps } = harness(localRoutes());
+
+    expect(main(['7', '--local-gate'], deps)).toBe(0);
+
+    expect(logs).toContain(`head=${HEAD}`);
+    expect(errors).toEqual([LOCAL_GATE_WARNING]);
+  });
+
+  it('takes the flag before the number too', () => {
+    const { logs, deps } = harness(localRoutes());
+
+    expect(main(['--local-gate', '7'], deps)).toBe(0);
+
+    expect(logs).toContain(`head=${HEAD}`);
+  });
+
+  it('writes the warning even when the gate refuses, and still refuses a failed check', () => {
+    const { logs, errors, deps } = harness([
+      [has('pr checks'), { status: 1, stdout: JSON.stringify([{ name: 'gate (full)', bucket: 'fail' }]) }],
+      ...localRoutes(),
+    ]);
+
+    expect(main(['7', '--local-gate'], deps)).toBe(1);
+
+    expect(logs.join('\n')).not.toContain('head=');
+    expect(errors.filter((line) => line === LOCAL_GATE_WARNING)).toHaveLength(1);
+    expect(errors.join('\n')).toContain('The check "gate (full)" failed.');
+  });
+
+  it('refuses a body without the pasted local gate', () => {
+    const { logs, errors, deps } = harness([
+      [has('pr checks'), { status: 1, stdout: '', stderr: 'no checks reported' }],
+      ...happyRoutes(),
+    ]);
+
+    expect(main(['7', '--local-gate'], deps)).toBe(1);
+
+    expect(logs.join('\n')).not.toContain('head=');
+    expect(errors.join('\n')).toContain('The pull request body has no "## Local full gate" section.');
+  });
+
+  it('does not write the warning without the flag', () => {
+    const { errors, deps } = harness();
+
+    expect(main(['7'], deps)).toBe(0);
+
+    expect(errors).toEqual([]);
+  });
+
+  it('exits 2 for a repeated flag, without calling gh or writing the warning', () => {
+    const { calls, errors, deps } = harness(localRoutes());
+
+    expect(main(['7', '--local-gate', '--local-gate'], deps)).toBe(2);
+
+    expect(calls).toEqual([]);
+    expect(errors.join('\n')).toContain('Usage: node web/scripts/merge-gate.mjs <pull-request-number> [--local-gate]');
+    expect(errors).not.toContain(LOCAL_GATE_WARNING);
   });
 });
