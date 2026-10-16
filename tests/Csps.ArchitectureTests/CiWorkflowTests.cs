@@ -54,6 +54,12 @@ public sealed partial class CiWorkflowTests
         "6 web licenses",
         "6 web notices",
         "6 nuget licenses + notices",
+        "7 package web build",
+        "7 package publish",
+        "7 package migrations script",
+        "7 package check",
+        "7 package secret scan",
+        "7 package upload",
     ];
 
     // Each detector is paired with a sample it must catch, so a broken pattern cannot pass silently.
@@ -403,7 +409,7 @@ public sealed partial class CiWorkflowTests
             .Where(match => match.Success)
             .Select(match => int.Parse(match.Groups["stage"].Value, System.Globalization.CultureInfo.InvariantCulture))
             .ToList();
-        stages.Distinct().Order().ToList().ShouldBe([1, 2, 3, 4, 5, 6]);
+        stages.Distinct().Order().ToList().ShouldBe([1, 2, 3, 4, 5, 6, 7]);
         stages.ShouldBe([.. stages.Order()], "Stage digits in step names must never decrease.");
     }
 
@@ -507,6 +513,79 @@ public sealed partial class CiWorkflowTests
     }
 
     [Fact]
+    public void PackageOnlyOnPushToMain()
+    {
+        var package = PackageSteps();
+        package.Count.ShouldBe(6, "Stage 7 is the six package steps (D-11).");
+
+        var offenders = package
+            .Where(step => !step.Any(line => line.Trim().StartsWith("if:", StringComparison.Ordinal)
+                && line.Contains("github.event_name == 'push'", StringComparison.Ordinal)
+                && line.Contains("needs.classify.outputs.mode == 'full'", StringComparison.Ordinal)
+                && line.Contains("needs.classify.outputs.mode == 'package'", StringComparison.Ordinal)))
+            .Select(WorkflowText.StepName)
+            .ToList();
+
+        offenders.ShouldBeEmpty("The package is built only on a push to main whose mode is full or package (D-11).");
+    }
+
+    [Fact]
+    public void PackageStepsInOrder()
+    {
+        var names = WorkflowText.StepNames(GateJob().Lines).ToList();
+        string[] order =
+        [
+            "6 nuget licenses + notices",
+            "7 package web build",
+            "7 package publish",
+            "7 package migrations script",
+            "7 package check",
+            "7 package secret scan",
+            "7 package upload",
+        ];
+        var positions = order.Select(name => names.IndexOf(name)).ToList();
+        positions.ShouldAllBe(position => position >= 0, "A package step is missing from the gate job.");
+        positions.ShouldBe([.. positions.Order()], "The package steps must follow the D-11 order.");
+
+        StepText("7 package web build").ShouldContain("npm --prefix web run build");
+        StepText("7 package publish").ShouldContain("dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false");
+        StepText("7 package publish").ShouldContain("-o artifacts/package/site");
+        StepText("7 package migrations script").ShouldContain("dotnet ef migrations script --idempotent");
+        StepText("7 package migrations script").ShouldContain("--output artifacts/package/csps-migrations.sql");
+        StepText("7 package check").ShouldContain("node web/scripts/package-check.mjs artifacts/package/site");
+        StepText("7 package secret scan").ShouldContain("gitleaks dir artifacts/package");
+        StepText("7 package secret scan").ShouldContain("--redact");
+
+        var upload = StepLines("7 package upload");
+        upload.ShouldContain(line => line.StartsWith("uses: actions/upload-artifact@", StringComparison.Ordinal));
+        upload.ShouldContain("name: csps-package-${{ github.sha }}", "deploy.mjs findPackage downloads csps-package-<sha>.");
+        upload.ShouldContain("path: artifacts/package", "The artifact holds site/ and csps-migrations.sql, the layout findPackage expects.");
+        upload.ShouldContain("retention-days: 14");
+        upload.ShouldContain("if-no-files-found: error");
+    }
+
+    [Fact]
+    public void PackageGitleaksMatchesHygiene()
+    {
+        const string HygienePath = ".github/workflows/hygiene.yml";
+        var hygiene = string.Join('\n', WorkflowText.Lines(HygienePath));
+        var ci = StepText("7 package secret scan");
+
+        var hygieneUrl = GitleaksUrl().Match(hygiene);
+        var hygieneSum = GitleaksSha256().Match(hygiene);
+        hygieneUrl.Success.ShouldBeTrue("hygiene.yml downloads the pinned gitleaks tarball.");
+        hygieneSum.Success.ShouldBeTrue("hygiene.yml checks the tarball with a SHA-256.");
+
+        GitleaksUrl().Match(ci).Value.ShouldBe(hygieneUrl.Value, "The package scan uses the same tarball URL as the Hygiene scan (T-03-SC).");
+        GitleaksSha256().Match(ci).Value.ShouldBe(hygieneSum.Value, "The package scan uses the same SHA-256 as the Hygiene scan (T-03-SC).");
+
+        var check = ci.IndexOf("sha256sum -c", StringComparison.Ordinal);
+        check.ShouldBeGreaterThanOrEqualTo(0, "The download is checked with sha256sum -c.");
+        check.ShouldBeLessThan(ci.IndexOf("tar -xzf", StringComparison.Ordinal), "The tarball is checked before it is unpacked.");
+        check.ShouldBeLessThan(ci.IndexOf("gitleaks dir", StringComparison.Ordinal), "The binary is checked before it runs.");
+    }
+
+    [Fact]
     public void NoWorkflowCarriesAProductionSecret()
     {
         // deploy.yml is the one workflow that holds the deploy credentials; DeployWorkflowTests pins how it uses them.
@@ -573,6 +652,11 @@ public sealed partial class CiWorkflowTests
         WorkflowText.Steps(GateJob().Lines)
             .Single(step => WorkflowText.StepName(step) == name)
             .Select(line => line.Trim())
+            .ToList();
+
+    private static List<IReadOnlyList<string>> PackageSteps() =>
+        WorkflowText.Steps(GateJob().Lines)
+            .Where(step => WorkflowText.StepName(step) is { } name && name.StartsWith("7 ", StringComparison.Ordinal))
             .ToList();
 
     private static string StepText(string name) => string.Join('\n', StepLines(name));
@@ -647,6 +731,12 @@ public sealed partial class CiWorkflowTests
 
     [GeneratedRegex(@"\$\{\{\s*secrets\.(?!GITHUB_TOKEN\b)|\b(?:MSDEPLOY|WEBDEPLOY|PRODUCTION)_\w*(?:SECRET|PASSWORD|TOKEN)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ProductionSecret();
+
+    [GeneratedRegex(@"https://github\.com/gitleaks/gitleaks/releases/download/v[0-9.]+/gitleaks_[0-9.]+_linux_x64\.tar\.gz", RegexOptions.CultureInvariant)]
+    private static partial Regex GitleaksUrl();
+
+    [GeneratedRegex(@"[0-9a-f]{64}  gitleaks_[0-9.]+_linux_x64\.tar\.gz", RegexOptions.CultureInvariant)]
+    private static partial Regex GitleaksSha256();
 
     [GeneratedRegex(@"^(?<stage>[1-7]) ", RegexOptions.CultureInvariant)]
     private static partial Regex StageDigit();
