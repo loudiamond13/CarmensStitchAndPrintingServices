@@ -21,6 +21,11 @@ public sealed partial class CiWorkflowTests
         ["actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"] = "v6.1.0",
         ["actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"] = "v7.0.1",
         ["zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482"] = "v0.6.4",
+
+        // Owner-approved 2026-10-16 (quick task 261016-pub): CodeQL (init and analyze only) and dependency review.
+        ["github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"] = "v4.38.2",
+        ["github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"] = "v4.38.2",
+        ["actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294"] = "v5.0.0",
     };
 
     private static readonly string[] PinnedRunners = ["ubuntu-24.04", "windows-2025"];
@@ -106,6 +111,18 @@ public sealed partial class CiWorkflowTests
         IsApprovedPin("actions/checkout@3D3C42E5AAC5BA805825DA76410C181273BA90B1 # v7.0.1").ShouldBeFalse();
         IsApprovedPin("evil/action@0123456789abcdef0123456789abcdef01234567 # v1.0.0").ShouldBeFalse();
         IsApprovedPin("docker://alpine:3.20").ShouldBeFalse();
+
+        IsApprovedPin("github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeTrue();
+        IsApprovedPin("github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeTrue();
+        IsApprovedPin("actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0").ShouldBeTrue();
+
+        IsApprovedPin("github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.1").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/init@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/init@v4").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/autobuild@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeFalse();
+        IsApprovedPin("actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.1").ShouldBeFalse();
+        IsApprovedPin("actions/dependency-review-action@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v5.0.0").ShouldBeFalse();
     }
 
     [Fact]
@@ -688,7 +705,7 @@ public sealed partial class CiWorkflowTests
     [GeneratedRegex(@"^\./\.github/workflows/[A-Za-z0-9._-]+\.yml(?: # zizmor: ignore\[self-repository\] \S.*)?$", RegexOptions.CultureInvariant)]
     private static partial Regex LocalWorkflow();
 
-    [GeneratedRegex(@"^(?<pin>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}) # (?<version>v\d+\.\d+\.\d+)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?<pin>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_-]+)?@[0-9a-f]{40}) # (?<version>v\d+\.\d+\.\d+)$", RegexOptions.CultureInvariant)]
     private static partial Regex ShaPin();
 
     [GeneratedRegex(@"\b(?:read-all|write-all)\b", RegexOptions.CultureInvariant)]
