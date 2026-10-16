@@ -19,25 +19,39 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # D-14: a draft PR runs the fast part, everything else runs the full part.
+  # D-14: the tested script picks fast (draft), docs, package (proven tree on main) or full; event data arrives through env only.
   classify:
     name: classify
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions: {}
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
     steps:
+      # D-14: full history, because the script diffs base...head and looks up the pull request's tree.
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
       - name: mode
         id: mode
         env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
-        run: |
-          if [ "$PR_DRAFT" = "true" ]; then
-            echo "mode=fast" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=full" >> "$GITHUB_OUTPUT"
-          fi
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node web/scripts/ci-classify.mjs
 
   # OPS-02: restore, build, format, unit, integration and architecture tests, in that order.
   gate:
@@ -62,6 +76,16 @@ jobs:
         with:
           global-json-file: global.json
 
+      # OPS-02: one Node for every web and tooling step; npm's download cache is keyed on both lock files.
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            tools/openapi-gen/package-lock.json
+
       - name: cache nuget packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -74,6 +98,18 @@ jobs:
         run: |
           dotnet restore Csps.slnx --locked-mode
           dotnet tool restore
+
+      # OPS-02: exact installs from the lock files; a lock file that disagrees with package.json fails here.
+      - name: 1 npm ci
+        run: |
+          npm ci --prefix web
+          npm ci --prefix tools/openapi-gen
+
+      # OPS-03: npm audit at the lowest level, before any build or test. NuGetAudit already ran inside the locked restore.
+      - name: 1 audits
+        run: |
+          npm --prefix web audit --audit-level=low
+          npm --prefix tools/openapi-gen audit --audit-level=low
 
       - name: 2 build
         run: dotnet build Csps.slnx --no-restore -tl:off
@@ -96,3 +132,22 @@ jobs:
 
       - name: 3 architecture tests
         run: dotnet test --project tests/Csps.ArchitectureTests --no-build
+
+      # OPS-02 stage 4, in the order of web/scripts/verify.mjs: typecheck, lint, format check, tests with coverage.
+      - name: 4 web typecheck
+        run: npm --prefix web run typecheck
+
+      - name: 4 web lint
+        run: npm --prefix web run lint
+
+      - name: 4 web prettier
+        run: npm --prefix web run format:check
+
+      - name: 4 web vitest + coverage
+        run: npm --prefix web run test:coverage
+
+      # OPS-02: the committed API types must match the OpenAPI snapshot, and the checker's own tests must pass.
+      - name: 4 openapi types check
+        run: |
+          npm --prefix tools/openapi-gen run check
+          npm --prefix tools/openapi-gen test
