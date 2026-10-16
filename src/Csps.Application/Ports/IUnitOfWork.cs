@@ -13,7 +13,8 @@ public interface IUnitOfWork
 
     /// <summary>
     /// Runs <paramref name="work"/> in one transaction: commits when it returns, rolls everything back (audit entries
-    /// included) when it throws. Joins a transaction already open on the request's context instead of starting a second.
+    /// included) when it throws. Joins a transaction already open on the request's context instead of starting a second,
+    /// inside a savepoint, so a throwing <paramref name="work"/> leaves nothing behind in either case.
     /// </summary>
     /// <typeparam name="T">The result type of the work.</typeparam>
     /// <param name="work">The work to run; it calls <see cref="SaveChangesAsync"/> itself.</param>
