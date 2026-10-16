@@ -1,0 +1,21 @@
+# D-15: all seven Playwright projects plus the audits on main, every Sunday 18:00 UTC (Monday 02:00 Manila). GitHub runs schedules only from main, so this starts after the pipeline merge.
+name: Weekly
+
+on:
+  schedule:
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+
+# D-15: the token starts with no rights; the one job asks for what ci.yml's jobs need.
+permissions: {}
+
+jobs:
+  all-engines:
+    name: weekly all engines
+    uses: ./.github/workflows/ci.yml
+    with:
+      all-engines: true
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read

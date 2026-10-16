@@ -9,6 +9,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # D-15: weekly.yml calls this workflow with every Playwright engine.
+  workflow_call:
+    inputs:
+      all-engines:
+        description: Run every Playwright project instead of Chromium and the phone viewport
+        type: boolean
+        default: false
 
 # OPS-02: the token starts with no rights; each job asks only for what it needs.
 permissions: {}
