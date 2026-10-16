@@ -15,7 +15,7 @@ progress:
   completed_plans: 107
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-15T23:28:00-05:00"
+updated: "2026-10-16T10:34:00-05:00"
 ---
 
 # Project State
@@ -463,6 +463,7 @@ None yet.
 | 261015-m51 | Phase 4 review follow-ups: CR-01 keep signed in, WR-12 back to /64, record owner rulings | 2026-10-15 | 0fc3387 | [261015-m51-phase-4-review-follow-ups-cr-01-keep-sig](./quick/261015-m51-phase-4-review-follow-ups-cr-01-keep-sig/) |
 | 261015-vmf | Address Copilot review on PR 4: savepoint per unit-of-work attempt, names for every password form, must-change check endpoint, cache owner outside React, IIS 2 MiB backstop | 2026-10-15 | 9ed29db | [261015-vmf-address-copilot-review-on-pr-4-phase-4](./quick/261015-vmf-address-copilot-review-on-pr-4-phase-4/) |
 | 261016-pub | Public repository: MIT license, CodeQL (C# and JS/TS) and dependency review workflows pinned by commit, owner approvals recorded | 2026-10-16 | a53a79a | [261016-pub-public-repo-license-codeql](./quick/261016-pub-public-repo-license-codeql/) |
+| 261016-lcp | Move TanStack Query out of the public entry (lazy QueryRoot, new budget rule); public JS 128.79 to 119.56 KB gzip, but LCP stays 2187 ms (fonts are the main cost), unmet-truth stays open | 2026-10-16 | 5d1da43 | [261016-lcp-split-public-entry](./quick/261016-lcp-split-public-entry/) |
 
 ## Deferred Items
 
