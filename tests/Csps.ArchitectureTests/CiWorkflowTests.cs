@@ -9,6 +9,7 @@ namespace Csps.ArchitectureTests;
 public sealed partial class CiWorkflowTests
 {
     private const string CiPath = ".github/workflows/ci.yml";
+    private const string WeeklyPath = ".github/workflows/weekly.yml";
 
     // Owner-approved actions (plan 03-01 Task 1, 2026-10-15): "owner/repo@commit" to its version comment.
     private static readonly Dictionary<string, string> ApprovedActions = new(StringComparer.Ordinal)
@@ -514,6 +515,47 @@ public sealed partial class CiWorkflowTests
             .ToList();
 
         offenders.ShouldBeEmpty("CI uses only its own loopback container and holds no production secret or deploy credential (T-03-43).");
+    }
+
+    [Fact]
+    public void WeeklyRunsAllEngines()
+    {
+        var lines = WorkflowText.Lines(WeeklyPath);
+        lines.ShouldNotBeEmpty("weekly.yml is the D-15 all-engine run.");
+
+        var triggers = WorkflowText.Section(lines, "on").Select(line => line.Trim()).ToList();
+        triggers.ShouldContain("- cron: \"0 18 * * 0\"");
+        triggers.ShouldContain("workflow_dispatch:");
+        triggers.ShouldNotContain(line => line.StartsWith("pull_request", StringComparison.Ordinal) || line.StartsWith("push", StringComparison.Ordinal));
+
+        var jobs = WorkflowText.Jobs(lines);
+        jobs.Count.ShouldBe(1);
+
+        var job = jobs[0].Lines.Select(line => line.Trim()).ToList();
+        job.ShouldContain("uses: ./.github/workflows/ci.yml");
+        WorkflowText.Section(jobs[0].Lines, "with").Select(line => line.Trim()).ShouldBe(["all-engines: true"], customMessage: "The weekly run passes all-engines and nothing else.");
+        WorkflowText.Section(jobs[0].Lines, "permissions").Select(line => line.Trim()).Order(StringComparer.Ordinal).ToList()
+            .ShouldBe(["checks: read", "contents: read", "pull-requests: read"], customMessage: "The caller grants what ci.yml's jobs ask for, and no more.");
+    }
+
+    [Fact]
+    public void CiAcceptsWorkflowCall()
+    {
+        var lines = WorkflowText.Lines(CiPath);
+        var triggers = WorkflowText.Section(lines, "on");
+        var call = WorkflowText.Section(triggers, "workflow_call").Select(line => line.Trim()).ToList();
+
+        call.ShouldContain("all-engines:");
+        call.ShouldContain("type: boolean");
+        call.ShouldContain("default: false");
+
+        var offenders = lines
+            .Where(line => line.Contains("inputs.all-engines", StringComparison.Ordinal))
+            .Where(line => !line.Trim().StartsWith("if:", StringComparison.Ordinal))
+            .Select(line => line.Trim())
+            .ToList();
+        offenders.ShouldBeEmpty("inputs.all-engines is read only in if: conditions, never in a script (CWE-77).");
+        lines.ShouldContain(line => line.Contains("inputs.all-engines", StringComparison.Ordinal));
     }
 
     private static WorkflowJob JobById(string id)
