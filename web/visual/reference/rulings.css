@@ -30,7 +30,7 @@
 /* PERF-05 metric-matched fallback for Archivo Variable (body text), identical to web/src/ui/base.css. */
 @font-face {
   font-family: "Archivo Fallback";
-  src: local("Arial");
+  src: local("Arial"), local("Liberation Sans"), local("Arimo");
   size-adjust: 101.85%;
   ascent-override: 86.21%;
   descent-override: 20.62%;
@@ -41,7 +41,7 @@
    U+20B1, so a peso in display text falls through to Archivo Variable (research Pitfall 17). */
 @font-face {
   font-family: "Barlow Condensed Fallback";
-  src: local("Arial Narrow"), local("Arial");
+  src: local("Arial Narrow"), local("Arial"), local("Liberation Sans"), local("Arimo");
   unicode-range: U+0000-20B0, U+20B2-10FFFF;
   size-adjust: 68.92%;
   ascent-override: 145.1%;
