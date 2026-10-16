@@ -2,7 +2,10 @@ using System.Xml.Linq;
 
 namespace Csps.Server.IntegrationTests.Http;
 
-/// <summary>SEC-01: the IIS web.config hosts in-process and hides the Server and X-Powered-By banners.</summary>
+/// <summary>
+/// SEC-01, OPS-05: the IIS web.config hosts in-process, hides the Server and X-Powered-By banners, never compresses
+/// (the app does) and holds no rewrite rule until the host is proven to have the URL Rewrite module.
+/// </summary>
 public sealed class WebConfigTests
 {
     private const string RelativePath = "src/Csps.Server/web.config";
@@ -41,6 +44,21 @@ public sealed class WebConfigTests
             .Select(element => element.Attribute("name")?.Value);
 
         removed.ShouldContain("X-Powered-By");
+    }
+
+    [Fact]
+    public void TurnsIisCompressionOff()
+    {
+        var compression = Load().Descendants("system.webServer").Elements("urlCompression").ShouldHaveSingleItem();
+
+        compression.Attribute("doStaticCompression").ShouldNotBeNull().Value.ShouldBe("false");
+        compression.Attribute("doDynamicCompression").ShouldNotBeNull().Value.ShouldBe("false");
+    }
+
+    [Fact]
+    public void HasNoRewriteSectionYet()
+    {
+        Load().Descendants("rewrite").ShouldBeEmpty();
     }
 
     private static XDocument Load()
