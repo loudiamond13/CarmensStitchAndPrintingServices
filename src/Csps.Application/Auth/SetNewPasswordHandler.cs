@@ -58,23 +58,15 @@ public sealed class SetNewPasswordHandler(
 
     private async Task<Result<IssuedSession>> ApplyAsync(string? ticket, SetNewPasswordRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(ticket))
-        {
-            return Result.Failure<IssuedSession>(AuthErrors.TicketExpired);
-        }
-
         var now = time.GetUtcNow();
-        var challenge = await challenges.FindByTicketHashAsync(TokenHash.Compute(ticket), cancellationToken).ConfigureAwait(false);
-        if (challenge is null || !challenge.CanSetNewPassword(now))
+        var pending = await PendingPasswordChangeLookup.FindAsync(ticket, now, challenges, accounts, cancellationToken).ConfigureAwait(false);
+        if (pending is null)
         {
             return Result.Failure<IssuedSession>(AuthErrors.TicketExpired);
         }
 
-        var user = await accounts.FindByIdAsync(challenge.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null || !user.IsActive || (user.LockoutEnd is { } lockedUntil && lockedUntil > now))
-        {
-            return Result.Failure<IssuedSession>(AuthErrors.TicketExpired);
-        }
+        var challenge = pending.Challenge;
+        var user = pending.Account;
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)

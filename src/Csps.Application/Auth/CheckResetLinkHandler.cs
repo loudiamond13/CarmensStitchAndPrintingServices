@@ -18,7 +18,7 @@ public sealed class CheckResetLinkHandler(
     /// <summary>Checks one link.</summary>
     /// <param name="request">The token.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The account email, or a 404 for any link that does not work.</returns>
+    /// <returns>The account email and names, or a 404 for any link that does not work.</returns>
     public async Task<Result<ResetLinkResponse>> HandleAsync(ResetTokenRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -30,6 +30,6 @@ public sealed class CheckResetLinkHandler(
             return Result.Failure<ResetLinkResponse>(AuthErrors.LinkInvalid);
         }
 
-        return Result.Success(new ResetLinkResponse(link.Account.Email));
+        return Result.Success(new ResetLinkResponse(link.Account.Email, link.Account.FirstName, link.Account.LastName));
     }
 }

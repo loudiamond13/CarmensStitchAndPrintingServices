@@ -2,8 +2,8 @@
 phase: 04-identity-authentication
 verified: 2026-10-15T23:10:00Z
 created: "2026-10-15T18:10:00-05:00"
-updated: "2026-10-15T18:10:00-05:00"
-status: human_needed
+updated: "2026-10-15T22:25:00-05:00"
+status: passed
 score: 6/6 must-haves verified
 covered_files:
   - ".planning/phases/04-identity-authentication/04-01-PLAN.md"
@@ -124,9 +124,6 @@ human_verification:
   - test: "Send a real sign-in code through the running app to a real inbox over the business SMTP server"
     expected: "Mail from 'Carmen's Stitch & Printing' <no-reply@cspstailoring.com> arrives with the code in the subject, branded HTML with the inline logo, and passes SPF/DKIM/DMARC; the connection used StartTls or SSL"
     why_human: "Automated tests use the in-memory sink and a stubbed transport; only the socket-option mapping is unit-tested. Live SMTP from the app (dev secrets or the first deploy) is a documented Phase 3 deferral (04-32 SUMMARY: AUTH-13 live send 'only provable on the Phase 3 first deploy'). The owner's Gmail D2 check proved the mailbox and DNS, not this app's send path."
-  - test: "On the first HTTPS deploy, sign in and inspect the Set-Cookie headers for __Secure-csps_rt and __Secure-csps_2fa"
-    expected: "HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth, with Expires only when 'Keep me signed in' is ticked"
-    why_human: "Chromium E2E and the cookie spec pass locally over HTTPS on 5199, but production IIS/proxy behaviour (cookie prefix acceptance, Set-Cookie passthrough) cannot be exercised before Phase 3 deploys it (04-CONTEXT Deferred Ideas)."
   - test: "Run the opt-in live Have I Been Pwned check (CSPS_LIVE_HIBP=1) once"
     expected: "A known-breached password is reported Breached and a random long password is reported Clean through the real k-anonymity range API"
     why_human: "HibpLiveTests is the one skipped test (opt-in, needs the network). The parser, padding handling and fail modes are covered by offline tests."
@@ -136,7 +133,7 @@ human_verification:
 
 **Phase Goal:** Staff can securely sign in with email, password and a mandatory 6-digit code sent by email. They stay signed in the way they chose, can recover a forgotten password and can sign out everywhere. Every authentication event is audited.
 **Verified:** 2026-10-15T23:10:00Z
-**Status:** human_needed
+**Status:** passed (after UAT: SMTP and HIBP passed; the production Set-Cookie check moved to Phase 5 by the owner on 2026-10-15)
 **Re-verification:** No, initial verification
 **Mode:** mvp phase; the goal is stated as outcomes, so the six ROADMAP success criteria were verified as the contract.
 
@@ -165,6 +162,7 @@ Items in the requirement text that belong to later phases (not Phase 4 gaps).
 |---|------|--------------|----------|
 | 1 | JOB-01 purge job for expired idempotency keys | Phase 9 | REQUIREMENTS.md: JOB-01 -> Phase 9; CONTEXT Deferred Ideas. Expired keys are already ignored at once |
 | 2 | Analytics beacon exemption; rate limits on consent, analytics, inquiry and public endpoints | Phase 12, 13 | ANL-05 -> Phase 12, INQ-01 -> Phase 13; those endpoints do not exist yet |
+| 3 | Production Set-Cookie check (`__Secure-csps_rt`, `__Secure-csps_2fa`) on the real host | Phase 5 | Owner, 2026-10-15: production is not deployed yet; ROADMAP Phase 5 "Carried over from Phase 4" |
 | 3 | Manager UI for temporary password, invite and reset link | Phase 5 | CONTEXT D-21, D-23, D-24 |
 
 ### Required Artifacts
@@ -266,6 +264,7 @@ None blocking. A scan of tracked `src/`, `tools/`, `web/src`, `web/e2e` and `tes
 **Test:** After the first HTTPS deploy, inspect the sign-in responses.
 **Expected:** `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict, Path=/api/v1/auth.
 **Why human:** Needs the real IIS host (Phase 3). Local HTTPS Chromium/Firefox/WebKit specs already pass.
+**Moved:** to Phase 5 UAT by the owner on 2026-10-15, because production is not deployed yet.
 
 #### 3. Live HIBP reachability
 

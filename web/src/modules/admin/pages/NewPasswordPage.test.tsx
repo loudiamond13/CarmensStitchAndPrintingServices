@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
 import { createMemoryRouter } from 'react-router';
@@ -6,14 +6,7 @@ import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import AuthLayout from '@/layouts/AuthLayout';
 import { NewPasswordRoute } from '@/modules/admin/pages/NewPasswordPage';
-import {
-  clearSession,
-  getSessionUser,
-  setPasswordChangeReason,
-  setPendingEmail,
-  takeSignedInToast,
-  takeSignInNotice,
-} from '@/modules/admin/services/session';
+import { clearSession, getSessionUser, takeSignedInToast, takeSignInNotice } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -21,12 +14,29 @@ import { sessionResponse } from '@/test/sessionFixtures';
 // S3 Set a new password, the must-change step, /admin/login/new-password (D-13, D-18, D-22, AUTH-09, A11Y-03; plan 04-31).
 
 const EMAIL = 'lito.ramos@gmail.com';
+const CONTEXT = { email: EMAIL, firstName: 'Lito', lastName: 'Ramos', reason: 'temporary' };
 const GOOD = 'Mabuhay#Tahi2026';
 const problem = { 'Content-Type': 'application/problem+json' };
 
 interface Probe {
   bodies: unknown[];
   csrfHeaders: (string | null)[];
+}
+
+/** Answers the must-change check (default: the usable pending sign-in for EMAIL); the last answer set wins. */
+function answerCheck(reply?: () => Response | Promise<Response>): { csrfHeaders: (string | null)[] } {
+  const seen: { csrfHeaders: (string | null)[] } = { csrfHeaders: [] };
+  server.use(
+    http.post('*/api/v1/auth/password/set-new/check', ({ request }) => {
+      seen.csrfHeaders.push(request.headers.get('X-CSPS-CSRF'));
+      return reply ? reply() : HttpResponse.json(CONTEXT);
+    }),
+  );
+  return seen;
+}
+
+async function formReady(): Promise<void> {
+  await screen.findByLabelText('New password');
 }
 
 /** Answers set-new (default: 200 with a session) and records what arrived. */
@@ -71,14 +81,33 @@ beforeEach(() => {
   clearSession();
   takeSignInNotice();
   takeSignedInToast();
+  answerCheck();
 });
 
 describe('S3 arrival', () => {
-  it('shows the temporary sublines when the reason is temporary or unknown, focuses New password and passes axe', async () => {
-    setPasswordChangeReason('temporary');
+  it('checks the pending sign-in first, then shows the temporary subline, focuses New password and passes axe', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    answerCheck(async () => {
+      await gate;
+      return HttpResponse.json(CONTEXT);
+    });
     renderNewPassword();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Checking your sign-in…');
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    await expectNoAxeViolations(document.body);
+
+    await act(async () => {
+      release();
+      await gate;
+    });
+    await formReady();
+
+    expect(screen.getByRole('status')).toHaveTextContent('Sign-in checked.');
     expect(
       screen.getByText('You signed in with a temporary password. Choose your own password to continue.'),
     ).toBeInTheDocument();
@@ -89,33 +118,55 @@ describe('S3 arrival', () => {
     await expectNoAxeViolations(document.body);
   });
 
-  it('shows the temporary subline when nothing is known about the reason (a reloaded page)', () => {
+  it('shows the breach subline (D-18) when the check says breach', async () => {
+    answerCheck(() => HttpResponse.json({ ...CONTEXT, reason: 'breach' }));
     renderNewPassword();
-
-    expect(
-      screen.getByText('You signed in with a temporary password. Choose your own password to continue.'),
-    ).toBeInTheDocument();
-  });
-
-  it('shows the breach subline (D-18) when the reason is breach', async () => {
-    setPasswordChangeReason('breach');
-    renderNewPassword();
+    await formReady();
 
     expect(screen.getByText('Your password appeared in a data breach. Set a new one.')).toBeInTheDocument();
     expect(screen.queryByText(/temporary password/)).not.toBeInTheDocument();
     await expectNoAxeViolations(document.body);
   });
 
-  it('adds the hidden username input only when the pending email is known', () => {
-    setPendingEmail(EMAIL);
-    const known = renderNewPassword();
-    expect(known.view.container.querySelector('input[autocomplete="username"]')).toHaveValue(EMAIL);
-    known.view.unmount();
+  it('puts the email from the check in the hidden username input, with nothing held in memory (a reloaded page)', async () => {
+    const check = answerCheck();
+    const { view } = renderNewPassword();
+    await formReady();
 
-    clearSession();
-    const unknown = renderNewPassword();
-    expect(unknown.view.container.querySelector('input[autocomplete="username"]')).toBeNull();
-    expect(screen.getByLabelText('New password')).toBeInTheDocument();
+    expect(check.csrfHeaders).toEqual(['1']);
+    const username = view.container.querySelector('input[autocomplete="username"]');
+    expect(username).toHaveValue(EMAIL);
+    expect(username).not.toBeVisible();
+  });
+
+  it('sends the person to sign-in with the timed-out notice when the check says the sign-in is gone', async () => {
+    answerCheck(() => problemResponse(401, { title: 'Sign in again', status: 401, code: 'auth.ticket-expired' }));
+    const router = renderNewPassword();
+
+    expect(await screen.findByText('The sign-in page')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/login');
+    expect(takeSignInNotice()).toBe('timed-out');
+    expect(getSessionUser()).toBeNull();
+  });
+
+  it('does not treat a failed check as a timed-out sign-in: it offers the check again', async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    answerCheck(() => {
+      calls += 1;
+      return calls === 1 ? problemResponse(503, { title: 'Down', status: 503 }) : HttpResponse.json(CONTEXT);
+    });
+    renderNewPassword();
+
+    expect(await screen.findByText('We could not check your sign-in yet.')).toBeInTheDocument();
+    expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+    expect(takeSignInNotice()).toBeNull();
+    await expectNoAxeViolations(document.body);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await formReady();
+    expect(calls).toBe(2);
   });
 });
 
@@ -124,6 +175,7 @@ describe('S3 validation that mirrors the server (OR-3)', () => {
     const user = userEvent.setup();
     const probe = answer();
     renderNewPassword();
+    await formReady();
 
     await fillAndSave(user, 'Pass1234', 'Pass1234');
     expect(await screen.findByText('Add at least one symbol, like ! or #.')).toBeInTheDocument();
@@ -138,13 +190,17 @@ describe('S3 validation that mirrors the server (OR-3)', () => {
     expect(probe.bodies).toEqual([]);
   });
 
-  it('keeps the pending email out of the password', async () => {
+  it.each([
+    ['email', 'Lito.Ramos#2026'],
+    ['first name', 'Lito#Mabuhay2026'],
+    ['last name', 'Ramos#Mabuhay2026'],
+  ])('keeps the account %s from the check out of the password', async (_part, password) => {
     const user = userEvent.setup();
     const probe = answer();
-    setPendingEmail('lito.ramos@gmail.com');
     renderNewPassword();
+    await formReady();
 
-    await fillAndSave(user, 'Lito.Ramos#2026');
+    await fillAndSave(user, password);
 
     expect(await screen.findByText("Don't use your name or email in your password.")).toBeInTheDocument();
     expect(probe.bodies).toEqual([]);
@@ -155,8 +211,8 @@ describe('S3 saving', () => {
   it('sends only the password, starts the session, leaves the toast for the shell and opens /admin', async () => {
     const user = userEvent.setup();
     const probe = answer();
-    setPendingEmail(EMAIL);
     const router = renderNewPassword();
+    await formReady();
 
     await fillAndSave(user);
 
@@ -172,6 +228,7 @@ describe('S3 saving', () => {
     const user = userEvent.setup();
     answer();
     const router = renderNewPassword('/admin/login/new-password?returnUrl=%2Fadmin%2Forders');
+    await formReady();
 
     await fillAndSave(user);
 
@@ -183,6 +240,7 @@ describe('S3 saving', () => {
     const user = userEvent.setup();
     answer(() => problemResponse(401, { title: 'Sign in again', status: 401, code: 'auth.ticket-expired' }));
     const router = renderNewPassword();
+    await formReady();
 
     await fillAndSave(user);
 
@@ -203,6 +261,7 @@ describe('S3 saving', () => {
       }),
     );
     renderNewPassword();
+    await formReady();
 
     await fillAndSave(user, 'Pwned#Pass2026');
 
@@ -218,6 +277,7 @@ describe('S3 saving', () => {
     const user = userEvent.setup();
     answer(() => problemResponse(429, { title: 'Slow down', status: 429 }));
     renderNewPassword();
+    await formReady();
 
     await fillAndSave(user);
 
@@ -229,8 +289,8 @@ describe('S3 saving', () => {
 
   it('"Use a different account" abandons the step: back to S1 and what this tab held is dropped', async () => {
     const user = userEvent.setup();
-    setPendingEmail(EMAIL);
     const router = renderNewPassword();
+    await formReady();
 
     expect(screen.getByRole('link', { name: 'Use a different account' })).toHaveAttribute('href', '/admin/login');
     await user.click(screen.getByRole('link', { name: 'Use a different account' }));

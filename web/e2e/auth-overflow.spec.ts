@@ -22,6 +22,7 @@ const WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
 
 /** A 64-character e-mail address (UI-SPEC long-text). */
 const LONG_EMAIL = 'maria.concepcion.villanueva.dela.cruz.j@barangay-sanroque.gov.ph';
+const LONG_LAST_NAME = 'Villanueva-Dela-Cruz-Concepcion-Magsaysay-Hernandez';
 const TRACE_ID = '00-4bf92f3577b34da6a3ce929d0e0e4736-01';
 
 /** A 60-character device label, and two rows that share one label. */
@@ -186,8 +187,12 @@ test.describe('@auth-overflow the sign-in screens', () => {
 
   test('S3 Set a new password', async ({ page, guard }, testInfo) => {
     expectRefresh401(guard);
+    await page.route('**/api/v1/auth/password/set-new/check', (route) =>
+      json(route, 200, { email: LONG_EMAIL, firstName: 'Maria', lastName: LONG_LAST_NAME, reason: 'temporary' }),
+    );
     await startSize(page, testInfo);
     await page.goto('/admin/login/new-password');
+    await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeVisible();
     expect(await sweep(page, testInfo, 'S3')).toEqual([]);
   });
@@ -217,7 +222,9 @@ test.describe('@auth-overflow the sign-in screens', () => {
     guard,
   }, testInfo) => {
     expectRefresh401(guard);
-    await page.route('**/api/v1/auth/password/reset/check', (route) => json(route, 200, { email: LONG_EMAIL }));
+    await page.route('**/api/v1/auth/password/reset/check', (route) =>
+      json(route, 200, { email: LONG_EMAIL, firstName: 'Maria', lastName: LONG_LAST_NAME }),
+    );
     await startSize(page, testInfo);
     await page.goto('/admin/reset-password#token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
     await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
@@ -234,7 +241,7 @@ test.describe('@auth-overflow the sign-in screens', () => {
   test('S6 Set your password from an invite: the form and the invalid state', async ({ page, guard }, testInfo) => {
     expectRefresh401(guard);
     await page.route('**/api/v1/auth/invite/check', (route) =>
-      json(route, 200, { email: LONG_EMAIL, firstName: 'Maria' }),
+      json(route, 200, { email: LONG_EMAIL, firstName: 'Maria', lastName: LONG_LAST_NAME }),
     );
     await startSize(page, testInfo);
     await page.goto('/admin/accept-invite#token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');

@@ -8,7 +8,6 @@ import AuthLayout from '@/layouts/AuthLayout';
 import { VerifyCodeRoute } from '@/modules/admin/pages/VerifyCodePage';
 import {
   clearSession,
-  getPasswordChangeReason,
   getPendingEmail,
   getResendAvailableAt,
   getSessionUser,
@@ -156,7 +155,6 @@ describe('S2 code step tracer', () => {
     await user.click(screen.getByRole('button', { name: 'Verify Code' }));
 
     expect(await screen.findByText('The new password step')).toBeInTheDocument();
-    expect(getPasswordChangeReason()).toBe('temporary');
     expect(getSessionUser()).toBeNull();
   });
 

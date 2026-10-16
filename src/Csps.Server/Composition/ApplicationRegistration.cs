@@ -28,6 +28,7 @@ public static class ApplicationRegistration
         services.AddScoped<CheckResetLinkHandler>();
         services.AddScoped<ResetPasswordHandler>();
         services.AddScoped<SetNewPasswordHandler>();
+        services.AddScoped<CheckSetNewPasswordHandler>();
         services.AddScoped<CheckInviteHandler>();
         services.AddScoped<AcceptInviteHandler>();
         services.AddScoped<BootstrapManagerHandler>();

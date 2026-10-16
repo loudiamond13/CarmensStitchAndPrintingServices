@@ -13,13 +13,11 @@ import {
   createSession,
   completeSignIn,
   ensureSession,
-  getPasswordChangeReason,
   getPendingEmail,
   getResendAvailableAt,
   getSessionUser,
   refreshSession,
   setNavigator,
-  setPasswordChangeReason,
   setPendingEmail,
   setResendAvailableAt,
   setSignInNotice,
@@ -540,14 +538,12 @@ describe('sign-in completion and the code step state (AUTH-02, D-01)', () => {
   it('completeSignIn stores the session, drops the pending email and the code step state, and shows the user', () => {
     setPendingEmail('lito@example.ph');
     setResendAvailableAt(Date.now() + 60_000);
-    setPasswordChangeReason('temporary');
 
     completeSignIn(sessionResponse());
 
     expect(getSessionUser()?.name).toBe('Carmen Reyes');
     expect(getPendingEmail()).toBeNull();
     expect(getResendAvailableAt()).toBeNull();
-    expect(getPasswordChangeReason()).toBeNull();
   });
 
   it('completeSignIn tells other tabs a session exists, with the expiry only', () => {
@@ -565,24 +561,19 @@ describe('sign-in completion and the code step state (AUTH-02, D-01)', () => {
     expect(JSON.stringify(hub.messages)).not.toContain(response.accessToken);
   });
 
-  it('keeps the resend time and the password change reason in memory, and clears them with the session', () => {
+  it('keeps the resend time in memory and clears it with the session', () => {
     expect(getResendAvailableAt()).toBeNull();
-    expect(getPasswordChangeReason()).toBeNull();
 
     setResendAvailableAt(1_700_000_000_000);
-    setPasswordChangeReason('breach');
     expect(getResendAvailableAt()).toBe(1_700_000_000_000);
-    expect(getPasswordChangeReason()).toBe('breach');
 
     clearSession();
     expect(getResendAvailableAt()).toBeNull();
-    expect(getPasswordChangeReason()).toBeNull();
   });
 
   it('writes none of it to a browser store', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     setResendAvailableAt(Date.now() + 60_000);
-    setPasswordChangeReason('temporary');
     completeSignIn(sessionResponse());
 
     expect(setItem).not.toHaveBeenCalled();

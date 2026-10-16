@@ -36,7 +36,9 @@ function answer(
     http.post('*/api/v1/auth/password/reset/check', async ({ request }) => {
       probe.hashAtCheck.push(window.location.hash);
       probe.checkBodies.push(await request.json());
-      return options.check ? options.check() : HttpResponse.json({ email: EMAIL });
+      return options.check
+        ? options.check()
+        : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
     }),
     http.post('*/api/v1/auth/password/reset', async ({ request }) => {
       probe.resetBodies.push(await request.json());
@@ -143,7 +145,7 @@ describe('S5 token handling and the checking state', () => {
     answer({
       check: async () => {
         await gate;
-        return HttpResponse.json({ email: EMAIL });
+        return HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
       },
     });
     renderReset();
@@ -209,7 +211,9 @@ describe('S5 invalid and failed links', () => {
     answer({
       check: () => {
         calls += 1;
-        return calls === 1 ? problemResponse(503, { title: 'Down', status: 503 }) : HttpResponse.json({ email: EMAIL });
+        return calls === 1
+          ? problemResponse(503, { title: 'Down', status: 503 })
+          : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
       },
     });
     renderReset();
@@ -241,13 +245,17 @@ describe('S5 validation that mirrors the server (OR-3)', () => {
     await expectNoAxeViolations(document.body);
   });
 
-  it('keeps the account name out of the password, using the checked link', async () => {
+  it.each([
+    ['email', 'Paolo.Garcia#2026'],
+    ['first name', 'Paolo#Mabuhay2026'],
+    ['last name', 'Garcia#Mabuhay2026'],
+  ])('keeps the account %s out of the password, using the checked link', async (_part, password) => {
     const user = userEvent.setup();
-    const probe = answer({ check: () => HttpResponse.json({ email: 'paolo@gmail.com' }) });
+    const probe = answer();
     renderReset();
     await formReady();
 
-    await fillAndSave(user, 'Paolo#2026!', 'Paolo#2026!');
+    await fillAndSave(user, password);
 
     expect(await screen.findByText("Don't use your name or email in your password.")).toBeInTheDocument();
     expect(probe.resetBodies).toEqual([]);

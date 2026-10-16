@@ -1,9 +1,9 @@
 ---
-status: partial
+status: complete
 phase: 04-identity-authentication
 source: [04-VERIFICATION.md]
 started: 2026-10-15T18:20:00-05:00
-updated: 2026-10-16T00:11:02.087Z
+updated: 2026-10-15T22:25:00-05:00
 created: 2026-10-15T18:20:00-05:00
 ---
 
@@ -19,9 +19,8 @@ result: pass
 
 ### 2. Production Set-Cookie behaviour
 expected: After the first HTTPS deploy, the sign-in responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict, Path=/api/v1/auth.
-result: blocked
-blocked_by: prior-phase
-reason: "delay this, we have not deploy it to production yet."
+result: skipped
+reason: "Moved to Phase 5 by the owner on 2026-10-15. Production is not deployed yet, so Phase 5 UAT runs this check."
 
 ### 3. Live HIBP reachability
 expected: A `CSPS_LIVE_HIBP=1` run of `HibpLiveTests` (and the same from the host at first deploy) classifies breached and clean passwords correctly.
@@ -34,7 +33,7 @@ total: 3
 passed: 2
 issues: 0
 pending: 0
-skipped: 0
-blocked: 1
+skipped: 1
+blocked: 0
 
 ## Gaps

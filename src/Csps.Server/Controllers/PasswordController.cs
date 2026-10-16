@@ -8,6 +8,13 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Csps.Server.Controllers;
 
+/// <summary>What the must-change screen needs to apply the password rule in the browser.</summary>
+/// <param name="Email">The account email.</param>
+/// <param name="FirstName">The account given name.</param>
+/// <param name="LastName">The account family name.</param>
+/// <param name="Reason">Why a new password is needed: <c>temporary</c> or <c>breach</c>.</param>
+public sealed record SetNewPasswordContextResponse(string Email, string FirstName, string LastName, string Reason);
+
 /// <summary>
 /// Password recovery by email (AUTH-08, AUTH-09, D-16, D-17). Anonymous and never cached. The answers never say whether
 /// an account exists, and the reset token travels in the body, never in a URL.
@@ -16,6 +23,7 @@ namespace Csps.Server.Controllers;
 /// <param name="checkResetLink">The reset-link check handler.</param>
 /// <param name="resetPassword">The reset handler.</param>
 /// <param name="setNewPassword">The must-change handler.</param>
+/// <param name="checkSetNewPassword">The must-change context handler.</param>
 [ApiController]
 [Route("api/v1/auth/password")]
 [AllowAnonymous]
@@ -25,7 +33,8 @@ public sealed class PasswordController(
     ForgotPasswordHandler forgotPassword,
     CheckResetLinkHandler checkResetLink,
     ResetPasswordHandler resetPassword,
-    SetNewPasswordHandler setNewPassword) : ControllerBase
+    SetNewPasswordHandler setNewPassword,
+    CheckSetNewPasswordHandler checkSetNewPassword) : ControllerBase
 {
     /// <summary>Emails a reset link when the address belongs to an active staff account. Every well-formed address gets the same answer.</summary>
     /// <param name="body">The form; a null or unreadable body is reported as a field error.</param>
@@ -47,7 +56,7 @@ public sealed class PasswordController(
     /// <summary>Tells the reset page whether its link still works and which account it is for.</summary>
     /// <param name="body">The token; a null or unreadable body reads as an invalid link.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the account email, or 404 <c>auth.link-invalid</c> for any link that does not work.</returns>
+    /// <returns>200 with the account email and names, or 404 <c>auth.link-invalid</c> for any link that does not work.</returns>
     [HttpPost("reset/check")]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
     [IdempotencyExempt("Read-only lookup; changes nothing.")]
@@ -79,6 +88,28 @@ public sealed class PasswordController(
     {
         var result = await resetPassword.HandleAsync(body ?? ResetPasswordRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>Tells the must-change screen who the pending sign-in is for and why, on every arrival. It never spends the ticket.</summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>
+    /// 200 with the account email, names and reason, 401 <c>auth.ticket-expired</c> without a usable pending sign-in that
+    /// passed the code step, or 403 without the anti-CSRF header.
+    /// </returns>
+    [HttpPost("set-new/check")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
+    [IdempotencyExempt("Read-only lookup; changes nothing.")]
+    [RequireCsrfHeader]
+    [EndpointName("CheckSetNewPassword")]
+    [ProducesResponseType<SetNewPasswordContextResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> CheckSetNew(CancellationToken cancellationToken)
+    {
+        var ticket = Request.Cookies[AuthCookies.TicketCookieName];
+        var result = await checkSetNewPassword.HandleAsync(ticket, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, context => TypedResults.Ok(new SetNewPasswordContextResponse(
+            context.Email, context.FirstName, context.LastName, PasswordChangeReasonText.For(context.Reason) ?? "temporary")));
     }
 
     /// <summary>Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22).</summary>

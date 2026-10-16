@@ -16,14 +16,14 @@ public sealed class CheckInviteHandlerTests
     private static readonly Guid UserId = Guid.Parse("0d8f2f6e-5c0a-4a64-9f4e-2b6e4d1d7a10");
 
     [Fact]
-    public async Task AUsableInviteNamesTheEmailAndFirstNameEvenBeforeTheAddressIsConfirmed()
+    public async Task AUsableInviteNamesTheEmailAndBothNamesEvenBeforeTheAddressIsConfirmed()
     {
         var harness = Harness.Create();
 
         var result = await harness.Handler.HandleAsync(new InviteTokenRequest(Secret), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(new InviteLinkResponse("carmen@example.com", "Carmen"));
+        result.Value.ShouldBe(new InviteLinkResponse("carmen@example.com", "Carmen", "Reyes"));
     }
 
     [Theory]

@@ -50,10 +50,11 @@ function build() {
 const TOKEN = 'T'.repeat(43);
 
 describe('inviteService', () => {
-  it('check posts the token in the body, never in the address, and resolves the email and first name', async () => {
-    const seen = answer('/api/v1/auth/invite/check', () => HttpResponse.json({ email: 'a@b.com', firstName: 'Ana' }));
+  it('check posts the token in the body, never in the address, and resolves the email and both names', async () => {
+    const reply = { email: 'a@b.com', firstName: 'Ana', lastName: 'Dizon' };
+    const seen = answer('/api/v1/auth/invite/check', () => HttpResponse.json(reply));
 
-    await expect(build().service.check({ token: TOKEN })).resolves.toEqual({ email: 'a@b.com', firstName: 'Ana' });
+    await expect(build().service.check({ token: TOKEN })).resolves.toEqual(reply);
 
     expect(seen[0]).toMatchObject({ method: 'POST', search: '', body: { token: TOKEN } });
     expect(seen[0]?.path).not.toContain(TOKEN);

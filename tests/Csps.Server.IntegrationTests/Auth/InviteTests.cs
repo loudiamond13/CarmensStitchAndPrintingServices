@@ -177,6 +177,25 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
     }
 
     [Fact]
+    public async Task AUsableInviteCheckNamesTheEmailAndBothNames()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var invited = await CreateInvitedAsync(client);
+
+        using var check = await AuthClient.CheckInviteAsync(client, invited.Token);
+
+        check.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(await check.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var context = database.CreateContext();
+        var user = await context.Users.AsNoTracking().SingleAsync(u => u.Id == invited.UserId, TestContext.Current.CancellationToken);
+        body.RootElement.GetProperty("email").GetString().ShouldBe(invited.Email);
+        body.RootElement.GetProperty("firstName").GetString().ShouldBe(user.FirstName);
+        body.RootElement.GetProperty("lastName").GetString().ShouldBe(user.LastName);
+        user.LastName.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
     public async Task TheInvitedFixtureStateReturnsAnAccountWithNoPasswordAndATokenThatAccepts()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

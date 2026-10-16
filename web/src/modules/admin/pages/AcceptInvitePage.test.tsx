@@ -34,7 +34,7 @@ function answer(
     http.post('*/api/v1/auth/invite/check', async ({ request }) => {
       probe.hashAtCheck.push(window.location.hash);
       probe.checkBodies.push(await request.json());
-      return options.check ? options.check() : HttpResponse.json({ email: EMAIL, firstName: 'Ana' });
+      return options.check ? options.check() : HttpResponse.json({ email: EMAIL, firstName: 'Ana', lastName: 'Dizon' });
     }),
     http.post('*/api/v1/auth/invite/accept', async ({ request }) => {
       probe.acceptBodies.push(await request.json());
@@ -117,7 +117,7 @@ describe('S6 token handling and the checking state', () => {
     answer({
       check: async () => {
         await gate;
-        return HttpResponse.json({ email: EMAIL, firstName: 'Ana' });
+        return HttpResponse.json({ email: EMAIL, firstName: 'Ana', lastName: 'Dizon' });
       },
     });
     renderInvite();
@@ -188,7 +188,7 @@ describe('S6 invalid and failed invites', () => {
         calls += 1;
         return calls === 1
           ? problemResponse(503, { title: 'Down', status: 503 })
-          : HttpResponse.json({ email: EMAIL, firstName: 'Ana' });
+          : HttpResponse.json({ email: EMAIL, firstName: 'Ana', lastName: 'Dizon' });
       },
     });
     renderInvite();
@@ -231,6 +231,19 @@ describe('S6 validation that mirrors the server (OR-3)', () => {
     expect(screen.getByLabelText('New password')).toHaveFocus();
     expect(probe.acceptBodies).toEqual([]);
     await expectNoAxeViolations(document.body);
+  });
+
+  it("keeps the invitee's last name out of the password before any request", async () => {
+    const user = userEvent.setup();
+    const probe = answer();
+    renderInvite();
+    await formReady();
+
+    await fillAndSave(user, 'Dizon#Mabuhay2026');
+
+    expect(await screen.findByText("Don't use your name or email in your password.")).toBeInTheDocument();
+    expect(screen.getByLabelText('New password')).toHaveFocus();
+    expect(probe.acceptBodies).toEqual([]);
   });
 
   it('shows a rule-specific message and a mismatch message with no request', async () => {

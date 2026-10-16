@@ -49,6 +49,7 @@ public sealed class RateLimitTests(CspsDatabase database) : IClassFixture<CspsDa
         { "POST", "/api/v1/auth/password/reset/check", 10 },
         { "POST", "/api/v1/auth/password/reset", 10 },
         { "POST", "/api/v1/auth/password/set-new", 10 },
+        { "POST", "/api/v1/auth/password/set-new/check", 10 },
         { "POST", "/api/v1/auth/invite/check", 10 },
         { "POST", "/api/v1/auth/invite/accept", 10 },
         { "POST", "/api/v1/auth/refresh", 60 },
