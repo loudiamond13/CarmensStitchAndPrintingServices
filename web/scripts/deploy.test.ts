@@ -847,6 +847,16 @@ describe('executeDeploy failure paths', () => {
     expect(labels.lastIndexOf('online')).toBeGreaterThan(labels.lastIndexOf('offline'));
   });
 
+  it('fails a plan that would end with app_offline.htm still on the site, instead of reporting success', async () => {
+    const world = fakeWorld();
+    const endsOffline = Object.assign(deployPlan(null).slice(0, 3), { rollback: null, onFailure: 'rollback' as const });
+
+    const result = await executeDeploy(endsOffline, executeDeps(world));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.messages.join(' ')).toContain('app_offline.htm may still be on the site');
+  });
+
   it('fails a dry run without any rollback', async () => {
     const world = fakeWorld({ whatif: [1] });
     const plan = planDeploy({
@@ -980,6 +990,14 @@ describe('withProbeKey', () => {
       Logging: { LogLevel: { Default: 'Warning' } },
       AllowedHosts: '*',
     });
+  });
+});
+
+describe('withProbeKey and a byte order mark', () => {
+  it('reads a settings file that starts with a byte order mark', () => {
+    const json = `${String.fromCodePoint(0xfeff)}{"HostProbe":{"Key":""}}`;
+
+    expect(JSON.parse(withProbeKey(json, 'k'.repeat(32)))).toEqual({ HostProbe: { Key: 'k'.repeat(32) } });
   });
 });
 

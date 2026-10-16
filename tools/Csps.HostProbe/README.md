@@ -1,17 +1,21 @@
 # Csps.HostProbe: one-time host check (FND-13)
+*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-15T23:50:00-05:00*
 
 This is a tiny, throwaway web app. It reports the facts about the SmarterASP.NET server that only the server itself
 can show: the exact .NET version, whether the site runs inside IIS ("in-process"), how visitor addresses reach the
 site, whether the Philippine time zone and peso format work, whether a certificate can be loaded, and how much
 memory the app gets.
 
-It is **never** part of the CSPS website deploy. It goes on a **separate, temporary site**, is opened once, and is then
-deleted. This follows the owner's D-28 decision (option-a, 2026-10-07).
+It is **never** part of the regular CSPS website deploy. By default it goes on a **separate, temporary site**, is opened
+once, and is then deleted (the owner's D-28 decision, option-a, 2026-10-07). The owner made one exception on
+2026-10-15 (see the first safety rule).
 
 ## Safety rules (read first)
 
-- **Never put the probe on the live site.** Do not upload it into the live site's folder, do not replace any live
-  file, and do not restart the live site. It always gets its own new site or sub-address.
+- **Only once on the CSPS site root.** Put the probe on the site root only after the legacy site is retired (D-01) and
+  before the first CSPS deploy, through the deploy workflow's `hostprobe` action (see below). The next CSPS deploy
+  removes the probe's files. Never do this while the legacy site is in use: then the probe always gets its own new
+  site or sub-address, as in the steps below. Owner decision: 2026-10-15T22:05-05:00 (plan 03-06, `allow-probe`).
 - **Never touch the live database.** The probe does not connect to any database.
 - **Keep the probe key secret.** Do not paste it into chat, email, the hosting record or git. Make a new key every
   time you run the probe, and throw it away afterwards.
@@ -95,3 +99,21 @@ Copy the whole `{ ... }` answer into the chat. Before you paste it:
 
 Delete the new site (and its folder) in the control panel. Then run the command from step 6 again: it should fail
 or show "not found". Throw the key away.
+
+## Running the probe through the deploy workflow (the `hostprobe` action)
+
+This is the one-time exception from the first safety rule. It uses the same Web Deploy path as a normal deploy
+(`web/scripts/deploy.mjs`, run by `.github/workflows/deploy.yml`), so no steps 1 to 8 above are needed.
+
+1. Make a fresh key (step 2 above) and save it as the repository secret `HOSTPROBE_KEY`. It must be 32 or more
+   characters. The workflow never prints it and passes it to the reader through the environment only.
+2. Run the deploy workflow with the action `hostprobe`. Set `probe_rewrite` to `true` to also test whether the host has
+   the URL Rewrite module (it adds one HTTP-to-HTTPS rule to the probe's `web.config`).
+3. The script publishes the probe into the runner's temp folder, writes the key into that published copy only, sets
+   `<urlCompression doStaticCompression="false" doDynamicCompression="false" />` in its `web.config` (the setting CSPS
+   ships, so a locked section shows up as a 500.19), puts the branded offline page up, syncs the probe, takes the page
+   down, and reads `/probe` with `smoke.mjs probe`. There is no release and no rollback. If any step fails, the offline
+   page is put back and the run fails.
+4. Paste the facts the run printed into the chat (step 7 above, with the last number of your own IP replaced by `x`).
+5. **Delete the `HOSTPROBE_KEY` secret.** The probe keeps answering until the first CSPS deploy replaces it, and it
+   answers `401` without the key.

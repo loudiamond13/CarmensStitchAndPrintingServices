@@ -9,7 +9,7 @@
 // The Web Deploy password is redacted from every printed line (CWE-532) and never reaches a shell: msdeploy, gh, tar and
 // node are spawned directly. Node built-ins only, because deploy.yml runs this without `npm ci`.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,8 +24,9 @@ import { fileURLToPath } from 'node:url';
  *   readonly commands?: readonly Command[], readonly tag?: string }} Step
  * @typedef {{ tag: string, packageDir: string }} LastGood
  * @typedef {{ connection: Connection, allowUntrusted: boolean, origin: string, sha: string, tag: string, workDir: string }} DeployConfig
- * @typedef {readonly Step[] & { rollback: { tag: string, steps: readonly Step[] } | null }} Plan
- * @typedef {{ windowsVerbatimArguments?: boolean, argv0?: string }} SpawnOptions
+ * @typedef {'rollback' | 'offline' | 'none'} OnFailure
+ * @typedef {readonly Step[] & { rollback: { tag: string, steps: readonly Step[] } | null, onFailure: OnFailure }} Plan
+ * @typedef {{ windowsVerbatimArguments?: boolean, argv0?: string, cwd?: string }} SpawnOptions
  * @typedef {{ status: number | null, stdout?: string, stderr?: string }} SpawnResult
  * @typedef {(command: string, args: readonly string[], options: SpawnOptions) => SpawnResult} Spawn
  * @typedef {{ tagName: string, createdAt: string, isDraft: boolean }} Release
@@ -33,7 +34,8 @@ import { fileURLToPath } from 'node:url';
  * @typedef {{ exitCode: number, results: { name: string, ok: boolean }[], messages: string[], releaseTag?: string }} DeployResult
  * @typedef {{ spawn: Spawn, sleep: (ms: number) => Promise<void>, now: () => Date, log: (text: string) => void,
  *   exists: (file: string) => boolean, mkdir: (dir: string) => void, appendFile: (file: string, text: string) => void,
- *   connectTls: (host: string, port: number) => Promise<string> }} MainDeps
+ *   connectTls: (host: string, port: number) => Promise<string>, readFile: (file: string) => string,
+ *   writeFile: (file: string, text: string) => void }} MainDeps
  */
 
 export const MSDEPLOY_PATH = 'C:\\Program Files\\IIS\\Microsoft Web Deploy V3\\msdeploy.exe';
@@ -50,6 +52,9 @@ const SHA_MESSAGE = 'The commit sha must be 40 lowercase hex characters.';
 const ACTIONS = Object.freeze(['deploy', 'online', 'hostprobe']);
 const WEB_DEPLOY_PORT = 8172;
 const SEPARATORS = /[,"';]/;
+const MIN_PROBE_KEY_LENGTH = 32;
+const BOM = String.fromCodePoint(0xfeff);
+const PROBE_PROJECT = path.join(REPO_ROOT, 'tools', 'Csps.HostProbe');
 
 /**
  * msdeploy parses `-dest:key=value,key=value` itself, so a separator inside a value would change the command (CWE-88).
@@ -63,6 +68,12 @@ function assertPlain(name, value) {
   if (SEPARATORS.test(value)) {
     throw new Error(
       `The Web Deploy ${name} contains a character msdeploy cannot take (comma, quote or semicolon). Choose one without it.`,
+    );
+  }
+  // A space would end the argument and let the rest read as another msdeploy option.
+  if (/[\s\p{Cc}]/u.test(value)) {
+    throw new Error(
+      `The Web Deploy ${name} contains a space or control character msdeploy cannot take. Choose one without it.`,
     );
   }
 }
@@ -205,9 +216,14 @@ function waitStep() {
   return { name: 'wait', kind: 'wait', ms: OFFLINE_WAIT_MS };
 }
 
-/** @param {DeployConfig} config @returns {Step} */
-function smokeStep({ origin }) {
-  return runStep('smoke', process.execPath, [SMOKE_PATH, '--origin', origin]);
+/**
+ * The smoke test as a child process of this Node; `probe` reads the one-time HostProbe instead (key from HOSTPROBE_KEY).
+ * @param {DeployConfig} config
+ * @param {boolean} [probe]
+ * @returns {Step}
+ */
+function smokeStep({ origin }, probe = false) {
+  return runStep('smoke', process.execPath, [SMOKE_PATH, ...(probe ? ['probe'] : []), '--origin', origin]);
 }
 
 /**
@@ -268,17 +284,21 @@ function releaseStep(config, packageDir) {
 }
 
 /**
- * The deploy as data. A dry run is one whatif sync; `online` only deletes app_offline.htm. The returned list carries
- * `rollback`, the steps that restore `lastGood` (null when there is none, as on the first deploy).
+ * The run as data. A dry run is one whatif sync; `online` only deletes app_offline.htm; `hostprobe` swaps in the probe and
+ * reads it, with no release. The returned list carries `rollback`, the steps that restore `lastGood` (null when there is
+ * none, as on the first deploy), and `onFailure`, what the executor does when a step fails.
  * @param {{ action: string, dryRun: boolean, packageDir: string | null, lastGood: LastGood | null, config: DeployConfig }} options
  * @returns {Plan}
  */
 export function planDeploy({ action, dryRun, packageDir, lastGood, config }) {
   const { connection, allowUntrusted } = config;
   if (action === 'online') {
-    return Object.assign([msdeployStep('online', onlineArgs({ ...connection, allowUntrusted }))], { rollback: null });
+    return Object.assign([msdeployStep('online', onlineArgs({ ...connection, allowUntrusted }))], {
+      rollback: null,
+      onFailure: /** @type {OnFailure} */ ('none'),
+    });
   }
-  if (action !== 'deploy') {
+  if (action !== 'deploy' && action !== 'hostprobe') {
     throw new Error(`The ${action} action is not available.`);
   }
   if (packageDir === null) {
@@ -291,11 +311,21 @@ export function planDeploy({ action, dryRun, packageDir, lastGood, config }) {
       whatIf: true,
       allowUntrusted,
     });
-    return Object.assign([msdeployStep('sync', args)], { rollback: null });
+    return Object.assign([msdeployStep('sync', args)], {
+      rollback: null,
+      onFailure: /** @type {OnFailure} */ ('none'),
+    });
+  }
+  if (action === 'hostprobe') {
+    return Object.assign([...swapSteps(config, packageDir), smokeStep(config, true)], {
+      rollback: null,
+      onFailure: /** @type {OnFailure} */ ('offline'),
+    });
   }
   const steps = [...swapSteps(config, packageDir), smokeStep(config), releaseStep(config, packageDir)];
   return Object.assign(steps, {
     rollback: lastGood === null ? null : { tag: lastGood.tag, steps: planRollback({ config, lastGood }) },
+    onFailure: /** @type {OnFailure} */ ('rollback'),
   });
 }
 
@@ -451,14 +481,17 @@ function describeCommand(command, args) {
 
 /**
  * Runs one command, logging the redacted command line and the redacted output.
- * @param {Command & { verbatim?: boolean }} command
+ * @param {Command & { verbatim?: boolean, cwd?: string }} command
  * @param {ExecuteDeps} deps
  * @returns {boolean}
  */
-function runCommand({ command, args, verbatim = false }, { spawn, log, secrets }) {
+function runCommand({ command, args, verbatim = false, cwd }, { spawn, log, secrets }) {
   log(`> ${redact(describeCommand(command, args), secrets)}`);
   /** @type {SpawnOptions} */
   const options = {};
+  if (cwd !== undefined) {
+    options.cwd = cwd;
+  }
   if (verbatim) {
     // Verbatim arguments keep msdeploy's own quoting; the program name must then be quoted by hand when it has spaces.
     options.windowsVerbatimArguments = true;
@@ -500,8 +533,47 @@ async function runStepOf(step, deps) {
   return true;
 }
 
+const KIT = 'Use the D-05 legacy rollback kit (docs/operations/deploy.md).';
+
+const URL_COMPRESSION = '<urlCompression doStaticCompression="false" doDynamicCompression="false" />';
+const HTTPS_REWRITE =
+  '<rewrite><rules><rule name="HttpToHttps" stopProcessing="true"><match url="(.*)" />' +
+  '<conditions><add input="{HTTPS}" pattern="^OFF$" /></conditions>' +
+  '<action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" /></rule></rules></rewrite>';
+
 /**
- * Runs the planned steps in order and stops at the first failure.
+ * The probe's web.config with IIS compression off (the setting CSPS ships, so the probe shows whether the host accepts
+ * it) and, when asked, one HTTP-to-HTTPS rewrite rule (shows whether URL Rewrite exists). An existing urlCompression is
+ * replaced, because a second one is a 500.19.
+ * @param {string} xml
+ * @param {{ rewrite: boolean }} options
+ * @returns {string}
+ */
+export function injectProbeWebConfig(xml, { rewrite }) {
+  const opening = /<system\.webServer(?:\s[^>]*[^/>])?>/;
+  if (!opening.test(xml)) {
+    throw new Error('The probe web.config has no system.webServer element.');
+  }
+  const additions = `${URL_COMPRESSION}${rewrite ? HTTPS_REWRITE : ''}`;
+  return xml.replaceAll(/<urlCompression\b[^>]*\/>/g, '').replace(opening, (tag) => `${tag}${additions}`);
+}
+
+/**
+ * The probe's appsettings.json with HostProbe.Key set and every other setting kept.
+ * @param {string} json
+ * @param {string} key
+ * @returns {string}
+ */
+export function withProbeKey(json, key) {
+  const settings = /** @type {Record<string, unknown>} */ (parseJson(json.startsWith(BOM) ? json.slice(1) : json));
+  const section = /** @type {Record<string, unknown>} */ (settings.HostProbe ?? {});
+  return `${JSON.stringify({ ...settings, HostProbe: { ...section, Key: key } }, null, 2)}\n`;
+}
+
+/**
+ * Runs the planned steps in order. On a failure the plan's `onFailure` decides: `rollback` restores the last good release
+ * (D-13) or, with none, puts the branded offline page back (first deploy); `offline` puts the page back (host probe);
+ * `none` just reports (dry run, online). A failed release step leaves the live, smoke-tested site alone.
  * @param {Plan} steps
  * @param {ExecuteDeps} deps
  * @returns {Promise<DeployResult>}
@@ -509,19 +581,90 @@ async function runStepOf(step, deps) {
 export async function executeDeploy(steps, deps) {
   /** @type {DeployResult} */
   const result = { exitCode: 0, results: [], messages: [] };
-  for (const step of steps) {
-    const ok = await runStepOf(step, deps);
-    result.results.push({ name: step.name, ok });
-    if (!ok) {
-      result.exitCode = 1;
-      result.messages.push(`The ${step.name} step failed.`);
+  const state = { offlineUp: false };
+
+  /**
+   * @param {readonly Step[]} list
+   * @param {string} prefix
+   * @returns {Promise<Step | null>} the step that failed, or null when all passed.
+   */
+  const runAll = async (list, prefix) => {
+    for (const step of list) {
+      const ok = await runStepOf(step, deps);
+      result.results.push({ name: `${prefix}${step.name}`, ok });
+      if (step.name === 'offline') {
+        state.offlineUp = true;
+      } else if (step.name === 'online' && ok) {
+        state.offlineUp = false;
+      }
+      if (!ok) {
+        return step;
+      }
+    }
+    return null;
+  };
+  const offlineStep = steps.find((step) => step.name === 'offline');
+  const onlineStep = steps.find((step) => step.name === 'online');
+  const putOfflineBack = async () => {
+    if (offlineStep !== undefined) {
+      await runAll([offlineStep], 'restore ');
+    }
+  };
+
+  try {
+    const failed = await runAll(steps, '');
+    if (failed === null) {
+      const released = steps.find((step) => step.tag !== undefined)?.tag;
+      if (released !== undefined) {
+        result.releaseTag = released;
+      }
       return result;
     }
-    if (step.tag !== undefined) {
-      result.releaseTag = step.tag;
+    result.exitCode = 1;
+    const failure = `The ${failed.name} step failed.`;
+    if (failed.name === 'release') {
+      result.messages.push(
+        `${failure} The site is live and passed the smoke test, but no release was created, so it cannot be rolled back to later. Run the deploy again for the same commit.`,
+      );
+    } else if (steps.onFailure === 'none' || offlineStep === undefined) {
+      result.messages.push(failure);
+    } else if (failed.name === 'offline') {
+      // Nothing else ran, so the site is as it was; clear any half-uploaded page.
+      if (onlineStep !== undefined) {
+        await runAll([onlineStep], 'cleanup ');
+      }
+      result.messages.push(`${failure} The site was not changed.`);
+    } else if (steps.onFailure === 'offline') {
+      await putOfflineBack();
+      result.messages.push(`${failure} The branded offline page is up.`);
+    } else if (steps.rollback === null) {
+      await putOfflineBack();
+      result.messages.push(
+        `${failure} No earlier release exists to roll back to. The branded offline page is up. ${KIT}`,
+      );
+    } else {
+      const { tag } = steps.rollback;
+      const rollbackFailed = await runAll(steps.rollback.steps, 'rollback ');
+      if (rollbackFailed === null) {
+        result.messages.push(`${failure} Rolled back to ${tag}.`);
+      } else {
+        await putOfflineBack();
+        result.messages.push(
+          `${failure} The rollback to ${tag} failed too (${rollbackFailed.name}). The branded offline page is up. ${KIT}`,
+        );
+      }
+    }
+    return result;
+  } finally {
+    // A clean run must never end with app_offline.htm on the site.
+    if (state.offlineUp && result.exitCode === 0) {
+      result.exitCode = 1;
+      result.messages.push('app_offline.htm may still be on the site.');
+      if (onlineStep !== undefined) {
+        await runAll([onlineStep], 'cleanup ');
+      }
     }
   }
-  return result;
 }
 
 /**
@@ -535,6 +678,47 @@ function required(env, name) {
     throw new Error(`${name} is not set.`);
   }
   return value;
+}
+
+/**
+ * The probe key comes from a secret and is never trimmed, logged or passed as an argument (T-03-30).
+ * @param {Record<string, string | undefined>} env
+ * @returns {string}
+ */
+function requireProbeKey(env) {
+  const key = env.HOSTPROBE_KEY ?? '';
+  if (key.trim() === '') {
+    throw new Error('HOSTPROBE_KEY is not set.');
+  }
+  if (key.length < MIN_PROBE_KEY_LENGTH) {
+    throw new Error(`HOSTPROBE_KEY must be at least ${String(MIN_PROBE_KEY_LENGTH)} characters.`);
+  }
+  return key;
+}
+
+/**
+ * Publishes the HostProbe into the runner's temp folder and sets its key and web.config there; the files under tools/
+ * are never edited, so no key can reach git.
+ * @param {MainDeps} deps
+ * @param {ExecuteDeps} executeDeps
+ * @param {{ workDir: string, key: string, rewrite: boolean }} options
+ * @returns {string} the folder to sync.
+ */
+function prepareProbe(deps, executeDeps, { workDir, key, rewrite }) {
+  const probeDir = path.join(workDir, 'probe');
+  deps.mkdir(workDir);
+  const args = ['publish', PROBE_PROJECT, '-c', 'Release', '-o', probeDir];
+  if (!runCommand({ command: 'dotnet', args, cwd: REPO_ROOT }, executeDeps)) {
+    throw new Error('The host probe could not be published.');
+  }
+  const settingsFile = path.join(probeDir, 'appsettings.json');
+  const configFile = path.join(probeDir, 'web.config');
+  if (!deps.exists(configFile)) {
+    throw new Error('The published probe has no web.config.');
+  }
+  deps.writeFile(settingsFile, withProbeKey(deps.readFile(settingsFile), key));
+  deps.writeFile(configFile, injectProbeWebConfig(deps.readFile(configFile), { rewrite }));
+  return probeDir;
 }
 
 /**
@@ -582,13 +766,11 @@ async function run(env, deps, argv, log) {
   if (action === 'deploy' && !SHA_PATTERN.test(sha)) {
     throw new Error(SHA_MESSAGE);
   }
-  if (action === 'hostprobe') {
-    throw new Error('The hostprobe action is not available.');
-  }
+  const probeKey = action === 'hostprobe' ? requireProbeKey(env) : '';
   const origin = action === 'online' ? '' : new URL(required(env, 'SITE_ORIGIN')).origin;
   const dryRun = env.INPUT_DRY_RUN?.trim() === 'true';
   const workDir = path.join(env.RUNNER_TEMP ?? os.tmpdir(), 'csps-deploy');
-  const packageDir = path.join(workDir, 'package', 'site');
+  const packageDir = action === 'hostprobe' ? path.join(workDir, 'probe') : path.join(workDir, 'package', 'site');
   const base = {
     connection,
     allowUntrusted: false,
@@ -650,6 +832,10 @@ async function run(env, deps, argv, log) {
   let plan;
   if (action === 'online') {
     plan = planDeploy({ action, dryRun, packageDir: null, lastGood: null, config });
+  } else if (action === 'hostprobe') {
+    const rewrite = env.INPUT_PROBE_REWRITE?.trim() === 'true';
+    const probeDir = prepareProbe(deps, executeDeps, { workDir, key: probeKey, rewrite });
+    plan = planDeploy({ action, dryRun, packageDir: probeDir, lastGood: null, config });
   } else {
     deps.mkdir(path.join(workDir, 'package'));
     const found = await findPackage(sha, {
@@ -743,22 +929,14 @@ function defaultDeps() {
     },
     appendFile: appendFileSync,
     connectTls,
+    readFile: (file) => readFileSync(file, 'utf8'),
+    writeFile: (file, text) => {
+      writeFileSync(file, text, 'utf8');
+    },
   };
 }
 
 const invokedPath = process.argv[1];
 if (invokedPath !== undefined && path.resolve(invokedPath) === fileURLToPath(import.meta.url)) {
   process.exitCode = await main(process.env, defaultDeps(), process.argv.slice(2));
-}
-
-// RED skeleton for the host probe helpers (replaced in the GREEN commit).
-/** @param {string} xml @param {{ rewrite: boolean }} _options */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- RED skeleton
-export function injectProbeWebConfig(xml, _options) {
-  return xml;
-}
-/** @param {string} json @param {string} _key */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- RED skeleton
-export function withProbeKey(json, _key) {
-  return json;
 }
