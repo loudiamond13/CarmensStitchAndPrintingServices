@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-14-PLAN.md
-last_updated: "2026-10-16T13:20:27.683Z"
+stopped_at: "Halted 03-16-PLAN.md: gate (full) fails only waived LCP; ruleset not applied"
+last_updated: "2026-10-16T18:25:21.005Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: ea1aa6a11b4caad5dc1e4bfc30bf8262bc2de5a4
+state_head: 4cdaec932a24f32d3d92f7ae5d48a6c902dd8fd4
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 107
+  completed_plans: 108
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-16T10:34:00-05:00"
@@ -442,6 +442,7 @@ None yet.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- Plan 03-16 halted: gate (full) on PR 1 fails only Lighthouse LCP (2127 ms vs 2000 ms, owner-waived until Phase 11); stage 6 not yet reached on Linux; ruleset not applied; owner decision needed before 03-17.
 
 ### Quick Tasks Completed
 
@@ -475,6 +476,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T13:20:27.345Z
-Stopped at: Completed 03-14-PLAN.md
+Last session: 2026-10-16T18:25:15.029Z
+Stopped at: Halted 03-16-PLAN.md: gate (full) fails only waived LCP; ruleset not applied
 Resume file: None
