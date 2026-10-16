@@ -29,7 +29,7 @@ describe('checkPackage', () => {
     ['a nested logs folder', 'logs/2026/x.json', /logs/i],
     ['app_offline.htm', 'app_offline.htm', /app_offline/i],
     ['App_Offline.htm', 'App_Offline.htm', /app_offline/i],
-    ['an Development settings file', 'appsettings.Development.json', /appsettings/i],
+    ['a Development settings file', 'appsettings.Development.json', /appsettings/i],
     ['a Production settings file', 'appsettings.Production.json', /appsettings/i],
     ['a pfx certificate', 'cert.pfx', /\.pfx/i],
     ['a pem key', 'key.pem', /\.pem/i],
@@ -86,7 +86,9 @@ describe('checkPackage', () => {
   });
 
   it('reads separators the Windows way too', () => {
-    expect(checkPackage(['web.config', 'wwwroot\\index.html', 'Csps.Server.dll', 'logs\\a.json'], readerFor())).toHaveLength(1);
+    expect(
+      checkPackage(['web.config', 'wwwroot\\index.html', 'Csps.Server.dll', 'logs\\a.json'], readerFor()),
+    ).toHaveLength(1);
   });
 });
 
