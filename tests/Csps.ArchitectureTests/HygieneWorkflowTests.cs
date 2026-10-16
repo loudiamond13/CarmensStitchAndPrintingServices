@@ -130,6 +130,36 @@ public sealed partial class HygieneWorkflowTests
     }
 
     [Fact]
+    public void CommitMessagesJob()
+    {
+        var job = WorkflowText.Jobs(WorkflowText.Lines(HygienePath)).SingleOrDefault(candidate => candidate.Id == "commits");
+        job.ShouldNotBeNull("hygiene.yml needs a job with the id commits (OPS-01).");
+        var jobLines = job.Lines.Select(line => line.Trim()).ToList();
+
+        jobLines.ShouldContain("name: commit messages");
+        jobLines.ShouldContain("runs-on: ubuntu-24.04");
+        jobLines.ShouldContain("timeout-minutes: 5");
+        jobLines.ShouldContain("if: github.event_name == 'pull_request'", "The check needs a PR title, so it runs for pull requests only.");
+        WorkflowText.Section(job.Lines, "permissions").Select(line => line.Trim()).ShouldBe(["contents: read"]);
+
+        var steps = WorkflowText.Steps(job.Lines);
+        var checkout = steps.Single(step => WorkflowText.StepName(step) == "checkout").Select(line => line.Trim()).ToList();
+        checkout.ShouldContain("fetch-depth: 0");
+        checkout.ShouldContain("persist-credentials: false");
+
+        var node = steps.Single(step => WorkflowText.StepName(step) == "setup node").Select(line => line.Trim()).ToList();
+        node.ShouldContain("node-version: \"24.21.0\"");
+
+        // T-03-24 (CWE-77): the PR title and the commit range reach the script through env, never inside run.
+        var lint = steps.Single(step => step.Any(line => line.Contains("commit-lint.mjs", StringComparison.Ordinal))).Select(line => line.Trim()).ToList();
+        lint.ShouldContain("run: node web/scripts/commit-lint.mjs");
+        lint.ShouldContain("PR_TITLE: ${{ github.event.pull_request.title }}");
+        lint.ShouldContain("BASE_SHA: ${{ github.event.pull_request.base.sha }}");
+        lint.ShouldContain("HEAD_SHA: ${{ github.event.pull_request.head.sha }}");
+        WorkflowText.RunBlocks(jobLines).ShouldAllBe(block => !block.Contains("${{", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void HookScansStagedChanges()
     {
         var path = RepoRoot.PathOf(HookPath);
