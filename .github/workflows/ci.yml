@@ -274,29 +274,30 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # D-11 / OPS-04 / OPS-05 stage 7: only a push to main builds the deploy package, after every gate above passed.
+      # D-11 / OPS-04 / OPS-05 stage 7: the deploy package is built after every gate above passed, on a full pull request as well
+      # as on main, so a packaging failure shows before the merge. Only the upload below waits for a push to main.
       # The web build is repeated here so the package never carries the budget build's output.
       - name: 7 package web build
-        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: npm --prefix web run build
 
       - name: 7 package publish
-        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false -o artifacts/package/site --no-restore -tl:off
 
       # Prime Directive 11: the host database is changed only by this reviewed, idempotent script, never at startup.
       - name: 7 package migrations script
-        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: dotnet ef migrations script --idempotent --project src/Csps.Infrastructure --startup-project src/Csps.Server --output artifacts/package/csps-migrations.sql
 
       # OPS-05: secrets live only on the server; this check fails closed on logs, app_offline.htm, key material and env files.
       - name: 7 package check
-        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: node web/scripts/package-check.mjs artifacts/package/site
 
       # T-03-SC: the same pinned gitleaks 8.30.1 tarball and SHA-256 as the Hygiene workflow, checked before use (CWE-494).
       - name: 7 package secret scan
-        if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
+        if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"

@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T14:50:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T17:10:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -268,7 +268,7 @@ Each check is defined in a workflow file in `.github/workflows/`. The file says 
   4. **Web checks:** type check, lint, Prettier and the Vitest tests with coverage, plus the OpenAPI checks.
   5. **Browser stage (full mode only):** the web build with its size budgets, Playwright end-to-end tests and Lighthouse. Until Phase 11 Lighthouse reports the LCP value without failing on it (`docs/web/release-gates.md`); every other limit still fails.
   6. **Final gates (full mode only):** the coverage thresholds and the license and `THIRD-PARTY-NOTICES` checks.
-  7. **Package (push to `main` only):** builds the deploy package, checks that it holds no logs, development settings, keys or secret files, scans it with gitleaks, writes the idempotent database script, and stores it for 14 days as `csps-package-<commit sha>`.
+  7. **Package (full and package mode):** builds the deploy package, checks that it holds no logs, development settings, keys or secret files, scans it with gitleaks and writes the idempotent database script. This runs on a ready pull request too, so a packaging failure shows before the merge. Only a push to `main` stores the package, for 14 days as `csps-package-<commit sha>`.
 
   If a full run fails in the browser stage, the Playwright report is kept for 7 days to show what went wrong.
 

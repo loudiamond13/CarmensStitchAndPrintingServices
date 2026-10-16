@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T14:50:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T17:10:00-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out.
 
@@ -16,6 +16,7 @@ The `gate` job runs these stages one after another and stops at the first failur
 | 4 | Web typecheck, lint, Prettier, Vitest with coverage, then the OpenAPI types check |
 | 5 | Production build, budget build, a throwaway SQL Server container, Playwright, Lighthouse (full mode only) |
 | 6 | Coverage gates, web license check, web notices check, NuGet license and notices drift check (full mode only) |
+| 7 | Deploy package: web build, publish, idempotent database script, package check, gitleaks scan (full and package mode, so also on a ready pull request). Only a push to `main` then uploads the package as `csps-package-<commit sha>` |
 
 In stage 5, Lighthouse reports LCP on every run but a miss does not fail the step until Phase 11 (owner decision 2026-10-16, `.planning/WINDOWS.md` entry 1); every other Lighthouse limit still fails it. See `docs/web/release-gates.md`.
 
@@ -91,7 +92,7 @@ These are wall-clock times from the runs on GitHub's `ubuntu-24.04` runners (`gh
 | Hygiene, five jobs (`secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review`) | 5 to 16 seconds each | 5 minutes together |
 | CodeQL, two jobs | `analyze (csharp)` 3 min 25 s to 4 min 19 s, `analyze (javascript-typescript)` 56 s to 1 min 30 s | 7 minutes together |
 
-Not measured yet, because they need a merge to `main` and a deploy: the package-mode run (the fast part plus the package steps), the all-engine weekly run and the deploy job. The projection below keeps the old estimates for those.
+Not measured yet, because they need a merge to `main` and a deploy: the package upload, the package-mode run (the fast part plus the package steps), the all-engine weekly run and the deploy job. The package steps themselves now also run in the full pull request run, so they add a few minutes to the `gate (full)` time above once the next pull request measures them. The projection below keeps the old estimates for those.
 
 **If the repository were private:** one ready pull request run is about 1 + 19 + 1 + 5 + 7 = 33 minutes, and a draft run about 1 + 6 + 1 + 5 + 7 = 20. With the run counts used above:
 
