@@ -1,10 +1,15 @@
 using System.Net;
 using System.Text.Json;
+using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
+using Csps.Infrastructure.Persistence;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Csps.Server.IntegrationTests.Auth;
 
@@ -287,6 +292,49 @@ public sealed class PasswordResetTests(CspsDatabase database) : IClassFixture<Cs
         }
     }
 
+    [Fact]
+    public async Task AResetWhoseLaterSaveLosesARaceIsRetriedFromACleanStart()
+    {
+        var race = new RaceOnFirstRevoke();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            var inner = services.Single(d => d.ServiceType == typeof(ISessions)).ImplementationType!;
+            services.RemoveAll<ISessions>();
+            services.AddScoped<ISessions>(provider => new RacingSessions(
+                (ISessions)ActivatorUtilities.CreateInstance(provider, inner), provider.GetRequiredService<CspsDbContext>(), race));
+        }));
+        using var phone = AuthClient.CreateClient(factory);
+        using var mailbox = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var onPhone = await AuthClient.SignInFullyAsync(phone, staff);
+        var token = await AuthClient.RequestResetTokenAsync(mailbox, staff.Email, emailsSoFar: 1);
+
+        using var reset = await AuthClient.ResetPasswordAsync(mailbox, token, NewPassword);
+
+        reset.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        race.Fired.ShouldBeTrue();
+        using var oldPassword = await AuthClient.SignInAsync(mailbox, staff.Email, staff.Password);
+        oldPassword.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        using var refresh = await AuthClient.RefreshAsync(phone);
+        refresh.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await AuthClient.SiteSettingsStatusAsync(phone, onPhone.AccessToken)).ShouldBe(HttpStatusCode.Unauthorized);
+        var signedIn = await AuthClient.SignInFullyAsync(mailbox, staff with { Password = NewPassword }, signInsSoFar: 3);
+        signedIn.UserId.ShouldBe(staff.Id);
+
+        await using var context = database.CreateContext();
+        var sessions = await context.UserSessions.AsNoTracking()
+            .Where(s => s.UserId == staff.Id && s.Id == onPhone.SessionId)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        sessions.ShouldHaveSingleItem().RevokedAt.ShouldNotBeNull();
+        var audit = await context.AuditLog.AsNoTracking()
+            .Where(a => a.Action == AuditActions.PasswordResetCompleted && a.TargetId == staff.Id.ToString("D"))
+            .ToListAsync(TestContext.Current.CancellationToken);
+        audit.ShouldHaveSingleItem();
+        var link = await context.AccountTokens.AsNoTracking().SingleAsync(t => t.UserId == staff.Id, TestContext.Current.CancellationToken);
+        link.UsedAt.ShouldNotBeNull();
+    }
+
     private static async Task<JsonElement> AssertInvalidLinkAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -294,5 +342,43 @@ public sealed class PasswordResetTests(CspsDatabase database) : IClassFixture<Cs
         problem.GetProperty("code").GetString().ShouldBe("auth.link-invalid");
         problem.GetProperty("detail").GetString().ShouldBe("This link has expired");
         return problem;
+    }
+
+    // Shared by every scope of one host: the race fires once.
+    private sealed class RaceOnFirstRevoke
+    {
+        private int _fired;
+
+        public bool Fired => Volatile.Read(ref _fired) == 1;
+
+        public bool TryFire() => Interlocked.Exchange(ref _fired, 1) == 0;
+    }
+
+    // Revokes through the real store, then bumps the row version of the user's sessions once, as a concurrent refresh would.
+    private sealed class RacingSessions(ISessions inner, CspsDbContext context, RaceOnFirstRevoke race) : ISessions
+    {
+        public void Add(UserSession session, RefreshToken firstToken) => inner.Add(session, firstToken);
+
+        public Task<UserSession?> FindAsync(Guid sessionId, CancellationToken cancellationToken) => inner.FindAsync(sessionId, cancellationToken);
+
+        public Task<IReadOnlyList<UserSession>> ListActiveAsync(Guid userId, DateTimeOffset now, int cap, CancellationToken cancellationToken) =>
+            inner.ListActiveAsync(userId, now, cap, cancellationToken);
+
+        public Task<RefreshLookup?> FindByRefreshHashAsync(byte[] tokenHash, CancellationToken cancellationToken) =>
+            inner.FindByRefreshHashAsync(tokenHash, cancellationToken);
+
+        public void AddToken(RefreshToken token) => inner.AddToken(token);
+
+        public async Task<IReadOnlyList<Guid>> RevokeAllAsync(
+            Guid userId, Guid? exceptSessionId, SessionRevocationReason reason, DateTimeOffset now, CancellationToken cancellationToken)
+        {
+            var revoked = await inner.RevokeAllAsync(userId, exceptSessionId, reason, now, cancellationToken);
+            if (race.TryFire())
+            {
+                await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE UserSessions SET DeviceLabel = DeviceLabel WHERE UserId = {userId}", cancellationToken);
+            }
+
+            return revoked;
+        }
     }
 }
