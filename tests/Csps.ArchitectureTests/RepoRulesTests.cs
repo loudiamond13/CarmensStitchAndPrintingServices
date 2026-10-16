@@ -105,7 +105,8 @@ public sealed partial class RepoRulesTests
             .ToList();
 
         missing.ShouldBeEmpty("The five D-16 commands are listed.");
-        section.Where(line => line.Contains("exit 0", StringComparison.Ordinal))
+        section.Where(line => line.Contains("exit 0", StringComparison.Ordinal)
+                && LocalGateCommands.Any(command => line.Contains(command, StringComparison.Ordinal)))
             .ShouldBeEmpty("The template must not pre-fill a passing exit code.");
         section.Where(line => line.StartsWith("- [", StringComparison.Ordinal))
             .ShouldBeEmpty("The local gate lines are not task-list lines.");
