@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T13:30:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T14:50:00-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out.
 
@@ -16,6 +16,8 @@ The `gate` job runs these stages one after another and stops at the first failur
 | 4 | Web typecheck, lint, Prettier, Vitest with coverage, then the OpenAPI types check |
 | 5 | Production build, budget build, a throwaway SQL Server container, Playwright, Lighthouse (full mode only) |
 | 6 | Coverage gates, web license check, web notices check, NuGet license and notices drift check (full mode only) |
+
+In stage 5, Lighthouse reports LCP on every run but a miss does not fail the step until Phase 11 (owner decision 2026-10-16, `.planning/WINDOWS.md` entry 1); every other Lighthouse limit still fails it. See `docs/web/release-gates.md`.
 
 Stages 5 and 6 and the integration tests need a database and a lot of time, so they run only in `full` mode. Stages 1 to 4 (without the integration tests) are the "fast part".
 
@@ -64,7 +66,7 @@ Stage 5 starts a SQL Server container on the runner, reachable only from that ru
 
 ## Minutes budget
 
-This repository is public, and GitHub does not charge minutes for standard GitHub-hosted runners on a public repository. So there is no monthly cap to stay under while it stays public, and the local full gate (D-16, next section) is not needed. The table below is the old estimate for a private repository: a free private repository gets 2,000 minutes a month, and Linux minutes count once. It stays so the numbers are at hand if the repository ever goes private again. Plan 03-16 replaces it with measured times from the Actions tab.
+This repository is public, and GitHub does not charge minutes for standard GitHub-hosted runners on a public repository. So there is no monthly cap to stay under while it stays public, and the local full gate (D-16, next section) is not needed. The table below is the old estimate for a private repository: a free private repository gets 2,000 minutes a month, and Linux minutes count once. It stays so the numbers are at hand if the repository ever goes private again. The measured figures are in the next section.
 
 | Workload (estimate) | Minutes each | Per month | Total |
 |---|---|---|---|
@@ -76,20 +78,34 @@ This repository is public, and GitHub does not charge minutes for standard GitHu
 | Deploys (Windows runner, counted about double) | 20 | 8 | 160 |
 | **Total** | | | **about 1,720** |
 
-## Measured (2026-10-16, partial)
+## Measured (2026-10-16)
 
-These are wall-clock times from the first runs on GitHub's `ubuntu-24.04` runners (`gh run view <id> --json jobs`). GitHub bills each job rounded up to the minute, but only on a private repository. They are partial because the full gate has not yet gone green: it stops at Lighthouse, so the last stage (coverage gate, license and notices checks, a few minutes) has no measurement yet. Plan 03-16 is not finished until that run is green; these figures will then be completed.
+These are wall-clock times from the runs on GitHub's `ubuntu-24.04` runners (`gh run view <id> --json jobs`). GitHub bills each job rounded up to the minute, but only on a private repository. The full gate figure is from the first green run on pull request 1 (run 38953580695).
 
 | Job | Measured | Billed (rounded up) |
 |---|---|---|
 | `classify` | 5 to 10 seconds | 1 minute |
 | `gate (fast)`, a draft | 5 min 8 s | 6 minutes |
-| `gate (full)` up to Lighthouse (stages 1 to 5) | 20 min 30 s (restore 0:30, build and format 1:30, integration tests 2:20, web tests 2:35, Playwright 11:00, Lighthouse 0:30) | 21 minutes, plus the unmeasured stage 6 |
+| `gate (full)` | 18 min 17 s (integration tests 2:11, Vitest with coverage 1:59, Playwright 9:25, Lighthouse 0:23, coverage gate 0:10, NuGet notices 0:17) | 19 minutes |
 | `gate result` | 2 to 4 seconds | 1 minute |
-| Hygiene, five jobs (`secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review`) | 4 to 13 seconds each | 5 minutes together |
-| CodeQL, two jobs | `analyze (csharp)` 3 min 25 s to 4 min 12 s, `analyze (javascript-typescript)` 56 s to 1 min 30 s | 7 minutes together |
+| Hygiene, five jobs (`secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review`) | 5 to 16 seconds each | 5 minutes together |
+| CodeQL, two jobs | `analyze (csharp)` 3 min 25 s to 4 min 19 s, `analyze (javascript-typescript)` 56 s to 1 min 30 s | 7 minutes together |
 
-**If the repository were private:** one ready pull request run is about 1 + 25 (the full gate with stage 6 estimated at 4 minutes) + 1 + 5 + 7 = 39 minutes, and a draft run about 1 + 6 + 1 + 5 + 7 = 20. With the run counts used above (25 ready runs, 20 draft runs, 15 main merges at about 26, 4 weekly runs at about 78 with CodeQL, 3 Dependabot runs at 39, 8 deploys at the old estimate of 160) the month would be about 975 + 400 + 390 + 312 + 117 + 160 = 2,350 minutes, above the 2,000 free. The levers, without changing any gate: keep pull requests in draft while iterating, push fewer times once ready, and run the all-engine weekly job less often. While the repository is public none of this is billed.
+Not measured yet, because they need a merge to `main` and a deploy: the package-mode run (the fast part plus the package steps), the all-engine weekly run and the deploy job. The projection below keeps the old estimates for those.
+
+**If the repository were private:** one ready pull request run is about 1 + 19 + 1 + 5 + 7 = 33 minutes, and a draft run about 1 + 6 + 1 + 5 + 7 = 20. With the run counts used above:
+
+| Workload | Minutes each | Per month | Total |
+|---|---|---|---|
+| Ready pull request runs | 33 | 25 | 825 |
+| Draft pushes | 20 | 20 | 400 |
+| Merges to `main` (package mode, estimate) | 26 | 15 | 390 |
+| Weekly all-engine run (estimate 50) plus CodeQL (7) | 57 | 4 | 228 |
+| Dependency update pull requests | 33 | 3 | 99 |
+| Deploys (Windows runner, counted double, estimate) | 20 | 8 | 160 |
+| **Total** | | | **about 2,100** |
+
+That is a little over the 2,000 free minutes of a private repository. The levers, without changing any gate: keep pull requests in draft while iterating (a ready push costs 33, a draft push 20), push fewer times once ready, and run the all-engine weekly job less often. While the repository is public none of this is billed and there is no cap.
 
 ## When the minutes run out (D-16)
 

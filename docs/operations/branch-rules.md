@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T13:30:00-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T14:50:00-05:00*
 
 This repository is public on GitHub, and GitHub enforces branch rules on a public repository for free. Until 2026-10-16 the repository was private, and GitHub Free could not enforce rules there (the rulesets API answered 403 on 2026-10-15), so the rules were kept by process (D-08): CI checked every PR and the merge command refused to merge until the checks were green. Both layers stay: GitHub now refuses a bad merge on its own, and the merge command still runs its gate first, because the gate also checks the Definition of Done list in the PR body, which GitHub cannot see.
 
@@ -48,7 +48,13 @@ The SHA-pin setting was accepted and reads back as `true`. Every `uses:` in the 
 
 `docs/operations/main-ruleset.json` holds the exact ruleset. The owner approved switching it on once the repository was public and PR 1 was green.
 
-**Status (2026-10-16): not applied yet.** `gate (full)` on PR 1 is not green: the last Linux run passed everything up to and including Playwright, and Lighthouse then missed only the LCP limit (2127 ms against 2000 ms), which the owner waived until Phase 11 but which still fails the step. Nothing was applied while the gate is red. When the gate is green, the apply command below is run and its read-back is recorded here.
+**Applied on 2026-10-16**, after `gate (full)` and every Hygiene and Security check were green on pull request 1 (CI run 38953580695). The steps were:
+
+1. An interim ruleset (id 25265174, "main (interim, until the full gate is green)") was applied first by the orchestrator: deletion, non-fast-forward, linear history and "pull request before merging", with no required checks and no bypass. This kept `main` safe while the gate was red.
+2. The full ruleset from `main-ruleset.json` was applied (`gh api -X POST repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets --input docs/operations/main-ruleset.json`, id 25270041, name `main`).
+3. The interim ruleset was deleted (`gh api -X DELETE .../rulesets/25265174`), so one ruleset remains.
+
+Read back from `gh api repos/loudiamond13/CarmensStitchAndPrintingServices/rules/branches/main`: five rules from ruleset 25270041 apply to `main` (`deletion`, `non_fast_forward`, `required_linear_history`, `pull_request` with 0 approvals and no code owner review, `required_status_checks` with the branch up to date and the eight checks in the table). The ruleset has no bypass actors and `enforcement` is `active`. Pull request 1 still reads `MERGEABLE` and `CLEAN`. The ruleset's `pull_request` rule lists all three merge methods, but the repository settings above allow squash only, so squash is what is available.
 
 | Rule | Value |
 |---|---|
