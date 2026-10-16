@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Csps.ArchitectureTests;
@@ -9,6 +10,12 @@ namespace Csps.ArchitectureTests;
 public sealed partial class DeployWorkflowTests
 {
     private const string DeployPath = ".github/workflows/deploy.yml";
+    private const string OfflineDirectory = "tools/deploy";
+    private const string OfflineFileName = "app_offline.htm";
+    private const string RunbookPath = "docs/operations/deploy.md";
+    private const int OfflineSizeLimit = 8192;
+
+    private static readonly string[] PackageRoots = ["web", "src"];
 
     private static readonly string[] OrchestratorScripts = ["web/scripts/deploy.mjs", "web/scripts/smoke.mjs"];
 
@@ -28,6 +35,20 @@ public sealed partial class DeployWorkflowTests
         "SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}",
         "GH_TOKEN: ${{ github.token }}",
         "GH_REPO: ${{ github.repository }}",
+    ];
+
+    // One heading keyword per situation the runbook must cover.
+    private static readonly string[] RunbookHeadings =
+    [
+        "how to deploy",
+        "dry run",
+        "roll back by hand",
+        "online action",
+        "first deploy",
+        "legacy rollback kit",
+        "secrets and variables",
+        "migrations",
+        "who can deploy",
     ];
 
     [Fact]
@@ -146,6 +167,76 @@ public sealed partial class DeployWorkflowTests
         IsBuiltInOrLocal("axios").ShouldBeFalse();
     }
 
+    [Fact]
+    public void OfflinePageIsSelfContained()
+    {
+        var path = RepoRoot.PathOf($"{OfflineDirectory}/{OfflineFileName}");
+        File.Exists(path).ShouldBeTrue($"{OfflineDirectory}/{OfflineFileName} is the branded page deploy.mjs uploads (D-12).");
+
+        System.IO.Directory.GetFiles(RepoRoot.PathOf(OfflineDirectory)).Select(Path.GetFileName)
+            .ShouldContain(OfflineFileName, "The file name is lowercase: IIS matches app_offline.htm by exact name.");
+
+        var bytes = File.ReadAllBytes(path);
+        bytes.Length.ShouldBeLessThan(OfflineSizeLimit);
+        bytes.Length.ShouldBeGreaterThan(511, "A page under 512 bytes is replaced by a browser's own error page.");
+
+        var html = new UTF8Encoding(false, true).GetString(bytes);
+        html.ShouldContain("lang=\"en-PH\"");
+        html.ShouldContain("<meta charset=\"utf-8\">");
+        html.ShouldContain("<meta http-equiv=\"refresh\" content=\"30\">");
+        html.ShouldContain("name=\"viewport\"");
+        html.ShouldContain("<style>");
+        html.ShouldContain("<svg");
+        html.ShouldContain("back in a minute");
+        html.ShouldContain("Carmen's Stitch &amp; Printing Services");
+        html.ShouldContain("#f6dfd1", Case.Insensitive, "The page uses the Blush background by value.");
+        html.ShouldContain("#ff6600", Case.Insensitive, "The page uses the brand orange by value.");
+
+        // ANCM answers every path with this one file, so nothing may be fetched from the site or anywhere else.
+        foreach (var forbidden in new[] { "<script", "<link", "<img", "<iframe", "@import", "http://", "https://", "=\"//", "src=\"/", "href=\"/" })
+        {
+            html.ShouldNotContain(forbidden, Case.Insensitive);
+        }
+
+        FileUrl().IsMatch(html).ShouldBeFalse("url() may only point inside the page (#id).");
+        FileUrl().IsMatch("a { background: url(/assets/x.png) }").ShouldBeTrue();
+        html.ShouldNotContain("–", customMessage: "No en dash (OR-4).");
+        html.ShouldNotContain("—", customMessage: "No em dash (OR-4).");
+    }
+
+    [Fact]
+    public void OfflinePageNeverShips()
+    {
+        var offenders = PackageRoots
+            .SelectMany(root => FilesUnder(RepoRoot.PathOf(root)))
+            .Where(path => string.Equals(Path.GetFileName(path), OfflineFileName, StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(RepoRoot.Find(), path))
+            .ToList();
+
+        offenders.ShouldBeEmpty("An app_offline.htm inside a package would take the site offline by itself (research Pitfall 7).");
+    }
+
+    [Fact]
+    public void DeployRunbookCoversTheCases()
+    {
+        var lines = WorkflowText.Lines(RunbookPath);
+        lines.ShouldNotBeEmpty($"{RunbookPath} is the deploy runbook.");
+
+        var headings = lines.Where(line => line.StartsWith('#')).ToList();
+        foreach (var keyword in RunbookHeadings)
+        {
+            headings.ShouldContain(heading => heading.Contains(keyword, StringComparison.OrdinalIgnoreCase), $"The runbook needs a heading about: {keyword}.");
+        }
+
+        lines.ShouldContain(line => RunbookTimestamp().IsMatch(line), "The runbook carries Created and Updated timestamps.");
+
+        var text = string.Join('\n', lines);
+        foreach (var name in new[] { "WEBDEPLOY_SERVER", "WEBDEPLOY_SITE", "WEBDEPLOY_USERNAME", "WEBDEPLOY_PASSWORD", "WEBDEPLOY_CERT_SHA256", "HOSTPROBE_KEY", "SITE_ORIGIN", "csps-migrations.sql", "gh workflow run deploy.yml --ref main" })
+        {
+            text.ShouldContain(name);
+        }
+    }
+
     private static WorkflowJob DeployJob()
     {
         var job = WorkflowText.Jobs(WorkflowText.Lines(DeployPath)).SingleOrDefault(candidate => candidate.Id == "deploy");
@@ -187,6 +278,32 @@ public sealed partial class DeployWorkflowTests
         || module.StartsWith("./", StringComparison.Ordinal)
         || module.StartsWith("../", StringComparison.Ordinal);
 
+    private static IEnumerable<string> FilesUnder(string root)
+    {
+        if (!System.IO.Directory.Exists(root))
+        {
+            yield break;
+        }
+
+        foreach (var file in System.IO.Directory.EnumerateFiles(root))
+        {
+            yield return file;
+        }
+
+        foreach (var directory in System.IO.Directory.EnumerateDirectories(root))
+        {
+            if (Path.GetFileName(directory) is "node_modules" or "bin" or "obj")
+            {
+                continue;
+            }
+
+            foreach (var file in FilesUnder(directory))
+            {
+                yield return file;
+            }
+        }
+    }
+
     private static int IndentOf(string line) => line.Length - line.TrimStart(' ').Length;
 
     [GeneratedRegex(@"\$\{\{\s*(?:secrets|inputs)\.", RegexOptions.CultureInvariant)]
@@ -197,4 +314,10 @@ public sealed partial class DeployWorkflowTests
 
     [GeneratedRegex(@"(?:\bfrom\s+|\bimport\s*\(?\s*|\brequire\s*\(\s*)'(?<module>[^']+)'", RegexOptions.CultureInvariant)]
     private static partial Regex ModuleReference();
+
+    [GeneratedRegex(@"url\(\s*['""]?(?!#)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex FileUrl();
+
+    [GeneratedRegex(@"^\*Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-05:00 · Updated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-05:00\*$", RegexOptions.CultureInvariant)]
+    private static partial Regex RunbookTimestamp();
 }
