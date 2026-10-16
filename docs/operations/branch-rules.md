@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-15T23:27:56-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T08:35:15-05:00*
 
 This repository is private on GitHub Free, and that plan cannot enforce branch rules on a private repository. The rulesets API answered 403 ("Upgrade to GitHub Pro or make this repository public") on 2026-10-15. So the rules are enforced by process (D-08): CI checks every PR, and the merge command refuses to merge until the checks are green. The rules GitHub would enforce are written down here, ready to switch on if the repository is ever upgraded or made public.
 
@@ -41,7 +41,7 @@ Code owner review is left off in the ruleset on purpose. With 0 approvals and a 
 To switch the rules on after an upgrade or after making the repository public:
 
 ```powershell
-gh api -X POST repos/loudiamond13/CarmenStitchAndPrintingServices/rulesets --input docs/operations/main-ruleset.json
+gh api -X POST repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets --input docs/operations/main-ruleset.json
 ```
 
 Known limit: a PR that changes only documentation reports `gate (docs)`, not `gate (full)`. GitHub matches a required check by one fixed name, so with `gate (full)` required, a docs-only PR could never merge. Revisit the required check (for example, make the report name the same for every mode) before switching the ruleset on.

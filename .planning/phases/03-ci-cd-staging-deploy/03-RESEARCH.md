@@ -1,6 +1,6 @@
 ---
 created: "2026-10-15T20:12:04-05:00"
-updated: "2026-10-15T20:12:04-05:00"
+updated: "2026-10-16T08:35:15-05:00"
 phase: 03-ci-cd-staging-deploy
 kind: research
 ---
@@ -147,7 +147,7 @@ These come from the root `CLAUDE.md` and `.claude/CLAUDE.md`. The planner must v
 - **Owner rules:** OR-2 (minimal comments), OR-3 (zod mirrors API validators), OR-4 (no em or en dash in `web/src`, `EmptyValue` icon), OR-5 (per-module services), OR-6 (`web/src` tree). OR-4 applies to the D-17 holding page.
 - **Markdown timestamps (user memory):** every created or edited `.md` gets `created:`/`updated:` (frontmatter or the `*Created: ... · Updated: ...*` line). **The PR template is a `.md` file.** Put its timestamps in an HTML comment (`<!-- Created: ... · Updated: ... -->`) so they do not render into every PR body. That is an owner-visible choice, so flag it.
 - **Workflow:** `/gsd-plan-phase 3 --tdd`. `/gsd-ui-phase 3` is needed because D-17 adds a public page. Run `/gsd-secure-phase 3` and `/gsd-ui-review 3` before `/gsd-ship 3`.
-- **GitHub (memory):** the repo is `loudiamond13/CarmenStitchAndPrintingServices` (private). PRs always target `main`. Never `gh repo create`.
+- **GitHub (memory):** the repo is `loudiamond13/CarmensStitchAndPrintingServices` (public since 2026-10-16; the earlier private repo was `CarmenStitchAndPrintingServices`). PRs always target `main`. Never `gh repo create`.
 
 ## Standard Stack
 
@@ -413,7 +413,7 @@ The input is `gh pr view <n> --json number,isDraft,headRefOid,mergeStateStatus,b
 ### Pattern 6: Free repo settings and intended rules
 
 - **Can be set now** (owner runs these, or Claude runs them with explicit owner approval, since they are repo configuration):
-  - `gh api -X PATCH repos/loudiamond13/CarmenStitchAndPrintingServices -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_squash_merge=true -F delete_branch_on_merge=true`. Disabling merge commits gives linear history without branch rules. Current values read this session: `"allow_merge_commit":true,"allow_rebase_merge":true,"allow_squash_merge":true,"delete_branch_on_merge":false` [VERIFIED: gh api].
+  - `gh api -X PATCH repos/loudiamond13/CarmensStitchAndPrintingServices -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_squash_merge=true -F delete_branch_on_merge=true`. Disabling merge commits gives linear history without branch rules. Current values read this session: `"allow_merge_commit":true,"allow_rebase_merge":true,"allow_squash_merge":true,"delete_branch_on_merge":false` [VERIFIED: gh api].
   - Actions permissions currently read `{"enabled":true,"allowed_actions":"all","sha_pinning_required":false}` and `{"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}` [VERIFIED: gh api]. Set `sha_pinning_required=true` so GitHub itself refuses unpinned actions, and consider `allowed_actions=selected` (GitHub-owned plus `zizmorcore/zizmor-action`). Whether Free private repos enforce these is [ASSUMED]. Verify by pushing a test workflow with a tag ref and seeing it refused.
 - **Written down only** (`docs/operations/branch-rules.md` plus a ruleset JSON ready for `gh api`): required check `gate (full)`, linear history, 0 approvals, CODEOWNERS `@loudiamond13`, no bypass.
 
@@ -839,7 +839,7 @@ The first-deploy-only HOSTING-RECORD rows that cannot be seen over HTTP come fro
   - commit SHAs, tag dates, `action.yml` runtimes and licenses for actions/checkout, setup-dotnet, setup-node, cache, upload-artifact, download-artifact, zizmor-action
   - repo security advisories
   - gitleaks, actionlint and zizmor releases and checksum files
-  - repo settings and Actions permissions for `loudiamond13/CarmenStitchAndPrintingServices`
+  - repo settings and Actions permissions for `loudiamond13/CarmensStitchAndPrintingServices`
 - runner-images readmes (Ubuntu2404, Windows2025, Windows2022) via `gh api repos/actions/runner-images/contents/...`
 - MCR tag list `https://mcr.microsoft.com/v2/mssql/server/tags/list`
 - Codebase reads: `src/Csps.Server/web.config`, `Program.cs`, `Composition/SpaRegistration.cs`, `Endpoints/*`, `Infrastructure/DependencyInjection.cs`, `Seeding/DevSeedTargetGuard.cs`, `DevSeedOptions.cs`, `tests/Csps.Testing/SqlServerInstance.cs`, `web/playwright.config.ts`, `web/scripts/{verify,e2e,lighthouse,shared-machine}.mjs`, `tools/scripts/*.ps1`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.planning/HOSTING-RECORD.md`, `docs/development.md`, `docs/operations/*`, `~/.claude/gsd-core/workflows/ship.md`
