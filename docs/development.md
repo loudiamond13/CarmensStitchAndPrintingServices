@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-15T07:36:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T00:32:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -72,6 +72,22 @@ Run these once, in this order.
    ```
 
    `--reset` drops `CSPS_Dev` first and rebuilds it from the migrations. Leave it off to keep existing data. Use `--database CSPS_E2E` for the E2E database.
+
+## Secret scan before every commit (D-10)
+
+GitHub's own secret scanning is not available on this free private repository, so the project scans for secrets itself with gitleaks (free, MIT license). CI scans every pull request and every push to `main` (the `secret scan` check). The same scan can run on your machine before each commit, so a key never reaches the history.
+
+Turn it on once per clone:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Install-Gitleaks.ps1 -SetHooksPath
+```
+
+The script downloads gitleaks 8.30.1 into `artifacts/tools/gitleaks/8.30.1` (git-ignored), refuses it unless its SHA-256 matches the approved value, and sets only this repository's `core.hooksPath` to `.githooks`. It changes nothing at User or Machine level.
+
+- **What a block looks like.** `git commit` stops with a gitleaks report that names the file and line and hides the secret (`REDACTED`). Remove the secret from the staged file, then commit again. If it was a real secret that was ever pushed, treat it as leaked and tell the owner so it can be rotated.
+- **If gitleaks is not installed,** the hook prints one warning that points to `Install-Gitleaks.ps1` and lets the commit through. CI still scans.
+- **Never bypass with `--no-verify` for a real finding.** For a fake value in a test, add the file by exact path to `.gitleaks.toml` with a description (the `AllowlistsAreNarrow` test rejects broad entries).
 
 ## Running the API
 
