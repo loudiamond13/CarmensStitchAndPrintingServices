@@ -532,7 +532,7 @@ function fullSite(overrides: Record<string, Route> = {}) {
       'Bad Request - Invalid Hostname',
     ),
     [`GET ${ORIGIN}/assets/index-Ab12Cd.js`]: ASSET,
-    [`POST ${ORIGIN}/api/v1/__smoke`]: reply(404, { 'content-type': 'text/html' }, '<html>404.13</html>'),
+    [`POST ${ORIGIN}/api/v1/__smoke`]: problem(413),
     ...overrides,
   });
 }
@@ -831,28 +831,42 @@ describe('host-filter', () => {
 });
 
 describe('request-limit', () => {
-  it('passes on a non-2xx answer that is not ProblemDetails and says IIS refused it', async () => {
+  it('passes on a 413 ProblemDetails answer and says the app refused it', async () => {
     const site = fullSite();
     const result = await runOne('request-limit', site);
     expect(result.ok).toBe(true);
-    expect(result.detail).toContain('refused by IIS');
+    expect(result.detail).toContain('refused by the app');
     const post = site.requests[0];
     expect(post).toMatchObject({ method: 'POST', url: `${ORIGIN}/api/v1/__smoke` });
     expect(post?.body?.length).toBeGreaterThanOrEqual(1_500_000);
   });
 
-  it.each([413, 404])('says the app refused a ProblemDetails %i', async (status) => {
-    const site = fullSite({ [`POST ${ORIGIN}/api/v1/__smoke`]: problem(status) });
+  it('passes on a 413 that is not ProblemDetails and says IIS refused it', async () => {
+    const site = fullSite({ [`POST ${ORIGIN}/api/v1/__smoke`]: reply(413, { 'content-type': 'text/html' }) });
     const result = await runOne('request-limit', site);
     expect(result.ok).toBe(true);
-    expect(result.detail).toContain('refused by the app');
+    expect(result.detail).toContain('refused by IIS');
   });
+
+  it.each([400, 401, 403, 404, 500])(
+    'fails on a %i, which any unknown route answers without a body limit',
+    async (status) => {
+      for (const answer of [problem(status), reply(status, { 'content-type': 'text/html' }, '<html></html>')]) {
+        const site = fullSite({ [`POST ${ORIGIN}/api/v1/__smoke`]: answer });
+        const result = await runOne('request-limit', site);
+        expect(result.ok).toBe(false);
+        expect(result.detail).toContain(String(status));
+        expect(result.detail).toContain('expected 413');
+      }
+    },
+  );
 
   it.each([200, 201, 204])('fails on a %i answer', async (status) => {
     const site = fullSite({ [`POST ${ORIGIN}/api/v1/__smoke`]: reply(status, {}) });
     const result = await runOne('request-limit', site);
     expect(result.ok).toBe(false);
     expect(result.detail).toContain(String(status));
+    expect(result.detail).toContain('expected 413');
   });
 
   it('counts a connection closed while the body is sent as refused by IIS', async () => {
