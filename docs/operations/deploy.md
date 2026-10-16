@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:30:00-05:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:40:00-05:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -104,13 +104,15 @@ Set these under Settings, then Secrets and variables, then Actions, on the repos
 | `WEBDEPLOY_SITE` | Secret | The site name as the host calls it |
 | `WEBDEPLOY_USERNAME` | Secret | The Web Deploy user name |
 | `WEBDEPLOY_PASSWORD` | Secret | The Web Deploy password |
-| `WEBDEPLOY_CERT_SHA256` | Secret, optional | The SHA-256 fingerprint of the host's certificate. When set, a mismatch stops the deploy before anything changes. |
+| `WEBDEPLOY_CERT_SHA256` | Secret, optional | The SHA-256 fingerprint of the host's certificate. When set, a mismatch stops the deploy before anything changes. It is not full protection (see below). |
 | `HOSTPROBE_KEY` | Secret, optional | At least 32 characters, only for the one-time `hostprobe` action |
 | `SITE_ORIGIN` | Variable | The public address of the site, for example `https://cspstailoring.com`, used by the smoke test |
 
 The Web Deploy password must not contain a comma, a quote (single or double), a semicolon, a space or any control character. Web Deploy reads those characters as part of its own command line, so the workflow refuses such a password and does not print it. If the host gives you one with those characters, ask for a new one.
 
 If the host renews its certificate and you use `WEBDEPLOY_CERT_SHA256`, update the secret, or the next deploy stops with a certificate mismatch.
+
+**What the certificate pin does not do.** The pin is checked on one separate connection. When it matches, Web Deploy is told to skip its own certificate check (`-allowUntrusted`) and sends the deploy password on its own connections. Someone who sits on the network path could pass the check and then intercept those later connections. So the pin catches a wrong or renewed certificate, but it is not proof that the password goes only to the real host. Leave `WEBDEPLOY_CERT_SHA256` unset once the host's certificate is trusted by Windows, so the check is Web Deploy's own. Making Web Deploy validate the pinned certificate itself depends on host facts that are not verified yet, so it is not built.
 
 ## Migrations before a deploy
 

@@ -1,6 +1,6 @@
 # Runbook: switch the live site from the legacy app to CSPS
 
-*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-16T08:20:00-05:00*
+*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-16T16:40:00-05:00*
 
 This is the numbered plan for the day CSPS replaces the legacy site on the live host (D-01, D-18, OPS-04). You do every control-panel step. Claude checks each result before the next step starts. The legacy data is kept byte for byte in a verified backup (`.bak`) first (D-03, D-04), and the legacy site's files are kept as a rollback kit (D-05).
 
@@ -201,6 +201,8 @@ Do this step only now, after Step 3. The legacy site runs on the pool as it is t
    ```
 
    Then Claude runs the dry run again.
+
+   **The pin is a stop-gap, not full protection.** The workflow checks the fingerprint on one separate connection and then lets Web Deploy skip its own certificate check (`-allowUntrusted`) and send the deploy password. Someone who sits on the network path could pass that check and then read the later connections. Use the pin only while the host's certificate is untrusted, and prefer a certificate Windows already trusts for the Web Deploy address if the host can provide one (ask the host; this is not yet verified). A proper fix needs those host facts, so it is not built yet.
 4. The one-time host check (allowed by you on 2026-10-15, plan 03-06): it puts the small probe app on the site root once, before the first CSPS deploy, and the next CSPS deploy removes it. It checks the .NET runtime patch, the compression setting, whether URL Rewrite exists, in-process hosting, the folders, the time zone and the certificate loading. Make a fresh key and store it, never printing it:
 
    ```powershell
