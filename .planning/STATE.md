@@ -462,6 +462,7 @@ None yet.
 | 261014-gqz | Fix NuGetAudit restore failure: bump .NET 10.0.12 packages to 10.0.13 and pin patched System.Security.Cryptography.Pkcs/Xml | 2026-10-14 | 190fc19 | [261014-gqz-fix-nugetaudit-restore-failure-bump-net-](./quick/261014-gqz-fix-nugetaudit-restore-failure-bump-net-/) |
 | 261015-m51 | Phase 4 review follow-ups: CR-01 keep signed in, WR-12 back to /64, record owner rulings | 2026-10-15 | 0fc3387 | [261015-m51-phase-4-review-follow-ups-cr-01-keep-sig](./quick/261015-m51-phase-4-review-follow-ups-cr-01-keep-sig/) |
 | 261015-vmf | Address Copilot review on PR 4: savepoint per unit-of-work attempt, names for every password form, must-change check endpoint, cache owner outside React, IIS 2 MiB backstop | 2026-10-15 | 9ed29db | [261015-vmf-address-copilot-review-on-pr-4-phase-4](./quick/261015-vmf-address-copilot-review-on-pr-4-phase-4/) |
+| 261016-pub | Public repository: MIT license, CodeQL (C# and JS/TS) and dependency review workflows pinned by commit, owner approvals recorded | 2026-10-16 | a53a79a | [261016-pub-public-repo-license-codeql](./quick/261016-pub-public-repo-license-codeql/) |
 
 ## Deferred Items
 
