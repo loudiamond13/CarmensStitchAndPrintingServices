@@ -12,6 +12,7 @@ namespace Csps.ArchitectureTests;
 /// API holds no email sink, no Testing type and no Testing route, and the build symbol that compiles them in is defined
 /// for the Debug configuration only.
 /// </summary>
+[Collection(DotnetBuildCollection.Name)]
 public sealed class ReleaseHasNoEmailSinkTests
 {
     private const string TestingSymbol = "CSPS_TESTING";
