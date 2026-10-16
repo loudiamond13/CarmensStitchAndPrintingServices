@@ -88,3 +88,52 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node web/scripts/commit-lint.mjs
+
+  # OPS-02 / T-03-23: actionlint finds YAML, expression and shell mistakes (it uses the runner's shellcheck for run scripts).
+  # T-03-SC: the binary is used only after sha256sum -c matches the owner-approved checksum (CWE-494).
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: install actionlint 1.7.12 (checksum verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 --output actionlint_1.7.12_linux_amd64.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint_1.7.12_linux_amd64.tar.gz" | sha256sum -c -
+          tar -xzf actionlint_1.7.12_linux_amd64.tar.gz actionlint
+          ./actionlint -version
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # Run from the repository root: actionlint finds every file under .github/workflows by itself.
+      - name: lint workflows
+        run: actionlint -color
+
+  # OPS-02 / T-03-23: zizmor finds known workflow attack patterns. advanced-security stays false because SARIF upload needs
+  # GitHub Advanced Security, so findings show as annotations. T-03-SC: the action commit and the zizmor version are pinned.
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: zizmor 1.30.1
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          advanced-security: false
+          annotations: true
