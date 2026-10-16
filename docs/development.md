@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T11:52:04-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-16T13:30:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -290,7 +290,7 @@ Each check is defined in a workflow file in `.github/workflows/`. The file says 
 ### How `main` is protected
 
 - **The merge command.** `Merge-PullRequest.ps1` refuses to merge unless every check on the PR's newest commit passed and the Definition of Done checklist is ticked. It squash-merges, so `main` stays a straight line of one commit per PR. Never use GitHub's merge button or `gh pr merge` directly.
-- **GitHub's rules on `main`.** Because the repository is public, GitHub can enforce the same rules itself: required checks, linear history, no force-push, no deletion and no bypass. Plan 03-16 switches this ruleset on once the full gate has passed on GitHub.
+- **GitHub's rules on `main`.** Because the repository is public, GitHub can enforce the same rules itself: required checks, linear history, no force-push, no deletion and no bypass. The required checks are `gate result` (a small last job in `ci.yml` that passes only when the mode's own gate succeeded, so a docs-only PR can satisfy it too) plus the Hygiene and Security checks. Plan 03-16 switches this ruleset on once the full gate has passed on GitHub.
 - **Pinned actions.** Every third-party action is pinned to an exact, owner-approved commit (listed in `docs/dependencies.json`), so a moved tag can never swap in different code. Architecture tests (`CiWorkflowTests`) enforce this.
 - **Least privilege.** Every workflow starts with no rights (`permissions: {}`), and each job asks only for what it needs, usually just reading the code.
 

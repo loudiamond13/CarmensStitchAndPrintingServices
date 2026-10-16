@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T10:55:00-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T13:30:00-05:00*
 
 This repository is public on GitHub, and GitHub enforces branch rules on a public repository for free. Until 2026-10-16 the repository was private, and GitHub Free could not enforce rules there (the rulesets API answered 403 on 2026-10-15), so the rules were kept by process (D-08): CI checked every PR and the merge command refused to merge until the checks were green. Both layers stay: GitHub now refuses a bad merge on its own, and the merge command still runs its gate first, because the gate also checks the Definition of Done list in the PR body, which GitHub cannot see.
 
@@ -48,6 +48,8 @@ The SHA-pin setting was accepted and reads back as `true`. Every `uses:` in the 
 
 `docs/operations/main-ruleset.json` holds the exact ruleset. The owner approved switching it on once the repository was public and PR 1 was green.
 
+**Status (2026-10-16): not applied yet.** `gate (full)` on PR 1 is not green: the last Linux run passed everything up to and including Playwright, and Lighthouse then missed only the LCP limit (2127 ms against 2000 ms), which the owner waived until Phase 11 but which still fails the step. Nothing was applied while the gate is red. When the gate is green, the apply command below is run and its read-back is recorded here.
+
 | Rule | Value |
 |---|---|
 | Branch | the default branch (`main`) |
@@ -70,7 +72,7 @@ gh api repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets
 gh api repos/loudiamond13/CarmensStitchAndPrintingServices/rules/branches/main
 ```
 
-The first lists the rulesets, the second lists what applies to `main`. To change the ruleset, edit `docs/operations/main-ruleset.json` (the architecture tests check it) and update it with `gh api -X PUT repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets/<id> --input docs/operations/main-ruleset.json`.
+The first lists the rulesets, the second lists what applies to `main`. To switch it on: `gh api -X POST repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets --input docs/operations/main-ruleset.json`. To change it, edit `docs/operations/main-ruleset.json` (the architecture tests check it) and update it with `gh api -X PUT repos/loudiamond13/CarmensStitchAndPrintingServices/rulesets/<id> --input docs/operations/main-ruleset.json`.
 
 ## How to merge
 

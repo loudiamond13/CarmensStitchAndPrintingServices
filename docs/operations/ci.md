@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T10:56:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T13:30:00-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out.
 
@@ -75,6 +75,21 @@ This repository is public, and GitHub does not charge minutes for standard GitHu
 | Dependency update pull requests | 35 | 3 | 105 |
 | Deploys (Windows runner, counted about double) | 20 | 8 | 160 |
 | **Total** | | | **about 1,720** |
+
+## Measured (2026-10-16, partial)
+
+These are wall-clock times from the first runs on GitHub's `ubuntu-24.04` runners (`gh run view <id> --json jobs`). GitHub bills each job rounded up to the minute, but only on a private repository. They are partial because the full gate has not yet gone green: it stops at Lighthouse, so the last stage (coverage gate, license and notices checks, a few minutes) has no measurement yet. Plan 03-16 is not finished until that run is green; these figures will then be completed.
+
+| Job | Measured | Billed (rounded up) |
+|---|---|---|
+| `classify` | 5 to 10 seconds | 1 minute |
+| `gate (fast)`, a draft | 5 min 8 s | 6 minutes |
+| `gate (full)` up to Lighthouse (stages 1 to 5) | 20 min 30 s (restore 0:30, build and format 1:30, integration tests 2:20, web tests 2:35, Playwright 11:00, Lighthouse 0:30) | 21 minutes, plus the unmeasured stage 6 |
+| `gate result` | 2 to 4 seconds | 1 minute |
+| Hygiene, five jobs (`secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review`) | 4 to 13 seconds each | 5 minutes together |
+| CodeQL, two jobs | `analyze (csharp)` 3 min 25 s to 4 min 12 s, `analyze (javascript-typescript)` 56 s to 1 min 30 s | 7 minutes together |
+
+**If the repository were private:** one ready pull request run is about 1 + 25 (the full gate with stage 6 estimated at 4 minutes) + 1 + 5 + 7 = 39 minutes, and a draft run about 1 + 6 + 1 + 5 + 7 = 20. With the run counts used above (25 ready runs, 20 draft runs, 15 main merges at about 26, 4 weekly runs at about 78 with CodeQL, 3 Dependabot runs at 39, 8 deploys at the old estimate of 160) the month would be about 975 + 400 + 390 + 312 + 117 + 160 = 2,350 minutes, above the 2,000 free. The levers, without changing any gate: keep pull requests in draft while iterating, push fewer times once ready, and run the all-engine weekly job less often. While the repository is public none of this is billed.
 
 ## When the minutes run out (D-16)
 
