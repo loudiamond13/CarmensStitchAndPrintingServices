@@ -255,7 +255,7 @@ describe('decide: the pull request is refused', () => {
       'The check "zizmor" is still running.',
       'The pull request body has no "## Definition of Done" section.',
     ]);
-    expect(reasons.join('\n')).not.toMatch(/[–—]/u);
+    expect(reasons.join('\n')).not.toMatch(new RegExp(`[${String.fromCodePoint(0x2013, 0x2014)}]`, 'u'));
   });
 });
 
@@ -449,8 +449,10 @@ interface GhCall {
   readonly args: readonly string[];
 }
 
+type Route = readonly [(args: readonly string[]) => boolean, Answer | (() => Answer)];
+
 /** A fake gh: the first route whose matcher accepts the arguments answers; anything else fails the call. */
-function fakeGh(routes: readonly (readonly [(args: readonly string[]) => boolean, Answer | (() => Answer)])[]) {
+function fakeGh(routes: readonly Route[]) {
   const calls: GhCall[] = [];
   const runner = (command: string, args: readonly string[]) => {
     calls.push({ command, args });
@@ -489,20 +491,19 @@ const commitJson = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
-const happyRoutes = () =>
+const happyRoutes = (): Route[] => [
+  [has('repo view'), { status: 0, stdout: JSON.stringify({ nameWithOwner: SLUG }) }],
+  [has('pr view'), { status: 0, stdout: prJson() }],
   [
-    [has('repo view'), { status: 0, stdout: JSON.stringify({ nameWithOwner: SLUG }) }],
-    [has('pr view'), { status: 0, stdout: prJson() }],
-    [
-      has('pr checks'),
-      {
-        status: 0,
-        stdout: JSON.stringify([{ name: 'gate (full)', state: 'SUCCESS', bucket: 'pass', workflow: 'CI' }]),
-      },
-    ],
-    [has(`compare/main...${HEAD}`), { status: 0, stdout: '0\n' }],
-    [has(`commits/${HEAD}`), { status: 0, stdout: commitJson() }],
-  ] as const;
+    has('pr checks'),
+    {
+      status: 0,
+      stdout: JSON.stringify([{ name: 'gate (full)', state: 'SUCCESS', bucket: 'pass', workflow: 'CI' }]),
+    },
+  ],
+  [has(`compare/main...${HEAD}`), { status: 0, stdout: '0\n' }],
+  [has(`commits/${HEAD}`), { status: 0, stdout: commitJson() }],
+];
 
 describe('collect', () => {
   it('reads the pull request, its checks, how far behind main it is, and the head commit through gh', () => {
