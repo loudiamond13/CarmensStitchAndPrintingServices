@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-07-PLAN.md
-last_updated: "2026-10-16T04:01:12.764Z"
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-10-16T04:09:38.734Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: 649e0e49849b87eed1890f07f4471c57e610a21a
+state_head: e63506ba7658d4c2b4dcc084bc5343ca2082a50f
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 96
+  completed_plans: 97
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-15T23:05:00-05:00"
+updated: "2026-10-15T23:11:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 6 of 23
+Plan: 7 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -155,6 +155,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P04 | 9 min | 2 tasks | 2 files |
 | Phase 03 P05 | 11 min | 3 tasks | 8 files |
 | Phase 03 P07 | 20 min | 2 tasks | 2 files |
+| Phase 03 P08 | 8 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -396,6 +397,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-05: the PR template carries its timestamps in one HTML comment on line 1 so they never render into a PR body; the ruleset leaves require_code_owner_review false because a solo owner cannot approve their own PR
 - [Phase 03]: 03-07: request-limit counts a connection closed while the 1.5 MB body is sent (ECONNRESET, EPIPE, ECONNABORTED) as refused by IIS; host-filter fails on no answer; both responses stay out of the no-banners check (HTTP.sys may add its own Server header)
 - [Phase 03]: 03-07: smoke.mjs probe checks HOSTPROBE_KEY (32+ characters) before any request, sends it over https only and replaces it with [hidden] in all output; the http /probe redirect report is information only
+- [Phase 03]: 03-08: IIS compression is off in web.config (urlCompression static and dynamic false), no rewrite section and no httpCompression until the host probe proves A4 and A5
+- [Phase 03]: 03-08: RuntimeIdentifiers win-x64 lives in the src-only block of Directory.Build.props; the four src lock files carry the win-x64 section; tests that run dotnet build or publish on the Server project share the DotnetBuildCollection
 
 ### Pending Todos
 
@@ -443,6 +446,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T04:01:12.182Z
-Stopped at: Completed 03-07-PLAN.md
+Last session: 2026-10-16T04:09:38.248Z
+Stopped at: Completed 03-08-PLAN.md
 Resume file: None
