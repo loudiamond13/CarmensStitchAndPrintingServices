@@ -13,19 +13,19 @@ findings:
     title: "Certificate pin is checked on a separate connection, then `-allowUntrusted` turns off all validation for msdeploy"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`hostprobe` action can replace a running CSPS site with the probe app; nothing enforces \"once, before the first deploy\""
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Smoke `request-limit` check passes on any non-2xx answer, so it cannot show that the limit works"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`Restore-LegacyReceipt.ps1` drops the existing restore before validating the new `.bak`, and its default receipt path is a tracked file in a public repo"
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The whole \"7 package\" stage runs only on a push to `main`, so it has never run and a failure surfaces after the merge"
   - id: IN-01
     severity: info
@@ -51,9 +51,9 @@ findings:
     severity: info
     disposition: open
     title: "Dispatching `deploy.yml` from a non-main branch ends in a skipped (not failed) run"
-open: 10
+open: 6
 total: 12
-recorded: 2026-10-16T21:33:35.776Z
+recorded: 2026-10-16T21:33:57.874Z
 ---
 
 # Phase 03: Code Review Disposition
@@ -62,10 +62,10 @@ recorded: 2026-10-16T21:33:35.776Z
 |---------|----------|-------------|--------|
 | WR-01 | warning | fixed | 03-REVIEW-FIX.md |
 | WR-02 | warning | skipped | 03-REVIEW-FIX.md |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
+| WR-03 | warning | fixed | 03-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 03-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 03-REVIEW-FIX.md |
+| WR-06 | warning | fixed | 03-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
