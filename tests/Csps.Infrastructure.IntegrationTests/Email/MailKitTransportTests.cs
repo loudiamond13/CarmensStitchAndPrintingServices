@@ -1,10 +1,10 @@
 using System.Globalization;
-using MailKit.Net.Smtp;
-using MailKit.Security;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.IntegrationTests.Auditing;
 using Csps.Testing;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

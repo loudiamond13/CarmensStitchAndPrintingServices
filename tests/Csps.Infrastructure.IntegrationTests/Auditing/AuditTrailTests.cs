@@ -2,9 +2,9 @@ using System.Net;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Auditing;

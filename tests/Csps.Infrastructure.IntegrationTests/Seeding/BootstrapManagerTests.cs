@@ -1,10 +1,10 @@
-using BootstrapProgram = Csps.BootstrapManager.Program;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Seeding;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using BootstrapProgram = Csps.BootstrapManager.Program;
 
 namespace Csps.Infrastructure.IntegrationTests.Seeding;
 
