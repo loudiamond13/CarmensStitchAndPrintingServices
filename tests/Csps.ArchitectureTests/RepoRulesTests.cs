@@ -184,13 +184,13 @@ public sealed partial class RepoRulesTests
         string[] headings =
         [
             "## What is enforced today",
-            "## Rules written down for later",
+            "## The rules GitHub enforces on main",
             "## How to merge",
             "## When CI minutes run out",
         ];
         headings.Where(heading => !lines.Contains(heading)).ShouldBeEmpty("Every section is present.");
 
-        string[] names = ["Merge-PullRequest.ps1", "`gate (full)`", "D-08", "D-16"];
+        string[] names = ["Merge-PullRequest.ps1", "`gate (full)`", "`gate result`", "D-08", "D-16"];
         names.Where(name => !text.Contains(name, StringComparison.Ordinal)).ShouldBeEmpty("Every key name is mentioned.");
     }
 

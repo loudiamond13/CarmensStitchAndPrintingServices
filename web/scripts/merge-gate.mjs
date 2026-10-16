@@ -1,5 +1,5 @@
 // @ts-check
-// The process merge gate (OPS-01, D-08). GitHub Free cannot enforce branch rules on this private repository, so the one
+// The process merge gate (OPS-01, D-08). GitHub's ruleset on main enforces the checks, but it cannot read the Definition of Done list, so the one
 // supported merge command (tools/scripts/Merge-PullRequest.ps1) runs this first and merges only when it prints `head=<sha>`.
 //
 // A pull request may merge only when it is open, targets main, is not a draft, is 0 commits behind main, has no merge

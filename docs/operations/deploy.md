@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T01:38:00-05:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T10:56:00-05:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -126,4 +126,4 @@ Going the other way, an older version running over a newer database works only w
 
 Only you. The workflow starts only from the Run button or `gh workflow run`, and its job runs only on `main`. Claude starts it only when you say so in so many words.
 
-The deploy credentials are repository secrets. GitHub Free private repositories have no environment secrets or required reviewers, so any workflow file pushed to the repository could in principle read them. This risk is accepted (T-03-50): you are the only person who can write to the repository, `.github/` is covered by CODEOWNERS, and the deploy job gets the smallest token it can work with (`contents: write` to create the release, `actions: read` to find the package). Revisit this if another person ever gets write access.
+The deploy credentials are repository secrets, so any workflow file pushed to the repository could in principle read them. (The repository was private when this was written, and a private repository on GitHub Free has no environment secrets or required reviewers. Since it became public on 2026-10-16, both are available for free: an environment can hold the secrets and name you as a required reviewer. Nothing has been created yet; that is a separate change for you to approve.) This risk is accepted (T-03-50): you are the only person who can write to the repository, `.github/` is covered by CODEOWNERS, and the deploy job gets the smallest token it can work with (`contents: write` to create the release, `actions: read` to find the package). Revisit this if another person ever gets write access.

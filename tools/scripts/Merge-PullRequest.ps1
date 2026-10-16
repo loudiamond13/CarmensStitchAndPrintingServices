@@ -3,8 +3,8 @@
     The one supported way to merge a pull request: runs the merge gate, then squash-merges the exact commit it approved (OPS-01, D-08).
 
 .DESCRIPTION
-    GitHub Free cannot enforce branch rules on this private repository (the rulesets API answers 403), so the rules are
-    enforced here, by refusing to run the merge:
+    GitHub's ruleset on main enforces the checks, but it cannot read the Definition of Done list, so the rules are
+    also enforced here, by refusing to run the merge:
 
       1. Runs `node web/scripts/merge-gate.mjs <Pr>`. The gate reads the pull request with the GitHub CLI and allows the
          merge only when it is open, targets main, is not a draft, is 0 commits behind main, has no conflicts, has a passing
