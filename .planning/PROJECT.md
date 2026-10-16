@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-14T10:28:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-15T22:08:52-05:00*
 
 ## What This Is
 
@@ -127,7 +127,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
   - LCP < 2.0 s, CLS < 0.05, INP < 200 ms; API p95 < 300 ms for list endpoints.
 - **Responsive**: Mobile-first, 320 px to 1920 px, portrait and landscape, touch targets ≥ 44 px, no horizontal scroll. Visual QA uses the UI spec's 1440 / 820 / 390 px plus the PRD breakpoints.
 - **Hosting (PRD §19)**: SmarterASP.NET (Windows/IIS), Web Deploy from GitHub Actions, in-process hosting. Shared-hosting limits apply: app pools recycle, Data Protection keys live in the DB, and jobs must be short and idempotent.
-- **Data safety (Prime Directives 1, 2)**: The live legacy DB and site stay untouched until the approved cutover. The `.bak` lives only in `_local/`, is never committed, uploaded or deployed, and is only restored into a local disposable instance.
+- **Data safety (Prime Directives 1, 2)**: Prime Directive 1 as amended by the owner (2026-10-15, 03-CONTEXT D-01): the legacy site and database are retired in Phase 3, and only after a fresh `.bak` and the legacy site files are kept off the host and a local restore receipt is confirmed (D-04, D-05). Legacy data is never modified: it stays as it is in the `.bak` until the Phase 16/17 import. The `.bak` lives only in `_local/`, is never committed, uploaded or deployed, and is only restored into a local disposable `CSPS_` database.
 - **Shared machine (CLAUDE.md, binding)**:
   - Ports: Vite 5180, API 5115 / 7028, Playwright host 5199 (`reuseExistingServer: false`).
   - Never use 5173, 5023 or 5099. Avoid 49152–65535.
@@ -155,6 +155,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 | **OD-19 resolved** and owner answers (2026-10-07): only the Manager role deletes money transfers (Admin 403); an Admin sees only their own money on hand and transfers, a Manager sees everyone's; every state-changing form post is idempotent (SEC-06, WEB-09); concurrency guarantees are explicit (SEC-07) | The owner answered in chat. The rulings match PRD §4, where the Manager is the senior role. Duplicate posts and lost updates would break the Core Value of correct, server-computed money | ✓ Owner decided (2026-10-07) |
 | Owner answers on expenses and record attribution (2026-10-07): (1) an expense's "Paid by" reduces that staff member's money on hand, so the balance is payments received + transfers in − transfers out − expenses paid, computed server-side (MONEY-01); (2) every record staff create or edit stores and shows `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock and never from the client, with "Legacy import" for migrated records whose creator is unknown (SEC-08, MIG-10); (3) company and order expenses both have a required, server-validated "Paid by" naming an active Admin or Manager, and a payer change is audited (CEXP-05, ORD-23) | The owner asked that a payment show who received it and who entered it, and that expenses record who paid them, then answered three follow-up questions in chat. Received by (ORD-22) and Recorded by (SEC-08) are separate fields. Attribution that the client can't forge, plus audited payer changes, keeps staff balances explainable (Core Value) | ✓ Owner decided (2026-10-07) |
 | URL query-string state with nuqs (owner, 2026-10-07): (1) list and page view state (filters, search, sort, page, page size, tab, view mode) lives in the URL query string through nuqs 2.10.1 (MIT, free), approved after a check for security advisories, deprecation and the 14-day cool-down; switching to any newer version, such as a stable 2.10.2, needs the owner's approval at the Phase 2 install; (2) free-text search goes in the URL too, chosen over the privacy-conservative default of keeping it out, with mitigations: no query string in analytics, Core Web Vitals, client error reports or server logs, the strict Referrer-Policy, a 100-character server cap and no tokens or secrets in URLs; (3) the public gallery keeps its category filter in the URL as well, about 5.6 KB gz within the 150 KB public budget (WEB-10, ORD-10, GAL-01, ANL-05, SEC-03) | The owner asked for query-string URLs using nuqs. URL state lets Back, refresh, bookmarks and shared links reopen the same list view. Usage rules in WEB-10 avoid three known nuqs bugs (#1567, #1563, #1245), and ORD-10's saved view becomes the fallback when the URL has no valid view | ✓ Owner decided (2026-10-07) |
+| **Prime Directive 1 override** (owner, 2026-10-15): CSPS deploys to the live site and replaces the legacy app in Phase 3; the legacy site and database are retired then, not at the end of the project. There is no staging site (Basic plan, Phase 1 D-11) | The owner chose to surrender the legacy site now, accepting that staff have no order screens until the order phases ship. Legacy data is kept unchanged in a verified `.bak` (receipt confirmed before the delete) and imported in Phases 16 and 17. Until the owner accepts CSPS live, the legacy rollback kit (site files plus the `.bak`) can put the legacy site back | ✓ Owner decided (2026-10-15) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -229,4 +230,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-14 after Phase 2 (Web Foundation & Design System)*
+*Last updated: 2026-10-15T22:08:52-05:00 after plan 03-23 recorded the Prime Directive 1 override (Phase 3 planning)*

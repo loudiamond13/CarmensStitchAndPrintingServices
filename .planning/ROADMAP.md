@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T21:37:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T22:08:52-05:00*
 
 ## Overview
 
@@ -55,7 +55,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
-- [ ] **Phase 3: CI/CD & Staging Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks and Web Deploy to SmarterASP.NET staging
+- [ ] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15)
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
 - [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
@@ -304,12 +304,13 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 3: CI/CD & Staging Deploy
+### Phase 3: CI/CD & Deploy
 
-**Goal**: Every pull request is gated by the full pipeline. Every merge to `main` deploys to a SmarterASP.NET staging site that passes a smoke test, and production deploys wait for manual approval.
+**Goal**: Every pull request is gated by the full pipeline. A deploy runs only when the owner presses Run on a build of `main` that passed CI. It puts CSPS on the live SmarterASP.NET site, where CSPS replaces the legacy site, and a smoke test proves it or the last good package is put back automatically.
 **Mode:** mvp
 **Depends on**: Phase 2, because the pipeline runs the web gates. **Owner decision (2026-10-14): deferred; runs after Phase 4.**
 **Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, OPS-05
+**Amended** (owner, 2026-10-15; 03-CONTEXT D-01 to D-19): the Basic plan has no second site, so there is no staging site and every deploy goes to the live site. The owner overrides Prime Directive 1: the legacy site and database are retired in Phase 3, after a verified `.bak` and the legacy site files are kept.
 **Success Criteria** (what must be TRUE):
   1. **Merge gate.** A pull request to `main` can't merge until every check passes, in this order:
      1. locked restore
@@ -319,27 +320,30 @@ Plans:
      5. web build, Playwright, Lighthouse CI
      6. coverage gates and generated `THIRD-PARTY-NOTICES`
 
-     `main` requires pull requests, linear history and CODEOWNERS review. The PR template carries the Definition of Done checklist.
-  2. **Supply chain.** Dependabot (NuGet, npm, Actions, with cooldown) and the owner-approved supply-chain set run on the repo. That set is CodeQL, secret scanning with push protection and dependency review, or the approved substitute. Every action is pinned by SHA with least-privilege permissions.
-  3. **Staging deploy.** Merging to `main` deploys to staging through Web Deploy with `app_offline.htm`. The staging smoke E2E passes, including `/health` and an unknown `/api/*` route that returns ProblemDetails through IIS.
-  4. **Hosting configuration.** Staging serves in-process with:
+     GitHub Free can't enforce branch rules on a private repo, so the gate is a process (D-08): CI runs every check on every PR, and the one merge command refuses to merge unless every check on the PR head is green and the PR template's Definition of Done checklist is ticked. The intended rules (required checks, linear history, 0 required approvals, CODEOWNERS, no bypass) are written down, ready to switch on. When the free CI minutes run out, a merge needs the local full gate with its output pasted in the PR (D-16).
+  2. **Supply chain.** Dependabot (NuGet, npm, Actions, with a 14-day cooldown) runs on the repo with the owner-approved free set (D-10): gitleaks in CI and before each commit, NuGetAudit as error, `npm audit`, the license gates, .NET analyzers and ESLint. CodeQL, secret scanning and dependency review are not available on a free private repo. Every action is pinned by SHA with least-privilege permissions.
+  3. **Live deploy.** A merge to `main` builds a deploy package tied to its commit. The owner pressing Run (`workflow_dispatch`) is the manual approval: the chosen CI-passed package goes to the live site through Web Deploy with `app_offline.htm`. The smoke test then passes, including `/health` and an unknown `/api/*` route that returns ProblemDetails through IIS. If it fails, the last good package is redeployed automatically and the run is marked failed (D-11, D-13).
+  4. **Hosting configuration.** The live site serves in-process with:
      - HTTPS redirect
      - server headers removed
      - compression
      - `immutable` hashed assets and a `no-cache` `index.html`
 
-     Production secrets exist only on the server. A production deploy waits for manual approval.
+     The smoke test checks each of these. Production secrets exist only on the server. The first deploy also verifies every "Verify on the first deploy (Phase 3)" row in the hosting record, and the owner bootstraps the first Manager and signs in (D-06).
+  5. **Legacy retired safely.** Before the legacy database is deleted, the owner keeps a fresh `.bak` and the legacy site files off the host and confirms a local restore receipt of table names and row counts (D-04, D-05). CSPS then gets a new, empty SQL Server 2025 database with its compatibility level verified and pinned (D-03). Legacy data is never changed on the host.
+  6. **Holding page.** Until the Phase 11 public pages, every public path shows one branded holding page (shop name, a short "new website on the way" line, phone, Facebook link, address and hours) that passes the axe, Lighthouse, bundle-budget and no-long-dash gates (D-17). The admin portal stays as built in Phase 4.
 **Owner decisions to close at discuss step:**
 - **C-27 / S-9** private-repo security tooling: make the repo public, pay for GitHub code and secret security, or accept the weaker free substitute set
 - **C-45** the repo and host prerequisites below
 
 **Owner prerequisites:**
-- The owner creates the new GitHub repository when asked and grants access.
-- SmarterASP.NET Web Deploy credentials and a staging site (Advance plan or higher, per the hosting record).
-- The owner enters the repository and environment secrets.
+- The GitHub repository exists (owner-created, private) and Claude has access.
+- SmarterASP.NET Web Deploy credentials for the live site (the Basic plan has no second site).
+- The owner enters the repository secrets and the app-pool settings on the host.
 - The CODEOWNERS identity.
+- The control-panel steps in the cutover runbook (D-18): the fresh `.bak` and legacy file download, the database delete and create, the host settings, and the first Manager sign-in.
 
-**Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, staging-site setup) need research. They build on Phase 1's hosting record and stay LOW confidence until verified.
+**Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
 **Plans:** 23 plans
 
@@ -1090,4 +1094,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-07 after the owner chose URL query-string state with nuqs (WEB-10, Phase 2) and the matching Definition-of-Done bullet*
+*Last updated: 2026-10-15T22:08:52-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
