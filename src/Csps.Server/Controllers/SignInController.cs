@@ -88,7 +88,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
         {
             if (outcome.Next == VerifyNext.SetNewPassword)
             {
-                return TypedResults.Ok(new VerifyCodeResponse("set-new-password", ReasonText(outcome.Reason), null));
+                return TypedResults.Ok(new VerifyCodeResponse("set-new-password", PasswordChangeReasonText.For(outcome.Reason), null));
             }
 
             var issued = outcome.Session!;
@@ -119,11 +119,4 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
         var result = await resendCode.HandleAsync(ticket, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, outcome => TypedResults.Ok(new ResendCodeResponse(outcome.ResendAfterSeconds)));
     }
-
-    private static string? ReasonText(PasswordChangeReason? reason) => reason switch
-    {
-        PasswordChangeReason.Temporary => "temporary",
-        PasswordChangeReason.Breach => "breach",
-        _ => null,
-    };
 }

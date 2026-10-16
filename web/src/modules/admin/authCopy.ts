@@ -77,6 +77,12 @@ export const AUTH_COPY = {
     title: 'Set a new password',
     sublineTemporary: 'You signed in with a temporary password. Choose your own password to continue.',
     sublineBreach: 'Your password appeared in a data breach. Set a new one.',
+    /** The pending sign-in is checked on every arrival, so the screen can apply the account rules (OR-3). */
+    checking: 'Checking your sign-in…',
+    checked: 'Sign-in checked.',
+    /** The check could not be made (network, 429, 5xx): the screen offers it again. */
+    checkFailed: 'We could not check your sign-in yet.',
+    retry: 'Try Again',
     newLabel: 'New password',
     confirmLabel: 'Confirm new password',
     ruleHint: "Use 8 to 64 characters with at least one number and one symbol. Don't use your name or email.",

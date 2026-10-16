@@ -14,4 +14,6 @@ public sealed record ResetTokenRequest(string? Token)
 
 /// <summary>The answer to a usable reset link.</summary>
 /// <param name="Email">The address of the account the link belongs to, so the page can name it.</param>
-public sealed record ResetLinkResponse(string Email);
+/// <param name="FirstName">The account given name, for the password rule.</param>
+/// <param name="LastName">The account family name, for the password rule.</param>
+public sealed record ResetLinkResponse(string Email, string FirstName, string LastName);

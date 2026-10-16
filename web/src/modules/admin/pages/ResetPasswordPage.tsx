@@ -53,17 +53,19 @@ export function removeFragment(): void {
 interface ResetFormProps {
   token: string;
   email: string;
+  firstName: string;
+  lastName: string;
   /** The link stopped working between the check and the save. */
   onLinkGone: () => void;
 }
 
 /** The form state: owns the form, the schema for this account and the save. */
-function ResetForm({ token, email, onLinkGone }: ResetFormProps) {
+function ResetForm({ token, email, firstName, lastName, onLinkGone }: ResetFormProps) {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const [banner, setBanner] = useState<AuthBanner | null>(null);
-  // D-15: the checked link names the account, so the password can be kept free of its email.
-  const schema = useMemo(() => newPasswordSchema({ email, firstName: null, lastName: null }), [email]);
+  // D-15: the checked link names the account, so the password can be kept free of its email and names.
+  const schema = useMemo(() => newPasswordSchema({ email, firstName, lastName }), [email, firstName, lastName]);
   const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
     resolver: zodResolver(schema),
     defaultValues: { newPassword: '', confirmPassword: '' },
@@ -154,7 +156,7 @@ function ResetForm({ token, email, onLinkGone }: ResetFormProps) {
 
 type Phase =
   | { readonly kind: 'checking' }
-  | { readonly kind: 'form'; readonly email: string }
+  | { readonly kind: 'form'; readonly email: string; readonly firstName: string; readonly lastName: string }
   | { readonly kind: 'invalid' }
   | { readonly kind: 'failed'; readonly error: unknown };
 
@@ -178,7 +180,7 @@ export function ResetPasswordRoute() {
     const controller = new AbortController();
     passwordService.checkResetLink({ token }, controller.signal).then(
       (response) => {
-        setPhase({ kind: 'form', email: response.email });
+        setPhase({ kind: 'form', email: response.email, firstName: response.firstName, lastName: response.lastName });
       },
       (error: unknown) => {
         if (controller.signal.aborted) {
@@ -240,6 +242,8 @@ export function ResetPasswordRoute() {
         <ResetForm
           token={token}
           email={phase.email}
+          firstName={phase.firstName}
+          lastName={phase.lastName}
           onLinkGone={() => {
             setPhase({ kind: 'invalid' });
           }}

@@ -12,7 +12,7 @@ public sealed class CheckInviteHandler(IAccountTokens tokens, IUserAccounts acco
     /// <summary>Checks one invite.</summary>
     /// <param name="request">The token.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The account email and first name, or a 404 for any invite that does not work.</returns>
+    /// <returns>The account email and names, or a 404 for any invite that does not work.</returns>
     public async Task<Result<InviteLinkResponse>> HandleAsync(InviteTokenRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -20,6 +20,6 @@ public sealed class CheckInviteHandler(IAccountTokens tokens, IUserAccounts acco
         var invite = await InviteLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
         return invite is null
             ? Result.Failure<InviteLinkResponse>(AuthErrors.InviteInvalid)
-            : Result.Success(new InviteLinkResponse(invite.Account.Email, invite.Account.FirstName));
+            : Result.Success(new InviteLinkResponse(invite.Account.Email, invite.Account.FirstName, invite.Account.LastName));
     }
 }

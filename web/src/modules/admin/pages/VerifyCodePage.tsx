@@ -28,7 +28,6 @@ import {
   completeSignIn,
   getPendingEmail,
   getResendAvailableAt,
-  setPasswordChangeReason,
   setResendAvailableAt,
   setSignInNotice,
 } from '@/modules/admin/services/session';
@@ -109,7 +108,6 @@ export function VerifyCodeRoute() {
       onSuccess: (response) => {
         const search = returnUrl === null ? '' : `?returnUrl=${encodeURIComponent(safeReturnUrl(returnUrl))}`;
         if (response.next === 'set-new-password') {
-          setPasswordChangeReason(response.reason);
           void navigate(`${NEW_PASSWORD_PATH}${search}`);
         } else if (response.session !== null) {
           completeSignIn(response.session);

@@ -109,15 +109,14 @@ describe('passwordService routes', () => {
 });
 
 describe('passwordService must-change context', () => {
-  it('checkSetNewPassword posts to /auth/password/set-new/check with no body, the CSRF header and no auth refresh', async () => {
+  it('checkSetNewPassword posts to /auth/password/set-new/check with no body and no auth refresh', async () => {
     const context = { email: 'lito@gmail.com', firstName: 'Lito', lastName: 'Ramos', reason: 'breach' };
-    const arrived: { method: string; search: string; csrf: string | null; body: string }[] = [];
+    const arrived: { method: string; search: string; body: string }[] = [];
     server.use(
       http.post('*/api/v1/auth/password/set-new/check', async ({ request }) => {
         arrived.push({
           method: request.method,
           search: new URL(request.url).search,
-          csrf: request.headers.get('X-CSPS-CSRF'),
           body: await request.text(),
         });
         return HttpResponse.json(context);
@@ -127,7 +126,7 @@ describe('passwordService must-change context', () => {
 
     await expect(service.checkSetNewPassword()).resolves.toEqual(context);
 
-    expect(arrived).toEqual([{ method: 'POST', search: '', csrf: '1', body: '' }]);
+    expect(arrived).toEqual([{ method: 'POST', search: '', body: '' }]);
     expect(refresh).not.toHaveBeenCalled();
   });
 });

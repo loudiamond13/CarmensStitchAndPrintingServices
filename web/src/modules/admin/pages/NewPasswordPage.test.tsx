@@ -6,12 +6,7 @@ import { RouterProvider } from 'react-router/dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import AuthLayout from '@/layouts/AuthLayout';
 import { NewPasswordRoute } from '@/modules/admin/pages/NewPasswordPage';
-import {
-  clearSession,
-  getSessionUser,
-  takeSignedInToast,
-  takeSignInNotice,
-} from '@/modules/admin/services/session';
+import { clearSession, getSessionUser, takeSignedInToast, takeSignInNotice } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -29,15 +24,15 @@ interface Probe {
 }
 
 /** Answers the must-change check (default: the usable pending sign-in for EMAIL); the last answer set wins. */
-function answerCheck(reply?: () => Response | Promise<Response>): { calls: () => number } {
-  let calls = 0;
+function answerCheck(reply?: () => Response | Promise<Response>): { csrfHeaders: (string | null)[] } {
+  const seen: { csrfHeaders: (string | null)[] } = { csrfHeaders: [] };
   server.use(
-    http.post('*/api/v1/auth/password/set-new/check', () => {
-      calls += 1;
+    http.post('*/api/v1/auth/password/set-new/check', ({ request }) => {
+      seen.csrfHeaders.push(request.headers.get('X-CSPS-CSRF'));
       return reply ? reply() : HttpResponse.json(CONTEXT);
     }),
   );
-  return { calls: () => calls };
+  return seen;
 }
 
 async function formReady(): Promise<void> {
@@ -134,9 +129,11 @@ describe('S3 arrival', () => {
   });
 
   it('puts the email from the check in the hidden username input, with nothing held in memory (a reloaded page)', async () => {
+    const check = answerCheck();
     const { view } = renderNewPassword();
     await formReady();
 
+    expect(check.csrfHeaders).toEqual(['1']);
     const username = view.container.querySelector('input[autocomplete="username"]');
     expect(username).toHaveValue(EMAIL);
     expect(username).not.toBeVisible();

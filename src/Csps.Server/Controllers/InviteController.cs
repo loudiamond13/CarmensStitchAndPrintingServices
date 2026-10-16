@@ -24,7 +24,7 @@ public sealed class InviteController(CheckInviteHandler checkInvite, AcceptInvit
     /// <summary>Tells the accept-invite page whether its link still works and which account it is for.</summary>
     /// <param name="body">The token; a null or unreadable body reads as an invalid invite.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the account email and first name, or 404 <c>auth.invite-invalid</c> for any invite that does not work.</returns>
+    /// <returns>200 with the account email and names, or 404 <c>auth.invite-invalid</c> for any invite that does not work.</returns>
     [HttpPost("check")]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
     [IdempotencyExempt("Read-only lookup; changes nothing.")]

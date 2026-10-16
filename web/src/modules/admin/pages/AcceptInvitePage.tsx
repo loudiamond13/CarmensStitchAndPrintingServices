@@ -44,10 +44,10 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const [banner, setBanner] = useState<AuthBanner | null>(null);
-  // D-15: the checked invite names the account, so the password can be kept free of its email and first name.
+  // D-15: the checked invite names the account, so the password can be kept free of its email and names.
   const schema = useMemo(
-    () => newPasswordSchema({ email: invite.email, firstName: invite.firstName, lastName: null }),
-    [invite.email, invite.firstName],
+    () => newPasswordSchema({ email: invite.email, firstName: invite.firstName, lastName: invite.lastName }),
+    [invite.email, invite.firstName, invite.lastName],
   );
   const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
     resolver: zodResolver(schema),

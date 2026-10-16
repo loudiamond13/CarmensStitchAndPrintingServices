@@ -130,7 +130,6 @@ export function createSession(deps: SessionDeps) {
   let signedInToast: SignedInToast | null = null;
   let pendingEmail: string | null = null;
   let resendAvailableAt: number | null = null;
-  let passwordChangeReason: string | null = null;
   /** How the last refresh failed: only a 401 means the session is over. */
   let refreshFailure: 'unauthorized' | 'other' | null = null;
   let peerRefreshes = 0;
@@ -159,7 +158,6 @@ export function createSession(deps: SessionDeps) {
     tokenExpiresAt = 0;
     pendingEmail = null;
     resendAvailableAt = null;
-    passwordChangeReason = null;
     publish(signedOut);
   }
 
@@ -167,7 +165,6 @@ export function createSession(deps: SessionDeps) {
   function completeSignIn(response: SessionResponse): void {
     acceptSession(response);
     resendAvailableAt = null;
-    passwordChangeReason = null;
     channel?.postMessage({ type: 'refreshed', expiresAt: tokenExpiresAt } satisfies ChannelMessage);
   }
 
@@ -334,11 +331,6 @@ export function createSession(deps: SessionDeps) {
       resendAvailableAt = at;
     },
     getResendAvailableAt: (): number | null => resendAvailableAt,
-    /** Why the new-password step is needed (`temporary` or `breach`), kept from the code step to that step. */
-    setPasswordChangeReason: (reason: string | null): void => {
-      passwordChangeReason = reason;
-    },
-    getPasswordChangeReason: (): string | null => passwordChangeReason,
   };
 }
 
@@ -363,8 +355,6 @@ export const {
   getPendingEmail,
   setResendAvailableAt,
   getResendAvailableAt,
-  setPasswordChangeReason,
-  getPasswordChangeReason,
 } = session;
 
 configureSession({

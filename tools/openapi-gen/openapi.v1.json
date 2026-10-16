@@ -49,13 +49,18 @@
             "type": "string"
           },
           "firstName": {
-            "description": "The invited person's given name, for the greeting.",
+            "description": "The invited person's given name, for the greeting and the password rule.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The invited person's family name, for the password rule.",
             "type": "string"
           }
         },
         "required": [
           "email",
-          "firstName"
+          "firstName",
+          "lastName"
         ],
         "type": "object"
       },
@@ -137,10 +142,20 @@
           "email": {
             "description": "The address of the account the link belongs to, so the page can name it.",
             "type": "string"
+          },
+          "firstName": {
+            "description": "The account given name, for the password rule.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The account family name, for the password rule.",
+            "type": "string"
           }
         },
         "required": [
-          "email"
+          "email",
+          "firstName",
+          "lastName"
         ],
         "type": "object"
       },
@@ -304,6 +319,34 @@
           "firstName",
           "lastName",
           "role"
+        ],
+        "type": "object"
+      },
+      "SetNewPasswordContextResponse": {
+        "description": "What the must-change screen needs to apply the password rule in the browser.",
+        "properties": {
+          "email": {
+            "description": "The account email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "The account given name.",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "The account family name.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a new password is needed: `temporary` or `breach`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName",
+          "lastName",
+          "reason"
         ],
         "type": "object"
       },
@@ -965,6 +1008,47 @@
           }
         },
         "summary": "Saves the new password of an account that must change it, and only then signs the person in (D-13, D-22).",
+        "tags": [
+          "Password"
+        ]
+      }
+    },
+    "/api/v1/auth/password/set-new/check": {
+      "post": {
+        "operationId": "CheckSetNewPassword",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetNewPasswordContextResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Tells the must-change screen who the pending sign-in is for and why, on every arrival. It never spends the ticket.",
         "tags": [
           "Password"
         ]

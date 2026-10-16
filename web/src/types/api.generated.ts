@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password/set-new/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tells the must-change screen who the pending sign-in is for and why, on every arrival. It never spends the ticket. */
+        post: operations["CheckSetNewPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -279,8 +296,10 @@ export interface components {
         InviteLinkResponse: {
             /** @description The address of the account the invite belongs to, so the page can name it. */
             email: string;
-            /** @description The invited person's given name, for the greeting. */
+            /** @description The invited person's given name, for the greeting and the password rule. */
             firstName: string;
+            /** @description The invited person's family name, for the password rule. */
+            lastName: string;
         };
         /** @description The body of an invite-link check: the token from the emailed link. It travels in the body, never in a URL. */
         InviteTokenRequest: {
@@ -307,6 +326,10 @@ export interface components {
         ResetLinkResponse: {
             /** @description The address of the account the link belongs to, so the page can name it. */
             email: string;
+            /** @description The account given name, for the password rule. */
+            firstName: string;
+            /** @description The account family name, for the password rule. */
+            lastName: string;
         };
         /** @description The reset form: the token from the emailed link and the new password (AUTH-09). */
         ResetPasswordRequest: {
@@ -383,6 +406,17 @@ export interface components {
             lastName: string;
             /** @description The role, `Admin` or `Manager`. */
             role: string;
+        };
+        /** @description What the must-change screen needs to apply the password rule in the browser. */
+        SetNewPasswordContextResponse: {
+            /** @description The account email. */
+            email: string;
+            /** @description The account given name. */
+            firstName: string;
+            /** @description The account family name. */
+            lastName: string;
+            /** @description Why a new password is needed: `temporary` or `breach`. */
+            reason: string;
         };
         /** @description The must-change form: the new password the person chose after the emailed code (D-13). */
         SetNewPasswordRequest: {
@@ -706,6 +740,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckSetNewPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetNewPasswordContextResponse"];
                 };
             };
             /** @description Unauthorized */

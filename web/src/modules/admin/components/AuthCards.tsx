@@ -303,16 +303,18 @@ export function InviteInvalidCard({ focusHeading = true }: InvalidCardProps) {
   );
 }
 
-/** S5 and S6 while the link or invite is being checked: the header and a skeleton (the route wraps it in a LoadingRegion). */
+/** S3, S5 and S6 while the sign-in, link or invite is being checked: the header and a skeleton (the route wraps it in a LoadingRegion). */
 export interface CheckingCardProps {
   /** The screen's title: "Set a new password" (S5) or "Set your password" (S6). */
   title: string;
+  /** What is being checked; defaults to the emailed link. */
+  subline?: string;
 }
 
-export function CheckingCard({ title }: CheckingCardProps) {
+export function CheckingCard({ title, subline = AUTH_COPY.reset.checking }: CheckingCardProps) {
   return (
     <div className={loginCardClasses}>
-      <AuthHeader title={title} subline={AUTH_COPY.reset.checking} />
+      <AuthHeader title={title} subline={subline} />
       <SkeletonText />
     </div>
   );

@@ -36,7 +36,9 @@ function answer(
     http.post('*/api/v1/auth/password/reset/check', async ({ request }) => {
       probe.hashAtCheck.push(window.location.hash);
       probe.checkBodies.push(await request.json());
-      return options.check ? options.check() : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
+      return options.check
+        ? options.check()
+        : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
     }),
     http.post('*/api/v1/auth/password/reset', async ({ request }) => {
       probe.resetBodies.push(await request.json());
@@ -209,7 +211,9 @@ describe('S5 invalid and failed links', () => {
     answer({
       check: () => {
         calls += 1;
-        return calls === 1 ? problemResponse(503, { title: 'Down', status: 503 }) : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
+        return calls === 1
+          ? problemResponse(503, { title: 'Down', status: 503 })
+          : HttpResponse.json({ email: EMAIL, firstName: 'Paolo', lastName: 'Garcia' });
       },
     });
     renderReset();

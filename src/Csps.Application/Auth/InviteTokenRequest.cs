@@ -14,5 +14,6 @@ public sealed record InviteTokenRequest(string? Token)
 
 /// <summary>The answer to a usable invite link.</summary>
 /// <param name="Email">The address of the account the invite belongs to, so the page can name it.</param>
-/// <param name="FirstName">The invited person's given name, for the greeting.</param>
-public sealed record InviteLinkResponse(string Email, string FirstName);
+/// <param name="FirstName">The invited person's given name, for the greeting and the password rule.</param>
+/// <param name="LastName">The invited person's family name, for the password rule.</param>
+public sealed record InviteLinkResponse(string Email, string FirstName, string LastName);

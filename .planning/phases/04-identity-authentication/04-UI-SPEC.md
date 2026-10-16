@@ -6,7 +6,7 @@ reviewed_at: "2026-10-14T09:05:00-05:00"
 shadcn_initialized: false
 preset: none
 created: "2026-10-14T08:10:00-05:00"
-updated: "2026-10-15T16:21:29-05:00"
+updated: "2026-10-15T23:40:00-05:00"
 ---
 
 # Phase 4 — UI Design Contract
@@ -237,7 +237,7 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 |-------|--------|-------------|-----------------|
 | `/admin/login` | S1 Sign in | **App. E.5** (approved) | With a live session, it redirects to `/admin` |
 | `/admin/login/verify` | S2 Check your email (code step) | SPEC-GAP (D-01) | With a live session, it redirects to `/admin`. It renders without an in-memory step, so refresh works (D-01). |
-| `/admin/login/new-password` | S3 Set a new password (must-change gate, D-13/D-18) | SPEC-GAP | Reached only from S2. Opened directly with no pending gate, the first save fails and redirects to S1 with the "timed out" notice. |
+| `/admin/login/new-password` | S3 Set a new password (must-change gate, D-13/D-18) | SPEC-GAP | Reached only from S2. On every arrival (a reload included) it checks the pending gate first; with no usable gate the check answers 401 and the person goes to S1 with the "timed out" notice. |
 | `/admin/forgot-password` | S4 Reset your password (request) | SPEC-GAP | Anonymous |
 | `/admin/reset-password#token=…` | S5 Set a new password (from the email link) | SPEC-GAP | Anonymous. The token is read from `location.hash` and removed at once with `history.replaceState` (RESEARCH Pattern 8). |
 | `/admin/accept-invite#token=…` | S6 Set your password (invite, D-29) | SPEC-GAP | Anonymous. Same fragment handling as S5. |
@@ -290,9 +290,10 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 
 ### S3 Set a new password — `/admin/login/new-password` (SPEC-GAP, D-13, D-18, D-22)
 
-1. AuthHeader: `h1` "Set a new password". The subline has two variants, chosen by the reason the server returns: **temporary** (D-21/D-22) or **breach** (D-18, verbatim).
+0. **Checking state:** on every arrival the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your sign-in…" then "Sign-in checked.". The check (`POST /api/v1/auth/password/set-new/check`, ticket cookie) answers the account email, first name, last name and reason. A 401 goes to S1 with the "timed out" notice. Any other failure shows the card with "We could not check your sign-in yet.", the shared error and a "Try Again" button that runs the check again.
+1. AuthHeader: `h1` "Set a new password". The subline has two variants, chosen by the reason the check returns: **temporary** (D-21/D-22) or **breach** (D-18, verbatim).
 2. Error slot: `ErrorState align="start"` for the shared mapper.
-3. A hidden username input for password managers: `<input type="email" autoComplete="username" value={email} hidden readOnly>`, only when `{email}` is in memory.
+3. A hidden username input for password managers: `<input type="email" autoComplete="username" value={email} hidden readOnly>`, with the `{email}` from the check.
 4. `PasswordField` "New password": `autoComplete="new-password"`, `showStrength`, `hint` = the password rule hint, required.
 5. `PasswordField` "Confirm new password": `autoComplete="new-password"`, required.
 6. `Button` primary lg block, `iconRight="arrow-right"`, "Save Password". Pending: "Saving".
@@ -317,7 +318,7 @@ The route paths below are proposed. CONTEXT leaves route names to the planner, e
 
 ### S5 Set a new password from the email link — `/admin/reset-password#token=…` (SPEC-GAP, AUTH-08/09)
 
-- **Checking state:** the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your link…". The token check returns the account email or "invalid".
+- **Checking state:** the card shows the AuthHeader `h1` "Set a new password" and a `LoadingRegion` with `SkeletonText`, announcing "Checking your link…". The token check returns the account email and both names, or "invalid"; the names and email feed the password rule in the browser (S3, S5 and S6 alike).
 - **Form state:**
   - subline with `{email}`
   - the hidden username input with `{email}`
@@ -456,6 +457,8 @@ Spec copy is **verbatim** (spec §0 rule 5). New strings are marked *(SPEC-GAP)*
 | S3 h1 *(SPEC-GAP)* | "Set a new password" |
 | S3 subline, temporary *(SPEC-GAP)* | "You signed in with a temporary password. Choose your own password to continue." |
 | S3 subline, breach | "Your password appeared in a data breach. Set a new one." (D-18) |
+| S3 checking *(SPEC-GAP)* | "Checking your sign-in…" → "Sign-in checked." |
+| S3 check failed *(SPEC-GAP)* | "We could not check your sign-in yet." · button "Try Again" |
 | S3 back link | "Use a different account" |
 | Password fields *(SPEC-GAP labels from App. E.13)* | "New password" · "Confirm new password" |
 | Password rule hint *(SPEC-GAP)* | "Use 8 to 64 characters with at least one number and one symbol. Don't use your name or email." |
@@ -661,10 +664,11 @@ Applicable state considerations resolved: 44 covered (verification: explicit), 7
 |----------|------------|--------|---------------------|
 | empty | S1 form on first visit | ✅ covered | The Email and Password fields are empty and never pre-filled or remembered (D-09). Browser and password-manager autofill still works (`autocomplete="username"` / `current-password`). |
 | empty | S2 with no in-memory email (refresh, direct visit) | ✅ covered | The subline uses the "your email" fallback; the screen still works through the ticket cookie (D-01). |
-| empty | S3/S5/S6 with no email for the hidden username input | ✅ covered | The hidden input is omitted; the form still works. |
+| empty | S3/S5/S6 hidden username input | ✅ covered | The email always comes from the S3, S5 or S6 check, so a reload keeps it; nothing is held in a URL or storage. |
 | empty | S5/S6 opened with no `#token` | ✅ covered | Shows the invalid state (the same copy as expired). |
 | loading | Every auth submit | ✅ covered | The WEB-09 pending state with the pending labels in § Copywriting; one request per double-click. |
 | loading | S5/S6 token check | ✅ covered | `LoadingRegion` + `SkeletonText` inside the card; "Checking your link…" → "Link checked." |
+| loading | S3 sign-in check | ✅ covered | The same pattern; "Checking your sign-in…" → "Sign-in checked." |
 | loading | Admin boot (`ensureSession`) | ✅ covered | `ShellFallback` (an empty Blush page root) until the session resolves or redirects; no layout shift. |
 | loading | Sign-out-others | ✅ covered | The dialog's primary button pending "Signing out"; Esc, the scrim and "Keep Others Signed In" are ignored while pending (P2 Modal `loading`). |
 | error | Credential failure (any cause) | ✅ covered | One generic banner, verbatim App. E.5, with similar timing (D-02); see Copywriting → Error states. |
