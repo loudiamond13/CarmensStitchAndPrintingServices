@@ -137,3 +137,22 @@ jobs:
           version: 1.30.1
           advanced-security: false
           annotations: true
+
+  # Owner approval 2026-10-16: a pull request that adds or changes a package with a known security problem (any severity),
+  # or with a license outside the project allow-list (docs/dependencies.json), fails. GitHub cannot read the license of a
+  # GitHub Action (a known upstream gap), so those show as unknown and are let through; the SHA-pin tests cover actions.
+  # contents: read only, so the summary stays on the run page instead of a PR comment.
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, MPL-2.0, OFL-1.1
+          comment-summary-in-pr: never

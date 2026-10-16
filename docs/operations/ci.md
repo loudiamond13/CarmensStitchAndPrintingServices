@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T01:12:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T08:50:00-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out.
 
@@ -40,6 +40,13 @@ When a pull request is merged, the push to `main` is classified again. If that e
 ## Weekly run
 
 `weekly.yml` runs on Sundays at 18:00 UTC (Monday 02:00 in Manila) and can also be started by hand from the Actions tab. It calls `ci.yml` with `all-engines` turned on, so Playwright runs all seven projects: `chromium`, `firefox`, `webkit`, `pixel`, `iphone`, `chromium-classic-scrollbars` and `chromium-overlay-scrollbars`. GitHub starts scheduled runs only from the `main` branch, so the first weekly run happens after this pipeline is merged.
+
+## Security scans (public repository)
+
+Two free GitHub checks run besides the gate (owner approval 2026-10-16, recorded in `docs/dependencies.md`):
+
+- **CodeQL** (`codeql.yml`) scans the C# and the TypeScript on every pull request, every push to `main` and every Sunday at 19:00 UTC. The C# side builds `Csps.slnx` with the pinned SDK. Alerts appear under the repository's Security tab, and a newer push to a pull request cancels its older scan.
+- **Dependency review** (the `dependency review` job in `hygiene.yml`) runs on pull requests only. It fails when a pull request adds or changes a package with a known security problem, or with a license outside the allow-list. A GitHub Action shows an unknown license, because GitHub cannot read it, and that does not fail the check.
 
 ## What the CI database is
 
