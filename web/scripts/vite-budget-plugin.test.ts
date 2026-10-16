@@ -92,15 +92,10 @@ function bundle(entryCode: string, entryModules: Record<string, number> = {}): R
       moduleIds: [`${ROOT}/index.html`, 'C:\\Work\\app\\web\\src\\main.tsx', ...Object.keys(entryModules)],
       rendered: entryModules,
     }),
-    outputChunk('assets/PublicLayout-C3.js', 'export const a = 1;', {
+    outputChunk('assets/HoldingPage-D4.js', 'export const b = 2;', {
       isDynamicEntry: true,
-      facadeModuleId: 'C:\\Work\\app\\web\\src\\layouts\\PublicLayout.tsx',
-      moduleIds: ['C:\\Work\\app\\web\\src\\layouts\\PublicLayout.tsx'],
-    }),
-    outputChunk('assets/PublicPlaceholderPage-D4.js', 'export const b = 2;', {
-      isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx?v=1`,
-      moduleIds: [`${ROOT}/src/modules/public/pages/PublicPlaceholderPage.tsx`],
+      facadeModuleId: `${ROOT}/src/modules/public/pages/HoldingPage.tsx?v=1`,
+      moduleIds: [`${ROOT}/src/modules/public/pages/HoldingPage.tsx`],
     }),
     ...adminChunks(),
     outputAsset('assets/index-E5.css', 'body{color:red}'),

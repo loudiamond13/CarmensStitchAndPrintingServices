@@ -33,8 +33,7 @@ function css(fileName: string, gzipSize: number): BudgetAsset {
   return { fileName, gzipSize };
 }
 
-const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
-const PUBLIC_PAGE = 'src/modules/public/pages/PublicPlaceholderPage.tsx';
+const PUBLIC_PAGE = 'src/modules/public/pages/HoldingPage.tsx';
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
 const SESSIONS_PAGE = 'src/modules/admin/pages/SessionsPage.tsx';
@@ -46,8 +45,8 @@ const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
 
 /**
- * A production-shaped graph: the entry and the public layout both import one shared chunk, the placeholder page imports
- * nothing. The public initial JS is entry + shared + layout + page = `publicBytes`. The guarded admin app ships too:
+ * A production-shaped graph: the entry and the holding page both import one shared chunk. The public initial JS is
+ * entry + shared + page = `publicBytes`. The guarded admin app ships too:
  * the signed-in entry (guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
  * signed-out entry (guard, auth layout, sign-in page) is about 3 KB over the public number.
  */
@@ -62,15 +61,10 @@ function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes
         moduleIds: ['index.html', 'src/main.tsx', 'src/core/routes/router.tsx'],
       }),
       chunk(SHARED, 1_000, { moduleIds: ['node_modules/react/index.js'] }),
-      chunk('assets/PublicLayout-C3.js', 1_500, {
-        isDynamicEntry: true,
-        facadeModuleId: PUBLIC_LAYOUT,
-        imports: [SHARED],
-        moduleIds: [PUBLIC_LAYOUT],
-      }),
-      chunk('assets/PublicPlaceholderPage-D4.js', 500, {
+      chunk('assets/HoldingPage-D4.js', 2_000, {
         isDynamicEntry: true,
         facadeModuleId: PUBLIC_PAGE,
+        imports: [SHARED],
         moduleIds: [PUBLIC_PAGE],
       }),
       chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 2_000, {
@@ -157,11 +151,8 @@ describe('BUDGETS (PERF-01)', () => {
     expect(BUDGETS).toEqual({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
   });
 
-  it('names the public route modules (layout and placeholder page) and the admin route modules', () => {
-    expect(PUBLIC_ROUTE).toEqual([
-      'src/layouts/PublicLayout.tsx',
-      'src/modules/public/pages/PublicPlaceholderPage.tsx',
-    ]);
+  it('names the public route module (the D-17 holding page) and the admin route modules', () => {
+    expect(PUBLIC_ROUTE).toEqual(['src/modules/public/pages/HoldingPage.tsx']);
     expect(ADMIN_ROUTE).toEqual([
       'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
@@ -251,7 +242,7 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
     expect(report.publicJs).toBeNull();
-    expect(report.errors).toEqual([expect.stringContaining('src/modules/public/pages/PublicPlaceholderPage.tsx')]);
+    expect(report.errors).toEqual([expect.stringContaining('src/modules/public/pages/HoldingPage.tsx')]);
   });
 
   it('fails closed when the index.html entry chunk is missing', () => {
