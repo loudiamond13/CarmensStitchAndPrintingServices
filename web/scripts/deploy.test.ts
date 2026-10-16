@@ -1087,8 +1087,12 @@ describe('hostprobe action', () => {
     RUNNER_TEMP: '/work',
     GITHUB_STEP_SUMMARY: '/work/summary.md',
   };
-  const probeWorld = (script: Readonly<Record<string, readonly number[]>> = {}) =>
-    fakeWorld(script, {}, { 'appsettings.json': SETTINGS, 'web.config': WEB });
+  const probeWorld = (script: Readonly<Record<string, readonly number[]>> = {}, releases: readonly unknown[] = []) =>
+    fakeWorld(
+      script,
+      { 'gh release list': JSON.stringify(releases) },
+      { 'appsettings.json': SETTINGS, 'web.config': WEB },
+    );
 
   it('plans offline, wait, sync, online and the probe reader, with no release and no rollback', () => {
     const steps = planDeploy({
@@ -1110,8 +1114,8 @@ describe('hostprobe action', () => {
     const code = await main(ENV, world.deps, []);
 
     expect(code).toBe(0);
-    expect(world.labels()).toEqual(['dotnet publish', 'offline', 'sync', 'online', 'smoke-probe']);
-    const publish = world.calls[0];
+    expect(world.labels()).toEqual(['gh release list', 'dotnet publish', 'offline', 'sync', 'online', 'smoke-probe']);
+    const publish = world.calls[1];
     expect(publish?.args.slice(0, 1)).toEqual(['publish']);
     expect(publish?.args).toContain('Release');
     expect(JSON.parse(world.files.get('appsettings.json') ?? '{}')).toEqual({
@@ -1169,8 +1173,36 @@ describe('hostprobe action', () => {
     const code = await main(ENV, world.deps, []);
 
     expect(code).toBe(1);
-    expect(world.labels()).toEqual(['dotnet publish', 'offline', 'sync', 'offline']);
+    expect(world.labels()).toEqual(['gh release list', 'dotnet publish', 'offline', 'sync', 'offline']);
     expect(world.labels().some((name) => name.startsWith('gh'))).toBe(false);
+  });
+
+  it('refuses to replace a site that already has a deploy release, before publishing or touching the host', async () => {
+    const world = probeWorld({}, [{ tagName: TAG, createdAt: '2026-10-20T03:04:10Z', isDraft: false }]);
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual(['gh release list']);
+    expect(world.logged.join('\n')).toContain('The host check runs only before the first deploy');
+  });
+
+  it('refuses when the releases cannot be listed, because it cannot tell whether CSPS is live', async () => {
+    const world = probeWorld({ 'gh release list': [1] });
+
+    const code = await main(ENV, world.deps, []);
+
+    expect(code).toBe(1);
+    expect(world.labels()).toEqual(['gh release list']);
+  });
+
+  it('is not stopped by drafts or releases that are not deploy releases', async () => {
+    const world = probeWorld({}, [
+      { tagName: 'v1.0.0', createdAt: '2026-10-19T02:00:00Z', isDraft: false },
+      { tagName: TAG, createdAt: '2026-10-20T03:04:10Z', isDraft: true },
+    ]);
+
+    expect(await main(ENV, world.deps, [])).toBe(0);
   });
 
   it('puts the offline page back when the probe cannot be read', async () => {
