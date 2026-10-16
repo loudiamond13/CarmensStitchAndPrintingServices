@@ -65,6 +65,42 @@ public sealed partial class CutoverRunbookTests
     }
 
     [Fact]
+    public void ReceiptScriptValidatesTheBackupBeforeDroppingTheRestore()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var fileList = code.IndexOf("RESTORE FILELISTONLY", StringComparison.Ordinal);
+        var verify = code.IndexOf("RESTORE VERIFYONLY", StringComparison.Ordinal);
+        var drop = code.IndexOf("DROP DATABASE", StringComparison.Ordinal);
+
+        fileList.ShouldBeGreaterThanOrEqualTo(0, "The script must read the backup's file list.");
+        verify.ShouldBeGreaterThanOrEqualTo(0, "The script must verify the backup (RESTORE VERIFYONLY, which checks backup checksums).");
+        drop.ShouldBeGreaterThan(0, "The script must drop the restore target when -Replace is given.");
+        fileList.ShouldBeLessThan(drop, "The backup's file list must be read before the existing restore is dropped.");
+        verify.ShouldBeLessThan(drop, "The backup must be verified before the existing restore is dropped.");
+    }
+
+    [Fact]
+    public void ReceiptScriptWritesTheReceiptOnlyUnderTheGitIgnoredLocalFolder()
+    {
+        var code = CodeOnly(ReadScript());
+
+        code.ShouldContain("legacy-receipt.md");
+        code.ShouldNotContain(".planning", Case.Sensitive, "The receipt lists production table names and counts; it must not default to a tracked folder.");
+
+        var defaultPath = code.IndexOf("legacy-receipt.md", StringComparison.Ordinal);
+        var firstOpen = code.IndexOf(".Open()", StringComparison.Ordinal);
+        defaultPath.ShouldBeLessThan(firstOpen, "The receipt path must be settled before any connection is opened.");
+        code.ShouldContain("-ReceiptPath must be inside", Case.Sensitive, "A receipt inside the repository must be in the _local folder.");
+
+        File.ReadAllLines(RepoRoot.PathOf(".gitignore")).ShouldContain("_local/", "_local/ must stay git-ignored.");
+
+        var runbook = ReadRunbook();
+        runbook.ShouldContain("_local/legacy-receipt.md");
+        runbook.ShouldNotContain("03-LEGACY-RECEIPT", Case.Sensitive, "The runbook must not send the receipt to a tracked folder.");
+    }
+
+    [Fact]
     public void RunbookHasTheEightStepsInOrder()
     {
         var runbook = ReadRunbook();
