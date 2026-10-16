@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
  * @typedef {(request: SmokeRequest) => Promise<SmokeResponse>} Send
  * @typedef {{ name: string, ok: boolean, detail: string }} CheckResult
  * @typedef {{ ok: boolean, detail: string }} Verdict
- * @typedef {{ origin: URL, send: Send, now: () => number, sleep: (ms: number) => Promise<void>, insecureTls: boolean }} Context
+ * @typedef {{ origin: URL, send: Send, now: () => number, sleep: (ms: number) => Promise<void>, insecureTls: boolean, seen: { label: string, response: SmokeResponse }[] }} Context
  * @typedef {{ readonly name: string, readonly run: (ctx: Context) => Promise<Verdict> }} Check
  * @typedef {{ origin: string, send?: Send, now?: () => number, sleep?: (ms: number) => Promise<void>, only?: readonly string[], insecureTls?: boolean }} SmokeOptions
  * @typedef {{ send: Send, now: () => number, sleep: (ms: number) => Promise<void>, stdout: (text: string) => void, stderr: (text: string) => void, appendFile: (file: string, text: string) => void }} MainDeps
@@ -88,14 +88,20 @@ export function defaultSend({ method, url, headers = {}, body, servername, insec
 }
 
 /**
- * One request to the site under test, with header names lower-cased so a check reads them in any letter case.
+ * One request to the site under test, with header names lower-cased so a check reads them in any letter case. Unless
+ * `record` is false, the response is kept in `ctx.seen` for the no-banners check. `scheme` http asks the same host on
+ * the default http port.
  * @param {Context} ctx
- * @param {{ path: string, method?: string, headers?: Record<string, string>, body?: string, servername?: string }} spec
+ * @param {{ path: string, method?: string, scheme?: 'https' | 'http', headers?: Record<string, string>, body?: string, servername?: string, record?: boolean }} spec
  * @returns {Promise<SmokeResponse>}
  */
-async function call(ctx, { path: requestPath, method = 'GET', headers, body, servername }) {
+async function call(
+  ctx,
+  { path: requestPath, method = 'GET', scheme = 'https', headers, body, servername, record = true },
+) {
+  const base = scheme === 'https' ? ctx.origin.origin : `http://${ctx.origin.hostname}`;
   /** @type {SmokeRequest} */
-  const request = { method, url: `${ctx.origin.origin}${requestPath}` };
+  const request = { method, url: `${base}${requestPath}` };
   if (headers !== undefined) {
     request.headers = headers;
   }
@@ -114,7 +120,11 @@ async function call(ctx, { path: requestPath, method = 'GET', headers, body, ser
   for (const [name, value] of Object.entries(response.headers)) {
     lowered[name.toLowerCase()] = value;
   }
-  return { status: response.status, headers: lowered, body: response.body };
+  const answer = { status: response.status, headers: lowered, body: response.body };
+  if (record) {
+    ctx.seen.push({ label: `${method} ${scheme === 'https' ? '' : base}${requestPath}`, response: answer });
+  }
+  return answer;
 }
 
 /**
@@ -291,12 +301,247 @@ async function checkDefaultDeny(ctx) {
   return verdictOf(problemFaults(response, 401), 'anonymous request answered 401 ProblemDetails');
 }
 
+/**
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkMissingFile(ctx) {
+  const response = await call(ctx, { path: '/missing-smoke.js' });
+  return verdictOf(problemFaults(response, 404), 'a missing static file answered 404 ProblemDetails');
+}
+
+/**
+ * Plain http must answer a permanent or method-preserving redirect to https. The redirect is never followed.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkHttpsRedirect(ctx) {
+  let response;
+  try {
+    response = await call(ctx, { path: '/', scheme: 'http' });
+  } catch (error) {
+    return { ok: false, detail: `plain http did not answer (${describeError(error)})` };
+  }
+  /** @type {string[]} */
+  const faults = [];
+  if (![301, 307, 308].includes(response.status)) {
+    faults.push(`http answered ${String(response.status)}, expected 301, 307 or 308`);
+  } else if (!(response.headers.location ?? '').startsWith('https://')) {
+    faults.push(`Location ${response.headers.location ?? 'missing'}, expected an https:// address`);
+  }
+  return verdictOf(faults, `http answered ${String(response.status)} to https`);
+}
+
+/**
+ * HSTS is present and the CSP keeps script-src to 'self' with no unsafe- source anywhere (OPS-05).
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkSecurityHeaders(ctx) {
+  const response = await call(ctx, { path: '/' });
+  /** @type {string[]} */
+  const faults = [];
+  if (response.headers['strict-transport-security'] === undefined) {
+    faults.push('Strict-Transport-Security missing');
+  }
+  const csp = response.headers['content-security-policy'];
+  if (csp === undefined) {
+    faults.push('Content-Security-Policy missing');
+  } else {
+    const script = csp
+      .split(';')
+      .map((directive) => directive.trim().split(/\s+/))
+      .find((parts) => parts[0] === 'script-src');
+    if (script === undefined) {
+      faults.push('CSP has no script-src');
+    } else if (!script.includes("'self'")) {
+      faults.push("CSP script-src does not allow 'self'");
+    }
+    if (csp.toLowerCase().includes('unsafe-')) {
+      faults.push('CSP contains unsafe-');
+    }
+  }
+  return verdictOf(faults, "HSTS present, CSP script-src 'self' with no unsafe-");
+}
+
+/**
+ * No response seen in this run names the server software. When no other check has run, it asks for the shell itself.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkNoBanners(ctx) {
+  if (ctx.seen.length === 0) {
+    await call(ctx, { path: '/' });
+  }
+  const banners = new Set();
+  for (const { label, response } of ctx.seen) {
+    for (const [name, title] of /** @type {const} */ ([
+      ['server', 'Server'],
+      ['x-powered-by', 'X-Powered-By'],
+    ])) {
+      const value = response.headers[name];
+      if (value !== undefined) {
+        banners.add(`${title} (${value}) on ${label}`);
+      }
+    }
+  }
+  return banners.size === 0
+    ? { ok: true, detail: `no Server or X-Powered-By on ${String(ctx.seen.length)} responses` }
+    : { ok: false, detail: [...banners].join('; ') };
+}
+
+/**
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkShellCache(ctx) {
+  const response = await call(ctx, { path: '/' });
+  /** @type {string[]} */
+  const faults = [];
+  if (response.status !== 200) {
+    faults.push(`status ${String(response.status)}, expected 200`);
+  }
+  if (!tokens(response.headers['cache-control']).includes('no-cache')) {
+    faults.push(`Cache-Control ${response.headers['cache-control'] ?? 'missing'}, expected no-cache`);
+  }
+  return verdictOf(faults, 'index.html is Cache-Control no-cache');
+}
+
+/** The first /assets/*.js named in index.html, in document order. */
+const ASSET_PATTERN = /\/assets\/[^"'\s<>?#]+\.js/;
+
+/**
+ * The first hashed script in index.html is immutable for a year and compressed with br or gzip.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkHashedAsset(ctx) {
+  const shell = await call(ctx, { path: '/', headers: { 'Accept-Encoding': 'identity' } });
+  const assetPath = ASSET_PATTERN.exec(shell.body)?.[0];
+  if (shell.status !== 200 || assetPath === undefined) {
+    return {
+      ok: false,
+      detail:
+        shell.status === 200
+          ? 'index.html names no /assets/*.js file'
+          : `index.html status ${String(shell.status)}, expected 200`,
+    };
+  }
+  const asset = await call(ctx, { path: assetPath, headers: { 'Accept-Encoding': 'br, gzip' } });
+  /** @type {string[]} */
+  const faults = [];
+  if (asset.status !== 200) {
+    faults.push(`status ${String(asset.status)}, expected 200`);
+  }
+  const cache = tokens(asset.headers['cache-control']);
+  if (!['public', 'max-age=31536000', 'immutable'].every((token) => cache.includes(token))) {
+    faults.push(
+      `Cache-Control ${asset.headers['cache-control'] ?? 'missing'}, expected public, max-age=31536000, immutable`,
+    );
+  }
+  const encoding = asset.headers['content-encoding'];
+  if (encoding !== 'br' && encoding !== 'gzip') {
+    faults.push(`Content-Encoding ${encoding ?? 'missing'}, expected br or gzip`);
+  }
+  return verdictOf(faults, `${assetPath} is immutable and ${String(encoding)} compressed`);
+}
+
+/**
+ * JSON is never compressed (BREACH): /health answers without Content-Encoding even when br and gzip are offered.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkJsonNotCompressed(ctx) {
+  const response = await call(ctx, { path: '/health', headers: { 'Accept-Encoding': 'br, gzip' } });
+  /** @type {string[]} */
+  const faults = [];
+  if (response.status !== 200 || mediaType(response) !== 'application/json') {
+    faults.push(
+      `/health answered ${String(response.status)} ${mediaType(response) || 'without a content-type'}, nothing proven`,
+    );
+  }
+  const encoding = response.headers['content-encoding'];
+  if (encoding !== undefined) {
+    faults.push(`JSON carries Content-Encoding ${encoding} (BREACH)`);
+  }
+  return verdictOf(faults, '/health JSON has no Content-Encoding');
+}
+
+/** A host name no deployment answers to; AllowedHosts must refuse it. */
+const FOREIGN_HOST = 'smoke.invalid';
+
+/**
+ * A request for another Host header, with the real TLS server name, is refused (AllowedHosts or IIS). Its response is
+ * not recorded for no-banners, because a refusal may come from HTTP.sys with its own Server header.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkHostFilter(ctx) {
+  let response;
+  try {
+    response = await call(ctx, {
+      path: '/',
+      headers: { Host: FOREIGN_HOST },
+      servername: ctx.origin.hostname,
+      record: false,
+    });
+  } catch (error) {
+    return { ok: false, detail: `no answer (${describeError(error)}), so no refusal was seen` };
+  }
+  return response.status >= 200 && response.status < 300
+    ? { ok: false, detail: `Host ${FOREIGN_HOST} was answered ${String(response.status)}, expected a refusal` }
+    : { ok: true, detail: `Host ${FOREIGN_HOST} was refused with ${String(response.status)}` };
+}
+
+/** Bytes in the oversized request; above the request limit the host sets in web.config. */
+const OVERSIZED_BODY_BYTES = 1_500_000;
+/** Errors that mean the host closed the connection while the body was still being sent. */
+const CLOSED_WHILE_SENDING = new Set(['ECONNRESET', 'EPIPE', 'ECONNABORTED']);
+
+/**
+ * A 1.5 MB POST is never accepted. A ProblemDetails answer means the app refused it; any other answer (or a closed
+ * connection) means IIS refused it before the app saw it.
+ * @param {Context} ctx
+ * @returns {Promise<Verdict>}
+ */
+async function checkRequestLimit(ctx) {
+  let response;
+  try {
+    response = await call(ctx, {
+      path: '/api/v1/__smoke',
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'x'.repeat(OVERSIZED_BODY_BYTES),
+      record: false,
+    });
+  } catch (error) {
+    const reason = describeError(error);
+    return CLOSED_WHILE_SENDING.has(reason)
+      ? { ok: true, detail: `refused by IIS (connection closed while the body was sent: ${reason})` }
+      : { ok: false, detail: `no answer (${reason}), so no refusal was seen` };
+  }
+  if (response.status >= 200 && response.status < 300) {
+    return { ok: false, detail: `a 1.5 MB POST was answered ${String(response.status)}, expected a refusal` };
+  }
+  const layer = mediaType(response) === 'application/problem+json' ? 'the app' : 'IIS';
+  return { ok: true, detail: `refused by ${layer} with ${String(response.status)}` };
+}
+
 /** The smoke checks in the order they run. */
 export const CHECKS = Object.freeze(
   /** @type {readonly Check[]} */ ([
     { name: 'health', run: checkHealth },
     { name: 'unknown-api', run: checkUnknownApi },
     { name: 'default-deny', run: checkDefaultDeny },
+    { name: 'missing-file', run: checkMissingFile },
+    { name: 'https-redirect', run: checkHttpsRedirect },
+    { name: 'security-headers', run: checkSecurityHeaders },
+    { name: 'no-banners', run: checkNoBanners },
+    { name: 'shell-cache', run: checkShellCache },
+    { name: 'hashed-asset', run: checkHashedAsset },
+    { name: 'json-not-compressed', run: checkJsonNotCompressed },
+    { name: 'host-filter', run: checkHostFilter },
+    { name: 'request-limit', run: checkRequestLimit },
   ]),
 );
 
@@ -327,7 +572,7 @@ export async function runSmoke({
   insecureTls = false,
 }) {
   /** @type {Context} */
-  const ctx = { origin: new URL(origin), send, now, sleep, insecureTls };
+  const ctx = { origin: new URL(origin), send, now, sleep, insecureTls, seen: [] };
   /** @type {CheckResult[]} */
   const results = [];
   for (const check of CHECKS) {
@@ -343,21 +588,68 @@ export async function runSmoke({
   return results;
 }
 
+/** The shortest HOSTPROBE_KEY the HostProbe accepts (tools/Csps.HostProbe ProbeKey.MinimumLength). */
+export const PROBE_KEY_MIN_LENGTH = 32;
+
 /**
- * @param {{ origin: string, key: string, send?: Send, insecureTls?: boolean }} _options
+ * Reads the one-time HostProbe: GET /probe with the key in X-Probe-Key, then reports whether plain http /probe is
+ * redirected to https (the rewrite rule). The key is sent over https only and is removed from every line returned.
+ * The probe's JSON facts are the only body content printed.
+ * @param {{ origin: string, key: string, send?: Send, insecureTls?: boolean }} options
  * @returns {Promise<{ ok: boolean, lines: string[] }>}
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function readProbe(_options) {
-  return Promise.resolve({ ok: false, lines: [] });
+export async function readProbe({ origin, key, send = defaultSend, insecureTls = false }) {
+  /** @type {Context} */
+  const ctx = { origin: new URL(origin), send, now: Date.now, sleep: realSleep, insecureTls, seen: [] };
+  /** @type {string[]} */
+  const lines = [];
+  let ok = false;
+  try {
+    const response = await call(ctx, { path: '/probe', headers: { 'X-Probe-Key': key } });
+    const facts =
+      response.status === 200 && mediaType(response) === 'application/json' ? parseJson(response.body) : undefined;
+    if (response.status !== 200) {
+      lines.push(`FAIL probe: status ${String(response.status)}, expected 200`);
+    } else if (facts === undefined) {
+      lines.push(`FAIL probe: content-type ${mediaType(response) || 'missing'}, expected a JSON body`);
+    } else {
+      ok = true;
+      lines.push(
+        'PASS probe: 200 JSON',
+        'probe facts:',
+        ...JSON.stringify(facts, null, 2)
+          .split('\n')
+          .map((line) => `  ${line}`),
+      );
+    }
+  } catch (error) {
+    lines.push(`FAIL probe: no answer (${describeError(error)})`);
+  }
+  const target = `http://${ctx.origin.hostname}/probe`;
+  try {
+    // Plain http carries no key.
+    const response = await call(ctx, { path: '/probe', scheme: 'http', record: false });
+    const redirected =
+      [301, 307, 308].includes(response.status) && (response.headers.location ?? '').startsWith('https://');
+    lines.push(
+      redirected
+        ? `INFO http-redirect: ${target} answered ${String(response.status)} to https (rewrite present)`
+        : `INFO http-redirect: ${target} answered ${String(response.status)} (no rewrite)`,
+    );
+  } catch (error) {
+    lines.push(`INFO http-redirect: ${target} got no answer (${describeError(error)})`);
+  }
+  return { ok, lines: key === '' ? lines : lines.map((line) => line.replaceAll(key, '[hidden]')) };
 }
 
 /**
- * @typedef {{ origin: URL, only: string[] | undefined, insecureTls: boolean }} Parsed
- * @param {readonly string[]} argv
+ * @typedef {{ command: 'smoke' | 'probe', origin: URL, only: string[] | undefined, insecureTls: boolean }} Parsed
+ * @param {readonly string[]} args every argument after the script name
  * @returns {{ error: string } | Parsed}
  */
-function parseArguments(argv) {
+function parseArguments(args) {
+  const command = args[0] === 'probe' ? 'probe' : 'smoke';
+  const argv = command === 'probe' ? args.slice(1) : args;
   /** @type {string | undefined} */
   let originText;
   /** @type {string[] | undefined} */
@@ -400,6 +692,9 @@ function parseArguments(argv) {
   if (insecureTls && origin.hostname !== 'localhost') {
     return { error: '--insecure-tls is allowed only when the origin host is localhost.' };
   }
+  if (command === 'probe' && only !== undefined) {
+    return { error: '--only does not apply to probe.' };
+  }
   if (only !== undefined) {
     const known = CHECKS.map((check) => check.name);
     const unknown = only.filter((name) => !known.includes(name));
@@ -407,7 +702,7 @@ function parseArguments(argv) {
       return { error: `Unknown check name: ${unknown.join(', ')}. Known checks: ${known.join(', ')}.` };
     }
   }
-  return { origin, only, insecureTls };
+  return { command, origin, only, insecureTls };
 }
 
 /**
@@ -433,6 +728,30 @@ function stepSummary(host, results) {
 }
 
 /**
+ * The probe subcommand: checks HOSTPROBE_KEY before any request, then prints the probe's facts.
+ * @param {Parsed} parsed
+ * @param {Readonly<Record<string, string | undefined>>} env
+ * @param {{ send: Send, stdout: (text: string) => void, stderr: (text: string) => void }} io
+ * @returns {Promise<number>}
+ */
+async function runProbe(parsed, env, { send, stdout, stderr }) {
+  const key = env.HOSTPROBE_KEY ?? '';
+  if (key === '') {
+    stderr('smoke: set HOSTPROBE_KEY to the probe key (it is read from the environment and never printed).\n');
+    return 2;
+  }
+  if (key.length < PROBE_KEY_MIN_LENGTH) {
+    stderr(`smoke: HOSTPROBE_KEY must be at least ${String(PROBE_KEY_MIN_LENGTH)} characters.\n`);
+    return 2;
+  }
+  const result = await readProbe({ origin: parsed.origin.origin, key, send, insecureTls: parsed.insecureTls });
+  for (const line of result.lines) {
+    stdout(`${line}\n`);
+  }
+  return result.ok ? 0 : 1;
+}
+
+/**
  * @param {readonly string[]} argv the arguments after the script name.
  * @param {Readonly<Record<string, string | undefined>>} env
  * @param {Partial<MainDeps>} [deps]
@@ -451,6 +770,9 @@ export async function main(argv, env, deps = {}) {
   if ('error' in parsed) {
     stderr(`smoke: ${parsed.error}\n`);
     return 2;
+  }
+  if (parsed.command === 'probe') {
+    return runProbe(parsed, env, { send, stdout, stderr });
   }
   const results = await runSmoke({
     origin: parsed.origin.origin,
