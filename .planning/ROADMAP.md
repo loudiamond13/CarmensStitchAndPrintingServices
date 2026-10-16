@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T23:05:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-15T23:28:00-05:00*
 
 ## Overview
 
@@ -346,13 +346,13 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 6/23 plans executed
+**Plans:** 7/23 plans executed
 
 Plans:
 **Wave 1**
 - [ ] 03-01-PLAN.md — CI tracer: owner approves the CI actions and tools, decides the Phase 4 ordering; the draft PR gets a green, SHA-pinned, ordered `gate (fast)` (OPS-02)
 - [x] 03-02-PLAN.md — E2E and Lighthouse follow one CSPS_E2E_CONNECTION override for the CI SQL container; coverage gate Linux-safe (OPS-02)
-- [ ] 03-03-PLAN.md — Process merge gate (D-08) and the one merge command, with the owner's `[ci skip]` rule and the D-16 local-gate mode (OPS-01)
+- [x] 03-03-PLAN.md — Process merge gate (D-08) and the one merge command, with the owner's `[ci skip]` rule and the D-16 local-gate mode (OPS-01)
 - [x] 03-04-PLAN.md — CI modes: docs, fast, full and package (proven-tree reuse on main) from one tested classifier (D-14)
 - [x] 03-05-PLAN.md — CODEOWNERS, PR template with the Definition of Done, written branch rules and ruleset, CLAUDE.md merge rule, Dependabot with a 14-day cooldown (OPS-01, OPS-03)
 - [ ] 03-06-PLAN.md — Web Deploy orchestrator: app_offline, sync, smoke, release, automatic rollback, first-deploy safety, online escape hatch, optional host probe (OPS-04)
@@ -1049,7 +1049,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 6/23 | In Progress | - |
+| 3. CI/CD & Deploy | 7/23 | In Progress | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |

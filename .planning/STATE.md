@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-08-PLAN.md
-last_updated: "2026-10-16T04:09:38.734Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-10-16T04:26:57.655Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 03 execution started
-state_head: e63506ba7658d4c2b4dcc084bc5343ca2082a50f
+state_head: 754d4c20386c50236355ee4d6c900b4ae047a165
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 97
+  completed_plans: 98
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-15T23:11:00-05:00"
+updated: "2026-10-15T23:28:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 7 of 23
+Plan: 8 of 23
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 03 execution started
 
@@ -156,6 +156,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P05 | 11 min | 3 tasks | 8 files |
 | Phase 03 P07 | 20 min | 2 tasks | 2 files |
 | Phase 03 P08 | 8 min | 2 tasks | 10 files |
+| Phase 03 P03 | 22 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -399,6 +400,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-07: smoke.mjs probe checks HOSTPROBE_KEY (32+ characters) before any request, sends it over https only and replaces it with [hidden] in all output; the http /probe redirect report is information only
 - [Phase 03]: 03-08: IIS compression is off in web.config (urlCompression static and dynamic false), no rewrite section and no httpCompression until the host probe proves A4 and A5
 - [Phase 03]: 03-08: RuntimeIdentifiers win-x64 lives in the src-only block of Directory.Build.props; the four src lock files carry the win-x64 section; tests that run dotnet build or publish on the Server project share the DotnetBuildCollection
+- [Phase 03]: 03-03: merge gate [ci skip] ship note follows the owner's parent-rule (2026-10-15T22:05-05:00): a skip-token head changing only .planning/ with one parent is judged by that parent; any other skip-token head is refused
+- [Phase 03]: 03-03: merge gate refuses unless mergeable is exactly MERGEABLE, so UNKNOWN asks for a rerun; a skip-token head with an empty or 300-entry file list never qualifies
 
 ### Pending Todos
 
@@ -446,6 +449,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T04:09:38.248Z
-Stopped at: Completed 03-08-PLAN.md
+Last session: 2026-10-16T04:26:57.074Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
