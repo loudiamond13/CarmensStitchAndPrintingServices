@@ -1,8 +1,8 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-16T17:10:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-17T10:40:00-05:00*
 
-GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out.
+GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
 ## The pipeline, in order
 
@@ -50,7 +50,7 @@ When a pull request is merged, the push to `main` is classified again. If that e
 
 Two free GitHub checks run besides the gate (owner approval 2026-10-16, recorded in `docs/dependencies.md`). The ruleset on `main` requires both, together with the Hygiene checks (`secret scan`, `commit messages`, `actionlint`, `zizmor`):
 
-- **CodeQL** (`codeql.yml`) scans the C# and the TypeScript on every pull request, every push to `main` and every Sunday at 19:00 UTC. The C# side builds `Csps.slnx` with the pinned SDK. Alerts appear under the repository's Security tab, and a newer push to a pull request cancels its older scan.
+- **CodeQL** (`codeql.yml`) scans the C# and the TypeScript on every pull request, every push to `main` and every Sunday at 19:23 UTC (Monday 03:23 in Manila). The C# side builds `Csps.slnx` with the pinned SDK. Alerts appear under the repository's Security tab, and a newer push to a pull request cancels its older scan.
 - **Dependency review** (the `dependency review` job in `hygiene.yml`) runs on pull requests only. It fails when a pull request adds or changes a package with a known security problem, or with a license outside the allow-list. A GitHub Action shows an unknown license, because GitHub cannot read it, and that does not fail the check.
 
 ## What the CI database is
@@ -117,3 +117,106 @@ The GitHub spending limit stays at $0, so nothing is ever charged. When the free
 1. On your machine run `dotnet build`, `dotnet test --solution`, `pwsh tools/scripts/Invoke-CoverageGate.ps1`, `npm --prefix web run verify` and `npm --prefix web run e2e`. Each must exit with code 0.
 2. Paste the results into the pull request body under a "Local full gate" heading, one line per command, each marked `exit 0`.
 3. Merge with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/Merge-PullRequest.ps1 -Pr <number> -LocalGate`. It still refuses any failed check and prints a warning, because CI did not check the pull request.
+
+## Workflows at a glance
+
+A workflow is one file under `.github/workflows`. A job is one box on a run page, and its name is the check name you see on a pull request. A step is one line inside a job's log. The step names below are written exactly as the log shows them, so you can search the log for them.
+
+| Workflow file | Name on the Actions tab | When it runs | Jobs (check names) | Required on `main` |
+|---|---|---|---|---|
+| `ci.yml` | CI | Pull requests to `main`, every push to `main`, the Run workflow button, and when `weekly.yml` calls it | `classify`, then `gate (fast)`, `gate (docs)`, `gate (full)` or `gate (package)` (which one depends on the mode, see [The pipeline, in order](#the-pipeline-in-order)), then `gate result` | `gate result` only |
+| `weekly.yml` | Weekly | Sundays 18:00 UTC, and the Run workflow button | `weekly all engines` | No |
+| `codeql.yml` | CodeQL | Pull requests to `main`, every push to `main`, Sundays 19:23 UTC | `analyze (csharp)`, `analyze (javascript-typescript)` | Both |
+| `hygiene.yml` | Hygiene | Pull requests to `main`, every push to `main` | `secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review` | All five |
+| `deploy.yml` | Deploy | Only when the owner presses Run workflow on `main` | `deploy` | No |
+| `dependabot.yml` | None: this is not a workflow. It is the settings file of GitHub's update bot | Once a month | None. The bot opens pull requests, and those face the same checks as any other | No |
+
+The required checks are listed in [the rules](branch-rules.md#the-rules-github-enforces-on-main).
+
+Rules every workflow follows:
+
+- The token starts with no rights (`permissions: {}`), and each job asks only for what it needs.
+- Every outside action is pinned to a full commit id, with its version in a comment.
+- Every job that runs steps has a time limit.
+- Event text (a pull request title, a commit id) reaches scripts only through environment variables, never pasted into a script.
+- There is no path filter, so a check always reports.
+- Runners are `ubuntu-24.04`, except Deploy, which uses `windows-2025`.
+- No workflow merges anything. Merges go only through `tools/scripts/Merge-PullRequest.ps1`, on the owner's instruction ([How to merge](branch-rules.md#how-to-merge)).
+
+`CiWorkflowTests`, which run inside `3 architecture tests`, check these rules on every pull request.
+
+### Hygiene (`hygiene.yml`)
+
+- **Runs when:** a pull request to `main` is opened, gets a new push, is reopened, is marked ready for review or is edited, and on every push to `main`. "Edited" means that changing the pull request's title, description or base branch runs it again without a push. That matters because fixing a bad title is an edit.
+- **Permissions:** the token starts empty, and every job may only read the repository.
+- **Concurrency:** a newer push to a pull request cancels its older run. A run for `main` is never cancelled.
+- **Runner and time limit:** `ubuntu-24.04`. `secret scan` 10 minutes, `commit messages` 5, `actionlint` 10, `zizmor` 10, `dependency review` 10.
+- **Required on `main`:** all five jobs.
+
+On a push to `main`, the two jobs that only make sense for a pull request (`commit messages` and `dependency review`) show as skipped. That is normal. The reasons for these checks are in [Security scans](#security-scans-public-repository), and the measured times are in [Measured (2026-10-16)](#measured-2026-10-16).
+
+#### `secret scan`
+
+Runs on pull requests and on pushes. gitleaks looks for passwords, keys and tokens in every commit of the pull request (from where it branched off `main` to its newest commit), or in every commit of the push. It uses the project rules in `.gitleaks.toml` and hides the secret's value in the log.
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the whole history, because the scan walks every commit between the base and the head | A GitHub outage. Re-run the job |
+| `install gitleaks 8.30.1 (checksum verified)` | Downloads gitleaks 8.30.1 and compares it with a fixed checksum before use, so a swapped file is refused | A download problem can be re-run once. A checksum mismatch is never fixed by editing the checksum: tell the owner |
+| `scan commits` | Scans the commits. On a pull request that is base to head. On a push it is the commits since the previous push. When the previous point is unknown (a new branch, or a rewritten history), only the pushed commit is scanned | Treat a real secret as leaked: tell the owner and replace the secret where it was issued. Deleting it in a later commit does not clear the check, because every commit is scanned, so the developer rewrites the pull request's commits. A false alarm on a test file is fixed only by a single-file entry in `.gitleaks.toml`, with the owner's OK |
+
+#### `commit messages`
+
+Runs on pull requests only. Every commit subject in the pull request, and the pull request title, must read `type(scope): summary`. The scope is optional and uses lowercase letters, digits, dots, slashes and hyphens. A `!` before the colon marks a breaking change. A git `Revert "..."` subject is also accepted, and merge commits are skipped. The eleven types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore` and `revert`. The title matters most, because it becomes the squash commit on `main`.
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the whole history so every commit in the pull request can be read | A GitHub outage. Re-run the job |
+| `setup node` | Installs Node 24.21.0. The script uses only Node's built-in parts, so no `npm ci` is needed | A GitHub outage. Re-run the job |
+| `check subjects` | Runs `web/scripts/commit-lint.mjs` on the title and each commit subject and prints every subject that is wrong, with the reason | A bad title: edit it on GitHub, and the "edited" trigger runs the check again. A bad commit subject: the developer rewords that commit and pushes |
+
+#### `actionlint`
+
+Runs on pull requests and on pushes. actionlint checks every workflow file for YAML mistakes, wrong expressions and shell script mistakes (it asks the runner's shellcheck to read the `run` scripts).
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the repository | A GitHub outage. Re-run the job |
+| `install actionlint 1.7.12 (checksum verified)` | Downloads actionlint 1.7.12 and compares it with a fixed checksum before use | Same as for gitleaks: a download problem can be re-run once, a checksum mismatch goes to the owner |
+| `lint workflows` | Runs `actionlint` over every file in `.github/workflows` | The log gives the file, the line and the rule. The developer fixes that line in the workflow |
+
+#### `zizmor`
+
+Runs on pull requests and on pushes. zizmor looks for known workflow security mistakes, for example untrusted text placed straight into a script, a token with more rights than the job needs, or an action that is not pinned. Findings show as notes (annotations) on the run page, not in the Security tab (that upload is switched off on purpose).
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the repository | A GitHub outage. Re-run the job |
+| `zizmor 1.30.1` | Runs zizmor 1.30.1 through its pinned action | Read the annotation, fix the workflow line it names. An ignore comment needs a written reason; `weekly.yml` has the one existing example |
+
+#### `dependency review`
+
+Runs on pull requests only. It fails when a pull request adds or changes a package that has a known security problem of any severity (low and up), or that has a license outside the allow-list: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, MPL-2.0 and OFL-1.1. A GitHub Action shows an unknown license, because GitHub cannot read it, and is let through (the pin tests in `CiWorkflowTests` cover actions). The summary is on the run page and is not posted as a comment. The job has no `checkout` step because it reads the pull request's changes from GitHub.
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `review dependency changes` | Compares the packages before and after the pull request | Choose another version (any new version needs the owner's approval) or drop the change. Never widen the allow-list to make it pass |
+
+### Dependabot (`dependabot.yml`)
+
+`.github/dependabot.yml` is not a workflow. It tells GitHub's update bot what to keep current, and the bot opens pull requests.
+
+- **Three ecosystems:** NuGet (the versions in `Directory.Packages.props`), npm (`web` and `tools/openapi-gen`, in one entry so a single grouped pull request arrives instead of two racing ones) and GitHub Actions (the pinned actions in the workflows).
+- **Schedule and grouping:** each ecosystem is checked monthly, and all its updates arrive together in one pull request.
+- **Cool-down:** a version is proposed only 14 days after its release, the project's release cool-down. Security updates arrive at once, because the cool-down covers version updates only and security updates are enabled in the repository settings ([Repository settings applied](branch-rules.md#repository-settings-applied-plan-03-16)).
+- **Titles:** they start with `build` (NuGet and npm) or `ci` (GitHub Actions) plus a scope, so they pass `commit messages`.
+
+**Why a Dependabot pull request fails CI by design.** A new version is a new thing to trust, so the owner approves it first:
+
+- A NuGet or npm bump fails `3 architecture tests` (`DependencyRegistryTests`) until `docs/dependencies.json` records the new version with the owner's approval.
+- An npm bump can also fail `6 web licenses` and `6 web notices`, which read the same file and the notices file.
+- A NuGet bump can fail `1 restore (locked)` when Dependabot leaves `packages.lock.json` stale. The fix is `dotnet restore --force-evaluate` on its branch.
+- A GitHub Actions bump fails `3 architecture tests` (`CiWorkflowTests`) until the new commit id and version are added to its `ApprovedActions` list, with the owner's OK.
+- `dependency review` also runs on these pull requests.
+
+**What to do.** The owner checks each new version (age, publisher, license, known problems) and says OK. The developer records it as in [Adding a dependency](../dependencies.md#adding-a-dependency), pushes to the Dependabot branch and waits for green. The pull request is then merged with the merge script, on the owner's instruction. If the owner says no, close the pull request.
