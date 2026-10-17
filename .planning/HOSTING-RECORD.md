@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-17T09:25:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-17T09:26:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -184,6 +184,12 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | web.config requestLimits honoured by IIS | First-deploy smoke (request-limit), run 39006538697 and again from this PC | A 1.5 MB POST was refused by the app with 413. The smoke sends 1.5 MB on purpose, below the 2 MiB IIS backstop in web.config, so the app's own limit answers. IIS accepted the requestLimits section (the site runs, no 500.19 error); a body over 2 MiB refused by IIS itself was not tried | Verified | 2026-10-17 |
 | IIS compression of JSON | First-deploy smoke (json-not-compressed), run 39006538697 and again from this PC | None: the /health JSON came back with no Content-Encoding, so IIS does not compress API responses (BREACH) | Verified | 2026-10-17 |
 | Static caching through IIS | First-deploy smoke (shell-cache, hashed-asset), run 39006538697 and again from this PC | index.html is served with Cache-Control no-cache; the hashed script under /assets is immutable and served br-compressed | Verified | 2026-10-17 |
+| Outbound SMTP from the site (port 587, or 465) to the SmarterASP.NET mail server | First Manager bootstrap and first sign-in (D-18 step 8, owner) | Works: the invite the bootstrap queued was sent by the live site and arrived in the owner's mailbox, and the 6-digit sign-in code email arrived too | Verified | 2026-10-17 |
+| Outbound HTTPS to the breached-password service (`api.pwnedpasswords.com`) | Owner's look-only query after setting the first password: `SELECT COUNT(*) FROM AuditLog WHERE Action = 'auth.breach-check-unavailable';` | 0: the password set wrote no breach-check-unavailable audit entry, so the site reached the service | Verified | 2026-10-17 |
+| `__Secure-csps_rt` cookie on the production HTTPS host | Owner, browser developer tools after the first sign-in | HttpOnly, Secure, SameSite Strict, Path /api/v1/auth | Verified | 2026-10-17 |
+| `__Secure-csps_2fa` cookie on the production HTTPS host | Owner, browser developer tools during the code step | Not observed by the owner: the cookie exists only during the code step and was gone after sign-in. Its attributes (Secure, HttpOnly, SameSite Strict, Path /api/v1/auth) come from the same AuthCookies code as `__Secure-csps_rt` and are pinned by the auth integration tests (AuthRegistrationTests, SignInEndpointTests). Waiting for the owner's sign-off | Unverified | - |
+| Data Protection certificate and `App:PublicBaseUrl` available to the bootstrap command on the host | Bootstrap (docs/operations/bootstrap-manager.md), run from the owner's PC against the hosted database with the site's certificate settings | Works: the command exited 0 with the invite queued; the live site decrypted the queued invite with its own key ring and sent it, and the invite link opened the live site, where the password was set | Verified | 2026-10-17 |
+| The real bootstrap on the hosted database, then the first sign-in with an emailed code (AUTH-12) | D-18 step 8 (owner) | Bootstrap against `db_…_cspsdb` exited 0; invite received, password set, 6-digit code received, and the owner signed in to the admin portal on https://cspstailoring.com | Verified | 2026-10-17 |
 | ASP.NET Core 10.0.13 (or newer) runtime on the host | C probe: frameworkDescription (D-35) | No: the host runtime is 10.0.7. Met instead by the self-contained win-x64 package, which carries ASP.NET Core 10.0.13 (owner, 2026-10-16) | Verified | 2026-10-16 |
 | Client IP and proxy topology before the per-address limits are trusted (D-39) | C probe: the "Client IP / proxy topology" row above | No proxy, so the per-address limits key on the client's own address | Verified | 2026-10-16 |
 | Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
@@ -201,16 +207,24 @@ Everything below is something Phase 4 depends on that no one has seen on the rea
 **Unverified** until the Phase 3 first deploy: verify it on that deploy and then move it into the Facts table with the
 owner's observed result and the date (D-09). Nothing here may be relied on before then.
 
-| Check | How to check | Result | Status | Date |
-|-------|--------------|--------|--------|------|
-| Outbound SMTP from the site (port 587, or 465) to the SmarterASP.NET mail server | First deploy: send the sign-in code to a real mailbox from the deployed site (assumption A6) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
-| Outbound HTTPS to the breached-password service (`api.pwnedpasswords.com`) | First deploy: set a password and watch the audit log for `auth.breach-check-unavailable` (research Pitfall 12) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
-| `Set-Cookie` for `__Secure-csps_rt` and `__Secure-csps_2fa` on the production HTTPS host | First deploy: sign in once and look at the cookies in the browser (both `Secure`, `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`) | Not checked: needs the deployed site and its HTTPS termination. Verify on the Phase 3 first deploy | Unverified | - |
-| Data Protection certificate and `App:PublicBaseUrl` available to the bootstrap command on the host | First deploy: run the bootstrap command (docs/operations/bootstrap-manager.md) with the host's settings and see it reach the invite email | Not checked: needs the deployed site and its secrets. Verify on the Phase 3 first deploy | Unverified | - |
-| The real bootstrap on the hosted database, then the first sign-in with an emailed code (AUTH-12) | First deploy: create the first Manager, open the invite link, set a password, sign in and enter the emailed code | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
+**Every row has moved into the Facts table** (plans 03-20 to 03-22, 2026-10-16 and 2026-10-17):
+
+- "ASP.NET Core 10.0.13 (or newer) runtime on the host": Verified 2026-10-16 (probe; met by the self-contained package).
+- "AllowedHosts set to the real host names" and "web.config requestLimits honoured by IIS": Verified 2026-10-17 (first-deploy smoke).
+- "Outbound SMTP from the site", "Outbound HTTPS to the breached-password service", "Data Protection certificate and
+  `App:PublicBaseUrl` available to the bootstrap command on the host" and "The real bootstrap on the hosted database,
+  then the first sign-in with an emailed code (AUTH-12)": Verified 2026-10-17 (D-18 step 8, owner).
+- "Set-Cookie for `__Secure-csps_rt` and `__Secure-csps_2fa`" became two Facts rows: `__Secure-csps_rt` Verified
+  2026-10-17; `__Secure-csps_2fa` Unverified (not observed by the owner, attributes pinned by tests), waiting for the
+  owner's sign-off.
 
 ## Consequences for later phases
 
+- **CSPS is live (owner, 2026-10-17).** The legacy site and database are retired (D-01, D-03) and kept only as the
+  .bak and the site-files zip. There is no staging site (D-11). CSPS has served the live site since the first deploy
+  on 2026-10-17 (run 39006538697, release `deploy-20261017053115-bd34a88`), the first Manager signed in the same day,
+  and the owner accepted CSPS live on 2026-10-17. From now on a rollback means redeploying an earlier CSPS release
+  (D-05), never the legacy site.
 - **Database version target (D-33, owner, 2026-10-07).** The host runs SQL Server 2022 today, but the owner's
   target production database is **SQL Server 2025**. The owner plans to retire the current SQL Server 2022 database
   hosting and restore the live data onto a SQL Server 2025 database. Notes for that move:
@@ -231,7 +245,8 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
 - **Live site certificate (observed 2026-10-07).** The live site's Let's Encrypt certificate expires 2026-10-13.
   These normally renew about 30 days before expiry, so automatic renewal may be failing. The owner checks the SSL
   section of the control panel or asks SmarterASP.NET. This is not CSPS work, but it affects the live site.
-- **Compatibility level (D-13, D-33).** `SqlCompatibility.Level` stays at **160, provisional**. It is not re-pinned
+- **Compatibility level (D-13, D-33).** *Superseded 2026-10-16: re-pinned to 170 for the SQL Server 2025 database
+  (plan 03-19, see "Database version target" above).* `SqlCompatibility.Level` stays at **160, provisional**. It is not re-pinned
   now: the `model` level is Unverified (B3 returned no `model` row), and the owner's target is SQL Server 2025.
   160 is valid on both SQL Server 2022 and 2025, and the idempotent script is proven at 160 and 170
   (MigrationScriptTests). Re-pin to **170** only after the SQL Server 2025 database exists and its level is
@@ -253,7 +268,8 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
 - **HTTPS rewrite (OPS-05, owner ruling 2026-10-16): IIS rule.** The site web.config redirects http to https with the
   HttpToHttps rule before the app runs; the app keeps its own redirect and HSTS. It ships on the phase branch (quick
   261016-w4u) in the Phase 3 follow-up PR and goes live with the first deploy after that merge. If the host ever drops
-  URL Rewrite, every page fails with 500.19 until the rule is removed.
+  URL Rewrite, every page fails with 500.19 until the rule is removed. Live since the first deploy (PR #6, run
+  39006538697, 2026-10-17): http answers 301 to https.
 - **Runtime (owner, 2026-10-16): self-contained win-x64.** The host runtime is 10.0.7, so the CI package carries its
   own .NET and ASP.NET Core runtime (10.0.13 at the time of writing) and IIS starts `Csps.Server.exe` from the site
   folder. The package grows from about 34 MB (14 MB zipped) to about 139 MB (60 MB zipped). It needs the 64-bit app
