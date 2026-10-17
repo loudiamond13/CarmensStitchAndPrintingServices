@@ -59,6 +59,11 @@ public static class DataProtectionRegistration
             {
                 builder.UnprotectKeysWithAnyCertificate(previous);
             }
+
+            // The host disposes this owner when it shuts down (also after a failed start), which deletes each machine key.
+            var owner = new DataProtectionCertificates([current, .. previous]);
+            services.AddSingleton(_ => owner);
+            services.AddHostedService(static provider => provider.GetRequiredService<DataProtectionCertificates>());
         }
         else
         {
