@@ -199,7 +199,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
 export default function AdminLayout() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   return (
-    <div data-theme={theme} className={pageRootClasses}>
+    <div data-theme={theme} data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
         <AdminShell
