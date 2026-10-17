@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-17T10:40:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-17T10:40:10-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -145,6 +145,106 @@ Rules every workflow follows:
 
 `CiWorkflowTests`, which run inside `3 architecture tests`, check these rules on every pull request.
 
+### CI (`ci.yml`)
+
+- **Runs when:** a pull request to `main` is opened, gets a new push, is reopened or is marked ready for review; on every push to `main`; when someone presses **Run workflow** on the Actions tab (full mode, Chromium and the phone viewport only, no package upload); and when `weekly.yml` calls it with the `all-engines` input switched on. The modes are explained in [The pipeline, in order](#the-pipeline-in-order), [Drafts](#drafts), [Docs-only pull requests](#docs-only-pull-requests) and [Pushes to main](#pushes-to-main).
+- **Permissions:** none at the top. `classify` may read the repository, pull requests and checks. `gate` may read the repository only. `gate result` has no rights at all.
+- **Concurrency:** one run per pull request (or per commit on `main`). A newer push to a pull request cancels its older run. A run for `main` is never cancelled.
+- **Runner and time limit:** `ubuntu-24.04`. `classify` 5 minutes, `gate` 60 minutes, `gate result` 2 minutes. If the gate passes 60 minutes, GitHub stops it and `gate result` then fails.
+- **Required on `main`:** `gate result` only.
+
+#### `classify`
+
+Picks the mode and passes it to the other jobs.
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the whole history, because the script compares the pull request with `main` and looks up the pull request's tree | A GitHub outage. Re-run the job |
+| `setup node` | Installs Node 24.21.0 | A GitHub outage. Re-run the job |
+| `mode` | Runs `web/scripts/ci-classify.mjs`: a draft gives `fast`, a docs-only pull request gives `docs`, a push gives `package` only for a proven tree, and anything unsure gives `full` | The script prints the reason. When `classify` fails, `gate result` fails too. Re-run once if GitHub did not answer |
+
+#### `gate (fast)`, `gate (docs)`, `gate (full)` and `gate (package)`
+
+One job whose name carries the mode. It sets `DOTNET_NOLOGO` and `DOTNET_CLI_TELEMETRY_OPTOUT` to keep the log short. Steps run in order and the job stops at the first failure. The stage numbers are the ones in [The pipeline, in order](#the-pipeline-in-order). "All modes" means `fast`, `docs`, `full` and `package`.
+
+| Step | Runs in | What it checks | If it fails |
+|---|---|---|---|
+| `checkout` | All modes | Fetches the whole history | A GitHub outage. Re-run the job |
+| `setup dotnet` | All modes | Installs the .NET SDK named in `global.json` | A download problem can be re-run once. A wrong version means `global.json` needs fixing |
+| `setup node` | All modes | Installs Node 24.21.0 and caches npm downloads, keyed on both lock files | A GitHub outage. Re-run the job |
+| `cache nuget packages` | All modes | Keeps downloaded .NET packages between runs, keyed on `packages.lock.json` | A cache miss only makes the run slower |
+| `1 restore (locked)` | All modes | Restores the .NET packages in locked mode, then the local tools. A lock file that disagrees with the project files fails, and so does a package with a known security problem (NuGet audit, level low and up) | Run `dotnet restore Csps.slnx --force-evaluate` and commit the changed `packages.lock.json`. For a package with a known problem, pick another version with the owner's OK |
+| `1 npm ci` | All modes | Installs `web` and `tools/openapi-gen` exactly as their lock files say. A lock file that disagrees with `package.json` fails | Update the lock file with npm and commit it |
+| `1 audits` | All modes | `npm audit` at the lowest level for both folders | Run `npm --prefix web audit --audit-level=low` to see the package, then choose a fixed version with the owner's OK |
+| `2 build` | All modes | `dotnet build`. Any compiler or analyzer warning fails it, because warnings are errors | Run `dotnet build Csps.slnx` and fix what it prints |
+| `2 format check` | All modes | Fails when `dotnet format` would change any file | Run `dotnet format Csps.slnx` and commit the result |
+| `3 unit tests` | All modes | Domain, Application and HostProbe unit tests | Run `dotnet test --project tests/Csps.Domain.UnitTests` (or the other two projects) |
+| `3 integration tests` | Full only | Infrastructure and Server integration tests. With `CSPS_TEST_SQL=container` the tests start their own throwaway SQL Server 2025 container on the runner (through Testcontainers), from a fixed image version | Run the same projects on your machine (they use LocalDB there). A container download or start-up problem, which is not a test failure, may be re-run once |
+| `3 architecture tests` | All modes | The layer rules, plus the tests that read repository files: `CiWorkflowTests`, `HygieneWorkflowTests`, `SecurityWorkflowTests`, `DeployWorkflowTests`, `DependencyRegistryTests`, `HostingRecordTests` and `RepoRulesTests` | Run `dotnet test --project tests/Csps.ArchitectureTests`. The message names the file and the rule |
+| `4 web typecheck` | All modes | TypeScript type check | `npm --prefix web run typecheck` |
+| `4 web lint` | All modes | ESLint with zero warnings allowed | `npm --prefix web run lint` |
+| `4 web prettier` | All modes | Fails when Prettier would change any file | `npm --prefix web run format`, then commit |
+| `4 web vitest + coverage` | All modes | Web unit tests, and web coverage of at least 90 percent (100 percent in `src/core/api`) | `npm --prefix web run test:coverage` |
+| `4 openapi types check` | All modes | The committed API types match the OpenAPI snapshot, and the checker's own tests pass | `npm --prefix tools/openapi-gen run check`. Regenerate the types with `npm --prefix tools/openapi-gen run generate` and commit them |
+| `5 web build` | Full only | The production build. It also fails when the bundle passes its size limits (`docs/web/budgets.md`) | `npm --prefix web run build` |
+| `5 web budget build` | Full only | The same check for the build that includes the admin routes | `npm --prefix web run build:budget` |
+| `5 sql container` | Full only | Starts a throwaway SQL Server and waits for it, up to 60 checks 2 seconds apart. See [What the CI database is](#what-the-ci-database-is) | A download or start-up problem (not a test failure) may be re-run once |
+| `5 test secrets` | Full only | Makes the development secrets (random keys and a certificate, thrown away with the runner) and the local HTTPS certificate that the browser tests and Lighthouse need | Read the log. The script is `tools/scripts/Initialize-DevSecrets.ps1` |
+| `5 playwright cache` | Full only | Keeps the downloaded browsers between runs, keyed on the web lock file | A cache miss only makes the run slower |
+| `5 playwright browsers` | Full only, all-engines off | Installs Chromium | A download problem can be re-run once |
+| `5 playwright browsers all engines` | Full only, all-engines on | Installs every browser engine | A download problem can be re-run once |
+| `5 playwright` | Full only, all-engines off | Browser tests in two projects: `chromium` and the phone-sized `pixel`, against the container database | See [How to read a failed run](#how-to-read-a-failed-run) |
+| `5 playwright all engines` | Full only, all-engines on | The same tests in all seven projects | See [How to read a failed run](#how-to-read-a-failed-run) |
+| `5 lighthouse` | Full only | Seeds the container database, then scores the production site. The mail settings are dummy values, so no mail is sent. The limits and the LCP note are in [The pipeline, in order](#the-pipeline-in-order) | `npm --prefix web run lighthouse` |
+| `6 coverage gate` | Full only | .NET coverage: `Csps.Domain` 100 percent line and branch, `Csps.Application` at least 95 percent line | `pwsh tools/scripts/Invoke-CoverageGate.ps1`. Add tests, never exclusions |
+| `6 web licenses` | Full only | Every web package has an allowed license, using `docs/dependencies.json` and the license files in `docs` | `npm --prefix web run license:check`. Never widen an allow-list: ask the owner |
+| `6 web notices` | Full only | The web third-party notices file is up to date | `npm --prefix web run notices`, then commit `web/THIRD-PARTY-NOTICES.txt` |
+| `6 nuget licenses + notices` | Full only | Every NuGet package has an allowed license, and `THIRD-PARTY-NOTICES.md` matches a fresh copy | `pwsh tools/scripts/New-ThirdPartyNotices.ps1`, then commit the changed file |
+| `6 upload failure reports` | Full only, and only after a failure | Saves the Playwright report and traces as `playwright-failure-reports`, kept 7 days | It has nothing to fix: it is the evidence for the failure above it |
+| `7 package web build` | Full and package | Builds the site again, so the package never carries the budget build's output | `npm --prefix web run build` |
+| `7 package publish` | Full and package | Publishes the server as a self-contained `win-x64` package, because the host's .NET runtime is older than CSPS needs | Read the build error above the failure |
+| `7 package migrations script` | Full and package | Writes the reviewed, idempotent database script. It is the only way the host database changes, never at startup | Read the error above the failure |
+| `7 package check` | Full and package | Refuses logs, `app_offline.htm`, environment settings files, key or certificate files, `secrets.json` and `.env` files. Requires `web.config` with in-process hosting, `wwwroot/index.html` and `Csps.Server.dll` | `node web/scripts/package-check.mjs <package folder>` names each problem |
+| `7 package secret scan` | Full and package | Runs the same checksum-verified gitleaks 8.30.1 over the finished package | Treat it as in `secret scan` |
+| `7 package upload` | Full and package, and only on a push | Stores the package as `csps-package-<commit sha>` for 14 days. Deploy downloads it by that name | A GitHub outage. Re-run the job |
+
+#### `gate result`
+
+Runs last, always. It passes only when the gate of a mode that may merge succeeded. The full rule and the reason for it are in [The pipeline, in order](#the-pipeline-in-order).
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `report` | Reads the mode and the gate's result. `full`, `docs` or `package` with a successful gate passes. Everything else fails and the log says which mode and result it saw | Fix the gate above it. A draft (`fast`) always fails this check by design: mark the pull request ready |
+
+### Weekly (`weekly.yml`)
+
+- **Runs when:** Sundays at 18:00 UTC (Monday 02:00 in Manila), and when someone presses **Run workflow**. GitHub starts scheduled runs only from `main`.
+- **Permissions:** none at the top. The one job is allowed to read the repository, pull requests and checks, because the `classify` job of `ci.yml` needs exactly that.
+- **Concurrency and time limit:** none of its own. The job limits of `ci.yml` apply.
+- **Required on `main`:** no. A red weekly run blocks no pull request. It is a warning to fix on a normal branch.
+
+#### `weekly all engines`
+
+It runs the whole of `ci.yml` with `all-engines` switched on, so Playwright runs all seven projects (they are listed in [Weekly run](#weekly-run)). The jobs appear on the run page under this name. The classifier gives `full` mode for a scheduled or hand-started run, and no package is uploaded, because that needs a push. The job has no steps of its own.
+
+### CodeQL (`codeql.yml`)
+
+- **Runs when:** a pull request to `main` is opened, gets a new push or is reopened; on every push to `main`; and Sundays at 19:23 UTC (Monday 03:23 in Manila). The why and the Security tab are in [Security scans](#security-scans-public-repository).
+- **Permissions:** none at the top. Each job may read the repository and write security events (`security-events: write`), which is how results reach the Security tab.
+- **Concurrency:** a newer push to a pull request cancels its older scan. Scans of `main` and the weekly scan are never cancelled.
+- **Runner and time limit:** `ubuntu-24.04`, 30 minutes per job.
+- **Required on `main`:** both jobs.
+
+The two jobs come from a matrix with `fail-fast: false`, so one language failing does not stop the other. `analyze (csharp)` builds the code by hand with the pinned SDK, with no incremental build and no shared compiler, so CodeQL watches the whole compile. `analyze (javascript-typescript)` reads the TypeScript without a build. A job fails when the C# build fails or the analysis itself errors. Findings are listed under the repository's Security tab.
+
+| Step | Runs in | What it does and checks | If it fails |
+|---|---|---|---|
+| `checkout` | Both | Fetches the repository | A GitHub outage. Re-run the job |
+| `setup dotnet` | `analyze (csharp)` only | Installs the SDK named in `global.json` | A download problem can be re-run once |
+| `initialize codeql` | Both | Starts CodeQL for the language | A GitHub outage. Re-run the job |
+| `build csharp` | `analyze (csharp)` only | Locked restore, then a full build of `Csps.slnx` | Same fix as `1 restore (locked)` and `2 build` in the gate |
+| `analyze` | Both | Runs the scan and sends the results | Read the log. Alerts are in the Security tab |
+
 ### Hygiene (`hygiene.yml`)
 
 - **Runs when:** a pull request to `main` is opened, gets a new push, is reopened, is marked ready for review or is edited, and on every push to `main`. "Edited" means that changing the pull request's title, description or base branch runs it again without a push. That matters because fixing a bad title is an edit.
@@ -201,6 +301,37 @@ Runs on pull requests only. It fails when a pull request adds or changes a packa
 | Step | What it does and checks | If it fails |
 |---|---|---|
 | `review dependency changes` | Compares the packages before and after the pull request | Choose another version (any new version needs the owner's approval) or drop the change. Never widen the allow-list to make it pass |
+
+### Deploy (`deploy.yml`)
+
+Deploy is the production deploy. The owner pressing **Run workflow** is the approval, and a merge never deploys. The runbook is [deploy.md](deploy.md): this section only describes the file.
+
+- **Runs when:** only on **Run workflow** (`workflow_dispatch`), or `gh workflow run deploy.yml --ref main`. There is no other trigger.
+- **Permissions:** none at the top. The job may write repository contents (to create the deploy release) and read Actions (to find the package that CI built).
+- **Concurrency:** `deploy-production`. Two deploys never run at once, and a running deploy is never cancelled half way.
+- **Runner and time limit:** `windows-2025` (Web Deploy ships with it), 30 minutes.
+- **Runs from:** `main` only. A dispatch from any other branch skips the job and does nothing.
+- **Required on `main`:** no. It never runs on a pull request.
+
+Inputs:
+
+| Input | Type and default | What it does |
+|---|---|---|
+| `action` | Choice, `deploy` | `deploy` puts a CI-passed build live. `online` removes a stuck offline page. `hostprobe` is the one-time host check |
+| `sha` | Text, empty | The full 40-character commit id of a `main` build that passed CI. Needed for `deploy` |
+| `dry_run` | Yes or no, no | A read-only check of the login, the port and the certificate. Nothing is changed |
+| `probe_rewrite` | Yes or no, no | `hostprobe` only: also tests whether the host has URL Rewrite |
+
+#### `deploy`
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the repository | A GitHub outage. Re-run the job |
+| `setup node` | Installs Node 24.21.0. The deploy script uses only Node's built-in parts, so nothing else is installed | A GitHub outage. Re-run the job |
+| `setup dotnet` | Only for `hostprobe`: installs the SDK, because that action publishes a small .NET project | A download problem can be re-run once |
+| `deploy` | Runs `web/scripts/deploy.mjs`. The inputs and these secrets reach it only through environment variables: `WEBDEPLOY_SERVER`, `WEBDEPLOY_SITE`, `WEBDEPLOY_USERNAME`, `WEBDEPLOY_PASSWORD`, `WEBDEPLOY_CERT_SHA256` and `HOSTPROBE_KEY`, plus the variable `SITE_ORIGIN`. The script checks the commit id | The log says what stopped it. Follow [How to deploy](deploy.md#how-to-deploy) and, if the site is left offline, [Recover with the online action](deploy.md#recover-with-the-online-action) |
+
+More in the runbook: [Secrets and variables](deploy.md#secrets-and-variables), [Dry run first](deploy.md#dry-run-first), [What the automatic rollback does](deploy.md#what-the-automatic-rollback-does) and [Who can deploy](deploy.md#who-can-deploy).
 
 ### Dependabot (`dependabot.yml`)
 
