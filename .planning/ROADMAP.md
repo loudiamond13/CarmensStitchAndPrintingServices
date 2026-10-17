@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T14:45:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T14:55:00-05:00*
 
 ## Overview
 
@@ -450,6 +450,8 @@ Plans:
 - timing-parity tests
 
 **Plans**: 35/35 plans complete in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+
+**Status:** Complete (2026-10-17). Verification passed 6/6 with 18/18 requirement IDs, UAT 3/3 (C-23 confirmed on the live site on 2026-10-17), threats_open 0, and no review finding left open. The owner decisions above were closed at the discuss step (`04-CONTEXT.md`). Carried to Phase 5: the refresh cookie `Expires` check, review info notes IN-01 to IN-19, and the flaky resend-code test.
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
