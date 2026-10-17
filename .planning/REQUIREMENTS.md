@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-15T22:10:30-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-17T09:30:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -58,8 +58,8 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
 - [x] **OPS-02**: The CI pipeline on every PR runs locked restore → .NET build → format check → unit → integration → architecture tests → web typecheck/lint/Prettier/Vitest + coverage → web build → Playwright → Lighthouse CI → coverage gates → license notices. Actions are pinned by SHA with least-privilege permissions
 - [x] **OPS-03**: Supply-chain security runs in CI: Dependabot (NuGet, npm, Actions) with cooldown, plus CodeQL, secret scanning with push protection and dependency review, or the owner-approved substitute set ⚑ C-27/S-9
-- [ ] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
-- [ ] **OPS-05**: `web.config` provides in-process hosting, HTTPS rewrite, removed server headers, compression, `immutable` caching for hashed assets and `no-cache` for `index.html`. Production configuration secrets live only on the server
+- [x] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
+- [x] **OPS-05**: `web.config` provides in-process hosting, HTTPS rewrite, removed server headers, compression, `immutable` caching for hashed assets and `no-cache` for `index.html`. Production configuration secrets live only on the server
 
 ### Security (SEC)
 
@@ -361,8 +361,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Complete |
 | OPS-03 | Phase 3 | Complete |
-| OPS-04 | Phase 3 | Pending |
-| OPS-05 | Phase 3 | Pending |
+| OPS-04 | Phase 3 | Complete |
+| OPS-05 | Phase 3 | Complete |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 4 | Pending |
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*
+*Last updated: 2026-10-17T09:30:00-05:00 after plan 03-22 marked OPS-04 and OPS-05 complete (first live deploy and smoke, owner acceptance). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*

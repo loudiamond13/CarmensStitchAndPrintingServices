@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
-stopped_at: Completed 03-16-PLAN.md
-last_updated: "2026-10-17T05:37:19.641Z"
+stopped_at: Completed 03-22-PLAN.md
+last_updated: "2026-10-17T14:29:22.204Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 03 execution started
-state_head: 0e65223de195ecf64ed13da2bd2ab4cd718c2005
+state_head: 68dd87b5830d0ba78b54c83d5db98bb917a65186
 progress:
   total_phases: 17
   completed_phases: 2
   total_plans: 114
-  completed_plans: 111
+  completed_plans: 114
   percent: 12
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-16T22:30:41-05:00"
+updated: "2026-10-17T09:30:00-05:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 21 of 23
-Status: Ready to execute
-Last activity: 2026-10-16 - Completed quick task 261016-w4u: Act on the host probe results (IIS https rule, self-contained win-x64, machine-store certificate, probe facts recorded)
+Plan: 23 of 23
+Status: All 23 plans complete, ready for verification
+Last activity: 2026-10-17 - Completed 03-22: first Manager signed in on the live site, every first-deploy fact on record, CSPS accepted live by the owner (smoke 12/12 from this PC)
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -167,6 +167,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P09 | 47 min | 3 tasks | 21 files |
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
 | Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
+| Phase 03 P22 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -427,6 +428,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
 - [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
 - [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
+- [Phase 03]: 03-22: __Secure-csps_2fa stays Unverified (not observed by the owner; attributes pinned by auth integration tests) pending owner sign-off
+- [Phase 03]: 03-22: owner accepted CSPS live 2026-10-17; a rollback now means redeploying an earlier CSPS release (D-05)
 
 ### Pending Todos
 
@@ -484,6 +487,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T19:37:34.800Z
-Stopped at: Completed 03-16-PLAN.md
+Last session: 2026-10-17T14:29:21.635Z
+Stopped at: Completed 03-22-PLAN.md
 Resume file: None
