@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
@@ -30,6 +31,12 @@ internal static partial class CertificateChecks
     internal const string StepUse = "use";
 
     internal const string CleanupNone = "none";
+    internal const string CleanupRemoved = "removed";
+    internal const string CleanupRemovedByProbe = "removed-by-probe";
+    internal const string CleanupUnchecked = "unchecked";
+    internal const string CleanupLeft = "left";
+
+    private sealed record StoredKey(string Name, CngProvider Provider, bool MachineKey);
 
     private sealed record AttemptSpec(
         string Name,
@@ -39,6 +46,9 @@ internal static partial class CertificateChecks
     private static readonly AttemptSpec[] Attempts =
     [
         new("ephemeral", PlatformExport, X509KeyStorageFlags.EphemeralKeySet),
+        new("machine", PlatformExport, X509KeyStorageFlags.MachineKeySet),
+        new("user", PlatformExport, X509KeyStorageFlags.UserKeySet),
+        new("ephemeral-3des", TripleDesExport, X509KeyStorageFlags.EphemeralKeySet),
     ];
 
     public static IReadOnlyList<CertificateAttempt> Run(TimeProvider time)
@@ -95,6 +105,26 @@ internal static partial class CertificateChecks
 
     private static CertificateAttempt RunAttempt(AttemptSpec spec, X509Certificate2 certificate, string password)
     {
+        var attempt = LoadAndUse(spec, certificate, password, out var stored, out var loaded);
+
+        // Keys are never persisted on purpose; this confirms that and removes a leftover through its handle.
+        if (stored is not null && OperatingSystem.IsWindows())
+        {
+            return attempt with { KeyCleanup = RemoveKeyIfLeft(stored.Name, stored.Provider, stored.MachineKey) };
+        }
+
+        var ephemeral = spec.Flags == X509KeyStorageFlags.EphemeralKeySet;
+        return loaded && !ephemeral && OperatingSystem.IsWindows()
+            ? attempt with { KeyCleanup = CleanupUnchecked }
+            : attempt;
+    }
+
+    // Everything the attempt opens is disposed when this returns, so the caller can check the key store afterwards.
+    private static CertificateAttempt LoadAndUse(
+        AttemptSpec spec, X509Certificate2 certificate, string password, out StoredKey? stored, out bool loadedOk)
+    {
+        stored = null;
+        loadedOk = false;
         var step = StepExport;
         try
         {
@@ -102,6 +132,7 @@ internal static partial class CertificateChecks
 
             step = StepLoad;
             using var loaded = X509CertificateLoader.LoadPkcs12(pfx, password, spec.Flags);
+            loadedOk = true;
 
             step = StepUse;
             using var publicKey = loaded.GetRSAPublicKey();
@@ -115,6 +146,11 @@ internal static partial class CertificateChecks
             var session = RandomNumberGenerator.GetBytes(32);
             var cipher = publicKey.Encrypt(session, RSAEncryptionPadding.Pkcs1);
             var plain = privateKey.Decrypt(cipher, RSAEncryptionPadding.Pkcs1);
+            if (OperatingSystem.IsWindows() && spec.Flags != X509KeyStorageFlags.EphemeralKeySet)
+            {
+                stored = ReadStoredKey(privateKey);
+            }
+
             return session.AsSpan().SequenceEqual(plain)
                 ? new CertificateAttempt(spec.Name, Ok: true, null, null, null, null, CleanupNone)
                 : Unusable("The decrypted value did not match.");
@@ -128,8 +164,53 @@ internal static partial class CertificateChecks
             new(spec.Name, Ok: false, StepUse, null, null, message, CleanupNone);
     }
 
+    [SupportedOSPlatform("windows")]
+    private static StoredKey? ReadStoredKey(RSA privateKey)
+    {
+        if (privateKey is not RSACng cng)
+        {
+            return null;
+        }
+
+        using var key = cng.Key;
+        return !key.IsEphemeral && key.KeyName is { } name && key.Provider is { } provider
+            ? new StoredKey(name, provider, key.IsMachineKey)
+            : null;
+    }
+
+    [SupportedOSPlatform("windows")]
+    internal static string RemoveKeyIfLeft(string keyName, CngProvider provider, bool machineKey)
+    {
+        var options = machineKey ? CngKeyOpenOptions.MachineKey : CngKeyOpenOptions.None;
+        try
+        {
+            if (!CngKey.Exists(keyName, provider, options))
+            {
+                return CleanupRemoved;
+            }
+        }
+        catch (CryptographicException)
+        {
+            return CleanupUnchecked;
+        }
+
+        try
+        {
+            using var key = CngKey.Open(keyName, provider, options);
+            key.Delete();
+            return CleanupRemovedByProbe;
+        }
+        catch (CryptographicException)
+        {
+            return CleanupLeft;
+        }
+    }
+
     private static byte[] PlatformExport(X509Certificate2 certificate, string password) =>
         certificate.Export(X509ContentType.Pkcs12, password);
+
+    private static byte[] TripleDesExport(X509Certificate2 certificate, string password) =>
+        certificate.ExportPkcs12(Pkcs12ExportPbeParameters.Pkcs12TripleDesSha1, password);
 
     private static bool IsCryptoFailure(Exception error) =>
         error is CryptographicException or PlatformNotSupportedException or UnauthorizedAccessException
