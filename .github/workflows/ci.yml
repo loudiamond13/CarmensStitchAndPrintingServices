@@ -128,6 +128,7 @@ jobs:
         run: |
           dotnet test --project tests/Csps.Domain.UnitTests --no-build
           dotnet test --project tests/Csps.Application.UnitTests --no-build
+          dotnet test --project tests/Csps.HostProbe.Tests --no-build
 
       - name: 3 integration tests
         if: needs.classify.outputs.mode == 'full'
