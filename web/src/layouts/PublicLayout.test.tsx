@@ -272,4 +272,13 @@ describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => 
     expect(root).toHaveAttribute('data-theme', 'light');
     expect(root?.childElementCount).toBe(0);
   });
+
+  it('the shell fallback and the public layout page roots carry the viewport marker (D-01)', async () => {
+    const fallback = render(<ShellFallback />);
+    expect(fallback.container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
+    fallback.unmount();
+
+    const { container } = await renderAt('/products');
+    expect(container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
+  });
 });

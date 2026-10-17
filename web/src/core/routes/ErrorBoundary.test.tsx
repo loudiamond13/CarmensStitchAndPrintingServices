@@ -5,7 +5,7 @@ import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { collectConsole } from '@/test/consoleGuard';
-import { ERROR_BOUNDARY_COPY, RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
+import { AdminRootErrorBoundary, ERROR_BOUNDARY_COPY, RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { lazyRoute, routes } from './router';
 
@@ -209,6 +209,15 @@ describe('the boundaries in the route tree', () => {
     rerender(<RouteErrorBoundary reload={second} />);
     await userEvent.click(screen.getByRole('button', { name: 'Reload Page' }));
     expect(second).toHaveBeenCalledTimes(2);
+  });
+
+  it('brings page roots that fill the viewport: the root and the admin root error screens carry the marker (D-01)', () => {
+    const root = render(<RootErrorBoundary reload={vi.fn()} />);
+    expect(root.container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
+    root.unmount();
+
+    const admin = render(<AdminRootErrorBoundary reload={vi.fn()} />);
+    expect(admin.container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
   });
 
   it('uses the Copywriting strings', () => {

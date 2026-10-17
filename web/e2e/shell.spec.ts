@@ -3,7 +3,9 @@
 // scrolls sideways. The short admin page is the dev preview /admin/orders and the long one is /dev/components: both
 // render the real AdminLayout (the e2e bundle's dev routes use a placeholder user, so no sign-in is needed).
 import type { Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 /** The geometry the tests read in the page (a page script: the node program has no DOM). */
 interface Geometry {
@@ -214,3 +216,91 @@ test('@shell the scrolling nav passes axe at 1280x600', async ({ page }) => {
   await openAt(page, SHORT_ADMIN_PAGE, 1280, 600);
   await expectNoAxeViolations(page);
 });
+
+// D-05: no shell page scrolls sideways from 320 to 1920 px, and the wide child is fixed, never hidden by html or body
+// overflow. The offenders are listed so a failure names the element.
+const SWEEP_WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
+const SWEEP_PATHS = ['/admin/sessions', '/dev/components', '/', '/admin/login', '/admin/does-not-exist'] as const;
+
+interface Sideways {
+  readonly scrollWidth: number;
+  readonly clientWidth: number;
+  readonly htmlOverflowX: string;
+  readonly bodyOverflowX: string;
+  readonly offenders: readonly string[];
+}
+
+const READ_SIDEWAYS = `(() => {
+  const edge = document.documentElement.clientWidth + 0.5;
+  const fixed = (element) => {
+    for (let node = element; node && node !== document.documentElement; node = node.parentElement) {
+      if (getComputedStyle(node).position === 'fixed') return true;
+    }
+    return false;
+  };
+  const wide = [...document.body.querySelectorAll('*')].filter(
+    (element) => element.getClientRects().length > 0 && element.getBoundingClientRect().right > edge && !fixed(element),
+  );
+  const outermost = wide.filter((element) => !wide.some((other) => other !== element && other.contains(element)));
+  return {
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+    htmlOverflowX: getComputedStyle(document.documentElement).overflowX,
+    bodyOverflowX: getComputedStyle(document.body).overflowX,
+    offenders: outermost.map((element) => {
+      const kase = element.closest('[data-case]');
+      return element.tagName.toLowerCase() + (element.id ? '#' + element.id : '') + (kase ? ' in [data-case=' + kase.getAttribute('data-case') + ']' : '') + ' right ' + Math.round(element.getBoundingClientRect().right);
+    }),
+  };
+})()`;
+
+for (const path of SWEEP_PATHS) {
+  test(`@shell no sideways scroll on ${path} from 320 to 1920`, async ({ page, request, guard }) => {
+    test.setTimeout(120_000);
+    // A signed-out page asks the refresh cookie for a session first; with none that answer is a 401.
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    if (path === '/admin/sessions') {
+      await signInAs(page, request, await createStaff(request, 'Manager'));
+    }
+    const failures: string[] = [];
+    let opened = false;
+    for (const width of SWEEP_WIDTHS) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      if (!opened) {
+        await page.goto(path);
+        await expect(page.locator('main')).toBeVisible();
+        await page.evaluate('document.fonts.ready.then(() => true)');
+        opened = true;
+      }
+      const reading = await page.evaluate<Sideways>(READ_SIDEWAYS);
+      if (reading.scrollWidth > reading.clientWidth) {
+        failures.push(
+          `${String(width)}px: scrollWidth ${String(reading.scrollWidth)} > ${String(reading.clientWidth)} (${reading.offenders.join('; ')})`,
+        );
+      }
+      if (reading.htmlOverflowX !== 'visible' || reading.bodyOverflowX !== 'visible') {
+        failures.push(`${String(width)}px: html ${reading.htmlOverflowX}, body ${reading.bodyOverflowX} hide overflow`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+}
+
+// D-01: a short public page fills the viewport, so no band of another colour shows under it.
+for (const { width, height } of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+] as const) {
+  for (const path of ['/', '/not-a-public-page'] as const) {
+    test(`@shell full bleed public ${path} at ${String(width)}x${String(height)}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(200);
+      await expect(page.locator('main')).toBeVisible();
+      const reading = await geometry(page);
+      expect(reading.rootBottom ?? 0, 'page root reaches the viewport bottom').toBeGreaterThanOrEqual(
+        reading.innerHeight - 1,
+      );
+    });
+  }
+}
