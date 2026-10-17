@@ -6,7 +6,7 @@ namespace Csps.Server.IntegrationTests.Http;
 
 /// <summary>
 /// SEC-01, OPS-05: the IIS web.config hosts in-process, hides the Server and X-Powered-By banners, never compresses
-/// (the app does) and holds no rewrite rule until the host is proven to have the URL Rewrite module.
+/// (the app does) and redirects http to https with one rewrite rule, because the host has URL Rewrite (probe 2026-10-16).
 /// </summary>
 public sealed class WebConfigTests
 {
@@ -61,9 +61,23 @@ public sealed class WebConfigTests
     }
 
     [Fact]
-    public void HasNoRewriteSectionYet()
+    public void RedirectsHttpToHttpsBeforeTheApp()
     {
-        Load().Descendants("rewrite").ShouldBeEmpty();
+        var webServer = Load().Descendants("aspNetCore").ShouldHaveSingleItem().Parent.ShouldNotBeNull();
+        var rule = webServer.Elements("rewrite").Elements("rules").Elements("rule").ShouldHaveSingleItem();
+
+        rule.Attribute("name").ShouldNotBeNull().Value.ShouldBe("HttpToHttps");
+        rule.Attribute("stopProcessing").ShouldNotBeNull().Value.ShouldBe("true");
+        rule.Element("match").ShouldNotBeNull().Attribute("url").ShouldNotBeNull().Value.ShouldBe("(.*)");
+
+        var condition = rule.Elements("conditions").Elements("add").ShouldHaveSingleItem();
+        condition.Attribute("input").ShouldNotBeNull().Value.ShouldBe("{HTTPS}");
+        condition.Attribute("pattern").ShouldNotBeNull().Value.ShouldBe("^OFF$");
+
+        var action = rule.Element("action").ShouldNotBeNull();
+        action.Attribute("type").ShouldNotBeNull().Value.ShouldBe("Redirect");
+        action.Attribute("url").ShouldNotBeNull().Value.ShouldBe("https://{HTTP_HOST}/{R:1}");
+        action.Attribute("redirectType").ShouldNotBeNull().Value.ShouldBe("Permanent");
     }
 
     private static XDocument Load()

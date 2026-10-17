@@ -4,10 +4,10 @@ current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
 stopped_at: Completed 03-16-PLAN.md
-last_updated: "2026-10-17T03:30:41.189Z"
+last_updated: "2026-10-17T04:46:18.357Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 03 execution started
-state_head: c2730c77a65853abb271e146b896037529c2eea8
+state_head: 1578dc759a53fa4bbfea9532dbbaa4715325b19b
 progress:
   total_phases: 17
   completed_phases: 2
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
 Plan: 21 of 23
 Status: Ready to execute
-Last activity: 2026-10-16 - Completed quick task 261016-ui0: Host probe reports certificate failure detail and tries other key storage options
+Last activity: 2026-10-16 - Completed quick task 261016-w4u: Act on the host probe results (IIS https rule, self-contained win-x64, machine-store certificate, probe facts recorded)
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -468,6 +468,7 @@ None yet.
 | 261016-lcp | Move TanStack Query out of the public entry (lazy QueryRoot, new budget rule); public JS 128.79 to 119.56 KB gzip, but LCP stays 2187 ms (fonts are the main cost), unmet-truth stays open | 2026-10-16 | 5d1da43 | [261016-lcp-split-public-entry](./quick/261016-lcp-split-public-entry/) |
 | 261016-ns5 | Merge script sets the squash commit message; merge gate refuses GitHub skip markers | 2026-10-16 | 3333dc6 | [261016-ns5-merge-script-sets-the-squash-commit-mess](./quick/261016-ns5-merge-script-sets-the-squash-commit-mess/) |
 | 261016-ui0 | Host probe reports certificate failure detail and tries other key storage options | 2026-10-16 | c2730c7 | [261016-ui0-host-probe-reports-certificate-failure-d](./quick/261016-ui0-host-probe-reports-certificate-failure-d/) |
+| 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
 
 ## Deferred Items
 

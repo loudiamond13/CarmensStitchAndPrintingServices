@@ -4,9 +4,11 @@ using System.Security.Cryptography.X509Certificates;
 namespace Csps.Infrastructure.DataProtection;
 
 /// <summary>
-/// Opens a Data Protection certificate from its base64 PFX and password (D-15). The key is loaded with
-/// <see cref="X509KeyStorageFlags.EphemeralKeySet"/>, so nothing is written to the machine or user key store; the
-/// IIS app pool on the host has no loaded user profile. Error messages never contain the PFX or the password.
+/// Opens a Data Protection certificate from its base64 PFX and password (D-15). On the host, in-memory and user-store
+/// keys fail because the app pool runs on a temporary profile (0x80090024, probe 2026-10-16), so the key is loaded
+/// with <see cref="X509KeyStorageFlags.MachineKeySet"/>. It stays in the machine key store only while the certificate
+/// is open: disposing the certificate deletes it, so every caller must dispose. Error messages never contain the PFX
+/// or the password.
 /// </summary>
 public static class CertificateLoader
 {
@@ -25,7 +27,7 @@ public static class CertificateLoader
     /// <summary>Loads a certificate with its private key. The caller disposes it.</summary>
     /// <param name="base64">The PFX bytes, base64-encoded.</param>
     /// <param name="password">The PFX password.</param>
-    /// <returns>The certificate, with an ephemeral private key.</returns>
+    /// <returns>The certificate, with a private key that is deleted when the certificate is disposed.</returns>
     /// <exception cref="InvalidOperationException">The value is empty, not base64, cannot be opened, or has no private key.</exception>
     public static X509Certificate2 Load(string base64, string password)
     {
@@ -47,7 +49,7 @@ public static class CertificateLoader
         X509Certificate2 certificate;
         try
         {
-            certificate = X509CertificateLoader.LoadPkcs12(pfx, password, X509KeyStorageFlags.EphemeralKeySet);
+            certificate = X509CertificateLoader.LoadPkcs12(pfx, password, X509KeyStorageFlags.MachineKeySet);
         }
         catch (CryptographicException exception)
         {
