@@ -1,7 +1,7 @@
 ---
 phase: 03-ci-cd-staging-deploy
 created: "2026-10-16T17:54:41-05:00"
-updated: "2026-10-17T09:27:00-05:00"
+updated: "2026-10-17T09:42:00-05:00"
 ---
 
 # Phase 3 cutover log
@@ -28,6 +28,7 @@ Evidence for the D-18 cutover. Run ids, shas, artifact and release names and dat
 
 - Compatibility re-pin: done. `SqlCompatibility.Level` 170 reached main in PR #5 (plan 03-19) and is what the first deploy runs.
 - IIS rewrite rule: done. The owner chose the IIS HttpToHttps rule (2026-10-16); it reached main in PR #6 and is live (http answers 301).
-- HOSTPROBE_KEY: still in the repository secrets on 2026-10-17. The owner deletes it (Settings, Secrets and variables, Actions); the probe is no longer on the site.
-- `__Secure-csps_2fa`: owner sign-off on the test-pinned attributes, or a look in the browser's developer tools during the next code step.
+- HOSTPROBE_KEY: done. The owner deleted the repository secret on 2026-10-17.
+- `__Secure-csps_2fa`: done. The owner checked it during the code step on 2026-10-17: HttpOnly, Secure, SameSite Strict, Path /api/v1/auth.
+- Least-privilege SQL user (runbook step 3.4): done. The owner confirmed it exists and the live site uses this read and write user (2026-10-17).
 - Still Unverified in HOSTING-RECORD, each with its reason: the app-pool memory limit, and the `model` compatibility level.

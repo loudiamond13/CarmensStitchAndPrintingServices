@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-17T09:26:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-17T09:42:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -187,7 +187,8 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Outbound SMTP from the site (port 587, or 465) to the SmarterASP.NET mail server | First Manager bootstrap and first sign-in (D-18 step 8, owner) | Works: the invite the bootstrap queued was sent by the live site and arrived in the owner's mailbox, and the 6-digit sign-in code email arrived too | Verified | 2026-10-17 |
 | Outbound HTTPS to the breached-password service (`api.pwnedpasswords.com`) | Owner's look-only query after setting the first password: `SELECT COUNT(*) FROM AuditLog WHERE Action = 'auth.breach-check-unavailable';` | 0: the password set wrote no breach-check-unavailable audit entry, so the site reached the service | Verified | 2026-10-17 |
 | `__Secure-csps_rt` cookie on the production HTTPS host | Owner, browser developer tools after the first sign-in | HttpOnly, Secure, SameSite Strict, Path /api/v1/auth | Verified | 2026-10-17 |
-| `__Secure-csps_2fa` cookie on the production HTTPS host | Owner, browser developer tools during the code step | Not observed by the owner: the cookie exists only during the code step and was gone after sign-in. Its attributes (Secure, HttpOnly, SameSite Strict, Path /api/v1/auth) come from the same AuthCookies code as `__Secure-csps_rt` and are pinned by the auth integration tests (AuthRegistrationTests, SignInEndpointTests). Waiting for the owner's sign-off | Unverified | - |
+| `__Secure-csps_2fa` cookie on the production HTTPS host | Owner, browser developer tools on /admin/login/verify during the code step | HttpOnly, Secure, SameSite Strict, Path /api/v1/auth, expiring with the code | Verified | 2026-10-17 |
+| Least-privilege SQL user for the site (runbook step 3.4) | Owner, 2026-10-17 | Created; the live site connects with this read and write user, not the database owner login | Verified | 2026-10-17 |
 | Data Protection certificate and `App:PublicBaseUrl` available to the bootstrap command on the host | Bootstrap (docs/operations/bootstrap-manager.md), run from the owner's PC against the hosted database with the site's certificate settings | Works: the command exited 0 with the invite queued; the live site decrypted the queued invite with its own key ring and sent it, and the invite link opened the live site, where the password was set | Verified | 2026-10-17 |
 | The real bootstrap on the hosted database, then the first sign-in with an emailed code (AUTH-12) | D-18 step 8 (owner) | Bootstrap against `db_…_cspsdb` exited 0; invite received, password set, 6-digit code received, and the owner signed in to the admin portal on https://cspstailoring.com | Verified | 2026-10-17 |
 | ASP.NET Core 10.0.13 (or newer) runtime on the host | C probe: frameworkDescription (D-35) | No: the host runtime is 10.0.7. Met instead by the self-contained win-x64 package, which carries ASP.NET Core 10.0.13 (owner, 2026-10-16) | Verified | 2026-10-16 |
@@ -215,8 +216,8 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
   `App:PublicBaseUrl` available to the bootstrap command on the host" and "The real bootstrap on the hosted database,
   then the first sign-in with an emailed code (AUTH-12)": Verified 2026-10-17 (D-18 step 8, owner).
 - "Set-Cookie for `__Secure-csps_rt` and `__Secure-csps_2fa`" became two Facts rows: `__Secure-csps_rt` Verified
-  2026-10-17; `__Secure-csps_2fa` Unverified (not observed by the owner, attributes pinned by tests), waiting for the
-  owner's sign-off.
+  2026-10-17; `__Secure-csps_2fa` Verified
+  2026-10-17 (owner, developer tools during the code step).
 
 ## Consequences for later phases
 

@@ -435,7 +435,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 
 Owner items (updated 2026-10-17):
 
-- [Phase 3]: Delete the repository secret HOSTPROBE_KEY (T-03-62); confirm whether the lower-rights SQL user (runbook step 3.4) exists; check or waive the __Secure-csps_2fa cookie (WINDOWS.md entry 2) before /gsd-ship 3.
+None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __Secure-csps_2fa checked by the owner (2026-10-17).
 
 ### Blockers/Concerns
 

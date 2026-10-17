@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 1
+open_count: 0
 waived_count: 1
-fixed_count: 0
+fixed_count: 1
 total_count: 2
-last_updated: 2026-10-17T14:30:35.495Z
+last_updated: 2026-10-17T14:42:20.134Z
 ---
 
 # Broken Windows Ledger
@@ -16,7 +16,7 @@ last_updated: 2026-10-17T14:30:35.495Z
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 03 | unmet-truth | web/scripts/lighthouse.mjs |  | Lighthouse LCP 2187 ms median on the public route (limit 2000 ms) after quick task 261016 moved TanStack Query out of the public entry (was 2189 ms); fonts, not JavaScript, are the main cost; see .planning/phases/03-ci-cd-staging-deploy/deferred-items.md | waived | Owner, 2026-10-16: keep the current fonts and look for now and move on; the public LCP of about 2.19 s (limit 2.0 s) is accepted until the Phase 11 public pages revisit fonts (options in 03 deferred-items.md). The limit itself is unchanged. | 2026-10-16T12:57:26.932Z | 2026-10-16T15:45:12.233Z |
-| 2 | 03 | unmet-truth | .planning/HOSTING-RECORD.md |  | __Secure-csps_2fa cookie on the live HTTPS host not observed by the owner (exists only during the code step); attributes pinned by AuthRegistrationTests and SignInEndpointTests; Unverified until the owner signs off or checks it in dev tools during a code step | open |  | 2026-10-17T14:30:35.495Z |  |
+| 2 | 03 | unmet-truth | .planning/HOSTING-RECORD.md |  | __Secure-csps_2fa cookie on the live HTTPS host not observed by the owner (exists only during the code step); attributes pinned by AuthRegistrationTests and SignInEndpointTests; Unverified until the owner signs off or checks it in dev tools during a code step | fixed |  | 2026-10-17T14:30:35.495Z | 2026-10-17T14:42:20.134Z |
 
 ````json
 [
@@ -40,10 +40,10 @@ last_updated: 2026-10-17T14:30:35.495Z
     "file": ".planning/HOSTING-RECORD.md",
     "line": null,
     "description": "__Secure-csps_2fa cookie on the live HTTPS host not observed by the owner (exists only during the code step); attributes pinned by AuthRegistrationTests and SignInEndpointTests; Unverified until the owner signs off or checks it in dev tools during a code step",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-10-17T14:30:35.495Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-17T14:42:20.134Z",
     "milestone": null
   }
 ]
