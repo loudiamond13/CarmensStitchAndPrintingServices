@@ -1,7 +1,7 @@
 ---
 phase: 03-ci-cd-staging-deploy
 created: "2026-10-16T17:54:41-05:00"
-updated: "2026-10-16T18:31:19-05:00"
+updated: "2026-10-16T23:40:00-05:00"
 ---
 
 # Phase 3 cutover log
@@ -15,3 +15,5 @@ Evidence for the D-18 cutover. Run ids, shas, artifact and release names and dat
 | Step 2: receipt ready | 2026-10-16 | Restored into CSPS_Legacy_Restore on (localdb)\MSSQLLocalDB by Restore-LegacyReceipt.ps1 (backup verified first). 17 tables, 988 rows. SHA-256 c9100fb0a390... Receipt kept in _local/legacy-receipt.md (git-ignored, names and counts only). | Yes |
 | Step 2: receipt confirmed by the owner (2026-10-16) | 2026-10-16 | Owner replied confirmed-go after reviewing the 17 tables and 988 rows. | Yes |
 | Step 3: new database | 2026-10-16 | Legacy database deleted by the owner (preserved only in the .bak). New database `db_…_cspsdb`: SQL Server 2025 (RTM-CU3) 17.0.4025.3, Standard Edition; compatibility_level 170; collation SQL_Latin1_General_CP1_CI_AS. SqlCompatibility.Level re-pinned 160 to 170; Infrastructure integration suite and full .NET suite green on LocalDB 17.0.4025.3. | Yes |
+| Probe (probe_rewrite false) | 2026-10-16 | deploy.yml action hostprobe, run 39000637708: success. Probe facts recorded in HOSTING-RECORD (Verified 2026-10-16). | Yes |
+| Probe (probe_rewrite true) | 2026-10-16 | deploy.yml action hostprobe, run 39000906168: success. http answered 301 to https, so the URL Rewrite module is present. Follow-up on the phase branch, quick 261016-w4u: self-contained win-x64 package, the IIS HttpToHttps rule and the MachineKeySet certificate load. | Yes |

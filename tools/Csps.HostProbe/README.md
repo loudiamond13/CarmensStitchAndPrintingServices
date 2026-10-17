@@ -1,5 +1,5 @@
 # Csps.HostProbe: one-time host check (FND-13)
-*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-16T22:26:00-05:00*
+*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-16T23:40:00-05:00*
 
 This is a tiny, throwaway web app. It reports the facts about the SmarterASP.NET server that only the server itself
 can show: the exact .NET version, whether the site runs inside IIS ("in-process"), how visitor addresses reach the
@@ -110,8 +110,8 @@ use one RSA-3072 test certificate made on the spot, and test its key the way Dat
 
 | Attempt          | What it does                                                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `ephemeral`      | Key in memory only. This is how CSPS loads its certificate today, so a pass means CSPS starts as is.                                      |
-| `machine`        | Key written to the server's machine key store while open, removed when closed.                                                            |
+| `ephemeral`      | Key in memory only. CSPS loaded its certificate this way until 2026-10-16; the host refuses it (temporary profile, 0x80090024).           |
+| `machine`        | Key written to the server's machine key store while open, removed when closed. This is how CSPS loads its certificate since 2026-10-16.   |
 | `user`           | Key written to the app pool's own profile store. Load User Profile is on.                                                                 |
 | `ephemeral-3des` | The same as `ephemeral`, but the PFX uses the 3DES/SHA1 encryption that Windows PowerShell 5.1 gives the production certificate. A pass means that format loads. |
 
@@ -126,8 +126,9 @@ What each field means:
   had to delete a key left behind), `unchecked` (the probe could not tell) or `left`. `left` means a key file may remain
   on the server, so tell Claude.
 
-How to read the result: paste the whole `certificateRoundTrips` block back. Which attempt passes decides how CSPS
-loads its certificate in the follow-up fix.
+How to read the result: paste the whole `certificateRoundTrips` block back. On 2026-10-16 only `machine` passed on the
+host (the other three failed at load with 0x80090024), so CSPS now loads its certificate with MachineKeySet (quick
+261016-w4u).
 
 ## Running the probe through the deploy workflow (the `hostprobe` action)
 

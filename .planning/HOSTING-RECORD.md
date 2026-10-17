@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-16T22:23:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-16T23:40:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -13,6 +13,11 @@ seen stays **Unverified** (D-09).
 Section C (the probe) was **not run**: the Basic plan does not let the owner create a free extra site, so no probe
 site was created or deleted, and every probe fact stays Unverified. Step D2 (the Gmail "Show original" check) has not
 been done yet. The account prefix of the database name is masked as `db_…_csptailoringdb`.
+
+**Probe results received 2026-10-16 (plan 03-20, quick 261016-w4u).** The probe ran once on the CSPS site root
+through the deploy workflow's `hostprobe` action: run 39000637708 (`probe_rewrite` false) and run 39000906168
+(`probe_rewrite` true), both success. The facts below that name the probe come from those two runs. The site's folder
+path and the address the probe saw for its caller (the GitHub runner) are not recorded.
 
 ## Status legend
 
@@ -164,15 +169,19 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Database allocated size | B4 | AllocatedMB 16.0 | Verified | 2026-10-07 |
 | Hosting login owns the database | B5 (IsDbOwner only) | IsDbOwner 1 (the hosting login is a member of db_owner) | Verified | 2026-10-07 |
 | Hosting login permissions | B6 | db_owner-level: CONTROL plus all DDL/DML (among them CONTROL, ALTER, CREATE TABLE, BACKUP DATABASE and ALTER ANY DATABASE DDL TRIGGER); the full list was provided by the owner | Verified | 2026-10-07 |
-| .NET runtime patch | C probe: frameworkDescription, environmentVersion | Probe not possible: the plan allows no extra site. The live legacy app's web.config (owner-pasted 2026-10-07) runs framework-dependent (`processPath="dotnet"`) and the owner says it targets .NET 10, so a .NET 10 shared runtime is installed. The exact patch is checked on the first real deploy (Phase 3) | Unverified | - |
-| In-process hosting | C probe: processName, inProcess; or the live legacy app's web.config (owner-pasted) | The live legacy app's web.config uses AspNetCoreModuleV2 with `hostingModel="inprocess"`, so the host runs ASP.NET Core in-process | Verified | 2026-10-07 |
-| Content root vs current directory | C probe: contentRootPath, currentDirectory | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| Logs folder writable | C probe: logsWritable | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Outside view of the live site (2026-10-07): IIS 10 serves a Let's Encrypt certificate and http answers 307 to https, so TLS ends at IIS. What the app itself sees is checked on the first real deploy (Phase 3) | Unverified | - |
-| Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| PFX EphemeralKeySet round trip | C probe: certificateRoundTrips (ephemeral, machine, user, ephemeral-3des) | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| .NET runtime patch | C probe: frameworkDescription, environmentVersion | .NET 10.0.7, 64-bit. This is below the 10.0.13 CSPS needs, so CSPS ships its own runtime (see "ASP.NET Core 10.0.13 (or newer) runtime on the host") | Verified | 2026-10-16 |
+| In-process hosting | C probe: processName, inProcess; or the live legacy app's web.config (owner-pasted) | The live legacy app's web.config uses AspNetCoreModuleV2 with `hostingModel="inprocess"` (2026-10-07). The probe confirmed it: process w3wp, in-process true, 64-bit | Verified | 2026-10-16 |
+| Content root vs current directory | C probe: contentRootPath, currentDirectory | The same folder (the path itself is not recorded) | Verified | 2026-10-16 |
+| Logs folder writable | C probe: logsWritable | Yes. The logs folder did not exist before; the app could create it and write to it | Verified | 2026-10-16 |
+| Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | No proxy: X-Forwarded-For, X-Real-IP and CF-Connecting-IP were all empty, and the app saw the caller's own address directly (not recorded) | Verified | 2026-10-16 |
+| HTTPS termination | C probe: isHttps, xForwardedProto | The app sees https itself (isHttps true) with no X-Forwarded-Proto, so TLS ends at IIS on the same server. Outside view of the live site (2026-10-07): IIS 10 with a Let's Encrypt certificate | Verified | 2026-10-16 |
+| Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Both available: Asia/Manila found at +08:00, and en-PH formats money as "₱12,450.00" | Verified | 2026-10-16 |
+| PFX EphemeralKeySet round trip | C probe: certificateRoundTrips (ephemeral, machine, user, ephemeral-3des) | ephemeral, user and ephemeral-3des fail at load with 0x80090024 ("The profile for the user is a temporary profile"). machine works, and its key was removed after use. CSPS now loads its certificate with MachineKeySet (quick 261016-w4u) | Verified | 2026-10-16 |
+| App pool memory available | C probe: totalAvailableMemoryBytes | Not known. The probe saw about 24 GB, which is the server's memory, not the 256 MB app-pool limit, so the pool limit itself is still unseen | Unverified | - |
+| IIS accepts urlCompression in the site web.config | C probe: the probe's web.config carried `<urlCompression doStaticCompression="false" doDynamicCompression="false" />` | Yes: the probe answered 200, not a 500.19 locked-section error | Verified | 2026-10-16 |
+| URL Rewrite module | C probe with `probe_rewrite` true (one HttpToHttps rule in the probe's web.config) | Present: with the HttpToHttps rule, http answered 301 to https in run 39000906168 | Verified | 2026-10-16 |
+| ASP.NET Core 10.0.13 (or newer) runtime on the host | C probe: frameworkDescription (D-35) | No: the host runtime is 10.0.7. Met instead by the self-contained win-x64 package, which carries ASP.NET Core 10.0.13 (owner, 2026-10-16) | Verified | 2026-10-16 |
+| Client IP and proxy topology before the per-address limits are trusted (D-39) | C probe: the "Client IP / proxy topology" row above | No proxy, so the per-address limits key on the client's own address | Verified | 2026-10-16 |
 | Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
 | SPF | D1 (DNS record on cspstailoring.com) | `v=spf1 a mx include:_spf.site4now.net -all` | Verified | 2026-10-07 |
 | DKIM | D2 | `dkim=pass header.i=@cspstailoring.com header.s=8DF2A53DE38DCC0` (Gmail "Show original"); the DKIM TXT record is published at `8DF2A53DE38DCC0._domainkey.cspstailoring.com` and was seen from 8.8.8.8 | Verified | 2026-10-14 |
@@ -192,11 +201,9 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
 |-------|--------------|--------|--------|------|
 | Outbound SMTP from the site (port 587, or 465) to the SmarterASP.NET mail server | First deploy: send the sign-in code to a real mailbox from the deployed site (assumption A6) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
 | Outbound HTTPS to the breached-password service (`api.pwnedpasswords.com`) | First deploy: set a password and watch the audit log for `auth.breach-check-unavailable` (research Pitfall 12) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
-| ASP.NET Core 10.0.13 (or newer) runtime on the host | First deploy: the app's startup line, or the probe's runtime field (D-35) | Not checked: the host runtime has not been seen. Verify on the Phase 3 first deploy; otherwise publish self-contained `win-x64` | Unverified | - |
 | `Set-Cookie` for `__Secure-csps_rt` and `__Secure-csps_2fa` on the production HTTPS host | First deploy: sign in once and look at the cookies in the browser (both `Secure`, `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`) | Not checked: needs the deployed site and its HTTPS termination. Verify on the Phase 3 first deploy | Unverified | - |
 | `AllowedHosts` set to the real host names | First deploy: the production settings name the real domains, and a request with another Host header is refused (IN-06) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
 | web.config `requestLimits` honoured by IIS | First deploy: an oversized request body is refused by IIS before the app (assumption A14) | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
-| Client IP and proxy topology before the per-address limits are trusted (D-39) | First deploy: the Facts row "Client IP / proxy topology" above; until it is Verified the limits see the proxy's address | Not checked: see the Facts row. Verify on the Phase 3 first deploy | Unverified | - |
 | Data Protection certificate and `App:PublicBaseUrl` available to the bootstrap command on the host | First deploy: run the bootstrap command (docs/operations/bootstrap-manager.md) with the host's settings and see it reach the invite email | Not checked: needs the deployed site and its secrets. Verify on the Phase 3 first deploy | Unverified | - |
 | The real bootstrap on the hosted database, then the first sign-in with an emailed code (AUTH-12) | First deploy: create the first Manager, open the invite link, set a password, sign in and enter the emailed code | Not checked: needs the deployed site. Verify on the Phase 3 first deploy | Unverified | - |
 
@@ -236,13 +243,24 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
   from web.config. Secrets (the JWT signing key, the Data Protection PFX and its password, the connection string)
   go into app-pool environment variables, never into a committed web.config.
 - **Deploys (Phase 3).** Web Deploy is offered (FTP too), so the deploy job uses Web Deploy.
-- **Probe facts (Phase 3).** The probe could not run, so the runtime patch, in-process hosting, content root, logs
-  folder, client IP and proxy topology, HTTPS termination, Asia/Manila and en-PH, the PFX EphemeralKeySet load and
-  app-pool memory are all Unverified. Phase 3 verifies them on the first real deploy. If the runtime patch is below
-  what the app needs, Phase 3 publishes self-contained `win-x64`.
-- **Forwarded headers.** The API keeps ignoring `X-Forwarded-For` and similar headers (ForwardedHeadersTests)
-  until "Client IP / proxy topology" is Verified. Only then may a later plan turn on forwarded-headers handling,
-  limited to the proxy addresses actually seen.
+- **Probe facts (Phase 3, 2026-10-16).** The probe ran on the CSPS site root (runs 39000637708 and 39000906168).
+  Verified: runtime 10.0.7 (too old, so the package is self-contained), in-process 64-bit hosting, content root equals
+  the current directory, a writable logs folder, no proxy, TLS ending at IIS, Asia/Manila and en-PH, the machine key
+  store as the only working certificate load, IIS accepting urlCompression, and the URL Rewrite module. Only the
+  app-pool memory limit is still unseen.
+- **HTTPS rewrite (OPS-05, owner ruling 2026-10-16): IIS rule.** The site web.config redirects http to https with the
+  HttpToHttps rule before the app runs; the app keeps its own redirect and HSTS. It ships on the phase branch (quick
+  261016-w4u) in the Phase 3 follow-up PR and goes live with the first deploy after that merge. If the host ever drops
+  URL Rewrite, every page fails with 500.19 until the rule is removed.
+- **Runtime (owner, 2026-10-16): self-contained win-x64.** The host runtime is 10.0.7, so the CI package carries its
+  own .NET and ASP.NET Core runtime (10.0.13 at the time of writing) and IIS starts `Csps.Server.exe` from the site
+  folder. The package grows from about 34 MB (14 MB zipped) to about 139 MB (60 MB zipped). It needs the 64-bit app
+  pool the probe saw.
+- **Data Protection certificate (2026-10-16): MachineKeySet.** It is the only load the host allows. The key file lives
+  in the host's machine key store only while the app runs and is removed on a graceful shutdown or recycle. A crash or
+  a killed process can leave one file behind in the host's machine key store.
+- **Forwarded headers.** No proxy was seen (2026-10-16), so forwarded-headers handling stays off and the API keeps
+  ignoring `X-Forwarded-For` and similar headers (ForwardedHeadersTests).
 - **Email (Phase 4, D-12).** The SPF record ends in `-all` and DMARC is `p=reject`, so mail that fails is rejected,
   not just marked. The app must send through SmarterASP.NET's mail servers (covered by
   `include:_spf.site4now.net`) with DKIM aligned to `cspstailoring.com`. Any other sending service must be **merged
