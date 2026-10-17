@@ -433,10 +433,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 
 ### Pending Todos
 
-Owner items parked while away (2026-10-16, updated 2026-10-17):
+Owner items (updated 2026-10-17):
 
-- [Phase 3, 03-21/03-22]: CSPS is live (deploy run 39006538697, release deploy-20261017053115-bd34a88). Delete the repository secret HOSTPROBE_KEY now that the probe is gone (T-03-62). Then plan 03-22: bootstrap the first Manager and sign in on the live site with the owner present (D-06).
-- [Phase 3, docs]: Rule whether `.claude/CLAUDE.md` (stack line "framework-dependent publish") and `.planning/research/STACK.md` should now say self-contained win-x64, after quick 261016-w4u switched the package (host runtime 10.0.7 < 10.0.13).
+- [Phase 3]: Delete the repository secret HOSTPROBE_KEY (T-03-62); confirm whether the lower-rights SQL user (runbook step 3.4) exists; check or waive the __Secure-csps_2fa cookie (WINDOWS.md entry 2) before /gsd-ship 3.
 
 ### Blockers/Concerns
 
