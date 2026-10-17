@@ -610,8 +610,10 @@ public sealed partial class CiWorkflowTests
         positions.ShouldBe([.. positions.Order()], "The package steps must follow the D-11 order.");
 
         StepText("7 package web build").ShouldContain("npm --prefix web run build");
-        StepText("7 package publish").ShouldContain("dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false");
+        StepText("7 package publish").ShouldContain("dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained true");
         StepText("7 package publish").ShouldContain("-o artifacts/package/site");
+        StepText("7 package publish").ShouldNotContain("--self-contained false", Case.Sensitive, "The host runtime is 10.0.7, so the package carries its own (owner, 2026-10-16).");
+        StepText("7 package publish").ShouldNotContain("--no-self-contained");
         StepText("7 package migrations script").ShouldContain("dotnet ef migrations script --idempotent");
         StepText("7 package migrations script").ShouldContain("--output artifacts/package/csps-migrations.sql");
         StepText("7 package check").ShouldContain("node web/scripts/package-check.mjs artifacts/package/site");
