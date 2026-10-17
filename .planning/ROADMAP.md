@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T13:18:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T14:45:00-05:00*
 
 ## Overview
 
@@ -557,6 +557,8 @@ Plans:
 
 **Carried over from Phase 4** (owner, 2026-10-15; production was not deployed yet):
 - **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. The cookie attributes were confirmed on the live site on 2026-10-17 and 04-UAT Test 2 passed; Phase 5 UAT still checks the Expires part.
+- **Phase 4 review info notes (IN-01 to IN-19).** Triage and fix the 19 info-level findings in `04-REVIEW.md`, test first where behavior changes (for example IN-09 response size cap, IN-10 URL user info, IN-08 outbox recipient retention, IN-07 loopback forms). Record each outcome in `04-REVIEW-DISPOSITION.md` (owner, 2026-10-17).
+- **Flaky `ResendCodeEndpointTests.TheSixthCodeInAnHourIsRefusedWithNoWaitTime`** (from `.planning/phases/04-identity-authentication/deferred-items.md`): make it pass reliably in full runs without weakening the per-hour cap it proves.
 
 **Research flag:** Standard patterns.
 
