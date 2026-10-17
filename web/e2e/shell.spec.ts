@@ -3,7 +3,7 @@
 // scrolls sideways. The short admin page is the dev preview /admin/orders and the long one is /dev/components: both
 // render the real AdminLayout (the e2e bundle's dev routes use a placeholder user, so no sign-in is needed).
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 
 /** The geometry the tests read in the page (a page script: the node program has no DOM). */
 interface Geometry {
@@ -114,3 +114,102 @@ for (const { width, height } of [
     }
   });
 }
+
+/** The pinned layers' geometry (a page script). */
+interface Pinned {
+  readonly innerHeight: number;
+  readonly sideTop: number | null;
+  readonly sideBottom: number | null;
+  readonly topbarTop: number | null;
+}
+
+const READ_PINNED = `(() => {
+  const visible = (element) => element !== null && element.getClientRects().length > 0;
+  const side = document.querySelector('[data-ui="s-admin-side"] aside');
+  const topbar = document.querySelector('[data-ui="s-admin-main"] > div');
+  return {
+    innerHeight: window.innerHeight,
+    sideTop: visible(side) ? side.getBoundingClientRect().top : null,
+    sideBottom: visible(side) ? side.getBoundingClientRect().bottom : null,
+    topbarTop: visible(topbar) ? topbar.getBoundingClientRect().top : null,
+  };
+})()`;
+
+// D-02, D-04: after scrolling a long page to the bottom, the sidebar column is still the full viewport tall and the top
+// bar is still at the top; on phones the top bar stays pinned.
+for (const { width, height } of [
+  { width: 1440, height: 900 },
+  { width: 1024, height: 768 },
+  { width: 390, height: 844 },
+] as const) {
+  test(`@shell sidebar and top bar stay pinned at ${String(width)}x${String(height)}`, async ({ page }) => {
+    await openAt(page, LONG_ADMIN_PAGE, width, height);
+    await scrollToFraction(page, 1);
+    const pinned = await page.evaluate<Pinned>(READ_PINNED);
+    expect(Math.abs(pinned.topbarTop ?? Infinity), 'top bar top').toBeLessThanOrEqual(1);
+    if (pinned.sideTop !== null) {
+      expect(Math.abs(pinned.sideTop), 'sidebar top').toBeLessThanOrEqual(1);
+      expect(Math.abs((pinned.sideBottom ?? Infinity) - pinned.innerHeight), 'sidebar bottom').toBeLessThanOrEqual(1);
+    } else {
+      expect(width, 'only a phone has no side column').toBeLessThan(768);
+    }
+  });
+}
+
+/** What a short screen shows of the sidebar (a page script). */
+interface ShortSidebar {
+  readonly innerHeight: number;
+  readonly navOverflowY: string;
+  readonly navScrollHeight: number;
+  readonly navClientHeight: number;
+  readonly logoTop: number;
+  readonly sideTop: number;
+  readonly logoutTop: number;
+  readonly logoutBottom: number;
+}
+
+const READ_SHORT_SIDEBAR = `(() => {
+  const side = document.querySelector('[data-ui="s-admin-side"] aside');
+  const nav = side.querySelector('nav');
+  const logo = side.firstElementChild;
+  const logout = [...side.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Logout');
+  return {
+    innerHeight: window.innerHeight,
+    navOverflowY: getComputedStyle(nav).overflowY,
+    navScrollHeight: nav.scrollHeight,
+    navClientHeight: nav.clientHeight,
+    logoTop: logo.getBoundingClientRect().top,
+    sideTop: side.getBoundingClientRect().top,
+    logoutTop: logout.getBoundingClientRect().top,
+    logoutBottom: logout.getBoundingClientRect().bottom,
+  };
+})()`;
+
+// D-03: on a short screen the nav list scrolls inside the pinned sidebar; the logo stays at the top and Logout stays in
+// view and reachable by Tab. 1440x450 is short enough that the five items cannot fit, so the nav must scroll there.
+for (const { width, height, mustScroll } of [
+  { width: 1280, height: 600, mustScroll: false },
+  { width: 1024, height: 480, mustScroll: false },
+  { width: 1440, height: 450, mustScroll: true },
+] as const) {
+  test(`@shell short screen ${String(width)}x${String(height)} keeps Logout in view`, async ({ page }) => {
+    await openAt(page, SHORT_ADMIN_PAGE, width, height);
+    const reading = await page.evaluate<ShortSidebar>(READ_SHORT_SIDEBAR);
+    expect(reading.navOverflowY, 'the nav scrolls on its own').toBe('auto');
+    if (mustScroll) {
+      expect(reading.navScrollHeight, 'nav content is taller than its box').toBeGreaterThan(reading.navClientHeight);
+    }
+    expect(Math.abs(reading.logoTop - reading.sideTop), 'logo at the top of the sidebar').toBeLessThanOrEqual(1);
+    expect(reading.logoutTop, 'Logout top is in the viewport').toBeGreaterThanOrEqual(0);
+    expect(reading.logoutBottom, 'Logout bottom is in the viewport').toBeLessThanOrEqual(reading.innerHeight + 1);
+
+    await page.locator('[data-ui="s-admin-side"] nav a').last().focus();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('[data-ui="s-admin-side"]').getByRole('button', { name: 'Logout' })).toBeFocused();
+  });
+}
+
+test('@shell the scrolling nav passes axe at 1280x600', async ({ page }) => {
+  await openAt(page, SHORT_ADMIN_PAGE, 1280, 600);
+  await expectNoAxeViolations(page);
+});
