@@ -1,9 +1,9 @@
 ---
 created: "2026-10-17T11:12:00-05:00"
-updated: "2026-10-17T11:12:00-05:00"
+updated: "2026-10-17T12:05:00-05:00"
 phase: 03-ci-cd-staging-deploy
 verified: 2026-10-17T16:12:00Z
-status: human_needed
+status: passed
 score: 6/7 must-haves verified
 covered_files:
   - .github/CODEOWNERS
@@ -75,7 +75,7 @@ overrides_applied: 1
 overrides:
   - must_have: "Lighthouse CI asserts LCP under 2000 ms on the holding page (Success Criteria 1 and 6)"
     reason: "LCP is report-only in CI until Phase 11 (REPORT_ONLY_METRICS in web/scripts/lighthouse-assert.mjs). Every other Lighthouse assertion stays a hard failure; the 2000 ms target is unchanged and is printed on every run. Recorded in deferred-items.md and 03-UAT.md test 80."
-    accepted_by: "owner (decision 2026-10-16, recorded in deferred-items.md; carried here by the verifier, owner to confirm)"
+    accepted_by: "owner (decision 2026-10-16, recorded in deferred-items.md; confirmed by the owner in /gsd-verify-work 03 on 2026-10-17)"
     accepted_at: "2026-10-16T00:00:00-05:00"
 unverified_prohibitions: 11
 human_verification:
@@ -94,7 +94,7 @@ human_verification:
 
 **Phase Goal:** Every pull request is gated by the full pipeline. A deploy runs only when the owner presses Run on a build of `main` that passed CI. It puts CSPS on the live SmarterASP.NET site, where CSPS replaces the legacy site, and a smoke test proves it or the last good package is put back automatically.
 **Verified:** 2026-10-17T16:12:00Z
-**Status:** human_needed
+**Status:** passed (owner confirmations recorded 2026-10-17; Weekly re-run is an after-ship check)
 **Re-verification:** No, initial verification
 
 ## Goal Achievement
@@ -226,6 +226,12 @@ Source: `must_haves.prohibitions` in 12 PLAN files: 11 are `verification: judgme
 **Test:** Confirm the waiver in the frontmatter `overrides:` entry.
 **Expected:** Stands until Phase 11, which empties `REPORT_ONLY_METRICS`.
 **Why human:** The entry was written by the verifier from the recorded owner decision.
+
+### Owner Confirmations (2026-10-17, /gsd-verify-work 03)
+
+- **Judgment-tier prohibitions:** owner confirmed all 11 held, including the superseded wording of 03-05 (repo is now public) and 03-01 (CodeQL and dependency review now in use, free on a public repo).
+- **LCP report-only override:** owner confirmed the waiver stands until Phase 11, which empties `REPORT_ONLY_METRICS`. UAT test 80 is a deferred follow-up.
+- **Weekly all-engine run (G-03-6):** owner confirmed it is an after-ship check: it closes on a green Weekly re-run on `main` once this phase's PR merges with 0e65223. UAT test 6 is a deferred follow-up and the gap stays listed as deferred.
 
 ### Gaps Summary
 

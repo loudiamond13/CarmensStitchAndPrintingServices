@@ -4,7 +4,7 @@ phase: 03-ci-cd-staging-deploy
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md, 03-10-SUMMARY.md, 03-11-SUMMARY.md, 03-12-SUMMARY.md, 03-13-SUMMARY.md, 03-14-SUMMARY.md, 03-15-SUMMARY.md, 03-16-SUMMARY.md, 03-17-SUMMARY.md, 03-18-SUMMARY.md, 03-19-SUMMARY.md, 03-20-SUMMARY.md, 03-21-SUMMARY.md, 03-22-SUMMARY.md, 03-23-SUMMARY.md]
 created: 2026-10-17T09:50:07-05:00
 started: 2026-10-17T09:50:07-05:00
-updated: 2026-10-17T10:16:06-05:00
+updated: 2026-10-17T12:05:00-05:00
 ---
 
 ## Current Test
@@ -35,9 +35,10 @@ result: pass
 
 ### 6. Weekly all-engine run
 expected: GitHub, Actions, Weekly, Run workflow on main (or the first scheduled run, Sunday 18:00 UTC = Monday 2:00 AM Manila) finishes green with the extra browser engines (03-11 D4)
-result: issue
-reported: "started" (owner dispatched Weekly run 39043267415 on main; Claude watched it) - the run failed at step \'4 web vitest + coverage\': src/modules/admin/routes.test.tsx > opening /admin with a session goes to Signed-in devices (D-43) failed on an unhandled GET /api/v1/sessions MSW request; the all-engine Playwright steps were skipped
-severity: major
+result: skipped
+reason: "Deferred follow-up: owner confirmed 2026-10-17 that this closes on a green Weekly re-run on main after /gsd-ship 3 lands 0e65223; tracked as G-03-6"
+prior_report: "started" (owner dispatched Weekly run 39043267415 on main; Claude watched it) - the run failed at step \'4 web vitest + coverage\': src/modules/admin/routes.test.tsx > opening /admin with a session goes to Signed-in devices (D-43) failed on an unhandled GET /api/v1/sessions MSW request; the all-engine Playwright steps were skipped
+prior_severity: major
 
 ### 7. Docs-only PR passes the required check
 expected: The docs-only PR that carries this UAT file gets gate (docs) green with the Hygiene and Security checks, and Merge-PullRequest.ps1 accepts it (03-16 D2)
@@ -481,22 +482,22 @@ evidence: owner accepted CSPS live 2026-10-17; 03-CUTOVER-LOG.md
 ### 80. Lighthouse mobile LCP under 2000 ms (03-09 D4, 03-16 D5)
 expected: LCP under 2000 ms on mobile
 result: skipped
-reason: "Deferred: owner-approved relaxation, LCP is report-only until Phase 11 (deferred-items.md)"
+reason: "Deferred follow-up: owner confirmed 2026-10-17 that LCP stays report-only until Phase 11, which empties REPORT_ONLY_METRICS in web/scripts/lighthouse-assert.mjs (deferred-items.md)"
 
 ## Summary
 
 total: 80
 passed: 78
-issues: 1
+issues: 0
 pending: 0
-skipped: 1
+skipped: 2
 blocked: 0
 
 ## Gaps
 
 - gap_id: G-03-6
   truth: "The weekly all-engine run on main finishes green, including Firefox and WebKit in the end-to-end tests"
-  status: failed
+  status: deferred
   reason: "Weekly run 39043267415 (owner-dispatched on main, 2026-10-17) failed at '4 web vitest + coverage'; the all-engine Playwright steps never ran"
   severity: major
   test: 6
@@ -509,3 +510,12 @@ blocked: 0
     - "Re-run Weekly on main and confirm Firefox and WebKit E2E pass"
   debug_session: ""
   closure: "Owner decision 2026-10-17: no separate gap plan. The gap closes when /gsd-ship 3 lands the phase branch (with 0e65223) on main and a re-run of Weekly on main is green."
+
+## Deferred Follow-Ups
+
+- test: 6
+  idea: "Re-run Weekly on main after /gsd-ship 3 merges and confirm it is green, including Firefox and WebKit E2E (closes G-03-6)"
+  deferred_at: 2026-10-17
+- test: 80
+  idea: "Phase 11 empties REPORT_ONLY_METRICS so LCP under 2000 ms fails the build again"
+  deferred_at: 2026-10-17
