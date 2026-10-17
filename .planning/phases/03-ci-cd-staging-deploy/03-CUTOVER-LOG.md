@@ -1,7 +1,7 @@
 ---
 phase: 03-ci-cd-staging-deploy
 created: "2026-10-16T17:54:41-05:00"
-updated: "2026-10-17T00:24:00-05:00"
+updated: "2026-10-17T00:32:00-05:00"
 ---
 
 # Phase 3 cutover log
@@ -19,3 +19,4 @@ Evidence for the D-18 cutover. Run ids, shas, artifact and release names and dat
 | Probe (probe_rewrite true) | 2026-10-16 | deploy.yml action hostprobe, run 39000906168: success. http answered 301 to https, so the URL Rewrite module is present. Follow-up on the phase branch, quick 261016-w4u: self-contained win-x64 package, the IIS HttpToHttps rule and the MachineKeySet certificate load. | Yes |
 | Step 6: schema applied | 2026-10-16 | Owner ran csps-migrations.sql (package csps-package-3b502ef..., no migration changes since) in SSMS on the new database: completed. `__EFMigrationsHistory`: Applied 9, Latest 20261015081003_AddIdempotencyRecords, matching the script (9 guarded migrations, no DROP TABLE). | Yes |
 | Follow-up merged | 2026-10-17 | PR #6 (quick 261016-w4u) merged by `Merge-PullRequest.ps1 -Pr 6 -KeepBranch` as bd34a88f83c27884087f3322cad3a0fb7be732da. First full-gate run failed on a flaky web test (admin routes, unhandled GET /api/v1/sessions after the redirect); the rerun passed unchanged. | Yes |
+| Step 7: first CSPS deploy | 2026-10-17 | deploy.yml action deploy, sha bd34a88f83c27884087f3322cad3a0fb7be732da (self-contained win-x64 package from main CI run 39006074317), run 39006538697: success. Smoke all PASS: health 200 Healthy (self, database, time-zone); unknown API 404 ProblemDetails with traceId; anonymous 401; missing file 404; http 301 to https; HSTS and strict CSP; no Server/X-Powered-By; index.html no-cache; hashed asset immutable and br; /health JSON not compressed; Host filter 404; request limit 413. Release `deploy-20261017053115-bd34a88` created. The probe's files are replaced by CSPS. | Yes |
