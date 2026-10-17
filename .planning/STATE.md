@@ -4,10 +4,10 @@ current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
 stopped_at: Completed 03-22-PLAN.md
-last_updated: "2026-10-17T14:29:22.204Z"
-last_activity: 2026-10-16
+last_updated: "2026-10-17T14:37:21.513Z"
+last_activity: 2026-10-17
 last_activity_desc: Phase 03 execution started
-state_head: 68dd87b5830d0ba78b54c83d5db98bb917a65186
+state_head: 5c8644ffb71794bd46fd6f44f07cfc0a3feb44d0
 progress:
   total_phases: 17
   completed_phases: 2
@@ -476,6 +476,7 @@ Owner items parked while away (2026-10-16, updated 2026-10-17):
 | 261016-ui0 | Host probe reports certificate failure detail and tries other key storage options | 2026-10-16 | c2730c7 | [261016-ui0-host-probe-reports-certificate-failure-d](./quick/261016-ui0-host-probe-reports-certificate-failure-d/) |
 | 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
 | 21 | Fix the flaky /admin redirect test: answer GET /api/v1/sessions after the redirect | 2026-10-17 | 0e65223 | — |
+| 22 | Stack docs say the package is self-contained win-x64 | 2026-10-17 | 5c8644f | — |
 
 ## Deferred Items
 
