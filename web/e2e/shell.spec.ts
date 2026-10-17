@@ -186,11 +186,12 @@ const READ_SHORT_SIDEBAR = `(() => {
 })()`;
 
 // D-03: on a short screen the nav list scrolls inside the pinned sidebar; the logo stays at the top and Logout stays in
-// view and reachable by Tab. 1440x450 is short enough that the five items cannot fit, so the nav must scroll there.
+// view and reachable by Tab. The five items need 241px, so a 450px screen just fits them and a 360px one must scroll the nav.
 for (const { width, height, mustScroll } of [
   { width: 1280, height: 600, mustScroll: false },
   { width: 1024, height: 480, mustScroll: false },
-  { width: 1440, height: 450, mustScroll: true },
+  { width: 1440, height: 450, mustScroll: false },
+  { width: 1280, height: 360, mustScroll: true },
 ] as const) {
   test(`@shell short screen ${String(width)}x${String(height)} keeps Logout in view`, async ({ page }) => {
     await openAt(page, SHORT_ADMIN_PAGE, width, height);

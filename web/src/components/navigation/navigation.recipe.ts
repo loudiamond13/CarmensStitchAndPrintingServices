@@ -15,10 +15,11 @@ import { tw } from '@/ui/tw';
 
 /**
  * `.csp-sidebar`: the Taupe column with its own ink and the width transition. The width is per layout. In the admin
- * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top at the column's full height.
+ * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top. Under the real layouts' viewport
+ * marker (D-02, D-03) it is exactly the viewport tall, so its nav scrolls inside it and the footer stays at the bottom.
  */
 export const sidebarClasses = tw(
-  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full pg-tablet:in-data-[ui=s-admin-side]:w-(--sidebar-collapsed)',
+  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full in-data-[fill=viewport]:in-data-[ui=s-admin-side]:h-dvh in-data-[fill=viewport]:in-data-[ui=s-admin-side]:min-h-0 pg-tablet:in-data-[ui=s-admin-side]:w-(--sidebar-collapsed)',
 );
 
 /** `.csp-sidebar { width }` and `.csp-sidebar.is-collapsed { width }`. */
@@ -46,9 +47,9 @@ export const sidebarToggleClasses = tw(
   'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-nav-ink hover:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)] pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-nav`; on the rail 12px 8px with the items centred. */
+/** `.csp-sidebar-nav`; on the rail 12px 8px with the items centred. In the pinned side column it scrolls on its own (D-03). */
 export const sidebarNavClasses = tw(
-  'flex flex-1 flex-col gap-0.5 p-3 pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
+  'flex flex-1 flex-col gap-0.5 p-3 in-data-[fill=viewport]:in-data-[ui=s-admin-side]:min-h-0 in-data-[fill=viewport]:in-data-[ui=s-admin-side]:overflow-y-auto in-data-[fill=viewport]:in-data-[ui=s-admin-side]:overscroll-contain pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
 );
 
 /**
@@ -197,9 +198,9 @@ export const userMenuRoleClasses = tw('text-[12px]');
 
 // ── Mobile navigation drawer (SPEC-GAP: mobile nav drawer, spec §2.10 #6; plan 02-32) ──
 // Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → MobileNavDrawer): the `--scrim` overlay at
-// `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root is a size
-// container, which makes it the containing block of fixed descendants, so the panel also sticks to the top of the
-// viewport at the viewport's height: the whole Sidebar stays in view however far the page was scrolled.
+// `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root does not trap
+// fixed children (probed in Chromium, Firefox and WebKit), so the layer covers the viewport; the panel is sticky at the
+// viewport's height, so the whole Sidebar stays in view however far the page was scrolled.
 
 /** The drawer layer: the scrim over the whole page root at the overlay layer; the panel sits at its left edge. */
 export const drawerClasses = tw('fixed inset-0 z-(--z-overlay) flex items-start bg-scrim');
