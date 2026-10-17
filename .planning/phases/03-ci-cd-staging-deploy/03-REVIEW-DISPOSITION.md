@@ -5,12 +5,28 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "`online` action ignores `dry_run` and really deletes `app_offline.htm`"
+    disposition: open
+    title: "A certificate loaded at registration time is never disposed when the container does not resolve its owner"
   - id: WR-02
     severity: warning
-    disposition: skipped
-    title: "Certificate pin is checked on a separate connection, then `-allowUntrusted` turns off all validation for msdeploy"
+    disposition: open
+    title: "A killed or crashed process leaves the Data Protection private key on the host, with no sweep and no documentation"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Documents still say the compatibility level is 160 after the re-pin to 170"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "The IIS redirect builds the target from the client's Host header"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "The smoke request-limit check has a stale constant comment and an optimistic \"IIS\" label"
+  - id: IN-04
+    severity: info
+    disposition: open
+    title: "`Restore-LegacyReceipt.ps1` hides why `RESTORE VERIFYONLY` failed"
   - id: WR-03
     severity: warning
     disposition: fixed
@@ -27,22 +43,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "The whole \"7 package\" stage runs only on a push to `main`, so it has never run and a failure surfaces after the merge"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "Pre-commit hook fails open"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "SQL container password is exported to every later step through `GITHUB_ENV`"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "Test-quality softening in the E2E helpers"
-  - id: IN-04
-    severity: info
-    disposition: open
-    title: "`Directory.Build.props` decides \"is a src project\" from a substring of the full path"
   - id: IN-05
     severity: info
     disposition: open
@@ -51,27 +51,27 @@ findings:
     severity: info
     disposition: open
     title: "Dispatching `deploy.yml` from a non-main branch ends in a skipped (not failed) run"
-open: 6
+open: 8
 total: 12
-recorded: 2026-10-16T21:33:57.874Z
+recorded: 2026-10-17T15:57:16.624Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 03-REVIEW-FIX.md |
-| WR-02 | warning | skipped | 03-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 03-REVIEW-FIX.md |
-| WR-04 | warning | fixed | 03-REVIEW-FIX.md |
-| WR-05 | warning | fixed | 03-REVIEW-FIX.md |
-| WR-06 | warning | fixed | 03-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
 | IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
+| WR-03 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| WR-04 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| WR-05 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| WR-06 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
+| IN-06 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
