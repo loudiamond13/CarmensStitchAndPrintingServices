@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-16T10:56:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-17T09:36:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -88,7 +88,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - Actions pinned by commit SHA. Dependabot `cooldown` 14 days.
 - Free security tooling only: NuGetAudit as error, `npm audit`, nuget-license / license-checker gates, gitleaks. **No paid GitHub Code Security.**
 - **SmarterASP.NET Basic plan:** 1 DB, 256 MB app pool, no host scheduler, **no staging**. Production deploys need manual approval. Cron jobs run from GitHub Actions calling a secret-protected endpoint.
-- In-process IIS, framework-dependent publish (self-contained `win-x64` if the host runtime lags).
+- In-process IIS, self-contained `win-x64` publish (owner, 2026-10-16): the host runtime is 10.0.7, below the required 10.0.13, so the package carries its own runtime; .NET patches arrive through SDK updates and a redeploy, not the host.
 <!-- GSD:stack-end -->
 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
