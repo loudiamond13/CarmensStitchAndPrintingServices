@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T09:30:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T14:55:00-05:00*
 
 ## Overview
 
@@ -56,7 +56,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
 - [x] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15) (completed 2026-10-17)
-- [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
+- [x] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit (completed 2026-10-17)
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
 - [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
 - [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
@@ -449,7 +449,9 @@ Plans:
 - the refresh grace-window design
 - timing-parity tests
 
-**Plans**: 35/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+**Plans**: 35/35 plans complete in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+
+**Status:** Complete (2026-10-17). Verification passed 6/6 with 18/18 requirement IDs, UAT 3/3 (C-23 confirmed on the live site on 2026-10-17), threats_open 0, and no review finding left open. The owner decisions above were closed at the discuss step (`04-CONTEXT.md`). Carried to Phase 5: the refresh cookie `Expires` check, review info notes IN-01 to IN-19, and the flaky resend-code test.
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
@@ -556,7 +558,9 @@ Plans:
 - **OD-14**
 
 **Carried over from Phase 4** (owner, 2026-10-15; production was not deployed yet):
-- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. Phase 5 UAT runs it (from 04-UAT Test 2).
+- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. The cookie attributes were confirmed on the live site on 2026-10-17 and 04-UAT Test 2 passed; Phase 5 UAT still checks the Expires part.
+- **Phase 4 review info notes (IN-01 to IN-19).** Triage and fix the 19 info-level findings in `04-REVIEW.md`, test first where behavior changes (for example IN-09 response size cap, IN-10 URL user info, IN-08 outbox recipient retention, IN-07 loopback forms). Record each outcome in `04-REVIEW-DISPOSITION.md` (owner, 2026-10-17).
+- **Flaky `ResendCodeEndpointTests.TheSixthCodeInAnHourIsRefusedWithNoWaitTime`** (from `.planning/phases/04-identity-authentication/deferred-items.md`): make it pass reliably in full runs without weakening the per-hour cap it proves.
 
 **Research flag:** Standard patterns.
 
@@ -1054,7 +1058,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
-| 4. Identity & Authentication | 35/35 | In Progress | - |
+| 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |

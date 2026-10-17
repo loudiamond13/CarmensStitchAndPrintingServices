@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-17T09:30:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-17T13:42:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -81,12 +81,12 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
 - [x] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
 - [x] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
-- [ ] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
-- [ ] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
-- [ ] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
-- [ ] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
-- [ ] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
-- [ ] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
+- [x] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
+- [x] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
+- [x] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
+- [x] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
+- [x] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
+- [x] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
 
 ### Profile (PROF)
 
@@ -365,10 +365,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-05 | Phase 3 | Complete |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
-| SEC-03 | Phase 4 | Pending |
+| SEC-03 | Phase 4 | Partial: auth limits done in Phase 4; consent, analytics and inquiry limits in Phases 12-13 |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 14 | Pending |
-| SEC-06 | Phase 4 | Pending |
+| SEC-06 | Phase 4 | Partial: idempotency done in Phase 4; JOB-01 key purge in Phase 9 |
 | SEC-07 | Phase 5 | Pending |
 | SEC-08 | Phase 5 | Pending |
 | AUTH-01 | Phase 4 | Complete |
@@ -378,12 +378,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Phase 4 | Complete |
 | AUTH-06 | Phase 4 | Complete |
 | AUTH-07 | Phase 4 | Complete |
-| AUTH-08 | Phase 4 | Pending |
-| AUTH-09 | Phase 4 | Pending |
-| AUTH-10 | Phase 4 | Pending |
-| AUTH-11 | Phase 4 | Pending |
-| AUTH-12 | Phase 4 | Pending |
-| AUTH-13 | Phase 4 | Pending |
+| AUTH-08 | Phase 4 | Complete |
+| AUTH-09 | Phase 4 | Complete |
+| AUTH-10 | Phase 4 | Complete |
+| AUTH-11 | Phase 4 | Complete |
+| AUTH-12 | Phase 4 | Complete |
+| AUTH-13 | Phase 4 | Complete |
 | PROF-01 | Phase 5 | Pending |
 | PROF-02 | Phase 5 | Pending |
 | PROF-03 | Phase 5 | Pending |
@@ -396,7 +396,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-06 | Phase 5 | Pending |
 | USER-07 | Phase 5 | Pending |
 | USER-08 | Phase 5 | Pending |
-| AUDIT-01 | Phase 4 | Pending |
+| AUDIT-01 | Phase 4 | Partial: auth events done in Phase 4; user, order, expense and content events with their features |
 | AUDIT-02 | Phase 5 | Pending |
 | CEXP-01 | Phase 6 | Pending |
 | CEXP-02 | Phase 6 | Pending |
@@ -519,4 +519,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-17T09:30:00-05:00 after plan 03-22 marked OPS-04 and OPS-05 complete (first live deploy and smoke, owner acceptance). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*
+*Last updated: 2026-10-17T13:42:00-05:00 after Phase 4 completion marked AUTH-08..13 complete and SEC-03, SEC-06 and AUDIT-01 partial. Earlier: 2026-10-17T09:30:00-05:00 after plan 03-22 marked OPS-04 and OPS-05 complete (first live deploy and smoke, owner acceptance). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*

@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-17T12:10:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-17T13:42:00-05:00*
 
 ## What This Is
 
@@ -41,11 +41,12 @@ All existing production data is migrated in without loss. The API is client-agno
 
 - ✓ **CI/CD and live deploy:** ordered PR gate with modes and the merge script, GitHub ruleset on `main`, Dependabot with 14-day cooldown, gitleaks, CodeQL, dependency review, actionlint and zizmor, SHA-pinned least-privilege workflows, owner-dispatched Web Deploy to SmarterASP.NET with smoke test and automatic rollback, legacy site retired after a verified `.bak` receipt, branded holding page live on the new empty DB (OPS-01..05) — Phase 3 (2026-10-17: UAT 78 passed and 2 deferred (Weekly re-run after ship, LCP report-only until Phase 11), threats_open 0)
 
+- ✓ **Authentication:** email + password, mandatory 6-digit email code, remember me, rotating refresh tokens with reuse detection, lockout, auth rate limits, forgot/reset password, sign out everywhere, password policy with breach check, bootstrap Manager CLI, auth emails over TLS SMTP through an outbox, idempotent POSTs, auth audit events (AUTH-01..13, QUAL-05, A11Y-03; Phase 4 share of SEC-03, SEC-06, AUDIT-01) — Phase 4 (2026-10-17: UAT 3/3 including the live cookie check, verification 6/6, threats_open 0)
+
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Authentication:** email + password, mandatory 6-digit email second factor, remember me (90 days), rotating refresh tokens with reuse detection, lockout, rate limits, forgot/reset password, sign out everywhere (AUTH-01..10, PRD §8)
 - [ ] **Profile:** name, email change with confirmation, password change (PROF-01..03)
 - [ ] **User management (Manager only):** list, invite, edit, role, lock, deactivate, delete, with guard rules and audit (USER-01..06)
 - [ ] **Orders:** aggregate with items, payments, discount(s), order expenses; create, edit, delete; preview list with totals; search, filter, sort; concurrency (ORD-01..09)
@@ -232,4 +233,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-17T12:10:00-05:00 after Phase 3 verification and transition*
+*Last updated: 2026-10-17T13:42:00-05:00 after Phase 4 verification and transition*
