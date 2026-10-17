@@ -1,4 +1,6 @@
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace Csps.HostProbe.Tests;
 
@@ -53,5 +55,93 @@ public sealed class CertificateChecksTests
         CertificateChecks.Failed("user", "export", error, Password).Message!.Length.ShouldBeLessThanOrEqualTo(200);
 
         CertificateChecks.Clean("Plain text, RSA/ECB stays.", string.Empty).ShouldBe("Plain text, RSA/ECB stays.");
+    }
+
+    private static readonly string[] AllowedCleanups = ["none", "removed", "removed-by-probe", "unchecked"];
+
+    [Fact]
+    public void RunTriesTheFourAttemptsInOrder()
+    {
+        CertificateChecks.Run(TimeProvider.System).Select(attempt => attempt.Name)
+            .ShouldBe(["ephemeral", "machine", "user", "ephemeral-3des"]);
+    }
+
+    [Fact]
+    public void TheEphemeralAttemptsSucceedHere()
+    {
+        var attempts = CertificateChecks.Run(TimeProvider.System);
+
+        foreach (var attempt in attempts.Where(a => a.Name is "ephemeral" or "ephemeral-3des"))
+        {
+            attempt.Ok.ShouldBeTrue(attempt.Name + ": " + attempt.Message);
+            attempt.KeyCleanup.ShouldBe("none");
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            attempts.ShouldAllBe(a => a.Ok && a.KeyCleanup == "none");
+        }
+    }
+
+    [Fact]
+    public void EveryAttemptIsOkOrSaysWhereItFailed()
+    {
+        foreach (var attempt in CertificateChecks.Run(TimeProvider.System))
+        {
+            if (attempt.Ok)
+            {
+                (attempt.Step ?? attempt.ExceptionType ?? attempt.HResult ?? attempt.Message).ShouldBeNull();
+                continue;
+            }
+
+            attempt.Step.ShouldBeOneOf("create", "export", "load", "use");
+            attempt.Message.ShouldNotBeNullOrEmpty();
+            attempt.Message.Length.ShouldBeLessThanOrEqualTo(200);
+            attempt.Message.ShouldNotContain('\n');
+            (attempt.ExceptionType is null).ShouldBe(attempt.HResult is null);
+            if (attempt.HResult is not null)
+            {
+                Regex.IsMatch(attempt.HResult, "^0x[0-9A-F]{8}$").ShouldBeTrue(attempt.HResult);
+            }
+            else
+            {
+                attempt.Step.ShouldBe("use");
+            }
+        }
+    }
+
+    [Fact]
+    public void NoAttemptLeavesAKeyBehind()
+    {
+        foreach (var attempt in CertificateChecks.Run(TimeProvider.System))
+        {
+            attempt.KeyCleanup.ShouldBeOneOf(AllowedCleanups);
+        }
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void LeftoverKeyIsDeletedThroughItsHandle()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "CNG key stores exist only on Windows.");
+
+        var name = "csps-hostprobe-test-" + Guid.NewGuid().ToString("N");
+        var provider = CngProvider.MicrosoftSoftwareKeyStorageProvider;
+        try
+        {
+            CngKey.Create(CngAlgorithm.Rsa, name, new CngKeyCreationParameters { Provider = provider }).Dispose();
+
+            CertificateChecks.RemoveKeyIfLeft(name, provider, machineKey: false).ShouldBe("removed-by-probe");
+            CngKey.Exists(name, provider).ShouldBeFalse();
+            CertificateChecks.RemoveKeyIfLeft(name, provider, machineKey: false).ShouldBe("removed");
+        }
+        finally
+        {
+            if (CngKey.Exists(name, provider))
+            {
+                using var key = CngKey.Open(name, provider);
+                key.Delete();
+            }
+        }
     }
 }
