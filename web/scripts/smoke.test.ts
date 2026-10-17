@@ -911,6 +911,39 @@ describe('readProbe', () => {
     expect(text).toContain('"runtime": "10.0.7"');
   });
 
+  it('prints every certificate attempt in full and hides the key inside a nested message', async () => {
+    const attempts = [
+      {
+        name: 'ephemeral',
+        ok: false,
+        step: 'load',
+        exceptionType: 'CryptographicException',
+        hResult: '0x80090016',
+        message: `Keyset does not exist ${KEY}`,
+        keyCleanup: 'none',
+      },
+      {
+        name: 'machine',
+        ok: true,
+        step: null,
+        exceptionType: null,
+        hResult: null,
+        message: null,
+        keyCleanup: 'removed',
+      },
+    ];
+    const body = JSON.stringify({ ...FACTS, certificateRoundTrips: attempts });
+    const site = probeSite({ [`GET ${ORIGIN}/probe`]: reply(200, { 'content-type': 'application/json' }, body) });
+    const result = await readProbe({ origin: ORIGIN, key: KEY, send: site.send });
+    const text = result.lines.join('\n');
+    expect(result.ok).toBe(true);
+    expect(text).toContain('"name": "ephemeral"');
+    expect(text).toContain('"step": "load"');
+    expect(text).toContain('"hResult": "0x80090016"');
+    expect(text).toContain('"keyCleanup": "removed"');
+    expect(text).not.toContain(KEY);
+  });
+
   it('never prints the key, even when the probe echoes it back', async () => {
     const echoed = reply(200, { 'content-type': 'application/json' }, JSON.stringify({ ...FACTS, echo: KEY }));
     const result = await readProbe({
