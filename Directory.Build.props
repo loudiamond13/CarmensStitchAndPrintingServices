@@ -19,7 +19,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('\src\')) Or $(MSBuildProjectDirectory.Contains('/src/'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- OPS-04, OPS-05: the deploy package is a framework-dependent win-x64 publish; declaring the RID keeps CI's locked restore valid. -->
+    <!-- OPS-04, OPS-05: the deploy package is a self-contained win-x64 publish; declaring the RID keeps CI's locked restore valid. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>

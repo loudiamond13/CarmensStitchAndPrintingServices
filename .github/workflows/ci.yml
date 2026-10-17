@@ -278,13 +278,15 @@ jobs:
       # D-11 / OPS-04 / OPS-05 stage 7: the deploy package is built after every gate above passed, on a full pull request as well
       # as on main, so a packaging failure shows before the merge. Only the upload below waits for a push to main.
       # The web build is repeated here so the package never carries the budget build's output.
+      # The package is self-contained win-x64 because the host runtime is 10.0.7, older than CSPS needs (owner, 2026-10-16).
       - name: 7 package web build
         if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
         run: npm --prefix web run build
 
       - name: 7 package publish
         if: needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package'
-        run: dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained false -o artifacts/package/site --no-restore -tl:off
+        # Restores here: the solution restore has no runtime packs. Still locked, because CI=true sets RestoreLockedMode.
+        run: dotnet publish src/Csps.Server -c Release -r win-x64 --self-contained true -o artifacts/package/site -tl:off
 
       # Prime Directive 11: the host database is changed only by this reviewed, idempotent script, never at startup.
       - name: 7 package migrations script
@@ -309,7 +311,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           gitleaks dir artifacts/package --redact --no-banner --verbose
 
-      # D-11: stored under the commit id, which is the name deploy.mjs findPackage downloads. 14 days, about 35 MB each.
+      # D-11: stored under the commit id, which is the name deploy.mjs findPackage downloads. 14 days, about 60 MB each zipped (self-contained).
       - name: 7 package upload
         if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
