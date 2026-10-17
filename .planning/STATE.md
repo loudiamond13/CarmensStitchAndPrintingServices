@@ -4,10 +4,10 @@ current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
 stopped_at: Completed 03-22-PLAN.md
-last_updated: "2026-10-17T14:37:21.513Z"
+last_updated: "2026-10-17T15:42:00.279Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 03 execution started
-state_head: 5c8644ffb71794bd46fd6f44f07cfc0a3feb44d0
+state_head: 0fd2f112a588a9e6a5d30fac0a8337f53babfb23
 progress:
   total_phases: 17
   completed_phases: 2
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
 Plan: 23 of 23
 Status: All 23 plans complete, ready for verification
-Last activity: 2026-10-17 - Completed 03-22: first Manager signed in on the live site, every first-deploy fact on record, CSPS accepted live by the owner (smoke 12/12 from this PC)
+Last activity: 2026-10-17 - Completed quick task 261017-efe: detailed GitHub Actions workflow reference in docs/operations/ci.md
 
 Progress: [█░░░░░░░░░] 12%
 
@@ -476,6 +476,7 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 | 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
 | 21 | Fix the flaky /admin redirect test: answer GET /api/v1/sessions after the redirect | 2026-10-17 | 0e65223 | — |
 | 22 | Stack docs say the package is self-contained win-x64 | 2026-10-17 | 5c8644f | — |
+| 261017-efe | Detailed GitHub Actions workflow reference in docs/operations/ci.md (every workflow, job and step, plus Hygiene and Dependabot) | 2026-10-17 | 0fd2f11 | [261017-efe-detailed-github-actions-workflow-referen](./quick/261017-efe-detailed-github-actions-workflow-referen/) |
 
 ## Deferred Items
 
