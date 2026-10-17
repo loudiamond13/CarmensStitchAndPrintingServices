@@ -4,10 +4,10 @@ current_phase: 03
 current_phase_name: CI/CD & Staging Deploy
 status: executing
 stopped_at: Completed 03-16-PLAN.md
-last_updated: "2026-10-17T04:46:18.357Z"
+last_updated: "2026-10-17T05:37:19.641Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 03 execution started
-state_head: 1578dc759a53fa4bbfea9532dbbaa4715325b19b
+state_head: 0e65223de195ecf64ed13da2bd2ab4cd718c2005
 progress:
   total_phases: 17
   completed_phases: 2
@@ -472,6 +472,7 @@ Owner items parked while away (2026-10-16, updated 2026-10-17):
 | 261016-ns5 | Merge script sets the squash commit message; merge gate refuses GitHub skip markers | 2026-10-16 | 3333dc6 | [261016-ns5-merge-script-sets-the-squash-commit-mess](./quick/261016-ns5-merge-script-sets-the-squash-commit-mess/) |
 | 261016-ui0 | Host probe reports certificate failure detail and tries other key storage options | 2026-10-16 | c2730c7 | [261016-ui0-host-probe-reports-certificate-failure-d](./quick/261016-ui0-host-probe-reports-certificate-failure-d/) |
 | 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
+| 21 | Fix the flaky /admin redirect test: answer GET /api/v1/sessions after the redirect | 2026-10-17 | 0e65223 | — |
 
 ## Deferred Items
 
