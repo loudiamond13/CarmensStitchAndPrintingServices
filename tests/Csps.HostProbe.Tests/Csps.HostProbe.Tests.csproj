@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for the throwaway host probe; it runs no server and opens no port. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Csps.HostProbe\Csps.HostProbe.csproj" />
+  </ItemGroup>
+
+</Project>

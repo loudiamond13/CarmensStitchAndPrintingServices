@@ -1,13 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Csps.HostProbe;
-
-/// <summary>Result of a yes/no check. <see cref="Error"/> holds an exception type name only, never its message.</summary>
-internal sealed record CheckResult(bool Ok, string? Error);
 
 /// <summary>Whether <c>{contentRoot}/logs</c> accepts a file (D-21 log files live there).</summary>
 internal sealed record LogsFolderResult(bool Writable, bool FolderExisted, string? Error);
@@ -39,7 +34,7 @@ internal sealed record HostFacts(
     bool IsHttps,
     ZoneResult ManilaZone,
     CultureResult EnPhCulture,
-    CheckResult EphemeralPfxRoundTrip,
+    IReadOnlyList<CertificateAttempt> CertificateRoundTrips,
     long TotalAvailableMemoryBytes,
     DateTimeOffset CheckedAtUtc)
 {
@@ -74,7 +69,7 @@ internal sealed record HostFacts(
             IsHttps: request.IsHttps,
             ManilaZone: CheckManilaZone(),
             EnPhCulture: CheckPhilippineCulture(),
-            EphemeralPfxRoundTrip: CheckEphemeralPfx(time),
+            CertificateRoundTrips: CertificateChecks.Run(time),
             TotalAvailableMemoryBytes: GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
             CheckedAtUtc: time.GetUtcNow());
     }
@@ -127,39 +122,6 @@ internal sealed record HostFacts(
         catch (CultureNotFoundException error)
         {
             return new CultureResult(Available: false, Currency12450: null, Error: error.GetType().Name);
-        }
-    }
-
-    // SEC-04 prerequisite (research Pattern 9b): an in-memory PFX loads with EphemeralKeySet and its RSA key works,
-    // so Data Protection can use a certificate on IIS without a loaded user profile or the certificate store.
-    private static CheckResult CheckEphemeralPfx(TimeProvider time)
-    {
-        try
-        {
-            using var rsa = RSA.Create(2048);
-            var request = new CertificateRequest(
-                "CN=Csps.HostProbe", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            var now = time.GetUtcNow();
-            using var certificate = request.CreateSelfSigned(now.AddMinutes(-5), now.AddDays(1));
-
-            var password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
-            var pfx = certificate.Export(X509ContentType.Pkcs12, password);
-            using var loaded = X509CertificateLoader.LoadPkcs12(pfx, password, X509KeyStorageFlags.EphemeralKeySet);
-            using var publicKey = loaded.GetRSAPublicKey();
-            using var privateKey = loaded.GetRSAPrivateKey();
-            if (publicKey is null || privateKey is null)
-            {
-                return new CheckResult(Ok: false, Error: "MissingRsaKey");
-            }
-
-            var plain = "CSPS-probe"u8.ToArray();
-            var cipher = publicKey.Encrypt(plain, RSAEncryptionPadding.OaepSHA256);
-            var roundTrip = privateKey.Decrypt(cipher, RSAEncryptionPadding.OaepSHA256);
-            return new CheckResult(Ok: plain.AsSpan().SequenceEqual(roundTrip), Error: null);
-        }
-        catch (Exception error) when (error is CryptographicException or PlatformNotSupportedException)
-        {
-            return new CheckResult(Ok: false, Error: error.GetType().Name);
         }
     }
 }

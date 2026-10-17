@@ -47,7 +47,6 @@ public sealed partial class MigrationScriptTests
 
     [Theory]
     [InlineData(SqlCompatibility.Level)]
-    [InlineData(170)]
     public async Task IdempotentScriptAppliesTwice(int compatibilityLevel)
     {
         var database = await CspsDatabase.CreateEmptyAsync(compatibilityLevel);

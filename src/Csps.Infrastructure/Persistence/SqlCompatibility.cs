@@ -6,6 +6,6 @@ namespace Csps.Infrastructure.Persistence;
 /// </summary>
 public static class SqlCompatibility
 {
-    /// <summary>Provisional compatibility level (SQL Server 2022 behaviour). No JSON columns exist, so this is safe.</summary>
-    public const int Level = 160;
+    /// <summary>The host's verified level (SQL Server 2025), re-pinned on 2026-10-16 (D-03). No JSON columns exist.</summary>
+    public const int Level = 170;
 }

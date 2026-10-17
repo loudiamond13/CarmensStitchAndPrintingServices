@@ -346,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 17/23 plans executed
+**Plans:** 20/23 plans executed
 
 Plans:
 **Wave 1**
@@ -377,13 +377,13 @@ Plans:
 - [x] 03-16-PLAN.md — Free repository settings applied; the ready Phase 3 PR passes the full gate on GitHub; CI minutes measured
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 03-17-PLAN.md — Owner decides the mid-phase pipeline merge; the gated merge lands on main and builds the first package
+- [x] 03-17-PLAN.md — Owner decides the mid-phase pipeline merge; the gated merge lands on main and builds the first package
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 03-18-PLAN.md — Cutover step 1: fresh legacy .bak and files kept; local restore and names-and-counts receipt (D-04, D-05)
+- [x] 03-18-PLAN.md — Cutover step 1: fresh legacy .bak and files kept; local restore and names-and-counts receipt (D-04, D-05)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 03-19-PLAN.md — Cutover steps 2-3: receipt confirmed, legacy database retired, SQL Server 2025 database created and compatibility pinned (D-03)
+- [x] 03-19-PLAN.md — Cutover steps 2-3: receipt confirmed, legacy database retired, SQL Server 2025 database created and compatibility pinned (D-03)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
@@ -1053,7 +1053,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 17/23 | In Progress | - |
+| 3. CI/CD & Deploy | 20/23 | In Progress | - |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |

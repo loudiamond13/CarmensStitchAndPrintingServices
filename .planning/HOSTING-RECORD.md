@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-15T11:32:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-16T22:23:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -158,7 +158,8 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | SQL Server product level and edition | B2 | ProductVersion 16.0.x, ProductLevel RTM, Edition Web Edition (64-bit) | Verified | 2026-10-07 |
 | Server collation | B2 (ServerCollation) | SQL_Latin1_General_CP1_CI_AS | Verified | 2026-10-07 |
 | Database compatibility level (new databases / model) | B3 (`model` row) | Not returned: B3 gave only the live database row, so this account cannot see `model` and the server default is unknown | Unverified | - |
-| Legacy database settings | B3 (live database row) | `db_…_csptailoringdb`: compatibility_level 150, collation SQL_Latin1_General_CP1_CI_AS, is_read_committed_snapshot_on 0, recovery SIMPLE | Verified | 2026-10-07 |
+| Legacy database settings | B3 (live database row) | `db_…_csptailoringdb`: compatibility_level 150, collation SQL_Latin1_General_CP1_CI_AS, is_read_committed_snapshot_on 0, recovery SIMPLE; retired 2026-10-16 (D-03), preserved only in the .bak | Verified | 2026-10-07 |
+| CSPS production database | Owner query, D-18 step 3 (`SELECT @@VERSION` and the `sys.databases` row) | `db_…_cspsdb`: Microsoft SQL Server 2025 (RTM-CU3) (KB5077896) - 17.0.4025.3 (X64), Standard Edition (64-bit) on Windows Server 2022 Standard 10.0 (Build 20348) (Hypervisor); compatibility_level 170, collation SQL_Latin1_General_CP1_CI_AS | Verified | 2026-10-16 |
 | SQL Server 2025 offered | Service-desk ticket (owner, 2026-10-07) | Yes: a new SQL Server 2025 database can be created in the control panel. There is no in-place upgrade; the live data moves by restoring a .bak into the new database. Not answered: extra cost, and whether the Basic plan's 1-database limit allows a second database | Verified | 2026-10-07 |
 | Database allocated size | B4 | AllocatedMB 16.0 | Verified | 2026-10-07 |
 | Hosting login owns the database | B5 (IsDbOwner only) | IsDbOwner 1 (the hosting login is a member of db_owner) | Verified | 2026-10-07 |
@@ -170,7 +171,7 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Outside view of the live site (2026-10-07): IIS 10 serves a Let's Encrypt certificate and http answers 307 to https, so TLS ends at IIS. What the app itself sees is checked on the first real deploy (Phase 3) | Unverified | - |
 | Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| PFX EphemeralKeySet round trip | C probe: ephemeralPfxRoundTrip | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| PFX EphemeralKeySet round trip | C probe: certificateRoundTrips (ephemeral, machine, user, ephemeral-3des) | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
 | SPF | D1 (DNS record on cspstailoring.com) | `v=spf1 a mx include:_spf.site4now.net -all` | Verified | 2026-10-07 |
@@ -204,6 +205,9 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
 - **Database version target (D-33, owner, 2026-10-07).** The host runs SQL Server 2022 today, but the owner's
   target production database is **SQL Server 2025**. The owner plans to retire the current SQL Server 2022 database
   hosting and restore the live data onto a SQL Server 2025 database. Notes for that move:
+  - **Done 2026-10-16 (Phase 3 cutover, D-18 step 3):** the SQL Server 2025 database now exists (`db_…_cspsdb`,
+    17.0.4025.3, compatibility level 170) and is empty; CSPS builds its schema from migrations. The legacy database
+    was deleted from the host and lives only in the .bak until the Phase 16 import. `SqlCompatibility.Level` is 170.
   - Restoring a SQL Server 2022 backup onto SQL Server 2025 is supported. The database keeps its old compatibility
     level after the restore, and the level is raised afterwards.
   - SmarterASP.NET answered (2026-10-07): SQL Server 2025 is offered. There is no in-place upgrade; create a new
