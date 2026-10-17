@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T09:30:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T13:18:00-05:00*
 
 ## Overview
 
@@ -556,7 +556,7 @@ Plans:
 - **OD-14**
 
 **Carried over from Phase 4** (owner, 2026-10-15; production was not deployed yet):
-- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. Phase 5 UAT runs it (from 04-UAT Test 2).
+- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. The cookie attributes were confirmed on the live site on 2026-10-17 and 04-UAT Test 2 passed; Phase 5 UAT still checks the Expires part.
 
 **Research flag:** Standard patterns.
 
