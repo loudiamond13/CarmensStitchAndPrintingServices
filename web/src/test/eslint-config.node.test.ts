@@ -17,13 +17,25 @@ function severityOf(entry: Linter.RuleEntry | undefined): unknown {
   return Array.isArray(entry) ? entry[0] : entry;
 }
 
-async function resolvedRules(file: string): Promise<Partial<Linter.RulesRecord>> {
-  const eslint = new ESLint({ cwd: webRoot });
-  const resolved = (await eslint.calculateConfigForFile(path.join(webRoot, file))) as Linter.Config;
-  return resolved.rules ?? {};
+// The first config resolution and the first Tailwind-aware format load their plugins cold; under a full parallel run
+// that can pass the 5 s default.
+const TOOL_LOAD = { timeout: 30_000 };
+
+const eslint = new ESLint({ cwd: webRoot });
+const resolvedByFile = new Map<string, Promise<Partial<Linter.RulesRecord>>>();
+
+function resolvedRules(file: string): Promise<Partial<Linter.RulesRecord>> {
+  let rules = resolvedByFile.get(file);
+  if (rules === undefined) {
+    rules = eslint
+      .calculateConfigForFile(path.join(webRoot, file))
+      .then((resolved) => (resolved as Linter.Config).rules ?? {});
+    resolvedByFile.set(file, rules);
+  }
+  return rules;
 }
 
-describe('eslint.config.mjs', () => {
+describe('eslint.config.mjs', TOOL_LOAD, () => {
   it.each(['src/components/x.tsx', 'scripts/x.mjs', 'e2e/x.spec.ts'])(
     'resolves no rule at warn level for %s',
     async (file) => {
@@ -106,12 +118,11 @@ describe('eslint.config.mjs', () => {
   });
 
   it('rejects a lint target that matches no files (QUAL-02 empty edge)', async () => {
-    const eslint = new ESLint({ cwd: webRoot });
     await expect(eslint.lintFiles(['src/does-not-exist/**/*.tsx'])).rejects.toThrow(/No files matching/);
   });
 });
 
-describe('Prettier with prettier-plugin-tailwindcss (D-36)', () => {
+describe('Prettier with prettier-plugin-tailwindcss (D-36)', TOOL_LOAD, () => {
   async function format(code: string): Promise<string> {
     const filepath = path.join(webRoot, 'src/components/x.tsx');
     const options = await prettier.resolveConfig(filepath, { editorconfig: true });
