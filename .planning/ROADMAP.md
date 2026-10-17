@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T14:55:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-17T18:16:42-05:00*
 
 ## Overview
 
@@ -564,7 +564,93 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: TBD
+**Plans**: 43 plans in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+
+**Wave 1**
+- [ ] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
+- [ ] 05-02-PLAN.md — Open and close motion for every dialog and slide-over with an in-house presence hook (D-38, D-39)
+- [ ] 05-03-PLAN.md — Manager-only route guard, fail-closed role mapping (IN-17), six new icons (USER-08)
+- [ ] 05-04-PLAN.md — No-new-triggers schema test (D-06) and the flaky resend-code test
+- [ ] 05-05-PLAN.md — Staff account schema (edit version, attribution, Manager lock, soft-delete marker, pending email); blocked accounts cannot sign in
+- [ ] 05-06-PLAN.md — Invitation links last 7 days (D-13)
+- [ ] 05-07-PLAN.md — Review notes IN-07, IN-08, IN-09, IN-10, IN-12
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-08-PLAN.md — Drawer and user-menu motion; existing dialogs close with motion (D-34, D-35, D-39)
+- [ ] 05-09-PLAN.md — Profile API: name save with the edit version and the two-writer helper (PROF-01, SEC-07)
+- [ ] 05-10-PLAN.md — Every auth path refuses Manager-locked and deleted accounts (D-16, D-17, D-41 Q5)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05-11-PLAN.md — Server-set attribution in one stamping point (SEC-08)
+- [ ] 05-13-PLAN.md — My Profile page: tabs, name save with the conflict banner, theme (PROF-01, PROF-04, D-20, D-23)
+- [ ] 05-38-PLAN.md — Profile name change audited by field names only; profile handler unit tests (USER-06, D-40)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05-12-PLAN.md — Change password from My Profile (PROF-03, D-41 Q9)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 05-14-PLAN.md — Email change: request and confirm through a 24-hour link (PROF-02, D-25)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 05-39-PLAN.md — Email change: shared current-password check, address rules, link check and exact email copy (PROF-02, D-24, D-41 Q9)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 05-15-PLAN.md — Email change: pending state, resend, cancel, taken meanwhile (D-24)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 05-16-PLAN.md — Confirm-your-email page and shared fragment helpers (PROF-02, IN-18 part)
+- [ ] 05-17-PLAN.md — Users roster API: list and detail with attribution (USER-01, USER-08, D-09, D-11)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 05-18-PLAN.md — My Profile Security tab and Change Email dialog (PROF-02, PROF-03)
+- [ ] 05-19-PLAN.md — Create a user by invitation or temporary password (USER-02, C-4, SEC-08)
+- [ ] 05-20-PLAN.md — Users roster page with URL state (USER-01, USER-08)
+- [ ] 05-36-PLAN.md — Web review notes IN-11, IN-13..IN-16, IN-18, IN-19
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 05-21-PLAN.md — Race-safe last-Manager guard, deactivate and activate (USER-04, USER-05, D-18, D-19)
+- [ ] 05-22-PLAN.md — Add User panel, RadioGroup, temporary password shown once (USER-02, D-12, D-14, D-15)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 05-23-PLAN.md — Edit a user's name and role with the edit version; two-writer proof (USER-03, USER-04, USER-05, SEC-07)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 05-40-PLAN.md — A Manager changes a colleague's email the C-9 way, or cancels a pending change (USER-03, C-9)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 05-24-PLAN.md — Manager lock and unlock (D-16, D-17)
+- [ ] 05-25-PLAN.md — Edit User panel with the conflict banner and Recorded by / Last changed by (SEC-08, D-11)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 05-26-PLAN.md — Final soft delete (D-07..D-11)
+- [ ] 05-32-PLAN.md — Expandable table rows, grouped Select, DateInput, Audit Log navigation item
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [ ] 05-27-PLAN.md — Resend invitation, send reset link, set temporary password (USER-07, C-4)
+- [ ] 05-28-PLAN.md — Roster row actions: deactivate, activate, delete
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [ ] 05-29-PLAN.md — Audit log API: list, filters and date bounds (AUDIT-02, D-26..D-29, D-40)
+- [ ] 05-30-PLAN.md — Edit panel Account access, Lock and Temporary Password dialogs, email notes (USER-07, C-9)
+- [ ] 05-31-PLAN.md — Owner review of the Phase 5 emails (checkpoint)
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [ ] 05-34-PLAN.md — Application review notes IN-01, IN-03, IN-05, IN-06
+- [ ] 05-41-PLAN.md — Audit filter people list and the viewer docs (AUDIT-02, D-11)
+
+**Wave 18** *(blocked on Wave 17 completion)*
+- [ ] 05-33-PLAN.md — Audit Log page (AUDIT-02)
+- [ ] 05-43-PLAN.md — Application review notes IN-02, IN-04: one home for audit words, keys and messages
+
+**Wave 19** *(blocked on Wave 18 completion)*
+- [ ] 05-35-PLAN.md — Component showcase for Managers at /admin/components (D-30..D-33)
+
+**Wave 20** *(blocked on Wave 19 completion)*
+- [ ] 05-42-PLAN.md — Phase 5 demos in the showcase (UI-SPEC C1)
+
+**Wave 21** *(blocked on Wave 20 completion)*
+- [ ] 05-37-PLAN.md — Phase gate: overflow and long-text sweeps, owner review pack and OQ rulings, review dispositions, full local gate (checkpoint)
+
 **UI hint**: yes
 
 ### Phase 6: Company Expenses
