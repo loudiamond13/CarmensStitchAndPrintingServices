@@ -88,10 +88,19 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
 
   it('opening /admin with a session goes to Signed-in devices (D-43) until the dashboard exists', async () => {
     answerRefresh(sessionResponse());
+    // The Sessions page loads its list after the redirect; answer it so the request never goes unhandled.
+    let listCalls = 0;
+    server.use(
+      http.get('*/api/v1/sessions', () => {
+        listCalls += 1;
+        return HttpResponse.json([]);
+      }),
+    );
     const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
 
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+    await expect.poll(() => listCalls, { timeout: 5000 }).toBe(1);
   });
 
   it('keeps the return path of a deep link with a query', async () => {

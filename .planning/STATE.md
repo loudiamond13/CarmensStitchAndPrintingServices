@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: CI/CD & Staging Deploy
-status: executing
-stopped_at: Completed 03-16-PLAN.md
-last_updated: "2026-10-17T04:46:18.357Z"
-last_activity: 2026-10-16
-last_activity_desc: Phase 03 execution started
-state_head: 1578dc759a53fa4bbfea9532dbbaa4715325b19b
+current_phase: 04
+current_phase_name: Identity & Authentication
+status: "Phase 03 shipped — PR #8"
+stopped_at: Phase 03 complete, ready to plan Phase 04
+last_updated: "2026-10-17T16:34:55.796Z"
+last_activity: 2026-10-17
+last_activity_desc: Phase 03 shipped as PR #8, transitioned to Phase 04
+state_head: fe6d6e7377139de4af4544726c21487ba62d5064
 progress:
   total_phases: 17
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 114
-  completed_plans: 111
-  percent: 12
+  completed_plans: 114
+  percent: 18
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-16T22:30:41-05:00"
+updated: "2026-10-17T12:10:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-14)
+See: .planning/PROJECT.md (updated 2026-10-17)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 03 — CI/CD & Staging Deploy
+**Current focus:** Phase 04 — Identity & Authentication
 
 ## Current Position
 
-Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 21 of 23
-Status: Ready to execute
-Last activity: 2026-10-16 - Completed quick task 261016-w4u: Act on the host probe results (IIS https rule, self-contained win-x64, machine-store certificate, probe facts recorded)
+Phase: 04 — Identity & Authentication
+Plan: Not started
+Status: Phase 03 shipped — PR #8
+Last activity: 2026-10-17 — Phase 03 shipped as PR #8, transitioned to Phase 04
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 18%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 79
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [█░░░░░░░░░] 12%
 |-------|-------|-------|----------|
 | 1 | 13 | - | - |
 | 2 | 43 | - | - |
+| 03 | 23 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -167,6 +168,7 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P09 | 47 min | 3 tasks | 21 files |
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
 | Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
+| Phase 03 P22 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -427,10 +429,14 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
 - [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
 - [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
+- [Phase 03]: 03-22: __Secure-csps_2fa stays Unverified (not observed by the owner; attributes pinned by auth integration tests) pending owner sign-off
+- [Phase 03]: 03-22: owner accepted CSPS live 2026-10-17; a rollback now means redeploying an earlier CSPS release (D-05)
 
 ### Pending Todos
 
-None yet.
+Owner items (updated 2026-10-17):
+
+None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __Secure-csps_2fa checked by the owner (2026-10-17).
 
 ### Blockers/Concerns
 
@@ -469,6 +475,9 @@ None yet.
 | 261016-ns5 | Merge script sets the squash commit message; merge gate refuses GitHub skip markers | 2026-10-16 | 3333dc6 | [261016-ns5-merge-script-sets-the-squash-commit-mess](./quick/261016-ns5-merge-script-sets-the-squash-commit-mess/) |
 | 261016-ui0 | Host probe reports certificate failure detail and tries other key storage options | 2026-10-16 | c2730c7 | [261016-ui0-host-probe-reports-certificate-failure-d](./quick/261016-ui0-host-probe-reports-certificate-failure-d/) |
 | 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
+| 21 | Fix the flaky /admin redirect test: answer GET /api/v1/sessions after the redirect | 2026-10-17 | 0e65223 | — |
+| 22 | Stack docs say the package is self-contained win-x64 | 2026-10-17 | 5c8644f | — |
+| 261017-efe | Detailed GitHub Actions workflow reference in docs/operations/ci.md (every workflow, job and step, plus Hygiene and Dependabot) | 2026-10-17 | 0fd2f11 | [261017-efe-detailed-github-actions-workflow-referen](./quick/261017-efe-detailed-github-actions-workflow-referen/) |
 
 ## Deferred Items
 
@@ -480,6 +489,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T19:37:34.800Z
-Stopped at: Completed 03-16-PLAN.md
+Last session: 2026-10-17T14:29:21.635Z
+Stopped at: Phase 03 complete, ready to plan Phase 04
 Resume file: None
