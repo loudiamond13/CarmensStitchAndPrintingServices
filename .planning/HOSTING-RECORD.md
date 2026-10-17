@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-16T18:28:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-16T22:23:00-05:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -171,7 +171,7 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Client IP / proxy topology | C probe: remoteIpAddress, xForwardedFor, xRealIp, cfConnectingIp | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | HTTPS termination | C probe: isHttps, xForwardedProto | Probe not possible: the plan allows no extra site. Outside view of the live site (2026-10-07): IIS 10 serves a Let's Encrypt certificate and http answers 307 to https, so TLS ends at IIS. What the app itself sees is checked on the first real deploy (Phase 3) | Unverified | - |
 | Asia/Manila and en-PH available | C probe: manilaZone, enPhCulture | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
-| PFX EphemeralKeySet round trip | C probe: ephemeralPfxRoundTrip | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
+| PFX EphemeralKeySet round trip | C probe: certificateRoundTrips (ephemeral, machine, user, ephemeral-3des) | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | App pool memory available | C probe: totalAvailableMemoryBytes | Probe not possible: the plan allows no extra site. Verify on the first real deploy (Phase 3) | Unverified | - |
 | Sender domain | Owner names the live site's domain | cspstailoring.com | Verified | 2026-10-07 |
 | SPF | D1 (DNS record on cspstailoring.com) | `v=spf1 a mx include:_spf.site4now.net -all` | Verified | 2026-10-07 |

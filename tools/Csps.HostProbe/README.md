@@ -1,5 +1,5 @@
 # Csps.HostProbe: one-time host check (FND-13)
-*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-16T16:50:00-05:00*
+*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-10-16T22:26:00-05:00*
 
 This is a tiny, throwaway web app. It reports the facts about the SmarterASP.NET server that only the server itself
 can show: the exact .NET version, whether the site runs inside IIS ("in-process"), how visitor addresses reach the
@@ -26,6 +26,9 @@ once, and is then deleted (the owner's D-28 decision, option-a, 2026-10-07). The
 It shows runtime, folder, network and certificate facts only. It never shows passwords, connection strings,
 settings values or environment variables. Without the right key it answers `401` with an empty page. If no key is
 set (or the key is shorter than 32 characters) it answers `503` and stays closed.
+
+For the certificate check it shows, per attempt, the step that failed, the error type, the error code and a short
+cleaned message. It never shows the password, the key or any folder path.
 
 ## Steps
 
@@ -100,6 +103,32 @@ Copy the whole `{ ... }` answer into the chat. Before you paste it:
 Delete the new site (and its folder) in the control panel. Then run the command from step 6 again: it should fail
 or show "not found". Throw the key away.
 
+## Reading the certificate attempts (`certificateRoundTrips`)
+
+CSPS protects its sign-in keys with a certificate, so the probe tries four ways of loading one on the server. All four
+use one RSA-3072 test certificate made on the spot, and test its key the way Data Protection uses it.
+
+| Attempt          | What it does                                                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ephemeral`      | Key in memory only. This is how CSPS loads its certificate today, so a pass means CSPS starts as is.                                      |
+| `machine`        | Key written to the server's machine key store while open, removed when closed.                                                            |
+| `user`           | Key written to the app pool's own profile store. Load User Profile is on.                                                                 |
+| `ephemeral-3des` | The same as `ephemeral`, but the PFX uses the 3DES/SHA1 encryption that Windows PowerShell 5.1 gives the production certificate. A pass means that format loads. |
+
+What each field means:
+
+- `ok`: `true` when the attempt worked from start to finish.
+- `step`: where it failed. One of `create`, `export`, `load` or `use`. Empty when `ok` is `true`.
+- `exceptionType`: the kind of error, for example `CryptographicException`.
+- `hResult`: an error code such as `0x80090016` that can be looked up.
+- `message`: one line, at most 200 characters. The password shows as `[hidden]` and folder paths as `[path]`.
+- `keyCleanup`: `none` (nothing was written), `removed` (a key was written and is gone), `removed-by-probe` (the probe
+  had to delete a key left behind), `unchecked` (the probe could not tell) or `left`. `left` means a key file may remain
+  on the server, so tell Claude.
+
+How to read the result: paste the whole `certificateRoundTrips` block back. Which attempt passes decides how CSPS
+loads its certificate in the follow-up fix.
+
 ## Running the probe through the deploy workflow (the `hostprobe` action)
 
 This is the one-time exception from the first safety rule. It uses the same Web Deploy path as a normal deploy
@@ -115,5 +144,7 @@ This is the one-time exception from the first safety rule. It uses the same Web 
    down, and reads `/probe` with `smoke.mjs probe`. There is no release and no rollback. If any step fails, the offline
    page is put back and the run fails.
 4. Paste the facts the run printed into the chat (step 7 above, with the last number of your own IP replaced by `x`).
-5. **Delete the `HOSTPROBE_KEY` secret.** The probe keeps answering until the first CSPS deploy replaces it, and it
+5. The workflow publishes the probe from `main`, so a probe change must be merged before the run. The action can be
+   run again until a `deploy-*` release exists.
+6. **Delete the `HOSTPROBE_KEY` secret.** The probe keeps answering until the first CSPS deploy replaces it, and it
    answers `401` without the key.
