@@ -1,20 +1,15 @@
 ---
-status: testing
+status: complete
 phase: 03-ci-cd-staging-deploy
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md, 03-10-SUMMARY.md, 03-11-SUMMARY.md, 03-12-SUMMARY.md, 03-13-SUMMARY.md, 03-14-SUMMARY.md, 03-15-SUMMARY.md, 03-16-SUMMARY.md, 03-17-SUMMARY.md, 03-18-SUMMARY.md, 03-19-SUMMARY.md, 03-20-SUMMARY.md, 03-21-SUMMARY.md, 03-22-SUMMARY.md, 03-23-SUMMARY.md]
 created: 2026-10-17T09:50:07-05:00
 started: 2026-10-17T09:50:07-05:00
-updated: 2026-10-17T10:06:21-05:00
+updated: 2026-10-17T15:14:58.581Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-number: 6
-name: Weekly all-engine run
-expected: |
-  Weekly run 39043267415 (dispatched on main 2026-10-17T15:01Z) finishes green, including Firefox and WebKit in the end-to-end tests. Claude is watching it and records the result.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -40,11 +35,14 @@ result: pass
 
 ### 6. Weekly all-engine run
 expected: GitHub, Actions, Weekly, Run workflow on main (or the first scheduled run, Sunday 18:00 UTC = Monday 2:00 AM Manila) finishes green with the extra browser engines (03-11 D4)
-result: [pending]
+result: issue
+reported: "started" (owner dispatched Weekly run 39043267415 on main; Claude watched it) - the run failed at step \'4 web vitest + coverage\': src/modules/admin/routes.test.tsx > opening /admin with a session goes to Signed-in devices (D-43) failed on an unhandled GET /api/v1/sessions MSW request; the all-engine Playwright steps were skipped
+severity: major
 
 ### 7. Docs-only PR passes the required check
 expected: The docs-only PR that carries this UAT file gets gate (docs) green with the Hygiene and Security checks, and Merge-PullRequest.ps1 accepts it (03-16 D2)
-result: [pending]
+result: pass
+evidence: PR 7 classified docs; gate (docs), gate result, Hygiene and CodeQL all pass; node web/scripts/merge-gate.mjs 7 allowed it at head d8912e8 (check only, not merged)
 
 ### 8. Operations docs read clearly
 expected: docs/operations/ci.md (run kinds, reading a failed run, minutes, the fallback) and docs/operations/deploy.md (the deploy and rollback runbook) are clear to the owner in plain words (03-11 D5, 03-12 D4)
@@ -488,12 +486,25 @@ reason: "Deferred: owner-approved relaxation, LCP is report-only until Phase 11 
 ## Summary
 
 total: 80
-passed: 77
-issues: 0
-pending: 2
+passed: 78
+issues: 1
+pending: 0
 skipped: 1
 blocked: 0
 
 ## Gaps
 
-[none yet]
+- gap_id: G-03-6
+  truth: "The weekly all-engine run on main finishes green, including Firefox and WebKit in the end-to-end tests"
+  status: failed
+  reason: "Weekly run 39043267415 (owner-dispatched on main, 2026-10-17) failed at '4 web vitest + coverage'; the all-engine Playwright steps never ran"
+  severity: major
+  test: 6
+  root_cause: "The flaky /admin redirect test fix (0e65223, answer the Sessions list so GET /api/v1/sessions is never unhandled) is only on gsd/phase-03-ci-cd-staging-deploy; main (fb9b20c version of routes.test.tsx) still has the flaky test, and Weekly runs from main"
+  artifacts:
+    - path: "web/src/modules/admin/routes.test.tsx"
+      issue: "on main, the /admin with a session test leaves GET /api/v1/sessions without an MSW handler"
+  missing:
+    - "Land 0e65223 on main (the phase branch's remaining commits, through a PR and Merge-PullRequest.ps1)"
+    - "Re-run Weekly on main and confirm Firefox and WebKit E2E pass"
+  debug_session: ""
