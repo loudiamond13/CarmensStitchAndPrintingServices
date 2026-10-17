@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-17T09:36:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-17T12:30:00-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -124,6 +124,7 @@ Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the ro
     dev/, test/            outside the owner tree (D-20 dev-only code, test harness)
   ```
 
+- **No SQL triggers (OR-7, owner 2026-10-17):** no migration, script or tool creates a database trigger. `TR_AuditLog_AppendOnly` (D-32, the audit log's append-only guarantee) is the only allowed trigger, and a schema test that lists `sys.triggers` fails on any other. Guards such as the last-Manager check are done in application code (a locking or serializable transaction) or with constraints.
 - **Placement:**
   - `components` is shared low-level UI, imported from the barrel `@/components`.
   - `ui` is the theme: `app.css` is the one stylesheet entry and only `App.tsx` imports it; `base.css`; `tw.ts` (the class-string marker).

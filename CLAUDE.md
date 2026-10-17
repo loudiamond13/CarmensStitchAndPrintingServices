@@ -1,5 +1,5 @@
 # CarmensStitchAndPrintingServices
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-15T22:42:00-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-17T12:30:00-05:00*
 
 ## Shared machine: do not collide with TheBETSLLC (C:\Work\TheBETSLLC)
 
@@ -28,7 +28,7 @@ Another project is developed on this machine at the same time, often by a separa
 - **Security/tooling:** Data Protection keys are encrypted with a certificate (host-secret PFX; dev PFX in user-secrets). Architecture tests use ArchUnitNET. Coverage uses coverlet.MTP + ReportGenerator. Release cool-down is 14 days.
 - **Audit/logs:** IPs truncated to /24 (IPv4) and /48 (IPv6), 8-month audit retention (D-32). Logs are JSON files in `{contentRoot}/logs`, kept 30 days.
 
-## Owner rules (2026-10-14)
+## Owner rules (2026-10-14, OR-7 2026-10-17)
 
 Full detail is in `.claude/CLAUDE.md` under Conventions. This copy stays if that GSD-managed block is regenerated.
 
@@ -38,4 +38,5 @@ Full detail is in `.claude/CLAUDE.md` under Conventions. This copy stays if that
 - **OR-4 No long dash:** no em dash or en dash in the client (code, copy, comments). Where a long dash would be used as a symbol, such as an empty value, show an icon (`EmptyValue`: the minus icon plus hidden "Not set"). Prose uses ordinary punctuation. The minus sign U+2212 in money stays.
 - **OR-5 API calls:** per module in `modules/{public,admin}/services/`. The shared client and interceptors live in `core/api/`.
 - **OR-6 Layout:** `web/src` follows the owner tree: `assets, components, core, hooks, layouts, lib, modules, types, ui, utils` (plus `dev` and `test`).
+- **OR-7 No SQL triggers (owner, 2026-10-17):** never create a database trigger. The existing `TR_AuditLog_AppendOnly` (D-32) is the only one allowed, and a schema test fails on any other. Put such guards in application code or constraints.
 - **Merges (D-08):** only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's instruction; never `gh pr merge` directly.
