@@ -17,7 +17,7 @@ findings:
     title: "Setting a new password at the must-change step leaves the person's other sessions alive"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "A temporary lockout makes Refresh revoke the session for good, so anyone who knows an email can force a sign-out"
   - id: IN-01
     severity: info
@@ -45,7 +45,7 @@ findings:
     title: "`ToString` on some records can print personal data, and an audit doc line is wrong"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Failed-password counter can be lost under concurrent guesses (lockout throttle bypass)"
   - id: WR-06
     severity: warning
@@ -61,7 +61,7 @@ findings:
     title: "Email copy hard-codes lifetimes that `AuthSettings` makes configurable"
   - id: WR-09
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "A failure after a successful SMTP send is recorded as a send failure and retried, so staff can get duplicate emails"
   - id: IN-07
     severity: info
@@ -85,11 +85,11 @@ findings:
     title: "Idempotency scope uses the route pattern and the body only, not the actual path or query"
   - id: WR-11
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "A chunked body over 1 MB becomes a 500, not the 413 the middleware promises (and it is untested)"
   - id: WR-12
     severity: warning
-    disposition: open
+    disposition: deferred
     title: "Auth rate limits key IPv6 clients by /64, which a single subscriber can rotate through"
   - id: WR-13
     severity: warning
@@ -109,7 +109,7 @@ findings:
     title: "A failed sign-out call is swallowed, and the sign-in loader then restores the session from the still-valid refresh cookie"
   - id: WR-14
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The TanStack Query cache survives sign-out and sign-in, so another account's devices list can be shown"
   - id: WR-15
     severity: warning
@@ -147,9 +147,11 @@ findings:
     severity: info
     disposition: open
     title: "`navigator` inside `createSession` shadows the global"
-open: 25
+open: 19
 total: 36
 recorded: 2026-10-15T19:42:31.781Z
+created: "2026-10-15T14:42:31-05:00"
+updated: "2026-10-17T14:35:00-05:00"
 ---
 
 # Phase 04: Code Review Disposition
@@ -159,30 +161,30 @@ recorded: 2026-10-15T19:42:31.781Z
 | WR-01 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-02 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-03 | warning | fixed | 04-REVIEW-FIX.md |
-| WR-04 | warning | open | - |
+| WR-04 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
 | IN-04 | info | open | - |
 | IN-05 | info | open | - |
 | IN-06 | info | open | - |
-| WR-05 | warning | open | - |
+| WR-05 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-06 | warning | skipped | 04-REVIEW-FIX.md |
 | WR-07 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-08 | warning | fixed | 04-REVIEW-FIX.md |
-| WR-09 | warning | open | - |
+| WR-09 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-07 | info | open | - |
 | IN-08 | info | open | - |
 | IN-09 | info | open | - |
 | IN-10 | info | open | - |
 | WR-10 | warning | fixed | 04-REVIEW-FIX.md |
-| WR-11 | warning | open | - |
-| WR-12 | warning | open | - |
+| WR-11 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-12 | warning | deferred | Owner ruling D-49 (2026-10-15): the /64 IPv6 key stays; the change was reverted (04-REVIEW-FIX.md) |
 | WR-13 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-11 | info | open | - |
 | IN-12 | info | open | - |
 | CR-01 | critical | fixed | 04-REVIEW-FIX.md |
-| WR-14 | warning | open | - |
+| WR-14 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-15 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-16 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-13 | info | open | - |
