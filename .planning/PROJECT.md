@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-15T22:10:30-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-17T12:10:00-05:00*
 
 ## What This Is
 
@@ -38,6 +38,8 @@ All existing production data is migrated in without loss. The API is client-agno
 - ✓ **Foundation:** onion solution, zero-warning builds, architecture tests, EF Core code-first schema with a guarded dev seed, ProblemDetails, `/health`, Serilog JSON logs, business calendar, SiteSettings core, append-only AuditLog, SQL test fixture, idempotent migration scripts, hosting record, coverage and license gates, security headers, default-deny authorization, Data Protection key ring (FND-01..13, QUAL-01/03/06, SEC-01/02/04) — Phase 1 (2026-10-07: UAT 11/11, 526 tests, threats_open 0)
 
 - ✓ **Web foundation:** React 19 + TS strict + Vite + Tailwind v4 shell built into `Csps.Server/wwwroot`, the UI-spec design system converted to Tailwind and proven visually equal to the approved design (parity in 3 engines), `httpClient.ts` and `api.ts`, shared primitives, URL state, order-math preview with 220 shared golden vectors, lint/axe/budget/Lighthouse/E2E gates (WEB-01..10, ORD-09, QUAL-02/04, A11Y-01/02/04, PERF-01/02/03/05) — Phase 2 (2026-10-14: UAT 202/202, 3110 web + 908 .NET tests, threats_open 0, Nyquist-compliant, UI review 18/24)
+
+- ✓ **CI/CD and live deploy:** ordered PR gate with modes and the merge script, GitHub ruleset on `main`, Dependabot with 14-day cooldown, gitleaks, CodeQL, dependency review, actionlint and zizmor, SHA-pinned least-privilege workflows, owner-dispatched Web Deploy to SmarterASP.NET with smoke test and automatic rollback, legacy site retired after a verified `.bak` receipt, branded holding page live on the new empty DB (OPS-01..05) — Phase 3 (2026-10-17: UAT 78 passed and 2 deferred (Weekly re-run after ship, LCP report-only until Phase 11), threats_open 0)
 
 ### Active
 
@@ -230,4 +232,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 recorded the Prime Directive 1 override (Phase 3 planning)*
+*Last updated: 2026-10-17T12:10:00-05:00 after Phase 3 verification and transition*

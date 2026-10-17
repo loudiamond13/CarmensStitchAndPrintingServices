@@ -55,7 +55,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### CI/CD & Hosting (OPS)
 
-- [ ] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
+- [x] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
 - [x] **OPS-02**: The CI pipeline on every PR runs locked restore → .NET build → format check → unit → integration → architecture tests → web typecheck/lint/Prettier/Vitest + coverage → web build → Playwright → Lighthouse CI → coverage gates → license notices. Actions are pinned by SHA with least-privilege permissions
 - [x] **OPS-03**: Supply-chain security runs in CI: Dependabot (NuGet, npm, Actions) with cooldown, plus CodeQL, secret scanning with push protection and dependency review, or the owner-approved substitute set ⚑ C-27/S-9
 - [x] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
@@ -358,7 +358,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-04 | Phase 2 | Complete |
 | QUAL-05 | Phase 4 | Complete |
 | QUAL-06 | Phase 1 | Complete |
-| OPS-01 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Complete |
 | OPS-02 | Phase 3 | Complete |
 | OPS-03 | Phase 3 | Complete |
 | OPS-04 | Phase 3 | Complete |

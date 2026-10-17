@@ -55,7 +55,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
-- [ ] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15)
+- [x] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15) (completed 2026-10-17)
 - [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
 - [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
 - [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
@@ -346,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 23/23 plans executed
+**Plans:** 23/23 plans complete
 
 Plans:
 **Wave 1**
@@ -1053,7 +1053,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 23/23 | In Progress | - |
+| 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | In Progress | - |
 | 5. Profile & User Management | 0/TBD | Not started | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
