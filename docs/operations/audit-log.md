@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T09:12:00-05:00
+updated: 2026-10-18T11:49:11-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -123,6 +123,37 @@ Handlers build the target id with `AuditKey.Of(id)` (lower-case `D` format).
 | `profile.email-change-requested` | A signed-in user asks to change their sign-in email (`POST /api/v1/profile/email-change`) with the right current password, or asks for the link again while the change waits (`POST /api/v1/profile/email-change/resend`). A wrong password, a refused address, a locked account and a resend with nothing waiting write no such entry (a wrong password that locks the account writes `auth.lockout` instead) | `User` id (the caller's own) | None for the first request; `resent` for a resend. Never either address | `Record`, in the same transaction as the pending address, the 24-hour link and the two emails; a new request replaces the older link in that transaction |
 | `profile.email-change-canceled` | A waiting email change ends without applying. Either the caller calls it off (`DELETE /api/v1/profile/email-change`), a Manager calls it off for the person (`DELETE /api/v1/users/{id}/email-change`; the actor is the Manager), or the link is used after another account took the new address (`POST /api/v1/profile/email-change/confirm` answers 409 `email-change.taken`). A cancel with nothing waiting, and the read-only `check`, write nothing | `User` id (the account whose change ended) | None for a cancel by the caller or a Manager; `taken` when the address was taken first. Never either address | `Record`, in the same transaction as the cleared pending address and the revoked or spent links |
 | `profile.email-changed` | The new address is confirmed from the emailed link (`POST /api/v1/profile/email-change/confirm`) and becomes the sign-in email. The read-only `check` writes nothing | `User` id (the account that changed) | None. Never either address | `Record`, in the same transaction as the email move and the spent link |
+
+## Viewing the log
+
+Managers read the log on the Audit Log page, which calls `GET /api/v1/audit-log`. It is read only: the page and the
+API never change an entry (the log is append-only, see above).
+
+- **Who can see it.** Managers only. An Admin gets 403 and a caller who is not signed in gets 401 (D-26). The answer is
+  never cached.
+- **Which entries.** With no dates the page shows today and the 6 business days before it, 7 days in all, newest first.
+  A day is a business day in Manila time and runs from 00:00 to the end of that day. A Manager can pick any range back
+  to the start of the kept window (8 months, D-32) and up to today. Equal times keep the order they were written.
+- **Filters.** Done by (a person, or System), Action, Done to (a person) and the two dates. They are applied before
+  the page is cut, so the total and the pages always match the filter.
+  - Done by a person also finds that person's own steps taken without a token: signing in, entering a code, asking for
+    a reset, accepting an invitation.
+  - Done to a person also finds events of that person's sessions, such as a sign-out.
+  - The Done by and Done to lists come from `GET /api/v1/audit-log/people`: everyone ever recorded as staff, whether
+    active, inactive or deleted. Current staff are listed first by name, then former staff by name. Only a name and a
+    "former staff" mark are sent, never an email address.
+- **The done-by rule.** One rule decides who did it, so the column and the filter agree:
+  1. the signed-in person who caused it, when there was one;
+  2. otherwise, for the person's own steps taken without a token, the person the entry is about;
+  3. otherwise, for a failed sign-in whose address matches no account, an unknown account;
+  4. otherwise the System: a job or a command with nobody signed in.
+- **What each row shows.** The time, who did it, the action, who it was done to, the detail, the network
+  (the stored prefix shown with its length: `/24` for IPv4, `/48` for IPv6), the device (browser family, or
+  "Unknown" when none was sent) and the reference (the request's correlation id, to find its log lines).
+  Names come from the user's own row, so a deleted person stays named and is marked as former staff (D-08, D-47).
+- **Details hold field names and role values only** (for example `fields=email` or `role=admin>manager`), never a
+  person's name or email address (D-40). Entries are kept for 8 months and cannot be scrubbed.
+- **No export.** There is no download or CSV route (D-29). The log is read on screen only.
 
 ## Residual risk
 
