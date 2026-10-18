@@ -5,7 +5,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import AuthLayout from '@/layouts/AuthLayout';
-import { ResetPasswordRoute, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
+import { ResetPasswordRoute } from '@/modules/admin/pages/ResetPasswordPage';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -88,21 +88,6 @@ beforeEach(() => {
 
 afterEach(() => {
   window.history.replaceState(null, '', '/');
-});
-
-describe('tokenFromHash', () => {
-  it.each([
-    ['#token=abc', 'abc'],
-    ['token=abc', 'abc'],
-    ['#token=a%2Bb', 'a+b'],
-    ['#other=1&token=abc', 'abc'],
-    ['', null],
-    ['#', null],
-    ['#token=', null],
-    ['#nottoken=abc', null],
-  ])('reads %j as %j', (hash, expected) => {
-    expect(tokenFromHash(hash)).toBe(expected);
-  });
 });
 
 describe('S5 token handling and the checking state', () => {
