@@ -1,10 +1,10 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -52,12 +52,17 @@ function listOf(items: UserListItem[], total = items.length): UserListResponse {
   return { items, page: 1, pageSize: 20, total };
 }
 
-function backend(items: UserListItem[] = ROWS): { calls: URL[] } {
+/** What the fake API answers for one request: a page, or a ready-made response. */
+type Responder = (url: URL) => UserListResponse | Response | Promise<UserListResponse | Response>;
+
+function backend(items: UserListItem[] = ROWS, respond?: Responder): { calls: URL[] } {
   const calls: URL[] = [];
   server.use(
-    http.get('*/api/v1/users', ({ request }) => {
-      calls.push(new URL(request.url));
-      return HttpResponse.json(listOf(items));
+    http.get('*/api/v1/users', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const answer = respond === undefined ? listOf(items) : await respond(url);
+      return answer instanceof Response ? answer : HttpResponse.json(answer);
     }),
   );
   return { calls };
@@ -72,11 +77,12 @@ function problem(status: number): Response {
 
 let queryClient: QueryClient;
 
-function Harness({ search }: { search: string }) {
+function Harness({ search, onUrlUpdate }: { search: string; onUrlUpdate: OnUrlUpdateFunction }) {
   return (
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
         searchParams={search}
+        onUrlUpdate={onUrlUpdate}
         defaultOptions={URL_STATE_DEFAULTS}
         processUrlSearchParams={orderSearchParams}
         hasMemory
@@ -89,14 +95,22 @@ function Harness({ search }: { search: string }) {
   );
 }
 
-function renderPage(search = '') {
-  return render(<Harness search={search} />);
+function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
+  return render(<Harness search={search} onUrlUpdate={onUrlUpdate} />);
 }
 
-async function openPage(search = '') {
-  const view = renderPage(search);
+async function openPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
+  const view = renderPage(search, onUrlUpdate);
   await screen.findByText('Paolo Garcia');
   return view;
+}
+
+/** The URL writes nuqs made, as history mode and query string. */
+function updates(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { history: string; query: string }[] {
+  return spy.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
 }
 
 function rowOf(name: string): HTMLElement {
@@ -359,5 +373,243 @@ describe('U1 accessibility', () => {
       expect(screen.getAllByRole('row')).toHaveLength(ROWS.length + 1);
     });
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('U1 toolbar (WEB-10)', () => {
+  it('shows Search "Name or email" capped at 100, a Role select and a Status select with the verbatim options', async () => {
+    backend();
+    await openPage();
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    expect(search).toHaveAttribute('placeholder', 'Name or email');
+    expect(search).toHaveAttribute('maxlength', '100');
+    const options = (name: string) =>
+      within(screen.getByRole('combobox', { name }))
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+    expect(options('Role')).toEqual(['All roles', 'Admin', 'Manager']);
+    expect(options('Status')).toEqual(['All statuses', 'Active', 'Inactive', 'Locked']);
+  });
+
+  it('writes a typed search to the URL after 300 ms with a replace, and asks the server once for the settled text', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    for (const text of ['c', 'ca', 'car', 'carm']) {
+      fireEvent.change(search, { target: { value: text } });
+    }
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=carm' }]);
+    });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('q')).toBe('carm');
+    });
+    expect(calls.filter((url) => url.searchParams.has('q'))).toHaveLength(1);
+  });
+
+  it('adds the chip "Role: Manager" when Role is set, asks the server for it and replaces the URL', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Role' }), 'manager');
+
+    expect(await screen.findByText('Role: Manager')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('role')).toBe('manager');
+    });
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?role=manager' }]);
+  });
+
+  it('adds the chip "Status: Locked" when Status is set', async () => {
+    const { calls } = backend();
+    await openPage();
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'locked');
+
+    expect(await screen.findByText('Status: Locked')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('status')).toBe('locked');
+    });
+  });
+
+  it('shows one chip per non-default filter, and clearing a chip removes only that filter from the URL', async () => {
+    backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?q=ca&role=manager&status=locked', onUrlUpdate);
+
+    expect(screen.getByText('Search: ca')).toBeInTheDocument();
+    expect(screen.getByText('Role: Manager')).toBeInTheDocument();
+    expect(screen.getByText('Status: Locked')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear role filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Role: Manager')).toBeNull();
+    });
+    expect(screen.getByText('Search: ca')).toBeInTheDocument();
+    expect(screen.getByText('Status: Locked')).toBeInTheDocument();
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?q=ca&status=locked' });
+  });
+
+  it('shows no chip and sends no filter in the unfiltered roster', async () => {
+    const { calls } = backend();
+    await openPage();
+
+    expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
+    expect(Object.fromEntries(calls[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
+  });
+
+  it('removes an invalid role from the URL once and asks the server with no role', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?role=owner', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    expect(calls.every((url) => !url.searchParams.has('role'))).toBe(true);
+    expect(screen.queryByText(/^Role:/)).toBeNull();
+  });
+});
+
+describe('U1 result bar and empty result', () => {
+  it('says "Showing 2 users" for many, sorted by name', async () => {
+    backend([
+      person(ME, 'Carmen', 'Reyes', { role: 'Manager' }),
+      person('00000000-0000-4000-8000-000000000002', 'Paolo', 'Garcia'),
+    ]);
+    await openPage();
+
+    expect(await screen.findByText(/Showing/)).toHaveTextContent('Showing 2 users · sorted by name');
+  });
+
+  it('says "Showing 1 user" for exactly one', async () => {
+    backend([person(ME, 'Carmen', 'Reyes', { role: 'Manager' })]);
+    renderPage();
+    await screen.findByText('Carmen Reyes');
+
+    expect(await screen.findByText(/Showing/)).toHaveTextContent('Showing 1 user · sorted by name');
+  });
+
+  it('shows "No matches" with the search and filter named, and Clear Filters clears all of them', async () => {
+    backend(ROWS, (url) =>
+      url.searchParams.get('role') === 'manager' && url.searchParams.get('q') === 'zzz' ? listOf([], 0) : listOf(ROWS),
+    );
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?q=zzz&role=manager', onUrlUpdate);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(
+      screen.getByText('No users match “zzz” with role Manager. Try another search or clear the filters.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Search: zzz')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.queryByText('Search: zzz')).toBeNull();
+    expect(screen.queryByText('Role: Manager')).toBeNull();
+    expect(updates(onUrlUpdate).at(-1)?.query).toBe('');
+  });
+
+  it('never shows an empty state for the unfiltered roster', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByText('No matches')).toBeNull();
+    expect(screen.queryByText(/No users yet/)).toBeNull();
+  });
+});
+
+describe('U1 paging', () => {
+  const MANY = (url: URL): UserListResponse => ({
+    items: ROWS,
+    page: Number(url.searchParams.get('page')),
+    pageSize: Number(url.searchParams.get('pageSize')),
+    total: 45,
+  });
+
+  it('shows Page 1 of 3 for 45 people at 20 a page, and Next pushes ?page=2 and asks for page 2', async () => {
+    const { calls } = backend(ROWS, MANY);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('page')).toBe('2');
+    });
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'push', query: '?page=2' }]);
+    expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toHaveFocus();
+  });
+
+  it('Rows per page replaces the URL, resets the page and asks the server for that size', async () => {
+    const { calls } = backend(ROWS, MANY);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?page=2', onUrlUpdate);
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('50');
+    });
+    expect(calls.at(-1)?.searchParams.get('page')).toBe('1');
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?size=50' }]);
+  });
+
+  it('reads ?size=50 from the link', async () => {
+    const { calls } = backend();
+    await openPage('?size=50');
+
+    expect(calls[0]?.searchParams.get('pageSize')).toBe('50');
+  });
+
+  it('clamps page 3 of 2 to the last page with one replace and shows that page', async () => {
+    const { calls } = backend(ROWS, (url) => {
+      const page = Number(url.searchParams.get('page'));
+      return { items: page === 3 ? [] : ROWS, page, pageSize: 20, total: 25 };
+    });
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?page=3', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=2' }]);
+    });
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 2');
+    expect(calls.map((url) => url.searchParams.get('page'))).toEqual(['3', '2']);
+  });
+});
+
+describe('U1 refetch', () => {
+  it('keeps the rows and dims them by colour after 200 ms while a filter change loads', async () => {
+    backend(ROWS, async (url) => {
+      if (url.searchParams.get('role') === 'manager') {
+        await delay(600);
+      }
+      return listOf(ROWS);
+    });
+    await openPage();
+    const region = screen.getByRole('region', { name: 'Users' });
+    expect(region).not.toHaveAttribute('data-refetching');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Role' }), 'manager');
+
+    expect(screen.getByText('Paolo Garcia')).toBeInTheDocument();
+    expect(region).not.toHaveAttribute('data-refetching');
+    await waitFor(() => {
+      expect(region).toHaveAttribute('data-refetching', 'true');
+    });
+    expect(screen.getByText('Paolo Garcia')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(region).not.toHaveAttribute('data-refetching');
+    });
   });
 });
