@@ -30,7 +30,7 @@ public sealed class EmailRendererTests
         new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true),
         new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At),
         new DeactivatedNoticeEmail("paolo.garcia@gmail.com"),
-        new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At),
+        new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At),
     ];
 
     [Theory]
@@ -83,7 +83,7 @@ public sealed class EmailRendererTests
         { new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true), "Password changed", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
         { new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At), "Your password was reset", "Ask them for your temporary password.", null, null },
         { new DeactivatedNoticeEmail("paolo.garcia@gmail.com"), "Account deactivated", "Your account is deactivated.", null, null },
-        { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
+        { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
     };
 
     [Theory]
@@ -254,13 +254,13 @@ public sealed class EmailRendererTests
     [Fact]
     public async Task InviteLinksToAcceptInviteWithTheTokenInTheFragment()
     {
-        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(72), At));
+        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At));
 
         rendered.Text.ShouldContain($"{BaseUrl}/admin/accept-invite#token={Token}");
         rendered.Html.ShouldContain($"href=\"{BaseUrl}/admin/accept-invite#token={Token}\"");
         rendered.Html.ShouldContain("Set Your Password</a>");
         rendered.Html.ShouldContain("You&#39;re invited");
-        rendered.Text.ShouldContain("This link works for 72 hours and only once. If it expires, ask a Manager to send a new invite.");
+        rendered.Text.ShouldContain("This link works for 7 days and only once. If it expires, ask a Manager to send a new invite.");
         rendered.Text.ShouldContain("Each time you sign in, we'll also email you a 6-digit code.");
         CountOf(rendered.Text, Token).ShouldBe(1);
     }
@@ -272,6 +272,8 @@ public sealed class EmailRendererTests
         var reset = await RenderAsync(new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(45), At, Chrome));
         var invite = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddHours(24), At));
         var hour = await RenderAsync(new PasswordResetEmail("paolo.garcia@gmail.com", Token, At.AddHours(1), At, Chrome));
+        var twoDays = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(2), At));
+        var week = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At));
         var locked = await RenderAsync(new AccountLockedEmail("paolo.garcia@gmail.com", At.AddMinutes(30), LockoutCause.Code, TimeSpan.FromMinutes(30)));
 
         code.Text.ShouldContain("It works for 10 minutes and only once.");
@@ -280,6 +282,8 @@ public sealed class EmailRendererTests
         reset.Html.ShouldContain("This link works for 45 minutes.");
         invite.Text.ShouldContain("This link works for 24 hours and only once.");
         hour.Text.ShouldContain("This link works for 1 hour and only once.");
+        twoDays.Text.ShouldContain("This link works for 2 days and only once.");
+        week.Text.ShouldContain("This link works for 7 days and only once.");
         locked.Subject.ShouldBe("Your CSPS account is locked for 30 minutes");
         locked.Text.ShouldContain("we paused sign-in for 30 minutes.");
         locked.Text.ShouldNotContain("15 minutes");
