@@ -12,13 +12,16 @@ namespace Csps.Application.Users;
 /// created still show their name, but their address is scrambled (the real one is free again), every session ends, every open link of
 /// any kind stops working and sign-in is impossible. In one transaction the account is changed, the sessions and links are revoked, and
 /// the audit trail records <c>user.deleted</c> (and the revocation, when a session was open). The person is then forgotten by the session
-/// cache. A person who does not exist or was already deleted is a 404 that changes and records nothing. No version is sent: the delete
-/// applies to the latest state.
+/// cache. A person who does not exist or was already deleted is a 404 that changes and records nothing, the caller's own account and the
+/// last active Manager are refused (D-18, D-19), and the roster lock is taken first so two Managers deleting each other at once cannot
+/// both succeed. No version is sent: the delete applies to the latest state.
 /// </summary>
 public sealed class DeleteUserHandler(
     IUserAccounts accounts,
     ISessions sessions,
     ISessionCache sessionCache,
+    IManagerRosterLock rosterLock,
+    ManagerGuard guard,
     IAccountTokens tokens,
     IRequestContext requestContext,
     IAuditTrail audit,
@@ -34,17 +37,17 @@ public sealed class DeleteUserHandler(
     /// <summary>Deletes the person.</summary>
     /// <param name="id">The account to delete.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>Success, a 401 when the token names no user, a 404 when the person does not exist or was already deleted, or a 409 when two saves lost a race.</returns>
+    /// <returns>Success, a 401 when the token names no user, a 404 when the person does not exist or was already deleted, a 422 for the caller's own account or the last active Manager, or a 409 when two saves lost a race.</returns>
     public async Task<Result> HandleAsync(Guid id, CancellationToken cancellationToken)
     {
-        if (requestContext.UserId is null)
+        if (requestContext.UserId is not { } callerId)
         {
             return Result.Failure(AuthErrors.SessionEnded);
         }
 
         var outcome = await ConflictRetry
             .RunAsync(
-                () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, token), cancellationToken),
+                () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, callerId, token), cancellationToken),
                 Result.Failure<bool>(AuthErrors.SessionBusy))
             .ConfigureAwait(false);
         if (outcome.IsFailure)
@@ -57,12 +60,21 @@ public sealed class DeleteUserHandler(
         return Result.Success();
     }
 
-    private async Task<Result<bool>> AttemptAsync(Guid id, CancellationToken cancellationToken)
+    private async Task<Result<bool>> AttemptAsync(Guid id, Guid callerId, CancellationToken cancellationToken)
     {
+        // First, before anything is read: a second request waits here until the first has committed.
+        await rosterLock.LockActiveManagersAsync(cancellationToken).ConfigureAwait(false);
+
         var target = await accounts.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
         if (target is null || target.IsDeleted)
         {
             return Result.Failure<bool>(UserErrors.NotFound);
+        }
+
+        var allowed = await guard.CheckAsync(target, callerId, removesActiveManager: true, cancellationToken).ConfigureAwait(false);
+        if (allowed.IsFailure)
+        {
+            return Result.Failure<bool>(allowed.Error);
         }
 
         // Identity saves on the shared context, so it goes first; the revocations and the audit rows are added after it.

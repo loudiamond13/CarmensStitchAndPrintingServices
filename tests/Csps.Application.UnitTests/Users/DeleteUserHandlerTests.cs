@@ -11,9 +11,10 @@ using NSubstitute;
 namespace Csps.Application.UnitTests.Users;
 
 /// <summary>
-/// USER-03, USER-05, D-07..D-11: deleting scrambles the account at the current time, ends every session, revokes the open links of all
-/// three kinds, records <c>user.deleted</c> and the revocation once, and evicts the person from the session cache after the commit. A
-/// person who is missing or already deleted is a 404 that changes and records nothing.
+/// USER-03, USER-04, USER-05, D-07..D-11, D-18, D-19: deleting takes the roster lock before reading, refuses the caller's own account and
+/// the last active Manager, scrambles the account at the current time, ends every session, revokes the open links of all three kinds,
+/// records <c>user.deleted</c> and the revocation once, and evicts the person from the session cache after the commit. A person who is
+/// missing or already deleted is a 404 that changes and records nothing.
 /// </summary>
 public sealed class DeleteUserHandlerTests
 {
@@ -99,6 +100,65 @@ public sealed class DeleteUserHandlerTests
     }
 
     [Fact]
+    public async Task TheRosterLockIsTakenBeforeTheTargetIsRead()
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        Received.InOrder(() =>
+        {
+            harness.RosterLock.LockActiveManagersAsync(Arg.Any<CancellationToken>());
+            harness.Accounts.FindByIdAsync(TargetId, Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task TheCallersOwnAccountIsRefusedAndNothingChanges()
+    {
+        var harness = new Harness { Target = Account(CallerId) };
+
+        var result = await harness.Handler.HandleAsync(CallerId, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBeSameAs(UserErrors.OwnAccount);
+        await AssertNothingChangedAsync(harness);
+    }
+
+    [Fact]
+    public async Task TheLastActiveManagerIsRefusedAndNothingChanges()
+    {
+        var harness = new Harness { Target = Account(TargetId) with { Role = Roles.Manager } };
+        harness.Accounts.CountActiveManagersAsync(TargetId, Arg.Any<CancellationToken>()).Returns(0);
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBeSameAs(UserErrors.LastActiveManager);
+        await AssertNothingChangedAsync(harness);
+    }
+
+    [Fact]
+    public async Task AManagerIsDeletedWhileAnotherActiveManagerRemains()
+    {
+        var harness = new Harness { Target = Account(TargetId) with { Role = Roles.Manager } };
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).SoftDeleteAsync(TargetId, Start, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAdminIsDeletedWithoutCountingManagers()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.DidNotReceive().CountActiveManagersAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ADeleteWithoutASignedInUserReadsNothingAndChangesNothing()
     {
         var harness = new Harness(noCaller: true);
@@ -161,7 +221,9 @@ public sealed class DeleteUserHandlerTests
             Cache.Watch(Unit);
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new DeleteUserHandler(Accounts, Sessions, Cache, Tokens, request, Audit, Unit, new FakeTimeProvider(Start));
+            RosterLock = Substitute.For<IManagerRosterLock>();
+            Accounts.CountActiveManagersAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(1);
+            Handler = new DeleteUserHandler(Accounts, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), Tokens, request, Audit, Unit, new FakeTimeProvider(Start));
         }
 
         public UserAccount? Target { get; set; }
@@ -171,6 +233,8 @@ public sealed class DeleteUserHandlerTests
         public ISessions Sessions { get; }
 
         public IAccountTokens Tokens { get; }
+
+        public IManagerRosterLock RosterLock { get; }
 
         public EvictionProbe Cache { get; }
 
