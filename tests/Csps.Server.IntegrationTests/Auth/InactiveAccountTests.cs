@@ -144,15 +144,18 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    [Fact]
-    public async Task AnAccountThatIsDeactivatedLosesItsSessionAtTheNextRefresh()
+    [Theory]
+    [InlineData(DeactivatedBlock)]
+    [InlineData(ManagerLockedBlock)]
+    [InlineData(DeletedBlock)]
+    public async Task ABlockedAccountLosesItsSessionAtTheNextRefresh(string block)
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = AuthClient.CreateClient(factory);
         var staff = await AuthClient.CreateStaffAsync(factory);
         var device = await AuthClient.SignInFullyAsync(client, staff);
         (await AuthClient.SiteSettingsStatusAsync(client, device.AccessToken)).ShouldBe(HttpStatusCode.OK);
-        await AuthClient.DeactivateAsync(factory, staff.Id);
+        await ApplyBlockAsync(factory, staff.Id, block);
 
         using var response = await AuthClient.RefreshAsync(client);
 
@@ -167,6 +170,70 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
             entry => entry.TargetId == sessionKey && entry.Action == AuditActions.SessionRevoked, TestContext.Current.CancellationToken);
         audit.TargetType.ShouldBe("UserSession");
         audit.Detail.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(DeactivatedBlock)]
+    [InlineData(ManagerLockedBlock)]
+    [InlineData(DeletedBlock)]
+    public async Task ABlockedAccountCannotFinishTheCodeStep(string block)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var code = await AuthClient.ReadCodeAsync(client, staff.Email);
+        await ApplyBlockAsync(factory, staff.Id, block);
+
+        using var response = await AuthClient.VerifyAsync(client, code);
+
+        await ShouldBeTicketExpiredAsync(response);
+        await ShouldHaveNoSessionAndOnlyTheSignInEmailAsync(staff);
+    }
+
+    [Theory]
+    [InlineData(DeactivatedBlock)]
+    [InlineData(ManagerLockedBlock)]
+    [InlineData(DeletedBlock)]
+    public async Task ABlockedAccountCannotAskForAnotherCode(string block)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email)).Count.ShouldBe(1);
+        await ApplyBlockAsync(factory, staff.Id, block);
+
+        using var response = await AuthClient.ResendAsync(client);
+
+        await ShouldBeTicketExpiredAsync(response);
+        await ShouldHaveNoSessionAndOnlyTheSignInEmailAsync(staff);
+    }
+
+    [Theory]
+    [InlineData(DeactivatedBlock)]
+    [InlineData(ManagerLockedBlock)]
+    [InlineData(DeletedBlock)]
+    public async Task ABlockedAccountCannotCheckOrSetANewPassword(string block)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffWithPasswordAsync(factory, "Tela-Sukat-7381", PasswordChangeReason.Temporary);
+        using var verify = await AuthClient.SignInThroughCodeAsync(client, staff);
+        verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await ApplyBlockAsync(factory, staff.Id, block);
+
+        using var check = await AuthClient.CheckSetNewPasswordAsync(client);
+        using var set = await AuthClient.SetNewPasswordAsync(client, "Mabuhay#Tahi2026");
+
+        await ShouldBeTicketExpiredAsync(check);
+        await ShouldBeTicketExpiredAsync(set);
+        await using var context = database.CreateContext();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking().AnyAsync(
+            a => a.Action == AuditActions.PasswordChanged && a.TargetId == staff.Id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
     [Fact]
@@ -235,6 +302,33 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
         using var signIn = await AuthClient.SignInAsync(client, staff.Email, "Tela-Sukat-7381");
         signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private const string DeactivatedBlock = "deactivated";
+    private const string ManagerLockedBlock = "manager-locked";
+    private const string DeletedBlock = "deleted";
+
+    // Applies one of the three blocks that IsBlocked covers.
+    private static Task ApplyBlockAsync(CspsApiFactory factory, Guid id, string block) => block switch
+    {
+        ManagerLockedBlock => AccountStateFixtures.ManagerLockAsync(factory, id),
+        DeletedBlock => AccountStateFixtures.MarkDeletedAsync(factory, id),
+        _ => AuthClient.DeactivateAsync(factory, id),
+    };
+
+    private static async Task ShouldBeTicketExpiredAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("auth.ticket-expired");
+        response.Headers.Contains("Set-Cookie").ShouldBeFalse();
+    }
+
+    // Nothing was issued: no session, and the only email is the sign-in code sent before the block.
+    private async Task ShouldHaveNoSessionAndOnlyTheSignInEmailAsync(TestStaff staff)
+    {
+        await using var context = database.CreateContext();
+        (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.EmailOutbox.AsNoTracking().CountAsync(message => message.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     // Builds the account for a reason and returns the credentials to try.
