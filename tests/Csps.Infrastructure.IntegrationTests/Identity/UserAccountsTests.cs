@@ -417,6 +417,33 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
     }
 
     [Fact]
+    public async Task TheManagerLockSetsAndClearsOnlyOnARealChangeAndLeavesTheFailedPasswordLockoutAlone()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var id = await accounts.CreateAsync(NewAccount(Roles.Admin, Password), TestContext.Current.CancellationToken);
+        await LockByFailuresAsync(accounts, id);
+        var lockedAt = new DateTimeOffset(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
+
+        (await accounts.SetManagerLockAsync(id, null, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await accounts.SetManagerLockAsync(id, lockedAt, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await accounts.SetManagerLockAsync(id, lockedAt.AddDays(1), TestContext.Current.CancellationToken)).ShouldBeFalse();
+
+        var locked = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!;
+        locked.IsManagerLocked.ShouldBeTrue();
+        locked.IsBlocked.ShouldBeTrue();
+        await using (var context = database.CreateContext())
+        {
+            (await context.Users.AsNoTracking().SingleAsync(user => user.Id == id, TestContext.Current.CancellationToken)).ManagerLockedAtUtc.ShouldBe(lockedAt);
+        }
+
+        (await accounts.SetManagerLockAsync(id, null, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.IsManagerLocked.ShouldBeFalse();
+        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task ChangingAnUnknownAccountFails()
     {
         await using var provider = BuildProvider(database.ConnectionString);

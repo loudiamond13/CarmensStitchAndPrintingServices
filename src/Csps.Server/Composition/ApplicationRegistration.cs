@@ -48,6 +48,8 @@ public static class ApplicationRegistration
         services.AddScoped<ManagerGuard>();
         services.AddScoped<DeactivateUserHandler>();
         services.AddScoped<ActivateUserHandler>();
+        services.AddScoped<LockUserHandler>();
+        services.AddScoped<UnlockUserHandler>();
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<CancelUserEmailChangeHandler>();
         return services;

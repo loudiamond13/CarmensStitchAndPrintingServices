@@ -16,6 +16,8 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The add-a-person handler.</param>
 /// <param name="deactivate">The deactivate handler.</param>
 /// <param name="activate">The reactivate handler.</param>
+/// <param name="lockUser">The lock handler.</param>
+/// <param name="unlockUser">The unlock handler.</param>
 /// <param name="update">The edit-a-person handler.</param>
 /// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
 [ApiController]
@@ -29,6 +31,8 @@ public sealed class UsersController(
     CreateUserHandler create,
     DeactivateUserHandler deactivate,
     ActivateUserHandler activate,
+    LockUserHandler lockUser,
+    UnlockUserHandler unlockUser,
     UpdateUserHandler update,
     CancelUserEmailChangeHandler cancelEmailChange) : ControllerBase
 {
@@ -187,6 +191,48 @@ public sealed class UsersController(
     public async Task<IResult> Activate(Guid id, CancellationToken cancellationToken)
     {
         var result = await activate.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so
+    /// their next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute
+    /// failed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest
+    /// state.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/lock")]
+    [EndpointName("LockUser")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Lock(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await lockUser.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating
+    /// it on a person who is not locked is a 204 that changes nothing. It takes no version.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/unlock")]
+    [EndpointName("UnlockUser")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Unlock(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await unlockUser.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

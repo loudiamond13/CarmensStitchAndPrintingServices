@@ -263,6 +263,34 @@ internal sealed class UserAccounts(
         }
     }
 
+    public async Task<bool> SetManagerLockAsync(Guid id, DateTimeOffset? lockedAt, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+            if ((user.ManagerLockedAtUtc is not null) == lockedAt.HasValue)
+            {
+                return false;
+            }
+
+            user.ManagerLockedAtUtc = lockedAt;
+            user.EditVersion = Guid.NewGuid();
+            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                return true;
+            }
+
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
+            {
+                Require(result, "Changing the Manager lock");
+            }
+
+            // The row changed under us (a failed-password count, say): read the fresh row and decide again.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public async Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(firstName);

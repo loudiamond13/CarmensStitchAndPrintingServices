@@ -3221,6 +3221,144 @@
           "Users"
         ]
       }
+    },
+    "/api/v1/users/{id}/lock": {
+      "post": {
+        "operationId": "LockUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so\r\ntheir next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute\r\nfailed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest\r\nstate.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/unlock": {
+      "post": {
+        "operationId": "UnlockUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating\r\nit on a person who is not locked is a 204 that changes nothing. It takes no version.",
+        "tags": [
+          "Users"
+        ]
+      }
     }
   },
   "servers": [

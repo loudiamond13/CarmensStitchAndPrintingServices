@@ -78,6 +78,12 @@ public static class AuditActions
     /// <summary>A Manager reactivated a user; no detail (D-40).</summary>
     public const string UserActivated = "user.activated";
 
+    /// <summary>A Manager locked a user until a Manager unlocks them; no detail (D-16, D-40).</summary>
+    public const string UserLocked = "user.locked";
+
+    /// <summary>A Manager lifted a user's Manager lock; no detail (D-16, D-40).</summary>
+    public const string UserUnlocked = "user.unlocked";
+
     /// <summary>A Manager changed another person's first or last name or sign-in email; the detail lists the changed fields, never the values (D-40).</summary>
     public const string UserDetailsChanged = "user.details-changed";
 
@@ -139,6 +145,8 @@ public static class AuditActions
         UserCreatedTemporary,
         UserDeactivated,
         UserActivated,
+        UserLocked,
+        UserUnlocked,
         UserDetailsChanged,
         UserRoleChanged,
         UserEmailChangeStarted,

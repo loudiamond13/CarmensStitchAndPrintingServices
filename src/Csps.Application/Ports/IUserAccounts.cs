@@ -140,6 +140,17 @@ public interface IUserAccounts
     Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Sets or clears the Manager lock on the latest state, with no version to send (D-16, D-21). The lock has no timer and is
+    /// separate from the failed-password lockout, which this never touches. A change rotates the edit version, so a form opened
+    /// earlier is stale, and counts as a staff edit for SEC-08.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="lockedAt">When the lock starts; null clears the lock.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the lock state changed; false when it already was that way, and nothing was written.</returns>
+    Task<bool> SetManagerLockAsync(Guid id, DateTimeOffset? lockedAt, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Changes the first and last name when <paramref name="expectedVersion"/> is the stored edit version, and rotates
     /// that version (SEC-07). Identity bookkeeping never rotates it. Names that already match change nothing.
     /// </summary>
