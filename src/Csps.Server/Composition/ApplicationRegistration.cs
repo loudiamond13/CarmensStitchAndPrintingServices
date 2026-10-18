@@ -1,5 +1,6 @@
 using Csps.Application.Auth;
 using Csps.Application.Content;
+using Csps.Application.Profile;
 using Csps.Application.Users;
 
 namespace Csps.Server.Composition;
@@ -32,6 +33,8 @@ public static class ApplicationRegistration
         services.AddScoped<CheckInviteHandler>();
         services.AddScoped<AcceptInviteHandler>();
         services.AddScoped<BootstrapManagerHandler>();
+        services.AddScoped<GetProfileHandler>();
+        services.AddScoped<UpdateProfileNameHandler>();
         return services;
     }
 }

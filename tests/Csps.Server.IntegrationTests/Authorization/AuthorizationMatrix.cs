@@ -101,6 +101,10 @@ public static class AuthorizationMatrix
         // A random id is no session of the caller, so staff meet the same 404 whatever their role (CWE-639).
         new("DELETE", "/api/v1/sessions/{id:guid}", "/api/v1/sessions/6f1d3c52-8a0e-4b7d-9c41-2e5a7b9d0f13", Anonymous: 401, Admin: 404, Manager: 404),
 
+        // The caller's own profile (PROF-01): Staff only, no id in the route. A PUT with no body meets the same 400 field errors.
+        new("GET", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 200, Manager: 200),
+        new("PUT", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 400, Manager: 400),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),

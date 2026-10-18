@@ -118,6 +118,60 @@
         },
         "type": "object"
       },
+      "ProfileResponse": {
+        "description": "The signed-in staff member's own profile (PROF-01).",
+        "properties": {
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "memberSince": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "pendingEmail": {
+            "description": "The new email awaiting confirmation; null when no change is pending.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The edit version to send back with the next save (SEC-07).",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "pendingEmail",
+          "memberSince",
+          "version"
+        ],
+        "type": "object"
+      },
       "ResendWaitResponse": {
         "description": "What sign-in and a code resend both answer: how long to wait before asking for a new code.",
         "properties": {
@@ -445,6 +499,38 @@
           "addressLine",
           "facebookUrl",
           "rowVersion"
+        ],
+        "type": "object"
+      },
+      "UpdateProfileNameRequest": {
+        "description": "The profile name form: the names and the edit version the form was opened with (SEC-07).",
+        "properties": {
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version as a GUID in `D` form.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "version"
         ],
         "type": "object"
       },
@@ -1396,6 +1482,127 @@
         ]
       }
     },
+    "/api/v1/profile": {
+      "get": {
+        "operationId": "GetProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the caller's profile, including the edit version the next save must send.",
+        "tags": [
+          "Profile"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateProfileName",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Changes the caller's first and last name. The version must be the one the form was opened with.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -1539,6 +1746,9 @@
     },
     {
       "name": "Password"
+    },
+    {
+      "name": "Profile"
     },
     {
       "name": "Sessions"

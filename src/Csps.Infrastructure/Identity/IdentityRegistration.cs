@@ -57,6 +57,7 @@ public static class IdentityRegistration
         // UserAccounts stamps CreatedAtUtc; the host registers the same instance first.
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IUserAccounts, UserAccounts>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
 
         // The code key is a secret (AUTH-03): the host stops at start when it is missing or too short.
         services.AddOptions<AuthSecretsOptions>()

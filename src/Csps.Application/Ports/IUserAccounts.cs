@@ -118,7 +118,40 @@ public interface IUserAccounts
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>True when at least one active Manager exists.</returns>
     Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Changes the first and last name when <paramref name="expectedVersion"/> is the stored edit version, and rotates
+    /// that version (SEC-07). Identity bookkeeping never rotates it. Names that already match change nothing.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="firstName">The new given name, already trimmed.</param>
+    /// <param name="lastName">The new family name, already trimmed.</param>
+    /// <param name="expectedVersion">The edit version the form was opened with.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>Whether it saved, changed nothing, lost to another edit, or found no account, and the version now stored.</returns>
+    Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
 }
+
+/// <summary>What a versioned edit did.</summary>
+public enum EditOutcome
+{
+    /// <summary>The change was saved and the version rotated.</summary>
+    Saved = 0,
+
+    /// <summary>The values already matched, so nothing was written and the version stayed.</summary>
+    Unchanged = 1,
+
+    /// <summary>The version was not the stored one, so nothing was written.</summary>
+    Stale = 2,
+
+    /// <summary>No such account.</summary>
+    NotFound = 3,
+}
+
+/// <summary>The result of a versioned edit.</summary>
+/// <param name="Outcome">What happened.</param>
+/// <param name="Version">The edit version now stored; empty when the account was not found.</param>
+public readonly record struct EditResult(EditOutcome Outcome, Guid Version);
 
 /// <summary>The result of checking a password.</summary>
 public enum PasswordCheck

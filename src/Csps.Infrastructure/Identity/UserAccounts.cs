@@ -202,6 +202,52 @@ internal sealed class UserAccounts(
         return managers.Any(static manager => manager.IsActive);
     }
 
+    public async Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(firstName);
+        ArgumentNullException.ThrowIfNull(lastName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
+        if (user is null)
+        {
+            return new EditResult(EditOutcome.NotFound, Guid.Empty);
+        }
+
+        for (var attempt = 1; ; attempt++)
+        {
+            if (user.EditVersion != expectedVersion)
+            {
+                return new EditResult(EditOutcome.Stale, user.EditVersion);
+            }
+
+            if (string.Equals(user.FirstName, firstName, StringComparison.Ordinal) && string.Equals(user.LastName, lastName, StringComparison.Ordinal))
+            {
+                return new EditResult(EditOutcome.Unchanged, user.EditVersion);
+            }
+
+            // The UPDATE's WHERE carries the version the form was opened with, so a racing save changes no row.
+            context.Entry(user).Property(static account => account.EditVersion).OriginalValue = expectedVersion;
+            user.FirstName = firstName;
+            user.LastName = lastName;
+            user.EditVersion = Guid.NewGuid();
+
+            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                return new EditResult(EditOutcome.Saved, user.EditVersion);
+            }
+
+            if (attempt == CountAttempts || !result.Errors.Any(static error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+            {
+                Require(result, "Changing the name");
+            }
+
+            // The row changed under us: bookkeeping (the stamp) retries on the fresh row, a staff edit is stale at the top of the loop.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private static void Require(IdentityResult result, string action)

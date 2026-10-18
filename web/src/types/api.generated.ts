@@ -225,6 +225,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads the caller's profile, including the edit version the next save must send. */
+        get: operations["GetProfile"];
+        /** Changes the caller's first and last name. The version must be the one the form was opened with. */
+        put: operations["UpdateProfileName"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -313,6 +331,34 @@ export interface components {
             status?: null | number | string;
             title?: null | string;
             type?: null | string;
+        };
+        /** @description The signed-in staff member's own profile (PROF-01). */
+        ProfileResponse: {
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description Family name. */
+            lastName: string;
+            /**
+             * Format: date-time
+             * @description When the account was created, in UTC.
+             */
+            memberSince: string;
+            /** @description The new email awaiting confirmation; null when no change is pending. */
+            pendingEmail: null | string;
+            /** @description The single role, `Admin` or `Manager`. */
+            role: string;
+            /**
+             * Format: uuid
+             * @description The edit version to send back with the next save (SEC-07).
+             */
+            version: string;
         };
         /** @description What sign-in and a code resend both answer: how long to wait before asking for a new code. */
         ResendWaitResponse: {
@@ -452,6 +498,15 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
+        UpdateProfileNameRequest: {
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
         };
         /** @description The code step form: the six digits from the email (AUTH-02). */
         VerifyCodeRequest: {
@@ -1061,6 +1116,89 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProfileName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateProfileNameRequest"];
+                "application/json": null | components["schemas"]["UpdateProfileNameRequest"];
+                "text/json": null | components["schemas"]["UpdateProfileNameRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
