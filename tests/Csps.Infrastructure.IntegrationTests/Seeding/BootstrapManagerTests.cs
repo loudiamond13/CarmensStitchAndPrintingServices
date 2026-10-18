@@ -22,6 +22,10 @@ public sealed class BootstrapManagerTests
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true", "CSPS_Dev")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=csps_e2e;Integrated Security=true", "csps_e2e")]
     [InlineData("Server=127.0.0.1,32768;Database=CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e;User ID=sa;Password=NotARealSecret1", "CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e")]
+    [InlineData("Server=tcp:db.example.com,1433;Database=Other_Db;User ID=app;Password=NotARealSecret1", "Other_Db")]
+    [InlineData(@"Server=np:\\db.example.com\pipe\sql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
+    [InlineData("Server=tcp:[::1],1433;Database=CSPS_Dev;User ID=sa;Password=NotARealSecret1", "CSPS_Dev")]
+    [InlineData(@"Server=np:\\.\pipe\LOCALDB#ABC123\tsql\query;Database=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
     public void GuardAllowsAConfirmedDatabase(string connectionString, string database)
     {
         var check = BootstrapTargetGuard.Check(connectionString, database);
@@ -49,6 +53,10 @@ public sealed class BootstrapManagerTests
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=SomethingElse;Integrated Security=true", "SomethingElse")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev2;Integrated Security=true", "CSPS_Dev2")]
     [InlineData("Server=localhost,1433;Database=Anything;User ID=sa;Password=NotARealSecret1", "Anything")]
+    [InlineData("Server=tcp:[::1],1433;Database=Other_Db;User ID=sa;Password=NotARealSecret1", "Other_Db")]
+    [InlineData("Server=[::1],1433;Database=Other_Db;User ID=sa;Password=NotARealSecret1", "Other_Db")]
+    [InlineData(@"Server=np:\\.\pipe\LOCALDB#ABC123\tsql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
+    [InlineData(@"Server=np:\\localhost\pipe\sql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
     public void GuardAllowsOnlyTheCspsDatabasesOnThisMachine(string connectionString, string database)
     {
         var check = BootstrapTargetGuard.Check(connectionString, database);
