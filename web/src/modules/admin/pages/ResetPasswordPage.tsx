@@ -33,22 +33,11 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { passwordService } from '@/modules/admin/services/passwordService';
 import { clearSession, setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
+import { removeFragment, tokenFromHash } from '@/utils/urlFragment';
 
 const SIGN_IN_PATH = '/admin/login';
 const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
-
-/** The token in a fragment like `#token=abc`, or null when there is none. */
-export function tokenFromHash(hash: string): string | null {
-  const token = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('token');
-  return token === null || token === '' ? null : token;
-}
-
-/** Drops the fragment from the address bar without a navigation, keeping the router's history state. */
-export function removeFragment(): void {
-  const { pathname, search } = window.location;
-  window.history.replaceState(window.history.state, '', `${pathname}${search}`);
-}
 
 interface ResetFormProps {
   token: string;

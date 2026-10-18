@@ -21,10 +21,10 @@ import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authS
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
 import { CheckingCard, InviteFormCard, InviteInvalidCard, type AuthBanner } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { removeFragment, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
 import { inviteService, type InviteLinkResponse } from '@/modules/admin/services/inviteService';
 import { setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
+import { removeFragment, tokenFromHash } from '@/utils/urlFragment';
 
 const SIGN_IN_PATH = '/admin/login';
 /** The code of the 422 the server sends when the breach list cannot be reached: the invite is not accepted (D-14). */

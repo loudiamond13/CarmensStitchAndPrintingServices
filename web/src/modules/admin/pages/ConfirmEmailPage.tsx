@@ -16,10 +16,10 @@ import { useSubmission } from '@/lib/forms/useSubmission';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
 import { CheckingCard } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { removeFragment, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
 import { PROFILE_COPY } from '@/modules/admin/profileCopy';
 import { profileService } from '@/modules/admin/services/profileService';
 import { describeHttpError } from '@/utils/describeHttpError';
+import { removeFragment, tokenFromHash } from '@/utils/urlFragment';
 
 const SIGN_IN_PATH = '/admin/login';
 /** The code of the 409 the server sends when another account took the new address first. */
