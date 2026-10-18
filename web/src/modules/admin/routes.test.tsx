@@ -1,6 +1,6 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -146,13 +146,58 @@ describe('Manager-only routes (USER-08)', () => {
     },
   );
 
-  it.each(['/admin/users', '/admin/audit-log'])('a Manager who opens %s stays and sees the page', async (path) => {
+  it('a Manager who opens /admin/audit-log stays and sees the page', async () => {
     answerRefresh(sessionResponse());
-    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/audit-log'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
-    expect(router.state.location.pathname).toBe(path);
+    expect(router.state.location.pathname).toBe('/admin/audit-log');
+  });
+
+  it('a Manager who opens /admin/users stays and sees the Users roster (USER-01)', async () => {
+    answerRefresh(sessionResponse());
+    server.use(
+      http.get('*/api/v1/users', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+              firstName: 'Carmen',
+              lastName: 'Reyes',
+              email: 'carmen@example.ph',
+              role: 'Manager',
+              status: 'active',
+              inviteState: 'none',
+              createdAt: '2026-10-17T01:00:00Z',
+            },
+          ],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+        }),
+      ),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Users' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Users' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/users');
+    // The shell around it: Users is the one current sidebar item (its Manager tag hidden, D-BL-02) and no tab is current.
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = sidebar?.querySelectorAll('[aria-current="page"]') ?? [];
+    expect([...current].map((link) => link.textContent.replace('Manager', ''))).toEqual(['Users']);
+    const usersLink = [...(sidebar?.querySelectorAll('a') ?? [])].find((link) => link.textContent.startsWith('Users'));
+    const managerTag = [...(usersLink?.querySelectorAll('*') ?? [])].find(
+      (element) => element.childElementCount === 0 && element.textContent === 'Manager',
+    );
+    expect(managerTag?.className).toContain('group-aria-[current=page]/nav:hidden');
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Users · CSPS Admin');
+    });
   });
 
   it.each(['/admin/users', '/admin/audit-log'])(
@@ -232,7 +277,7 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
 
   it('the production /admin section routes are guarded and show the page-not-found screen inside the shell', async () => {
     answerRefresh(sessionResponse());
-    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();

@@ -144,27 +144,11 @@ function answerSignOut(...answers: SignOutAnswer[]): () => number {
   return () => calls;
 }
 
-describe('AdminLayout tracer (WEB-05, D-20)', () => {
-  it('on /admin/users shows the admin shell with Users current, its preview page and the document title', async () => {
-    await renderAt('/admin/users');
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Users');
-    expect(sidebarLink('Users')).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }));
-    expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Component Showcase' })).toHaveAttribute('href', '/dev/components');
-    await waitFor(() => {
-      expect(document.title).toBe('Users · CSPS Admin');
-    });
-  });
-});
-
 describe('AdminLayout sections (D-20, A11Y-04)', () => {
   it.each([
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
     ['/admin/expenses', 'Company Expenses'],
-    ['/admin/users', 'Users'],
     ['/admin/orders/', 'Orders'],
   ])('%s shows the h1 "%s", makes it the only current sidebar item and titles the document', async (path, label) => {
     await renderAt(path);
@@ -196,12 +180,6 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(screen.getAllByText('Carmen Reyes').length).toBeGreaterThan(0);
   });
 
-  it('hides the Manager tag on the current Users row (D-BL-02)', async () => {
-    await renderAt('/admin/users');
-    const tag = within(sidebarLink('Users')).getByText('Manager');
-    expect(tag.classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
-  });
-
   it('follows a sidebar navigation: choosing Orders makes Orders current and retitles the page', async () => {
     const { router } = await renderAt('/admin');
     await userEvent.click(sidebarLink('Orders'));
@@ -217,7 +195,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
 
 describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('has one main#main, focusable by script only, and labels the sidebar navigation "Admin"', async () => {
-    await renderAt('/admin/users');
+    await renderAt('/admin/orders');
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
     expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
@@ -226,20 +204,20 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   });
 
   it('puts the skip link first in the keyboard order; it moves focus to main and leaves the URL alone', async () => {
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
     const user = userEvent.setup();
 
     await user.tab();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(screen.getByRole('main')).toHaveFocus();
-    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(router.state.location.pathname).toBe('/admin/orders');
     expect(router.state.location.hash).toBe('');
   });
 
   it('Logout signs out on the server, leaves the shell for /admin/login and shows the signed-out notice on the sign-in page', async () => {
     const calls = answerSignOut();
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
@@ -266,14 +244,14 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     async (_name, answer) => {
       acceptSession(sessionResponse());
       const calls = answerSignOut(answer);
-      const { router } = await renderAt('/admin/users');
+      const { router } = await renderAt('/admin/orders');
 
       await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
       expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
       expect(screen.getByText(ADMIN_COPY.signOutFailed.message)).toBeInTheDocument();
       expect(calls()).toBe(1);
-      expect(router.state.location.pathname).toBe('/admin/users');
+      expect(router.state.location.pathname).toBe('/admin/orders');
       expect(screen.queryByText("You've signed out.")).toBeNull();
       expect(getSessionUser()).not.toBeNull();
     },
@@ -282,20 +260,20 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('a 409 twice makes two calls and then shows the same failure state', async () => {
     acceptSession(sessionResponse());
     const calls = answerSignOut(409);
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
     expect(calls()).toBe(2);
-    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(router.state.location.pathname).toBe('/admin/orders');
     expect(getSessionUser()).not.toBeNull();
   });
 
   it('a second failed press replaces the toast instead of stacking another', async () => {
     acceptSession(sessionResponse());
     const calls = answerSignOut(500);
-    await renderAt('/admin/users');
+    await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
@@ -312,7 +290,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('pressing Logout again after a failure retries and leaves for /admin/login', async () => {
     acceptSession(sessionResponse());
     answerSignOut(500, 204);
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
@@ -329,7 +307,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('has no axe violations with the sign-out failure toast showing', async () => {
     acceptSession(sessionResponse());
     answerSignOut(500);
-    const { container } = await renderAt('/admin/users');
+    const { container } = await renderAt('/admin/orders');
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     await screen.findByText(ADMIN_COPY.signOutFailed.title);
 
@@ -337,7 +315,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = await renderAt('/admin/users');
+    const { container } = await renderAt('/admin/orders');
     await expectNoAxeViolations(container);
   });
 });
@@ -488,11 +466,6 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
     expect(current[0]?.className.split(' ')).toEqual(
       expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
     );
-  });
-
-  it('marks no tab current on /admin/users, which has no tab', async () => {
-    await renderAt('/admin/users');
-    expect(tabBar().querySelectorAll('[aria-current="page"]')).toHaveLength(0);
   });
 
   it('shows only on phones: hidden by default, a 4-column grid in the phone container', async () => {
@@ -1029,7 +1002,7 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
       http.get('*/api/v1/site-settings', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
       http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
     );
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await expect(siteSettingsService.get()).rejects.toMatchObject({ status: 401 });
 

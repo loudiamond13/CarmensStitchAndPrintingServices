@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
@@ -392,6 +393,39 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(tokens(remove.className)).toEqual(expect.arrayContaining(['hover:bg-danger-soft', 'hover:text-danger']));
     fireEvent.click(remove);
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('RowAction with `to`: a router link in the same icon-button look, named for its row, with no button', () => {
+    render(
+      <MemoryRouter>
+        <RowActions>
+          <RowAction to="/admin/profile" icon="pencil" label="Edit your details in My Profile" />
+          <RowAction icon="trash-2" label="Delete Paolo Garcia" danger onClick={() => undefined} />
+        </RowActions>
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Edit your details in My Profile' });
+    expect(link).toHaveAttribute('href', '/admin/profile');
+    expect(tokens(link.className)).toEqual(expect.arrayContaining(['size-9', 'hover:bg-surface-2', 'hover:text-ink']));
+    expect(link.querySelector('svg')).not.toBeNull();
+    // The button form is unchanged beside it.
+    const remove = screen.getByRole('button', { name: 'Delete Paolo Garcia' });
+    expect(tokens(remove.className)).toEqual(expect.arrayContaining(['hover:bg-danger-soft', 'hover:text-danger']));
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('RowAction with `to`: carries the title and hands its anchor to a ref', () => {
+    const ref = createRef<HTMLAnchorElement>();
+    render(
+      <MemoryRouter>
+        <RowActions>
+          <RowAction to="/admin/profile" icon="pencil" label="Edit mine" title="Edit mine" ref={ref} />
+        </RowActions>
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Edit mine' });
+    expect(link).toHaveAttribute('title', 'Edit mine');
+    expect(ref.current).toBe(link);
   });
 
   it('RowAction: hands its button element to a ref, so a screen can move focus to it', () => {

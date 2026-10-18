@@ -67,7 +67,7 @@ export function RowActions({ children }: RowActionsProps) {
   return <span className={rowActionsClasses}>{children}</span>;
 }
 
-export interface RowActionProps {
+interface RowActionCommon {
   icon: IconName;
   /** The accessible name, naming the row: "Edit Carmen Reyes". */
   label: string;
@@ -75,13 +75,36 @@ export interface RowActionProps {
   title?: string | undefined;
   /** The `.is-danger` hover (Delete). */
   danger?: boolean | undefined;
+  /** An in-app path: the action is a router link in the same look, not a button. */
+  to?: string | undefined;
+}
+
+export interface RowActionButtonProps extends RowActionCommon {
+  to?: undefined;
   onClick?: (() => void) | undefined;
   /** The button element, for a screen that moves focus to it after a row changes. */
   ref?: Ref<HTMLButtonElement> | undefined;
 }
 
-export function RowAction({ icon, label, title, danger = false, onClick, ref }: RowActionProps) {
+export interface RowActionLinkProps extends RowActionCommon {
+  to: string;
+  onClick?: undefined;
+  /** The anchor element. */
+  ref?: Ref<HTMLAnchorElement> | undefined;
+}
+
+export type RowActionProps = RowActionButtonProps | RowActionLinkProps;
+
+export function RowAction({ icon, label, title, danger = false, to, onClick, ref }: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
+  // RED stub: the link form is not built yet and renders as a plain button.
+  if (to !== undefined) {
+    return (
+      <button type="button" aria-label={label} title={title} className={rowActionClasses[tone]}>
+        <Icon name={icon} size={18} />
+      </button>
+    );
+  }
   return (
     <button
       type="button"
