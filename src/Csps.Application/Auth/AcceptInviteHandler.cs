@@ -55,7 +55,7 @@ public sealed class AcceptInviteHandler(
     // The invite is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
     private async Task<Outcome> ProcessAsync(AcceptInviteRequest request, CancellationToken cancellationToken)
     {
-        var invite = await InviteLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        var invite = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.Invitation, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
         if (invite is null)
         {
             return new Outcome(Result.Failure(AuthErrors.InviteInvalid), null);
@@ -85,7 +85,7 @@ public sealed class AcceptInviteHandler(
             async token =>
             {
                 var now = time.GetUtcNow();
-                var invite = await InviteLinkLookup.FindAsync(request.Token, now, tokens, accounts, token).ConfigureAwait(false);
+                var invite = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.Invitation, now, tokens, accounts, token).ConfigureAwait(false);
                 if (invite is null)
                 {
                     return new Outcome(Result.Failure(AuthErrors.InviteInvalid), null);

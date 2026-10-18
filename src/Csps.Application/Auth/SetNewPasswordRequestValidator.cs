@@ -8,13 +8,10 @@ namespace Csps.Application.Auth;
 /// </summary>
 public sealed class SetNewPasswordRequestValidator : AbstractValidator<SetNewPasswordRequest>
 {
-    /// <summary>Shown when the new password is empty.</summary>
-    public const string NewPasswordRequired = "Enter a new password.";
-
     /// <summary>Creates the validator.</summary>
     public SetNewPasswordRequestValidator()
     {
         RuleFor(request => request.NewPassword)
-            .Must(static password => !string.IsNullOrEmpty(password)).WithMessage(NewPasswordRequired);
+            .Must(static password => !string.IsNullOrEmpty(password)).WithMessage(PasswordRules.NewPasswordRequired);
     }
 }

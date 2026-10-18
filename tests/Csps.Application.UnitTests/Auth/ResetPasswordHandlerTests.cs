@@ -156,7 +156,7 @@ public sealed class ResetPasswordHandlerTests
         var result = await harness.Handler.HandleAsync(new ResetPasswordRequest(Secret, string.Empty), TestContext.Current.CancellationToken);
 
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
-        result.Error.FieldErrors.ShouldNotBeNull()["newPassword"].ShouldBe([ResetPasswordRequestValidator.NewPasswordRequired]);
+        result.Error.FieldErrors.ShouldNotBeNull()["newPassword"].ShouldBe([PasswordRules.NewPasswordRequired]);
         await harness.Tokens.DidNotReceive().FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>());
     }
 

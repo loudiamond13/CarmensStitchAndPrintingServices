@@ -22,7 +22,7 @@ public sealed class CheckEmailChangeHandler(IAccountTokens tokens, IUserAccounts
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!ResetLinkLookup.IsWellFormed(request.Token))
+        if (!AccountLinkLookup.IsWellFormed(request.Token))
         {
             return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Invalid);
         }

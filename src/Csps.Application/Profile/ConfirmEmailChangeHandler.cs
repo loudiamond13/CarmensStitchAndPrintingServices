@@ -44,7 +44,7 @@ public sealed class ConfirmEmailChangeHandler(
     private async Task<Result<EmailChangeResponse>> ConfirmAsync(string? secret, CancellationToken cancellationToken)
     {
         var now = time.GetUtcNow();
-        if (!ResetLinkLookup.IsWellFormed(secret))
+        if (!AccountLinkLookup.IsWellFormed(secret))
         {
             return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Invalid);
         }

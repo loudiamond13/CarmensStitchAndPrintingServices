@@ -61,7 +61,7 @@ public sealed class ResetPasswordHandler(
     // The link is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
     private async Task<Outcome> ProcessAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
-        var link = await ResetLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        var link = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.PasswordReset, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
         if (link is null)
         {
             return new Outcome(Result.Failure(AuthErrors.LinkInvalid), null);
@@ -87,7 +87,7 @@ public sealed class ResetPasswordHandler(
             async token =>
             {
                 var now = time.GetUtcNow();
-                var link = await ResetLinkLookup.FindAsync(request.Token, now, tokens, accounts, token).ConfigureAwait(false);
+                var link = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.PasswordReset, now, tokens, accounts, token).ConfigureAwait(false);
                 if (link is null)
                 {
                     return new Outcome(Result.Failure(AuthErrors.LinkInvalid), null);

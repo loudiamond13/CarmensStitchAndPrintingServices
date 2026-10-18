@@ -120,7 +120,7 @@ public sealed class AcceptInviteHandlerTests
 
         var result = await harness.Handler.HandleAsync(new AcceptInviteRequest(Secret, string.Empty), TestContext.Current.CancellationToken);
 
-        AssertFieldError(result, AcceptInviteRequestValidator.NewPasswordRequired);
+        AssertFieldError(result, PasswordRules.NewPasswordRequired);
         await harness.Tokens.DidNotReceive().FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>());
     }
 
