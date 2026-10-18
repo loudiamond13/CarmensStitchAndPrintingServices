@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-38-PLAN.md
-last_updated: "2026-10-18T05:08:44.074Z"
+stopped_at: Completed 05-12-PLAN.md
+last_updated: "2026-10-18T05:35:23.516Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 940598307531ed6c454c38ec8f53f087c0024879
+state_head: 3bf9d11e127ea7604a6e39fda99de3267cb6a525
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 127
+  completed_plans: 128
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T22:24:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 14 of 43
+Plan: 15 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -183,6 +183,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P11 | 15 min | 2 tasks | 11 files |
 | Phase 05 P13 | 82 min | 3 tasks | 29 files |
 | Phase 05 P38 | 10 min | 2 tasks | 9 files |
+| Phase 05 P12 | 26 min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -466,6 +467,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-13: the profile dev preview route was removed from devRoutes because it shadowed the real page in the e2e bundle; users and audit-log previews need the same treatment in 05-20 and 05-33, and owner-review.mjs and design-side-by-side.mjs need a signed-in capture in 05-37
 - [Phase 05]: 05-13: the admin theme is one layout state (useThemeState) shared by the top bar and pages through the Outlet context; UrlStateLayout forwards the context
 - [Phase 05]: 05-38: profile.name-changed detail lists changed field names only (fields=first-name,last-name); the name save and its audit entry share one transaction and only a real change (Saved) writes an entry
+- [Phase 05]: 05-12: PasswordChanged is stored as 8 (6 and 7 were taken); the current password is verified and counted before the same-as-current check and the breach lookup (no guessing oracle)
+- [Phase 05]: 05-12: IdempotencyOutcome.KeepChanges lets an endpoint commit its change when the answer is not stored; the profile password 429 uses it so the lock-causing wrong password is not rolled back (SEC-06 key stays required)
 
 ### Pending Todos
 
@@ -525,6 +528,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T05:08:43.438Z
-Stopped at: Completed 05-38-PLAN.md
+Last session: 2026-10-18T05:35:22.867Z
+Stopped at: Completed 05-12-PLAN.md
 Resume file: None

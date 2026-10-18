@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 13/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 14/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -586,7 +586,7 @@ Plans:
 - [x] 05-38-PLAN.md — Profile name change audited by field names only; profile handler unit tests (USER-06, D-40)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 05-12-PLAN.md — Change password from My Profile (PROF-03, D-41 Q9)
+- [x] 05-12-PLAN.md — Change password from My Profile (PROF-03, D-41 Q9)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 05-14-PLAN.md — Email change: request and confirm through a 24-hour link (PROF-02, D-25)
@@ -1145,7 +1145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 13/43 | In Progress | - |
+| 5. Profile & User Management | 14/43 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
