@@ -26,7 +26,14 @@ beforeEach(() => {
 });
 
 describe('safeReturnUrl (D-07)', () => {
-  it.each(['/admin', '/admin/orders', '/admin/orders?page=2', '/admin/sessions'])('keeps %s', (value) => {
+  it.each([
+    '/admin',
+    '/admin/orders',
+    '/admin/orders?page=2',
+    '/admin/sessions',
+    '/admin/users?q=50%25',
+    '/admin/orders#top',
+  ])('keeps %s exactly as given', (value) => {
     expect(safeReturnUrl(value)).toBe(value);
   });
 
@@ -39,7 +46,10 @@ describe('safeReturnUrl (D-07)', () => {
     ['an absolute URL', 'https://evil.example/admin'],
     ['a protocol-relative URL', '//evil.example'],
     ['a backslash host', '/\\evil.example'],
-    ['an encoded double slash', '/%2F%2Fevil.example'],
+    ['an encoded slash at the start', '%2Fadmin%2Forders'],
+    ['an encoded protocol-relative start', '%2F%2Fevil.example'],
+    ['an encoded double slash after /admin is not a host', '/%2F%2Fevil.example'],
+    ['a double-encoded percent in the path', '/admin/50%2525'],
     ['an encoded dot-dot segment', '/admin/%2e%2e/x'],
     ['a dot-dot segment', '/admin/../x'],
     ['a javascript URL', 'javascript:alert(1)'],

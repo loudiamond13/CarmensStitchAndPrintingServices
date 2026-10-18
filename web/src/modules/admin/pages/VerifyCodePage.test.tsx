@@ -423,7 +423,9 @@ function watchStatus(): string[] {
   return seen;
 }
 
-const STARTED = 'We sent a new code. You can ask for another in 60 seconds.';
+/** The polite announcement when a cooldown of `seconds` starts. */
+const started = (seconds: number): string =>
+  `We sent a new code. You can ask for another in ${String(seconds)} seconds.`;
 const READY = 'You can ask for a new code now.';
 
 describe('S2 resend countdown (AUTH-04, OQ-6, D-10)', () => {
@@ -468,12 +470,12 @@ describe('S2 resend countdown (AUTH-04, OQ-6, D-10)', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
-    expect(seen).toEqual([STARTED]);
+    expect(seen).toEqual([started(60)]);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(31_000);
     });
-    expect(seen).toEqual([STARTED, READY]);
+    expect(seen).toEqual([started(60), READY]);
     const region = within(screen.getByRole('form', { name: 'Check your email' })).getByRole('status');
     expect(region).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('button', { name: 'Resend Code' }).closest('[aria-live]')).toBeNull();
@@ -497,7 +499,20 @@ describe('S2 resend countdown (AUTH-04, OQ-6, D-10)', () => {
     expect(probe.count).toBe(1);
     expect(screen.getByRole('button', { name: 'Resend code in 1:00' })).toHaveAttribute('aria-disabled', 'true');
     expect(getResendAvailableAt()).toBeGreaterThan(Date.now());
-    expect(seen).toEqual([STARTED, READY, STARTED]);
+    expect(seen).toEqual([started(5), READY, started(60)]);
+  });
+
+  it('announces the wait the server gave on a resend, the same number as the countdown (IN-16)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    answerResendWith(() => HttpResponse.json({ resendAfterSeconds: 45 }));
+    renderVerify();
+    const seen = watchStatus();
+
+    await user.click(await screen.findByRole('button', { name: 'Resend Code' }));
+
+    expect(await screen.findByRole('button', { name: 'Resend code in 0:45' })).toBeInTheDocument();
+    expect(seen.at(-1)).toBe('We sent a new code. You can ask for another in 45 seconds.');
   });
 
   it('starts with Resend available after a page refresh, when no cooldown is known', async () => {
