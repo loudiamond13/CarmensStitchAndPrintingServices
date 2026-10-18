@@ -97,6 +97,16 @@ public interface IUserAccounts
     /// <returns>A task that completes when the flag is saved.</returns>
     Task SetMustChangePasswordAsync(Guid id, PasswordChangeReason reason, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Counts the changes saved so far on the account as one staff edit (SEC-08, D-21): the edit version moves on, so a form opened earlier
+    /// reads as out of date, and the signed-in Manager is recorded as the last to change the account. Identity bookkeeping such as a
+    /// password hash or a lockout never does this by itself.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>A task that completes when the new version is saved.</returns>
+    Task MarkStaffEditAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Removes the must-change flag and its reason.</summary>
     /// <param name="id">The account id.</param>
     /// <param name="cancellationToken">Cancels the update.</param>

@@ -102,6 +102,9 @@ public static class AuditActions
     /// <summary>A Manager emailed a person a password reset link; no detail, never the link (USER-07, D-40).</summary>
     public const string UserResetLinkSent = "user.reset-link-sent";
 
+    /// <summary>A Manager set a temporary password for a person; no detail, and never the password (C-4, D-14, D-40).</summary>
+    public const string UserTemporaryPasswordSet = "user.temporary-password-set";
+
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
 
@@ -122,7 +125,7 @@ public static class AuditActions
     public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];
 
     /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
-    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed", "account-changed"];
+    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"];
 
     /// <summary>Every action code, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
@@ -159,6 +162,7 @@ public static class AuditActions
         UserEmailChangeStarted,
         UserInvitationResent,
         UserResetLinkSent,
+        UserTemporaryPasswordSet,
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,

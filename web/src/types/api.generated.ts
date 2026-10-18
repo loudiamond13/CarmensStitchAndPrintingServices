@@ -576,6 +576,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/temporary-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control
+         *     characters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a
+         *     failed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed
+         *     code and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A
+         *     Manager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422
+         *     `users.blocked`. It takes no version: it acts on the latest state.
+         */
+        post: operations["SetUserTemporaryPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}/unlock": {
         parameters: {
             query?: never;
@@ -835,6 +859,14 @@ export interface components {
         SetNewPasswordRequest: {
             /** @description The new password as typed. */
             newPassword: null | string;
+        };
+        /**
+         * @description The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account
+         *     port and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).
+         */
+        SetTemporaryPasswordRequest: {
+            /** @description The temporary password as typed. */
+            temporaryPassword: null | string;
         };
         /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
         SignInRequest: {
@@ -2798,6 +2830,90 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetUserTemporaryPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+                "application/json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+                "text/json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

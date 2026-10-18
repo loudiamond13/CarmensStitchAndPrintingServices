@@ -89,8 +89,8 @@ public sealed class TemporaryPasswordTests(CspsDatabase database) : IClassFixtur
         set.ActorUserId.ShouldBe(manager.UserId);
         set.TargetType.ShouldBe("User");
         set.Detail.ShouldBeNull();
-        var revoked = (await AuditOfAsync(staff.Id, RevokedAction)).ShouldHaveSingleItem();
-        revoked.Detail.ShouldBe("temporary-password");
+        // The later must-change step records its own revocation; this one is told apart by its detail.
+        var revoked = (await AuditOfAsync(staff.Id, RevokedAction)).Where(entry => entry.Detail == "temporary-password").ShouldHaveSingleItem();
         revoked.ActorUserId.ShouldBe(manager.UserId);
         await AssertNothingHoldsThePasswordAsync(staff.Id);
     }

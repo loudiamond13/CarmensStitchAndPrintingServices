@@ -137,6 +137,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/users/{id:guid}/resend-invitation", "/api/v1/users/b2c8e471-0d95-4a36-8f1e-7a5d3c9b6e20/resend-invitation", Anonymous: 401, Admin: 403, Manager: 404),
         // Emailing a reset link (USER-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("POST", "/api/v1/users/{id:guid}/send-reset-link", "/api/v1/users/d5a9c3e8-2b74-4f10-9e6d-8c1f0a7b3e45/send-reset-link", Anonymous: 401, Admin: 403, Manager: 404),
+        // Setting a temporary password (C-4): Managers only. With no body the password is missing, so a Manager meets 400 before the person is looked up.
+        new("POST", "/api/v1/users/{id:guid}/temporary-password", "/api/v1/users/f1b6d2a9-5e83-4c07-b4a1-9d0e7c3a8f52/temporary-password", Anonymous: 401, Admin: 403, Manager: 400),
         // Deleting (USER-03, D-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("DELETE", "/api/v1/users/{id:guid}", "/api/v1/users/6f1d9b34-82c7-4e05-a3b8-d4c20e7a5f19", Anonymous: 401, Admin: 403, Manager: 404),
 

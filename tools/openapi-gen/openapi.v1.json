@@ -591,6 +591,22 @@
         ],
         "type": "object"
       },
+      "SetTemporaryPasswordRequest": {
+        "description": "The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account\r\nport and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).",
+        "properties": {
+          "temporaryPassword": {
+            "description": "The temporary password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
         "properties": {
@@ -3531,6 +3547,136 @@
           }
         },
         "summary": "Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and\r\nreplaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password\r\n(429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a\r\npassword is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/temporary-password": {
+      "post": {
+        "operationId": "SetUserTemporaryPassword",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control\r\ncharacters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a\r\nfailed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed\r\ncode and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A\r\nManager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422\r\n`users.blocked`. It takes no version: it acts on the latest state.",
         "tags": [
           "Users"
         ]

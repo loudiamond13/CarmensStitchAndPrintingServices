@@ -23,6 +23,7 @@ namespace Csps.Server.Controllers;
 /// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
 /// <param name="resendInvitation">The handler that sends an invitation again.</param>
 /// <param name="sendResetLink">The handler that emails a reset link.</param>
+/// <param name="setTemporaryPassword">The handler that sets a temporary password.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
@@ -40,7 +41,8 @@ public sealed class UsersController(
     UpdateUserHandler update,
     CancelUserEmailChangeHandler cancelEmailChange,
     ResendInvitationHandler resendInvitation,
-    SendResetLinkHandler sendResetLink) : ControllerBase
+    SendResetLinkHandler sendResetLink,
+    SetTemporaryPasswordHandler setTemporaryPassword) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -207,6 +209,36 @@ public sealed class UsersController(
     public async Task<IResult> SendResetLink(Guid id, CancellationToken cancellationToken)
     {
         var result = await sendResetLink.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control
+    /// characters, a number, a symbol); a broken rule is a 400 on <c>temporaryPassword</c>. Every session of the person ends at once, a
+    /// failed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed
+    /// code and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A
+    /// Manager cannot do this to their own account (422 <c>users.own-account</c>) and a deactivated or locked person is a 422
+    /// <c>users.blocked</c>. It takes no version: it acts on the latest state.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="body">The form; a null or unreadable body is reported as a field error.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 400 for a password that breaks the basic rule, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when two saves lost a race, or 422 for the caller's own account or a blocked person.</returns>
+    [HttpPost("{id:guid}/temporary-password")]
+    [EndpointName("SetUserTemporaryPassword")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> SetTemporaryPassword(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SetTemporaryPasswordRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await setTemporaryPassword.HandleAsync(id, body ?? SetTemporaryPasswordRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 

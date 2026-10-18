@@ -10,7 +10,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileAndUserCodes()
     {
-        AuditActions.All.Count.ShouldBe(36);
+        AuditActions.All.Count.ShouldBe(37);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -20,6 +20,14 @@ public sealed class AuditActionsTests
     {
         AuditActions.UserResetLinkSent.ShouldBe("user.reset-link-sent");
         AuditActions.All.ShouldContain(AuditActions.UserResetLinkSent);
+    }
+
+    [Fact]
+    public void TheTemporaryPasswordSetCodeIsInTheCatalogAndTheRevocationDetailIsListed()
+    {
+        AuditActions.UserTemporaryPasswordSet.ShouldBe("user.temporary-password-set");
+        AuditActions.All.ShouldContain(AuditActions.UserTemporaryPasswordSet);
+        AuditActions.SessionsRevokedDetails.ShouldContain("temporary-password");
     }
 
     [Fact]
@@ -117,6 +125,6 @@ public sealed class AuditActionsTests
     public void LockoutAndSessionRevokeDetailsAreFixed()
     {
         AuditActions.LockoutDetails.ShouldBe(["password", "code"]);
-        AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset", "password-changed", "account-changed"]);
+        AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"]);
     }
 }

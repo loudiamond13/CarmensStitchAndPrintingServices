@@ -169,6 +169,20 @@ public sealed class ForgotPasswordHandlerTests
         entry.TargetId.ShouldBe(UserId.ToString("D"));
     }
 
+    [Fact]
+    public async Task ResetLinksAManagerSentCountTowardTheSameHourlyCap()
+    {
+        var harness = Harness.For("active");
+        harness.Outbox.Recent[AuthEmailKind.PasswordReset] = 1;
+        harness.Outbox.Recent[AuthEmailKind.ManagerResetLink] = 2;
+
+        await harness.RunAsync();
+
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Tokens.DidNotReceive().Add(Arg.Any<AccountToken>());
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("capped");
+    }
+
     [Theory]
     [InlineData("active", AuthEmailKind.PasswordReset)]
     [InlineData("deactivated", AuthEmailKind.DeactivatedNotice)]

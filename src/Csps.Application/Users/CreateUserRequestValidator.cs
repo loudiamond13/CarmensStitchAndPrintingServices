@@ -24,7 +24,7 @@ public sealed class CreateUserRequestValidator : AbstractValidator<CreateUserReq
     public const string AccessRequired = "Choose how they get access.";
 
     /// <summary>The message for a missing temporary password.</summary>
-    public const string TemporaryPasswordRequired = "Enter a temporary password.";
+    public const string TemporaryPasswordRequired = TemporaryPasswordRule.Required;
 
     /// <summary>Creates the validator.</summary>
     public CreateUserRequestValidator()
@@ -52,15 +52,7 @@ public sealed class CreateUserRequestValidator : AbstractValidator<CreateUserReq
 
         // The password rule applies only when the Manager chose to hand one over; an invitation ignores any value sent with it.
         When(request => IsTemporaryPassword(request.Access), () =>
-            RuleFor(request => request.TemporaryPassword)
-                .Custom(static (password, context) =>
-                {
-                    var failure = string.IsNullOrEmpty(password) ? PasswordRuleFailure.Empty : PasswordPolicy.CheckComposition(password);
-                    if (failure is { } broken)
-                    {
-                        context.AddFailure(broken == PasswordRuleFailure.Empty ? TemporaryPasswordRequired : PasswordPolicy.MessageFor(broken));
-                    }
-                }));
+            RuleFor(request => request.TemporaryPassword).MustMeetBasicRule());
     }
 
     /// <summary>Maps the role text of the form to the role name, in any letter case.</summary>
