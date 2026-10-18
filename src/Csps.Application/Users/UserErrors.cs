@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Users;
@@ -23,6 +24,12 @@ public static class UserErrors
     /// <summary>The plain-English text for a person who does not exist or was deleted.</summary>
     public const string NotFoundMessage = "This user was deleted.";
 
+    /// <summary>The form field that a taken email belongs to.</summary>
+    public const string EmailInUseField = "email";
+
+    /// <summary>The plain-English text under the email field when another account already uses the address.</summary>
+    public const string EmailInUseMessage = "Another account already uses this email.";
+
     /// <summary>Gets the answer for a bootstrap while an active Manager exists.</summary>
     public static Error ManagerExists { get; } = Error.BusinessRule(ManagerExistsCode, ManagerExistsMessage);
 
@@ -31,4 +38,10 @@ public static class UserErrors
 
     /// <summary>Gets the answer for a person who does not exist or was deleted: a 404 with the same words for both.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
+
+    /// <summary>Gets the answer for creating a person whose email another account already uses: a 400 on the email field.</summary>
+    public static Error EmailInUse { get; } = Error.Validation(
+        AuthErrors.ValidationCode,
+        AuthErrors.ValidationMessage,
+        new Dictionary<string, string[]> { [EmailInUseField] = [EmailInUseMessage] });
 }

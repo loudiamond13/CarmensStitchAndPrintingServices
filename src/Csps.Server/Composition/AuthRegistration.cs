@@ -43,6 +43,7 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
         services.AddSingleton<IValidator<RequestEmailChangeRequest>, RequestEmailChangeRequestValidator>();
         services.AddSingleton<IValidator<ListUsersRequest>, ListUsersRequestValidator>();
+        services.AddSingleton<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
         return services;
     }
 }

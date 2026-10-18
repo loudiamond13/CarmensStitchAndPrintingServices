@@ -405,7 +405,11 @@ export interface paths {
         /** Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total. */
         get: operations["ListUsers"];
         put?: never;
-        post?: never;
+        /**
+         * Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary
+         *     password the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.
+         */
+        post: operations["CreateUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,6 +465,32 @@ export interface components {
             currentPassword: null | string;
             /** @description The new password as typed. */
             newPassword: null | string;
+        };
+        /**
+         * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
+         *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
+         */
+        CreateUserRequest: {
+            /** @description How they get access: `invitation` or `temporary-password`. */
+            access: null | string;
+            /** @description The sign-in email. */
+            email: null | string;
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description The role, `Admin` or `Manager`. */
+            role: null | string;
+            /** @description The one-time password, only for the `temporary-password` route. */
+            temporaryPassword: null | string;
+        };
+        /** @description The answer to creating a person. It holds the id only: never a name, an email or a password (D-14). */
+        CreateUserResponse: {
+            /**
+             * Format: uuid
+             * @description The new account id.
+             */
+            id: string;
         };
         /** @description The answer to a confirmed email change. */
         EmailChangeResponse: {
@@ -1915,6 +1945,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateUserRequest"];
+                "application/json": null | components["schemas"]["CreateUserRequest"];
+                "text/json": null | components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUserResponse"];
                 };
             };
             /** @description Bad Request */

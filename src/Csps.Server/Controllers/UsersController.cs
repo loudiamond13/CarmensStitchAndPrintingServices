@@ -3,6 +3,7 @@ using Csps.Application.Users;
 using Csps.Server.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Csps.Server.Controllers;
 
@@ -12,12 +13,13 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="list">The roster list handler.</param>
 /// <param name="get">The single-person read handler.</param>
+/// <param name="create">The add-a-person handler.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class UsersController(ListUsersHandler list, GetUserHandler get) : ControllerBase
+public sealed class UsersController(ListUsersHandler list, GetUserHandler get, CreateUserHandler create) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -61,5 +63,26 @@ public sealed class UsersController(ListUsersHandler list, GetUserHandler get) :
     {
         var result = await get.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static person => TypedResults.Ok(person));
+    }
+
+    /// <summary>
+    /// Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary
+    /// password the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.
+    /// </summary>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>201 with the new id and the location of the person, 400 for field errors (a taken email is one), 401 without a valid token, or 403 for an Admin.</returns>
+    [HttpPost]
+    [EndpointName("CreateUser")]
+    [ProducesResponseType<CreateUserResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> Create(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CreateUserRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await create.HandleAsync(body ?? CreateUserRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static created => TypedResults.Created($"/api/v1/users/{created.Id:D}", created));
     }
 }

@@ -73,6 +73,76 @@
         ],
         "type": "object"
       },
+      "CreateUserRequest": {
+        "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\r\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
+        "properties": {
+          "access": {
+            "description": "How they get access: `invitation` or `temporary-password`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "The role, `Admin` or `Manager`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "temporaryPassword": {
+            "description": "The one-time password, only for the `temporary-password` route.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "access",
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "CreateUserResponse": {
+        "description": "The answer to creating a person. It holds the id only: never a name, an email or a password (D-14).",
+        "properties": {
+          "id": {
+            "description": "The new account id.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "EmailChangeResponse": {
         "description": "The answer to a confirmed email change.",
         "properties": {
@@ -2591,6 +2661,96 @@
           }
         },
         "summary": "Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.",
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "operationId": "CreateUser",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\r\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
         "tags": [
           "Users"
         ]

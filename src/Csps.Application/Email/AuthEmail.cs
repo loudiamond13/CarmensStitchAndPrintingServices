@@ -156,7 +156,8 @@ public sealed record DeactivatedNoticeEmail(string To) : AuthEmail(To)
 /// <param name="Token">The invite token, placed in the link fragment.</param>
 /// <param name="ExpiresAt">When the link stops working.</param>
 /// <param name="RequestedAt">When the invitation was made.</param>
-public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt) : AuthEmail(To)
+/// <param name="InvitedBy">The Manager who set up the account, named in the first line; null for the bootstrap invite.</param>
+public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string? InvitedBy = null) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.Invite;

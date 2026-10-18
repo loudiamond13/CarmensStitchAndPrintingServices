@@ -148,18 +148,24 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ],
             Button: null);
 
-    private EmailContent Invite(InviteEmail email) =>
-        new(
+    private EmailContent Invite(InviteEmail email)
+    {
+        var blocks = new List<EmailBlock>();
+        if (!string.IsNullOrWhiteSpace(email.InvitedBy))
+        {
+            blocks.Add(new ParagraphBlock($"{email.InvitedBy} set up your account."));
+        }
+
+        blocks.Add(new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To));
+        blocks.Add(new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once. If it expires, ask a Manager to send a new invite."));
+        blocks.Add(new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."));
+        return new(
             Subject: "Set up your CSPS staff account",
             Preheader: "Choose your password to get started.",
             Heading: "You're invited",
-            Blocks:
-            [
-                new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To),
-                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once. If it expires, ask a Manager to send a new invite."),
-                new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
-            ],
+            Blocks: blocks,
             Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+    }
 
     private EmailContent ConfirmEmailChange(EmailChangeConfirmEmail email) =>
         new(
