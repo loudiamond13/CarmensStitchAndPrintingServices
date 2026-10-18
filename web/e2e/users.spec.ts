@@ -6,8 +6,10 @@
 // under the shared guard (console, page errors, CSP, failed responses).
 // Plan 05-22 adds @users-add: a Manager adds a person by invitation (the person sets a password and signs in) and with a
 // temporary password (shown once, copied, then replaced at the first sign-in), and the panel fits a 320 px phone.
+// Plan 05-25 adds @users-edit: a Manager renames and promotes a person in one save, two pages meet the stale-save banner, and the
+// Edit panel fits a 320 px phone with the email choice and Recorded by / Last changed by.
 import { randomUUID } from 'node:crypto';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { codeFromEmail, signInAs, typeCode } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { createInvitedStaff, createStaff, latestEmail, readEmails } from './testing-api.ts';
@@ -75,7 +77,8 @@ test('@users the roster shows staff in every state, filters and pages in the URL
   await expect(rows(page).first().locator('td[data-label="Status"]')).toHaveText('Active');
   await expect(rows(page).first().locator('td[data-label="Role"]')).toHaveText('Admin');
   await expect(rows(page).first().getByRole('link')).toHaveCount(0);
-  await expect(rows(page).first().getByRole('button')).toHaveCount(0);
+  // Another person's row has their Edit button and nothing else (05-25; the row dialogs arrive with 05-28).
+  await expect(rows(page).first().getByRole('button')).toHaveCount(1);
 
   await searchFor(page, deactivated.email);
   await expect(rows(page)).toHaveCount(1);
@@ -431,4 +434,194 @@ test('@users-add the panel fits a 320 px phone: it scrolls inside, the footer st
 
   await shown.getByRole('button', { name: 'Done' }).click();
   await expect(shown).toBeHidden();
+});
+
+// --- @users-edit (plan 05-25) ---
+
+/** Finds one person on the roster by their unique email and opens their Edit panel from the keyboard. */
+async function openEdit(page: Page, email: string) {
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+  await searchFor(page, email);
+  await expect(rows(page)).toHaveCount(1);
+  const edit = rows(page)
+    .first()
+    .getByRole('button', { name: /^Edit / });
+  // Opened from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved.
+  await edit.focus();
+  await page.keyboard.press('Enter');
+  const panel = page.getByRole('dialog', { name: 'Edit User' });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('textbox', { name: /^First name/ })).toBeFocused();
+  return { panel, edit };
+}
+
+/** The value beside a RecordMeta term, like "Last changed by". */
+function recordMetaValue(panel: Locator, term: string) {
+  return panel.getByText(term, { exact: true }).locator('xpath=following-sibling::dd');
+}
+
+test('@users-edit a Manager renames and promotes a person in one save, who is signed out elsewhere, and Last changed by names the Manager', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  // Two sign-ins, a save and a second look in one test: WebKit under four parallel workers needs more than 30 seconds.
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+
+  // The person is signed in on another browser (its own cookies).
+  const other = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
+  try {
+    const otherPage = await other.newPage();
+    await signInAs(otherPage, request, person);
+    const signedInManager = await signInAs(page, request, manager);
+
+    const { panel, edit } = await openEdit(page, person.email);
+    await expect(panel.getByRole('textbox', { name: /^First name/ })).toHaveValue('E2E');
+    await expect(panel.getByRole('textbox', { name: /^Email/ })).toHaveValue(person.email);
+    await expect(panel.getByRole('radio', { name: 'Admin' })).toBeChecked();
+    await expect(recordMetaValue(panel, 'Recorded by')).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // USER-05: the sign-out note shows before saving, once the role differs; it names the person as saved.
+    await panel.getByRole('textbox', { name: /^First name/ }).fill('Paulo');
+    await panel.getByRole('textbox', { name: /^Last name/ }).fill('Renamed');
+    await panel.getByRole('radio', { name: 'Manager' }).click();
+    await expect(panel.getByText('Changing the role signs E2E out on every device.')).toBeVisible();
+    await expect(panel.getByRole('group', { name: 'How this email change applies' })).toHaveCount(0);
+    await expectNoAxeViolations(page);
+
+    await panel.getByRole('button', { name: 'Save Changes' }).click();
+
+    // The panel closes, focus is back on that row's Edit button, the roster reads again and the toast names the person.
+    await expect(panel).toBeHidden();
+    await expect(edit).toBeFocused();
+    await expect(page.getByText('User updated')).toBeVisible();
+    await expect(page.getByText('Paulo Renamed · Manager')).toBeVisible();
+    await expect(rows(page).first()).toContainText('Paulo Renamed');
+    await expect(rows(page).first().locator('td[data-label="Role"]')).toHaveText('Manager');
+
+    // The role change signed the person out on every device. Opening the sign-in page asks the other browser's refresh cookie
+    // for a session; a live session would go on to /admin, so the sign-in screen showing proves the cookie no longer works.
+    await otherPage.goto('/admin/login');
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(otherPage).toHaveURL(/\/admin\/login$/);
+
+    // Last changed by now names the Manager, read fresh on this open.
+    await edit.focus();
+    await page.keyboard.press('Enter');
+    const again = page.getByRole('dialog', { name: 'Edit User' });
+    await expect(again.getByRole('textbox', { name: /^First name/ })).toHaveValue('Paulo');
+    await expect(recordMetaValue(again, 'Last changed by')).toContainText(
+      `${signedInManager.firstName} ${signedInManager.lastName}`,
+    );
+    await expect(again.getByRole('link', { name: "See this user's activity in the audit log" })).toHaveAttribute(
+      'href',
+      `/admin/audit-log?target=${person.userId}&range=all`,
+    );
+    await expectNoAxeViolations(page);
+  } finally {
+    await other.close();
+  }
+});
+
+test('@users-edit two pages editing the same person: the second save shows the conflict banner with the typed value kept, and Load Latest shows the first save', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The second page's stale save is refused with a 409 (D-20); that is the behavior under test.
+  guard.expectStatus('/api/v1/users/', 409);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+  await signInAs(page, request, manager);
+
+  // Both pages are the same Manager (one browser, two tabs) and open the same person at the same version.
+  const second = await page.context().newPage();
+  const first = await openEdit(page, person.email);
+  const later = await openEdit(second, person.email);
+
+  await first.panel.getByRole('textbox', { name: /^First name/ }).fill('Alpha');
+  await first.panel.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(first.panel).toBeHidden();
+
+  // The second page is now stale: its save keeps the typed value and offers Load Latest, which takes focus.
+  const typed = later.panel.getByRole('textbox', { name: /^First name/ });
+  await typed.fill('Beta');
+  await later.panel.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(later.panel.getByText('This was changed by someone else.')).toBeVisible();
+  await expect(later.panel.getByRole('button', { name: 'Load Latest' })).toBeFocused();
+  await expect(typed).toHaveValue('Beta');
+  await expectNoAxeViolations(second);
+
+  // Load Latest brings the first save, drops the banner and puts the cursor on First name.
+  await later.panel.getByRole('button', { name: 'Load Latest' }).click();
+  await expect(typed).toHaveValue('Alpha');
+  await expect(later.panel.getByText('This was changed by someone else.')).toBeHidden();
+  await expect(typed).toBeFocused();
+  await expect(later.panel.getByText('Latest version loaded. Make your changes again.')).toBeAttached();
+
+  // Typing again and saving now goes through.
+  await typed.fill('Gamma');
+  await later.panel.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(later.panel).toBeHidden();
+  await expect(rows(second).first()).toContainText('Gamma');
+});
+
+test('@users-edit the panel fits a 320 px phone: it scrolls inside, the footer stays reachable, the email choice and the record meta stack, and nothing scrolls sideways', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const person = await createStaff(request, 'Admin');
+  await page.setViewportSize({ width: 320, height: 568 });
+
+  const { panel } = await openEdit(page, person.email);
+  // A different email brings the choice, whose long descriptions wrap beside the control.
+  await panel.getByRole('textbox', { name: /^Email/ }).fill(`moved-${person.email}`);
+  const choice = panel.getByRole('group', { name: 'How this email change applies' });
+  await expect(choice).toBeVisible();
+  await expect(choice.getByRole('radio', { name: 'Confirm by link' })).toBeChecked();
+
+  expect(
+    await page.evaluate(
+      `Array.from(document.querySelectorAll('[role="dialog"] fieldset label')).every((row) => row.scrollWidth <= row.clientWidth)`,
+    ),
+  ).toBe(true);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`,
+    ),
+  ).toBe(true);
+  // The page behind is locked while the panel is open; the panel body scrolls, and the footer button stays on screen.
+  expect(await page.evaluate(`document.body.classList.contains('overflow-hidden')`)).toBe(true);
+  await expect(panel.getByRole('button', { name: 'Save Changes' })).toBeInViewport();
+
+  // The record meta sits at the bottom of the body: scrolled into view, each term is over its value.
+  const term = panel.getByText('Recorded by', { exact: true });
+  await term.scrollIntoViewIfNeeded();
+  await expect(term).toBeInViewport();
+  const termBox = await term.boundingBox();
+  const valueBox = await recordMetaValue(panel, 'Recorded by').boundingBox();
+  if (termBox === null || valueBox === null) {
+    throw new Error('The record meta has no layout box.');
+  }
+  expect(valueBox.y).toBeGreaterThan(termBox.y);
+  expect(Math.abs(valueBox.x - termBox.x)).toBeLessThan(2);
+  await expect(panel.getByRole('button', { name: 'Save Changes' })).toBeInViewport();
+  await expectNoAxeViolations(page);
+
+  await panel.getByRole('button', { name: 'Cancel' }).click();
+  await expect(panel).toBeHidden();
 });

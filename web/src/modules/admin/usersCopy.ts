@@ -120,6 +120,8 @@ export const USERS_COPY = {
       },
       required: 'Choose how the email change applies.',
     },
+    /** The link to this person's audit entries (the page lands in plan 05-33). */
+    activityLink: "See this user's activity in the audit log",
     /** Refusals and the deleted notice: a bold line over a muted line (UI-SPEC "Error and guard states"). */
     guards: {
       lastManager: {

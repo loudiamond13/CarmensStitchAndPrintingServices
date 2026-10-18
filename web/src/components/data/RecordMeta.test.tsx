@@ -136,7 +136,7 @@ describe('RecordMeta (SEC-08)', () => {
   it('shows no long dash anywhere (OR-4)', () => {
     const { container } = renderMeta({ lastChangedBy: null, lastChangedAt: null });
 
-    expect(container.textContent).not.toMatch(/[–—]/);
+    expect(container.textContent).not.toMatch(new RegExp('[\u2013\u2014]'));
   });
 
   it('has no axe violations', async () => {

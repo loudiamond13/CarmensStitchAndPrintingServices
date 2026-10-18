@@ -11,12 +11,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
-import { Button } from '@/components/actions';
+import clsx from 'clsx';
+import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
+import { RecordMeta } from '@/components/data';
 import { RadioGroup, type RadioOption } from '@/components/entry';
 import { Field, messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
-import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { loginLinkClasses, srOnlyClasses } from '@/components/layout/layout.recipe';
 import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -428,6 +430,18 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
             )}
           />
         </form>
+        <RecordMeta
+          recordedBy={person.recordedBy}
+          recordedAt={person.createdAt}
+          lastChangedBy={person.lastChangedBy}
+          lastChangedAt={person.updatedAt}
+        />
+        <UiLink
+          to={`/admin/audit-log?target=${encodeURIComponent(person.id)}&range=all`}
+          className={clsx(loginLinkClasses, hitAreaClasses)}
+        >
+          {COPY.activityLink}
+        </UiLink>
       </>
     );
 
