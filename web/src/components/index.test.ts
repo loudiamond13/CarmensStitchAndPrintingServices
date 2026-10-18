@@ -69,6 +69,7 @@ const SPEC_GAP_COMPONENTS = [
   'SkeletonImage',
   'LoadingRegion',
   'Checkbox',
+  'RadioGroup',
   'SkipLink',
   'MobileNavDrawer',
   'UserMenu',

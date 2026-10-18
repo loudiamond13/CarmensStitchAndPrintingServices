@@ -106,3 +106,32 @@ describe('createUserSchema role and access', () => {
     expect(messages({ access })).toEqual({ access: 'Choose how they get access.' });
   });
 });
+
+describe('createUserSchema temporary password (04 D-21, the basic rule only)', () => {
+  const temporary = (temporaryPassword: string) => messages({ access: 'temporary-password', temporaryPassword });
+
+  it.each([
+    ['', 'Enter a temporary password.'],
+    ['Ab1!', 'Use at least 8 characters.'],
+    ['Ab1!'.repeat(17), 'Use 64 characters or fewer.'],
+    ['Abcd\tefg1!', 'Remove tabs and line breaks from your password.'],
+    ['Abcdefgh!', 'Add at least one number.'],
+    ['Abcdefgh1', 'Add at least one symbol, like ! or #.'],
+  ])('refuses %j with the matching message', (password, message) => {
+    expect(temporary(password)).toEqual({ temporaryPassword: message });
+  });
+
+  it('accepts 8 and 64 characters', () => {
+    expect(temporary('Abcdef1!')).toEqual({});
+    expect(temporary(`${'a'.repeat(61)}1!x`)).toEqual({});
+  });
+
+  it("accepts the person's own name and email part inside it: no name check", () => {
+    expect(temporary('Ana-Reyes-1234')).toEqual({});
+    expect(temporary('ana-example-1234')).toEqual({});
+  });
+
+  it('applies only on the temporary route: an invitation ignores what the field holds', () => {
+    expect(messages({ access: 'invitation', temporaryPassword: 'x' })).toEqual({});
+  });
+});

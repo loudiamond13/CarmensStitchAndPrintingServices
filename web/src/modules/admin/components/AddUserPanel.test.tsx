@@ -326,3 +326,326 @@ describe('U2 closing', () => {
     expect(screen.getByRole('radio', { name: 'Admin' })).toBeChecked();
   });
 });
+
+// The access choice, the temporary password and the shown-once step (C-4, D-12, D-14, OQ-10).
+
+const TEMPORARY_FORM = /^[A-Z][a-z]+-[A-Z][a-z]+-\d{4}$/;
+const SHOWN_ONCE_NOTE =
+  "This is the only time you'll see this password. Copy it now and give it to Ana in person or by private message. If it gets lost, set a new one.";
+
+const accessGroup = () => screen.getByRole('group', { name: 'How they get access' });
+const temporaryBox = () => screen.getByLabelText<HTMLInputElement>('Temporary password');
+const copyBox = () => screen.getByLabelText<HTMLInputElement>('Temporary password for Ana');
+
+type User = ReturnType<typeof userEvent.setup>;
+
+async function chooseTemporary(user: User) {
+  await user.click(screen.getByRole('radio', { name: 'Set a temporary password' }));
+}
+
+/** Fills the three fields, chooses the temporary route and presses Create User; resolves with the shown password. */
+async function createWithTemporary(user: User): Promise<string> {
+  await fill(user);
+  await chooseTemporary(user);
+  const password = temporaryBox().value;
+  await user.click(createButton());
+  await screen.findByLabelText('Temporary password for Ana');
+  return password;
+}
+
+describe('U2 the access choice', () => {
+  it('is a radio group of two rows with "Email an invitation" selected, each with its one-line description', () => {
+    renderPanel();
+
+    expect(accessGroup().tagName).toBe('FIELDSET');
+    expect(within(accessGroup()).getByRole('radio', { name: 'Email an invitation' })).toBeChecked();
+    expect(within(accessGroup()).getByRole('radio', { name: 'Set a temporary password' })).not.toBeChecked();
+    expect(
+      within(accessGroup()).getByText('We email them a link to set their own password. It works for 7 days.'),
+    ).toBeInTheDocument();
+    expect(
+      within(accessGroup()).getByText('You give them a password to use once. They choose their own at first sign-in.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows no password field until the temporary route is chosen', () => {
+    renderPanel();
+
+    expect(screen.queryByLabelText('Temporary password')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New Suggestion' })).toBeNull();
+  });
+
+  it('follows the choice in the panel description', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await chooseTemporary(user);
+
+    expect(screen.getByText('They can sign in right away with a temporary password.')).toBeInTheDocument();
+    expect(screen.queryByText("We'll email them a link to set their own password.")).toBeNull();
+  });
+
+  it('shows the Temporary password field prefilled with a Word-Word-NNNN value, with its hint and the meter', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await chooseTemporary(user);
+
+    expect(temporaryBox().value).toMatch(TEMPORARY_FORM);
+    expect(temporaryBox()).toHaveAttribute('type', 'password');
+    expect(screen.getByText("Share it privately. They'll be asked to change it on first sign-in.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New Suggestion' })).toBeInTheDocument();
+    expect(screen.getByText('Strong')).toBeInTheDocument();
+  });
+
+  it('gives a different value with New Suggestion each time', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await chooseTemporary(user);
+
+    const seen = [temporaryBox().value];
+    for (let press = 0; press < 3; press += 1) {
+      await user.click(screen.getByRole('button', { name: 'New Suggestion' }));
+      const next = temporaryBox().value;
+      expect(next).toMatch(TEMPORARY_FORM);
+      expect(next).not.toBe(seen.at(-1));
+      seen.push(next);
+    }
+  });
+
+  it('hides the field again and drops its value when the invitation is chosen back, then offers a fresh one', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await chooseTemporary(user);
+    const first = temporaryBox().value;
+
+    await user.click(screen.getByRole('radio', { name: 'Email an invitation' }));
+
+    expect(screen.queryByLabelText('Temporary password')).toBeNull();
+    expect(screen.queryByDisplayValue(first)).toBeNull();
+    await chooseTemporary(user);
+    expect(temporaryBox().value).toMatch(TEMPORARY_FORM);
+  });
+
+  it('sends nothing of the dropped password when the invitation goes out after a switch back', async () => {
+    const sent = answer();
+    const user = userEvent.setup();
+    const { onCreated } = renderPanel();
+    await fill(user);
+    await chooseTemporary(user);
+    await user.click(screen.getByRole('radio', { name: 'Email an invitation' }));
+
+    await user.click(createButton());
+
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalled();
+    });
+    expect(sent.bodies[0]).toEqual({
+      firstName: 'Ana',
+      lastName: 'Reyes',
+      email: 'ana@example.ph',
+      role: 'Admin',
+      access: 'invitation',
+    });
+  });
+
+  it('has no axe violations with the temporary route open', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await chooseTemporary(user);
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('U2 the temporary password rule (04 D-21)', () => {
+  async function tryPassword(password: string) {
+    const sent = answer();
+    const user = userEvent.setup();
+    renderPanel();
+    await fill(user);
+    await chooseTemporary(user);
+    await user.clear(temporaryBox());
+    if (password !== '') {
+      await user.type(temporaryBox(), password);
+    }
+    await user.click(createButton());
+    return { sent, user };
+  }
+
+  it.each([
+    ['', 'Enter a temporary password.'],
+    ['Ab1!', 'Use at least 8 characters.'],
+    ['Abcdefgh!', 'Add at least one number.'],
+    ['Abcdefgh1', 'Add at least one symbol, like ! or #.'],
+    ['Ab1!'.repeat(17), 'Use 64 characters or fewer.'],
+  ])('shows the message for %j before any request', async (password, message) => {
+    const { sent } = await tryPassword(password);
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(temporaryBox()).toHaveAttribute('aria-invalid', 'true');
+    expect(temporaryBox()).toHaveFocus();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it("accepts the person's own name inside it: only the basic rule applies", async () => {
+    const { sent } = await tryPassword('Ana-Reyes-1234');
+
+    await screen.findByLabelText('Temporary password for Ana');
+    expect(sent.bodies[0]).toMatchObject({ temporaryPassword: 'Ana-Reyes-1234' });
+  });
+
+  it("shows the server's message under the field when it refuses the password", async () => {
+    answer(() => problem(400, { errors: { temporaryPassword: ['Use at least 8 characters.'] } }));
+    const user = userEvent.setup();
+    renderPanel();
+    await fill(user);
+    await chooseTemporary(user);
+
+    await user.click(createButton());
+
+    expect(await screen.findByText('Use at least 8 characters.')).toBeInTheDocument();
+    expect(temporaryBox()).toHaveFocus();
+    expect(screen.queryByLabelText('Temporary password for Ana')).toBeNull();
+  });
+});
+
+describe('U2 the shown-once step (D-14)', () => {
+  it('posts the shown password on the temporary route and swaps to the step with focus on the read-only field', async () => {
+    const sent = answer();
+    const user = userEvent.setup();
+    const { onCreated, onClose } = renderPanel();
+
+    const password = await createWithTemporary(user);
+
+    expect(sent.bodies).toEqual([
+      {
+        firstName: 'Ana',
+        lastName: 'Reyes',
+        email: 'ana@example.ph',
+        role: 'Admin',
+        access: 'temporary-password',
+        temporaryPassword: password,
+      },
+    ]);
+    const dialog = screen.getByRole('dialog', { name: 'User created' });
+    expect(within(dialog).getByText('Ana Reyes · Admin')).toBeInTheDocument();
+    expect(copyBox()).toHaveValue(password);
+    expect(copyBox()).toHaveAttribute('readonly');
+    expect(copyBox()).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Copy Password' })).toBeInTheDocument();
+    expect(within(dialog).getByText(SHOWN_ONCE_NOTE)).toBeInTheDocument();
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('keeps the form out of the step: a single Done button and nothing to edit or resubmit', async () => {
+    answer();
+    const user = userEvent.setup();
+    renderPanel();
+
+    await createWithTemporary(user);
+
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^(Create User|Creating)$/ })).toBeNull();
+    expect(screen.queryByLabelText('Temporary password')).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /^First name/ })).toBeNull();
+  });
+
+  it('closes with Done, reporting who was added', async () => {
+    answer();
+    const user = userEvent.setup();
+    const { onCreated, onClose } = renderPanel();
+    await createWithTemporary(user);
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(onCreated).toHaveBeenCalledExactlyOnceWith({
+      firstName: 'Ana',
+      lastName: 'Reyes',
+      role: 'Admin',
+      access: 'temporary-password',
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['Esc', async (user: User) => user.keyboard('{Escape}')],
+    ['the Close button', async (user: User) => user.click(screen.getByRole('button', { name: 'Close' }))],
+    [
+      'the scrim',
+      async (user: User) => {
+        const scrim = screen.getByRole('dialog').parentElement;
+        if (scrim === null) {
+          throw new Error('The panel has no scrim around it.');
+        }
+        await user.click(scrim);
+      },
+    ],
+  ])('closes the same way with %s', async (_name, close) => {
+    answer();
+    const user = userEvent.setup();
+    const { onCreated, onClose } = renderPanel();
+    await createWithTemporary(user);
+
+    await close(user);
+
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('is gone for good once closed: a reopened panel is a clean form with a different suggestion', async () => {
+    answer();
+    const user = userEvent.setup();
+    const handlers = { onClose: vi.fn(), onCreated: vi.fn() };
+    const view = render(<AddUserPanel open {...handlers} />);
+    const password = await createWithTemporary(user);
+
+    view.rerender(<AddUserPanel open={false} {...handlers} />);
+
+    expect(screen.queryByDisplayValue(password)).toBeNull();
+    view.rerender(<AddUserPanel open {...handlers} />);
+    expect(firstName()).toHaveValue('');
+    expect(screen.getByRole('radio', { name: 'Email an invitation' })).toBeChecked();
+    expect(screen.queryByDisplayValue(password)).toBeNull();
+    await chooseTemporary(user);
+    expect(temporaryBox().value).toMatch(TEMPORARY_FORM);
+    expect(temporaryBox().value).not.toBe(password);
+  });
+
+  it('never puts the password in storage, the address, the title or the console', async () => {
+    answer();
+    const logs = [
+      vi.spyOn(console, 'log'),
+      vi.spyOn(console, 'info'),
+      vi.spyOn(console, 'warn'),
+      vi.spyOn(console, 'error'),
+    ];
+    const user = userEvent.setup();
+    renderPanel();
+
+    const password = await createWithTemporary(user);
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(JSON.stringify({ ...localStorage })).not.toContain(password);
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain(password);
+    expect(window.location.href).not.toContain(password);
+    expect(document.title).not.toContain(password);
+    expect(
+      logs
+        .flatMap((log) => log.mock.calls)
+        .flat()
+        .join(' '),
+    ).not.toContain(password);
+  });
+
+  it('has no axe violations in the step', async () => {
+    answer();
+    const user = userEvent.setup();
+    renderPanel();
+    await createWithTemporary(user);
+
+    await expectNoAxeViolations(document.body);
+  });
+});
