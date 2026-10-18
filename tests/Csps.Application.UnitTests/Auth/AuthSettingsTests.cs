@@ -27,7 +27,7 @@ public sealed class AuthSettingsTests
         settings.GraceSiblingCap.ShouldBe(5);
         settings.ResetLinkLifetime.ShouldBe(TimeSpan.FromMinutes(30));
         settings.ResetEmailsPerHour.ShouldBe(3);
-        settings.InviteLinkLifetime.ShouldBe(TimeSpan.FromHours(72));
+        settings.InviteLinkLifetime.ShouldBe(TimeSpan.FromDays(7));
         AuthSettings.SectionName.ShouldBe("Auth");
     }
 
