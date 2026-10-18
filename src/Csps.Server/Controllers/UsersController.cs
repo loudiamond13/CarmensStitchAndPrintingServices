@@ -21,6 +21,7 @@ namespace Csps.Server.Controllers;
 /// <param name="deleteUser">The delete handler.</param>
 /// <param name="update">The edit-a-person handler.</param>
 /// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
+/// <param name="resendInvitation">The handler that sends an invitation again.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
@@ -36,7 +37,8 @@ public sealed class UsersController(
     UnlockUserHandler unlockUser,
     DeleteUserHandler deleteUser,
     UpdateUserHandler update,
-    CancelUserEmailChangeHandler cancelEmailChange) : ControllerBase
+    CancelUserEmailChangeHandler cancelEmailChange,
+    ResendInvitationHandler resendInvitation) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -156,6 +158,29 @@ public sealed class UsersController(
     public async Task<IResult> CancelEmailChange(Guid id, CancellationToken cancellationToken)
     {
         var result = await cancelEmailChange.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one
+    /// goes to the person by email only; the answer never holds it. A person who already has a password is a 422
+    /// <c>users.already-set-up</c>, and a deactivated or locked one is a 422 <c>users.blocked</c>. It takes no version: it acts on the
+    /// latest state and does not change the account.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when two saves lost a race, or 422 when the person is already set up or blocked.</returns>
+    [HttpPost("{id:guid}/resend-invitation")]
+    [EndpointName("ResendUserInvitation")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> ResendInvitation(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await resendInvitation.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 

@@ -53,6 +53,7 @@ public static class ApplicationRegistration
         services.AddScoped<DeleteUserHandler>();
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<CancelUserEmailChangeHandler>();
+        services.AddScoped<ResendInvitationHandler>();
         return services;
     }
 }

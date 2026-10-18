@@ -48,6 +48,18 @@ public static class UserErrors
     /// <summary>The plain-English text of a Manager acting on their own account.</summary>
     public const string OwnAccountMessage = "You can't do this to your own account.";
 
+    /// <summary>The code of an invitation asked for a person who already has a password (USER-07).</summary>
+    public const string AlreadySetUpCode = "users.already-set-up";
+
+    /// <summary>The plain-English text of an invitation asked for a person who already has a password.</summary>
+    public const string AlreadySetUpMessage = "This person has already set up their account.";
+
+    /// <summary>The code of an account action asked for a person who is deactivated or locked (D-41 Q5).</summary>
+    public const string BlockedCode = "users.blocked";
+
+    /// <summary>The plain-English text of an account action asked for a person who is deactivated or locked.</summary>
+    public const string BlockedMessage = "Unlock or activate this person first.";
+
     /// <summary>Gets the answer for a bootstrap while an active Manager exists.</summary>
     public static Error ManagerExists { get; } = Error.BusinessRule(ManagerExistsCode, ManagerExistsMessage);
 
@@ -62,6 +74,12 @@ public static class UserErrors
 
     /// <summary>Gets the answer for a Manager acting on their own account: a 422 that changes nothing.</summary>
     public static Error OwnAccount { get; } = Error.BusinessRule(OwnAccountCode, OwnAccountMessage);
+
+    /// <summary>Gets the answer for an invitation asked for a person who already has a password: a 422 that changes nothing.</summary>
+    public static Error AlreadySetUp { get; } = Error.BusinessRule(AlreadySetUpCode, AlreadySetUpMessage);
+
+    /// <summary>Gets the answer for an account action asked for a deactivated or locked person: a 422 that changes nothing.</summary>
+    public static Error Blocked { get; } = Error.BusinessRule(BlockedCode, BlockedMessage);
 
     /// <summary>Gets the answer for a changed email with no valid choice of how it applies (D-45): a 400 on the choice field.</summary>
     public static Error EmailChangeChoiceRequired { get; } = Error.Validation(

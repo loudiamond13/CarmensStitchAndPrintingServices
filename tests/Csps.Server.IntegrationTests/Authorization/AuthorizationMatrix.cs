@@ -133,6 +133,8 @@ public static class AuthorizationMatrix
         // Locking and unlocking (USER-03, D-16): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("POST", "/api/v1/users/{id:guid}/lock", "/api/v1/users/a7d3f512-6e08-4b9c-95a1-2c4e8b0d7f36/lock", Anonymous: 401, Admin: 403, Manager: 404),
         new("POST", "/api/v1/users/{id:guid}/unlock", "/api/v1/users/3e9c5a07-d184-4f2b-8a63-b1f0c7d2e945/unlock", Anonymous: 401, Admin: 403, Manager: 404),
+        // Sending an invitation again (USER-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/resend-invitation", "/api/v1/users/b2c8e471-0d95-4a36-8f1e-7a5d3c9b6e20/resend-invitation", Anonymous: 401, Admin: 403, Manager: 404),
         // Deleting (USER-03, D-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("DELETE", "/api/v1/users/{id:guid}", "/api/v1/users/6f1d9b34-82c7-4e05-a3b8-d4c20e7a5f19", Anonymous: 401, Admin: 403, Manager: 404),
 

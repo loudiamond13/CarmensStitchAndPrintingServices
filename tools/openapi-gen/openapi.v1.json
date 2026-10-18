@@ -3368,6 +3368,85 @@
         ]
       }
     },
+    "/api/v1/users/{id}/resend-invitation": {
+      "post": {
+        "operationId": "ResendUserInvitation",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one\r\ngoes to the person by email only; the answer never holds it. A person who already has a password is a 422\r\n`users.already-set-up`, and a deactivated or locked one is a 422 `users.blocked`. It takes no version: it acts on the\r\nlatest state and does not change the account.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/api/v1/users/{id}/unlock": {
       "post": {
         "operationId": "UnlockUser",
