@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-21-PLAN.md
-last_updated: "2026-10-18T10:13:34.311Z"
+stopped_at: Completed 05-22-PLAN.md
+last_updated: "2026-10-18T11:01:35.358Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 0c5189a9638d7ee70ca31705359907903cf10bba
+state_head: a69d8f18845c7a20f1c3d5252cb3d4acb10f711e
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 138
+  completed_plans: 139
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T04:27:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 25 of 43
+Plan: 26 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -194,6 +194,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P20 | 60 min | 3 tasks | 19 files |
 | Phase 05 P36 | 30 min | 3 tasks | 13 files |
 | Phase 05 P21 | 24 min | 3 tasks | 26 files |
+| Phase 05 P22 | 44 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -504,6 +505,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: SessionRevocationReason.AccountChanged is stored as 9: the plan said 7 but 7 (Expired) and 8 (PasswordChanged) are already in use; nothing renumbered
 - [Phase 05]: Deactivate takes the csps-active-managers roster lock first and ManagerGuard decides own-account and last-active-Manager; Activate takes no lock but keeps the own-account rule
 - [Phase 05]: Session cache is evicted whenever a deactivate or activate changed the state; a no-op writes, revokes, audits and evicts nothing
+- [Phase 05]: 05-22: Add User fires onCreated at once for an invitation and, for a temporary password, when its shown-once step is closed; one Modal serves the form and the step so focus returns to Add User
+- [Phase 05]: 05-22: the temporary password lives in component state only; the form and submission forget it on success and the step state is dropped 350 ms after the panel closes (D-14)
+- [Phase 05]: 05-22: newTemporaryPassword draws Word-Word-NNNN from 40 sewing words with crypto.getRandomValues and rejection sampling; the word list awaits owner review (D-48)
 
 ### Pending Todos
 
@@ -563,6 +567,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T10:13:33.652Z
-Stopped at: Completed 05-21-PLAN.md
+Last session: 2026-10-18T11:01:34.684Z
+Stopped at: Completed 05-22-PLAN.md
 Resume file: None
