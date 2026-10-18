@@ -42,9 +42,7 @@ public sealed class AcceptInviteHandler(
             return Result.Failure(ValidationResults.ToError(validation, AuthErrors.ValidationCode, AuthErrors.ValidationMessage));
         }
 
-        // The second pass of a lost race reads the invite again, so one spent by the winner reads as invalid.
-        var outcome = await ConflictRetry.RunAsync(() => AttemptAsync(request, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
-            .ConfigureAwait(false);
+        var outcome = await ProcessAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (outcome.CheckUnavailableFor is { } userId)
         {
@@ -55,6 +53,34 @@ public sealed class AcceptInviteHandler(
     }
 
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
+
+    // The invite is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
+    private async Task<Outcome> ProcessAsync(AcceptInviteRequest request, CancellationToken cancellationToken)
+    {
+        var invite = await InviteLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        if (invite is null)
+        {
+            return new Outcome(Result.Failure(AuthErrors.InviteInvalid), null);
+        }
+
+        var account = invite.Account;
+        var verdict = await passwordRules
+            .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailClosed, cancellationToken)
+            .ConfigureAwait(false);
+        if (verdict.Status == PasswordRulesStatus.CheckUnavailable)
+        {
+            return new Outcome(Result.Failure(AuthErrors.BreachCheckUnavailable), account.Id);
+        }
+
+        if (verdict.Status != PasswordRulesStatus.Accepted)
+        {
+            return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
+        }
+
+        // The second pass of a lost race reads the invite again, so one spent by the winner reads as invalid; the breach answer is kept.
+        return await ConflictRetry.RunAsync(() => AttemptAsync(request, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
+            .ConfigureAwait(false);
+    }
 
     private Task<Outcome> AttemptAsync(AcceptInviteRequest request, CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
@@ -68,18 +94,6 @@ public sealed class AcceptInviteHandler(
                 }
 
                 var account = invite.Account;
-                var verdict = await passwordRules
-                    .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailClosed, token)
-                    .ConfigureAwait(false);
-                if (verdict.Status == PasswordRulesStatus.CheckUnavailable)
-                {
-                    return new Outcome(Result.Failure(AuthErrors.BreachCheckUnavailable), account.Id);
-                }
-
-                if (verdict.Status != PasswordRulesStatus.Accepted)
-                {
-                    return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
-                }
 
                 // Spend the invite first and save at once: a second request racing on the same invite loses here.
                 invite.Token.Use(now);

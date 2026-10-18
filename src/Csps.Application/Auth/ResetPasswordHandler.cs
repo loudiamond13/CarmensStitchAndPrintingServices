@@ -43,9 +43,7 @@ public sealed class ResetPasswordHandler(
             return Result.Failure(ValidationResults.ToError(validation, AuthErrors.ValidationCode, AuthErrors.ValidationMessage));
         }
 
-        // The second pass of a lost race reads the link again, so a link spent by the winner reads as invalid.
-        var outcome = await ConflictRetry.RunAsync(() => AttemptAsync(request, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
-            .ConfigureAwait(false);
+        var outcome = await ProcessAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (outcome.EvictUser is { } userId)
         {
@@ -62,7 +60,31 @@ public sealed class ResetPasswordHandler(
 
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
-    private Task<Outcome> AttemptAsync(ResetPasswordRequest request, CancellationToken cancellationToken) =>
+    // The link is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
+    private async Task<Outcome> ProcessAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var link = await ResetLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        if (link is null)
+        {
+            return new Outcome(Result.Failure(AuthErrors.LinkInvalid), null);
+        }
+
+        var account = link.Account;
+        var verdict = await passwordRules
+            .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailOpenWithFloor, cancellationToken)
+            .ConfigureAwait(false);
+        if (verdict.Status != PasswordRulesStatus.Accepted)
+        {
+            return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
+        }
+
+        // The second pass of a lost race reads the link again, so a link spent by the winner reads as invalid; the breach answer is kept.
+        return await ConflictRetry.RunAsync(
+                () => AttemptAsync(request, verdict.BreachCheckSkipped, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
+            .ConfigureAwait(false);
+    }
+
+    private Task<Outcome> AttemptAsync(ResetPasswordRequest request, bool breachCheckSkipped, CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
             async token =>
             {
@@ -74,20 +96,13 @@ public sealed class ResetPasswordHandler(
                 }
 
                 var account = link.Account;
-                var verdict = await passwordRules
-                    .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailOpenWithFloor, token)
-                    .ConfigureAwait(false);
-                if (verdict.Status != PasswordRulesStatus.Accepted)
-                {
-                    return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
-                }
 
                 // Spend the link first and save at once: a second request racing on the same link loses here, before any other change.
                 link.Token.Use(now);
                 await tokens.RevokeOpenAsync(account.Id, AccountTokenPurpose.PasswordReset, now, token).ConfigureAwait(false);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
 
-                await ApplyAsync(account, request.NewPassword!, verdict.BreachCheckSkipped, now, token).ConfigureAwait(false);
+                await ApplyAsync(account, request.NewPassword!, breachCheckSkipped, now, token).ConfigureAwait(false);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return new Outcome(Result.Success(), account.Id);
             },
