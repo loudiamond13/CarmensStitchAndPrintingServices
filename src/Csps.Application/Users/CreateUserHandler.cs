@@ -60,10 +60,18 @@ public sealed class CreateUserHandler(
         }
 
         var invitedBy = $"{manager.FirstName} {manager.LastName}";
-        var id = await unitOfWork
-            .InTransactionAsync(token => CreateAsync(request, email, invitedBy, token), cancellationToken)
-            .ConfigureAwait(false);
-        return Result.Success(new CreateUserResponse(id));
+        try
+        {
+            var id = await unitOfWork
+                .InTransactionAsync(token => CreateAsync(request, email, invitedBy, token), cancellationToken)
+                .ConfigureAwait(false);
+            return Result.Success(new CreateUserResponse(id));
+        }
+        catch (EmailInUseException)
+        {
+            // Another create took the address between the check above and the save: the unique index decides (T-05-56).
+            return Result.Failure<CreateUserResponse>(UserErrors.EmailInUse);
+        }
     }
 
     private async Task<Guid> CreateAsync(CreateUserRequest request, string email, string invitedBy, CancellationToken cancellationToken)

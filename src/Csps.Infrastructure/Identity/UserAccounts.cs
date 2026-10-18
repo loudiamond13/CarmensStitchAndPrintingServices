@@ -72,7 +72,25 @@ internal sealed class UserAccounts(
             user.PasswordHash = hasher.HashPassword(user, PasswordPolicy.Normalize(account.Password));
         }
 
-        Require(await users.CreateAsync(user).ConfigureAwait(false), "Creating the account");
+        IdentityResult created;
+        try
+        {
+            created = await users.CreateAsync(user).ConfigureAwait(false);
+        }
+        catch (DbUpdateException error) when (error.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Two creates took the address in the same instant; the unique index let one through. The failed row must leave the
+            // context, or the next save on this request would try to insert it again.
+            context.Entry(user).State = EntityState.Detached;
+            throw new EmailInUseException();
+        }
+
+        if (created.Errors.Any(static error => error.Code is nameof(IdentityErrorDescriber.DuplicateEmail) or nameof(IdentityErrorDescriber.DuplicateUserName)))
+        {
+            throw new EmailInUseException();
+        }
+
+        Require(created, "Creating the account");
         Require(await users.AddToRoleAsync(user, account.Role).ConfigureAwait(false), "Assigning the role");
         return user.Id;
     }

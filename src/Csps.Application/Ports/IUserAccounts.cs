@@ -31,7 +31,8 @@ public interface IUserAccounts
     /// <param name="account">The details.</param>
     /// <param name="cancellationToken">Cancels the create.</param>
     /// <returns>The new account id.</returns>
-    /// <exception cref="InvalidOperationException">The email is taken or the role does not exist.</exception>
+    /// <exception cref="EmailInUseException">Another account already holds the email, including when two creates raced for it.</exception>
+    /// <exception cref="InvalidOperationException">The role does not exist.</exception>
     Task<Guid> CreateAsync(NewUserAccount account, CancellationToken cancellationToken);
 
     /// <summary>Checks a password. An unknown id, or an account without a password, fails after the same hashing work.</summary>

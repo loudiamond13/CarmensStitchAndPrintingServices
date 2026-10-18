@@ -7,6 +7,7 @@ using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.IntegrationTests.Identity;
@@ -391,8 +392,28 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         var email = NewEmail();
         await accounts.CreateAsync(new NewUserAccount(email, "A", "B", Roles.Admin, Password), TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => accounts.CreateAsync(
+        await Should.ThrowAsync<EmailInUseException>(() => accounts.CreateAsync(
             new NewUserAccount(email.ToUpperInvariant(), "C", "D", Roles.Admin, Password), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task TheUniqueEmailIndexAloneRefusesADuplicateAndLeavesNoRowTracked()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var context = scope.ServiceProvider.GetRequiredService<CspsDbContext>();
+        var email = NewEmail();
+        await accounts.CreateAsync(new NewUserAccount(email, "A", "B", Roles.Admin, Password), TestContext.Current.CancellationToken);
+
+        // With Identity's own lookup out of the way, as when it ran before the other create committed, only the index is left to refuse.
+        users.UserValidators.Clear();
+        await Should.ThrowAsync<EmailInUseException>(() => accounts.CreateAsync(
+            new NewUserAccount(email.ToUpperInvariant(), "C", "D", Roles.Admin, Password), TestContext.Current.CancellationToken));
+
+        context.ChangeTracker.Entries<ApplicationUser>().Any(entry => entry.State == EntityState.Added).ShouldBeFalse();
+        (await context.SaveChangesAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]

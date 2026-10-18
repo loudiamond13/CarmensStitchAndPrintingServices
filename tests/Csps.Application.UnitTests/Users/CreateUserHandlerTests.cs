@@ -232,6 +232,22 @@ public sealed class CreateUserHandlerTests
     }
 
     [Fact]
+    public async Task AnAddressTakenBetweenTheCheckAndTheSaveIsTheSameEmailFieldErrorAndTheWorkRollsBack()
+    {
+        var harness = Harness.Create();
+        harness.Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>()).Returns<Guid>(_ => throw new EmailInUseException());
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(UserErrors.EmailInUse);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        harness.AddedToken.ShouldBeNull();
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task AFailureAnywhereRollsBack()
     {
         var harness = Harness.Create();
