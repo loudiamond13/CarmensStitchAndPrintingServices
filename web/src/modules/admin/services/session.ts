@@ -134,7 +134,7 @@ export function createSession(deps: SessionDeps) {
   const listeners = new Set<() => void>();
   let boot: Promise<SessionUser | null> | undefined;
   let inflight: Promise<void> | undefined;
-  let navigator: ((to: string) => void) | undefined;
+  let routerNavigate: ((to: string) => void) | undefined;
   let notice: SignInNotice | null = null;
   let signedInToast: SignedInToast | null = null;
   let pendingEmail: string | null = null;
@@ -191,13 +191,12 @@ export function createSession(deps: SessionDeps) {
     clearSession();
     notice = reason;
     if (goToSignIn) {
-      navigator?.(LOGIN_PATH);
+      routerNavigate?.(LOGIN_PATH);
     }
   }
 
   /** One refresh request; a 409 (lost a save race, the cookie is kept) is tried once more. */
   async function requestSession(): Promise<void> {
-    refreshFailure = null;
     for (let attempt = 0; ; attempt++) {
       try {
         const response = await deps.auth.refresh();
@@ -230,6 +229,8 @@ export function createSession(deps: SessionDeps) {
 
   function refreshSession(): Promise<void> {
     inflight ??= (async () => {
+      // A failure from an earlier refresh must not outlive it, whichever path this refresh takes.
+      refreshFailure = null;
       const peersBefore = peerRefreshes;
       if (locks === null) {
         await refreshUnderLock(peersBefore);
@@ -323,7 +324,7 @@ export function createSession(deps: SessionDeps) {
     },
     /** The router's navigate function; session.ts never imports the router. */
     setNavigator: (next: (to: string) => void): void => {
-      navigator = next;
+      routerNavigate = next;
     },
     setSignInNotice: (next: SignInNotice): void => {
       notice = next;
