@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Server.IntegrationTests.Users;
 
 /// <summary>
-/// USER-04, D-18, D-19, T-05-60: the shop is never left without an active Manager, even when two Managers deactivate each other at
+/// USER-04, D-18, D-19, T-05-60, T-05-70: the shop is never left without an active Manager, even when two Managers deactivate or lock each other at
 /// the same moment, and nobody acts on their own account. An active Manager is role Manager, active, not deleted and not
 /// Manager-locked; a failed-password lockout does not count against them.
 /// </summary>
@@ -78,6 +78,7 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
     [Theory]
     [InlineData("deactivate")]
     [InlineData("activate")]
+    [InlineData("lock")]
     public async Task AManagerActingOnTheirOwnAccountIsRefusedAndNothingChanges(string action)
     {
         await database.ResetAsync();
@@ -120,6 +121,111 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
                     .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
                 var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
                 (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
+            }
+
+            (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
+        }
+    }
+
+    [Fact]
+    public async Task AManagerLocksAnotherManagerWhileOneRemainsAndUnlockingBringsThemBack()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var a = await TestSessions.StartAsync(factory, Roles.Manager);
+        var b = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+
+        using (var locked = await UserFixtures.ActionAsync(client, a.AccessToken, b.UserId, "lock"))
+        {
+            locked.StatusCode.ShouldBe(HttpStatusCode.NoContent, await locked.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        // An Admin is not a Manager, so locking one never needs another Manager to remain.
+        using (var adminLocked = await UserFixtures.ActionAsync(client, a.AccessToken, admin.UserId, "lock"))
+        {
+            adminLocked.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await ActiveManagersAsync()).ShouldBe([a.UserId]);
+        using (var unlocked = await UserFixtures.ActionAsync(client, a.AccessToken, b.UserId, "unlock"))
+        {
+            unlocked.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await ActiveManagersAsync()).Order().ShouldBe(new[] { a.UserId, b.UserId }.Order());
+    }
+
+    [Fact]
+    public async Task LockingTheLastActiveManagerIsRefusedAndNothingChanges()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var a = await TestSessions.StartAsync(factory, Roles.Manager);
+        var b = await TestSessions.StartAsync(factory, Roles.Manager);
+        await AuthClient.DeactivateAsync(factory, a.UserId);
+
+        // The caller is no longer an active Manager, so b is the only one left.
+        using var response = await UserFixtures.ActionAsync(client, a.AccessToken, b.UserId, "lock");
+
+        await AssertRefusedAsync(response, LastManagerCode, LastManagerMessage);
+        (await ActiveManagersAsync()).ShouldBe([b.UserId]);
+    }
+
+    [Fact]
+    public async Task TwoManagersLockingEachOtherTogetherLeaveExactlyOneActiveEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+
+        for (var run = 0; run < 20; run++)
+        {
+            await database.ResetAsync();
+            var a = await TestSessions.StartAsync(factory, Roles.Manager);
+            var b = await TestSessions.StartAsync(factory, Roles.Manager);
+            (await AuthClient.SiteSettingsStatusAsync(client, a.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+            (await AuthClient.SiteSettingsStatusAsync(client, b.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => UserFixtures.ActionAsync(client, a.AccessToken, b.UserId, "lock"),
+                () => UserFixtures.ActionAsync(client, b.AccessToken, a.UserId, "lock"));
+            using (first)
+            using (second)
+            {
+                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
+                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
+                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
+                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
+            }
+
+            (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
+        }
+    }
+
+    [Fact]
+    public async Task ALockAndADeactivateOnTheTwoManagersAtTheSameTimeLeaveExactlyOneActive()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+
+        for (var run = 0; run < 10; run++)
+        {
+            await database.ResetAsync();
+            var a = await TestSessions.StartAsync(factory, Roles.Manager);
+            var b = await TestSessions.StartAsync(factory, Roles.Manager);
+            (await AuthClient.SiteSettingsStatusAsync(client, a.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+            (await AuthClient.SiteSettingsStatusAsync(client, b.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => UserFixtures.ActionAsync(client, a.AccessToken, b.UserId, "lock"),
+                () => UserFixtures.ActionAsync(client, b.AccessToken, a.UserId, "deactivate"));
+            using (first)
+            using (second)
+            {
+                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
+                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
