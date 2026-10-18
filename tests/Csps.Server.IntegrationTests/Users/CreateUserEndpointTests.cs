@@ -197,7 +197,162 @@ public sealed class CreateUserEndpointTests(CspsDatabase database) : IClassFixtu
         Convert.ToHexString(record.RequestHash).ShouldNotContain(Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(Common)));
     }
 
+    [Theory]
+    [InlineData("invitation", null)]
+    [InlineData("temporary-password", TemporaryPassword)]
+    public async Task TheCreatorAndTheTimeComeFromTheTokenAndTheClockWhateverTheBodyClaims(string access, string? password)
+    {
+        var clock = new SteppedClock();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = AuthClient.CreateClient(factory);
+        var email = NewEmail("stamp");
+        var forged = Guid.NewGuid();
+        var body = Body("Sol", "Stamp", email, "Admin", access, password);
+        body["createdById"] = forged;
+        body["createdAtUtc"] = "2001-01-01T00:00:00+00:00";
+        body["updatedById"] = forged;
+        body["updatedAtUtc"] = "2002-02-02T00:00:00+00:00";
+
+        using var created = await PostAsync(client, manager.AccessToken, body);
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var row = await ReadRowAsync(await ReadIdAsync(created));
+        row.CreatedById.ShouldBe(manager.UserId);
+        row.CreatedAtUtc.ShouldBe(clock.GetUtcNow());
+        row.CreatedAtUtc.Offset.ShouldBe(TimeSpan.Zero);
+        row.UpdatedById.ShouldBeNull();
+        row.UpdatedAtUtc.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ARepeatedKeyAndBodyGivesTheFirstAnswerBackWithOneAccountOneInviteAndNoNewStamp()
+    {
+        var clock = new SteppedClock();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = AuthClient.CreateClient(factory);
+        var email = NewEmail("again");
+        var key = Guid.NewGuid();
+        var body = Body("Ria", "Again", email, "Admin", "invitation");
+
+        using var first = await PostAsync(client, manager.AccessToken, body, key);
+        var afterFirst = await ReadRowAsync(await ReadIdAsync(first));
+        clock.Advance(TimeSpan.FromMinutes(10));
+        using var second = await PostAsync(client, manager.AccessToken, body, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        first.Headers.Contains(AuthClient.ReplayedHeader).ShouldBeFalse();
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+        (await ReadIdAsync(second)).ShouldBe(afterFirst.Id);
+        second.Headers.Location.ShouldBe(first.Headers.Location);
+
+        (await AuthClient.WaitForEmailsAsync(client, email)).ShouldHaveSingleItem();
+        await using var context = database.CreateContext();
+        (await context.Users.CountAsync(user => user.Email == email, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.EmailOutbox.CountAsync(mail => mail.ToAddress == email, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.AccountTokens.CountAsync(token => token.UserId == afterFirst.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
+        var afterSecond = await ReadRowAsync(afterFirst.Id);
+        afterSecond.ShouldBe(afterFirst);
+    }
+
+    [Fact]
+    public async Task TheEmailIsTrimmedAndComparedWithoutRegardToLetterCase()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var existing = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Una", "Used");
+
+        using var response = await PostAsync(client, manager.AccessToken, Body("Una", "Twin", $"  {existing.Email.ToUpperInvariant()} ", "Admin", "invitation"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("email")[0].GetString()
+            .ShouldBe("Another account already uses this email.");
+        await using var context = database.CreateContext();
+        var normalized = existing.Email.ToUpperInvariant();
+        (await context.Users.CountAsync(user => user.NormalizedEmail == normalized, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TwoCreatesWithTheSameEmailSentTogetherGiveOneAccountAndOneEmailFieldErrorEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        for (var run = 0; run < 20; run++)
+        {
+            var email = NewEmail($"race{run}");
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => PostAsync(client, manager.AccessToken, Body("Rae", "One", email, "Admin", "invitation")),
+                () => PostAsync(client, manager.AccessToken, Body("Rae", "Two", email, "Manager", "temporary-password", TemporaryPassword)));
+            using (first)
+            using (second)
+            {
+                var statuses = new[] { first.StatusCode, second.StatusCode }.Order().ToArray();
+                statuses.ShouldBe([HttpStatusCode.Created, HttpStatusCode.BadRequest], $"run {run}");
+                var loser = first.StatusCode == HttpStatusCode.BadRequest ? first : second;
+                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("email")[0].GetString()
+                    .ShouldBe("Another account already uses this email.", $"run {run}");
+            }
+
+            await using var context = database.CreateContext();
+            (await context.Users.CountAsync(user => user.Email == email, TestContext.Current.CancellationToken)).ShouldBe(1, $"run {run}");
+        }
+    }
+
+    [Fact]
+    public async Task AnAddressOfADeletedAccountCanBeInvitedAgainAsASeparateNewAccount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var old = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Olga", "Old");
+        await DeleteLikeTheDeleteActionAsync(old.Id);
+
+        using var response = await PostAsync(client, manager.AccessToken, Body("Olga", "New", old.Email, "Admin", "invitation"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var id = await ReadIdAsync(response);
+        id.ShouldNotBe(old.Id);
+        var listed = (await UserFixtures.ReadPageAsync(client, manager.AccessToken, $"q={Uri.EscapeDataString(old.Email)}")).Items.ShouldHaveSingleItem();
+        listed.Id.ShouldBe(id);
+        await using var context = database.CreateContext();
+        (await context.Users.AnyAsync(user => user.Id == old.Id && user.DeletedAtUtc != null, TestContext.Current.CancellationToken)).ShouldBeTrue();
+    }
+
     private static string NewEmail(string name) => $"{name}.{Guid.NewGuid():N}@example.com";
+
+    // A delete frees the address by scrambling it on the old row (D-07, D-10); the delete action itself comes in a later plan.
+    private async Task DeleteLikeTheDeleteActionAsync(Guid id)
+    {
+        var scrambled = $"deleted.{Guid.NewGuid():N}@deleted.invalid";
+        await using var context = database.CreateContext();
+        var changed = await context.Users.Where(user => user.Id == id).ExecuteUpdateAsync(
+            set => set
+                .SetProperty(user => user.Email, scrambled)
+                .SetProperty(user => user.UserName, scrambled)
+                .SetProperty(user => user.NormalizedEmail, scrambled.ToUpperInvariant())
+                .SetProperty(user => user.NormalizedUserName, scrambled.ToUpperInvariant())
+                .SetProperty(user => user.DeletedAtUtc, TimeProvider.System.GetUtcNow()),
+            TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    private async Task<Row> ReadRowAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        return await context.Users.AsNoTracking()
+            .Where(user => user.Id == id)
+            .Select(user => new Row(user.Id, user.CreatedById, user.CreatedAtUtc, user.UpdatedById, user.UpdatedAtUtc))
+            .SingleAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed record Row(Guid Id, Guid? CreatedById, DateTimeOffset CreatedAtUtc, Guid? UpdatedById, DateTimeOffset? UpdatedAtUtc);
 
     private static Dictionary<string, object?> Body(string first, string last, string? email, string? role, string? access, string? temporaryPassword = null) =>
         new()
