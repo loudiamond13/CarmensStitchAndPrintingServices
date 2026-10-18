@@ -112,6 +112,10 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/profile/email-change/confirm", "/api/v1/profile/email-change/confirm", Anonymous: 404, Admin: 404, Manager: 404),
         // The read-only link check is anonymous too, and answers the same invalid-link 404 for a missing token whoever asks.
         new("POST", "/api/v1/profile/email-change/check", "/api/v1/profile/email-change/check", Anonymous: 404, Admin: 404, Manager: 404),
+        // Sending the link again (D-24): Staff only. A caller with nothing waiting meets the same 404 email-change.none.
+        new("POST", "/api/v1/profile/email-change/resend", "/api/v1/profile/email-change/resend", Anonymous: 401, Admin: 404, Manager: 404),
+        // Calling the change off is naturally idempotent: with nothing waiting both roles still get 204.
+        new("DELETE", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 204, Manager: 204),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
