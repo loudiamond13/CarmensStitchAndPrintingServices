@@ -60,6 +60,19 @@ export async function requireSessionLoader({ request }: Pick<LoaderFunctionArgs,
 }
 
 /**
+ * The loader of the Manager-only routes (Users, Audit Log): the session check first, so a visitor without a session goes
+ * to sign-in with the return path, then only the manager role passes. An Admin goes to /admin (USER-08).
+ */
+export async function requireManagerLoader(args: Pick<LoaderFunctionArgs, 'request'>): Promise<SessionUser> {
+  const user = await requireSessionLoader(args);
+  if (user.role !== 'manager') {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
+    throw redirect(ADMIN_HOME);
+  }
+  return user;
+}
+
+/**
  * The loader of the sign-in routes: a live session goes to the safe return path (/admin without one), so a deep link
  * survives a reload; a failed session check never throws.
  */

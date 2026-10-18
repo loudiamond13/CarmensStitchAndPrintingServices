@@ -73,6 +73,10 @@ const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
 const requireSession: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireSessionLoader(args);
 
+/** requireManagerLoader (USER-08), loaded with the admin chunks as above. */
+const requireManager: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args);
+
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).redirectIfSignedInLoader(args);
@@ -99,7 +103,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: notFoundPage },
-          { path: 'users', lazy: notFoundPage },
+          { path: 'users', loader: requireManager, lazy: notFoundPage },
+          { path: 'audit-log', loader: requireManager, lazy: notFoundPage },
           { path: 'profile', lazy: notFoundPage },
         ],
       },

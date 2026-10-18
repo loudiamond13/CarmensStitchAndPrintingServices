@@ -112,8 +112,13 @@ function newTab(hub: Hub, locks: Locks | null) {
 
 /** A session response whose user carries `role` exactly as given, or no role at all when it is undefined. */
 function responseWithRole(role: string | undefined): SessionResponse {
-  const { role: _dropped, ...user } = sessionResponse().user;
-  return sessionResponse({ user: role === undefined ? (user as SessionResponse['user']) : { ...user, role } });
+  const user: Partial<SessionResponse['user']> = { ...sessionResponse().user };
+  if (role !== undefined) {
+    user.role = role;
+  } else {
+    delete user.role;
+  }
+  return sessionResponse({ user: user as SessionResponse['user'] });
 }
 
 describe('the role mapping fails closed (IN-17, USER-08)', () => {
@@ -604,6 +609,21 @@ describe('sign-in completion and the code step state (AUTH-02, D-01)', () => {
     expect(getSessionUser()?.name).toBe('Carmen Reyes');
     expect(getPendingEmail()).toBeNull();
     expect(getResendAvailableAt()).toBeNull();
+  });
+
+  it('completeSignIn with an unknown role keeps no session and tells no other tab (IN-17)', () => {
+    const hub = createHub();
+    const tab = createSession({
+      auth: { refresh: vi.fn(), signOut: vi.fn() },
+      locks: null,
+      createChannel: () => hub.create(),
+    });
+
+    tab.completeSignIn(responseWithRole('Owner'));
+
+    expect(tab.getSessionUser()).toBeNull();
+    expect(tab.accessToken()).toBeNull();
+    expect(hub.messages).toEqual([]);
   });
 
   it('completeSignIn tells other tabs a session exists, with the expiry only', () => {
