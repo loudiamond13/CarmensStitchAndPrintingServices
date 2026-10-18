@@ -12,8 +12,9 @@ namespace Csps.Application.Profile;
 /// <summary>
 /// Use case: the caller changes their own password from My Profile (PROF-03). The current password must match, the new
 /// one meets the full rule (the breach lookup runs before the transaction), and on success every other device of the
-/// caller is signed out while this one stays signed in. The target is always the token's user (CWE-639), and neither
-/// password reaches a log, an audit entry or a response.
+/// caller is signed out while this one stays signed in. A wrong current password counts toward the same five-try
+/// lockout as sign-in, and a locked account is refused without a password check (D-41 Q9, CWE-307). The target is
+/// always the token's user (CWE-639), and neither password reaches a log, an audit entry or a response.
 /// </summary>
 public sealed class ChangePasswordHandler(
     IUserAccounts accounts,
@@ -25,6 +26,7 @@ public sealed class ChangePasswordHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<ChangePasswordRequest> validator,
+    AuthSettings settings,
     TimeProvider time)
 {
     private const string UserTarget = "User";
@@ -55,14 +57,20 @@ public sealed class ChangePasswordHandler(
             return Result.Failure(AuthErrors.SessionEnded);
         }
 
+        var now = time.GetUtcNow();
+        if (account.LockoutEnd is { } lockedUntil && lockedUntil > now)
+        {
+            return Result.Failure(ProfileErrors.PasswordLocked(lockedUntil - now));
+        }
+
         var current = request.CurrentPassword!;
         var next = request.NewPassword!;
         if (await accounts.CheckPasswordAsync(account.Id, current, cancellationToken).ConfigureAwait(false) == PasswordCheck.Failed)
         {
-            return Result.Failure(ProfileErrors.WrongPassword);
+            return await CountWrongPasswordAsync(account, cancellationToken).ConfigureAwait(false);
         }
 
-        // Compared as typed, not looked up, because the current password is known to be right at this point.
+        // Compared as typed, not looked up: the current password is known to be right here, so this is no guessing oracle.
         if (string.Equals(PasswordPolicy.Normalize(current), PasswordPolicy.Normalize(next), StringComparison.Ordinal))
         {
             return Result.Failure(AuthErrors.NewPasswordRejected(SetNewPasswordHandler.SameAsCurrentMessage));
@@ -79,6 +87,28 @@ public sealed class ChangePasswordHandler(
         return await ConflictRetry
             .RunAsync(() => SaveAsync(account, sessionId, next, verdict.BreachCheckSkipped, cancellationToken), Result.Failure(AuthErrors.SessionBusy))
             .ConfigureAwait(false);
+    }
+
+    // The count, and when it locks the account the one lockout email and its audit entry, commit together (T-04-39).
+    private async Task<Result> CountWrongPasswordAsync(UserAccount account, CancellationToken cancellationToken)
+    {
+        var failure = await unitOfWork.InTransactionAsync(
+            async token =>
+            {
+                var result = await accounts.RecordFailedPasswordAsync(account.Id, token).ConfigureAwait(false);
+                if (result.LockedNow)
+                {
+                    // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
+                    await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password, settings.PasswordLockoutDuration), token).ConfigureAwait(false);
+                    audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(account.Id), "password");
+                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                }
+
+                return result;
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return Result.Failure(failure.LockedNow ? ProfileErrors.PasswordLocked(failure.LockoutEnd!.Value - time.GetUtcNow()) : ProfileErrors.WrongPassword);
     }
 
     private async Task<Result> SaveAsync(UserAccount account, Guid sessionId, string newPassword, bool breachCheckSkipped, CancellationToken cancellationToken)

@@ -1707,6 +1707,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
           }
         },
         "summary": "Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in.",

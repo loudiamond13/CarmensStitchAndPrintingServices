@@ -57,7 +57,7 @@ public sealed class ProfileController(GetProfileHandler get, UpdateProfileNameHa
     /// <summary>Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in.</summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>204 with no body, 400 for field errors (a wrong current password is one), 401 without a valid token, or 409 when two saves lost a race.</returns>
+    /// <returns>204 with no body, 400 for field errors (a wrong current password is one), 401 without a valid token, 409 when two saves lost a race, or 429 <c>profile.password-locked</c> (with Retry-After) while the account is locked.</returns>
     [HttpPost("password")]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
     [EndpointName("ChangePassword")]
@@ -65,11 +65,18 @@ public sealed class ProfileController(GetProfileHandler get, UpdateProfileNameHa
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IResult> ChangePassword(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ChangePasswordRequest? body,
         CancellationToken cancellationToken)
     {
         var result = await changePassword.HandleAsync(body ?? ChangePasswordRequest.Empty, cancellationToken).ConfigureAwait(false);
+        if (result is { IsFailure: true, Error.Code: ProfileErrors.PasswordLockedCode })
+        {
+            // A 429 is not stored, so the gate would roll back the wrong password that just locked the account.
+            IdempotencyOutcome.KeepChanges(HttpContext);
+        }
+
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

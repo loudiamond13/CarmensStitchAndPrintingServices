@@ -95,6 +95,20 @@ public sealed class IdempotencyLease : IAsyncDisposable
         _finished = true;
     }
 
+    /// <summary>Commits the business change without storing an answer, so the same key may run again.</summary>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>A task that completes when the transaction is committed.</returns>
+    public async Task CommitWithoutRecordAsync(CancellationToken cancellationToken)
+    {
+        if (State != IdempotencyLeaseState.Proceed || _finished)
+        {
+            throw new InvalidOperationException("Only an open lease for a new key can commit.");
+        }
+
+        await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        _finished = true;
+    }
+
     /// <summary>Rolls back the business change and releases the key, so the same key may run again.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes when the transaction is rolled back.</returns>

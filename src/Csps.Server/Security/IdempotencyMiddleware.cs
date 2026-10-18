@@ -14,7 +14,8 @@ namespace Csps.Server.Security;
 /// to the route and the user (none when anonymous): a repeat with the same path, query and body gets the stored answer with
 /// <c>Idempotent-Replayed: true</c>, a different one is a 422, and a duplicate that arrives while the first runs is a
 /// 409. The answer is stored with the business change in one transaction and written to the client only after the
-/// commit. Only 2xx, 400, 404 and 422 are kept; anything else rolls back so the same key may run again.
+/// commit. Only 2xx, 400, 404 and 422 are kept; anything else rolls back so the same key may run again, unless the
+/// endpoint calls <see cref="IdempotencyOutcome.KeepChanges"/>: then the change commits and the answer is still not stored.
 /// Multipart bodies will need part-wise hashing once uploads exist (deferred LIB-CR-02).
 /// </summary>
 /// <param name="next">The next middleware.</param>
@@ -214,6 +215,10 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
                     location.Length == 0 ? null : location,
                     CancellationToken.None).ConfigureAwait(false);
             }
+            else if (IdempotencyOutcome.ChangesKept(context))
+            {
+                await lease.CommitWithoutRecordAsync(CancellationToken.None).ConfigureAwait(false);
+            }
             else
             {
                 await lease.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
@@ -253,4 +258,23 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
         context.Response.Headers.CacheControl = NoStore;
         return TypedResults.Problem(CspsProblemDetails.Build(context, status, detail, code: code)).ExecuteAsync(context);
     }
+}
+
+/// <summary>
+/// Lets an endpoint keep its database changes when its answer is not one the gate stores. A 429 for a locked account
+/// is the case: the wrong password that locks the account must stay counted, but a retry may still get another answer.
+/// </summary>
+public static class IdempotencyOutcome
+{
+    private static readonly object KeepKey = new();
+
+    /// <summary>Commits this request's changes without storing its answer, so the same key may run again.</summary>
+    /// <param name="context">The current HTTP context.</param>
+    public static void KeepChanges(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Items[KeepKey] = true;
+    }
+
+    internal static bool ChangesKept(HttpContext context) => context.Items.ContainsKey(KeepKey);
 }

@@ -333,6 +333,39 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task AnEndpointCanKeepItsChangeWhenTheAnswerIsNotStored()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        var key = Guid.NewGuid();
+        var keptRow = Guid.NewGuid();
+
+        using var first = await SendAsync(client, $"{ProbePrefix}/keep/429?write={keptRow:D}", key.ToString("D"));
+
+        first.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        (await ReadRecordsAsync(keptRow)).ShouldHaveSingleItem();
+        (await ReadRecordsAsync(key)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AKeptChangeStoresNoAnswerSoTheSameKeyRunsAgain()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        var key = Guid.NewGuid();
+
+        using var first = await SendAsync(client, $"{ProbePrefix}/keep/429?write={Guid.NewGuid():D}", key.ToString("D"));
+        using var again = await SendAsync(client, $"{ProbePrefix}/keep/429?write={Guid.NewGuid():D}", key.ToString("D"));
+
+        first.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        again.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        again.Headers.Contains(AuthClient.ReplayedHeader).ShouldBeFalse();
+        probe.Runs.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task AThrownExceptionRollsBackAndTheSameKeyRunsAgain()
     {
         var probe = new IdempotencyProbe();

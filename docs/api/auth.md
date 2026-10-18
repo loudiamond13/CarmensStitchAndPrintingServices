@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-17T20:41:00-05:00
+updated: 2026-10-18T00:40:00-05:00
 ---
 
 # The authentication and sessions API
@@ -164,6 +164,7 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth.code-lockout` | 429 | The account is paused after too many wrong codes. |
 | `auth.resend-cooldown` | 429 | A resend inside the 60-second cooldown; `Retry-After` says how long. |
 | `auth.resend-cap` | 429 | The hourly resend cap; no wait time is given. |
+| `profile.password-locked` | 429 | `POST /profile/password` only: the account is locked after five wrong current passwords (the same lock as sign-in); `Retry-After` says how long, and the password is not checked while it lasts. A wrong current password before that is `400` under `currentPassword`. |
 | `auth.link-invalid` | 404 | A reset link that is malformed, unknown, used, revoked, expired or for an account that may not sign in. Never says which. |
 | `auth.invite-invalid` | 404 | The same for an invite link. |
 | `auth.breach-check-unavailable` | 422 | Invite acceptance only: the breached-password lookup could not be reached, so nothing is saved. |
