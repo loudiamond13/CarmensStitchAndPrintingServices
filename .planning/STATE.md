@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-27-PLAN.md
-last_updated: "2026-10-18T14:17:51.871Z"
+stopped_at: Completed 05-28-PLAN.md
+last_updated: "2026-10-18T14:58:19.362Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 54e09ff5a81d0f2e7bb9ac52015e760945d7211e
+state_head: cb0cba0b6a9d92a08a6fc4d0fc2773d19f517963
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 146
+  completed_plans: 147
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T09:22:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 33 of 43
+Plan: 34 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -202,6 +202,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P26 | 45 min | 3 tasks | 23 files |
 | Phase 05 P32 | 20 min | 3 tasks | 17 files |
 | Phase 05 P27 | 26 min | 3 tasks | 29 files |
+| Phase 05 P28 | 42 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -532,6 +533,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-27: reset-link emails share one hourly cap of 3 per address in both directions (ResetEmailCap counts PasswordReset and ManagerResetLink kinds), used by forgot-password and the Manager's send
 - [Phase 05]: 05-27: a temporary password is a staff edit: IUserAccounts.MarkStaffEditAsync rotates EditVersion so SEC-08 stamps the Manager (Identity bookkeeping never does); resend and send-link leave the version alone
 - [Phase 05]: 05-27: a person invited but not yet set up can get a temporary password: the address counts as confirmed and the open invitation is revoked; Blocked is checked before every action-specific rule
+- [Phase 05]: 05-28: guard and deleted-meanwhile words ride an optional describeFailure prop on SignOutDialog and ConfirmDialog; ConfirmDialog gains pendingLabel (Deleting)
+- [Phase 05]: 05-28: useUserAction moves an identity generation after the roster refreshes so a repeated action on the same person sends a new request with a new Idempotency-Key
+- [Phase 05]: 05-28: focus after a delete skips the signed-in Manager's own row (no Edit button): next other row, else previous other row, else the h1
 
 ### Pending Todos
 
@@ -591,6 +595,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T14:17:51.200Z
-Stopped at: Completed 05-27-PLAN.md
+Last session: 2026-10-18T14:58:18.687Z
+Stopped at: Completed 05-28-PLAN.md
 Resume file: None

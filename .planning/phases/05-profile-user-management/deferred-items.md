@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T07:50:00-05:00
+updated: 2026-10-18T09:55:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -47,11 +47,12 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Covered meanwhile:** the record expires after 24 hours and no endpoint exposes the table; `TheLastChangerIsTheAccountItselfEvenAfterAnEarlierSelfEdit` pins the attribution.
 
 
-## Firefox "font preloaded but not used" console warning under parallel Playwright load (found in plans 05-08 and 05-18)
+## Firefox "font preloaded but not used" console warning under parallel Playwright load (found in plans 05-08, 05-18 and 05-28)
 
 - **What:** With 4 Playwright workers and a long Firefox test on a page that preloads the Archivo font (for example `/admin/profile`), Firefox writes "The resource ... archivo-latin-wght-normal ... preloaded with link preload was not used within a few seconds". The e2e guard fails the test on any console warning. In the 05-18 full `@profile` run it failed four Firefox tests, two of them in the untouched `profile.spec.ts`; the same tests pass with `--workers=2` or alone. Nothing in the 05-18 code loads fonts.
 - **Deferred to:** the Phase 5 close-out test review. Options: run Firefox with fewer workers, or ignore exactly this Firefox warning for the app's own preloaded woff2 in `web/e2e/fixtures.ts`, as the WebKit module-preload warning already is.
 - **Covered meanwhile:** the failing runs pass at `--workers=2`; no product behavior is affected.
+- **Seen again in 05-28:** with 4 workers the long Firefox `@users-actions` journey (1.3 min) failed on this warning; the same test passes alone and at `--workers=2`. In the `@users` run at `--workers=2` it hit the untouched first `@users` roster test (passes alone). 05-28 code loads no fonts.
 
 ## Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
 
