@@ -4,6 +4,8 @@
 //     so what is typed in a form survives a tab change.
 //   - The name form carries the edit version it was opened with, not the live query data: a profile changed in another
 //     tab is refetched into the header on window focus, and the stale save is refused with a 409 (D-20).
+//   - Appearance: the Theme choice changes the admin layout's one theme state at once (useAdminTheme); nothing is saved on the
+//     account (D-22).
 //   - A failed save keeps every typed value. A 400 puts the server's messages under the fields; a 409 edit.stale shows the
 //     shared ConflictBanner, and only Load Latest replaces the typed values with the latest version; anything else is a toast.
 //   - After a save the session is refreshed, so the sidebar chip and the top bar show the new name (AdminLayout reads it).
@@ -12,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Button, ButtonLink } from '@/components/actions';
-import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
+import { getTabPanelProps, SegmentedControl, Tabs, type SegmentOption, type TabItem } from '@/components/choice';
 import { Skeleton, useToast } from '@/components/feedback';
 import { Field } from '@/components/forms';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
@@ -39,12 +41,14 @@ import {
   profileStripeClasses,
 } from '@/modules/admin/components/profile.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
+import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { useProfileQuery } from '@/modules/admin/hooks/useProfileQuery';
 import { PROFILE_TABS, useProfileTab, type ProfileTab } from '@/modules/admin/hooks/useProfileTab';
 import { PROFILE_COPY } from '@/modules/admin/profileCopy';
 import { profileNameSchema, type ProfileNameValues } from '@/modules/admin/profileSchemas';
 import { profileService, type ProfileResponse } from '@/modules/admin/services/profileService';
 import { refreshSession } from '@/modules/admin/services/session';
+import type { Theme } from '@/modules/admin/theme';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { formatBusinessDate } from '@/utils/format';
 
@@ -52,6 +56,11 @@ const COPY = PROFILE_COPY;
 const ID_BASE = 'profile';
 
 const TAB_ITEMS: readonly TabItem<ProfileTab>[] = PROFILE_TABS.map((id) => ({ id, label: COPY.tabs[id] }));
+
+const THEME_OPTIONS: readonly SegmentOption<Theme>[] = [
+  { value: 'light', label: COPY.appearance.light, icon: 'sun', showLabel: true },
+  { value: 'dark', label: COPY.appearance.dark, icon: 'moon', showLabel: true },
+];
 
 type NameField = keyof ProfileNameValues;
 
@@ -259,6 +268,50 @@ function PersonalInformationCard({
   );
 }
 
+/** The Theme card: a choice that applies at once, with no save button (D-22). The shell keeps the one theme state. */
+function AppearanceCard() {
+  const { theme, setTheme } = useAdminTheme();
+  const headingId = useId();
+  // The theme this card last announced. A change made elsewhere (the top bar toggle) ends that announcement.
+  const [announced, setAnnounced] = useState<Theme | null>(null);
+  if (announced !== null && announced !== theme) {
+    setAnnounced(null);
+  }
+  const choose = (next: Theme): void => {
+    if (next === theme) {
+      return;
+    }
+    setTheme(next);
+    setAnnounced(next);
+  };
+  return (
+    <section aria-labelledby={headingId} className={profileCardClasses}>
+      <div className={profileCardHeadClasses}>
+        <div>
+          <h2 id={headingId} className={profileCardTitleClasses}>
+            {COPY.appearance.title}
+          </h2>
+          <p className={profileCardHintClasses}>{COPY.appearance.hint}</p>
+        </div>
+      </div>
+      <div className={profileCardBodyClasses}>
+        <div>
+          <SegmentedControl<Theme>
+            label={COPY.appearance.label}
+            options={THEME_OPTIONS}
+            value={theme}
+            onChange={choose}
+          />
+        </div>
+        <p className={profileCardHintClasses}>{COPY.appearance.note}</p>
+      </div>
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {announced === null ? '' : COPY.appearance.changed[announced]}
+      </div>
+    </section>
+  );
+}
+
 function DevicesCard() {
   const headingId = useId();
   return (
@@ -324,7 +377,9 @@ function ProfileView({ profile, tab, onTab, reload }: ProfileViewProps) {
       <div {...getTabPanelProps(ID_BASE, 'security')} hidden={tab !== 'security'} className={profileCardsClasses}>
         <DevicesCard />
       </div>
-      <div {...getTabPanelProps(ID_BASE, 'appearance')} hidden={tab !== 'appearance'} className={profileCardsClasses} />
+      <div {...getTabPanelProps(ID_BASE, 'appearance')} hidden={tab !== 'appearance'} className={profileCardsClasses}>
+        <AppearanceCard />
+      </div>
     </>
   );
 }

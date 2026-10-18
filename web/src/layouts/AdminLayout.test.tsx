@@ -165,7 +165,6 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     ['/admin/orders', 'Orders'],
     ['/admin/expenses', 'Company Expenses'],
     ['/admin/users', 'Users'],
-    ['/admin/profile', 'My Profile'],
     ['/admin/orders/', 'Orders'],
   ])('%s shows the h1 "%s", makes it the only current sidebar item and titles the document', async (path, label) => {
     await renderAt(path);
@@ -462,11 +461,30 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
     ['/admin/expenses', 'Expenses'],
-    ['/admin/profile', 'Profile'],
   ])('on %s marks %s current, in bold (D-03), and only it', async (path, label) => {
     await renderAt(path);
     const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
     expect(current.map((link) => link.textContent)).toEqual([label]);
+    expect(current[0]?.className.split(' ')).toEqual(
+      expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
+    );
+  });
+
+  it('marks Profile current, in bold (D-03), and only it, on the profile section (a real page since plan 05-13)', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="profile" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
+    expect(current.map((link) => link.textContent)).toEqual(['Profile']);
     expect(current[0]?.className.split(' ')).toEqual(
       expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
     );
@@ -543,11 +561,11 @@ describe('AdminLayout route-chunk loading (UI-SPEC UI Considerations: loading, r
 
 describe('AdminLayout re-render (React Compiler memo cache)', () => {
   it('keeps the shell when the same route renders again, and updates on a new path', async () => {
-    const { router } = await renderAt('/admin/profile');
+    const { router } = await renderAt('/admin/orders');
     await act(async () => {
-      await router.navigate('/admin/profile');
+      await router.navigate('/admin/orders');
     });
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('My Profile');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Orders');
     await act(async () => {
       await router.navigate('/admin/expenses');
     });
@@ -656,13 +674,31 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
   });
 
   it('takes the user to My Profile from the user menu', async () => {
-    await renderAt('/admin');
+    // My Profile is a real, guarded page (plan 05-13), so the person is signed in and the profile answers.
+    acceptSession(sessionResponse());
+    server.use(
+      http.get('*/api/v1/profile', () =>
+        HttpResponse.json({
+          id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          email: 'carmen@example.ph',
+          role: 'Manager',
+          pendingEmail: null,
+          memberSince: '2026-10-17T01:00:00Z',
+          version: '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3',
+        }),
+      ),
+    );
+    const { router } = await renderAt('/admin');
 
     await userEvent.click(userButton());
     await userEvent.click(screen.getByRole('menuitem', { name: 'My Profile' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'My Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Details' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/profile');
     expect(sidebarLink('My Profile')).toHaveAttribute('aria-current', 'page');
+    clearSession();
   });
 
   it('has no axe violations with the user menu open', async () => {
@@ -814,7 +850,7 @@ function ThemeProbe() {
 
 describe('AdminLayout theme context for pages (PROF-04, D-22)', () => {
   async function renderProbe() {
-    const router = createMemoryRouter(adminTree({ page: { lazy: undefined, Component: ThemeProbe } }), {
+    const router = createMemoryRouter(adminTree({ page: { lazy: () => Promise.resolve({ Component: ThemeProbe }) } }), {
       initialEntries: ['/admin'],
     });
     render(<RouterProvider router={router} />);
@@ -889,11 +925,15 @@ describe('AdminLayout theme context for pages (PROF-04, D-22)', () => {
         }),
       ),
     );
-    const router = createMemoryRouter(adminTree({ page: { lazy: undefined, Component: ProfileRoute } }), {
-      initialEntries: ['/admin?tab=appearance'],
-    });
+    const router = createMemoryRouter(
+      adminTree({ page: { lazy: () => Promise.resolve({ Component: ProfileRoute }) } }),
+      {
+        initialEntries: ['/admin'],
+      },
+    );
     render(<RouterProvider router={router} />);
     await screen.findByRole('heading', { level: 1, name: 'Carmen Reyes' }, { timeout: 5000 });
+    await userEvent.click(screen.getByRole('tab', { name: 'Appearance' }));
 
     await userEvent.click(screen.getByRole('radio', { name: 'Espresso (dark)' }));
     expect(pageRoot()).toHaveAttribute('data-theme', 'dark');

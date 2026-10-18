@@ -151,7 +151,6 @@ export const devRoutes: RouteObject[] = [
           { path: 'orders', lazy: previewPage },
           { path: 'expenses', lazy: previewPage },
           { path: 'users', lazy: previewPage },
-          { path: 'profile', lazy: previewPage },
         ],
       },
     ],

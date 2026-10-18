@@ -15,7 +15,6 @@ const PATHS: readonly AdminPath[] = [
   { path: '/admin/orders', label: 'Orders' },
   { path: '/admin/expenses', label: 'Company Expenses' },
   { path: '/admin/users', label: 'Users' },
-  { path: '/admin/profile', label: 'My Profile' },
 ];
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */

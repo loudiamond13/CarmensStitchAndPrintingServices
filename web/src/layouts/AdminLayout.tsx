@@ -15,8 +15,9 @@
 // (PROF-01). Logout (in
 // the Sidebar, the drawer and the Topbar's user menu) signs out and goes to /admin/login; when the server call fails the
 // person stays signed in on the page and a danger toast says so.
-// Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
-// on every toggle; a storage that throws leaves the toggle working in memory (theme.ts).
+// Theme (D-13, PROF-04): one state (useThemeState): read once in a lazy useState initializer (no inline script), Blush when
+// nothing valid is saved, written on every change; a storage that throws leaves it working in memory (theme.ts). The
+// Topbar toggle and any page (the Appearance tab of My Profile) change it, the pages through the Outlet context.
 // While a page chunk loads, `main` is busy and shows a skeleton page head (Skeleton 40% × 34, then 60% × 14) in the
 // page head's place (UI-SPEC UI Considerations: loading, route chunks).
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
@@ -37,12 +38,13 @@ import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDia
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
 import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
+import { useThemeState, type AdminThemeContext } from '@/modules/admin/hooks/useAdminTheme';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useSessionCapWarning } from '@/modules/admin/hooks/useSessionCapWarning';
 import { refreshAfterSignedOutOthers } from '@/modules/admin/hooks/useSessionsQuery';
 import { setNavigator, signOut, type SessionUser } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
-import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
+import type { Theme } from '@/modules/admin/theme';
 
 /** The signed-in devices page (D-43); the user menu links to it. */
 const SESSIONS_PATH = '/admin/sessions';
@@ -147,7 +149,7 @@ function currentShellUser(loaderUser: unknown, sessionUser: SessionUser | null):
 }
 
 /** The frame for the current path. Logout leaves for /admin/login once the server ended the session; if not, a toast says so. */
-function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
+function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
@@ -174,8 +176,10 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
       <AdminFrame
         section={adminNavItemForPath(pathname)?.id}
         user={user}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
+        theme={themeContext.theme}
+        onToggleTheme={() => {
+          themeContext.setTheme(themeContext.theme === 'light' ? 'dark' : 'light');
+        }}
         onLogout={() => {
           if (failureToast.current !== null) {
             toast.dismiss(failureToast.current);
@@ -199,7 +203,7 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
         }}
         loading={loading}
       >
-        <Outlet />
+        <Outlet context={themeContext} />
       </AdminFrame>
       {/* The menu puts focus on its button before this opens, so the dialog's focus trap returns there on close. It stays
           mounted so its exit animation plays (D-39). */}
@@ -217,19 +221,12 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
 }
 
 export default function AdminLayout() {
-  const [theme, setTheme] = useState<Theme>(readTheme);
+  const themeContext = useThemeState();
   return (
-    <div data-theme={theme} data-fill="viewport" className={pageRootClasses}>
+    <div data-theme={themeContext.theme} data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
-        <AdminShell
-          theme={theme}
-          onToggleTheme={() => {
-            const next = theme === 'light' ? 'dark' : 'light';
-            setTheme(next);
-            writeTheme(next);
-          }}
-        />
+        <AdminShell themeContext={themeContext} />
       </ToastProvider>
     </div>
   );

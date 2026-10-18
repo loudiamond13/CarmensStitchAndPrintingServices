@@ -7,7 +7,9 @@
 // WebKit's Tab stops on buttons and form fields only (Safari includes links only with "Press Tab to highlight each
 // item"), so in the webkit and iphone projects the Tab cycle in the drawer visits its buttons; the trap is the same.
 import type { Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 /** The phone page width of the drawer journeys (the approved phone frame). */
 const PHONE = { width: 390, height: 844 } as const;
@@ -222,8 +224,15 @@ test('@keyboard @admin "Sign Out Other Devices" opens a dialog over an inert pag
   expect(await page.evaluate(`document.querySelector('[inert]') === null`)).toBe(true);
 });
 
-test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({ page }) => {
-  await page.goto('/admin');
+test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({
+  page,
+  request,
+  guard,
+}) => {
+  // My Profile is a real, guarded page (plan 05-13): the person signs in first. Opening the sign-in page asks the refresh
+  // cookie for a session, and with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
   await expect(page.locator('h1')).toHaveText('Dashboard');
   await page.evaluate(`window.cspsSameDocument = true`);
   const button = page.locator('button[aria-haspopup="menu"]');
@@ -233,7 +242,8 @@ test('@keyboard @admin "My Profile" in the user menu goes to the profile page in
   await expect(page.getByRole('menuitem', { name: 'My Profile' })).toBeFocused();
   await page.keyboard.press('Enter');
 
-  await expect(page.locator('h1')).toHaveText('My Profile');
+  await expect(page.getByRole('tab', { name: 'Details' })).toBeVisible();
+  await expect(page).toHaveTitle('My Profile · CSPS Admin');
   await expect(page).toHaveURL(/\/admin\/profile$/);
   expect(await page.evaluate(`window.cspsSameDocument === true`), 'the router handled the link').toBe(true);
   await expect(page.getByRole('menu')).toHaveCount(0);

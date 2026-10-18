@@ -231,10 +231,10 @@ describe('UrlStateLayout and the Outlet context of the layout above it', () => {
     expect(await screen.findByText('Theme dark')).toBeInTheDocument();
   });
 
-  it('gives a page under no layout context an undefined context, as before', async () => {
+  it('gives a page under no layout context no context, as before', async () => {
     function Page() {
       const context: unknown = useOutletContext();
-      return <p>{context === undefined ? 'No context' : 'Some context'}</p>;
+      return <p>{context === undefined || context === null ? 'No context' : 'Some context'}</p>;
     }
     const router = createMemoryRouter([{ Component: UrlStateLayout, children: [{ path: '/x', Component: Page }] }], {
       initialEntries: ['/x'],

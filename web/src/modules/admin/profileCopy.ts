@@ -32,6 +32,16 @@ export const PROFILE_COPY = {
     firstNameTooLong: `First name must be ${String(NAME_MAX_LENGTH)} characters or fewer.`,
     lastNameTooLong: `Last name must be ${String(NAME_MAX_LENGTH)} characters or fewer.`,
   },
+  // SPEC-GAP: the Theme card on the Appearance tab (D-22).
+  appearance: {
+    title: 'Theme',
+    hint: 'Choose how CSPS Admin looks on this browser.',
+    label: 'Theme',
+    light: 'Blush (light)',
+    dark: 'Espresso (dark)',
+    note: 'Saved on this browser only. The public website always stays light.',
+    changed: { light: 'Theme changed to Blush (light).', dark: 'Theme changed to Espresso (dark).' },
+  },
   // SPEC-GAP: the Signed-in Devices card on the Security tab (D-23).
   devices: {
     title: 'Signed-in Devices',
