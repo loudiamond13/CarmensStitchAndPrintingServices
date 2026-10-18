@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-33-PLAN.md
-last_updated: "2026-10-18T17:53:52.109Z"
+stopped_at: Completed 05-43-PLAN.md
+last_updated: "2026-10-18T18:12:47.118Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: b34bb9bd7770469b5a6d5da347bd7b0626099aaf
+state_head: 004de9b21e27b20ee9fe156da9d178179d8e0213
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 153
+  completed_plans: 154
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T11:33:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 40 of 43
+Plan: 41 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -209,6 +209,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P34 | 25 min | 2 tasks | 15 files |
 | Phase 05 P41 | 10 min | 2 tasks | 11 files |
 | Phase 05 P33 | 59 min | 3 tasks | 25 files |
+| Phase 05 P43 | 25 min | 2 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -553,6 +554,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-41: GET /api/v1/audit-log/people returns a bare AuditPerson array, current staff first then former staff, ordered in SQL; names and ids only
 - [Phase 05]: 05-33: the Audit Log toggle's aria-controls names the dl inside the detail cell (the shared table's detail row has no id); an unapplied custom range keeps the 7-day default; the business today is read once when the page opens
 - [Phase 05]: 05-33: describeAuditDetail maps stored detail words per action to fixed sentences and gives nothing for unknown words, so no name or email can reach the screen (D-40); the e2e guard ignores Firefox's unused-font-preload warning for the app's own Archivo woff2
+- [Phase 05]: 05-43: audit detail words are AuditActions.Detail* constants; one AccountLinkLookup replaces the invite and reset lookups; PasswordRules.NewPasswordRequired is the one empty-password message — IN-02 and IN-04 closed with no behaviour change
 
 ### Pending Todos
 
@@ -612,6 +614,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T17:53:51.378Z
-Stopped at: Completed 05-33-PLAN.md
+Last session: 2026-10-18T18:12:46.429Z
+Stopped at: Completed 05-43-PLAN.md
 Resume file: None
