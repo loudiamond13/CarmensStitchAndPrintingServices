@@ -33,6 +33,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
     private const string TimeFormat = "MMM d, yyyy, h:mm tt";
 
     private const string SessionsEndedLine = "For your safety, every device signed in to your account was signed out.";
+    private const string OtherDevicesEndedLine = "For your safety, every other device signed in to your account was signed out.";
 
     /// <summary>Renders <paramref name="email"/>.</summary>
     /// <param name="email">The email to render.</param>
@@ -107,7 +108,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         var blocks = new List<EmailBlock> { new ParagraphBlock($"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}.", Strong: email.To) };
         if (email.SessionsEnded)
         {
-            blocks.Add(new ParagraphBlock(SessionsEndedLine));
+            blocks.Add(new ParagraphBlock(email.OtherDevicesOnly ? OtherDevicesEndedLine : SessionsEndedLine));
         }
 
         blocks.Add(new ParagraphBlock("If you did this, there's nothing else to do."));
