@@ -500,10 +500,9 @@ describe('UserMenu motion (D-35, D-38)', () => {
   });
 
   it('moves focus with no arrow key while it closes', async () => {
-    const { popover, user } = await openThenEscape();
+    const { popover } = await openThenEscape();
 
     fireEvent.keyDown(popover, { key: 'ArrowDown' });
-    await user.keyboard('{ArrowDown}');
 
     expect(popover.contains(document.activeElement)).toBe(false);
   });

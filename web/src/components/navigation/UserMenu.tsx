@@ -16,6 +16,10 @@
 //   - choosing an item closes the menu and focuses the button; a press outside closes it and leaves focus alone.
 // The trigger and the popover are siblings with no wrapper (the Topbar's markup stays App. D.3's); the document
 // listener goes through an effect (Pitfall 7).
+// D-35: it animates at every width. The popover fades and scales in from its top-right anchor and the chevron turns half
+// a turn while the button is expanded. Closing keeps the popover mounted as `data-state="closed"` until its exit
+// animation ends (usePresence, theme keyframes); focus is on the button at once, and the closing popover is inert,
+// takes no pointer input and answers no key or click.
 import clsx from 'clsx';
 import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import type { Role } from '@/utils/csps';
@@ -23,7 +27,9 @@ import { UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { rovingItem } from '@/components/choice/roving';
 import { Avatar } from '@/components/status';
+import { usePresence } from '@/hooks/usePresence';
 import {
+  userMenuChevronClasses,
   userMenuClasses,
   userMenuNameClasses,
   userMenuPopoverClasses,
@@ -50,15 +56,26 @@ export interface UserMenuProps {
 /** Which item takes focus when the menu opens. */
 type OpenAt = 'first' | 'last';
 
+/** Whether the menu is open and which item it focuses; `at` outlives `open` so a closing popover keeps its props. */
+interface MenuState {
+  readonly open: boolean;
+  readonly at: OpenAt;
+}
+
 export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }: UserMenuProps) {
-  const [openAt, setOpenAt] = useState<OpenAt | null>(null);
+  const [menuState, setMenuState] = useState<MenuState>({ open: false, at: 'first' });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const buttonId = useId();
   const menuId = useId();
-  const open = openAt !== null;
+  const { open, at } = menuState;
+  const presence = usePresence(open);
+
+  const openMenu = (next: OpenAt) => {
+    setMenuState({ open: true, at: next });
+  };
 
   const close = (focusButton: boolean) => {
-    setOpenAt(null);
+    setMenuState((state) => ({ ...state, open: false }));
     if (focusButton) {
       buttonRef.current?.focus();
     }
@@ -67,7 +84,7 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
   const onButtonKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      setOpenAt(event.key === 'ArrowDown' ? 'first' : 'last');
+      openMenu(event.key === 'ArrowDown' ? 'first' : 'last');
     }
   };
 
@@ -82,7 +99,11 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => {
-          setOpenAt(open ? null : 'first');
+          if (open) {
+            close(false);
+          } else {
+            openMenu('first');
+          }
         }}
         onKeyDown={onButtonKeyDown}
       >
@@ -91,13 +112,15 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
           <strong className={userMenuNameClasses}>{user.name}</strong>
           <span className={userMenuRoleClasses}>{role === 'manager' ? 'Manager' : 'Admin'}</span>
         </span>
-        <Icon name="chevron-down" size={16} />
+        <Icon name="chevron-down" size={16} className={userMenuChevronClasses} />
       </button>
-      {openAt !== null && (
+      {presence.mounted && (
         <MenuPopover
           id={menuId}
           labelledBy={buttonId}
-          openAt={openAt}
+          open={open}
+          openAt={at}
+          presenceRef={presence.ref}
           buttonRef={buttonRef}
           onClose={close}
           onLogout={onLogout}
@@ -112,7 +135,10 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
 interface MenuPopoverProps {
   id: string;
   labelledBy: string;
+  /** False while the exit animation plays. */
+  open: boolean;
   openAt: OpenAt;
+  presenceRef: (node: HTMLElement | null) => void;
   buttonRef: RefObject<HTMLButtonElement | null>;
   /** Closes the menu; `true` puts focus back on the button. */
   onClose: (focusButton: boolean) => void;
@@ -129,7 +155,9 @@ function menuItems(menu: HTMLElement): HTMLElement[] {
 function MenuPopover({
   id,
   labelledBy,
+  open,
   openAt,
+  presenceRef,
   buttonRef,
   onClose,
   onLogout,
@@ -139,10 +167,15 @@ function MenuPopover({
   const menuRef = useRef<HTMLDivElement>(null);
   const requestClose = useEffectEvent(onClose);
 
-  // Focus the first or the last item on open; close on a press outside the menu and its button.
+  const setMenu = (node: HTMLDivElement | null) => {
+    menuRef.current = node;
+    presenceRef(node);
+  };
+
+  // Focus the first or the last item on open; close on a press outside the menu and its button. Only while open.
   useEffect(() => {
     const menu = menuRef.current;
-    if (menu === null) {
+    if (menu === null || !open) {
       return undefined;
     }
     const items = menuItems(menu);
@@ -157,9 +190,12 @@ function MenuPopover({
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [openAt, buttonRef]);
+  }, [open, openAt, buttonRef]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!open) {
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       onClose(true);
@@ -181,11 +217,13 @@ function MenuPopover({
 
   return (
     <div
-      ref={menuRef}
+      ref={setMenu}
       id={id}
       role="menu"
       aria-labelledby={labelledBy}
       tabIndex={-1}
+      data-state={open ? 'open' : 'closed'}
+      inert={open ? undefined : true}
       className={userMenuPopoverClasses}
       onKeyDown={onKeyDown}
     >
@@ -195,7 +233,9 @@ function MenuPopover({
         tabIndex={-1}
         className={navItemClasses()}
         onClick={() => {
-          onClose(true);
+          if (open) {
+            onClose(true);
+          }
         }}
       >
         <Icon name="user-round" size={20} />
@@ -208,7 +248,9 @@ function MenuPopover({
           tabIndex={-1}
           className={navItemClasses()}
           onClick={() => {
-            onClose(true);
+            if (open) {
+              onClose(true);
+            }
           }}
         >
           <Icon name="shield-check" size={20} />
@@ -222,8 +264,10 @@ function MenuPopover({
           tabIndex={-1}
           className={clsx(navItemClasses(), navButtonClasses)}
           onClick={() => {
-            onSignOutOthers();
-            onClose(true);
+            if (open) {
+              onSignOutOthers();
+              onClose(true);
+            }
           }}
         >
           <Icon name="lock" size={20} />
@@ -236,8 +280,10 @@ function MenuPopover({
         tabIndex={-1}
         className={clsx(navItemClasses(), navButtonClasses)}
         onClick={() => {
-          onLogout?.();
-          onClose(true);
+          if (open) {
+            onLogout?.();
+            onClose(true);
+          }
         }}
       >
         <Icon name="log-out" size={20} />

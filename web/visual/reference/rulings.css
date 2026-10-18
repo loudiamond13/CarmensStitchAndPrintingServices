@@ -190,6 +190,15 @@ button.csp-nav {
   display: none;
 }
 
+/* P5 D-35 the user-menu chevron turns half a turn while the menu is open, so it carries a 0.2s ease transition on the
+   same properties as Tailwind's transition-transform. The reference never opens the menu, so only the transition is
+   stated. */
+.csp-usermenu svg {
+  transition-property: transform, translate, scale, rotate;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
 /* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
    part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
 @media (prefers-reduced-motion: reduce) {

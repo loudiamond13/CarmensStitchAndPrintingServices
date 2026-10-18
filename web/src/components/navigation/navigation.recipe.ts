@@ -184,7 +184,12 @@ export const topbarRightClasses = tw('ml-auto flex items-center gap-2');
 
 /** `.csp-usermenu` and its hover: the pill button with the avatar, the name and role, and the chevron. */
 export const userMenuClasses = tw(
-  'flex cursor-pointer items-center gap-2 rounded-pill border-0 bg-transparent py-1 pr-2 pl-1 text-ink-muted hover:bg-surface-2',
+  'group/um flex cursor-pointer items-center gap-2 rounded-pill border-0 bg-transparent py-1 pr-2 pl-1 text-ink-muted hover:bg-surface-2',
+);
+
+/** The chevron of the user-menu button: half a turn while the button is expanded (D-35); no motion under reduced motion. */
+export const userMenuChevronClasses = tw(
+  'transition-transform duration-200 ease-[ease] group-aria-expanded/um:rotate-180 motion-reduce:duration-0',
 );
 
 /** `.csp-usermenu-text`: the name over the role, hidden on phones. */
@@ -218,7 +223,10 @@ export const drawerPanelClasses = tw(
 // block (sticky in the admin shell's main column), so the popover hangs from the bar's bottom edge at the bar's inline
 // padding (24px, 20px on tablets, 16px on phones), right under the user-menu button, the bar's last item.
 
-/** The popover: `--surface-3`, radius 12, `--shadow-2`, at least 200px wide, the nav-item rows 2px apart. */
+/**
+ * The popover: `--surface-3`, radius 12, `--shadow-2`, at least 200px wide, the nav-item rows 2px apart. D-35: it pops in
+ * from its top-right anchor and back out (theme keyframes, `data-state` from UserMenu).
+ */
 export const userMenuPopoverClasses = tw(
-  'absolute top-full right-6 mt-1 flex min-w-[200px] flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 pg-phone:right-4 pg-tablet:right-5',
+  'absolute top-full right-6 mt-1 flex min-w-[200px] origin-top-right animate-csp-pop-in flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-pop-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none pg-phone:right-4 pg-tablet:right-5',
 );

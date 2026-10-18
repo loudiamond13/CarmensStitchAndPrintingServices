@@ -292,6 +292,7 @@ interface MenuSample {
   readonly state: string | null;
   readonly animationName: string;
   readonly chevronTransform: string;
+  readonly chevronRotate: string;
   readonly chevronDuration: string;
   readonly expanded: string | null;
 }
@@ -305,6 +306,7 @@ const DESCRIBE_MENU = `(() => {
     state: popover === null ? null : popover.getAttribute('data-state'),
     animationName: popover === null ? '' : getComputedStyle(popover).animationName,
     chevronTransform: getComputedStyle(chevron).transform,
+    chevronRotate: getComputedStyle(chevron).rotate,
     chevronDuration: getComputedStyle(chevron).transitionDuration,
     expanded: button.getAttribute('aria-expanded'),
   };
@@ -334,8 +336,12 @@ function escapeMenuAndSample(page: Page, delay: number): Promise<MenuSample> {
   })`);
 }
 
-/** True when a computed transform is a half turn (matrix(-1, ~0, ~0, -1, 0, 0)). */
-function isHalfTurn(transform: string): boolean {
+/** True when the chevron is turned half a turn: Tailwind's `rotate` property reads 180deg (or a matrix(-1, ~0, ~0, -1, 0, 0) transform). */
+function isHalfTurn(sample: MenuSample): boolean {
+  if (sample.chevronRotate === '180deg') {
+    return true;
+  }
+  const transform = sample.chevronTransform;
   const numbers = /^matrix\((.+)\)$/.exec(transform)?.[1]?.split(',').map(Number) ?? [];
   const [a, b, c, d] = numbers;
   return (
@@ -363,7 +369,7 @@ for (const { label, width, height } of MENU_VIEWPORTS) {
     // The entry animation and the chevron transition have finished.
     await page.waitForTimeout(350);
     const open = await page.evaluate<MenuSample>(DESCRIBE_MENU);
-    expect(isHalfTurn(open.chevronTransform), open.chevronTransform).toBe(true);
+    expect(isHalfTurn(open), JSON.stringify(open)).toBe(true);
 
     const closing = await escapeMenuAndSample(page, 40);
     expect(closing.attached, 'still attached while the exit plays').toBe(true);
@@ -375,7 +381,7 @@ for (const { label, width, height } of MENU_VIEWPORTS) {
     await expect(page.getByRole('menu')).toHaveCount(0);
     await expect(page.locator('button[aria-haspopup="menu"]')).toBeFocused();
     const closed = await page.evaluate<MenuSample>(DESCRIBE_MENU);
-    expect(isHalfTurn(closed.chevronTransform), 'the chevron turned back').toBe(false);
+    expect(isHalfTurn(closed), 'the chevron turned back').toBe(false);
   });
 
   test(`@motion user menu reduced: ${label} does not move under reduced motion and leaves the DOM at once`, async ({

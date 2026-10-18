@@ -37,6 +37,7 @@ const RULING_IDS = [
   'OQ-5',
   'OQ-8',
   'OQ-9',
+  'P5 D-35',
 ] as const;
 
 interface Group {
