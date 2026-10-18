@@ -395,6 +395,33 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('RowAction as an expand toggle (D-27): aria-expanded and aria-controls, a chevron that turns 180 degrees when open', () => {
+    const { rerender } = render(
+      <RowAction icon="chevron-down" label="Show details" expanded={false} controls="detail-1" onClick={() => undefined} />,
+    );
+    const closed = screen.getByRole('button', { name: 'Show details' });
+    expect(closed).toHaveAttribute('aria-expanded', 'false');
+    expect(closed).toHaveAttribute('aria-controls', 'detail-1');
+    expect(tokens(closed.querySelector('svg')?.getAttribute('class'))).toEqual(
+      expect.arrayContaining(['transition-transform', 'duration-200', 'motion-reduce:transition-none']),
+    );
+    expect(tokens(closed.querySelector('svg')?.getAttribute('class'))).not.toContain('rotate-180');
+
+    rerender(
+      <RowAction icon="chevron-down" label="Hide details" expanded controls="detail-1" onClick={() => undefined} />,
+    );
+    const open = screen.getByRole('button', { name: 'Hide details' });
+    expect(open).toHaveAttribute('aria-expanded', 'true');
+    expect(tokens(open.querySelector('svg')?.getAttribute('class'))).toContain('rotate-180');
+  });
+
+  it('RowAction without `expanded` has no aria-expanded or aria-controls', () => {
+    render(<RowAction icon="pencil" label="Edit Paolo" onClick={() => undefined} />);
+    const button = screen.getByRole('button', { name: 'Edit Paolo' });
+    expect(button).not.toHaveAttribute('aria-expanded');
+    expect(button).not.toHaveAttribute('aria-controls');
+  });
+
   it('RowAction with `to`: a router link in the same icon-button look, named for its row, with no button', () => {
     render(
       <MemoryRouter>

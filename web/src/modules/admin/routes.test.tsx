@@ -146,13 +146,24 @@ describe('Manager-only routes (USER-08)', () => {
     },
   );
 
-  it('a Manager who opens /admin/audit-log stays and sees the page', async () => {
+  it('a Manager who opens /admin/audit-log stays and sees the Audit Log (AUDIT-02)', async () => {
     answerRefresh(sessionResponse());
+    server.use(
+      http.get('*/api/v1/audit-log/people', () => HttpResponse.json([])),
+      http.get('*/api/v1/audit-log', () => HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })),
+    );
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/audit-log'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Audit Log' }, { timeout: 5000 })).toBeVisible();
     expect(router.state.location.pathname).toBe('/admin/audit-log');
+    // The shell around it: Audit Log is the one current sidebar item.
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Audit Log']);
+    await waitFor(() => {
+      expect(document.title).toBe('Audit Log · CSPS Admin');
+    });
   });
 
   it('a Manager who opens /admin/users stays and sees the Users roster (USER-01)', async () => {
