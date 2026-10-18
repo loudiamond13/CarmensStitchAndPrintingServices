@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-18T06:57:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-18T09:22:00-05:00*
 
 ## Overview
 
@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 31/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 32/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -626,7 +626,7 @@ Plans:
 - [x] 05-32-PLAN.md — Expandable table rows, grouped Select, DateInput, Audit Log navigation item
 
 **Wave 15** *(blocked on Wave 14 completion)*
-- [ ] 05-27-PLAN.md — Resend invitation, send reset link, set temporary password (USER-07, C-4)
+- [x] 05-27-PLAN.md — Resend invitation, send reset link, set temporary password (USER-07, C-4)
 - [ ] 05-28-PLAN.md — Roster row actions: deactivate, activate, delete
 
 **Wave 16** *(blocked on Wave 15 completion)*
@@ -1145,7 +1145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 31/43 | In Progress | - |
+| 5. Profile & User Management | 32/43 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |

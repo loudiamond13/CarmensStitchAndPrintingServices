@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-32-PLAN.md
-last_updated: "2026-10-18T13:48:14.873Z"
+stopped_at: Completed 05-27-PLAN.md
+last_updated: "2026-10-18T14:17:51.871Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: c89deff69216f76e72faa4402cada6584a4164cc
+state_head: 54e09ff5a81d0f2e7bb9ac52015e760945d7211e
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 145
+  completed_plans: 146
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-18T06:57:00-05:00"
+updated: "2026-10-18T09:22:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 32 of 43
+Plan: 33 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -201,6 +201,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P25 | 42 min | 3 tasks | 23 files |
 | Phase 05 P26 | 45 min | 3 tasks | 23 files |
 | Phase 05 P32 | 20 min | 3 tasks | 17 files |
+| Phase 05 P27 | 26 min | 3 tasks | 29 files |
 
 ## Accumulated Context
 
@@ -527,6 +528,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: Delete also scrubs the outbox: rows for the old and any pending address are expired if unsent, readdressed and left without bodies; the outbox refuses .invalid recipients (IN-08 part) — 05-26: defense in depth for deleted addresses; waiting email-change address scrubbed too
 - [Phase 05]: 05-32: AdminFrame takes withAuditLog (default false); only the real AdminShell sets it so the dev parity scenarios stay equal to the frozen reference — The Manager DEV_USER scenarios render AdminFrame; an unconditional prop would add a sixth nav item there
 - [Phase 05]: 05-32: DateInput shows the caller's message through error; range and format rules stay in the caller's zod schema (OR-3) — One source of validation rules
+- [Phase 05]: 05-27: ManagerResetLinkEmail is (To, Token, ExpiresAt, RequestedAt, ManagerName), like PasswordResetEmail and InviteEmail, so the lifetime is worded from the dates; 05-31 previews must pass five arguments
+- [Phase 05]: 05-27: reset-link emails share one hourly cap of 3 per address in both directions (ResetEmailCap counts PasswordReset and ManagerResetLink kinds), used by forgot-password and the Manager's send
+- [Phase 05]: 05-27: a temporary password is a staff edit: IUserAccounts.MarkStaffEditAsync rotates EditVersion so SEC-08 stamps the Manager (Identity bookkeeping never does); resend and send-link leave the version alone
+- [Phase 05]: 05-27: a person invited but not yet set up can get a temporary password: the address counts as confirmed and the open invitation is revoked; Blocked is checked before every action-specific rule
 
 ### Pending Todos
 
@@ -586,6 +591,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T13:48:14.181Z
-Stopped at: Completed 05-32-PLAN.md
+Last session: 2026-10-18T14:17:51.200Z
+Stopped at: Completed 05-27-PLAN.md
 Resume file: None
