@@ -194,3 +194,36 @@ describe('SignOutOthersDialog', () => {
     await expectNoAxeViolations(view.container);
   });
 });
+
+// D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
+describe('SignOutOthersDialog open prop (D-39)', () => {
+  function Mounted({ open }: { open?: boolean }) {
+    return (
+      <ToastProvider>
+        <SignOutOthersDialog open={open} onClose={vi.fn()} />
+      </ToastProvider>
+    );
+  }
+
+  it('is open when open is omitted and renders nothing when it is false', () => {
+    const { rerender } = render(<Mounted />);
+    expect(screen.getByRole('dialog', { name: 'Sign out of other devices?' })).toBeInTheDocument();
+
+    rerender(<Mounted open={false} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens again without the failure line', async () => {
+    answerSignOutOthers(500);
+    const user = userEvent.setup();
+    const { rerender } = render(<Mounted open />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out Other Devices' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Reference: tr-9');
+
+    rerender(<Mounted open={false} />);
+    rerender(<Mounted open />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign Out Other Devices' })).toBeEnabled();
+  });
+});
