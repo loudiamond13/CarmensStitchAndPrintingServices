@@ -6,9 +6,14 @@
 //     values after useSettledListParams, so typing makes one request for the settled text (WEB-08, WEB-10).
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 for a role lost mid-session, and the page
 //     then shows the "You don't have access to this" banner instead of the table.
+//   - Add User opens the U2 panel (05-22); the panel is always mounted so it can animate out. After a create the roster
+//     reads again.
 //   - The signed-in Manager's own row has one action, a pencil link to My Profile (D-19). Deleted users never appear (D-09).
 //     The other rows' actions arrive with the Edit panel (05-25) and the row dialogs (05-28).
-import { useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Button } from '@/components/actions';
+import { useToast } from '@/components/feedback';
 import { isHttpError } from '@/core/api/errors';
 import { Select } from '@/components/forms';
 import {
@@ -32,6 +37,7 @@ import {
 import { ErrorState } from '@/components/states';
 import { Badge, type BadgeTone } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
 import {
   usersCaptionClasses,
   usersStatusClasses,
@@ -41,7 +47,7 @@ import {
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useUsersListParams } from '@/modules/admin/hooks/useUsersListParams';
-import { useUsersQuery } from '@/modules/admin/hooks/useUsersQuery';
+import { useUsersQuery, usersKey } from '@/modules/admin/hooks/useUsersQuery';
 import {
   USER_ROLE_FILTERS,
   USER_STATUS_FILTERS,
@@ -139,6 +145,9 @@ function columnsFor(meId: string | null): readonly ResponsiveTableColumn<UserLis
 
 export function UsersRoute() {
   const { user: me } = useSession();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [adding, setAdding] = useState(false);
   const [values, set] = useUsersListParams();
   const settled = useSettledListParams(values, 300);
   const query = useUsersQuery({
@@ -166,6 +175,18 @@ export function UsersRoute() {
     }
   }, [fresh, pageCount, clampPage]);
 
+  // The roster reads again so the new person shows at once; an invitation also gets its toast (the panel closes itself).
+  const created = (user: CreatedUser): void => {
+    void queryClient.invalidateQueries({ queryKey: usersKey });
+    if (user.access === 'invitation') {
+      toast.show({
+        tone: 'success',
+        title: COPY.add.toast.title,
+        message: COPY.add.toast.invitation(`${user.firstName} ${user.lastName}`, user.role),
+      });
+    }
+  };
+
   const forbidden = isHttpError(query.error) && query.error.status === 403;
   const denied = forbidden ? describeHttpError(query.error) : null;
   const filtered = values.role !== null || values.status !== null;
@@ -186,7 +207,23 @@ export function UsersRoute() {
           </div>
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
+        <Button
+          variant="primary"
+          icon="plus"
+          onClick={() => {
+            setAdding(true);
+          }}
+        >
+          {COPY.add.open}
+        </Button>
       </div>
+      <AddUserPanel
+        open={adding}
+        onClose={() => {
+          setAdding(false);
+        }}
+        onCreated={created}
+      />
       {denied === null ? (
         <>
           <FilterBar>

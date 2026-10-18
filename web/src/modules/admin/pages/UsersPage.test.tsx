@@ -677,8 +677,8 @@ describe('U2 Add User from the page (USER-02, D-12)', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
     expect(addButton()).toHaveFocus();
-    const row = await screen.findByText('Ana Reyes');
-    expect(within(rowOf(row.textContent ?? '')).getByText('Invite pending')).toBeInTheDocument();
+    await screen.findByText('Ana Reyes');
+    expect(within(rowOf('Ana Reyes')).getByText('Invite pending')).toBeInTheDocument();
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
 

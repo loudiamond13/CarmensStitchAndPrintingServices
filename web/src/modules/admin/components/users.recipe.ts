@@ -13,3 +13,12 @@ export const usersStatusClasses = tw('flex flex-wrap items-center gap-2');
 
 /** `.s-cap`: the 12px muted caption under the table. */
 export const usersCaptionClasses = tw('text-[12px] leading-4 text-ink-muted');
+
+/** U2 `.csp-form-grid`: First name and Last name in two columns, 16px by 20px apart; one column on phones. */
+export const usersFormGridClasses = tw('grid grid-cols-2 gap-x-4 gap-y-5 pg-phone:grid-cols-1');
+
+/** The Add User panel body: a column of blocks 20px apart. */
+export const usersPanelBodyClasses = tw('flex flex-col gap-5');
+
+/** The Role block: its label, the segmented control and the hint, 8px apart. */
+export const usersRoleBlockClasses = tw('flex flex-col items-start gap-2');

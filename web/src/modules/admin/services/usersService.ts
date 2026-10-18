@@ -1,4 +1,4 @@
-// Staff roster calls (USER-01; plan 05-20). Types come from the generated OpenAPI types (D-16). Both calls are Manager only:
+// Staff roster and add calls (USER-01, USER-02; plans 05-20, 05-22). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
 // an Admin or a Manager who lost the role mid-session gets 403. The id is encoded into the path, so it can never add a
 // segment or a query. A null search or filter is not sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
@@ -9,7 +9,10 @@ type Schemas = components['schemas'];
 export type UserListItem = Schemas['UserListItem'];
 export type UserListResponse = Schemas['UserListResponse'];
 export type UserDetailResponse = Schemas['UserDetailResponse'];
-export type CreateUserRequest = Schemas['CreateUserRequest'];
+/** The Add User body; the temporary password is left out on the invitation route. */
+export type CreateUserRequest = Omit<Schemas['CreateUserRequest'], 'temporaryPassword'> & {
+  temporaryPassword?: string;
+};
 export type CreateUserResponse = Schemas['CreateUserResponse'];
 
 export const USER_ROLE_FILTERS = ['admin', 'manager'] as const;
@@ -31,7 +34,10 @@ export interface UsersService {
   list(query: UsersListQuery, signal?: AbortSignal): Promise<UserListResponse>;
   /** `GET /api/v1/users/{id}`: one person with the edit version and who recorded and last changed them. */
   get(id: string, signal?: AbortSignal): Promise<UserDetailResponse>;
-  /** `POST /api/v1/users`: adds a person (RED stub). */
+  /**
+   * `POST /api/v1/users`: adds a person by invitation or with a one-time temporary password (Manager only). The caller
+   * supplies one Idempotency-Key per submission. The answer is the new id only: the password never comes back (D-14).
+   */
   create(body: CreateUserRequest, idempotencyKey: string, signal?: AbortSignal): Promise<CreateUserResponse>;
 }
 
@@ -43,7 +49,8 @@ export function createUsersService(client: HttpClient): UsersService {
         signal,
       }),
     get: (id, signal) => client.get<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, { signal }),
-    create: () => Promise.reject(new Error('not implemented')),
+    create: (body, idempotencyKey, signal) =>
+      client.post<CreateUserResponse>('/users', body, { idempotencyKey, signal }),
   };
 }
 

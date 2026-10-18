@@ -128,7 +128,7 @@ describe('usersService.create', () => {
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe('/api/v1/users');
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
-    expect(fake.calls[0]?.body).toEqual(body);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 
   it('sends the temporary password on its own route', async () => {
@@ -136,7 +136,7 @@ describe('usersService.create', () => {
 
     await service.create({ ...body, access: 'temporary-password', temporaryPassword: 'Tela-Sukat-7381' }, 'key-2');
 
-    expect(fake.calls[0]?.body).toEqual({
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({
       ...body,
       access: 'temporary-password',
       temporaryPassword: 'Tela-Sukat-7381',

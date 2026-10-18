@@ -3,6 +3,9 @@
 import { useListQuery } from '@/lib/query/useListQuery';
 import { usersService, type UsersListQuery } from '@/modules/admin/services/usersService';
 
+/** The root of every roster query: invalidating it reads each page again (after Add User, Edit and the row actions). */
+export const usersKey = ['users'] as const;
+
 export function useUsersQuery(params: UsersListQuery) {
   return useListQuery({
     key: 'users',

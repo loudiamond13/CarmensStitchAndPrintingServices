@@ -24,6 +24,43 @@ export const USERS_COPY = {
   invite: { pending: 'Invite pending', expired: 'Invite expired' },
   // SPEC-GAP: the own row's only action (D-19).
   ownRowEdit: 'Edit your details in My Profile',
+  // U2 Add User (App. E.12; OQ-7 amended description; plan 05-22). Title Case for buttons, sentence case for the rest.
+  add: {
+    open: 'Add User',
+    title: 'Add User',
+    description: "We'll email them a link to set their own password.",
+    firstName: 'First name',
+    lastName: 'Last name',
+    email: 'Email',
+    emailHint: "They'll use this to sign in.",
+    role: {
+      label: 'Role',
+      admin: 'Admin',
+      manager: 'Manager',
+      hint: {
+        Admin: 'Admins manage orders and company expenses.',
+        Manager: 'Managers can do everything Admins can, plus add, edit and remove users.',
+      },
+    },
+    cancel: 'Cancel',
+    create: 'Create User',
+    creating: 'Creating',
+    toast: {
+      title: 'User created',
+      /** "{First Last} · {Role}. We emailed them an invitation that works for 7 days." */
+      invitation: (name: string, role: string): string =>
+        `${name} · ${role}. We emailed them an invitation that works for 7 days.`,
+    },
+    errors: {
+      firstNameRequired: 'Enter a first name.',
+      lastNameRequired: 'Enter a last name.',
+      firstNameTooLong: 'First name must be 100 characters or fewer.',
+      lastNameTooLong: 'Last name must be 100 characters or fewer.',
+      emailRequired: 'Enter their email.',
+      roleRequired: 'Choose a role.',
+      accessRequired: 'Choose how they get access.',
+    },
+  },
   /** The no-match sentence's filter part: "No users with role Manager and status Locked." */
   filterSummary: (role: string | null, status: string | null): string =>
     [role === null ? null : `role ${role}`, status === null ? null : `status ${status}`]
