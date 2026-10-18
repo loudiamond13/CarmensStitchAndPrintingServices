@@ -1,7 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import type { ReactNode } from 'react';
-import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { useProfileTab } from './useProfileTab';
@@ -94,13 +93,16 @@ describe('useProfileTab', () => {
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
   });
 
-  it.each(['?tab=Security', '?tab=', '?tab=security%20', '?tab=details'])('treats %s as non-canonical and rewrites it once', async (search) => {
-    const { onUrlUpdate } = renderTab(search);
+  it.each(['?tab=Security', '?tab=', '?tab=security%20', '?tab=details'])(
+    'treats %s as non-canonical and rewrites it once',
+    async (search) => {
+      const { onUrlUpdate } = renderTab(search);
 
-    await waitFor(() => {
-      expect(onUrlUpdate).toHaveBeenCalled();
-    });
-    await settle();
-    expect(onUrlUpdate).toHaveBeenCalledTimes(1);
-  });
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+    },
+  );
 });

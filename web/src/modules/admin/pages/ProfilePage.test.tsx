@@ -175,7 +175,7 @@ describe('P1 loading and failure', () => {
     expect(await screen.findByText('Profile loaded.')).toBeInTheDocument();
   });
 
-  it("shows \"Couldn't load your profile.\" with Try Again, and Try Again reads the profile again", async () => {
+  it('shows "Couldn\'t load your profile." with Try Again, and Try Again reads the profile again', async () => {
     let fail = true;
     server.use(http.get('*/api/v1/profile', () => (fail ? problem(500, {}) : HttpResponse.json(PROFILE))));
     renderPage();

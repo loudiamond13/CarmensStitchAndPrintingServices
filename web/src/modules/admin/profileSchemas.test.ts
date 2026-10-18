@@ -50,7 +50,9 @@ describe('profileNameSchema', () => {
   it('counts UTF-16 code units like the server: 50 emoji pass, 51 do not', () => {
     const fifty = '\u{1F600}'.repeat(50);
     expect(messages(fifty, 'Reyes')).toEqual({});
-    expect(messages('\u{1F600}'.repeat(51), 'Reyes')).toEqual({ firstName: 'First name must be 100 characters or fewer.' });
+    expect(messages('\u{1F600}'.repeat(51), 'Reyes')).toEqual({
+      firstName: 'First name must be 100 characters or fewer.',
+    });
   });
 
   it('shows the required message, not the length message, for a blank name', () => {

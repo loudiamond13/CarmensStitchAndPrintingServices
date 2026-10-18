@@ -92,11 +92,17 @@ describe('profileService.updateName', () => {
 
   it('rejects with the field errors of a 400', async () => {
     const fake = createFakeFetch([
-      { status: 400, headers: PROBLEM, body: { title: 'Bad', status: 400, errors: { FirstName: ['Enter a first name.'] } } },
+      {
+        status: 400,
+        headers: PROBLEM,
+        body: { title: 'Bad', status: 400, errors: { FirstName: ['Enter a first name.'] } },
+      },
     ]);
     const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
 
-    await expect(service.updateName({ firstName: '', lastName: 'Reyes', version: profile.version })).rejects.toMatchObject({
+    await expect(
+      service.updateName({ firstName: '', lastName: 'Reyes', version: profile.version }),
+    ).rejects.toMatchObject({
       status: 400,
       fieldErrors: { FirstName: ['Enter a first name.'] },
     });
