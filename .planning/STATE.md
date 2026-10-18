@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-10-PLAN.md
-last_updated: "2026-10-18T03:22:50.717Z"
+stopped_at: Completed 05-11-PLAN.md
+last_updated: "2026-10-18T03:31:53.005Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: f7ef67846930ae9cd87feb179a4832add325f0d7
+state_head: e6fc0c2b04c3c2cd4e36dc0b42fd26b754d30be5
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 124
+  completed_plans: 125
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T22:24:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 11 of 43
+Plan: 12 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -180,6 +180,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P08 | 58 min | 3 tasks | 15 files |
 | Phase 05 P09 | 22 min | 2 tasks | 20 files |
 | Phase 05 P10 | 16 min | 3 tasks | 16 files |
+| Phase 05 P11 | 15 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -457,6 +458,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-09: stored EditVersion is compared before the same-names shortcut, so an old version is always 409 and equal names with the current version is a 200 that does not rotate
 - [Phase 05]: 05-09: UpdateNameAsync reloads after a ConcurrencyFailure and retries when only Identity's stamp moved, so bookkeeping never causes a false 409
 - [Phase 05]: 05-10: a deleted account asking for a reset is answered like an unknown address; a Manager lock is checked before the deactivated notice
+- [Phase 05]: 05-11: Created* always overwritten on add; Updated* stamped only when EditVersion changed (or any Modified for non-versioned records); a null actor keeps a server-set UpdatedById
+- [Phase 05]: 05-11: AddCspsPersistence registers TimeProvider, NoCurrentActor and RecordStampInterceptor via TryAdd; the Server registers HttpCurrentActor first
 
 ### Pending Todos
 
@@ -516,6 +519,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T03:22:50.070Z
-Stopped at: Completed 05-10-PLAN.md
+Last session: 2026-10-18T03:31:52.370Z
+Stopped at: Completed 05-11-PLAN.md
 Resume file: None
