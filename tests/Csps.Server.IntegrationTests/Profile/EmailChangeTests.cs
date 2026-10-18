@@ -179,6 +179,176 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task FiveWrongCurrentPasswordsLockTheAccountAndTheFifthAnswers429()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            using var wrong = await RequestAsync(client, device.AccessToken, newEmail, "Not-My-Password1!");
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest, $"attempt {attempt}");
+        }
+
+        using var fifth = await RequestAsync(client, device.AccessToken, newEmail, "Not-My-Password1!");
+        var problem = await ProblemJson.ReadAsync(fifth, TestContext.Current.CancellationToken);
+
+        fifth.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        problem.GetProperty("code").GetString().ShouldBe("profile.password-locked");
+        int.Parse(fifth.Headers.GetValues("Retry-After").Single(), System.Globalization.CultureInfo.InvariantCulture).ShouldBeInRange(890, 900);
+        using var lockedRight = await RequestAsync(client, device.AccessToken, newEmail, staff.Password);
+        lockedRight.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        using var fresh = AuthClient.CreateClient(factory);
+        using var signIn = await AuthClient.SignInAsync(fresh, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await AuthClient.ReadEmailsAsync(client, newEmail)).ShouldBeEmpty();
+        await using var context = database.CreateContext();
+        (await context.Users.AsNoTracking().SingleAsync(row => row.Id == staff.Id, TestContext.Current.CancellationToken)).PendingEmail.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task WrongPasswordsOnTheEmailChangeAndThePasswordChangeShareOneCount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            using var wrong = await RequestAsync(client, device.AccessToken, AuthClient.NewEmail(), "Not-My-Password1!");
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest, $"email attempt {attempt}");
+        }
+
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            using var wrong = await ChangePasswordAsync(client, device.AccessToken, "Not-My-Password1!");
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest, $"password attempt {attempt}");
+        }
+
+        using var fifth = await RequestAsync(client, device.AccessToken, AuthClient.NewEmail(), "Not-My-Password1!");
+
+        fifth.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task TheCorrectCurrentPasswordResetsTheWrongCount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            using var wrong = await RequestAsync(client, device.AccessToken, AuthClient.NewEmail(), "Not-My-Password1!");
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        using var right = await RequestAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        using var wrongAgain = await RequestAsync(client, device.AccessToken, AuthClient.NewEmail(), "Not-My-Password1!");
+
+        right.StatusCode.ShouldBe(HttpStatusCode.OK);
+        wrongAgain.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheCurrentEmailInAnotherLetterCaseIsRefused(bool withSpaces)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var typed = staff.Email.ToUpperInvariant();
+
+        using var response = await RequestAsync(client, device.AccessToken, withSpaces ? $"  {typed} " : typed, staff.Password);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").GetProperty("newEmail").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["This is already your email."]);
+        (await AuthClient.ReadEmailsAsync(client, staff.Email)).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(StaffState.Active)]
+    [InlineData(StaffState.Deactivated)]
+    public async Task AnAddressAnotherAccountUsesIsRefusedAndNothingIsSent(StaffState otherState)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var other = await AuthClient.CreateStaffAsync(factory, otherState);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await RequestAsync(client, device.AccessToken, other.Email.ToUpperInvariant(), staff.Password);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").GetProperty("newEmail").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["Another account already uses this email."]);
+        (await AuthClient.ReadEmailsAsync(client, other.Email)).ShouldBeEmpty();
+        await using var context = database.CreateContext();
+        (await context.Users.AsNoTracking().SingleAsync(row => row.Id == staff.Id, TestContext.Current.CancellationToken)).PendingEmail.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ATakenAddressIsOnlyRevealedToSomeoneWhoKnowsTheirPassword()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var other = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await RequestAsync(client, device.AccessToken, other.Email, "Not-My-Password1!");
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").TryGetProperty("newEmail", out _).ShouldBeFalse();
+        problem.GetProperty("errors").GetProperty("currentPassword").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["Your current password is incorrect."]);
+    }
+
+    [Fact]
+    public async Task AnAddressFreedByASoftDeleteIsAccepted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var gone = await AuthClient.CreateStaffAsync(factory);
+        await SoftDeleteAsync(gone.Id);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await RequestAsync(client, device.AccessToken, gone.Email, staff.Password);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await AuthClient.WaitForEmailsAsync(client, gone.Email)).Single().Subject.ShouldBe(ConfirmSubject);
+    }
+
+    [Fact]
+    public async Task ANewRequestReplacesThePendingOneAndKillsTheOldLink()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var first = AuthClient.NewEmail();
+        var second = AuthClient.NewEmail();
+        var firstToken = await RequestAndReadTokenAsync(client, device.AccessToken, first, staff.Password);
+        var secondToken = await RequestAndReadTokenAsync(client, device.AccessToken, second, staff.Password);
+
+        using var old = await ConfirmAsync(client, firstToken);
+        using var current = await ConfirmAsync(client, secondToken);
+
+        old.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(old, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("email-change.invalid");
+        current.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(current)).GetProperty("newEmail").GetString().ShouldBe(second);
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerCannotRequestAChange()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -320,6 +490,32 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
         confirm.StatusCode.ShouldBe(HttpStatusCode.OK);
         await using var context = database.CreateContext();
         (await context.Users.AsNoTracking().SingleAsync(row => row.Id == someoneElse.Id, TestContext.Current.CancellationToken)).Email.ShouldBe(someoneElse.Email);
+    }
+
+    private static async Task<HttpResponseMessage> ChangePasswordAsync(HttpClient client, string accessToken, string currentPassword)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, "/api/v1/profile/password", accessToken);
+        request.Content = JsonContent.Create(new { currentPassword, newPassword = "Another#Tahi2027" });
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    // What the later delete feature does to a row (D-07, D-10): the address is scrambled, so it is free again.
+    private async Task SoftDeleteAsync(Guid id)
+    {
+        var scrambled = $"deleted-{id:N}@deleted.invalid";
+        var normalized = scrambled.ToUpperInvariant();
+        var now = TimeProvider.System.GetUtcNow();
+        await using var context = database.CreateContext();
+        var changed = await context.Users.Where(row => row.Id == id).ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(row => row.Email, scrambled)
+                .SetProperty(row => row.UserName, scrambled)
+                .SetProperty(row => row.NormalizedEmail, normalized)
+                .SetProperty(row => row.NormalizedUserName, normalized)
+                .SetProperty(row => row.DeletedAtUtc, now),
+            TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
     }
 
     private static async Task<string> RequestAndReadTokenAsync(HttpClient client, string accessToken, string newEmail, string password)

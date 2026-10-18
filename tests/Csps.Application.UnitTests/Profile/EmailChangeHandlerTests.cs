@@ -136,6 +136,127 @@ public sealed class EmailChangeHandlerTests
         await harness.AssertNothingChangedAsync();
     }
 
+    [Fact]
+    public async Task AWrongCurrentPasswordIsCountedTowardTheLockout()
+    {
+        var harness = new Harness();
+
+        await harness.RequestAsync(NewEmail, WrongPassword);
+
+        await harness.Accounts.Received(1).RecordFailedPasswordAsync(UserId, Arg.Any<CancellationToken>());
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheWrongPasswordThatLocksTheAccountAnswers429AndSendsTheOneLockoutEmail()
+    {
+        var lockoutEnd = Start.AddMinutes(15);
+        var harness = new Harness { Failure = new FailedPasswordResult(LockedNow: true, lockoutEnd) };
+
+        var result = await harness.RequestAsync(NewEmail, WrongPassword);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.TooManyRequests);
+        result.Error.Code.ShouldBe("profile.password-locked");
+        result.Error.RetryAfter.ShouldBe(TimeSpan.FromMinutes(15));
+        var mail = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<AccountLockedEmail>();
+        mail.To.ShouldBe(OldEmail);
+        mail.Cause.ShouldBe(LockoutCause.Password);
+        harness.Audit.Entries.ShouldBe([new AuditCall(AuditActions.Lockout, "User", UserId.ToString("D"), "password", Independent: false)]);
+        await harness.Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAlreadyLockedAccountAnswers429WithoutCheckingThePasswordOrTheAddress()
+    {
+        var harness = new Harness(lockoutEnd: Start.AddMinutes(9));
+
+        var result = await harness.RequestAsync(NewEmail, Password);
+
+        result.Error.Code.ShouldBe("profile.password-locked");
+        result.Error.RetryAfter.ShouldBe(TimeSpan.FromMinutes(9));
+        await harness.Accounts.DidNotReceive().CheckPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().RecordFailedPasswordAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.AssertNothingChangedAsync();
+    }
+
+    [Fact]
+    public async Task TheCorrectPasswordIsNotCounted()
+    {
+        var harness = new Harness();
+
+        await harness.RequestAsync(NewEmail, Password);
+
+        await harness.Accounts.DidNotReceive().RecordFailedPasswordAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("PAOLO.REYES@EXAMPLE.COM")]
+    [InlineData("  paolo.reyes@example.com ")]
+    public async Task TheCurrentAddressInAnyCaseIsAFieldErrorBeforeThePasswordIsChecked(string typed)
+    {
+        var harness = new Harness();
+
+        var result = await harness.RequestAsync(typed, Password);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.FieldErrors.ShouldNotBeNull()["newEmail"].ShouldBe(["This is already your email."]);
+        await harness.AssertNothingChangedAsync();
+        await harness.Accounts.DidNotReceive().CheckPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAddressAnotherAccountUsesIsAFieldErrorAndNothingChanges()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: false) };
+
+        var result = await harness.RequestAsync(NewEmail, Password);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.FieldErrors.ShouldNotBeNull()["newEmail"].ShouldBe(["Another account already uses this email."]);
+        await harness.Accounts.Received(1).FindByEmailAsync(NewEmail, Arg.Any<CancellationToken>());
+        await harness.AssertNothingChangedAsync();
+    }
+
+    [Fact]
+    public async Task ATakenAddressIsNotRevealedWhenThePasswordIsWrong()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: false) };
+
+        var result = await harness.RequestAsync(NewEmail, WrongPassword);
+
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["currentPassword"]);
+        await harness.Accounts.DidNotReceive().FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAddressHeldOnlyByADeletedAccountIsAccepted()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: true) };
+
+        var result = await harness.RequestAsync(NewEmail, Password);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).SetPendingEmailAsync(UserId, NewEmail, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ANewRequestRevokesTheOpenLinksBeforeItIssuesTheNewOne()
+    {
+        var harness = new Harness();
+
+        await harness.RequestAsync(NewEmail, Password);
+
+        Received.InOrder(() =>
+        {
+            harness.Tokens.LockAccountAsync(UserId, Arg.Any<CancellationToken>());
+            harness.Tokens.RevokeOpenAsync(UserId, AccountTokenPurpose.EmailChange, Start, Arg.Any<CancellationToken>());
+            harness.Tokens.Add(Arg.Any<AccountToken>());
+        });
+    }
+
     [Theory]
     [InlineData(null, Password, "newEmail", "Enter your new email.")]
     [InlineData("   ", Password, "newEmail", "Enter your new email.")]
@@ -374,6 +495,9 @@ public sealed class EmailChangeHandlerTests
         EmailChangeErrors.Invalid.Message.ShouldBe("This link has expired");
     }
 
+    private static UserAccount Holder(bool isDeleted) =>
+        new(Guid.Parse("7c2d9e10-5b34-4f8a-a6d1-0e93b8c4f725"), NewEmail, "Ana", "Cruz", "Admin", true, true, true, null, false, null, false, isDeleted);
+
     private static void AssertInvalid(Result<EmailChangeResponse> result)
     {
         result.IsFailure.ShouldBeTrue();
@@ -392,13 +516,15 @@ public sealed class EmailChangeHandlerTests
         private readonly string _account;
         private int _lookups;
 
-        public Harness(string account = "active")
+        public Harness(string account = "active", DateTimeOffset? lockoutEnd = null)
         {
             _account = account;
             Time = new FakeTimeProvider(Start);
 
             Accounts = Substitute.For<IUserAccounts>();
-            var user = Account(OldEmail);
+            var user = Account(OldEmail, lockoutEnd);
+            Accounts.RecordFailedPasswordAsync(UserId, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Failure));
+            Accounts.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Holder));
             Accounts.FindByIdAsync(UserId, Arg.Any<CancellationToken>()).Returns(
                 Task.FromResult(Resolve(user)),
                 Task.FromResult<UserAccount?>(Account(NewEmail)));
@@ -449,6 +575,10 @@ public sealed class EmailChangeHandlerTests
 
         public EmailApplyOutcome Apply { get; init; } = EmailApplyOutcome.Applied;
 
+        public FailedPasswordResult Failure { get; init; } = new(LockedNow: false, null);
+
+        public UserAccount? Holder { get; init; }
+
         public Task<Result<ProfileResponse>> RequestAsync(string? newEmail, string? currentPassword) =>
             BuildRequest().HandleAsync(new RequestEmailChangeRequest(newEmail, currentPassword), TestContext.Current.CancellationToken);
 
@@ -485,8 +615,8 @@ public sealed class EmailChangeHandlerTests
             _ => user,
         };
 
-        private static UserAccount Account(string email) =>
-            new(UserId, email, "Paolo", "Reyes", "Manager", true, true, true, null, false, null);
+        private static UserAccount Account(string email, DateTimeOffset? lockoutEnd = null) =>
+            new(UserId, email, "Paolo", "Reyes", "Manager", true, true, true, null, false, lockoutEnd);
 
         private RequestEmailChangeHandler BuildRequest()
         {
