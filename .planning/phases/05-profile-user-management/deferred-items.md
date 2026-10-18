@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T14:30:00-05:00
+updated: 2026-10-18T15:15:50-05:00
 ---
 
 # Phase 5: deferred items
@@ -106,3 +106,14 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 ## Owner ruling: Firefox Archivo font-preload warning (owner, 2026-10-18)
 
 - **Ruled:** ignore it. The 05-33 e2e console-guard exception for Firefox's "preloaded but not used" warning on the Archivo font stays; no preload change is needed. Archivo is the body font (base.css `--font-sans`), so the warning is a timing artifact of short test page loads.
+
+## Flaky under load: AdminLayout "shows the new name in the Sidebar chip" (found in plan 05-42)
+
+- **What:** In one full `npm --prefix web run verify` run (186 files), `src/layouts/AdminLayout.test.tsx > AdminLayout session user (PROF-01) > shows the new name in the Sidebar chip and the user menu button after the session user changes, without a reload` failed with "Unable to find an element with the text: Ana Cruz". Run alone it passed 3 of 3 times, and the next full `verify` run passed all 5432 tests. Plan 05-42 touched no layout or session code.
+- **Likely cause:** a timing race in the test under a loaded machine (the name update is awaited with a short timeout).
+- **Deferred to:** the Phase 5 close-out test review.
+
+## Stale build output makes `build-output.node.test.ts` fail until the next build (found in plan 05-42)
+
+- **What:** `verify` runs `test:coverage` before `build`, and `src/test/build-output.node.test.ts` reads `src/Csps.Server/wwwroot`. After a change to shipped showcase data (the owner's example.com ruling), the first `verify` fails on the address check until `npm --prefix web run build` has refreshed the output. Running `build` once, then `verify`, passes.
+- **Deferred to:** the Phase 5 close-out test review (option: order the build before the node build-output tests).
