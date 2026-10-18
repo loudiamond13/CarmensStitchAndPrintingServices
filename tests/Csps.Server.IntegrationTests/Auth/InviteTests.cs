@@ -240,7 +240,7 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
 
                 return invited.Token;
             case "expired":
-                clock.Advance(TimeSpan.FromHours(73));
+                clock.Advance(TimeSpan.FromDays(8));
                 return invited.Token;
             case "revoked":
                 await using (var context = database.CreateContext())

@@ -60,7 +60,7 @@ public sealed class AuthSettings
     public int ResetEmailsPerHour { get; init; } = 3;
 
     /// <summary>How long an invitation link works.</summary>
-    public TimeSpan InviteLinkLifetime { get; init; } = TimeSpan.FromHours(72);
+    public TimeSpan InviteLinkLifetime { get; init; } = TimeSpan.FromDays(7);
 
     /// <summary>Returns the code and ticket rules for the Domain.</summary>
     /// <returns>The two-factor settings.</returns>
