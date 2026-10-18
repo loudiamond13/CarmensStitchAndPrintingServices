@@ -84,6 +84,9 @@ public static class AuditActions
     /// <summary>A Manager lifted a user's Manager lock; no detail (D-16, D-40).</summary>
     public const string UserUnlocked = "user.unlocked";
 
+    /// <summary>A Manager deleted a user for good (soft delete, D-07); no detail, and never the name or address (D-40).</summary>
+    public const string UserDeleted = "user.deleted";
+
     /// <summary>A Manager changed another person's first or last name or sign-in email; the detail lists the changed fields, never the values (D-40).</summary>
     public const string UserDetailsChanged = "user.details-changed";
 
@@ -147,6 +150,7 @@ public static class AuditActions
         UserActivated,
         UserLocked,
         UserUnlocked,
+        UserDeleted,
         UserDetailsChanged,
         UserRoleChanged,
         UserEmailChangeStarted,

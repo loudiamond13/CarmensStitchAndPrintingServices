@@ -2811,6 +2811,83 @@
       }
     },
     "/api/v1/users/{id}": {
+      "delete": {
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the\r\nroster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There\r\nis no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes\r\nnothing. A Manager cannot delete their own account (422 `users.own-account`) or the last active Manager (422\r\n`users.last-active-manager`).",
+        "tags": [
+          "Users"
+        ]
+      },
       "get": {
         "operationId": "GetUser",
         "parameters": [

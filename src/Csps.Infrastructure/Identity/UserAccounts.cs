@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
+using Csps.Application.Users;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -284,6 +285,41 @@ internal sealed class UserAccounts(
             if (attempt == CountAttempts || !IsConcurrencyFailure(result))
             {
                 Require(result, "Changing the Manager lock");
+            }
+
+            // The row changed under us (a failed-password count, say): read the fresh row and decide again.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<bool> SoftDeleteAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var scrambled = DeletedAddress.For(id);
+        for (var attempt = 1; ; attempt++)
+        {
+            var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+            if (user.DeletedAtUtc is not null)
+            {
+                return false;
+            }
+
+            user.Email = scrambled;
+            user.UserName = scrambled;
+            user.NormalizedEmail = users.NormalizeEmail(scrambled);
+            user.NormalizedUserName = users.NormalizeName(scrambled);
+            user.PendingEmail = null;
+            user.DeletedAtUtc = now;
+            user.EditVersion = Guid.NewGuid();
+            user.SecurityStamp = Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture);
+            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                return true;
+            }
+
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
+            {
+                Require(result, "Deleting the account");
             }
 
             // The row changed under us (a failed-password count, say): read the fresh row and decide again.

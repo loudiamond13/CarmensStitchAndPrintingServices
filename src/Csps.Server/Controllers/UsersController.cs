@@ -18,6 +18,7 @@ namespace Csps.Server.Controllers;
 /// <param name="activate">The reactivate handler.</param>
 /// <param name="lockUser">The lock handler.</param>
 /// <param name="unlockUser">The unlock handler.</param>
+/// <param name="deleteUser">The delete handler.</param>
 /// <param name="update">The edit-a-person handler.</param>
 /// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
 [ApiController]
@@ -33,6 +34,7 @@ public sealed class UsersController(
     ActivateUserHandler activate,
     LockUserHandler lockUser,
     UnlockUserHandler unlockUser,
+    DeleteUserHandler deleteUser,
     UpdateUserHandler update,
     CancelUserEmailChangeHandler cancelEmailChange) : ControllerBase
 {
@@ -233,6 +235,30 @@ public sealed class UsersController(
     public async Task<IResult> Unlock(Guid id, CancellationToken cancellationToken)
     {
         var result = await unlockUser.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the
+    /// roster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There
+    /// is no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes
+    /// nothing. A Manager cannot delete their own account (422 <c>users.own-account</c>) or the last active Manager (422
+    /// <c>users.last-active-manager</c>).
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was already deleted, 409 when two saves lost a race, or 422 for the caller's own account or the last active Manager.</returns>
+    [HttpDelete("{id:guid}")]
+    [EndpointName("DeleteUser")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await deleteUser.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

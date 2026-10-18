@@ -50,6 +50,7 @@ public static class ApplicationRegistration
         services.AddScoped<ActivateUserHandler>();
         services.AddScoped<LockUserHandler>();
         services.AddScoped<UnlockUserHandler>();
+        services.AddScoped<DeleteUserHandler>();
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<CancelUserEmailChangeHandler>();
         return services;

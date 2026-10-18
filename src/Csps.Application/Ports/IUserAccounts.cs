@@ -151,6 +151,18 @@ public interface IUserAccounts
     Task<bool> SetManagerLockAsync(Guid id, DateTimeOffset? lockedAt, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Deletes the account for good on its latest state, with no version to send (D-07, D-21): the row is kept, <c>Email</c> and
+    /// <c>UserName</c> (and their normalized forms) become <see cref="Csps.Application.Users.DeletedAddress.For"/>, any pending email is
+    /// cleared, the deletion time is set, and the edit version and security stamp rotate. The names are left as they are (D-08), and the
+    /// change counts as a staff edit for SEC-08. Ending sessions and links is the caller's job.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="now">The deletion time.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the account was deleted; false when it was already deleted, and nothing was written.</returns>
+    Task<bool> SoftDeleteAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Changes the first and last name when <paramref name="expectedVersion"/> is the stored edit version, and rotates
     /// that version (SEC-07). Identity bookkeeping never rotates it. Names that already match change nothing.
     /// </summary>
