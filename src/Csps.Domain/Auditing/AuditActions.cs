@@ -71,7 +71,7 @@ public static class AuditActions
 
     /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
     public static IReadOnlyList<string> SignInFailureReasons { get; } =
-        ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password"];
+        ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"];
 
     /// <summary>What triggered a lockout (the detail of <see cref="Lockout"/>).</summary>
     public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];

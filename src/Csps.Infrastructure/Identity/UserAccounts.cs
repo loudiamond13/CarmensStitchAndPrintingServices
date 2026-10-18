@@ -23,7 +23,8 @@ internal sealed class UserAccounts(
     UserManager<ApplicationUser> users,
     RoleManager<IdentityRole<Guid>> roles,
     IPasswordHasher<ApplicationUser> hasher,
-    CspsDbContext context) : IUserAccounts
+    CspsDbContext context,
+    TimeProvider time) : IUserAccounts
 {
     // Parallel wrong guesses each lose the row to one another; every loser reloads and counts again.
     private const int CountAttempts = 16;
@@ -63,6 +64,7 @@ internal sealed class UserAccounts(
             FirstName = account.FirstName,
             LastName = account.LastName,
             EmailConfirmed = account.Password is not null,
+            CreatedAtUtc = time.GetUtcNow(),
         };
         if (account.Password is not null)
         {
@@ -242,6 +244,8 @@ internal sealed class UserAccounts(
             user.PasswordHash is not null,
             user.MustChangePassword ? user.MustChangePasswordReason : null,
             user.BreachRecheckPending,
-            user.LockoutEnd);
+            user.LockoutEnd,
+            user.ManagerLockedAtUtc is not null,
+            user.DeletedAtUtc is not null);
     }
 }

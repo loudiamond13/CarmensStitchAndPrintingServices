@@ -71,9 +71,9 @@ public sealed class SignInHandler(
         {
             // The real hash is checked for every account state; a blocked account is never counted.
             var check = await accounts.CheckPasswordAsync(account.Id, password, cancellationToken).ConfigureAwait(false);
-            if (!account.IsActive)
+            if (account.IsBlocked)
             {
-                failure = "deactivated";
+                failure = account.IsDeleted ? "deleted" : account.IsManagerLocked ? "manager-locked" : "deactivated";
             }
             else if (!account.EmailConfirmed)
             {

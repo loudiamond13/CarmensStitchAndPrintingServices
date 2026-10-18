@@ -26,4 +26,28 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
     /// <summary>True when the password is to be checked against the breach list at the next sign-in (D-14).</summary>
     public bool BreachRecheckPending { get; set; }
+
+    /// <summary>The edit version: a new value on every profile or roster change, so a stale save is refused (SEC-07).</summary>
+    public Guid EditVersion { get; set; } = Guid.NewGuid();
+
+    /// <summary>Who created the account; null reads as System (SEC-08).</summary>
+    public Guid? CreatedById { get; set; }
+
+    /// <summary>When the account was created.</summary>
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    /// <summary>Who last edited the account; null reads as System (SEC-08).</summary>
+    public Guid? UpdatedById { get; set; }
+
+    /// <summary>When the account was last edited; null if never.</summary>
+    public DateTimeOffset? UpdatedAtUtc { get; set; }
+
+    /// <summary>When a Manager locked the account (D-16); null when not locked. Separate from Identity's <c>LockoutEnd</c>.</summary>
+    public DateTimeOffset? ManagerLockedAtUtc { get; set; }
+
+    /// <summary>When the account was soft-deleted (D-07); null while it exists.</summary>
+    public DateTimeOffset? DeletedAtUtc { get; set; }
+
+    /// <summary>The new email awaiting confirmation (D-24); null when no change is pending.</summary>
+    public string? PendingEmail { get; set; }
 }

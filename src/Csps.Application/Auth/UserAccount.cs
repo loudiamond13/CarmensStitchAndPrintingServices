@@ -14,6 +14,8 @@ namespace Csps.Application.Auth;
 /// <param name="MustChangePassword">Why the next sign-in must end with a new password (D-13), or null.</param>
 /// <param name="BreachRecheckPending">True when the password is to be checked against the breach list (D-14).</param>
 /// <param name="LockoutEnd">When the lockout ends; null or a past time means not locked.</param>
+/// <param name="IsManagerLocked">True while a Manager's lock is on the account (D-16).</param>
+/// <param name="IsDeleted">True once the account is soft-deleted (D-07).</param>
 public sealed record UserAccount(
     Guid Id,
     string Email,
@@ -25,7 +27,13 @@ public sealed record UserAccount(
     bool HasPassword,
     PasswordChangeReason? MustChangePassword,
     bool BreachRecheckPending,
-    DateTimeOffset? LockoutEnd);
+    DateTimeOffset? LockoutEnd,
+    bool IsManagerLocked = false,
+    bool IsDeleted = false)
+{
+    /// <summary>True when the account is deactivated, deleted or Manager-locked. The timed failed-password lockout is separate and is not a block.</summary>
+    public bool IsBlocked => !IsActive || IsManagerLocked || IsDeleted;
+}
 
 /// <summary>The details needed to create a staff account.</summary>
 /// <param name="Email">The sign-in email.</param>
