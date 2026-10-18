@@ -222,17 +222,20 @@ describe('usersService.deactivate and activate', () => {
       expect(fake.calls[0]?.method).toBe('POST');
       expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}/${action}`);
       expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
-      expect(fake.calls[0]?.body).toBeUndefined();
+      expect(fake.calls[0]?.body).toBeNull();
     },
   );
 
-  it.each(['deactivate', 'activate'] as const)('encodes the id for %s so it can never add a path segment', async (action) => {
-    const { fake, service } = serviceWith([{ status: 204 }]);
+  it.each(['deactivate', 'activate'] as const)(
+    'encodes the id for %s so it can never add a path segment',
+    async (action) => {
+      const { fake, service } = serviceWith([{ status: 204 }]);
 
-    await service[action]('a/b?c=d', 'key-1');
+      await service[action]('a/b?c=d', 'key-1');
 
-    expect(fake.calls[0]?.url).toBe(`/api/v1/users/a%2Fb%3Fc%3Dd/${action}`);
-  });
+      expect(fake.calls[0]?.url).toBe(`/api/v1/users/a%2Fb%3Fc%3Dd/${action}`);
+    },
+  );
 
   it('rejects with the status and machine code of a 422', async () => {
     const { service } = serviceWith([

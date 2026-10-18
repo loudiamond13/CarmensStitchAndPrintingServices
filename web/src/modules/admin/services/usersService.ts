@@ -1,4 +1,4 @@
-// Staff roster, add and edit calls (USER-01, USER-02, USER-03; plans 05-20, 05-22, 05-25). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
+// Staff roster, add, edit, deactivate, activate and delete calls (USER-01, USER-02, USER-03; plans 05-20, 05-22, 05-25, 05-28). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
 // an Admin or a Manager who lost the role mid-session gets 403. The id is encoded into the path, so it can never add a
 // segment or a query. A null search or filter is not sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
@@ -72,9 +72,11 @@ export function createUsersService(client: HttpClient): UsersService {
     create: (body, idempotencyKey, signal) =>
       client.post<CreateUserResponse>('/users', body, { idempotencyKey, signal }),
     update: (id, body, signal) => client.put<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, body, { signal }),
-    deactivate: () => Promise.reject(new Error('not implemented')),
-    activate: () => Promise.reject(new Error('not implemented')),
-    remove: () => Promise.reject(new Error('not implemented')),
+    deactivate: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/deactivate`, undefined, { idempotencyKey, signal }),
+    activate: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/activate`, undefined, { idempotencyKey, signal }),
+    remove: (id, signal) => client.delete(`/users/${encodeURIComponent(id)}`, { signal }),
   };
 }
 

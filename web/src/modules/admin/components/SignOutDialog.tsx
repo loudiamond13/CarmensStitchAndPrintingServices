@@ -3,10 +3,12 @@
 // button instead of the danger delete look. ConfirmDialog's failure rule applies: while the action is pending, Esc, the
 // scrim, Close and "keep" do nothing and the confirm button shows its pending label; a failed outcome or a rejection keeps
 // the dialog open with the describeHttpError line in a role alert, and "confirm" takes focus back for a retry. It renders in
-// the page root, never inside a ResponsiveTable cell (the frame's paint containment would trap its scrim).
+// the page root, never inside a ResponsiveTable cell (the frame's paint containment would trap its scrim). The confirm icon
+// defaults to log-out (DeactivateUserDialog passes user-x), and a caller that knows its own refusals (the last active Manager)
+// can word them through describeFailure; anything it does not name gets the describeHttpError line.
 import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/actions';
-import { Icon } from '@/components/brand';
+import { Icon, type IconName } from '@/components/brand';
 import { messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
 import { confirmMessageClasses } from '@/components/overlays/overlays.recipe';
@@ -22,9 +24,13 @@ export interface SignOutDialogProps {
   confirmLabel: string;
   /** The confirm button's words while the request runs ("Signing out"). */
   pendingLabel: string;
+  /** The confirm button's icon. Default `log-out`. */
+  confirmIcon?: IconName;
   /** The confirmed action. Return its promise (a failed submission outcome or a rejection is a failure). */
   onConfirm: () => unknown;
   onCancel: () => void;
+  /** Words for a failure the caller recognises; undefined leaves the line to describeHttpError. */
+  describeFailure?: (error: unknown) => ErrorCopy | undefined;
 }
 
 /** A submission outcome that failed (`{ ok: false, error }`). */
@@ -43,8 +49,10 @@ export function SignOutDialog({
   keepLabel,
   confirmLabel,
   pendingLabel,
+  confirmIcon = 'log-out',
   onConfirm,
   onCancel,
+  describeFailure,
 }: SignOutDialogProps) {
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<ErrorCopy | null>(null);
@@ -63,7 +71,7 @@ export function SignOutDialog({
   }
 
   const fail = (error: unknown) => {
-    setFailure(describeHttpError(error));
+    setFailure(describeFailure?.(error) ?? describeHttpError(error));
     confirmRef.current?.focus();
   };
 
@@ -116,7 +124,7 @@ export function SignOutDialog({
           <Button variant="secondary" onClick={cancel} ref={keepRef}>
             {keepLabel}
           </Button>
-          <Button variant="primary" icon="log-out" loading={pending} onClick={confirm} ref={confirmRef}>
+          <Button variant="primary" icon={confirmIcon} loading={pending} onClick={confirm} ref={confirmRef}>
             {pending ? pendingLabel : confirmLabel}
           </Button>
         </>

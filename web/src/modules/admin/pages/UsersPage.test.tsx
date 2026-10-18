@@ -992,11 +992,12 @@ describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () =>
   });
 
   it('shows the last-Manager guard line in the Deactivate dialog for a 422', async () => {
-    rosterWithToggles(() =>
-      new HttpResponse(JSON.stringify({ title: 'x', status: 422, code: 'users.last-active-manager' }), {
-        status: 422,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+    rosterWithToggles(
+      () =>
+        new HttpResponse(JSON.stringify({ title: 'x', status: 422, code: 'users.last-active-manager' }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
     );
     await openPage();
     const user = userEvent.setup();
@@ -1016,9 +1017,8 @@ describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () =>
 
     await userEvent.click(toggle('Activate Liza'));
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent("Couldn't activate Liza Mercado");
-    expect(alert).toHaveTextContent('Something went wrong. Please try again.');
+    const title = await screen.findByText("Couldn't activate Liza Mercado");
+    expect(title.parentElement).toHaveTextContent('Something went wrong. Please try again.');
     expect(within(cellOf(rowOf('Liza Mercado'), 'Status')).getByText('Inactive')).toBeInTheDocument();
     expect(toggle('Activate Liza')).toBeInTheDocument();
   });

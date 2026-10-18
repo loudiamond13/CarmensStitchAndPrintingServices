@@ -140,6 +140,33 @@ export const USERS_COPY = {
       message: (name: string, role: string): string => `${name} · ${role}`,
     },
   },
+  // U4 row actions (App. E.12, OQ-1, OQ-3; plan 05-28). Title Case for buttons, sentence case for the rest.
+  rowActions: {
+    /** The status toggle: a pencil-sized icon button named for the person's first name, with the same title. */
+    deactivate: (first: string): string => `Deactivate ${first}`,
+    activate: (first: string): string => `Activate ${first}`,
+  },
+  // SPEC-GAP: the Deactivate confirm (OQ-3). The wording is built, not yet approved (D-48).
+  deactivate: {
+    title: (name: string): string => `Deactivate ${name}?`,
+    body: "They'll be signed out on every device and can't sign in. Their records stay on orders and expenses. You can activate them again later.",
+    keep: 'Keep Active',
+    confirm: 'Deactivate User',
+    pending: 'Deactivating',
+    toast: {
+      title: 'User deactivated',
+      message: (name: string): string => `${name} can no longer sign in.`,
+    },
+  },
+  // SPEC-GAP: Activate acts at once, so only its toasts need words (D-48).
+  activate: {
+    toast: {
+      title: 'User activated',
+      message: (name: string): string => `${name} can sign in again.`,
+    },
+    /** The danger toast's bold line; the mapper line follows. */
+    failed: (name: string): string => `Couldn't activate ${name}`,
+  },
   // SPEC-GAP: the CopyField beside a shown-once password (UI-SPEC "CopyField behaviour").
   copyField: {
     copy: 'Copy Password',

@@ -10,8 +10,10 @@
 //     reads again.
 //   - The signed-in Manager's own row has one action, a pencil link to My Profile (D-19). Deleted users never appear (D-09).
 //   - Every other row has a pencil "Edit {First Last}" that opens the U3 panel (05-25); the panel is always mounted, and
-//     after a save the roster reads again and focus returns to that row's Edit button. The other row actions arrive with
-//     the row dialogs (05-28).
+//     after a save the roster reads again and focus returns to that row's Edit button.
+//   - Every other row also has the status toggle (05-28): "Deactivate {first}" (user-x) opens DeactivateUserDialog, and
+//     "Activate {first}" (user-check) acts at once. Either way the roster reads again and the flipped toggle takes focus. The
+//     dialog sits in the page root, never in a table cell, and stays mounted with `open` so it can play its exit.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
@@ -40,6 +42,7 @@ import { ErrorState } from '@/components/states';
 import { Badge } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
+import { DeactivateUserDialog } from '@/modules/admin/components/DeactivateUserDialog';
 import { EditUserPanel } from '@/modules/admin/components/EditUserPanel';
 import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import { usersCaptionClasses, usersTitleRowClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
@@ -47,17 +50,20 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useUsersListParams } from '@/modules/admin/hooks/useUsersListParams';
+import { useUserAction } from '@/modules/admin/hooks/useUserAction';
 import { useUsersQuery, usersKey } from '@/modules/admin/hooks/useUsersQuery';
 import {
   USER_ROLE_FILTERS,
   USER_STATUS_FILTERS,
+  usersService,
   type UserDetailResponse,
   type UserListItem,
   type UserRoleFilter,
   type UserStatusFilter,
 } from '@/modules/admin/services/usersService';
 import { USERS_COPY } from '@/modules/admin/usersCopy';
-import { describeHttpError } from '@/utils/describeHttpError';
+import { describeUserGuard } from '@/modules/admin/usersGuards';
+import { describeHttpError, errorLine } from '@/utils/describeHttpError';
 import { formatBusinessDate } from '@/utils/format';
 
 const COPY = USERS_COPY;
@@ -79,13 +85,23 @@ function fullName(user: UserListItem): string {
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
-/** What the roster needs to wire a row's Edit button: open the panel, and keep the button for focus return. */
-interface EditWiring {
-  open: (user: UserListItem) => void;
-  register: (id: string, button: HTMLButtonElement | null) => void;
+/** Active and Locked people are deactivated; only an Inactive one is activated. */
+function toggleLabel(user: UserListItem): string {
+  return user.status === 'inactive'
+    ? COPY.rowActions.activate(user.firstName)
+    : COPY.rowActions.deactivate(user.firstName);
 }
 
-function columnsFor(meId: string | null, edit: EditWiring): readonly ResponsiveTableColumn<UserListItem>[] {
+/** What the roster needs to wire a row's buttons: what each does, and the button refs that focus returns to. */
+interface RowWiring {
+  edit: (user: UserListItem) => void;
+  /** Deactivate opens the confirm; Activate acts at once. */
+  toggle: (user: UserListItem) => void;
+  registerEdit: (id: string, button: HTMLButtonElement | null) => void;
+  registerToggle: (id: string, button: HTMLButtonElement | null) => void;
+}
+
+function columnsFor(meId: string | null, wiring: RowWiring): readonly ResponsiveTableColumn<UserListItem>[] {
   const isMe = (user: UserListItem): boolean => meId !== null && user.id.toLowerCase() === meId.toLowerCase();
   return [
     {
@@ -123,10 +139,23 @@ function columnsFor(meId: string | null, edit: EditWiring): readonly ResponsiveT
               icon="pencil"
               label={COPY.edit.rowEdit(fullName(user))}
               onClick={() => {
-                edit.open(user);
+                wiring.edit(user);
               }}
               ref={(button) => {
-                edit.register(user.id, button);
+                wiring.registerEdit(user.id, button);
+              }}
+            />
+            {/* SPEC-DEVIATION: OQ-1 the toggle's icon is user-x / user-check, not App. E.12's lock / shield-check, because
+                Lock is now its own action. */}
+            <RowAction
+              icon={user.status === 'inactive' ? 'user-check' : 'user-x'}
+              label={toggleLabel(user)}
+              title={toggleLabel(user)}
+              onClick={() => {
+                wiring.toggle(user);
+              }}
+              ref={(button) => {
+                wiring.registerToggle(user.id, button);
               }}
             />
           </RowActions>
@@ -144,6 +173,9 @@ export function UsersRoute() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const rowFocus = useRowFocus();
+  const toggleFocus = useRowFocus();
+  // The person the Deactivate dialog is open for, or was last open for (kept while it animates out).
+  const [deactivating, setDeactivating] = useState<{ user: UserListItem; open: boolean } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [values, set] = useUsersListParams();
   const settled = useSettledListParams(values, 300);
@@ -196,6 +228,42 @@ export function UsersRoute() {
         headingRef.current?.focus();
       }
     });
+  };
+
+  // The roster reads again; once it has, the flipped toggle takes focus (a dialog's own focus return may have run first).
+  const refreshThenFocusToggle = (user: UserListItem): Promise<unknown> =>
+    queryClient.invalidateQueries({ queryKey: usersKey }).then(() => toggleFocus.focusRow(user.id));
+
+  const closeDeactivate = (): void => {
+    setDeactivating((current) => (current === null ? null : { ...current, open: false }));
+  };
+
+  const deactivation = useUserAction(
+    (key, user) => usersService.deactivate(user.id, key),
+    (user) => {
+      closeDeactivate();
+      toast.show({ title: COPY.deactivate.toast.title, message: COPY.deactivate.toast.message(fullName(user)) });
+      return refreshThenFocusToggle(user);
+    },
+  );
+
+  const activation = useUserAction(
+    (key, user) => usersService.activate(user.id, key),
+    (user) => {
+      toast.show({ title: COPY.activate.toast.title, message: COPY.activate.toast.message(fullName(user)) });
+      return refreshThenFocusToggle(user);
+    },
+  );
+
+  // Activate restores access, so it acts at once; a failure is a danger toast that stays until closed.
+  const activate = async (user: UserListItem): Promise<void> => {
+    const outcome = await activation.submit(user);
+    if (!outcome.ok) {
+      const copy = describeUserGuard(outcome.error) ?? describeHttpError(outcome.error);
+      if (copy !== null) {
+        toast.show({ tone: 'danger', title: COPY.activate.failed(fullName(user)), message: errorLine(copy) });
+      }
+    }
   };
 
   const forbidden = isHttpError(query.error) && query.error.status === 403;
@@ -298,11 +366,19 @@ export function UsersRoute() {
           <ResponsiveTable<UserListItem>
             caption={COPY.title}
             columns={columnsFor(me?.id ?? null, {
-              open: (user) => {
+              edit: (user) => {
                 setEditingId(user.id);
                 setEditing(true);
               },
-              register: rowFocus.register,
+              toggle: (user) => {
+                if (user.status === 'inactive') {
+                  void activate(user);
+                } else {
+                  setDeactivating({ user, open: true });
+                }
+              },
+              registerEdit: rowFocus.register,
+              registerToggle: toggleFocus.register,
             })}
             rows={query.data?.items}
             rowKey={(user) => user.id}
@@ -336,6 +412,14 @@ export function UsersRoute() {
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />
+      )}
+      {deactivating !== null && (
+        <DeactivateUserDialog
+          open={deactivating.open}
+          user={deactivating.user}
+          onConfirm={() => deactivation.submit(deactivating.user)}
+          onCancel={closeDeactivate}
+        />
       )}
     </>
   );

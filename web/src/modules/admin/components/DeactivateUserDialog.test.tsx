@@ -139,7 +139,9 @@ describe('DeactivateUserDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('This user was deleted. Close this and refresh the list.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This user was deleted. Close this and refresh the list.',
+    );
   });
 
   it('allows a retry after a failure and clears the line when the retry succeeds', async () => {
