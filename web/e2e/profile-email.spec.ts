@@ -154,3 +154,114 @@ test('@profile-email Resend Link and Cancel Change act on the waiting change', a
   await page.goto(confirmLinkFrom(second.text));
   await expect(page.getByRole('heading', { level: 1, name: 'This link has expired' })).toBeVisible();
 });
+
+const NEW_PASSWORD = 'Bagong#Landas2027';
+
+test('@profile-password a password change on one device signs out the other, keeps this one, and only the new password signs in', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  // Three sign-ins and a password change in one test: WebKit under four parallel workers is slow.
+  test.setTimeout(180_000);
+  // Opening a sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // A wrong current password is a 400 on purpose; the other device's next request and the old password are 401s.
+  guard.expectStatus('/api/v1/profile/password', 400);
+  guard.expectStatus('/api/v1/sessions', 401);
+  guard.expectStatus('/api/v1/profile', 401);
+  guard.expectStatus('/api/v1/auth/sign-in', 401);
+  const staff = await createStaff(request, 'Manager');
+
+  const other = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
+  const fresh = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
+  try {
+    await signInAs(page, request, staff);
+    const otherPage = await other.newPage();
+    await signInAs(otherPage, request, staff);
+    await otherPage.goto('/admin/profile?tab=security');
+    await expect(otherPage.getByRole('heading', { level: 2, name: 'Signed-in Devices' })).toBeVisible();
+
+    // SEC-06: the change is covered by the Idempotency-Key gate, so each attempt carries a key.
+    const keys: (string | undefined)[] = [];
+    page.on('request', (sent) => {
+      if (sent.method() === 'POST' && new URL(sent.url()).pathname.endsWith('/api/v1/profile/password')) {
+        keys.push(sent.headers()['idempotency-key']);
+      }
+    });
+
+    await page.goto('/admin/profile?tab=security');
+    const card = page.getByRole('form', { name: 'Change Password' });
+    const current = card.getByLabel('Current password');
+    const next = card.getByLabel('New password', { exact: true });
+    const confirm = card.getByLabel('Confirm new password');
+    const update = card.getByRole('button', { name: 'Update Password' });
+    await expect(card.getByText('Use 8+ characters with a number and a symbol.')).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // OR-3: every rule is checked in the browser first, so nothing is sent for these.
+    await update.click();
+    await expect(card.getByText('Enter your current password.')).toBeVisible();
+    await expect(card.getByText('Enter a new password.')).toBeVisible();
+    await expect(card.getByText('Enter the new password again.')).toBeVisible();
+    await expect(current).toBeFocused();
+    // From the top of the page: on a phone the sticky bars would otherwise cover the field that took focus.
+    await page.evaluate('window.scrollTo(0, 0)');
+    await expectNoAxeViolations(page);
+    await current.fill(staff.password);
+    await next.fill('Staff#2027!');
+    await confirm.fill('Staff#2027!');
+    await update.click();
+    await expect(card.getByText("Don't use your name or email in your password.")).toBeVisible();
+    await next.fill(NEW_PASSWORD);
+    await confirm.fill(`${NEW_PASSWORD}!`);
+    await update.click();
+    await expect(card.getByText("Passwords don't match.")).toBeVisible();
+    expect(keys).toHaveLength(0);
+
+    // A wrong current password comes back from the server under its field, with the cursor there.
+    await current.fill(`${staff.password}x`);
+    await confirm.fill(NEW_PASSWORD);
+    await update.click();
+    await expect(card.getByText('Your current password is incorrect.')).toBeVisible();
+    await expect(current).toBeFocused();
+
+    // The right one changes the password: the form is cleared and the toast says the other devices were signed out.
+    await current.fill(staff.password);
+    await confirm.press('Enter');
+    await expect(page.getByText('Password updated')).toBeVisible();
+    await expect(
+      page.getByText('Use your new password next time you sign in. Your other devices were signed out.'),
+    ).toBeVisible();
+    await expect(current).toHaveValue('');
+    await expect(next).toHaveValue('');
+    await expect(confirm).toHaveValue('');
+    expect(keys).toHaveLength(2);
+    expect(keys.every((key) => key !== undefined && key !== '')).toBe(true);
+    await page.evaluate('window.scrollTo(0, 0)');
+    await expectNoAxeViolations(page);
+
+    // This device stays signed in, also after a reload.
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 2, name: 'Change Password' })).toBeVisible();
+
+    // The other device's next request is refused, and it lands on sign-in with the session-ended notice.
+    await otherPage.getByRole('link', { name: 'View Signed-in Devices' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(otherPage.getByText('Your session ended. Sign in again.')).toBeVisible();
+
+    // Only the new password signs in, in a fresh browser.
+    const freshPage = await fresh.newPage();
+    await freshPage.goto('/admin/login');
+    await freshPage.getByLabel('Email').fill(staff.email);
+    await freshPage.getByLabel('Password', { exact: true }).fill(staff.password);
+    await freshPage.getByRole('button', { name: 'Sign In' }).click();
+    await expect(freshPage.getByText('Email or password is incorrect.')).toBeVisible();
+    await signInAs(freshPage, request, { ...staff, password: NEW_PASSWORD });
+  } finally {
+    await other.close();
+    await fresh.close();
+  }
+});
