@@ -1,5 +1,5 @@
 // P1 My Profile, /admin/profile (UI-SPEC "P1 My Profile"; PROF-01, D-23, D-20, OR-3; plan 05-13). The App. E.13 header card,
-// then the D-23 tabs: Details (Personal Information), Security (Signed-in Devices) and Appearance.
+// then the D-23 tabs: Details (Personal Information, Sign-in Email), Security (Signed-in Devices) and Appearance.
 //   - The tab is the URL `tab` parameter (useProfileTab). All three panels stay mounted and the inactive ones are hidden,
 //     so what is typed in a form survives a tab change.
 //   - The name form carries the edit version it was opened with, not the live query data: a profile changed in another
@@ -9,6 +9,9 @@
 //   - A failed save keeps every typed value. A 400 puts the server's messages under the fields; a 409 edit.stale shows the
 //     shared ConflictBanner, and only Load Latest replaces the typed values with the latest version; anything else is a toast.
 //   - After a save the session is refreshed, so the sidebar chip and the top bar show the new name (AdminLayout reads it).
+//   - Sign-in Email (PROF-02, D-24): the current email and Change Email (the P2 dialog). While a change waits for its link the
+//     card shows the note with Resend Link and Cancel Change; focus follows the press (the note after a send, Change Email
+//     after a cancel). Resend and cancel act on the latest state and carry no edit version (D-21).
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
@@ -18,11 +21,13 @@ import { getTabPanelProps, SegmentedControl, Tabs, type SegmentOption, type TabI
 import { Skeleton, useToast } from '@/components/feedback';
 import { Field } from '@/components/forms';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { ConflictBanner, ErrorState, LoadingRegion, SkeletonText, STATES_COPY } from '@/components/states';
+import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText, STATES_COPY } from '@/components/states';
 import { Avatar, Badge } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
+import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { profileKey } from '@/lib/query/keys';
+import { ChangeEmailDialog } from '@/modules/admin/components/ChangeEmailDialog';
 import {
   profileCardBodyClasses,
   profileCardClasses,
@@ -31,6 +36,9 @@ import {
   profileCardHintClasses,
   profileCardsClasses,
   profileCardTitleClasses,
+  profileEmailActionsClasses,
+  profileEmailClasses,
+  profileEmailPendingClasses,
   profileFormGridClasses,
   profileHeadClasses,
   profileIdentityClasses,
@@ -69,11 +77,6 @@ const EDIT_STALE = 'edit.stale';
 
 /** The latest profile from the server, or why it could not be read. */
 type ReloadResult = { readonly profile: ProfileResponse } | { readonly error: unknown };
-
-/** The server's first message for a field; the server writes the field name in any casing. */
-function serverMessage(errors: Readonly<Record<string, readonly string[]>>, field: NameField): string | undefined {
-  return Object.entries(errors).find(([key]) => key.toLowerCase() === field.toLowerCase())?.[1][0];
-}
 
 function ProfileHeader({ profile }: { profile: ProfileResponse }) {
   const name = `${profile.firstName} ${profile.lastName}`.trim();
@@ -145,8 +148,8 @@ function PersonalInformationCard({
           return;
         }
         if (isHttpError(error) && error.status === 400) {
-          const first = serverMessage(error.fieldErrors, 'firstName');
-          const last = serverMessage(error.fieldErrors, 'lastName');
+          const first = serverFieldMessage(error.fieldErrors, 'firstName');
+          const last = serverFieldMessage(error.fieldErrors, 'lastName');
           if (first !== undefined) {
             setError('firstName', { type: 'server', message: first });
           }
@@ -268,6 +271,179 @@ function PersonalInformationCard({
   );
 }
 
+/** The code of a resend that found no change waiting. */
+const EMAIL_CHANGE_NONE = 'email-change.none';
+
+/**
+ * The Sign-in Email card (D-24): the current email, then Change Email (the P2 dialog), or while a change waits for its
+ * link the note with Resend Link and Cancel Change. Resend and cancel act on the latest state, not on the edit version.
+ */
+function SignInEmailCard({ profile }: { profile: ProfileResponse }) {
+  const copy = COPY.signInEmail;
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const headingId = useId();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const noteRef = useRef<HTMLDivElement>(null);
+  const changeRef = useRef<HTMLButtonElement>(null);
+  // Where focus goes once the card shows the state a press led to. The press sets it; the effect below reads it after the
+  // render that shows that state, so a refetch from elsewhere never moves focus.
+  const focusNext = useRef<'note' | 'change' | null>(null);
+  const { pendingEmail } = profile;
+
+  useEffect(() => {
+    const target = focusNext.current;
+    focusNext.current = null;
+    if (target === 'note') {
+      noteRef.current?.focus();
+    } else if (target === 'change') {
+      changeRef.current?.focus();
+    }
+  }, [pendingEmail]);
+
+  /** Nothing waits any more: show it at once, then read the profile from the server. */
+  const clearPending = (): void => {
+    queryClient.setQueryData<ProfileResponse>(profileKey, (old) =>
+      old === undefined ? old : { ...old, pendingEmail: null },
+    );
+    void queryClient.invalidateQueries({ queryKey: profileKey });
+  };
+
+  const resend = useSubmission<undefined, undefined>(
+    async (key) => {
+      await profileService.resendEmailChange(key);
+      return undefined;
+    },
+    {
+      onSuccess: () => {
+        // A deliberate second press is a new request, so the finished one is forgotten.
+        resend.reset();
+        toast.show({
+          title: COPY.toasts.linkResent.title,
+          message: COPY.toasts.linkResent.message(pendingEmail ?? ''),
+        });
+        void queryClient.invalidateQueries({ queryKey: profileKey });
+      },
+      onFailure: (failure, error) => {
+        if (isHttpError(error) && error.status === 404 && error.code === EMAIL_CHANGE_NONE) {
+          clearPending();
+          toast.show({
+            tone: 'info',
+            title: COPY.toasts.nothingWaiting.title,
+            message: COPY.toasts.nothingWaiting.message,
+          });
+          return;
+        }
+        toast.show({ tone: 'danger', title: failure.title, message: failure.body });
+      },
+    },
+  );
+
+  const cancel = useSubmission<undefined, undefined>(
+    async () => {
+      await profileService.cancelEmailChange();
+      return undefined;
+    },
+    {
+      onSuccess: () => {
+        cancel.reset();
+        focusNext.current = 'change';
+        clearPending();
+        toast.show({
+          tone: 'info',
+          title: COPY.toasts.emailCanceled.title,
+          message: COPY.toasts.emailCanceled.message(profile.email),
+        });
+      },
+      onFailure: (failure) => {
+        toast.show({ tone: 'danger', title: failure.title, message: failure.body });
+      },
+    },
+  );
+
+  const sent = (newEmail: string, saved: ProfileResponse): void => {
+    queryClient.setQueryData(profileKey, saved);
+    focusNext.current = 'note';
+    setDialogOpen(false);
+    toast.show({ title: COPY.toasts.emailSent.title, message: COPY.toasts.emailSent.message(newEmail) });
+  };
+
+  return (
+    <section aria-labelledby={headingId} className={profileCardClasses}>
+      <div className={profileCardHeadClasses}>
+        <div>
+          <h2 id={headingId} className={profileCardTitleClasses}>
+            {copy.title}
+          </h2>
+          <p className={profileCardHintClasses}>{copy.hint}</p>
+        </div>
+      </div>
+      <div className={profileCardBodyClasses}>
+        <p className={profileEmailClasses}>{profile.email}</p>
+        {pendingEmail === null ? (
+          <div>
+            <Button
+              variant="secondary"
+              icon="pencil"
+              ref={changeRef}
+              onClick={() => {
+                setDialogOpen(true);
+              }}
+            >
+              {copy.change}
+            </Button>
+          </div>
+        ) : (
+          <div className={profileEmailPendingClasses}>
+            <div ref={noteRef} tabIndex={-1}>
+              <Note icon="info">
+                {copy.pending.before}
+                <strong>{pendingEmail}</strong>
+                {copy.pending.middle}
+                {profile.email}
+                {copy.pending.after}
+              </Note>
+            </div>
+            <div className={profileEmailActionsClasses}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="mail"
+                pending={resend.pending}
+                aria-disabled={cancel.pending}
+                onClick={() => {
+                  void resend.submit();
+                }}
+              >
+                {resend.pending ? copy.resending : copy.resend}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                pending={cancel.pending}
+                aria-disabled={resend.pending}
+                onClick={() => {
+                  void cancel.submit();
+                }}
+              >
+                {cancel.pending ? copy.canceling : copy.cancel}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+      <ChangeEmailDialog
+        open={dialogOpen}
+        currentEmail={profile.email}
+        onClose={() => {
+          setDialogOpen(false);
+        }}
+        onSent={sent}
+      />
+    </section>
+  );
+}
+
 /** The Theme card: a choice that applies at once, with no save button (D-22). The shell keeps the one theme state. */
 function AppearanceCard() {
   const { theme, setTheme } = useAdminTheme();
@@ -373,6 +549,7 @@ function ProfileView({ profile, tab, onTab, reload }: ProfileViewProps) {
       <Tabs idBase={ID_BASE} items={TAB_ITEMS} value={tab} onChange={onTab} />
       <div {...getTabPanelProps(ID_BASE, 'details')} hidden={tab !== 'details'} className={profileCardsClasses}>
         <PersonalInformationCard profile={profile} reload={reload} />
+        <SignInEmailCard profile={profile} />
       </div>
       <div {...getTabPanelProps(ID_BASE, 'security')} hidden={tab !== 'security'} className={profileCardsClasses}>
         <DevicesCard />

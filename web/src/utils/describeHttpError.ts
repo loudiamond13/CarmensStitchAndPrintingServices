@@ -61,3 +61,9 @@ export function describeHttpError(error: unknown): ErrorCopy | null {
   }
   return withReference(statusCopy.get(error.status) ?? serverError, error.traceId);
 }
+
+/** One line for a dialog: the title as a sentence, then the body (which carries "Reference: {traceId}" when there is one). */
+export function errorLine({ title, body }: ErrorCopy): string {
+  const sentence = /[.!?]$/.test(title) ? title : `${title}.`;
+  return body === '' ? sentence : `${sentence} ${body}`;
+}

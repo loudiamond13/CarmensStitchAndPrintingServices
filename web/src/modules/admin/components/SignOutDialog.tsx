@@ -10,7 +10,7 @@ import { Icon } from '@/components/brand';
 import { messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
 import { confirmMessageClasses } from '@/components/overlays/overlays.recipe';
-import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
+import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
 export interface SignOutDialogProps {
   /** False plays the close animation and then renders nothing; each new open starts clean (D-39). Default true. */
@@ -34,12 +34,6 @@ function isFailedOutcome(value: unknown): value is { readonly ok: false; readonl
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return typeof value === 'object' && value !== null && 'then' in value && typeof value.then === 'function';
-}
-
-/** One line of failure copy: the title as a sentence, then the body (which carries "Reference: {traceId}"). */
-function failureText({ title, body }: ErrorCopy): string {
-  const sentence = /[.!?]$/.test(title) ? title : `${title}.`;
-  return body === '' ? sentence : `${sentence} ${body}`;
 }
 
 export function SignOutDialog({
@@ -133,7 +127,7 @@ export function SignOutDialog({
         {failure !== null && (
           <p className={messageClasses({ error: true })} role="alert">
             <Icon name="triangle-alert" size={14} />
-            {failureText(failure)}
+            {errorLine(failure)}
           </p>
         )}
       </div>

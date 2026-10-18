@@ -66,9 +66,9 @@ test('@profile-email a change of email is sent from the dialog, confirmed from t
   await expect(dialog.getByText('Your current password is incorrect.')).toBeVisible();
   await expect(passwordBox).toBeFocused();
 
-  // The right password sends the link: the dialog closes, the card shows the note with focus on it, and a toast says so.
+  // The right password sends the link (Enter in a field submits the form): the dialog closes, the card shows the note with focus on it, and a toast says so.
   await passwordBox.fill(staff.password);
-  await send.click();
+  await passwordBox.press('Enter');
   await expect(dialog).toBeHidden();
   await expect(page.getByText('Confirmation link sent')).toBeVisible();
   await expect(card).toContainText(
@@ -86,8 +86,11 @@ test('@profile-email a change of email is sent from the dialog, confirmed from t
 
   // The new inbox's owner opens the link and presses the button (an explicit press, so a mail scanner changes nothing).
   await page.goto(confirmLinkFrom(mail.text));
+  const confirm = page.getByRole('button', { name: 'Confirm New Email' });
+  await expect(confirm).toBeVisible();
+  // The token leaves the address bar once the page has read it.
   expect(page.url()).not.toContain('token');
-  await page.getByRole('button', { name: 'Confirm New Email' }).click();
+  await confirm.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Your email is changed' })).toBeVisible();
   await expectNoAxeViolations(page);
 
@@ -104,7 +107,9 @@ test('@profile-email a change of email is sent from the dialog, confirmed from t
     await signInAs(freshPage, request, { ...staff, email: newEmail });
     await freshPage.goto('/admin/profile');
     await expect(freshPage.getByText(`${newEmail} · Member since `)).toBeVisible();
-    await expect(freshPage.getByRole('region', { name: 'Sign-in Email' })).not.toContainText('Waiting for confirmation');
+    await expect(freshPage.getByRole('region', { name: 'Sign-in Email' })).not.toContainText(
+      'Waiting for confirmation',
+    );
   } finally {
     await fresh.close();
   }

@@ -59,3 +59,10 @@ export const profileCardFootClasses = tw('flex justify-end gap-3 border-t border
 
 /** `.s-formgrid`: two columns, 20px by 16px apart; one column on phones. */
 export const profileFormGridClasses = tw('grid grid-cols-2 gap-x-4 gap-y-5 pg-phone:grid-cols-1');
+
+/** The current sign-in email on the Sign-in Email card: body text that may wrap anywhere. */
+export const profileEmailClasses = tw('text-[15px] leading-6 font-semibold wrap-anywhere');
+
+/** The pending-change note and the buttons under it: a column 12px apart, the buttons in a wrapping row. */
+export const profileEmailPendingClasses = tw('flex flex-col gap-3');
+export const profileEmailActionsClasses = tw('flex flex-wrap items-center gap-3');

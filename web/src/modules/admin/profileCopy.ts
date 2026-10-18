@@ -23,14 +23,64 @@ export const PROFILE_COPY = {
     save: 'Save Changes',
     saving: 'Saving',
   },
+  // SPEC-GAP: the Sign-in Email card on the Details tab (D-24). The pending note reads
+  // "{before}{new email in bold}{middle}{current email}{after}".
+  signInEmail: {
+    title: 'Sign-in Email',
+    hint: 'You sign in with this email.',
+    change: 'Change Email',
+    pending: {
+      before: 'Waiting for confirmation at ',
+      middle: '. Until then, you sign in with ',
+      after: '.',
+    },
+    resend: 'Resend Link',
+    resending: 'Sending',
+    cancel: 'Cancel Change',
+    canceling: 'Canceling',
+  },
+  // SPEC-GAP: P2 Change Email dialog (PROF-02, C-9, D-24, D-25).
+  changeEmail: {
+    title: 'Change your email',
+    description:
+      "We'll send a confirmation link to the new address and a notice to your current one. Your email changes only after you open the link. The link works for 24 hours.",
+    newEmail: 'New email',
+    currentPassword: 'Current password',
+    cancel: 'Cancel',
+    send: 'Send Confirmation Link',
+    sending: 'Sending',
+  },
   toasts: {
     saved: { title: 'Changes saved', message: 'Your name is updated.' },
+    // SPEC-GAP: the email-change toasts. Each message names an address.
+    emailSent: {
+      title: 'Confirmation link sent',
+      message: (newEmail: string): string => `Open the link we sent to ${newEmail}. Your email changes after that.`,
+    },
+    linkResent: {
+      title: 'Link sent again',
+      message: (newEmail: string): string => `Check ${newEmail}. The new link works for 24 hours.`,
+    },
+    emailCanceled: {
+      title: 'Email change canceled',
+      message: (currentEmail: string): string => `You still sign in with ${currentEmail}.`,
+    },
+    /** A resend found nothing waiting (canceled or finished in another tab). */
+    nothingWaiting: {
+      title: 'No email change is waiting',
+      message: 'It may have been canceled or finished in another tab.',
+    },
   },
   errors: {
     firstNameRequired: 'Enter a first name.',
     lastNameRequired: 'Enter a last name.',
     firstNameTooLong: `First name must be ${String(NAME_MAX_LENGTH)} characters or fewer.`,
     lastNameTooLong: `Last name must be ${String(NAME_MAX_LENGTH)} characters or fewer.`,
+    newEmailRequired: 'Enter your new email.',
+    sameEmail: 'This is already your email.',
+    currentPasswordRequired: 'Enter your current password.',
+    /** The server's own line is shown for the lock; this one covers a reply that carries none. */
+    passwordLocked: 'Too many wrong passwords. Try again in 15 minutes.',
   },
   // SPEC-GAP: the Theme card on the Appearance tab (D-22).
   appearance: {

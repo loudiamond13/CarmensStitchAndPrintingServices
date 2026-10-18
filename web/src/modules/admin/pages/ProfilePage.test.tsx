@@ -978,10 +978,15 @@ describe('P1 Details: Sign-in Email (PROF-02, D-24)', () => {
     await sendChange(user);
 
     expect(await screen.findByText('Confirmation link sent')).toBeInTheDocument();
-    expect(screen.getByText(`Open the link we sent to ${NEW_EMAIL}. Your email changes after that.`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Open the link we sent to ${NEW_EMAIL}. Your email changes after that.`),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(calls.requests).toEqual([
-      { body: { newEmail: NEW_EMAIL, currentPassword: 'Mabuhay#Tahi2026' }, key: expect.stringMatching(/\S/) as string },
+      {
+        body: { newEmail: NEW_EMAIL, currentPassword: 'Mabuhay#Tahi2026' },
+        key: expect.stringMatching(/\S/) as string,
+      },
     ]);
 
     const card = signInEmailCard();
@@ -1041,9 +1046,7 @@ describe('P1 Details: Sign-in Email (PROF-02, D-24)', () => {
     await waitFor(() => {
       expect(state.gets).toBe(getsBefore + 1);
     });
-    expect(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' })).not.toHaveAttribute(
-      'aria-disabled',
-    );
+    expect(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('sends a second Resend Link as a new request with a new Idempotency-Key', async () => {

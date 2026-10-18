@@ -246,7 +246,7 @@ describe('profileService.resendEmailChange', () => {
 
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change/resend');
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body).toBeNull();
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-abc');
   });
 

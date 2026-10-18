@@ -216,17 +216,13 @@ describe('P2 sending', () => {
     expect(sent.keys[0]).toMatch(/\S/);
   });
 
-  it('submits with Enter', async () => {
-    const sent = answer();
-    const user = userEvent.setup();
+  it('ties Send Confirmation Link to the form, so Enter in a field submits it in the browser (the e2e spec presses Enter)', () => {
     renderDialog();
-    await fill(user);
 
-    await user.keyboard('{Enter}');
-
-    await waitFor(() => {
-      expect(sent.bodies).toHaveLength(1);
-    });
+    const form = screen.getByRole('dialog').querySelector('form');
+    expect(form).not.toBeNull();
+    expect(sendButton()).toHaveAttribute('type', 'submit');
+    expect(sendButton()).toHaveAttribute('form', form?.id);
   });
 
   it('shows "Sending" and ignores Esc, the scrim, Cancel, Close and a second press while the request runs', async () => {
