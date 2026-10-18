@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 17/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 18/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -598,7 +598,7 @@ Plans:
 - [x] 05-15-PLAN.md — Email change: pending state, resend, cancel, taken meanwhile (D-24)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 05-16-PLAN.md — Confirm-your-email page and shared fragment helpers (PROF-02, IN-18 part)
+- [x] 05-16-PLAN.md — Confirm-your-email page and shared fragment helpers (PROF-02, IN-18 part)
 - [ ] 05-17-PLAN.md — Users roster API: list and detail with attribution (USER-01, USER-08, D-09, D-11)
 
 **Wave 9** *(blocked on Wave 8 completion)*
@@ -1145,7 +1145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 17/43 | In Progress | - |
+| 5. Profile & User Management | 18/43 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
