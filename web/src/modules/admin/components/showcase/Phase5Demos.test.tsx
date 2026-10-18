@@ -178,3 +178,173 @@ describe('Phase5Demos: made-up data, local state, no request (D-32, D-33)', () =
     await expectNoAxeViolations(container);
   });
 });
+
+const PASSWORD_SAMPLE = /^[A-Za-z]+-[A-Za-z]+-\d{4}$/;
+
+describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
+  it('opens Add User on the invitation route; Create User closes it and focus returns to the trigger', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+    const trigger = within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invitation)' });
+
+    await user.click(trigger);
+    const panel = await screen.findByRole('dialog', { name: 'Add User' });
+    expect(within(panel).getByRole('radio', { name: 'Email an invitation' })).toBeChecked();
+    expect(within(panel).queryByLabelText('Temporary password')).toBeNull();
+
+    await user.click(within(panel).getByRole('button', { name: 'Create User' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it('opens Add User on the temporary password route and shows the sample password once, then Done closes it', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+    const trigger = within(caseFrame('staff-add-user')).getByRole('button', {
+      name: 'Open Add User (temporary password)',
+    });
+
+    await user.click(trigger);
+    const panel = await screen.findByRole('dialog', { name: 'Add User' });
+    expect(within(panel).getByRole('radio', { name: 'Set a temporary password' })).toBeChecked();
+    expect(within(panel).getByLabelText('Temporary password')).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+
+    await user.click(within(panel).getByRole('button', { name: 'Create User' }));
+    const done = await screen.findByRole('dialog', { name: 'User created' });
+    const shown = within(done).getByLabelText('Temporary password for Ana');
+    expect(shown).toHaveAttribute('readonly');
+    expect(shown).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+
+    await user.click(within(done).getByRole('button', { name: 'Done' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it('lets the other route be chosen inside the panel', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+
+    await user.click(within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invitation)' }));
+    const panel = await screen.findByRole('dialog', { name: 'Add User' });
+    await user.click(within(panel).getByRole('radio', { name: 'Set a temporary password' }));
+
+    expect(within(panel).getByLabelText('Temporary password')).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+  });
+
+  it.each([
+    ['Open Deactivate User', 'Deactivate Paolo Garcia?', 'Keep Active'],
+    ['Open Lock User', 'Lock Paolo Garcia?', 'Keep Unlocked'],
+    ['Open Delete User', 'Delete Paolo Garcia?', 'Cancel'],
+    ['Open Set Temporary Password', 'Set a temporary password', 'Cancel'],
+  ])('"%s" opens "%s" with focus on the safe button; it closes and focus returns', async (label, title, safe) => {
+    const user = userEvent.setup();
+    renderDemos();
+    const trigger = within(caseFrame('staff-user-dialogs')).getByRole('button', { name: label });
+
+    await user.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: title });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: safe })).toHaveFocus();
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: safe }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it.each([
+    ['Open Deactivate User', 'Deactivate Paolo Garcia?', 'Deactivate User'],
+    ['Open Lock User', 'Lock Paolo Garcia?', 'Lock User'],
+    ['Open Delete User', 'Delete Paolo Garcia?', 'Delete User'],
+  ])('confirming "%s" only closes the dialog', async (label, title, confirm) => {
+    const user = userEvent.setup();
+    renderDemos();
+
+    await user.click(within(caseFrame('staff-user-dialogs')).getByRole('button', { name: label }));
+    const dialog = await screen.findByRole('dialog', { name: title });
+    await user.click(within(dialog).getByRole('button', { name: confirm }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(requests).toEqual([]);
+  });
+
+  it('sets a temporary password in the demo dialog: the shown-once step carries a sample value, then Done closes it', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+
+    await user.click(
+      within(caseFrame('staff-user-dialogs')).getByRole('button', { name: 'Open Set Temporary Password' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Set a temporary password' });
+    await user.click(within(dialog).getByRole('button', { name: 'Set Password' }));
+
+    const done = await screen.findByRole('dialog', { name: 'Temporary password set' });
+    expect(within(done).getByLabelText('Temporary password for Paolo')).toHaveValue(
+      expect.stringMatching(PASSWORD_SAMPLE),
+    );
+    await user.click(within(done).getByRole('button', { name: 'Done' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('shows the profile tabs: Details first, and choosing Security or pressing Right shows that panel', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+    const frame = within(caseFrame('staff-profile-tabs'));
+    const details = frame.getByRole('tab', { name: 'Details' });
+
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    expect(frame.getByRole('tabpanel', { name: 'Details' })).toBeVisible();
+
+    await user.click(frame.getByRole('tab', { name: 'Security' }));
+    expect(frame.getByRole('tab', { name: 'Security' })).toHaveAttribute('aria-selected', 'true');
+    expect(frame.getByRole('tabpanel', { name: 'Security' })).toBeVisible();
+    expect(frame.queryByRole('tabpanel', { name: 'Details' })).toBeNull();
+
+    await user.keyboard('{ArrowRight}');
+    expect(frame.getByRole('tab', { name: 'Appearance' })).toHaveAttribute('aria-selected', 'true');
+    expect(frame.getByRole('tabpanel', { name: 'Appearance' })).toBeVisible();
+  });
+
+  it('makes no request through any panel, dialog or tab', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+
+    await user.click(
+      within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (temporary password)' }),
+    );
+    const panel = await screen.findByRole('dialog', { name: 'Add User' });
+    await user.click(within(panel).getByRole('button', { name: 'Create User' }));
+    const done = await screen.findByRole('dialog', { name: 'User created' });
+    await user.click(within(done).getByRole('button', { name: 'Done' }));
+    await user.click(within(caseFrame('staff-profile-tabs')).getByRole('tab', { name: 'Appearance' }));
+
+    expect(requests).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('has no axe violations with a dialog open', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+
+    await user.click(within(caseFrame('staff-user-dialogs')).getByRole('button', { name: 'Open Lock User' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Lock Paolo Garcia?' });
+
+    await expectNoAxeViolations(dialog);
+  });
+});
