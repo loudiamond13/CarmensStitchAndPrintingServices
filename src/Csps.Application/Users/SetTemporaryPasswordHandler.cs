@@ -35,7 +35,6 @@ public sealed class SetTemporaryPasswordHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string TemporaryPasswordDetail = "temporary-password";
 
     /// <summary>Sets the temporary password.</summary>
     /// <param name="id">The account that gets the password.</param>
@@ -118,7 +117,7 @@ public sealed class SetTemporaryPasswordHandler(
         audit.Record(AuditActions.UserTemporaryPasswordSet, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, TemporaryPasswordDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailTemporaryPassword);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

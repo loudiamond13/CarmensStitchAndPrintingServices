@@ -44,7 +44,6 @@ public sealed class UpdateUserHandler(
     AuthSettings settings)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The account to edit.</param>
@@ -214,7 +213,7 @@ public sealed class UpdateUserHandler(
 
             if (revoked.Count > 0)
             {
-                audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+                audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
             }
         }
 

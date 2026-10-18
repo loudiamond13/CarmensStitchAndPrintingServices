@@ -32,7 +32,6 @@ public sealed class DeleteUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     private static readonly AccountTokenPurpose[] Purposes =
         [AccountTokenPurpose.Invitation, AccountTokenPurpose.PasswordReset, AccountTokenPurpose.EmailChange];
@@ -108,7 +107,7 @@ public sealed class DeleteUserHandler(
         audit.Record(AuditActions.UserDeleted, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

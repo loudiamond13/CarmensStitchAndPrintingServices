@@ -114,10 +114,10 @@ public sealed class ChangePasswordHandler(
         var revoked = await sessions
             .RevokeAllAsync(account.Id, sessionId, SessionRevocationReason.PasswordChanged, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, SessionsEnded: true, OtherDevicesOnly: true), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordChanged, UserTarget, key, "profile");
+        audit.Record(AuditActions.PasswordChanged, UserTarget, key, AuditActions.DetailProfile);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, "password-changed");
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailPasswordChanged);
         }
 
         if (breachCheckSkipped)

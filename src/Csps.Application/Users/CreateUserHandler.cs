@@ -31,7 +31,6 @@ public sealed class CreateUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string ManagerDetail = "manager";
 
     /// <summary>Creates the person.</summary>
     /// <param name="request">The form.</param>
@@ -95,7 +94,7 @@ public sealed class CreateUserHandler(
         tokens.Add(invitation);
         await outbox.EnqueueAsync(new InviteEmail(email, secret, invitation.ExpiresAt, now, invitedBy), cancellationToken).ConfigureAwait(false);
 
-        audit.Record(AuditActions.UserInvited, UserTarget, AuditKey.Of(id), ManagerDetail);
+        audit.Record(AuditActions.UserInvited, UserTarget, AuditKey.Of(id), AuditActions.DetailManager);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return id;
     }

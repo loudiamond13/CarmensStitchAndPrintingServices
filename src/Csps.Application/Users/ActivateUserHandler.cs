@@ -24,7 +24,6 @@ public sealed class ActivateUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     /// <summary>Reactivates the person.</summary>
     /// <param name="id">The account to reactivate.</param>
@@ -83,7 +82,7 @@ public sealed class ActivateUserHandler(
         audit.Record(AuditActions.UserActivated, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

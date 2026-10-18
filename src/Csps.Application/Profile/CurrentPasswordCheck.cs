@@ -58,7 +58,7 @@ public sealed class CurrentPasswordCheck(
                 {
                     // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
                     await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password, settings.PasswordLockoutDuration), token).ConfigureAwait(false);
-                    audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(account.Id), "password");
+                    audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailPassword);
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 }
 

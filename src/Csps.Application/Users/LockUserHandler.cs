@@ -27,7 +27,6 @@ public sealed class LockUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     /// <summary>Locks the person.</summary>
     /// <param name="id">The account to lock.</param>
@@ -91,7 +90,7 @@ public sealed class LockUserHandler(
         audit.Record(AuditActions.UserLocked, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

@@ -26,7 +26,6 @@ public sealed class DeactivateUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     /// <summary>Deactivates the person.</summary>
     /// <param name="id">The account to deactivate.</param>
@@ -90,7 +89,7 @@ public sealed class DeactivateUserHandler(
         audit.Record(AuditActions.UserDeactivated, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

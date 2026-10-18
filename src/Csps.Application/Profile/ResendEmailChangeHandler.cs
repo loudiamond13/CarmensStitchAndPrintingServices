@@ -26,9 +26,6 @@ public sealed class ResendEmailChangeHandler(
     AuthSettings settings,
     TimeProvider time)
 {
-    /// <summary>The audit detail that tells a resend from the first request.</summary>
-    public const string ResentDetail = "resent";
-
     private const string UserTarget = "User";
 
     /// <summary>Sends the fresh link.</summary>
@@ -73,7 +70,7 @@ public sealed class ResendEmailChangeHandler(
         tokens.Add(created);
 
         await outbox.EnqueueAsync(new EmailChangeConfirmEmail(pending, secret, created.ExpiresAt, now, profile.Email), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.ProfileEmailChangeRequested, UserTarget, AuditKey.Of(userId), ResentDetail);
+        audit.Record(AuditActions.ProfileEmailChangeRequested, UserTarget, AuditKey.Of(userId), AuditActions.DetailResent);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success();
     }

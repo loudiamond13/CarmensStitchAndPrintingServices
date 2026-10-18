@@ -168,6 +168,18 @@ public static class AuditActions
     /// <summary>Reset-request detail: the hourly cap was reached, so no email went out.</summary>
     public const string DetailCapped = "capped";
 
+    /// <summary>Password-changed detail: the person changed it in My Profile.</summary>
+    public const string DetailProfile = "profile";
+
+    /// <summary>Invitation detail: sent by a Manager.</summary>
+    public const string DetailManager = "manager";
+
+    /// <summary>Email-change-canceled detail: the new address was taken first.</summary>
+    public const string DetailTaken = "taken";
+
+    /// <summary>Email-change-requested detail: the link was sent again.</summary>
+    public const string DetailResent = "resent";
+
     /// <summary>Breach-check detail: the lookup failed while accepting an invitation.</summary>
     public const string DetailInvite = "invite";
 

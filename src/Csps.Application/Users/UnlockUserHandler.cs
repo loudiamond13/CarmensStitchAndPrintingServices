@@ -23,7 +23,6 @@ public sealed class UnlockUserHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string AccountChangedDetail = "account-changed";
 
     /// <summary>Unlocks the person.</summary>
     /// <param name="id">The account to unlock.</param>
@@ -76,7 +75,7 @@ public sealed class UnlockUserHandler(
         audit.Record(AuditActions.UserUnlocked, UserTarget, key, null);
         if (revoked.Count > 0)
         {
-            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AccountChangedDetail);
+            audit.Record(AuditActions.SessionsRevoked, UserTarget, key, AuditActions.DetailAccountChanged);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

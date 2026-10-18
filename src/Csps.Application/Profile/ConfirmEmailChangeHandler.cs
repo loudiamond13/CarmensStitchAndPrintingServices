@@ -23,7 +23,6 @@ public sealed class ConfirmEmailChangeHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
-    private const string TakenDetail = "taken";
 
     /// <summary>Confirms one change.</summary>
     /// <param name="request">The token.</param>
@@ -89,7 +88,7 @@ public sealed class ConfirmEmailChangeHandler(
         await accounts.SetPendingEmailAsync(userId, null, cancellationToken).ConfigureAwait(false);
         stored.Use(now);
         await tokens.RevokeOpenAsync(userId, AccountTokenPurpose.EmailChange, now, cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.ProfileEmailChangeCanceled, UserTarget, AuditKey.Of(userId), TakenDetail);
+        audit.Record(AuditActions.ProfileEmailChangeCanceled, UserTarget, AuditKey.Of(userId), AuditActions.DetailTaken);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Taken);
     }
