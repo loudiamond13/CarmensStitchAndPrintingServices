@@ -20,6 +20,8 @@ namespace Csps.Server.Controllers;
 /// <param name="requestEmailChange">The email-change request handler.</param>
 /// <param name="confirmEmailChange">The email-change confirmation handler.</param>
 /// <param name="checkEmailChange">The email-change link check handler.</param>
+/// <param name="resendEmailChange">The email-change link resend handler.</param>
+/// <param name="cancelEmailChange">The email-change cancel handler.</param>
 [ApiController]
 [Route("api/v1/profile")]
 [Authorize(Policy = Policies.Staff)]
@@ -31,7 +33,9 @@ public sealed class ProfileController(
     ChangePasswordHandler changePassword,
     RequestEmailChangeHandler requestEmailChange,
     ConfirmEmailChangeHandler confirmEmailChange,
-    CheckEmailChangeHandler checkEmailChange) : ControllerBase
+    CheckEmailChangeHandler checkEmailChange,
+    ResendEmailChangeHandler resendEmailChange,
+    CancelEmailChangeHandler cancelEmailChange) : ControllerBase
 {
     /// <summary>Reads the caller's profile, including the edit version the next save must send.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -161,5 +165,42 @@ public sealed class ProfileController(
     {
         var result = await checkEmailChange.HandleAsync(body ?? EmailChangeTokenRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
+    }
+
+    /// <summary>
+    /// Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the
+    /// current address, and no address is written.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204 with no body, 401 without a valid token, 404 <c>email-change.none</c> when no change is waiting, 409 when two saves lost a race, or 429 from the rate limit.</returns>
+    [HttpPost("email-change/resend")]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
+    [EndpointName("ResendEmailChange")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> ResendEmailChange(CancellationToken cancellationToken)
+    {
+        var result = await resendEmailChange.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it
+    /// takes no row version and answers 204 when nothing is waiting.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204 with no body, 401 without a valid token, or 409 when two saves lost a race.</returns>
+    [HttpDelete("email-change")]
+    [EndpointName("CancelEmailChange")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> CancelEmailChange(CancellationToken cancellationToken)
+    {
+        var result = await cancelEmailChange.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

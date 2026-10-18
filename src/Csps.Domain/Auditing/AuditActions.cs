@@ -78,6 +78,9 @@ public static class AuditActions
     /// <summary>A new sign-in email was confirmed and applied; no detail and no address (D-40).</summary>
     public const string ProfileEmailChanged = "profile.email-changed";
 
+    /// <summary>A waiting email change was called off; the detail is none, or <c>taken</c> when the address was taken first (D-40).</summary>
+    public const string ProfileEmailChangeCanceled = "profile.email-change-canceled";
+
     /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
     public static IReadOnlyList<string> SignInFailureReasons { get; } =
         ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"];
@@ -115,5 +118,6 @@ public static class AuditActions
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,
+        ProfileEmailChangeCanceled,
     ];
 }

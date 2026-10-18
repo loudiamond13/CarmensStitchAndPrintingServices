@@ -1681,6 +1681,41 @@
       }
     },
     "/api/v1/profile/email-change": {
+      "delete": {
+        "operationId": "CancelEmailChange",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it\r\ntakes no row version and answers 204 when nothing is waiting.",
+        "tags": [
+          "Profile"
+        ]
+      },
       "post": {
         "operationId": "RequestEmailChange",
         "requestBody": {
@@ -1931,6 +1966,63 @@
           }
         },
         "summary": "Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The\r\ntoken travels in the body, never in a URL.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change/resend": {
+      "post": {
+        "operationId": "ResendEmailChange",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the\r\ncurrent address, and no address is written.",
         "tags": [
           "Profile"
         ]

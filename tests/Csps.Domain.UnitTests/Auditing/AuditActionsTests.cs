@@ -10,7 +10,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileCodes()
     {
-        AuditActions.All.Count.ShouldBe(24);
+        AuditActions.All.Count.ShouldBe(25);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -27,8 +27,10 @@ public sealed class AuditActionsTests
     {
         AuditActions.ProfileEmailChangeRequested.ShouldBe("profile.email-change-requested");
         AuditActions.ProfileEmailChanged.ShouldBe("profile.email-changed");
+        AuditActions.ProfileEmailChangeCanceled.ShouldBe("profile.email-change-canceled");
         AuditActions.All.ShouldContain(AuditActions.ProfileEmailChangeRequested);
         AuditActions.All.ShouldContain(AuditActions.ProfileEmailChanged);
+        AuditActions.All.ShouldContain(AuditActions.ProfileEmailChangeCanceled);
     }
 
     [Fact]

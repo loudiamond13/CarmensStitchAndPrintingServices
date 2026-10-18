@@ -40,6 +40,8 @@ public static class ApplicationRegistration
         services.AddScoped<RequestEmailChangeHandler>();
         services.AddScoped<ConfirmEmailChangeHandler>();
         services.AddScoped<CheckEmailChangeHandler>();
+        services.AddScoped<ResendEmailChangeHandler>();
+        services.AddScoped<CancelEmailChangeHandler>();
         return services;
     }
 }
