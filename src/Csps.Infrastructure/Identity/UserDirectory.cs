@@ -93,6 +93,79 @@ internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
         return new UserListPage(items, total);
     }
 
+    public async Task<UserDetailView?> GetUserAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var row = await context.Users
+            .AsNoTracking()
+            .Where(user => user.Id == id && user.DeletedAtUtc == null)
+            .Select(user => new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                user.Email,
+                Role = (from userRole in context.UserRoles
+                        join role in context.Roles on userRole.RoleId equals role.Id
+                        where userRole.UserId == user.Id
+                        orderby role.Name
+                        select role.Name).FirstOrDefault(),
+                user.IsActive,
+                Locked = user.ManagerLockedAtUtc != null,
+                HasPassword = user.PasswordHash != null,
+                LiveInvitation = context.AccountTokens.Any(token =>
+                    token.UserId == user.Id
+                    && token.Purpose == AccountTokenPurpose.Invitation
+                    && token.UsedAt == null
+                    && token.RevokedAt == null
+                    && token.ExpiresAt > now),
+                user.CreatedAtUtc,
+                user.PendingEmail,
+                user.UpdatedAtUtc,
+                user.EditVersion,
+                user.CreatedById,
+                user.UpdatedById,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (row is null)
+        {
+            return null;
+        }
+
+        // Each actor is read from their own row now, so a rename shows at once; a deleted actor keeps their name (D-08, D-11).
+        var actorIds = new[] { row.CreatedById, row.UpdatedById }.OfType<Guid>().Distinct().ToList();
+        var actors = actorIds.Count == 0
+            ? []
+            : await context.Users
+                .AsNoTracking()
+                .Where(actor => actorIds.Contains(actor.Id))
+                .Select(actor => new { actor.Id, actor.FirstName, actor.LastName, Former = actor.DeletedAtUtc != null })
+                .ToDictionaryAsync(actor => actor.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+        ActorRef? ActorOf(Guid? actorId) =>
+            actorId is { } known && actors.TryGetValue(known, out var actor)
+                ? new ActorRef(actor.Id, $"{actor.FirstName} {actor.LastName}", actor.Former)
+                : null;
+
+        return new UserDetailView(
+            row.Id,
+            row.FirstName,
+            row.LastName,
+            row.Email ?? string.Empty,
+            row.Role ?? string.Empty,
+            UserStatuses.Of(row.IsActive, row.Locked),
+            InviteStates.Of(row.HasPassword, row.LiveInvitation),
+            row.CreatedAtUtc,
+            row.HasPassword,
+            row.Locked,
+            row.PendingEmail,
+            row.UpdatedAtUtc,
+            row.EditVersion,
+            ActorOf(row.CreatedById),
+            ActorOf(row.UpdatedById));
+    }
+
     private IQueryable<ApplicationUser> Filter(IQueryable<ApplicationUser> users, UserListQuery query)
     {
         if (query.Role is { } roleName)

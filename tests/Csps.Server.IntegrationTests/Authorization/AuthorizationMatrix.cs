@@ -119,6 +119,8 @@ public static class AuthorizationMatrix
 
         // The staff roster (USER-01, USER-08): Managers only, so an Admin meets 403.
         new("GET", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 200),
+        // A random id is no one, so a Manager meets 404 users.not-found; an Admin never gets that far.
+        new("GET", "/api/v1/users/{id:guid}", "/api/v1/users/3d9b7a14-5c2e-4f08-a6d1-7e0b9c4f2a85", Anonymous: 401, Admin: 403, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

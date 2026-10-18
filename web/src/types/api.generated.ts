@@ -412,6 +412,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one person with their edit version and who created and last changed them (SEC-08). */
+        get: operations["GetUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -422,6 +439,21 @@ export interface components {
             newPassword: null | string;
             /** @description The 43-character token from the link. */
             token: null | string;
+        };
+        /**
+         * @description A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename
+         *     shows at once and no snapshot exists (D-08).
+         */
+        ActorRef: {
+            /** @description True when the actor's account was deleted; the name is kept (D-11). */
+            formerStaff: boolean;
+            /**
+             * Format: uuid
+             * @description The actor's account id.
+             */
+            id: string;
+            /** @description The actor's name, first then last. */
+            name: string;
         };
         /** @description The My Profile password form: the current password and the new one (PROF-03). */
         ChangePasswordRequest: {
@@ -649,6 +681,49 @@ export interface components {
             lastName: null | string;
             /** @description The edit version as a GUID in `D` form. */
             version: null | string;
+        };
+        /** @description One person as a Manager sees them in the Edit panel (USER-01, SEC-08). */
+        UserDetailResponse: {
+            /**
+             * Format: date-time
+             * @description When the account was created, in UTC.
+             */
+            createdAt: string;
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /** @description True once a password is set. */
+            hasPassword: boolean;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description `none`, `pending` or `expired` (see InviteStates). */
+            inviteState: string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description Family name. */
+            lastName: string;
+            /** @description True while a Manager's lock is on, even when the status shows inactive. */
+            managerLocked: boolean;
+            /** @description The new email awaiting confirmation; null when no change is pending. */
+            pendingEmail: null | string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The single role, `Admin` or `Manager`. */
+            role: string;
+            /** @description `active`, `inactive` or `locked` (see UserStatuses). */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the account was last changed, in UTC; null if never.
+             */
+            updatedAt: null | string;
+            /**
+             * Format: uuid
+             * @description The edit version a save must send back (SEC-07).
+             */
+            version: string;
         };
         /** @description One person in the roster (USER-01). */
         UserListItem: {
@@ -1862,6 +1937,56 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

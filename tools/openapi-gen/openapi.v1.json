@@ -25,6 +25,30 @@
         ],
         "type": "object"
       },
+      "ActorRef": {
+        "description": "A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename\r\nshows at once and no snapshot exists (D-08).",
+        "properties": {
+          "formerStaff": {
+            "description": "True when the actor's account was deleted; the name is kept (D-11).",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The actor's account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The actor's name, first then last.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "formerStaff"
+        ],
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "description": "The My Profile password form: the current password and the new one (PROF-03).",
         "properties": {
@@ -608,6 +632,113 @@
           "firstName",
           "lastName",
           "version"
+        ],
+        "type": "object"
+      },
+      "UserDetailResponse": {
+        "description": "One person as a Manager sees them in the Edit panel (USER-01, SEC-08).",
+        "properties": {
+          "createdAt": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "hasPassword": {
+            "description": "True once a password is set.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "inviteState": {
+            "description": "`none`, `pending` or `expired` (see InviteStates).",
+            "type": "string"
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed the account; null when the system did or it was never changed."
+              }
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "managerLocked": {
+            "description": "True while a Manager's lock is on, even when the status shows inactive.",
+            "type": "boolean"
+          },
+          "pendingEmail": {
+            "description": "The new email awaiting confirmation; null when no change is pending.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who created the account; null when the system did."
+              }
+            ]
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, `inactive` or `locked` (see UserStatuses).",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the account was last changed, in UTC; null if never.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version a save must send back (SEC-07).",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "status",
+          "inviteState",
+          "createdAt",
+          "hasPassword",
+          "managerLocked",
+          "pendingEmail",
+          "updatedAt",
+          "version",
+          "recordedBy",
+          "lastChangedBy"
         ],
         "type": "object"
       },
@@ -2460,6 +2591,69 @@
           }
         },
         "summary": "Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one person with their edit version and who created and last changed them (SEC-08).",
         "tags": [
           "Users"
         ]
