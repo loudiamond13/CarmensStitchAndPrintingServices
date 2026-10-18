@@ -300,18 +300,20 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(rules.map((rule) => normalize(rule.body))).toEqual(['animation: none;']);
   });
 
-  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line', () => {
+  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line, and the user cell name column may shrink', () => {
     const groupsOfLongText = byRuling('P5 long-text');
 
     expect(groupsOfLongText.map((group) => normalize(group.prelude))).toEqual([
       '.csp-sidebar-user > div',
       '.csp-sidebar-user strong, .csp-usermenu-text strong',
       '.csp-usermenu-text',
+      '.csp-cell-user > span:last-child',
     ]);
     expect(groupsOfLongText.map((group) => normalize(group.body))).toEqual([
       'min-width: 0;',
       'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
       'max-width: 200px;',
+      'min-width: 0; overflow-wrap: anywhere;',
     ]);
   });
 

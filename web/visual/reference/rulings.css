@@ -220,6 +220,16 @@ button.csp-nav {
   max-width: 200px;
 }
 
+/* P5 long-text fourth, the user cell's name column (the avatar's sibling) wraps a long name anywhere and may shrink below its
+   content, so a 100-character name wraps beside the avatar instead of widening the table (UI-SPEC UI Considerations
+   "long-text": UserCell wraps anywhere). The approved markup has no wrapper to carry this, so the reference gets the same
+   two declarations the implementation uses: min-width 0 and overflow-wrap anywhere. Plan 05-37 chose this over a wrapper
+   element, which would be a structural difference. */
+.csp-cell-user > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
    part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
 @media (prefers-reduced-motion: reduce) {
