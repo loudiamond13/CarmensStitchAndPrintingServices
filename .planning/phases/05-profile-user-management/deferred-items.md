@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T04:05:00-05:00
+updated: 2026-10-18T05:14:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -57,3 +57,9 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **What:** `POST /api/v1/users` with access `temporary-password` has the temporary password in its body, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of the target and body for 24 hours. This is the same exposure as the password and email-change routes above. The password itself is never stored in plain text, returned, logged, audited or emailed (a test reads the record and checks the response, location and route), and it is single-use: the person must replace it at their first sign-in.
 - **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the items above (HMAC the hash or skip body bytes for these routes).
 - **Covered meanwhile:** the record expires after 24 hours, no endpoint exposes the table, and the value stops working as soon as the person sets their own password.
+
+## Session cache is evicted just before the idempotency transaction commits (found in plan 05-21)
+
+- **What:** `DeactivateUserHandler` and `ActivateUserHandler` evict the person from `ISessionCache` after their own unit of work returns, but the idempotency gate's outer transaction (which holds the state change, the revoked sessions and the stored answer) commits a moment later. A request by the deactivated person that reads the session in that few-millisecond window sees the old committed state and could cache "active" for up to 60 seconds. `SignOutOthersHandler`, `RevokeSessionHandler` and the password handlers have the same ordering.
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to evict from the idempotency middleware after the commit, or to drop the cache entry's lifetime for revoked sessions.
+- **Covered meanwhile:** the window needs a request from the person at that exact moment, the cache lifetime is 60 seconds, and the refresh route and a new sign-in re-check the account against the database, so a deactivated person cannot renew or start a session.

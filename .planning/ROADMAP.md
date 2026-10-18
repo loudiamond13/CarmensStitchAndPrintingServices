@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 23/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 24/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -608,7 +608,7 @@ Plans:
 - [x] 05-36-PLAN.md — Web review notes IN-11, IN-13..IN-16, IN-18, IN-19
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 05-21-PLAN.md — Race-safe last-Manager guard, deactivate and activate (USER-04, USER-05, D-18, D-19)
+- [x] 05-21-PLAN.md — Race-safe last-Manager guard, deactivate and activate (USER-04, USER-05, D-18, D-19)
 - [ ] 05-22-PLAN.md — Add User panel, RadioGroup, temporary password shown once (USER-02, D-12, D-14, D-15)
 
 **Wave 11** *(blocked on Wave 10 completion)*
@@ -1145,7 +1145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 23/43 | In Progress | - |
+| 5. Profile & User Management | 24/43 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |

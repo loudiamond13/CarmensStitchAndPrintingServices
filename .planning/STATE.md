@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-36-PLAN.md
-last_updated: "2026-10-18T09:51:56.700Z"
+stopped_at: Completed 05-21-PLAN.md
+last_updated: "2026-10-18T10:13:34.311Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 2fafeb003636908a55fec930ea572e9ffc2ef047
+state_head: 0c5189a9638d7ee70ca31705359907903cf10bba
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 137
+  completed_plans: 138
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T04:27:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 24 of 43
+Plan: 25 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -193,6 +193,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P19 | 24 min | 3 tasks | 26 files |
 | Phase 05 P20 | 60 min | 3 tasks | 19 files |
 | Phase 05 P36 | 30 min | 3 tasks | 13 files |
+| Phase 05 P21 | 24 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -500,6 +501,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-20: RowAction is a button/link union (to prop); UserCell text wraps anywhere for every list — The own-row pencil must be a router link in the icon-button look (D-19); long names must not widen the table
 - [Phase 05]: 05-36: safeReturnUrl validates the literal path (decoded once) and returns the validated text; query kept as given
 - [Phase 05]: 05-36: useSetPasswordForm is the single owner of set-password form focus and server field-error mapping
+- [Phase 05]: SessionRevocationReason.AccountChanged is stored as 9: the plan said 7 but 7 (Expired) and 8 (PasswordChanged) are already in use; nothing renumbered
+- [Phase 05]: Deactivate takes the csps-active-managers roster lock first and ManagerGuard decides own-account and last-active-Manager; Activate takes no lock but keeps the own-account rule
+- [Phase 05]: Session cache is evicted whenever a deactivate or activate changed the state; a no-op writes, revokes, audits and evicts nothing
 
 ### Pending Todos
 
@@ -559,6 +563,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T09:51:56.039Z
-Stopped at: Completed 05-36-PLAN.md
+Last session: 2026-10-18T10:13:33.652Z
+Stopped at: Completed 05-21-PLAN.md
 Resume file: None
