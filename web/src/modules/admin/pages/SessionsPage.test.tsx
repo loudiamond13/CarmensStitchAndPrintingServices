@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { sessionsListKey } from '@/lib/query/keys';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -499,6 +499,93 @@ describe('S7 sign out one device', () => {
       "Couldn't reach the server. Check your internet connection and try again.",
     );
     expect(within(dialog).getByRole('button', { name: 'Sign Out Device' })).toHaveFocus();
+  });
+});
+
+// D-39: both dialogs stay mounted with an `open` prop, so each plays its exit; the per-device dialog keeps showing the
+// device it was opened for while it closes. jsdom runs no animation, so the computed animation name of a closed element
+// is mocked.
+describe('S7 dialogs close with motion (D-39)', () => {
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the per-device dialog in the tree and showing its device while it closes after Keep Signed In', async () => {
+    backend([CURRENT, PHONE, TABLET]);
+    animateClosedElements();
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Safari on iPhone');
+    const opener = signOutButton(/^Sign out Safari on iPhone/);
+    await user.click(opener);
+    const dialog = screen.getByRole('dialog', { name: 'Sign out Safari on iPhone?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Signed In' }));
+
+    expect(dialog.isConnected).toBe(true);
+    expect(dialog.getAttribute('data-state')).toBe('closed');
+    expect(dialog.textContent).toContain('Sign out Safari on iPhone?');
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('shows the other device when the dialog is opened again for it during the close', async () => {
+    backend([CURRENT, PHONE, TABLET]);
+    animateClosedElements();
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Safari on iPhone');
+    await user.click(signOutButton(/^Sign out Safari on iPhone/));
+    await user.click(screen.getByRole('button', { name: 'Keep Signed In' }));
+
+    await user.click(signOutButton(/^Sign out Chrome on Android/));
+
+    const dialog = screen.getByRole('dialog', { name: 'Sign out Chrome on Android?' });
+    expect(dialog.getAttribute('data-state')).toBe('open');
+  });
+
+  it('removes the row and moves focus to the next row after a confirmed sign-out, while the dialog closes', async () => {
+    const state = backend([CURRENT, PHONE, TABLET]);
+    animateClosedElements();
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Safari on iPhone');
+    await user.click(signOutButton(/^Sign out Safari on iPhone/));
+    const dialog = screen.getByRole('dialog', { name: 'Sign out Safari on iPhone?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Sign Out Device' }));
+
+    await waitFor(() => {
+      expect(signOutButton(/^Sign out Chrome on Android/)).toHaveFocus();
+    });
+    expect(state.deleted).toEqual([PHONE.id]);
+    expect(screen.queryByRole('button', { name: /^Sign out Safari on iPhone/ })).toBeNull();
+    expect(dialog.getAttribute('data-state')).toBe('closed');
+  });
+
+  it('keeps the sign-out-others dialog in the tree while it closes', async () => {
+    backend([CURRENT, PHONE]);
+    animateClosedElements();
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Safari on iPhone');
+    const opener = screen.getByRole('button', { name: 'Sign Out Other Devices' });
+    await user.click(opener);
+    const dialog = screen.getByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Others Signed In' }));
+
+    expect(dialog.isConnected).toBe(true);
+    expect(dialog.getAttribute('data-state')).toBe('closed');
+    expect(opener).toHaveFocus();
   });
 });
 

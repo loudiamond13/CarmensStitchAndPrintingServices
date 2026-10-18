@@ -12,7 +12,9 @@
 // The first sample is taken inside one page task, 40 ms after the click, because a Playwright round trip alone can take
 // longer than the 150 ms exit animation. Page scripts are strings: the e2e TypeScript program has no DOM types.
 import type { Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 const DIALOGS = [
   { trigger: 'Open Add Payment', name: 'Add Payment', exit: 'csp-rise-out' },
@@ -399,3 +401,71 @@ for (const { label, width, height } of MENU_VIEWPORTS) {
     await expect(page.locator('button[aria-haspopup="menu"]')).toBeFocused();
   });
 }
+
+// ── D-39: the Signed-in devices dialogs ──
+
+// A second device with a label no project shares, so its row can be told apart.
+const EDGE_ON_WINDOWS =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0';
+
+interface DialogSample {
+  readonly attached: boolean;
+  readonly state: string | null;
+  readonly title: string;
+  readonly animationName: string;
+}
+
+test('@motion sessions: the per-device dialog plays its exit with its device still named, then leaves the DOM', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const staff = await createStaff(request, 'Manager');
+  const other = await browser.newContext({
+    baseURL: baseURL ?? 'https://localhost:5199',
+    ignoreHTTPSErrors: true,
+    userAgent: EDGE_ON_WINDOWS,
+  });
+  try {
+    await signInAs(page, request, staff);
+    await signInAs(await other.newPage(), request, staff);
+    await page.goto('/admin/sessions');
+    await expect(page.getByRole('heading', { level: 1, name: 'Signed-in devices' })).toBeVisible();
+
+    await page.getByRole('button', { name: /^Sign out Edge on Windows, signed in / }).click();
+    const dialog = page.getByRole('dialog', { name: 'Sign out Edge on Windows?' });
+    await expect(dialog).toHaveAttribute('data-state', 'open');
+    // The entry animation has finished, so the sample below is about the exit only.
+    await page.waitForTimeout(300);
+
+    const early = await page.evaluate<DialogSample>(`new Promise((resolve) => {
+      const dialog = document.querySelector('[role="dialog"]');
+      const keep = [...dialog.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Keep Signed In');
+      keep.click();
+      setTimeout(() => {
+        resolve({
+          attached: dialog.isConnected,
+          state: dialog.getAttribute('data-state'),
+          title: dialog.querySelector('h2') === null ? '' : dialog.querySelector('h2').textContent,
+          animationName: dialog.isConnected ? getComputedStyle(dialog).animationName : '',
+        });
+      }, 40);
+    })`);
+
+    expect(early.attached, 'still attached while the exit plays').toBe(true);
+    expect(early.state).toBe('closed');
+    expect(early.title, 'still names its device while it closes').toBe('Sign out Edge on Windows?');
+    expect(early.animationName).toBe('csp-rise-out');
+
+    await page.waitForTimeout(SETTLED_MS);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Sign out Edge on Windows, signed in / })).toBeFocused();
+  } finally {
+    await other.close();
+  }
+});

@@ -741,6 +741,27 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     clearSession();
   });
 
+  // D-39: the dialog stays in the tree while it plays its exit; jsdom runs no animation, so the computed animation name
+  // of a closed element is mocked.
+  it('keeps the sign-out-others dialog in the tree while it closes, with focus back on the menu button', async () => {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Keep Others Signed In' }));
+
+    expect(dialog.isConnected).toBe(true);
+    expect(dialog.getAttribute('data-state')).toBe('closed');
+    expect(document.activeElement).toBe(userButton());
+  });
+
   it('keeps the other devices signed in when the dialog is dismissed with Esc', async () => {
     await renderAt('/admin');
     await userEvent.click(userButton());
