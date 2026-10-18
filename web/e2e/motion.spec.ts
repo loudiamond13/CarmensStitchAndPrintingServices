@@ -6,6 +6,9 @@
 //   - under prefers-reduced-motion nothing moves: no animation runs and the dialog leaves the DOM at once;
 //   - the layout does not shift while a dialog opens and closes (cumulative layout shift under 0.05, Chromium only: the
 //     other engines do not report layout shifts).
+// Plan 05-08 adds the phone navigation drawer (D-34) the same way, on a 390px-wide page where the Topbar shows its menu
+// button: the panel slides in (csp-drawer-in), and on Esc it stays attached as data-state="closed" for its exit, then
+// leaves; under reduced motion it leaves at once; the layout does not shift.
 // The first sample is taken inside one page task, 40 ms after the click, because a Playwright round trip alone can take
 // longer than the 150 ms exit animation. Page scripts are strings: the e2e TypeScript program has no DOM types.
 import type { Page } from '@playwright/test';
@@ -145,6 +148,133 @@ test('@motion cls: opening and closing the dialogs shifts no layout', async ({ p
     await page.waitForTimeout(SETTLED_MS);
     await expect(page.getByRole('dialog', { name })).toHaveCount(0);
   }
+
+  const after = await page.evaluate<number>('window.__cspsLayoutShift');
+  expect(after - before, 'layout shift added by opening and closing').toBeLessThan(0.05);
+});
+
+// ── D-34: the phone navigation drawer ──
+
+/** The phone page width of the drawer journeys (the approved phone frame). */
+const PHONE = { width: 390, height: 844 } as const;
+
+interface DrawerSample {
+  readonly attached: boolean;
+  readonly state: string | null;
+  readonly layerState: string | null;
+  readonly panelAnimation: string;
+  readonly layerAnimation: string;
+  readonly buttonName: string;
+  readonly buttonExpanded: string | null;
+}
+
+async function openAdminOnPhone(page: Page): Promise<void> {
+  test.setTimeout(120_000);
+  await page.setViewportSize(PHONE);
+  const response = await page.goto('/admin');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Dashboard');
+}
+
+const DESCRIBE_DRAWER = `(() => {
+  const panel = document.querySelector('[role="dialog"][aria-label="Navigation"]');
+  const button = document.querySelector('button[aria-label$=" navigation"]');
+  return {
+    attached: panel !== null && panel.isConnected,
+    state: panel === null ? null : panel.getAttribute('data-state'),
+    layerState: panel === null ? null : panel.parentElement.getAttribute('data-state'),
+    panelAnimation: panel === null ? '' : getComputedStyle(panel).animationName,
+    layerAnimation: panel === null ? '' : getComputedStyle(panel.parentElement).animationName,
+    buttonName: button === null ? '' : button.getAttribute('aria-label') ?? '',
+    buttonExpanded: button === null ? null : button.getAttribute('aria-expanded'),
+  };
+})()`;
+
+/** Taps the menu button and describes the drawer `delay` ms later, inside one page task. */
+function openAndSample(page: Page, delay: number): Promise<DrawerSample> {
+  return page.evaluate(`new Promise((resolve) => {
+    document.querySelector('button[aria-label="Open navigation"]').click();
+    setTimeout(() => resolve(${DESCRIBE_DRAWER}), ${String(delay)});
+  })`);
+}
+
+/** Presses Esc and describes the drawer `delay` ms later, inside one page task. */
+function escapeAndSample(page: Page, delay: number): Promise<DrawerSample> {
+  return page.evaluate(`new Promise((resolve) => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    setTimeout(() => resolve(${DESCRIBE_DRAWER}), ${String(delay)});
+  })`);
+}
+
+test('@motion drawer: slides in, plays its exit with the scrim fading, then leaves the DOM', async ({ page }) => {
+  await openAdminOnPhone(page);
+  const menu = page.getByRole('button', { name: 'Open navigation' });
+
+  const opened = await openAndSample(page, 40);
+
+  expect(opened.attached).toBe(true);
+  expect(opened.state).toBe('open');
+  expect(opened.panelAnimation).toBe('csp-drawer-in');
+  expect(opened.layerAnimation).toBe('csp-fade');
+  expect(opened.buttonName).toBe('Close navigation');
+  expect(opened.buttonExpanded).toBe('true');
+  // The entry animation has finished, so the sample below is about the exit only.
+  await page.waitForTimeout(300);
+
+  const early = await escapeAndSample(page, 40);
+
+  expect(early.attached, 'still attached while the exit plays').toBe(true);
+  expect(early.state).toBe('closed');
+  expect(early.layerState).toBe('closed');
+  expect(early.panelAnimation).toBe('csp-drawer-out');
+  expect(early.layerAnimation).toBe('csp-fade-out');
+  expect(early.buttonName).toBe('Open navigation');
+  expect(early.buttonExpanded).toBe('false');
+
+  await page.waitForTimeout(SETTLED_MS);
+  await expect(page.getByRole('dialog', { name: 'Navigation' })).toHaveCount(0);
+  await expect(menu).toBeFocused();
+});
+
+test('@motion drawer reduced: does not move under reduced motion and leaves the DOM at once', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openAdminOnPhone(page);
+
+  const opened = await openAndSample(page, 40);
+
+  expect(opened.attached).toBe(true);
+  expect(opened.panelAnimation).toBe('none');
+  expect(opened.layerAnimation).toBe('none');
+
+  const early = await escapeAndSample(page, 40);
+
+  expect(early.attached, JSON.stringify(early)).toBe(false);
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toBeFocused();
+});
+
+test('@motion drawer cls: opening and closing the drawer shifts no layout', async ({ page }) => {
+  await page.addInitScript(`
+    window.__cspsLayoutShift = 0;
+    window.__cspsLayoutShiftSupported = PerformanceObserver.supportedEntryTypes.includes('layout-shift');
+    if (window.__cspsLayoutShiftSupported) {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) {
+            window.__cspsLayoutShift += entry.value;
+          }
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    }
+  `);
+  await openAdminOnPhone(page);
+  test.skip(
+    !(await page.evaluate('window.__cspsLayoutShiftSupported')),
+    'This engine does not report layout shifts; Chromium proves it.',
+  );
+  const before = await page.evaluate<number>('window.__cspsLayoutShift');
+
+  await openAndSample(page, 300);
+  await escapeAndSample(page, SETTLED_MS);
 
   const after = await page.evaluate<number>('window.__cspsLayoutShift');
   expect(after - before, 'layout shift added by opening and closing').toBeLessThan(0.05);
