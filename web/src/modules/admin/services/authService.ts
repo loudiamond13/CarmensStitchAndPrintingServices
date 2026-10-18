@@ -6,19 +6,18 @@ import type { components } from '@/types/api.generated';
 type Schemas = components['schemas'];
 
 export type SignInRequest = Schemas['SignInRequest'];
-export type SignInResponse = Schemas['SignInResponse'];
 export type VerifyCodeRequest = Schemas['VerifyCodeRequest'];
 export type VerifyCodeResponse = Schemas['VerifyCodeResponse'];
-export type ResendCodeResponse = Schemas['ResendCodeResponse'];
+export type ResendWaitResponse = Schemas['ResendWaitResponse'];
 export type SessionResponse = Schemas['SessionResponse'];
 
 export interface AuthService {
   /** `POST /api/v1/auth/sign-in`: checks the password and sends the code. */
-  signIn(body: SignInRequest, signal?: AbortSignal): Promise<SignInResponse>;
+  signIn(body: SignInRequest, signal?: AbortSignal): Promise<ResendWaitResponse>;
   /** `POST /api/v1/auth/two-factor/verify`. */
   verifyCode(body: VerifyCodeRequest, signal?: AbortSignal): Promise<VerifyCodeResponse>;
   /** `POST /api/v1/auth/two-factor/resend`. */
-  resendCode(signal?: AbortSignal): Promise<ResendCodeResponse>;
+  resendCode(signal?: AbortSignal): Promise<ResendWaitResponse>;
   /** `POST /api/v1/auth/refresh`: the refresh cookie in, a new session out. */
   refresh(signal?: AbortSignal): Promise<SessionResponse>;
   /** `POST /api/v1/auth/sign-out`: ends this device's session. */

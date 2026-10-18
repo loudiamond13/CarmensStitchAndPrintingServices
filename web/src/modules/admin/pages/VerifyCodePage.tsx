@@ -23,7 +23,7 @@ import { verifySchema, type VerifyValues } from '@/modules/admin/authSchemas';
 import { VerifyCodeForm } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
-import { authService, type ResendCodeResponse, type VerifyCodeResponse } from '@/modules/admin/services/authService';
+import { authService, type ResendWaitResponse, type VerifyCodeResponse } from '@/modules/admin/services/authService';
 import {
   completeSignIn,
   getPendingEmail,
@@ -119,7 +119,7 @@ export function VerifyCodeRoute() {
       },
     },
   );
-  const { submit: resend, pending: resendPending } = useSubmission<undefined, ResendCodeResponse>(() =>
+  const { submit: resend, pending: resendPending } = useSubmission<undefined, ResendWaitResponse>(() =>
     authService.resendCode(),
   );
 

@@ -118,8 +118,8 @@
         },
         "type": "object"
       },
-      "ResendCodeResponse": {
-        "description": "What a resend answers: how long to wait before asking again.",
+      "ResendWaitResponse": {
+        "description": "What sign-in and a code resend both answer: how long to wait before asking for a new code.",
         "properties": {
           "resendAfterSeconds": {
             "description": "Whole seconds.",
@@ -392,24 +392,6 @@
           "email",
           "password",
           "keepSignedIn"
-        ],
-        "type": "object"
-      },
-      "SignInResponse": {
-        "description": "What a successful sign-in step answers: how long to wait before asking for a new code.",
-        "properties": {
-          "resendAfterSeconds": {
-            "description": "Whole seconds.",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "resendAfterSeconds"
         ],
         "type": "object"
       },
@@ -1154,7 +1136,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignInResponse"
+                  "$ref": "#/components/schemas/ResendWaitResponse"
                 }
               }
             },
@@ -1269,7 +1251,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResendCodeResponse"
+                  "$ref": "#/components/schemas/ResendWaitResponse"
                 }
               }
             },

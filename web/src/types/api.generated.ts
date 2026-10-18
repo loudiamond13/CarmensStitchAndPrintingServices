@@ -314,8 +314,8 @@ export interface components {
             title?: null | string;
             type?: null | string;
         };
-        /** @description What a resend answers: how long to wait before asking again. */
-        ResendCodeResponse: {
+        /** @description What sign-in and a code resend both answer: how long to wait before asking for a new code. */
+        ResendWaitResponse: {
             /**
              * Format: int32
              * @description Whole seconds.
@@ -431,14 +431,6 @@ export interface components {
             keepSignedIn: boolean;
             /** @description The password, exactly as typed. */
             password: null | string;
-        };
-        /** @description What a successful sign-in step answers: how long to wait before asking for a new code. */
-        SignInResponse: {
-            /**
-             * Format: int32
-             * @description Whole seconds.
-             */
-            resendAfterSeconds: number | string;
         };
         /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
         SiteSettingsDto: {
@@ -869,7 +861,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignInResponse"];
+                    "application/json": components["schemas"]["ResendWaitResponse"];
                 };
             };
             /** @description Bad Request */
@@ -983,7 +975,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResendCodeResponse"];
+                    "application/json": components["schemas"]["ResendWaitResponse"];
                 };
             };
             /** @description Unauthorized */
