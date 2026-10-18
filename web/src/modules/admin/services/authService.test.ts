@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { createAuthService } from './authService';
+import { createAuthService, type ResendWaitResponse } from './authService';
 
 const problem = { title: 'Sign in again', status: 401 };
 
@@ -49,7 +49,11 @@ describe('authService routes', () => {
   it('signIn posts the form to /auth/sign-in', async () => {
     const seen = answer('/api/v1/auth/sign-in', () => HttpResponse.json({ resendAfterSeconds: 60 }));
 
-    const result = await build().service.signIn({ email: 'a@b.ph', password: 'pw', keepSignedIn: true });
+    const result: ResendWaitResponse = await build().service.signIn({
+      email: 'a@b.ph',
+      password: 'pw',
+      keepSignedIn: true,
+    });
 
     expect(result).toEqual({ resendAfterSeconds: 60 });
     expect(seen).toEqual([
@@ -76,7 +80,9 @@ describe('authService routes', () => {
   it('resendCode posts to /auth/two-factor/resend', async () => {
     const seen = answer('/api/v1/auth/two-factor/resend', () => HttpResponse.json({ resendAfterSeconds: 30 }));
 
-    await expect(build().service.resendCode()).resolves.toEqual({ resendAfterSeconds: 30 });
+    const result: ResendWaitResponse = await build().service.resendCode();
+
+    expect(result).toEqual({ resendAfterSeconds: 30 });
     expect(seen[0]).toMatchObject({ method: 'POST', search: '' });
   });
 
