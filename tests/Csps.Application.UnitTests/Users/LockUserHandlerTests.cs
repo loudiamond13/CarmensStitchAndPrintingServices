@@ -46,6 +46,55 @@ public sealed class LockUserHandlerTests
     }
 
     [Fact]
+    public async Task TheRosterLockIsTakenBeforeTheTargetIsRead()
+    {
+        var harness = new LockHarness();
+
+        await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        Received.InOrder(() =>
+        {
+            harness.RosterLock.LockActiveManagersAsync(Arg.Any<CancellationToken>());
+            harness.Accounts.FindByIdAsync(TargetId, Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task TheCallersOwnAccountIsRefusedAndNothingChanges()
+    {
+        var harness = new LockHarness { Target = Account(CallerId) };
+
+        var result = await harness.Handler.HandleAsync(CallerId, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBeSameAs(UserErrors.OwnAccount);
+        await AssertNothingChangedAsync(harness);
+    }
+
+    [Fact]
+    public async Task TheLastActiveManagerIsRefusedAndNothingChanges()
+    {
+        var harness = new LockHarness();
+        harness.Accounts.CountActiveManagersAsync(TargetId, Arg.Any<CancellationToken>()).Returns(0);
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBeSameAs(UserErrors.LastActiveManager);
+        await AssertNothingChangedAsync(harness);
+    }
+
+    [Fact]
+    public async Task AnAdminIsLockedWithoutCountingManagers()
+    {
+        var harness = new LockHarness { Target = Account(TargetId) with { Role = Roles.Admin } };
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.DidNotReceive().CountActiveManagersAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.Received(1).SetManagerLockAsync(TargetId, Start, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ALockWithNobodySignedInRecordsOnlyTheLockButStillEvicts()
     {
         var harness = new LockHarness();
@@ -215,6 +264,14 @@ public sealed class LockUserHandlerTests
         busy.Cache.EvictedUsers.ShouldBeEmpty();
     }
 
+    private static async Task AssertNothingChangedAsync(LockHarness harness)
+    {
+        await harness.Accounts.DidNotReceive().SetManagerLockAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Cache.EvictedUsers.ShouldBeEmpty();
+    }
+
     private static UserAccount Account(Guid id) =>
         new(id, "person@csps.test", "Ana", "Abad", Roles.Manager, IsActive: true, EmailConfirmed: true, HasPassword: true, MustChangePassword: null, BreachRecheckPending: false, LockoutEnd: null);
 
@@ -256,8 +313,11 @@ public sealed class LockUserHandlerTests
         public LockHarness(bool noCaller = false)
             : base(noCaller)
         {
-            Handler = new LockUserHandler(Accounts, Sessions, Cache, Request, Audit, Unit, new FakeTimeProvider(Start));
+            RosterLock = Substitute.For<IManagerRosterLock>();
+            Handler = new LockUserHandler(Accounts, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), Request, Audit, Unit, new FakeTimeProvider(Start));
         }
+
+        public IManagerRosterLock RosterLock { get; }
 
         public LockUserHandler Handler { get; }
     }
