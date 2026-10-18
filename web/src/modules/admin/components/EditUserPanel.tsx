@@ -148,6 +148,9 @@ function toRequest(values: UpdateUserValues, person: UserDetailResponse): Update
   return { ...request, emailChange };
 }
 
+/** How a save treated the email: left alone or an invited person's move (plain), a link sent to the new address (pending), or moved at once (moved). */
+export type SavedEmail = 'plain' | 'pending' | 'moved';
+
 export interface EditUserPanelProps {
   /** Whose details to edit. Null renders nothing (the panel was never opened). */
   userId: string | null;
@@ -156,7 +159,7 @@ export interface EditUserPanelProps {
   /** Closes the panel: Cancel, Close, Esc and the scrim (never while a request runs), and after a save. */
   onClose: () => void;
   /** The person was saved; the answer carries the new version and the saved names and role. */
-  onSaved: (saved: UserDetailResponse) => void;
+  onSaved: (saved: UserDetailResponse, email: SavedEmail) => void;
   /** An account action (lock, unlock, resend, reset link, temporary password, cancel email change) changed the person. */
   onAccountChanged?: () => void;
 }
@@ -307,7 +310,7 @@ function EditUserForm({
     },
     {
       onSuccess: (saved) => {
-        onSaved(saved);
+        onSaved(saved, 'plain');
         onClose();
       },
       onFailure: showFailure,

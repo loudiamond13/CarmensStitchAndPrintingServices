@@ -269,6 +269,7 @@ describe('U3 saving (USER-03)', () => {
     ]);
     expect(onSaved).toHaveBeenCalledWith(
       expect.objectContaining({ firstName: 'Paulo', role: 'Manager', version: NEXT_VERSION }),
+      'plain',
     );
   });
 
@@ -1350,6 +1351,213 @@ describe('U3 Set Temporary Password (USER-07, C-4, D-14, U5)', () => {
     const user = userEvent.setup();
     await openAccess();
     await user.click(trigger());
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+// --- Email notes, the pending change and the save outcome (C-9, OQ-4, D-45; plan 05-30) ---
+
+const INVITED_NOTE = "We'll send the invitation to the new address instead. The old link stops working.";
+const CONFIRM_NOTE = "We'll email a confirmation link to the new address. The change applies when they open it.";
+const NOW_NOTE =
+  'The email changes as soon as you save. The old address gets a notice and Paolo is signed out on every device.';
+
+describe('U3 email notes (C-9, OQ-4, D-45)', () => {
+  it('shows no note while the email matches the saved one', async () => {
+    await openLoaded();
+
+    expect(screen.queryByText(CONFIRM_NOTE)).toBeNull();
+    expect(screen.queryByText(NOW_NOTE)).toBeNull();
+    expect(screen.queryByText(INVITED_NOTE)).toBeNull();
+  });
+
+  it('tells an invited person the invitation goes to the new address, with no choice shown', async () => {
+    const user = userEvent.setup();
+    await openLoaded(detail({ hasPassword: false, inviteState: 'pending' }));
+
+    await replaceEmail(user, 'paolo.g@example.ph');
+
+    expect(screen.getByText(INVITED_NOTE)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'How this email change applies' })).toBeNull();
+    expect(screen.queryByText(CONFIRM_NOTE)).toBeNull();
+    await replaceEmail(user, 'paolo@example.ph');
+    expect(screen.queryByText(INVITED_NOTE)).toBeNull();
+  });
+
+  it('tells a person with a password a confirmation link goes to the new address while "Confirm by link" is chosen', async () => {
+    const user = userEvent.setup();
+    await openLoaded();
+
+    await replaceEmail(user, 'paolo.g@example.ph');
+
+    expect(screen.getByText(CONFIRM_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(INVITED_NOTE)).toBeNull();
+    expect(screen.queryByText(NOW_NOTE)).toBeNull();
+  });
+
+  it('follows the radio choice live: "Save at once" says the email changes now, and back to the link again', async () => {
+    const user = userEvent.setup();
+    await openLoaded();
+    await replaceEmail(user, 'paolo.g@example.ph');
+
+    await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+    expect(screen.getByText(NOW_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(CONFIRM_NOTE)).toBeNull();
+
+    await user.click(screen.getByRole('radio', { name: 'Confirm by link' }));
+    expect(screen.getByText(CONFIRM_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(NOW_NOTE)).toBeNull();
+  });
+
+  it('drops the note when the email is typed back to the saved one', async () => {
+    const user = userEvent.setup();
+    await openLoaded();
+    await replaceEmail(user, 'paolo.g@example.ph');
+    await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+
+    await replaceEmail(user, 'paolo@example.ph');
+
+    expect(screen.queryByText(NOW_NOTE)).toBeNull();
+    expect(screen.queryByText(CONFIRM_NOTE)).toBeNull();
+  });
+
+  it('has no axe violations with each note showing', async () => {
+    const user = userEvent.setup();
+    await openLoaded();
+    await replaceEmail(user, 'paolo.g@example.ph');
+    await expectNoAxeViolations(document.body);
+
+    await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('U3 how a save treats the email (D-45, the save toast)', () => {
+  it("reports 'pending' when the link was sent to the new address", async () => {
+    const user = userEvent.setup();
+    const { onSaved } = await openLoaded(detail(), {
+      put: () => HttpResponse.json(detail({ pendingEmail: 'paolo.g@example.ph', version: NEXT_VERSION })),
+    });
+    await replaceEmail(user, 'paolo.g@example.ph');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ pendingEmail: 'paolo.g@example.ph' }), 'pending');
+  });
+
+  it('reports \'moved\' when a person with a password was saved with "Save at once"', async () => {
+    const user = userEvent.setup();
+    const { onSaved } = await openLoaded(detail(), {
+      put: () => HttpResponse.json(detail({ email: 'paolo.g@example.ph', version: NEXT_VERSION })),
+    });
+    await replaceEmail(user, 'paolo.g@example.ph');
+    await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ email: 'paolo.g@example.ph' }), 'moved');
+  });
+
+  it("reports 'plain' for an invited person whose address moved, and for a save that left the email alone", async () => {
+    const user = userEvent.setup();
+    const invited = await openLoaded(detail({ hasPassword: false, inviteState: 'pending' }), {
+      put: () => HttpResponse.json(detail({ hasPassword: false, email: 'paolo.g@example.ph', version: NEXT_VERSION })),
+    });
+    await replaceEmail(user, 'paolo.g@example.ph');
+    await user.click(saveButton());
+    await waitFor(() => {
+      expect(invited.onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(invited.onSaved).toHaveBeenCalledWith(expect.anything(), 'plain');
+  });
+
+  it("reports 'plain' when only the name changed", async () => {
+    const user = userEvent.setup();
+    const { onSaved } = await openLoaded();
+    await user.clear(firstName());
+    await user.type(firstName(), 'Paulo');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ firstName: 'Paulo' }), 'plain');
+  });
+});
+
+describe('U3 a pending email change (C-9)', () => {
+  const PENDING = 'paolo.g@example.ph';
+  const pendingNote = () => screen.queryByText('Waiting for confirmation at', { exact: false });
+
+  it('shows no pending note when nothing waits', async () => {
+    await openAccess();
+
+    expect(pendingNote()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel Email Change' })).toBeNull();
+  });
+
+  it('shows "Waiting for confirmation at {new email}." with the address in bold and a Cancel Email Change button', async () => {
+    await openAccess(detail({ pendingEmail: PENDING }));
+
+    expect(pendingNote()).toHaveTextContent(`Waiting for confirmation at ${PENDING}.`);
+    expect(screen.getByText(PENDING).tagName).toBe('STRONG');
+    expect(screen.getByRole('button', { name: 'Cancel Email Change' })).toBeInTheDocument();
+  });
+
+  it('calls it off with a DELETE and no key, reads the person again, toasts, and puts the cursor on Email', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess(detail({ pendingEmail: PENDING }));
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Cancel Email Change' }));
+
+    expect(await screen.findByText('Email change canceled')).toBeInTheDocument();
+    expect(screen.getByText('Paolo keeps signing in with paolo@example.ph.')).toBeInTheDocument();
+    expect(access.calls).toEqual([{ method: 'DELETE', path: 'email-change', key: null, body: null }]);
+    await waitFor(() => {
+      expect(pendingNote()).toBeNull();
+    });
+    expect(access.gets).toBeGreaterThan(getsBefore);
+    expect(email()).toHaveFocus();
+    expect(onAccountChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('raises a danger toast that stays, with the mapper line, when the cancel fails, and the note stays', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess(detail({ pendingEmail: PENDING }));
+    server.use(http.delete('*/api/v1/users/:id/email-change', () => problem(500)));
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Cancel Email Change' }));
+
+    expect(await screen.findByText("Couldn't cancel the email change")).toBeInTheDocument();
+    expect(screen.getByText('Please try again.', { exact: false })).toBeInTheDocument();
+    expect(pendingNote()).not.toBeNull();
+    expect(access.gets).toBe(getsBefore);
+  });
+
+  it('waits like the Account access buttons while the form has unsaved changes', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess(detail({ pendingEmail: PENDING }));
+    await user.type(firstName(), 'o');
+
+    const cancel = screen.getByRole('button', { name: 'Cancel Email Change' });
+    expect(cancel).toHaveAttribute('aria-disabled', 'true');
+    await user.click(cancel);
+
+    expect(access.calls).toEqual([]);
+  });
+
+  it('has no axe violations with the pending note showing', async () => {
+    await openAccess(detail({ pendingEmail: PENDING }));
 
     await expectNoAxeViolations(document.body);
   });

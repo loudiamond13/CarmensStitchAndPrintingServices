@@ -847,6 +847,58 @@ describe('U3 Edit User from the page (USER-03)', () => {
     });
   });
 
+  /** Edits Paolo's email to a new address and saves; the PUT answers `answer`. */
+  async function saveNewEmail(
+    answer: Record<string, unknown>,
+    options: { now?: boolean; detail?: Record<string, unknown> } = {},
+  ) {
+    backend();
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail(options.detail))),
+      http.put(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail(answer))),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    const emailBox = await screen.findByRole('textbox', { name: /^Email/ });
+    await user.clear(emailBox);
+    await user.type(emailBox, 'paolo.g@example.ph');
+    if (options.now === true) {
+      await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+  }
+
+  it('says the email changes when the link is opened when the save left a change pending (C-9)', async () => {
+    await saveNewEmail({ pendingEmail: 'paolo.g@example.ph', version: VERSION });
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(
+      screen.getByText('Paolo Garcia · Admin. Their email changes when they open the link sent to paolo.g@example.ph.'),
+    ).toBeInTheDocument();
+  });
+
+  it('says the email changed and they are signed out everywhere after "Save at once" (D-45)', async () => {
+    await saveNewEmail({ email: 'paolo.g@example.ph' }, { now: true });
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Paolo Garcia · Admin. Their email is now paolo.g@example.ph and they are signed out everywhere.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the plain "User updated" toast for an invited person whose address moved', async () => {
+    await saveNewEmail(
+      { hasPassword: false, inviteState: 'pending', email: 'paolo.g@example.ph' },
+      { detail: { hasPassword: false, inviteState: 'pending' } },
+    );
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(screen.getByText('Paolo Garcia · Admin')).toBeInTheDocument();
+  });
+
   it('has no axe violations with the Edit panel open', async () => {
     rosterThatRenamesPaolo();
     await openPage();
