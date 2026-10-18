@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-09-PLAN.md
-last_updated: "2026-10-18T03:05:21.003Z"
+stopped_at: Completed 05-10-PLAN.md
+last_updated: "2026-10-18T03:22:50.717Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 99decea969b7d2272ae3c2c4a9f67ce5a70bf9c0
+state_head: f7ef67846930ae9cd87feb179a4832add325f0d7
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 123
+  completed_plans: 124
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-17T14:20:00-05:00"
+updated: "2026-10-17T22:24:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 10 of 43
+Plan: 11 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -179,6 +179,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P07 | 13 min | 3 tasks | 17 files |
 | Phase 05 P08 | 58 min | 3 tasks | 15 files |
 | Phase 05 P09 | 22 min | 2 tasks | 20 files |
+| Phase 05 P10 | 16 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -455,6 +456,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-08: chevron parity difference recorded as P5 D-35 ruling on .csp-usermenu svg in rulings.css, no tolerance; no P5 D-34 group needed
 - [Phase 05]: 05-09: stored EditVersion is compared before the same-names shortcut, so an old version is always 409 and equal names with the current version is a 200 that does not rotate
 - [Phase 05]: 05-09: UpdateNameAsync reloads after a ConcurrencyFailure and retries when only Identity's stamp moved, so bookkeeping never causes a false 409
+- [Phase 05]: 05-10: a deleted account asking for a reset is answered like an unknown address; a Manager lock is checked before the deactivated notice
 
 ### Pending Todos
 
@@ -514,6 +516,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T03:05:20.363Z
-Stopped at: Completed 05-09-PLAN.md
+Last session: 2026-10-18T03:22:50.070Z
+Stopped at: Completed 05-10-PLAN.md
 Resume file: None
