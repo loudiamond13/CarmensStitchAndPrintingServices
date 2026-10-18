@@ -72,7 +72,7 @@ public sealed class PasswordRules(IPwnedPasswords pwned, ICommonPasswords common
         }
 
         var normalized = PasswordPolicy.Normalize(password);
-        var answer = await pwned.CheckAsync(normalized, cancellationToken);
+        var answer = await pwned.CheckAsync(normalized, cancellationToken).ConfigureAwait(false);
         return answer switch
         {
             BreachCheckResult.Breached => new PasswordRulesResult(PasswordRulesStatus.Rejected, BreachedMessage, false),

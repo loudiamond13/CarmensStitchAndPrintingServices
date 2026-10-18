@@ -131,7 +131,8 @@ public sealed class SignInHandler(
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 }
 
-                return result.LockedNow;
+                // InTransactionAsync<T> needs a result; nobody reads this one.
+                return true;
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -159,10 +160,11 @@ public sealed class SignInHandler(
                 if (breached)
                 {
                     audit.Record(AuditActions.PasswordBreachFound, UserTarget, Key(account.Id), null);
-                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 }
 
-                return breached;
+                // Saved on both branches, so the clean branch does not rely on UserManager saving the shared context.
+                await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                return true;
             },
             cancellationToken).ConfigureAwait(false);
     }

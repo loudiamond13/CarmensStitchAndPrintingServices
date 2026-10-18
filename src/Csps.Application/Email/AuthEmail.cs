@@ -61,6 +61,10 @@ public abstract record AuthEmail(string To)
     /// <returns>The code or link expiry, or one day after <paramref name="createdAt"/> for notices.</returns>
     public abstract DateTimeOffset NotAfter(DateTimeOffset createdAt);
 
+    /// <summary>Prints the type name only, so a log or debugger never shows an address, a name, a code or a token.</summary>
+    /// <returns>The type name.</returns>
+    public sealed override string ToString() => GetType().Name;
+
     /// <summary>One day, the useful life of an email that carries no code or link.</summary>
     protected static DateTimeOffset NoticeNotAfter(DateTimeOffset createdAt) => createdAt.AddDays(1);
 }
@@ -79,10 +83,6 @@ public sealed record SignInCodeEmail(string To, string Code, DateTimeOffset Expi
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the code.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(SignInCodeEmail);
 }
 
 /// <summary>The account-locked email.</summary>
@@ -113,10 +113,6 @@ public sealed record PasswordResetEmail(string To, string Token, DateTimeOffset 
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(PasswordResetEmail);
 }
 
 /// <summary>The password-changed notice.</summary>
@@ -170,10 +166,6 @@ public sealed record InviteEmail(string To, string Token, DateTimeOffset Expires
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(InviteEmail);
 }
 
 /// <summary>The link to the new address that confirms an email change (PROF-02, D-25).</summary>
@@ -191,10 +183,6 @@ public sealed record EmailChangeConfirmEmail(
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(EmailChangeConfirmEmail);
 }
 
 /// <summary>The notice to the current address that an email change was requested (C-9).</summary>
@@ -238,8 +226,4 @@ public sealed record ManagerResetLinkEmail(string To, string Token, DateTimeOffs
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(ManagerResetLinkEmail);
 }

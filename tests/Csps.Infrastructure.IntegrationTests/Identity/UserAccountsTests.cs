@@ -130,14 +130,14 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
             result.LockoutEnd.ShouldBeNull();
         }
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await IsLockedAsync(accounts, id)).ShouldBeFalse();
 
         var fifth = await accounts.RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken);
 
         fifth.LockedNow.ShouldBeTrue();
         fifth.LockoutEnd.ShouldNotBeNull();
         fifth.LockoutEnd.Value.ShouldBe(TimeProvider.System.GetUtcNow() + LockoutLength, TimeSpan.FromMinutes(1));
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBe(fifth.LockoutEnd);
 
         // A sixth failure on a locked account is not a new lockout, so the lockout email goes out once.
@@ -183,7 +183,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
 
         await accounts.ClearLockoutAsync(id, TestContext.Current.CancellationToken);
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await IsLockedAsync(accounts, id)).ShouldBeFalse();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBeNull();
 
         // The count restarted: four more failures do not lock again.
@@ -248,7 +248,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
 
         await accounts.LockUntilAsync(id, until, TestContext.Current.CancellationToken);
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBe(until);
     }
 
@@ -440,7 +440,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
 
         (await accounts.SetManagerLockAsync(id, null, TestContext.Current.CancellationToken)).ShouldBeTrue();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.IsManagerLocked.ShouldBeFalse();
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
     }
 
     [Fact]
@@ -466,7 +466,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
             await accounts.RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken);
         }
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
     }
 
     private static ServiceProvider BuildProvider(string connectionString)
@@ -477,4 +477,8 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         services.AddCspsIdentity();
         return services.BuildServiceProvider(validateScopes: true);
     }
+
+    // A failed-password lockout is on while its end lies in the future.
+    private static async Task<bool> IsLockedAsync(IUserAccounts accounts, Guid id) =>
+        (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd is { } end && end > TimeProvider.System.GetUtcNow();
 }

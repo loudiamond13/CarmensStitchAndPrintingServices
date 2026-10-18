@@ -162,13 +162,6 @@ internal sealed class UserAccounts(
         Require(await users.ResetAccessFailedCountAsync(user).ConfigureAwait(false), "Resetting the failed count");
     }
 
-    public async Task<bool> IsLockedOutAsync(Guid id, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
-        return user is not null && await users.IsLockedOutAsync(user).ConfigureAwait(false);
-    }
-
     public async Task LockUntilAsync(Guid id, DateTimeOffset until, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);

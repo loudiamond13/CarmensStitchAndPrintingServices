@@ -33,6 +33,10 @@ public sealed record UserAccount(
 {
     /// <summary>True when the account is deactivated, deleted or Manager-locked. The timed failed-password lockout is separate and is not a block.</summary>
     public bool IsBlocked => !IsActive || IsManagerLocked || IsDeleted;
+
+    /// <summary>Prints the type name only, so a log or debugger never shows the address or names.</summary>
+    /// <returns>The type name.</returns>
+    public override string ToString() => nameof(UserAccount);
 }
 
 /// <summary>The details needed to create a staff account.</summary>

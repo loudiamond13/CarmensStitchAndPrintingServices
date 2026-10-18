@@ -51,7 +51,7 @@ public static class AuditActions
     /// <summary>A reset link was used that is unknown, expired or already used.</summary>
     public const string PasswordResetLinkInvalid = "auth.password-reset-link-invalid";
 
-    /// <summary>A signed-in user changed their own password.</summary>
+    /// <summary>A password was changed: the must-change step after the sign-in code, or a person's own change from My Profile.</summary>
     public const string PasswordChanged = "auth.password-changed";
 
     /// <summary>A chosen password was refused because it appears in a known breach, or a saved one was found in a breach at sign-in (D-18).</summary>

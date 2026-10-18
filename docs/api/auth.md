@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-18T07:20:00-05:00
+updated: 2026-10-18T11:45:00-05:00
 ---
 
 # The authentication and sessions API
@@ -236,7 +236,7 @@ in `AuditActions`; `docs/operations/audit-log.md` explains the log itself.
 | `auth.password-reset-requested` | A password reset was asked for. |
 | `auth.password-reset-completed` | A password reset finished. |
 | `auth.password-reset-link-invalid` | A reset link that is unknown, expired or used was presented. |
-| `auth.password-changed` | A signed-in person changed their own password. |
+| `auth.password-changed` | A password was changed: the must-change step after the sign-in code, or a person's own change from My Profile. |
 | `auth.password-breach-found` | A chosen password was refused for a breach, or a saved one was found in a breach at sign-in. |
 | `auth.breach-check-unavailable` | The breached-password lookup could not be reached. |
 | `auth.invite-accepted` | An invited person set a password and activated the account. |

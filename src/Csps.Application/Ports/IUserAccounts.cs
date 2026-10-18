@@ -58,12 +58,6 @@ public interface IUserAccounts
     /// <returns>A task that completes when the count is saved.</returns>
     Task ResetFailedCountAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Tells whether the account is locked right now.</summary>
-    /// <param name="id">The account id.</param>
-    /// <param name="cancellationToken">Cancels the lookup.</param>
-    /// <returns>True while locked.</returns>
-    Task<bool> IsLockedOutAsync(Guid id, CancellationToken cancellationToken);
-
     /// <summary>Locks the account until a time.</summary>
     /// <param name="id">The account id.</param>
     /// <param name="until">When the lockout ends.</param>
