@@ -5,6 +5,7 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Profile;
@@ -14,6 +15,7 @@ public sealed class ProfileEndpointTests(CspsDatabase database) : IClassFixture<
 {
     private const string Route = "/api/v1/profile";
     private const string StaleDetail = "This was changed by someone else. Reload and try again.";
+    private const string NameChanged = "profile.name-changed";
 
     [Fact]
     public async Task AnAdminReadsTheirOwnProfile()
@@ -278,6 +280,73 @@ public sealed class ProfileEndpointTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task ARealNameChangeWritesOneAuditEntryWithFieldNamesOnly()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var session = await TestSessions.StartAsync(factory);
+        var opened = await ReadProfileAsync(client, session.AccessToken);
+
+        using var save = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form("Ana", "Reyes", opened.Version));
+
+        save.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var entry = (await NameEntriesAsync(session.UserId)).ShouldHaveSingleItem();
+        entry.TargetType.ShouldBe("User");
+        var detail = entry.Detail.ShouldNotBeNull();
+        detail.ShouldBe("fields=first-name");
+        detail.ShouldNotContain("Ana");
+        detail.ShouldNotContain("Paolo");
+        detail.ShouldNotContain("Reyes");
+    }
+
+    [Fact]
+    public async Task ChangingBothNamesListsBothFieldsAndTwoSavesWriteTwoEntries()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var session = await TestSessions.StartAsync(factory);
+        var opened = await ReadProfileAsync(client, session.AccessToken);
+        using var first = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form("Ana", "Cruz", opened.Version));
+        var next = await ReadProfileAsync(client, session.AccessToken);
+
+        using var second = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form("Ana", "Dela", next.Version));
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await NameEntriesAsync(session.UserId)).Select(static entry => entry.Detail).Order().ShouldBe(["fields=first-name,last-name", "fields=last-name"]);
+    }
+
+    [Fact]
+    public async Task ASaveThatChangesNothingWritesNoAuditEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var session = await TestSessions.StartAsync(factory);
+        var opened = await ReadProfileAsync(client, session.AccessToken);
+
+        using var response = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form(" Paolo ", "Reyes", opened.Version));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await NameEntriesAsync(session.UserId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AStaleOrInvalidSaveWritesNoAuditEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var session = await TestSessions.StartAsync(factory);
+        var opened = await ReadProfileAsync(client, session.AccessToken);
+
+        using var stale = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form("Ana", "Cruz", Guid.NewGuid()));
+        using var invalid = await SendAsync(client, HttpMethod.Put, session.AccessToken, Form("", "Cruz", opened.Version));
+
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        invalid.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await NameEntriesAsync(session.UserId)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task SavingMyNameNeverTouchesAnotherAccount()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -308,6 +377,16 @@ public sealed class ProfileEndpointTests(CspsDatabase database) : IClassFixture<
 
         read.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         save.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private async Task<List<NameEntry>> NameEntriesAsync(Guid userId)
+    {
+        await using var context = database.CreateContext();
+        var key = userId.ToString("D");
+        return await context.AuditLog.AsNoTracking()
+            .Where(entry => entry.Action == NameChanged && entry.TargetId == key)
+            .Select(static entry => new NameEntry(entry.TargetType, entry.Detail))
+            .ToListAsync(TestContext.Current.CancellationToken);
     }
 
     private static object Form(string firstName, string lastName, Guid version) => Form(firstName, lastName, version.ToString("D"));
@@ -344,4 +423,6 @@ public sealed class ProfileEndpointTests(CspsDatabase database) : IClassFixture<
     }
 
     private sealed record ReadProfile(Guid Id, string FirstName, string LastName, Guid Version);
+
+    private sealed record NameEntry(string? TargetType, string? Detail);
 }
