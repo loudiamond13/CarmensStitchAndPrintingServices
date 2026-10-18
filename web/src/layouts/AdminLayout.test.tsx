@@ -16,6 +16,8 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { AdminFrame } from '@/layouts/AdminLayout';
+import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
+import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
 
 /**
  * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
@@ -780,6 +782,127 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(userButton()).toHaveFocus();
+  });
+});
+
+/** A page that reads the theme the way a page under the admin layout does, and sets it from two buttons. */
+function ThemeProbe() {
+  const { theme, setTheme } = useAdminTheme();
+  return (
+    <div>
+      <h1>Theme probe</h1>
+      <p>Page theme: {theme}</p>
+      <button
+        type="button"
+        onClick={() => {
+          setTheme('dark');
+        }}
+      >
+        Probe dark
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setTheme('light');
+        }}
+      >
+        Probe light
+      </button>
+    </div>
+  );
+}
+
+describe('AdminLayout theme context for pages (PROF-04, D-22)', () => {
+  async function renderProbe() {
+    const router = createMemoryRouter(adminTree({ page: { lazy: undefined, Component: ThemeProbe } }), {
+      initialEntries: ['/admin'],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1, name: 'Theme probe' }, { timeout: 5000 });
+    return router;
+  }
+
+  it('gives the page the layout theme and a setter: the setter changes the root, the saved value and the top bar toggle', async () => {
+    await renderProbe();
+    expect(screen.getByText('Page theme: light')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe dark' }));
+
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+  });
+
+  it('shows the page the theme the top bar toggle chose', async () => {
+    await renderProbe();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+  });
+
+  it('reads a stored value that is not light or dark as light, for the page too', async () => {
+    window.localStorage.setItem('csps-theme', 'purple');
+
+    await renderProbe();
+
+    expect(screen.getByText('Page theme: light')).toBeInTheDocument();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('writes nothing when the page sets the theme that is already active', async () => {
+    await renderProbe();
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe light' }));
+
+    expect(write).not.toHaveBeenCalled();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('keeps the page and the toggle in step in memory when the storage throws', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    await renderProbe();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe dark' }));
+
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+  });
+
+  it('keeps the Appearance control of My Profile and the top bar toggle in step, both ways', async () => {
+    server.use(
+      http.get('*/api/v1/profile', () =>
+        HttpResponse.json({
+          id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          email: 'carmen@example.ph',
+          role: 'Manager',
+          pendingEmail: null,
+          memberSince: '2026-10-17T01:00:00Z',
+          version: '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3',
+        }),
+      ),
+    );
+    const router = createMemoryRouter(adminTree({ page: { lazy: undefined, Component: ProfileRoute } }), {
+      initialEntries: ['/admin?tab=appearance'],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1, name: 'Carmen Reyes' }, { timeout: 5000 });
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Espresso (dark)' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(screen.getByRole('radio', { name: 'Blush (light)' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Espresso (dark)' })).toHaveAttribute('aria-checked', 'false');
   });
 });
 

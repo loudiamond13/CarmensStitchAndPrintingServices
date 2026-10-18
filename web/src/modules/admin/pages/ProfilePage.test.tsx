@@ -3,13 +3,13 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
-import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { MemoryRouter, Outlet, Route, Routes } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { profileKey } from '@/lib/query/keys';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { useThemeState } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
 import type { ProfileResponse } from '@/modules/admin/services/profileService';
 import { clearSession, getSessionUser } from '@/modules/admin/services/session';
@@ -106,7 +106,30 @@ function problem(status: number, body: Record<string, unknown>): Response {
 
 let queryClient: QueryClient;
 
-function Harness({ children, search }: { children: ReactNode; search: string }) {
+/**
+ * The admin layout's part of the theme: the page root with data-theme, the theme state the layout owns, and the Outlet
+ * context the page reads it from. The "top bar" button stands for the real toggle, which changes the same state.
+ */
+function ThemeHost() {
+  const context = useThemeState();
+  return (
+    <div data-theme={context.theme}>
+      <button
+        type="button"
+        onClick={() => {
+          context.setTheme(context.theme === 'light' ? 'dark' : 'light');
+        }}
+      >
+        Top bar toggle
+      </button>
+      <ToastProvider>
+        <Outlet context={context} />
+      </ToastProvider>
+    </div>
+  );
+}
+
+function Harness({ search }: { search: string }) {
   return (
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
@@ -116,9 +139,11 @@ function Harness({ children, search }: { children: ReactNode; search: string }) 
         hasMemory
       >
         <MemoryRouter>
-          <div data-theme="light">
-            <ToastProvider>{children}</ToastProvider>
-          </div>
+          <Routes>
+            <Route element={<ThemeHost />}>
+              <Route path="*" element={<ProfileRoute />} />
+            </Route>
+          </Routes>
         </MemoryRouter>
       </NuqsTestingAdapter>
     </QueryClientProvider>
@@ -126,7 +151,7 @@ function Harness({ children, search }: { children: ReactNode; search: string }) 
 }
 
 function renderPage(search = '') {
-  return render(<ProfileRoute />, { wrapper: ({ children }) => <Harness search={search}>{children}</Harness> });
+  return render(<Harness search={search} />);
 }
 
 async function openPage(search = '') {
@@ -144,6 +169,7 @@ function lastName(): HTMLInputElement {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   clearSession();
   queryClient = createQueryClient();
 });
@@ -670,6 +696,174 @@ describe('P1 stale save (D-20, SEC-07)', () => {
     await saveAs('Ana');
     await screen.findByRole('alert');
 
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('P1 Appearance: Theme (PROF-04, D-22)', () => {
+  function pageRoot(): HTMLElement {
+    const root = document.querySelector('[data-theme]');
+    if (!(root instanceof HTMLElement)) {
+      throw new Error('No page root.');
+    }
+    return root;
+  }
+
+  function blush(): HTMLElement {
+    return screen.getByRole('radio', { name: 'Blush (light)' });
+  }
+
+  function espresso(): HTMLElement {
+    return screen.getByRole('radio', { name: 'Espresso (dark)' });
+  }
+
+  /** The polite line the Appearance card reads out. */
+  function themeStatus(): string {
+    const panel = screen.getByRole('tabpanel');
+    return within(panel).getAllByRole('status')[0]?.textContent ?? '';
+  }
+
+  it('shows the Theme card with the two choices, the hint and no save button', async () => {
+    backend();
+    await openPage('?tab=appearance');
+
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAccessibleName('Appearance');
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Theme' })).toBeInTheDocument();
+    expect(within(panel).getByText('Choose how CSPS Admin looks on this browser.')).toBeInTheDocument();
+    expect(within(panel).getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument();
+    expect(blush()).toHaveTextContent('Blush (light)');
+    expect(espresso()).toHaveTextContent('Espresso (dark)');
+    expect(
+      within(panel).getByText('Saved on this browser only. The public website always stays light.'),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: /save/i })).toBeNull();
+  });
+
+  it('starts on Blush with nothing saved', async () => {
+    backend();
+    await openPage('?tab=appearance');
+
+    expect(blush()).toHaveAttribute('aria-checked', 'true');
+    expect(espresso()).toHaveAttribute('aria-checked', 'false');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('starts on Espresso when "dark" is saved', async () => {
+    window.localStorage.setItem('csps-theme', 'dark');
+    backend();
+    await openPage('?tab=appearance');
+
+    expect(espresso()).toHaveAttribute('aria-checked', 'true');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+  });
+
+  it.each(['purple', 'DARK', 'light ', ''])('reads the stored value %j as Blush', async (stored) => {
+    window.localStorage.setItem('csps-theme', stored);
+    backend();
+    await openPage('?tab=appearance');
+
+    expect(blush()).toHaveAttribute('aria-checked', 'true');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('applies Espresso at once, saves "dark" in this browser and announces it', async () => {
+    const state = backend();
+    await openPage('?tab=appearance');
+
+    await userEvent.click(espresso());
+
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+    expect(espresso()).toHaveAttribute('aria-checked', 'true');
+    expect(themeStatus()).toBe('Theme changed to Espresso (dark).');
+    expect(screen.getByText('Theme changed to Espresso (dark).').closest('[role="status"]')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
+    // The theme is never sent to the server (D-22).
+    expect(state.puts).toHaveLength(0);
+  });
+
+  it('switches back to Blush and announces that', async () => {
+    backend();
+    await openPage('?tab=appearance');
+    await userEvent.click(espresso());
+
+    await userEvent.click(blush());
+
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(window.localStorage.getItem('csps-theme')).toBe('light');
+    expect(themeStatus()).toBe('Theme changed to Blush (light).');
+  });
+
+  it('changes nothing, writes nothing and announces nothing when the active theme is chosen again', async () => {
+    backend();
+    await openPage('?tab=appearance');
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+
+    await userEvent.click(blush());
+
+    expect(write).not.toHaveBeenCalled();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(themeStatus()).toBe('');
+
+    await userEvent.click(espresso());
+    write.mockClear();
+    await userEvent.click(espresso());
+    expect(write).not.toHaveBeenCalled();
+    expect(themeStatus()).toBe('Theme changed to Espresso (dark).');
+  });
+
+  it('follows a change made somewhere else, such as the top bar toggle, and stops announcing the old change', async () => {
+    backend();
+    await openPage('?tab=appearance');
+    await userEvent.click(espresso());
+    expect(themeStatus()).toBe('Theme changed to Espresso (dark).');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Top bar toggle' }));
+
+    expect(blush()).toHaveAttribute('aria-checked', 'true');
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(themeStatus()).toBe('');
+  });
+
+  it('keeps working in memory when the storage refuses to read or write', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    backend();
+    await openPage('?tab=appearance');
+    expect(blush()).toHaveAttribute('aria-checked', 'true');
+
+    await userEvent.click(espresso());
+
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(espresso()).toHaveAttribute('aria-checked', 'true');
+    expect(themeStatus()).toBe('Theme changed to Espresso (dark).');
+  });
+
+  it('moves between the two choices with the arrow keys', async () => {
+    backend();
+    await openPage('?tab=appearance');
+    blush().focus();
+
+    await userEvent.keyboard('{ArrowRight}');
+
+    expect(espresso()).toHaveAttribute('aria-checked', 'true');
+    expect(espresso()).toHaveFocus();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+  });
+
+  it('has no axe violations on the Appearance tab, in either theme', async () => {
+    backend();
+    const { container } = await openPage('?tab=appearance');
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(espresso());
     await expectNoAxeViolations(container);
   });
 });
