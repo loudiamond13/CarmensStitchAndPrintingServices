@@ -477,6 +477,112 @@ public sealed class EmailChangeHandlerTests
         result.Error.Code.ShouldBe(AuthErrors.SessionBusyCode);
     }
 
+    // ---- check ----
+
+    [Fact]
+    public async Task ALiveLinkIsCheckedToItsPendingAddressAndNothingIsWritten()
+    {
+        var harness = new Harness();
+
+        var result = await harness.CheckAsync(Secret);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(new EmailChangeResponse(NewEmail));
+        harness.Link.UsedAt.ShouldBeNull();
+        await harness.Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        await harness.AssertNothingAppliedAsync();
+        harness.Unit.Commits.ShouldBe(0);
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("too-short")]
+    [InlineData("0123456789abcdefghijklmnopqrstuvwxyzABCDEF!")]
+    public async Task TheCheckOfAMissingOrMalformedTokenIsInvalidWithoutALookup(string? token)
+    {
+        var harness = new Harness();
+
+        var result = await harness.CheckAsync(token);
+
+        AssertInvalid(result);
+        await harness.Tokens.DidNotReceive().FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheCheckOfAnUnknownTokenIsInvalid()
+    {
+        var harness = new Harness();
+
+        AssertInvalid(await harness.CheckAsync("ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlkj"));
+    }
+
+    [Fact]
+    public async Task TheCheckAsksForTheEmailChangePurposeOnly()
+    {
+        var harness = new Harness();
+
+        await harness.CheckAsync(Secret);
+
+        await harness.Tokens.Received().FindByHashAsync(Arg.Any<byte[]>(), AccountTokenPurpose.EmailChange, Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().FindByHashAsync(Arg.Any<byte[]>(), Arg.Is<AccountTokenPurpose>(purpose => purpose != AccountTokenPurpose.EmailChange), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("used")]
+    [InlineData("revoked")]
+    public async Task TheCheckOfAUsedOrReplacedLinkIsInvalid(string reason)
+    {
+        var harness = new Harness();
+        if (reason == "used")
+        {
+            harness.Link.Use(Start);
+        }
+        else
+        {
+            harness.Link.Revoke(Start);
+        }
+
+        AssertInvalid(await harness.CheckAsync(Secret));
+    }
+
+    [Fact]
+    public async Task TheCheckIsLiveJustBeforeTwentyFourHoursAndDeadAtTwentyFourHours()
+    {
+        var live = new Harness();
+        live.Time.Advance(TimeSpan.FromHours(24) - TimeSpan.FromMilliseconds(1));
+        var dead = new Harness();
+        dead.Time.Advance(TimeSpan.FromHours(24));
+
+        (await live.CheckAsync(Secret)).IsSuccess.ShouldBeTrue();
+        AssertInvalid(await dead.CheckAsync(Secret));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("deactivated")]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
+    public async Task TheCheckOfAMissingOrBlockedAccountIsTheSameInvalidAnswer(string account)
+    {
+        var harness = new Harness(account);
+
+        AssertInvalid(await harness.CheckAsync(Secret));
+        await harness.Directory.DidNotReceive().GetProfileAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheCheckWithNothingPendingOrNoProfileIsInvalid(bool profileExists)
+    {
+        var harness = new Harness { ProfileExists = profileExists, Pending = null };
+
+        AssertInvalid(await harness.CheckAsync(Secret));
+    }
+
     // ---- values that must never print ----
 
     [Fact]
@@ -545,7 +651,7 @@ public sealed class EmailChangeHandlerTests
 
             Directory = Substitute.For<IUserDirectory>();
             Directory.GetProfileAsync(UserId, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<ProfileView?>(
-                ProfileExists ? new ProfileView(UserId, "Paolo", "Reyes", OldEmail, "Manager", NewEmail, Start.AddDays(-30), Guid.NewGuid()) : null));
+                ProfileExists ? new ProfileView(UserId, "Paolo", "Reyes", OldEmail, "Manager", Pending, Start.AddDays(-30), Guid.NewGuid()) : null));
         }
 
         public IUserAccounts Accounts { get; }
@@ -574,6 +680,8 @@ public sealed class EmailChangeHandlerTests
 
         public bool ProfileExists { get; init; } = true;
 
+        public string? Pending { get; init; } = NewEmail;
+
         public EmailApplyOutcome Apply { get; init; } = EmailApplyOutcome.Applied;
 
         public FailedPasswordResult Failure { get; init; } = new(LockedNow: false, null);
@@ -588,6 +696,10 @@ public sealed class EmailChangeHandlerTests
                 .HandleAsync(new EmailChangeTokenRequest(token), TestContext.Current.CancellationToken);
 
         // A wrong password is counted in its own transaction, so that one commit is expected there.
+        public Task<Result<EmailChangeResponse>> CheckAsync(string? token) =>
+            new CheckEmailChangeHandler(Tokens, Accounts, Directory, Time)
+                .HandleAsync(new EmailChangeTokenRequest(token), TestContext.Current.CancellationToken);
+
         public async Task AssertNothingChangedAsync(int commits = 0)
         {
             await Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());

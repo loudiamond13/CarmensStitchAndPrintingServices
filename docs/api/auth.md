@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-18T00:40:00-05:00
+updated: 2026-10-18T01:30:00-05:00
 ---
 
 # The authentication and sessions API
@@ -81,6 +81,18 @@ lastName, role } }`. The refresh token is never in a body.
 | `POST /auth/invite/check` | Anonymous | `{ "token" }` | `200 { "email", "firstName" }`; `404` `auth.invite-invalid`. |
 | `POST /auth/invite/accept` | Anonymous | `{ "token", "newPassword" }` | `204`. Activates the account; the person then signs in with the emailed code (D-29). `400`, `404` `auth.invite-invalid`, `409`, `422` `auth.breach-check-unavailable` (the breach list could not be reached; this call fails closed, D-14, and nothing is saved). Needs `Idempotency-Key`. |
 
+### Change my email (My Profile, PROF-02)
+
+The sign-in email changes only when the new inbox confirms. The link goes to the new address and a notice to the old one.
+
+| Method and path | Policy | Body | Answers |
+|---|---|---|---|
+| `POST /profile/email-change` | Staff | `{ "newEmail", "currentPassword" }` | `200` the profile with `pendingEmail`. The current password is checked first, by the same rule and the same five-try lock as `POST /profile/password`. `400` under `currentPassword` (wrong password), or under `newEmail` (empty, not an address, over 256 characters, "This is already your email.", or "Another account already uses this email."), `429` `profile.password-locked`, `409`. A taken address is shown only after the password is right. A new request replaces the pending one and ends the older link. Needs `Idempotency-Key`. |
+| `POST /profile/email-change/check` | Anonymous | `{ "token" }` | `200 { "newEmail" }` for a working link; `404` `email-change.invalid` for anything else (expired, used, replaced, malformed, unknown, or an account that may not sign in). Read-only: it spends nothing, so a mail scanner opening the link changes nothing. Works with no session or another person's session. |
+| `POST /profile/email-change/confirm` | Anonymous | `{ "token" }` | `200 { "newEmail" }`; moves the sign-in email and ends the link. `404` `email-change.invalid`, `409`. Needs `Idempotency-Key`. |
+
+The emailed link is `/admin/confirm-email#token=...` (the token sits in the fragment, never in a URL path or query). It works for 24 hours and only once.
+
 The password rule (D-11, `PasswordPolicy`): 8 to 64 characters with at least one number and one symbol, not on the
 breached-password list, and without the person's name or email parts of 3 or more characters.
 
@@ -118,6 +130,7 @@ integration tests holds the same list and fails the build if an endpoint and its
 | `POST /auth/sign-out` | Naturally idempotent: a repeat finds nothing more to revoke. It clears the refresh cookie. |
 | `POST /auth/sign-out-others` | Naturally idempotent: a repeat finds nothing more to revoke; no answer is worth storing. |
 | `POST /auth/password/reset/check` | Read-only lookup; changes nothing. |
+| `POST /profile/email-change/check` | Read-only lookup; changes nothing. |
 | `POST /auth/invite/check` | Read-only lookup; changes nothing. |
 | `POST /auth/password/set-new` | The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice. |
 
@@ -134,6 +147,7 @@ integration tests holds the same list and fails the build if an endpoint and its
 | Refresh grace window | 30 seconds | `AuthSettings` |
 | Reset link | 30 minutes, single use; at most 3 reset emails per hour per account | `AuthSettings` |
 | Invite link | 7 days, single use | `AuthSettings` |
+| Email-change link | 24 hours, single use; one live link per account (a new request ends the old one) | `AuthSettings` |
 
 Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`). A call over its limit gets `429`.
 
@@ -143,7 +157,7 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth-verify` | verify code | 10 per minute |
 | `auth-resend` | resend code | 5 per minute |
 | `auth-forgot` | forgot password | 5 per 15 minutes |
-| `auth-reset` | reset check, reset, set-new, invite check, invite accept | 10 per 15 minutes |
+| `auth-reset` | reset check, reset, set-new, invite check, invite accept, email-change request, check and confirm | 10 per 15 minutes |
 | `auth-refresh` | refresh, sign-out, sign-out-others, the devices list and sign-out of a device | 60 per minute |
 
 ## Error codes
@@ -164,9 +178,10 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth.code-lockout` | 429 | The account is paused after too many wrong codes. |
 | `auth.resend-cooldown` | 429 | A resend inside the 60-second cooldown; `Retry-After` says how long. |
 | `auth.resend-cap` | 429 | The hourly resend cap; no wait time is given. |
-| `profile.password-locked` | 429 | `POST /profile/password` only: the account is locked after five wrong current passwords (the same lock as sign-in); `Retry-After` says how long, and the password is not checked while it lasts. A wrong current password before that is `400` under `currentPassword`. |
+| `profile.password-locked` | 429 | `POST /profile/password` and `POST /profile/email-change`: the account is locked after five wrong current passwords (the same lock as sign-in); `Retry-After` says how long, and the password is not checked while it lasts. A wrong current password before that is `400` under `currentPassword`. |
 | `auth.link-invalid` | 404 | A reset link that is malformed, unknown, used, revoked, expired or for an account that may not sign in. Never says which. |
 | `auth.invite-invalid` | 404 | The same for an invite link. |
+| `email-change.invalid` | 404 | The same for an email-change link (check and confirm). |
 | `auth.breach-check-unavailable` | 422 | Invite acceptance only: the breached-password lookup could not be reached, so nothing is saved. |
 | `idempotency.key-missing` | 400 | The key is missing or not a UUID. |
 | `idempotency.key-mismatch` | 422 | The key was used with a different body. |

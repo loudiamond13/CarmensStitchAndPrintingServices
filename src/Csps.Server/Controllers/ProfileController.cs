@@ -11,7 +11,7 @@ namespace Csps.Server.Controllers;
 
 /// <summary>
 /// The signed-in staff member's own profile (PROF-01, PROF-02, PROF-03): read it, change the name, ask to change the sign-in email,
-/// confirm that change from the emailed link, and change the password. There is no user id in the route; every signed-in call acts
+/// check and confirm that change from the emailed link, and change the password. There is no user id in the route; every signed-in call acts
 /// on the token's user only (CWE-639). Never cached.
 /// </summary>
 /// <param name="get">The read handler.</param>
@@ -19,6 +19,7 @@ namespace Csps.Server.Controllers;
 /// <param name="changePassword">The password-change handler.</param>
 /// <param name="requestEmailChange">The email-change request handler.</param>
 /// <param name="confirmEmailChange">The email-change confirmation handler.</param>
+/// <param name="checkEmailChange">The email-change link check handler.</param>
 [ApiController]
 [Route("api/v1/profile")]
 [Authorize(Policy = Policies.Staff)]
@@ -29,7 +30,8 @@ public sealed class ProfileController(
     UpdateProfileNameHandler update,
     ChangePasswordHandler changePassword,
     RequestEmailChangeHandler requestEmailChange,
-    ConfirmEmailChangeHandler confirmEmailChange) : ControllerBase
+    ConfirmEmailChangeHandler confirmEmailChange,
+    CheckEmailChangeHandler checkEmailChange) : ControllerBase
 {
     /// <summary>Reads the caller's profile, including the edit version the next save must send.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -136,6 +138,28 @@ public sealed class ProfileController(
         CancellationToken cancellationToken)
     {
         var result = await confirmEmailChange.HandleAsync(body ?? EmailChangeTokenRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
+    }
+
+    /// <summary>
+    /// Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it
+    /// spends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.
+    /// </summary>
+    /// <param name="body">The token; a null or unreadable body reads as an invalid link.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the address the link would confirm, or 404 <c>email-change.invalid</c> for any link that does not work.</returns>
+    [HttpPost("email-change/check")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Reset)]
+    [IdempotencyExempt("Read-only lookup; changes nothing.")]
+    [EndpointName("CheckEmailChange")]
+    [ProducesResponseType<EmailChangeResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> CheckEmailChange(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] EmailChangeTokenRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await checkEmailChange.HandleAsync(body ?? EmailChangeTokenRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
     }
 }

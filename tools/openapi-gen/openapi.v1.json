@@ -1782,6 +1782,78 @@
         ]
       }
     },
+    "/api/v1/profile/email-change/check": {
+      "post": {
+        "operationId": "CheckEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it\r\nspends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
     "/api/v1/profile/email-change/confirm": {
       "post": {
         "operationId": "ConfirmEmailChange",

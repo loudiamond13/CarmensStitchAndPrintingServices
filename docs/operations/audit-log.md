@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T00:45:00-05:00
+updated: 2026-10-18T01:30:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -108,6 +108,8 @@ Handlers build the target id with `AuditKey.Of(id)` (lower-case `D` format).
 | Code | Written when | Target | Detail | Write path |
 |------|--------------|--------|--------|------------|
 | `profile.name-changed` | A signed-in user saves a first or last name that differs from the stored one (`PUT /api/v1/profile`). A save of the same names, a stale save and an invalid save write nothing | `User` id (the caller's own) | `fields=first-name`, `fields=last-name` or `fields=first-name,last-name`. Never the old or new name | `Record`, in the same transaction as the name save |
+| `profile.email-change-requested` | A signed-in user asks to change their sign-in email (`POST /api/v1/profile/email-change`) with the right current password. A wrong password, a refused address and a locked account write no such entry (a wrong password that locks the account writes `auth.lockout` instead) | `User` id (the caller's own) | None. Never either address | `Record`, in the same transaction as the pending address, the 24-hour link and the two emails; a new request replaces the older link in that transaction |
+| `profile.email-changed` | The new address is confirmed from the emailed link (`POST /api/v1/profile/email-change/confirm`) and becomes the sign-in email. The read-only `check` writes nothing | `User` id (the account that changed) | None. Never either address | `Record`, in the same transaction as the email move and the spent link |
 
 ## Residual risk
 
