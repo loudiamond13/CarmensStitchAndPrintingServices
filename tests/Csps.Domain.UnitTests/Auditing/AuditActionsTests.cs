@@ -160,6 +160,15 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
+    public void TheDetailWordsTheHandlersWriteAreOneConstantEach()
+    {
+        AuditActions.DetailProfile.ShouldBe("profile");
+        AuditActions.DetailManager.ShouldBe("manager");
+        AuditActions.DetailTaken.ShouldBe("taken");
+        AuditActions.DetailResent.ShouldBe("resent");
+    }
+
+    [Fact]
     public void ResetRequestDetailsAreTheFiveDocumentedOnes()
     {
         AuditActions.ResetRequestDetails.ShouldBe(["unknown-account", "manager-locked", "capped", "sent", "deactivated"]);
