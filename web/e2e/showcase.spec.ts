@@ -5,8 +5,13 @@
 // (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
 // the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
 // too.
+// Since plan 05-35 (D-30..D-33) the same page also ships at /admin/components for Managers, marked as demo data; the
+// tests at the end of this file prove it on the real host: banner and badge first, no CSP or console finding, no API call
+// other than the session refresh, no sideways scroll at 320 and 1920 px, and an Admin sent on to /admin.
 import type { Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 const SECTIONS = [
   'Brand & icons',
@@ -48,7 +53,7 @@ for (const { name, theme } of THEMES) {
     await expect(root).toHaveAttribute('data-theme', theme);
 
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page).toHaveTitle('Component Showcase · CSPS (dev)');
+    await expect(page).toHaveTitle('Component Showcase · CSPS Admin');
     await expect(page.getByRole('main')).toHaveCount(1);
     await expect(page.locator('main > section > div > h2')).toHaveText(SECTIONS);
     await expect(page.locator('[data-case]')).not.toHaveCount(0);
@@ -152,4 +157,81 @@ test('@showcase the Delete Order demo opens an axe-clean dialog and deletes noth
   await dialog.getByRole('button', { name: 'Delete Order' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('[data-ui="s-toast-layer"]').getByText('Order ORD-2026-0148 deleted')).toBeVisible();
+});
+
+/** The Demo data banner of D-32. */
+const DEMO_BANNER =
+  'Demo data. Every order, name and amount on this page is made up to show the design. Nothing here is a real record.';
+
+test('@showcase a Manager opens /admin/components: Demo data badge and banner first, axe-clean, and no API call but the session refresh (D-30, D-32, D-33)', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+
+  const calls: string[] = [];
+  page.on('request', (call) => {
+    if (call.url().includes('/api/v1/')) {
+      calls.push(new URL(call.url()).pathname);
+    }
+  });
+  const response = await page.goto('/admin/components');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page).toHaveTitle('Component Showcase · CSPS Admin');
+  await expect(page.getByRole('main')).toHaveCount(1);
+
+  // The badge sits in the page head; the banner is the first block of main after it.
+  await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
+  await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
+  await expect(page.locator('main > section').first()).toBeVisible();
+  await expect(page.locator('main > section > div > h2')).toHaveCount(10);
+  await expect(page.getByText(/^Missing component/)).toHaveCount(0);
+  // No sidebar item claims the page, and the sidebar has no link to it.
+  await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/admin/components"]')).toHaveCount(0);
+
+  await expectNoAxeViolations(page);
+  expect([...new Set(calls)]).toEqual(['/api/v1/auth/refresh']);
+});
+
+for (const width of [320, 1920]) {
+  test(`@showcase /admin/components does not scroll sideways at ${String(width)}px (D-33)`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(180_000);
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    const manager = await createStaff(request, 'Manager');
+    await signInAs(page, request, manager);
+    await page.setViewportSize({ width, height: 900 });
+
+    await page.goto('/admin/components');
+    await expect(page.locator('h1')).toHaveText('Component Showcase');
+    await expect(page.getByText(DEMO_BANNER)).toBeVisible();
+
+    expect(await page.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
+  });
+}
+
+test('@showcase an Admin who opens /admin/components is sent on to /admin and never sees the showcase (D-31)', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  await signInAs(page, request, admin);
+
+  await page.goto('/admin/components');
+
+  await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Component Showcase' })).toHaveCount(0);
+  await expect(page.getByText(DEMO_BANNER)).toHaveCount(0);
 });

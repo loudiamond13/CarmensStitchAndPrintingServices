@@ -60,6 +60,15 @@ function toastLayer(): HTMLElement {
   return layer;
 }
 
+/** The nth block the page renders (the page head, the banner, then the sections). */
+function block(container: HTMLElement, index: number): HTMLElement {
+  const element = container.children[index];
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(`The page has no block ${String(index)}.`);
+  }
+  return element;
+}
+
 function caseFrame(id: string): HTMLElement {
   const frame = document.querySelector(`[data-case="${id}"]`);
   if (!(frame instanceof HTMLElement)) {
@@ -81,8 +90,28 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
       screen.getByText('Every shared building block, in the current theme. Use the moon/sun button to switch themes.'),
     ).toBeInTheDocument();
     await waitFor(() => {
-      expect(document.title).toBe('Component Showcase · CSPS (dev)');
+      expect(document.title).toBe('Component Showcase · CSPS Admin');
     });
+  });
+
+  it('marks every showcase page as demo data: a warning badge beside the h1 and the Note as the first block after the page head (D-32)', () => {
+    const { container } = renderShowcase();
+
+    const head = block(container, 0);
+    const badge = within(head).getByText('Demo data');
+    expect(head).toContainElement(screen.getByRole('heading', { level: 1 }));
+    expect(badge.className).toContain('bg-warning-soft');
+    expect(block(container, 1)).toHaveTextContent(
+      'Demo data. Every order, name and amount on this page is made up to show the design. Nothing here is a real record.',
+    );
+    expect(block(container, 2).tagName).toBe('SECTION');
+  });
+
+  it('has no axe violations in the page head and the demo-data banner (A11Y-01)', async () => {
+    const { container } = renderShowcase();
+
+    await expectNoAxeViolations(block(container, 0));
+    await expectNoAxeViolations(block(container, 1));
   });
 
   it('has one section with an h2 per group, in the UI-SPEC order', () => {

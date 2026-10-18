@@ -235,6 +235,51 @@ describe('Manager-only routes (USER-08)', () => {
   });
 });
 
+describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
+  it('a Manager who opens /admin/components stays and sees the showcase marked as demo data, with no nav item current', async () => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(screen.getByText('Demo data')).toBeVisible();
+    expect(screen.getByText(/^Demo data\. Every order, name and amount on this page is made up/)).toBeVisible();
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    expect(sidebar).not.toBeNull();
+    expect(sidebar?.querySelector('[aria-current="page"]')).toBeNull();
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Component Showcase · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens /admin/components lands on /admin and then Signed-in devices, like /admin/users', async () => {
+    answerRefresh(adminSession());
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+
+    await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+    expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
+  }, 15_000);
+
+  it('a visitor without a session opening /admin/components goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/components')}`);
+  }, 15_000);
+});
+
 describe('the confirm-email link (PROF-02, C-17)', () => {
   afterEach(() => {
     window.history.replaceState(null, '', '/');
@@ -302,6 +347,7 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 5000 }),
     ).toBeVisible();
+    expect(screen.getByText('Demo data')).toBeVisible();
     first.unmount();
 
     const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
