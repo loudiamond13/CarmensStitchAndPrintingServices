@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-16-PLAN.md
-last_updated: "2026-10-18T07:03:19.051Z"
+stopped_at: Completed 05-17-PLAN.md
+last_updated: "2026-10-18T07:23:42.219Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 8030735647cf5e543c3b18b34df01d898a3860ab
+state_head: e470a74840dc55b6d1771090647b54539c34b4fa
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 132
+  completed_plans: 133
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T01:25:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 19 of 43
+Plan: 20 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -188,6 +188,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P39 | 22 min | 2 tasks | 19 files |
 | Phase 05 P15 | 18 min | 2 tasks | 18 files |
 | Phase 05 P16 | 23 min | 2 tasks | 12 files |
+| Phase 05 P17 | 20 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -481,6 +482,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-15: resend and cancel read the pending address through IUserDirectory inside the per-account link lock; cancel (DELETE) takes no row version and answers 204 with no audit when nothing is pending
 - [Phase 05]: [05-16] Only a 409 with code email-change.taken opens the can't-be-used state on the confirm-email page; any other 409 keeps Ready with the shared banner and a retry reuses the Idempotency-Key
 - [Phase 05]: [05-16] The email-change check's 409 carries no address, so a link whose address was taken before it was opened says 'this email' (bodyNoAddress); needs the D-48 owner wording review
+- [Phase 05]: 05-17: roster status is lowercase active|inactive|locked and inviteState none|pending|expired; both are computed by one shared function (UserStatuses.Of, InviteStates.Of) for the list and the detail
+- [Phase 05]: 05-17: roster page is capped at 100000 (400 above) so the row offset cannot overflow; the search is escaped LIKE with backslash as the escape character
+- [Phase 05]: 05-17: detail actors (recordedBy, lastChangedBy) are read from the actors' own rows; a soft-deleted actor keeps the name with formerStaff true, and a pre-Phase-5 account has null actors
 
 ### Pending Todos
 
@@ -540,6 +544,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T07:03:18.336Z
-Stopped at: Completed 05-16-PLAN.md
+Last session: 2026-10-18T07:23:41.495Z
+Stopped at: Completed 05-17-PLAN.md
 Resume file: None
