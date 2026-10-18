@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-10-17T23:35:00.077Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-10-18T00:08:06.562Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: eaf33b89e3ce475361095efccb51fed40e148f4e
+state_head: 9ff62307e97ec1188ef866e7e28826ca5a9ab5f5
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 114
+  completed_plans: 115
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T14:20:00-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 1 of 43
-Status: Executing Phase 05
+Plan: 2 of 43
+Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
 Progress: [██░░░░░░░░] 24%
@@ -170,6 +170,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
 | Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
 | Phase 03 P22 | 10 min | 2 tasks | 2 files |
+| Phase 05 P01 | 39 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -432,6 +433,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
 - [Phase 03]: 03-22: __Secure-csps_2fa stays Unverified (not observed by the owner; attributes pinned by auth integration tests) pending owner sign-off
 - [Phase 03]: 03-22: owner accepted CSPS live 2026-10-17; a rollback now means redeploying an earlier CSPS release (D-05)
+- [Phase 05]: 05-01: shell viewport rules hang off data-fill=viewport on the real layout roots (in-data variants); previews and parity frames stay unmarked
+- [Phase 05]: 05-01: sideways-scroll guard compares scrollWidth with clientWidth and requires html/body overflow-x visible; D-05 did not reproduce at this commit
 
 ### Pending Todos
 
@@ -491,6 +494,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T20:36:26.812Z
-Stopped at: Phase 5 UI-SPEC approved
-Resume file: .planning/phases/05-profile-user-management/05-UI-SPEC.md
+Last session: 2026-10-18T00:08:05.920Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
