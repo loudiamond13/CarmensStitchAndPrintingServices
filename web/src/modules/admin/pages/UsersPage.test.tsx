@@ -1220,6 +1220,23 @@ describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
     ]);
   });
 
+  it('shows "Deleting" on the confirm button while the request runs', async () => {
+    rosterThatDeletes();
+    server.use(
+      http.delete('*/api/v1/users/:id', async () => {
+        await delay(150);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+  });
+
   it('has no axe violations with the Delete dialog open', async () => {
     rosterThatDeletes();
     await openPage();

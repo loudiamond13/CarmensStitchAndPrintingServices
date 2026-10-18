@@ -356,6 +356,22 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(screen.queryByText("You can't do this. Try something else.")).toBeNull();
   });
 
+  it('shows pendingLabel on the confirm button while the action runs, and the confirm label again after it', async () => {
+    const user = userEvent.setup();
+    const action = deferred();
+    render(<DeleteOrder onConfirm={() => action.promise} pendingLabel="Deleting" />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+
+    expect(screen.getByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+    await act(async () => {
+      action.resolve({ ok: false, error: serverError() });
+      await action.promise;
+    });
+    expect(deleteButton()).toBeEnabled();
+  });
+
   it('shows a title that already ends a sentence as it is, and a title alone when there is no body', async () => {
     const user = userEvent.setup();
     const badRequest = new HttpError({

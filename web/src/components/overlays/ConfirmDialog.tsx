@@ -35,6 +35,8 @@ export interface ConfirmDialogProps {
   /** Type-to-confirm text (e.g. the order number). */
   confirmText?: string | undefined;
   confirmLabel?: string;
+  /** The confirm button's words while the action runs ("Deleting"); the confirm label stays when it is not set. */
+  pendingLabel?: string;
   // SPEC-DEVIATION: WEB-06 / T-02-53. App. D.3 took `() => void`. The action may now return a promise: while it is
   // pending the dialog ignores further confirms, Esc, the scrim and Cancel, and a rejection, or a resolved
   // `{ ok: false, error }` (a useSubmission outcome, so `onConfirm={() => submission.submit()}` works), is a failure.
