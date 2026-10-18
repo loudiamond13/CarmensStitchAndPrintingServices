@@ -542,6 +542,27 @@ describe('failures', () => {
     expect(a.tab.getSessionUser()).not.toBeNull();
   });
 
+  it('a 401 after an earlier 503 and a peer-tab refresh still ends the session (IN-13)', async () => {
+    const hub = createHub();
+    const locks = createLocks();
+    const a = newTab(hub, locks);
+    const b = newTab(hub, locks);
+    b.tab.acceptSession(sessionResponse({ accessToken: 'token-b' }));
+    b.refresh.mockRejectedValueOnce(new HttpError({ kind: 'http', status: 503 }));
+    await expect(b.tab.refreshSession()).rejects.toMatchObject({ status: 503 });
+
+    const refreshedA = a.tab.refreshSession();
+    const refreshedB = b.tab.refreshSession();
+    await a.answer(sessionResponse({ accessToken: 'token-a' }));
+    await Promise.all([refreshedA, refreshedB]);
+    b.tab.handleUnauthorized();
+
+    expect(b.refresh).toHaveBeenCalledTimes(1);
+    expect(b.tab.getSessionUser()?.id).toBeUndefined();
+    expect(b.tab.takeSignInNotice()).toBe('session-ended');
+    expect(b.navigate).toHaveBeenCalledWith('/admin/login');
+  });
+
   it('ends the session when the refresh itself answered 401', async () => {
     const hub = createHub();
     const a = newTab(hub, createLocks());
