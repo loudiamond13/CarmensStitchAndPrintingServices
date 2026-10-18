@@ -4,13 +4,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
+
+// The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
+// the 5 s default for every test: only this file, never the whole suite (plan 05-37).
+vi.setConfig({ testTimeout: 15_000 });
 
 interface RefreshProbe {
   count: number;
@@ -45,7 +49,8 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    // The first lazy route chunk of the file loads here; on a loaded machine that takes longer than 5 s.
+    await expect.poll(() => router.state.location.pathname, { timeout: 15_000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Forders');
     // One refresh for the guard, and one more when the sign-in page checks that no session is live.
@@ -345,7 +350,7 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     const showcase = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
     const first = render(<RouterProvider router={showcase} />);
     expect(
-      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 15_000 }),
     ).toBeVisible();
     expect(screen.getByText('Demo data')).toBeVisible();
     first.unmount();

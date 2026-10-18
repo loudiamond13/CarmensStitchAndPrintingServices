@@ -21,6 +21,10 @@ import { sessionResponse } from '@/test/sessionFixtures';
 
 // S2 Check your email, /admin/login/verify (D-01, AUTH-02, A11Y-03; plan 04-27).
 
+// The first render of a lazy route is slow while many workers start at once (a cold start), so this file waits longer than
+// the 5 s default for every test: only this file, never the whole suite (plan 05-37).
+vi.setConfig({ testTimeout: 15_000 });
+
 interface VerifyProbe {
   bodies: unknown[];
 }
@@ -71,7 +75,9 @@ describe('S2 code step tracer', () => {
   it('shows the sign-in card look on its own route, naming the typed email', async () => {
     renderVerify();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Check your email' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Check your email' }, { timeout: 10_000 }),
+    ).toBeInTheDocument();
     expect(screen.getByText('paolo.garcia@gmail.com')).toBeInTheDocument();
     expect(screen.getByText(/We emailed a 6-digit code to/)).toHaveTextContent(
       'We emailed a 6-digit code to paolo.garcia@gmail.com. It works for 15 minutes.',

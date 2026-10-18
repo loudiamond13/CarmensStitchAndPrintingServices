@@ -278,10 +278,15 @@ describe('U3 saving (USER-03)', () => {
     const seen = backend(detail(), {
       put: () => undefined,
     });
+    // The request waits for the test to let it go, so a slow machine cannot finish it before the Saving label is looked for.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     server.use(
       http.put('*/api/v1/users/:id', async () => {
         seen.puts.push('slow');
-        await delay(400);
+        await gate;
         return HttpResponse.json(detail());
       }),
     );
@@ -292,6 +297,7 @@ describe('U3 saving (USER-03)', () => {
     await user.click(saveButton());
 
     expect(await screen.findByRole('button', { name: 'Saving' })).toBeInTheDocument();
+    release();
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
     });

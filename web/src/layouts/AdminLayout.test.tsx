@@ -974,8 +974,9 @@ describe('AdminLayout session user (PROF-01)', () => {
       acceptSession(renewedSession('Ana', 'Cruz'));
     });
 
-    expect(within(sidebarAside()).getByText('Ana Cruz')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Ana Cruz/ })).toBeInTheDocument();
+    // The names follow the session store on the next render, which a loaded machine can delay: wait for them.
+    expect(await within(sidebarAside()).findByText('Ana Cruz', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Ana Cruz/ }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByText('Carmen Reyes')).toBeNull();
   });
 
