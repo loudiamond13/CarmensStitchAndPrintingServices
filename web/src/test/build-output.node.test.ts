@@ -232,6 +232,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     'maria.concepcion.villanueva.dela.cruz.j@barangay-sanroque.gov.ph',
     'name@gmail.com',
     'carmen@x.ph',
+    'hello@yourdomain.ph',
   ]);
   const RESERVED_DOMAIN = /@(?:[\w-]+\.)*(?:example\.(?:com|org|net|ph)|invalid|test|localhost)$/i;
 

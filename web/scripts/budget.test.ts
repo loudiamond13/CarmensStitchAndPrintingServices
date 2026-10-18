@@ -569,7 +569,7 @@ describe('evaluateBudgets: the showcase in production (D-33, D-41 Q3)', () => {
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
     expect(report.errors).toEqual([
-      expect.stringMatching(/UsersPage-U1\.js imports showcase-kit-S2\.js, which holds showcase-only modules/),
+      expect.stringMatching(/UsersPage-U1\.js imports assets\/showcase-kit-S2\.js, which holds showcase-only modules/),
     ]);
   });
 

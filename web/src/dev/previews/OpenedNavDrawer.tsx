@@ -4,7 +4,7 @@
 // shell's drawer. The drawer is a SPEC-GAP primitive with no reference, so there is no reference fragment.
 import { useEffect, useRef } from 'react';
 import { AdminFrame } from '@/layouts/AdminLayout';
-import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
+import { PreviewBody } from '@/dev/PreviewBody';
 import { DEV_USER } from '@/modules/admin/sections';
 
 function noop(): undefined {
@@ -25,7 +25,7 @@ export function OpenedNavDrawer() {
   return (
     <div ref={frame}>
       <AdminFrame section="dashboard" user={DEV_USER} theme="light" onLogout={noop}>
-        <AdminPreviewPage section="dashboard" />
+        <PreviewBody section="dashboard" />
       </AdminFrame>
     </div>
   );

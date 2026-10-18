@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-16T10:23:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-18T13:40:22-05:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -59,10 +59,21 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 ## Rules that fail the build besides the limits
 
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
-- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from `src/dev/`, `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), or when it has an entry other than `index.html`. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
+- **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from the parity entry (`src/dev/parity-main`), `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), or when it has an entry other than `index.html`. The rest of `src/dev/` is the showcase's, under the next rule.
+- **The showcase ships only as its own lazy chunks** (decisions D-30..D-33, D-41 Q3, plan 05-35). See the section below. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
 - **No TanStack Query and no admin code in the public initial JS** (PERF-02, quick task 261016). Every chunk the public route loads first must be free of `@tanstack/`, `nuqs`, `react-hook-form`, `zod`, `src/lib/query/`, `src/lib/url-state/`, `src/lib/forms/`, `QueryRoot`, the admin and auth layouts and `src/modules/admin/` (the route table `routes.tsx` is the one exception). The query client lives in the lazy `QueryRoot` route, so it loads with the admin chunks. The build stops and names the chunk and the module.
 - **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example the dev preview page behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
+
+## The component showcase in production (D-33)
+
+The owner's component showcase (`/admin/components`, Manager only, marked "Demo data") ships to the live site so it can be shown from the owner's own Manager session. It renders the dev scenarios, so the scenario demo data, the kit and the previews go into the production build with it. That is a narrow exception to D-20, and the build keeps it narrow:
+
+- **Showcase-only modules** (`SHOWCASE_ONLY_MODULE_PREFIXES` in `budget.ts`): `src/dev/` (except the parity entry), `src/modules/admin/components/showcase/` and `src/modules/admin/pages/ComponentShowcasePage`. In the production build a chunk that holds one of them must (1) not be in the public or admin initial JS, (2) be loaded by the showcase page's own chunk (`SHOWCASE_PAGE`), and (3) be imported by no chunk outside the showcase. The build stops and names the chunk and module otherwise. A production build that holds such a module but no showcase page chunk fails too.
+- **Still never in production** (`DEV_ONLY_MODULE_PREFIXES`): the parity entry `src/dev/parity-main`, `web/visual/`, `AdminPreviewPage` and `previewCopy`. The admin shell previews that the showcase's kit loads (`src/dev/previews/AdminShell.tsx`, `OpenedNavDrawer.tsx`) take their page body from `src/dev/PreviewBody.tsx`, which picks `AdminPreviewPage` only where `__DEV_ROUTES__` is true. The budget plugin counts a module only when it ships code of its own, so the CommonJS import bindings that Rolldown leaves behind for a tree-shaken `AdminPreviewPage` do not count.
+- **The showcase is lazy, so it does not count toward admin JS.** Its chunk is reached only through the dynamic import of `/admin/components`. Measured on 2026-10-18: production public JS 122.21 KB, admin JS 204.85 KB, CSS 14.61 KB, with the showcase page chunk at about 28.5 KB gzip on top.
+- **`/dev/components` is not in production.** The route stays in the dev-route builds only (parity and E2E tooling), on the same page module.
+- **The static chunk is public even though the route is guarded**, so the showcase holds demo data only. `src/test/build-output.node.test.ts` scans the showcase chunks of the real production build for a JWT, a private key, a connection string, a cloud key, a bearer token and any email address other than the made-up ones of spec section 12 and the reserved example domains, and checks that the showcase copy appears only in the showcase chunks, that no chunk names a `/dev/` route and that admin initial JS stays at most 250 KB.
 
 ## The numbers file
 
