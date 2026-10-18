@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIT_ACTIONS, AUDIT_ACTION_CODES, AUDIT_GROUPS, auditActionLabel, describeAuditDetail } from './auditCopy';
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTION_CODES,
+  AUDIT_DETAIL_SENTENCES,
+  AUDIT_GROUPS,
+  auditActionLabel,
+  describeAuditDetail,
+} from './auditCopy';
 
 // The audit viewer's words (AUDIT-02, D-28, D-40): a label and a group for every action the API can send, and the
 // "What changed" text built only from the fixed words the log stores.
@@ -128,6 +135,32 @@ describe('describeAuditDetail (D-40)', () => {
       for (const action of API_ACTIONS) {
         expect(describeAuditDetail(action, detail) ?? '').not.toContain('@');
       }
+    }
+  });
+});
+
+describe('AUDIT_DETAIL_SENTENCES (the list the owner reviews the "What changed" words from, plan 05-37)', () => {
+  it('holds every sentence describeAuditDetail can say for a stored word, and says it the same way', () => {
+    expect(AUDIT_DETAIL_SENTENCES.length).toBeGreaterThan(20);
+    for (const { action, word, sentence } of AUDIT_DETAIL_SENTENCES) {
+      expect(describeAuditDetail(action, word), `${action} ${word}`).toBe(sentence);
+    }
+  });
+
+  it('includes the field, role and reason sentences, each action known to the viewer', () => {
+    const sentences = AUDIT_DETAIL_SENTENCES.map((entry) => entry.sentence);
+
+    expect(sentences).toEqual(
+      expect.arrayContaining([
+        'Name changed',
+        'Email changed',
+        'Role: Admin to Manager',
+        'Wrong password',
+        'Link sent again',
+      ]),
+    );
+    for (const { action } of AUDIT_DETAIL_SENTENCES) {
+      expect(AUDIT_ACTION_CODES).toContain(action);
     }
   });
 });
