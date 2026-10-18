@@ -200,7 +200,11 @@ describe('SignOutOthersDialog open prop (D-39)', () => {
   function Mounted({ open }: { open?: boolean }) {
     return (
       <ToastProvider>
-        <SignOutOthersDialog open={open} onClose={vi.fn()} />
+        {open === undefined ? (
+          <SignOutOthersDialog onClose={vi.fn()} />
+        ) : (
+          <SignOutOthersDialog open={open} onClose={vi.fn()} />
+        )}
       </ToastProvider>
     );
   }

@@ -27,6 +27,8 @@ import {
 } from './overlays.recipe';
 
 export interface ConfirmDialogProps {
+  /** False plays the close animation and then renders nothing; each new open starts clean (D-39). Default true. */
+  open?: boolean;
   title?: string;
   message?: ReactNode;
   counts?: CascadeCounts | undefined;
@@ -64,6 +66,7 @@ function failureText({ title, body }: ErrorCopy): string {
 }
 
 export function ConfirmDialog({
+  open = true,
   title = 'Delete this?',
   message,
   counts,
@@ -77,9 +80,20 @@ export function ConfirmDialog({
   const [typed, setTyped] = useState('');
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<ErrorCopy | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const inFlight = useRef(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // A new open starts clean: adjusted while rendering, no effect needed.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setTyped('');
+      setPending(false);
+      setFailure(null);
+    }
+  }
 
   const hasConfirmText = confirmText !== undefined && confirmText !== '';
   const ok = !hasConfirmText || typed.trim() === confirmText;
@@ -136,7 +150,7 @@ export function ConfirmDialog({
 
   return (
     <Modal
-      open
+      open={open}
       title={title}
       onClose={onCancel}
       inline={inline}

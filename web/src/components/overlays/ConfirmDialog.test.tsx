@@ -487,7 +487,7 @@ describe('ConfirmDialog open prop (D-39)', () => {
     rerender(<DeleteOrder onCancel={vi.fn()} />);
 
     expect(confirmField()).toHaveValue('');
-    expect(deleteButton().getAttribute('aria-disabled')).toBe('true');
+    expect(deleteButton()).toBeDisabled();
   });
 
   it('opens again without the failure line and with an enabled Delete', async () => {

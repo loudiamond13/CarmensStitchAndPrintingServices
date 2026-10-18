@@ -13,6 +13,8 @@ import { confirmMessageClasses } from '@/components/overlays/overlays.recipe';
 import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
 
 export interface SignOutDialogProps {
+  /** False plays the close animation and then renders nothing; each new open starts clean (D-39). Default true. */
+  open?: boolean;
   title: string;
   /** The paragraph under the title. */
   message: ReactNode;
@@ -41,6 +43,7 @@ function failureText({ title, body }: ErrorCopy): string {
 }
 
 export function SignOutDialog({
+  open = true,
   title,
   message,
   keepLabel,
@@ -51,9 +54,19 @@ export function SignOutDialog({
 }: SignOutDialogProps) {
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<ErrorCopy | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const inFlight = useRef(false);
   const keepRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // A new open starts clean: adjusted while rendering, no effect needed.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPending(false);
+      setFailure(null);
+    }
+  }
 
   const fail = (error: unknown) => {
     setFailure(describeHttpError(error));
@@ -99,6 +112,7 @@ export function SignOutDialog({
 
   return (
     <Modal
+      open={open}
       title={title}
       onClose={onCancel}
       loading={pending}
