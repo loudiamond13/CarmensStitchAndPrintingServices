@@ -34,6 +34,9 @@ public enum AuthEmailKind
 
     /// <summary>The notice to the old address that a Manager changed the sign-in email at once (D-45).</summary>
     ManagerEmailChanged = 10,
+
+    /// <summary>The reset link a Manager sent to a colleague (USER-07).</summary>
+    ManagerResetLink = 11,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -220,4 +223,23 @@ public sealed record ManagerEmailChangedEmail(string To, string NewEmail, string
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The password reset link a Manager sent to a colleague, who opens it themself (USER-07).</summary>
+/// <param name="To">The recipient address.</param>
+/// <param name="Token">The reset token, placed in the link fragment.</param>
+/// <param name="ExpiresAt">When the link stops working.</param>
+/// <param name="RequestedAt">When the Manager sent it.</param>
+/// <param name="ManagerName">The Manager's display name, named in the text.</param>
+public sealed record ManagerResetLinkEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string ManagerName) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.ManagerResetLink;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
+
+    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
+    /// <returns>The type name.</returns>
+    public override string ToString() => nameof(ManagerResetLinkEmail);
 }

@@ -34,6 +34,7 @@ public sealed class EmailRendererTests
         new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"),
         new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome),
         new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At),
+        new ManagerResetLinkEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, "Carmen Reyes"),
     ];
 
     [Theory]
@@ -46,6 +47,7 @@ public sealed class EmailRendererTests
     [InlineData(AuthEmailKind.EmailChangeConfirm, "Confirm your new CSPS email")]
     [InlineData(AuthEmailKind.EmailChangeNotice, "Your CSPS email is being changed")]
     [InlineData(AuthEmailKind.ManagerEmailChanged, "A Manager changed your CSPS sign-in email")]
+    [InlineData(AuthEmailKind.ManagerResetLink, "Reset your CSPS password")]
     public async Task EachKindRendersItsUiSpecSubject(AuthEmailKind kind, string subject)
     {
         var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
@@ -93,6 +95,7 @@ public sealed class EmailRendererTests
         { new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"), "Confirm your new email", "This link works for 24 hours.", "Confirm Email", $"{BaseUrl}/admin/confirm-email#token={Token}" },
         { new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome), "Email change requested", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
         { new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At), "Your sign-in email was changed", "Sign in with your new email from now on.", null, null },
+        { new ManagerResetLinkEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, "Carmen Reyes"), "Reset your password", "This link works for 30 minutes.", "Reset Password", $"{BaseUrl}/admin/reset-password#token={Token}" },
     };
 
     [Theory]
@@ -122,6 +125,7 @@ public sealed class EmailRendererTests
     [InlineData(AuthEmailKind.PasswordChanged)]
     [InlineData(AuthEmailKind.DeactivatedNotice)]
     [InlineData(AuthEmailKind.Invite)]
+    [InlineData(AuthEmailKind.ManagerResetLink)]
     public async Task TheStaffAddressIsBoldInTheHtmlAndPlainInTheText(AuthEmailKind kind)
     {
         var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
@@ -285,6 +289,32 @@ public sealed class EmailRendererTests
         rendered.Text.ShouldContain("For your safety, every device signed in to your account was signed out.");
         rendered.Text.ShouldNotContain("http");
         rendered.Html.ShouldNotContain("<a ");
+    }
+
+    [Fact]
+    public async Task AManagerResetLinkNamesTheManagerAndLinksToResetPasswordWithTheTokenInTheFragment()
+    {
+        var rendered = await RenderAsync(new ManagerResetLinkEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, "Carmen Reyes"));
+
+        rendered.Subject.ShouldBe("Reset your CSPS password");
+        rendered.Text.ShouldContain("Carmen Reyes sent you this link to set a new password for paolo.garcia@gmail.com.");
+        rendered.Text.ShouldContain("This link works for 30 minutes and only once.");
+        rendered.Text.ShouldContain("Didn't expect this? Ask Carmen Reyes or another Manager.");
+        rendered.Text.ShouldContain($"Reset Password: {BaseUrl}/admin/reset-password#token={Token}");
+        rendered.Html.ShouldContain($"href=\"{BaseUrl}/admin/reset-password#token={Token}\"");
+        rendered.Html.ShouldContain("Reset Password</a>");
+        rendered.Html.ShouldContain("Didn&#39;t expect this? Ask Carmen Reyes or another Manager.");
+        rendered.Text.ShouldNotContain("Requested ");
+    }
+
+    [Fact]
+    public async Task AManagerResetLinkEncodesTheManagerNameAndTheAddress()
+    {
+        var rendered = await RenderAsync(new ManagerResetLinkEmail("a&b@example.com", Token, At.AddMinutes(30), At, "<script>alert(1)</script>"));
+
+        rendered.Html.ShouldNotContain("<script>");
+        rendered.Html.ShouldContain("&lt;script&gt;alert(1)&lt;/script&gt; sent you this link");
+        rendered.Html.ShouldContain("<strong style=\"font-weight:700\">a&amp;b@example.com</strong>");
     }
 
     [Fact]

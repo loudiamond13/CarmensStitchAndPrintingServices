@@ -3,7 +3,7 @@ using Csps.Domain.Identity;
 
 namespace Csps.Application.UnitTests.Email;
 
-/// <summary>AUTH-13, D-45: the ten auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
+/// <summary>AUTH-13, D-45: the eleven auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
 public sealed class AuthEmailTests
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 14, 8, 0, 0, TimeSpan.Zero);
@@ -25,6 +25,7 @@ public sealed class AuthEmailTests
             AuthEmailKind.EmailChangeConfirm,
             AuthEmailKind.EmailChangeNotice,
             AuthEmailKind.ManagerEmailChanged,
+            AuthEmailKind.ManagerResetLink,
         ]);
     }
 
@@ -35,6 +36,7 @@ public sealed class AuthEmailTests
         new PasswordResetEmail("a@example.com", "token", ExpiresAt, CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
         new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
         new EmailChangeConfirmEmail("b@example.com", "token", ExpiresAt, CreatedAt, "a@example.com").NotAfter(CreatedAt).ShouldBe(ExpiresAt);
+        new ManagerResetLinkEmail("a@example.com", "token", ExpiresAt, CreatedAt, "Carmen Reyes").NotAfter(CreatedAt).ShouldBe(ExpiresAt);
     }
 
     [Fact]
@@ -61,6 +63,8 @@ public sealed class AuthEmailTests
             .ShouldBe("InviteEmail");
         new EmailChangeConfirmEmail("b@example.com", "email-change-token-value", ExpiresAt, CreatedAt, "a@example.com").ToString()
             .ShouldBe("EmailChangeConfirmEmail");
+        new ManagerResetLinkEmail("a@example.com", "manager-link-token-value", ExpiresAt, CreatedAt, "Carmen Reyes").ToString()
+            .ShouldBe("ManagerResetLinkEmail");
     }
 
     [Fact]
@@ -104,6 +108,12 @@ public sealed class AuthEmailTests
         moved.NewEmail.ShouldBe("b@example.com");
         moved.ChangedBy.ShouldBe("Carmen Reyes");
         moved.ChangedAt.ShouldBe(CreatedAt);
+
+        var link = new ManagerResetLinkEmail("a@example.com", "t", ExpiresAt, CreatedAt, "Carmen Reyes");
+        link.Token.ShouldBe("t");
+        link.ExpiresAt.ShouldBe(ExpiresAt);
+        link.RequestedAt.ShouldBe(CreatedAt);
+        link.ManagerName.ShouldBe("Carmen Reyes");
     }
 
     private static AuthEmail[] Kinds() =>
@@ -118,5 +128,6 @@ public sealed class AuthEmailTests
         new EmailChangeConfirmEmail("b@example.com", "token", ExpiresAt, CreatedAt, "a@example.com"),
         new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device),
         new ManagerEmailChangedEmail("a@example.com", "b@example.com", "Carmen Reyes", CreatedAt),
+        new ManagerResetLinkEmail("a@example.com", "token", ExpiresAt, CreatedAt, "Carmen Reyes"),
     ];
 }

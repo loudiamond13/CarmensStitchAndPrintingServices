@@ -60,6 +60,18 @@ public static class UserErrors
     /// <summary>The plain-English text of an account action asked for a person who is deactivated or locked.</summary>
     public const string BlockedMessage = "Unlock or activate this person first.";
 
+    /// <summary>The code of a reset link asked for a person who has no password yet (USER-07).</summary>
+    public const string NoPasswordCode = "users.no-password";
+
+    /// <summary>The plain-English text of a reset link asked for a person who has no password yet.</summary>
+    public const string NoPasswordMessage = "This person hasn't set a password yet. Resend the invitation instead.";
+
+    /// <summary>The code of a reset link refused because the hourly cap of reset emails is reached (D-39).</summary>
+    public const string ResetLinkCappedCode = "users.reset-link-capped";
+
+    /// <summary>The plain-English text of a reset link refused because the hourly cap of reset emails is reached.</summary>
+    public const string ResetLinkCappedMessage = "Too many reset emails went to this person in the last hour. Try again later.";
+
     /// <summary>Gets the answer for a bootstrap while an active Manager exists.</summary>
     public static Error ManagerExists { get; } = Error.BusinessRule(ManagerExistsCode, ManagerExistsMessage);
 
@@ -80,6 +92,12 @@ public static class UserErrors
 
     /// <summary>Gets the answer for an account action asked for a deactivated or locked person: a 422 that changes nothing.</summary>
     public static Error Blocked { get; } = Error.BusinessRule(BlockedCode, BlockedMessage);
+
+    /// <summary>Gets the answer for a reset link asked for a person who has no password yet: a 422 that changes nothing.</summary>
+    public static Error NoPassword { get; } = Error.BusinessRule(NoPasswordCode, NoPasswordMessage);
+
+    /// <summary>Gets the answer for a reset link refused by the hourly cap shared with forgot-password: a 429 that changes nothing.</summary>
+    public static Error ResetLinkCapped { get; } = Error.TooManyRequests(ResetLinkCappedCode, ResetLinkCappedMessage);
 
     /// <summary>Gets the answer for a changed email with no valid choice of how it applies (D-45): a 400 on the choice field.</summary>
     public static Error EmailChangeChoiceRequired { get; } = Error.Validation(

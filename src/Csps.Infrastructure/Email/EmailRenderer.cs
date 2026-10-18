@@ -57,6 +57,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             EmailChangeConfirmEmail confirm => ConfirmEmailChange(confirm),
             EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
             ManagerEmailChangedEmail changed => ManagerEmailChanged(changed, clock.Zone),
+            ManagerResetLinkEmail link => ManagerResetLink(link),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -103,6 +104,19 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
                 new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
                 new ParagraphBlock("Didn't ask for this? Ignore this email. Your password stays the same."),
+            ],
+            Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
+
+    private EmailContent ManagerResetLink(ManagerResetLinkEmail email) =>
+        new(
+            Subject: "Reset your CSPS password",
+            Preheader: $"This link works for {Span(email.RequestedAt, email.ExpiresAt)}.",
+            Heading: "Reset your password",
+            Blocks:
+            [
+                new ParagraphBlock($"{email.ManagerName} sent you this link to set a new password for {email.To}.", Strong: email.To),
+                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
+                new ParagraphBlock($"Didn't expect this? Ask {email.ManagerName} or another Manager."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
 

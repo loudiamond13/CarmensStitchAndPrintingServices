@@ -10,9 +10,16 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileAndUserCodes()
     {
-        AuditActions.All.Count.ShouldBe(35);
+        AuditActions.All.Count.ShouldBe(36);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void TheManagerResetLinkCodeIsInTheCatalog()
+    {
+        AuditActions.UserResetLinkSent.ShouldBe("user.reset-link-sent");
+        AuditActions.All.ShouldContain(AuditActions.UserResetLinkSent);
     }
 
     [Fact]

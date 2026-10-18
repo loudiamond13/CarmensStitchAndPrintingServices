@@ -3447,6 +3447,95 @@
         ]
       }
     },
+    "/api/v1/users/{id}/send-reset-link": {
+      "post": {
+        "operationId": "SendUserResetLink",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and\r\nreplaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password\r\n(429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a\r\npassword is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/api/v1/users/{id}/unlock": {
       "post": {
         "operationId": "UnlockUser",

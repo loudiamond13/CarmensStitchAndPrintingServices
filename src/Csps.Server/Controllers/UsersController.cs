@@ -22,6 +22,7 @@ namespace Csps.Server.Controllers;
 /// <param name="update">The edit-a-person handler.</param>
 /// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
 /// <param name="resendInvitation">The handler that sends an invitation again.</param>
+/// <param name="sendResetLink">The handler that emails a reset link.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
@@ -38,7 +39,8 @@ public sealed class UsersController(
     DeleteUserHandler deleteUser,
     UpdateUserHandler update,
     CancelUserEmailChangeHandler cancelEmailChange,
-    ResendInvitationHandler resendInvitation) : ControllerBase
+    ResendInvitationHandler resendInvitation,
+    SendResetLinkHandler sendResetLink) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -181,6 +183,30 @@ public sealed class UsersController(
     public async Task<IResult> ResendInvitation(Guid id, CancellationToken cancellationToken)
     {
         var result = await resendInvitation.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and
+    /// replaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password
+    /// (429 <c>users.reset-link-capped</c>). A deactivated or locked person is a 422 <c>users.blocked</c> and a person who never set a
+    /// password is a 422 <c>users.no-password</c>. It takes no version: it acts on the latest state and does not change the account.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when two saves lost a race, 422 when the person is blocked or has no password, or 429 when the hourly cap is reached.</returns>
+    [HttpPost("{id:guid}/send-reset-link")]
+    [EndpointName("SendUserResetLink")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> SendResetLink(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sendResetLink.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 

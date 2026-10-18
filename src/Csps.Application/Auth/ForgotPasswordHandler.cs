@@ -91,7 +91,8 @@ public sealed class ForgotPasswordHandler(
         await tokens.LockAccountAsync(account.Id, cancellationToken).ConfigureAwait(false);
 
         var now = time.GetUtcNow();
-        if (await IsCappedAsync(AuthEmailKind.PasswordReset, account.Email, now, cancellationToken).ConfigureAwait(false))
+        // A Manager's reset link counts toward the same hourly cap (USER-07).
+        if (await ResetEmailCap.IsReachedAsync(outbox, account.Email, now, settings, cancellationToken).ConfigureAwait(false))
         {
             audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "capped");
             return;
