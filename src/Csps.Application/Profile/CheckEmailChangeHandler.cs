@@ -9,14 +9,15 @@ namespace Csps.Application.Profile;
 /// Use case: tell the confirm-email page whether its link still works and which address it would confirm (D-25). It only
 /// reads: it never spends the link and never changes the account, so a mail scanner that opens the page confirms nothing
 /// (T-05-39). A malformed, unknown, used, replaced, expired or other-purpose link, a blocked account and an account with
-/// nothing pending all get the same 404 (CWE-640).
+/// nothing pending all get the same 404 (CWE-640). A link whose new address another live account has taken since gets the
+/// distinct 409 <c>email-change.taken</c>, which only the holder of the link ever sees (T-05-41).
 /// </summary>
 public sealed class CheckEmailChangeHandler(IAccountTokens tokens, IUserAccounts accounts, IUserDirectory directory, TimeProvider time)
 {
     /// <summary>Checks one email-change link.</summary>
     /// <param name="request">The token.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The address the link would confirm, or a 404 for a link that does not work.</returns>
+    /// <returns>The address the link would confirm, a 404 for a link that does not work, or a 409 when the address was taken meanwhile.</returns>
     public async Task<Result<EmailChangeResponse>> HandleAsync(EmailChangeTokenRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -39,8 +40,14 @@ public sealed class CheckEmailChangeHandler(IAccountTokens tokens, IUserAccounts
         }
 
         var profile = await directory.GetProfileAsync(account.Id, cancellationToken).ConfigureAwait(false);
-        return profile?.PendingEmail is { Length: > 0 } pending
-            ? Result.Success(new EmailChangeResponse(pending))
-            : Result.Failure<EmailChangeResponse>(EmailChangeErrors.Invalid);
+        if (profile?.PendingEmail is not { Length: > 0 } pending)
+        {
+            return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Invalid);
+        }
+
+        // A deleted account's address is scrambled, so only a live account can hold it.
+        return await accounts.FindByEmailAsync(pending, cancellationToken).ConfigureAwait(false) is { IsDeleted: false }
+            ? Result.Failure<EmailChangeResponse>(EmailChangeErrors.Taken)
+            : Result.Success(new EmailChangeResponse(pending));
     }
 }

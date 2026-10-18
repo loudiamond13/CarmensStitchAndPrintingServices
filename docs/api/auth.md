@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-18T01:30:00-05:00
+updated: 2026-10-18T01:35:00-05:00
 ---
 
 # The authentication and sessions API
@@ -88,8 +88,10 @@ The sign-in email changes only when the new inbox confirms. The link goes to the
 | Method and path | Policy | Body | Answers |
 |---|---|---|---|
 | `POST /profile/email-change` | Staff | `{ "newEmail", "currentPassword" }` | `200` the profile with `pendingEmail`. The current password is checked first, by the same rule and the same five-try lock as `POST /profile/password`. `400` under `currentPassword` (wrong password), or under `newEmail` (empty, not an address, over 256 characters, "This is already your email.", or "Another account already uses this email."), `429` `profile.password-locked`, `409`. A taken address is shown only after the password is right. A new request replaces the pending one and ends the older link. Needs `Idempotency-Key`. |
-| `POST /profile/email-change/check` | Anonymous | `{ "token" }` | `200 { "newEmail" }` for a working link; `404` `email-change.invalid` for anything else (expired, used, replaced, malformed, unknown, or an account that may not sign in). Read-only: it spends nothing, so a mail scanner opening the link changes nothing. Works with no session or another person's session. |
-| `POST /profile/email-change/confirm` | Anonymous | `{ "token" }` | `200 { "newEmail" }`; moves the sign-in email and ends the link. `404` `email-change.invalid`, `409`. Needs `Idempotency-Key`. |
+| `POST /profile/email-change/check` | Anonymous | `{ "token" }` | `200 { "newEmail" }` for a working link; `404` `email-change.invalid` for anything else (expired, used, replaced, malformed, unknown, or an account that may not sign in); `409` `email-change.taken` when another account has taken the new address since. Read-only: it spends nothing, so a mail scanner opening the link changes nothing. Works with no session or another person's session. |
+| `POST /profile/email-change/confirm` | Anonymous | `{ "token" }` | `200 { "newEmail" }`; moves the sign-in email and ends the link. `404` `email-change.invalid`, `409`. `409` `email-change.taken` means another account took the new address first: the link is spent, the pending change is cleared and the sign-in email is unchanged. Needs `Idempotency-Key`. |
+| `POST /profile/email-change/resend` | Staff | none | `204`. Ends the open link and emails a fresh 24-hour link to the pending address only (nothing goes to the current one). `404` `email-change.none` when no change is waiting, `429`, `409`. Needs `Idempotency-Key`. |
+| `DELETE /profile/email-change` | Staff | none | `204`. Calls off the waiting change: its links stop working and the pending address is cleared. With nothing waiting it still answers `204` and records nothing. Takes no row version (naturally idempotent). `409` only when two saves lost a race. |
 
 The emailed link is `/admin/confirm-email#token=...` (the token sits in the fragment, never in a URL path or query). It works for 24 hours and only once.
 
@@ -157,7 +159,7 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth-verify` | verify code | 10 per minute |
 | `auth-resend` | resend code | 5 per minute |
 | `auth-forgot` | forgot password | 5 per 15 minutes |
-| `auth-reset` | reset check, reset, set-new, invite check, invite accept, email-change request, check and confirm | 10 per 15 minutes |
+| `auth-reset` | reset check, reset, set-new, invite check, invite accept, email-change request, resend, check and confirm | 10 per 15 minutes |
 | `auth-refresh` | refresh, sign-out, sign-out-others, the devices list and sign-out of a device | 60 per minute |
 
 ## Error codes
@@ -182,6 +184,8 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth.link-invalid` | 404 | A reset link that is malformed, unknown, used, revoked, expired or for an account that may not sign in. Never says which. |
 | `auth.invite-invalid` | 404 | The same for an invite link. |
 | `email-change.invalid` | 404 | The same for an email-change link (check and confirm). |
+| `email-change.none` | 404 | A resend when no email change is waiting ("There is no email change waiting."). |
+| `email-change.taken` | 409 | The new address was taken by another account before the link was used ("This email can't be used."). The check and the confirm both answer it; confirming also spends the link and clears the pending change. |
 | `auth.breach-check-unavailable` | 422 | Invite acceptance only: the breached-password lookup could not be reached, so nothing is saved. |
 | `idempotency.key-missing` | 400 | The key is missing or not a UUID. |
 | `idempotency.key-mismatch` | 422 | The key was used with a different body. |

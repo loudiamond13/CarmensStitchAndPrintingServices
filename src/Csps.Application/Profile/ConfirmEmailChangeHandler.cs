@@ -11,7 +11,9 @@ namespace Csps.Application.Profile;
 /// Use case: the new inbox confirms an email change (PROF-02, D-25). The link is a bearer token in the body, so the caller
 /// needs no session. One transaction, under the per-account link lock, applies the pending address, spends the link and
 /// any other open one, and audits the change by user id only. A malformed, unknown, used, replaced or expired link, a
-/// blocked account, nothing pending and an address another account holds all get the same 404 (CWE-640).
+/// blocked account and nothing pending all get the same 404 (CWE-640). When another account took the new address first
+/// (D-24), the same transaction spends the link, clears the pending address and audits the cancel with the detail
+/// <c>taken</c>, and the answer is the distinct 409 <c>email-change.taken</c>; the sign-in email is unchanged.
 /// </summary>
 public sealed class ConfirmEmailChangeHandler(
     IAccountTokens tokens,
@@ -21,11 +23,12 @@ public sealed class ConfirmEmailChangeHandler(
     TimeProvider time)
 {
     private const string UserTarget = "User";
+    private const string TakenDetail = "taken";
 
     /// <summary>Confirms one change.</summary>
     /// <param name="request">The token.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new sign-in email, a 404 for a link that does not work, or a 409 when two saves lost a race.</returns>
+    /// <returns>The new sign-in email, a 404 for a link that does not work, or a 409 when the address was taken meanwhile or two saves lost a race.</returns>
     public async Task<Result<EmailChangeResponse>> HandleAsync(EmailChangeTokenRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -60,7 +63,13 @@ public sealed class ConfirmEmailChangeHandler(
 
         // A request that waited here for the winner finds nothing pending and reads as an invalid link.
         await tokens.LockAccountAsync(account.Id, cancellationToken).ConfigureAwait(false);
-        if (await accounts.ApplyPendingEmailAsync(account.Id, cancellationToken).ConfigureAwait(false) != EmailApplyOutcome.Applied)
+        var outcome = await accounts.ApplyPendingEmailAsync(account.Id, cancellationToken).ConfigureAwait(false);
+        if (outcome == EmailApplyOutcome.Taken)
+        {
+            return await DropTakenAsync(stored, account.Id, now, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (outcome != EmailApplyOutcome.Applied)
         {
             return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Invalid);
         }
@@ -72,5 +81,16 @@ public sealed class ConfirmEmailChangeHandler(
 
         var changed = await accounts.FindByIdAsync(account.Id, cancellationToken).ConfigureAwait(false);
         return Result.Success(new EmailChangeResponse(changed!.Email));
+    }
+
+    // The address is gone for good, so the link is spent and the pending change is cleared; the account stays as it was.
+    private async Task<Result<EmailChangeResponse>> DropTakenAsync(AccountToken stored, Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await accounts.SetPendingEmailAsync(userId, null, cancellationToken).ConfigureAwait(false);
+        stored.Use(now);
+        await tokens.RevokeOpenAsync(userId, AccountTokenPurpose.EmailChange, now, cancellationToken).ConfigureAwait(false);
+        audit.Record(AuditActions.ProfileEmailChangeCanceled, UserTarget, AuditKey.Of(userId), TakenDetail);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return Result.Failure<EmailChangeResponse>(EmailChangeErrors.Taken);
     }
 }

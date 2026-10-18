@@ -12,6 +12,12 @@ public static class EmailChangeErrors
     /// <summary>The plain-English text for a link that does not work; it never says why.</summary>
     public const string InvalidMessage = "This link has expired";
 
+    /// <summary>The code of a link whose new address another account took before the link was used.</summary>
+    public const string TakenCode = "email-change.taken";
+
+    /// <summary>The plain-English text for a link whose new address was taken; it says only that the address cannot be used.</summary>
+    public const string TakenMessage = "This email can't be used.";
+
     /// <summary>The code of a resend when no email change is waiting.</summary>
     public const string NoneCode = "email-change.none";
 
@@ -26,6 +32,9 @@ public static class EmailChangeErrors
 
     /// <summary>Gets the one answer every dead email-change link gets (CWE-640).</summary>
     public static Error Invalid { get; } = Error.NotFound(InvalidCode, InvalidMessage);
+
+    /// <summary>Gets the answer for a link whose new address another account took first: a 409 (D-24).</summary>
+    public static Error Taken { get; } = Error.Conflict(TakenCode, TakenMessage);
 
     /// <summary>Gets the answer for a resend when nothing is pending: a 404.</summary>
     public static Error None { get; } = Error.NotFound(NoneCode, NoneMessage);

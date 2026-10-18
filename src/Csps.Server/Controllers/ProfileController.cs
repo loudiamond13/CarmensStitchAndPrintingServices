@@ -129,7 +129,7 @@ public sealed class ProfileController(
     /// </summary>
     /// <param name="body">The token; a null or unreadable body reads as an invalid link.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the new sign-in email, 404 <c>email-change.invalid</c> for any link that does not work, or 409 when two saves lost a race.</returns>
+    /// <returns>200 with the new sign-in email, 404 <c>email-change.invalid</c> for any link that does not work, 409 <c>email-change.taken</c> when another account took the address first (the link is spent and the change cleared), or 409 when two saves lost a race.</returns>
     [HttpPost("email-change/confirm")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
@@ -142,6 +142,12 @@ public sealed class ProfileController(
         CancellationToken cancellationToken)
     {
         var result = await confirmEmailChange.HandleAsync(body ?? EmailChangeTokenRequest.Empty, cancellationToken).ConfigureAwait(false);
+        if (result is { IsFailure: true, Error.Code: EmailChangeErrors.TakenCode })
+        {
+            // A 409 is not stored, so the gate would roll back the spent link and the cleared pending address.
+            IdempotencyOutcome.KeepChanges(HttpContext);
+        }
+
         return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
     }
 
@@ -151,7 +157,7 @@ public sealed class ProfileController(
     /// </summary>
     /// <param name="body">The token; a null or unreadable body reads as an invalid link.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the address the link would confirm, or 404 <c>email-change.invalid</c> for any link that does not work.</returns>
+    /// <returns>200 with the address the link would confirm, 404 <c>email-change.invalid</c> for any link that does not work, or 409 <c>email-change.taken</c> when another account took the address first.</returns>
     [HttpPost("email-change/check")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
@@ -159,6 +165,7 @@ public sealed class ProfileController(
     [EndpointName("CheckEmailChange")]
     [ProducesResponseType<EmailChangeResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> CheckEmailChange(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] EmailChangeTokenRequest? body,
         CancellationToken cancellationToken)

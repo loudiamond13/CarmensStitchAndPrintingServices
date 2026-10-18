@@ -1881,6 +1881,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it\r\nspends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.",
