@@ -437,7 +437,9 @@ test('@motion sessions: the per-device dialog plays its exit with its device sti
     await page.goto('/admin/sessions');
     await expect(page.getByRole('heading', { level: 1, name: 'Signed-in devices' })).toBeVisible();
 
-    await page.getByRole('button', { name: /^Sign out Edge on Windows, signed in / }).click();
+    // Opened by keyboard: WebKit does not focus a button on a mouse click, and the trap returns focus to what had it.
+    await page.getByRole('button', { name: /^Sign out Edge on Windows, signed in / }).focus();
+    await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Sign out Edge on Windows?' });
     await expect(dialog).toHaveAttribute('data-state', 'open');
     // The entry animation has finished, so the sample below is about the exit only.

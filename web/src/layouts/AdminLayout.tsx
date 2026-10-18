@@ -181,17 +181,17 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
       >
         <Outlet />
       </AdminFrame>
-      {/* The menu puts focus on its button before this opens, so the dialog's focus trap returns there on close. */}
-      {signOutOthersOpen && (
-        <SignOutOthersDialog
-          onSignedOut={() => {
-            refreshAfterSignedOutOthers(queryClient);
-          }}
-          onClose={() => {
-            setSignOutOthersOpen(false);
-          }}
-        />
-      )}
+      {/* The menu puts focus on its button before this opens, so the dialog's focus trap returns there on close. It stays
+          mounted so its exit animation plays (D-39). */}
+      <SignOutOthersDialog
+        open={signOutOthersOpen}
+        onSignedOut={() => {
+          refreshAfterSignedOutOthers(queryClient);
+        }}
+        onClose={() => {
+          setSignOutOthersOpen(false);
+        }}
+      />
     </>
   );
 }
