@@ -1764,6 +1764,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
           }
         },
         "summary": "Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the\r\nsign-in email changes only when the link is confirmed.",

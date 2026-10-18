@@ -476,7 +476,7 @@ public sealed class ChangePasswordHandlerTests
                 Unit,
                 request,
                 new ChangePasswordRequestValidator(),
-                new AuthSettings(),
+                new CurrentPasswordCheck(Accounts, Outbox, Audit, Unit, new AuthSettings(), Time),
                 Time);
         }
     }

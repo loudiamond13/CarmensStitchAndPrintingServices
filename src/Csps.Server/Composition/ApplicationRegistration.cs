@@ -35,6 +35,7 @@ public static class ApplicationRegistration
         services.AddScoped<BootstrapManagerHandler>();
         services.AddScoped<GetProfileHandler>();
         services.AddScoped<UpdateProfileNameHandler>();
+        services.AddScoped<CurrentPasswordCheck>();
         services.AddScoped<ChangePasswordHandler>();
         services.AddScoped<RequestEmailChangeHandler>();
         services.AddScoped<ConfirmEmailChangeHandler>();

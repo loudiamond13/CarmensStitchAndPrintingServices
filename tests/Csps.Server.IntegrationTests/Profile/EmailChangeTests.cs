@@ -270,7 +270,7 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         problem.GetProperty("errors").GetProperty("newEmail").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["This is already your email."]);
-        (await AuthClient.ReadEmailsAsync(client, staff.Email)).ShouldBeEmpty();
+        (await AuthClient.ReadEmailsAsync(client, staff.Email)).ShouldNotContain(static mail => mail.Subject == NoticeSubject);
     }
 
     [Theory]

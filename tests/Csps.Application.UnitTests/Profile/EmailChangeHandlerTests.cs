@@ -133,7 +133,7 @@ public sealed class EmailChangeHandlerTests
         result.IsFailure.ShouldBeTrue();
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
         result.Error.FieldErrors.ShouldNotBeNull()["currentPassword"].ShouldBe(["Your current password is incorrect."]);
-        await harness.AssertNothingChangedAsync();
+        await harness.AssertNothingChangedAsync(commits: 1);
     }
 
     [Fact]
@@ -183,13 +183,14 @@ public sealed class EmailChangeHandlerTests
     }
 
     [Fact]
-    public async Task TheCorrectPasswordIsNotCounted()
+    public async Task TheCorrectPasswordIsNotCountedAndClearsTheCountSoFar()
     {
         var harness = new Harness();
 
         await harness.RequestAsync(NewEmail, Password);
 
         await harness.Accounts.DidNotReceive().RecordFailedPasswordAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.Received(1).ResetFailedCountAsync(UserId, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -275,7 +276,7 @@ public sealed class EmailChangeHandlerTests
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
         result.Error.FieldErrors.ShouldNotBeNull()[field].ShouldBe([message]);
         await harness.AssertNothingChangedAsync();
-        await harness.Accounts.DidNotReceive().FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().CheckPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -586,13 +587,14 @@ public sealed class EmailChangeHandlerTests
             new ConfirmEmailChangeHandler(Tokens, Accounts, Audit, Unit, Time)
                 .HandleAsync(new EmailChangeTokenRequest(token), TestContext.Current.CancellationToken);
 
-        public async Task AssertNothingChangedAsync()
+        // A wrong password is counted in its own transaction, so that one commit is expected there.
+        public async Task AssertNothingChangedAsync(int commits = 0)
         {
             await Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
             Added.ShouldBeNull();
             Outbox.Emails.ShouldBeEmpty();
             Audit.Entries.ShouldBeEmpty();
-            Unit.Commits.ShouldBe(0);
+            Unit.Commits.ShouldBe(commits);
             await Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         }
 
@@ -633,6 +635,7 @@ public sealed class EmailChangeHandlerTests
                 Unit,
                 request,
                 new RequestEmailChangeRequestValidator(),
+                new CurrentPasswordCheck(Accounts, Outbox, Audit, Unit, new AuthSettings(), Time),
                 new AuthSettings(),
                 Time);
         }

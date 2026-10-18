@@ -94,7 +94,7 @@ public sealed class ProfileController(
     /// </summary>
     /// <param name="body">The new email and the current password; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the profile and its pending email, 400 for field errors (a wrong current password is one), 401 without a valid token, or 409 when two saves lost a race.</returns>
+    /// <returns>200 with the profile and its pending email, 400 for field errors (a wrong current password is one), 401 without a valid token, 409 when two saves lost a race, or 429 <c>profile.password-locked</c> (with Retry-After) while the account is locked.</returns>
     [HttpPost("email-change")]
     [EnableRateLimiting(RateLimitPolicies.Reset)]
     [EndpointName("RequestEmailChange")]
@@ -102,11 +102,18 @@ public sealed class ProfileController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IResult> RequestEmailChange(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RequestEmailChangeRequest? body,
         CancellationToken cancellationToken)
     {
         var result = await requestEmailChange.HandleAsync(body ?? RequestEmailChangeRequest.Empty, cancellationToken).ConfigureAwait(false);
+        if (result is { IsFailure: true, Error.Code: ProfileErrors.PasswordLockedCode })
+        {
+            // A 429 is not stored, so the gate would roll back the wrong password that just locked the account.
+            IdempotencyOutcome.KeepChanges(HttpContext);
+        }
+
         return result.ToHttpResult(HttpContext, static profile => TypedResults.Ok(profile));
     }
 

@@ -26,7 +26,7 @@ public sealed class ChangePasswordHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<ChangePasswordRequest> validator,
-    AuthSettings settings,
+    CurrentPasswordCheck passwordCheck,
     TimeProvider time)
 {
     private const string UserTarget = "User";
@@ -57,17 +57,12 @@ public sealed class ChangePasswordHandler(
             return Result.Failure(AuthErrors.SessionEnded);
         }
 
-        var now = time.GetUtcNow();
-        if (account.LockoutEnd is { } lockedUntil && lockedUntil > now)
-        {
-            return Result.Failure(ProfileErrors.PasswordLocked(lockedUntil - now));
-        }
-
         var current = request.CurrentPassword!;
         var next = request.NewPassword!;
-        if (await accounts.CheckPasswordAsync(account.Id, current, cancellationToken).ConfigureAwait(false) == PasswordCheck.Failed)
+        var proof = await passwordCheck.CheckAsync(account, current, cancellationToken).ConfigureAwait(false);
+        if (proof.IsFailure)
         {
-            return await CountWrongPasswordAsync(account, cancellationToken).ConfigureAwait(false);
+            return proof;
         }
 
         // Compared as typed, not looked up: the current password is known to be right here, so this is no guessing oracle.
@@ -87,28 +82,6 @@ public sealed class ChangePasswordHandler(
         return await ConflictRetry
             .RunAsync(() => SaveAsync(account, sessionId, next, verdict.BreachCheckSkipped, cancellationToken), Result.Failure(AuthErrors.SessionBusy))
             .ConfigureAwait(false);
-    }
-
-    // The count, and when it locks the account the one lockout email and its audit entry, commit together (T-04-39).
-    private async Task<Result> CountWrongPasswordAsync(UserAccount account, CancellationToken cancellationToken)
-    {
-        var failure = await unitOfWork.InTransactionAsync(
-            async token =>
-            {
-                var result = await accounts.RecordFailedPasswordAsync(account.Id, token).ConfigureAwait(false);
-                if (result.LockedNow)
-                {
-                    // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
-                    await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password, settings.PasswordLockoutDuration), token).ConfigureAwait(false);
-                    audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(account.Id), "password");
-                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                }
-
-                return result;
-            },
-            cancellationToken).ConfigureAwait(false);
-
-        return Result.Failure(failure.LockedNow ? ProfileErrors.PasswordLocked(failure.LockoutEnd!.Value - time.GetUtcNow()) : ProfileErrors.WrongPassword);
     }
 
     private async Task<Result> SaveAsync(UserAccount account, Guid sessionId, string newPassword, bool breachCheckSkipped, CancellationToken cancellationToken)
