@@ -868,6 +868,296 @@ describe('P1 Appearance: Theme (PROF-04, D-22)', () => {
   });
 });
 
+interface EmailCalls {
+  requests: { body: { newEmail: string; currentPassword: string }; key: string | null }[];
+  resends: (string | null)[];
+  cancels: number;
+}
+
+interface EmailOptions {
+  request?: () => Response | Promise<Response>;
+  resend?: () => Response | Promise<Response>;
+  cancel?: () => Response | Promise<Response>;
+}
+
+/** The email-change calls on top of backend(): a request sets the pending address, a cancel clears it. */
+function emailChanges(state: Backend, options: EmailOptions = {}): EmailCalls {
+  const calls: EmailCalls = { requests: [], resends: [], cancels: 0 };
+  server.use(
+    http.post('*/api/v1/profile/email-change', async ({ request }) => {
+      const body = (await request.json()) as EmailCalls['requests'][number]['body'];
+      calls.requests.push({ body, key: request.headers.get('Idempotency-Key') });
+      if (options.request !== undefined) {
+        return options.request();
+      }
+      state.profile = { ...state.profile, pendingEmail: body.newEmail.trim() };
+      return HttpResponse.json(state.profile);
+    }),
+    http.post('*/api/v1/profile/email-change/resend', ({ request }) => {
+      calls.resends.push(request.headers.get('Idempotency-Key'));
+      return options.resend !== undefined ? options.resend() : new HttpResponse(null, { status: 204 });
+    }),
+    http.delete('*/api/v1/profile/email-change', () => {
+      calls.cancels += 1;
+      if (options.cancel !== undefined) {
+        return options.cancel();
+      }
+      state.profile = { ...state.profile, pendingEmail: null };
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return calls;
+}
+
+const NEW_EMAIL = 'carmen.new@example.ph';
+const PENDING: ProfileResponse = { ...PROFILE, pendingEmail: NEW_EMAIL };
+
+function signInEmailCard(): HTMLElement {
+  return screen.getByRole('region', { name: 'Sign-in Email' });
+}
+
+function changeEmailButton(): HTMLElement {
+  return within(signInEmailCard()).getByRole('button', { name: 'Change Email' });
+}
+
+/** Opens the dialog, fills it and presses Send Confirmation Link. */
+async function sendChange(user: ReturnType<typeof userEvent.setup>, email = NEW_EMAIL): Promise<void> {
+  await user.click(changeEmailButton());
+  const dialog = screen.getByRole('dialog', { name: 'Change your email' });
+  await user.type(within(dialog).getByRole('textbox', { name: 'New email' }), email);
+  await user.type(within(dialog).getByLabelText('Current password'), 'Mabuhay#Tahi2026');
+  await user.click(within(dialog).getByRole('button', { name: 'Send Confirmation Link' }));
+}
+
+describe('P1 Details: Sign-in Email (PROF-02, D-24)', () => {
+  it('shows the card with the current email as text and a Change Email button', async () => {
+    backend();
+    await openPage();
+
+    const card = signInEmailCard();
+    expect(within(card).getByRole('heading', { level: 2, name: 'Sign-in Email' })).toBeInTheDocument();
+    expect(within(card).getByText('You sign in with this email.')).toBeInTheDocument();
+    expect(within(card).getByText('carmen@example.ph')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Change Email' })).toBeInTheDocument();
+    expect(within(card).queryByText(/Waiting for confirmation/)).toBeNull();
+  });
+
+  it('opens the Change your email dialog with the cursor in New email, and Cancel returns focus to Change Email', async () => {
+    backend();
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(changeEmailButton());
+
+    const dialog = screen.getByRole('dialog', { name: 'Change your email' });
+    expect(within(dialog).getByRole('textbox', { name: 'New email' })).toHaveFocus();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(changeEmailButton()).toHaveFocus();
+  });
+
+  it('refuses the current email in the dialog before any request', async () => {
+    const state = backend();
+    const calls = emailChanges(state);
+    await openPage();
+    const user = userEvent.setup();
+
+    await sendChange(user, 'CARMEN@example.ph');
+
+    expect(await screen.findByText('This is already your email.')).toBeInTheDocument();
+    expect(calls.requests).toHaveLength(0);
+  });
+
+  it('sends the request, closes the dialog, shows the pending note with focus on it, and toasts', async () => {
+    const state = backend();
+    const calls = emailChanges(state);
+    await openPage();
+    const user = userEvent.setup();
+
+    await sendChange(user);
+
+    expect(await screen.findByText('Confirmation link sent')).toBeInTheDocument();
+    expect(screen.getByText(`Open the link we sent to ${NEW_EMAIL}. Your email changes after that.`)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(calls.requests).toEqual([
+      { body: { newEmail: NEW_EMAIL, currentPassword: 'Mabuhay#Tahi2026' }, key: expect.stringMatching(/\S/) as string },
+    ]);
+
+    const card = signInEmailCard();
+    expect(card).toHaveTextContent(
+      `Waiting for confirmation at ${NEW_EMAIL}. Until then, you sign in with carmen@example.ph.`,
+    );
+    expect(within(card).getByText(NEW_EMAIL).tagName).toBe('STRONG');
+    expect(within(card).getByRole('button', { name: 'Resend Link' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Cancel Change' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Change Email' })).toBeNull();
+    expect(document.activeElement).toHaveTextContent('Waiting for confirmation at');
+    // The header keeps the current sign-in email while the change waits.
+    expect(screen.getByText('carmen@example.ph · Member since Oct 17, 2026')).toBeInTheDocument();
+  });
+
+  it('shows the note for a pending email that arrives with the profile, without moving focus or toasting', async () => {
+    backend(PENDING);
+    await openPage();
+
+    expect(signInEmailCard()).toHaveTextContent(`Waiting for confirmation at ${NEW_EMAIL}.`);
+    expect(document.activeElement).toBe(document.body);
+    expect(screen.queryByText('Confirmation link sent')).toBeNull();
+  });
+
+  it('Resend Link posts to resend with one Idempotency-Key, shows "Sending", toasts, and reads the profile again', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const state = backend(PENDING);
+    const calls = emailChanges(state, {
+      resend: async () => {
+        await held;
+        return new HttpResponse(null, { status: 204 });
+      },
+    });
+    await openPage();
+    const user = userEvent.setup();
+    const getsBefore = state.gets;
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' }));
+
+    expect(await within(signInEmailCard()).findByRole('button', { name: 'Sending' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(within(signInEmailCard()).getByRole('button', { name: 'Cancel Change' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    release();
+
+    expect(await screen.findByText('Link sent again')).toBeInTheDocument();
+    expect(screen.getByText(`Check ${NEW_EMAIL}. The new link works for 24 hours.`)).toBeInTheDocument();
+    expect(calls.resends).toHaveLength(1);
+    expect(calls.resends[0]).toMatch(/\S/);
+    await waitFor(() => {
+      expect(state.gets).toBe(getsBefore + 1);
+    });
+    expect(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' })).not.toHaveAttribute(
+      'aria-disabled',
+    );
+  });
+
+  it('sends a second Resend Link as a new request with a new Idempotency-Key', async () => {
+    const state = backend(PENDING);
+    const calls = emailChanges(state);
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' }));
+    await screen.findByText('Link sent again');
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' }));
+
+    await waitFor(() => {
+      expect(calls.resends).toHaveLength(2);
+    });
+    expect(calls.resends[1]).not.toBe(calls.resends[0]);
+  });
+
+  it('keeps the note and shows a danger toast when the resend fails', async () => {
+    const state = backend(PENDING);
+    emailChanges(state, { resend: () => problem(500, {}) });
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' }));
+
+    expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+    expect(signInEmailCard()).toHaveTextContent('Waiting for confirmation at');
+  });
+
+  it('goes back to Change Email, with a toast, when the resend finds nothing waiting', async () => {
+    const state = backend(PENDING);
+    emailChanges(state, {
+      resend: () => {
+        state.profile = { ...state.profile, pendingEmail: null };
+        return problem(404, { code: 'email-change.none' });
+      },
+    });
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' }));
+
+    expect(await screen.findByText('No email change is waiting')).toBeInTheDocument();
+    expect(await within(signInEmailCard()).findByRole('button', { name: 'Change Email' })).toBeInTheDocument();
+    expect(signInEmailCard()).not.toHaveTextContent('Waiting for confirmation');
+  });
+
+  it('Cancel Change deletes the pending change, shows "Canceling", toasts, and puts Change Email back with focus', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const state = backend(PENDING);
+    const calls = emailChanges(state, {
+      cancel: async () => {
+        await held;
+        state.profile = { ...state.profile, pendingEmail: null };
+        return new HttpResponse(null, { status: 204 });
+      },
+    });
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Cancel Change' }));
+
+    expect(await within(signInEmailCard()).findByRole('button', { name: 'Canceling' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(within(signInEmailCard()).getByRole('button', { name: 'Resend Link' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    release();
+
+    expect(await screen.findByText('Email change canceled')).toBeInTheDocument();
+    expect(screen.getByText('You still sign in with carmen@example.ph.')).toBeInTheDocument();
+    expect(calls.cancels).toBe(1);
+    await waitFor(() => {
+      expect(changeEmailButton()).toHaveFocus();
+    });
+    expect(signInEmailCard()).not.toHaveTextContent('Waiting for confirmation');
+  });
+
+  it('keeps the note and shows a danger toast when the cancel fails', async () => {
+    const state = backend(PENDING);
+    emailChanges(state, { cancel: () => problem(500, {}) });
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(within(signInEmailCard()).getByRole('button', { name: 'Cancel Change' }));
+
+    expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+    expect(signInEmailCard()).toHaveTextContent('Waiting for confirmation at');
+  });
+
+  it('has no axe violations with the pending note showing', async () => {
+    backend(PENDING);
+    const { container } = await openPage();
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no axe violations with the dialog open', async () => {
+    backend();
+    const { container } = await openPage();
+    await userEvent.click(changeEmailButton());
+    await screen.findByRole('dialog', { name: 'Change your email' });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('P1 accessibility', () => {
   it('has no axe violations on the Details tab', async () => {
     backend();

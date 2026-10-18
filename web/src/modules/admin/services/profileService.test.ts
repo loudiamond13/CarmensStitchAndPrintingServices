@@ -175,11 +175,115 @@ describe('profileService.confirmEmailChange', () => {
   });
 });
 
+describe('profileService.requestEmailChange', () => {
+  const body = { newEmail: 'new@example.ph', currentPassword: 'Mabuhay#Tahi2026' };
+
+  it('calls POST /api/v1/profile/email-change with the new email, the password and the Idempotency-Key it was given, and resolves the profile', async () => {
+    const pending = { ...profile, pendingEmail: 'new@example.ph' };
+    const fake = createFakeFetch([{ body: pending }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.requestEmailChange(body, 'key-abc')).resolves.toEqual(pending);
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-abc');
+  });
+
+  it('keeps the password out of the address', async () => {
+    const fake = createFakeFetch([{ body: profile }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await service.requestEmailChange(body, 'key-abc');
+
+    expect(fake.calls[0]?.url).not.toContain('Mabuhay');
+  });
+
+  it('rejects with the field errors of a 400, keyed as the server wrote them', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 400,
+        headers: PROBLEM,
+        body: {
+          title: 'Bad Request',
+          status: 400,
+          errors: { currentPassword: ['Your current password is incorrect.'] },
+        },
+      },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.requestEmailChange(body, 'key-abc')).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { currentPassword: ['Your current password is incorrect.'] },
+    });
+  });
+
+  it('rejects with the machine code of a 429 profile.password-locked', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 429,
+        headers: PROBLEM,
+        body: { title: 'Too Many Requests', status: 429, code: 'profile.password-locked' },
+      },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.requestEmailChange(body, 'key-abc')).rejects.toMatchObject({
+      status: 429,
+      code: 'profile.password-locked',
+    });
+  });
+});
+
+describe('profileService.resendEmailChange', () => {
+  it('calls POST /api/v1/profile/email-change/resend with the Idempotency-Key it was given and no body, and resolves with nothing', async () => {
+    const fake = createFakeFetch([{ status: 204 }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.resendEmailChange('key-abc')).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change/resend');
+    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-abc');
+  });
+
+  it('rejects with the code of a 404 email-change.none', async () => {
+    const fake = createFakeFetch([
+      { status: 404, headers: PROBLEM, body: { title: 'Not Found', status: 404, code: 'email-change.none' } },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.resendEmailChange('key-abc')).rejects.toMatchObject({
+      status: 404,
+      code: 'email-change.none',
+    });
+  });
+});
+
+describe('profileService.cancelEmailChange', () => {
+  it('calls DELETE /api/v1/profile/email-change with no body and no Idempotency-Key (it repeats safely)', async () => {
+    const fake = createFakeFetch([{ status: 204 }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.cancelEmailChange()).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change');
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+  });
+});
+
 describe('profileService (the exported instance)', () => {
-  it('exposes get, updateName and the email-change link calls over the shared client', () => {
+  it('exposes get, updateName and the email-change calls over the shared client', () => {
     expect(typeof profileService.get).toBe('function');
     expect(typeof profileService.updateName).toBe('function');
     expect(typeof profileService.checkEmailChange).toBe('function');
     expect(typeof profileService.confirmEmailChange).toBe('function');
+    expect(typeof profileService.requestEmailChange).toBe('function');
+    expect(typeof profileService.resendEmailChange).toBe('function');
+    expect(typeof profileService.cancelEmailChange).toBe('function');
   });
 });
