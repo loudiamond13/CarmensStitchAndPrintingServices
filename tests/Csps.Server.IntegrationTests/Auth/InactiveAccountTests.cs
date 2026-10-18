@@ -96,6 +96,54 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         }
     }
 
+    [Theory]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
+    public async Task AManagerLockedOrDeletedAccountGetsTheGenericErrorNoSessionAndOneAuditedReason(string reason)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        if (reason == "manager-locked")
+        {
+            await AccountStateFixtures.ManagerLockAsync(factory, staff.Id);
+        }
+        else
+        {
+            await AccountStateFixtures.MarkDeletedAsync(factory, staff.Id);
+        }
+
+        using var response = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.Headers.Contains("Set-Cookie").ShouldBeFalse();
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("detail").GetString().ShouldBe("Email or password is incorrect.");
+        await using var context = database.CreateContext();
+        var entry = (await context.AuditLog.AsNoTracking()
+            .Where(candidate => candidate.CorrelationId == ProblemJson.TraceId(problem))
+            .ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        entry.Action.ShouldBe(AuditActions.SignInFailed);
+        entry.Detail.ShouldBe(reason);
+        entry.TargetType.ShouldBe("User");
+        entry.TargetId.ShouldBe(staff.Id.ToString("D"));
+        entry.ActorUserId.ShouldBeNull();
+        (await context.TwoFactorChallenges.AsNoTracking().CountAsync(challenge => challenge.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.EmailOutbox.AsNoTracking().CountAsync(message => message.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AnActiveAccountStillStartsASignIn()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+
+        using var response = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task AnAccountThatIsDeactivatedLosesItsSessionAtTheNextRefresh()
     {
