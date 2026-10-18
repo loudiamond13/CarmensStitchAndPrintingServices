@@ -73,6 +73,8 @@ export interface AdminFrameProps {
   onSignOutOthers?: (() => void) | undefined;
   /** A route chunk is loading: `main` is busy. */
   loading?: boolean | undefined;
+  /** Adds the Audit Log item to the sidebar and the drawer (OQ-2); the real shell sets it, the dev scenarios do not. */
+  withAuditLog?: boolean | undefined;
   children?: ReactNode;
 }
 
@@ -89,6 +91,7 @@ export function AdminFrame({
   devicesPath,
   onSignOutOthers,
   loading = false,
+  withAuditLog = false,
   children,
 }: AdminFrameProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -97,7 +100,13 @@ export function AdminFrame({
     <>
       <div className={adminClasses} inert={navOpen}>
         <div data-ui="s-admin-side" className={adminSideClasses}>
-          <Sidebar active={section ?? null} role={user.role} user={user} onLogout={onLogout} />
+          <Sidebar
+            active={section ?? null}
+            role={user.role}
+            user={user}
+            onLogout={onLogout}
+            withAuditLog={withAuditLog}
+          />
         </div>
         <div data-ui="s-admin-main" className={adminMainClasses}>
           <Topbar
@@ -127,7 +136,13 @@ export function AdminFrame({
           setNavOpen(false);
         }}
       >
-        <Sidebar active={section ?? null} role={user.role} user={user} onLogout={onLogout} />
+        <Sidebar
+          active={section ?? null}
+          role={user.role}
+          user={user}
+          onLogout={onLogout}
+          withAuditLog={withAuditLog}
+        />
       </MobileNavDrawer>
     </>
   );
@@ -202,6 +217,7 @@ function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
           setSignOutOthersOpen(true);
         }}
         loading={loading}
+        withAuditLog
       >
         <Outlet context={themeContext} />
       </AdminFrame>
