@@ -611,6 +611,102 @@
         ],
         "type": "object"
       },
+      "UserListItem": {
+        "description": "One person in the roster (USER-01).",
+        "properties": {
+          "createdAt": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "inviteState": {
+            "description": "`none`, `pending` or `expired` (see InviteStates).",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, `inactive` or `locked` (see UserStatuses).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "status",
+          "inviteState",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "UserListResponse": {
+        "description": "One page of the roster.",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/UserListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many people match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "VerifyCodeRequest": {
         "description": "The code step form: the six digits from the email (AUTH-02).",
         "properties": {
@@ -2263,6 +2359,111 @@
           "SiteSettings"
         ]
       }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "ListUsers",
+        "parameters": [
+          {
+            "description": "Search text for the name or email; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`admin` or `manager`; none means both.",
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`active`, `inactive` or `locked`; none means all.",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.",
+        "tags": [
+          "Users"
+        ]
+      }
     }
   },
   "servers": [
@@ -2291,6 +2492,9 @@
     },
     {
       "name": "SiteSettings"
+    },
+    {
+      "name": "Users"
     }
   ]
 }

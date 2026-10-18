@@ -1,3 +1,5 @@
+using Csps.Application.Users;
+
 namespace Csps.Application.Ports;
 
 /// <summary>Read-only views of staff accounts. Application never sees Identity: the implementation maps to these records.</summary>
@@ -8,7 +10,27 @@ public interface IUserDirectory
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The profile, or null when the account does not exist or was deleted.</returns>
     Task<ProfileView?> GetProfileAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Lists staff for the roster (USER-01): deleted people never appear, the order is first name, last name, id.</summary>
+    /// <param name="query">The checked filters and page.</param>
+    /// <param name="now">The current instant, to tell a live invitation from an expired one.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The page and the total number of matches.</returns>
+    Task<UserListPage> ListUsersAsync(UserListQuery query, DateTimeOffset now, CancellationToken cancellationToken);
 }
+
+/// <summary>A checked roster query: the search text is trimmed and not blank, the role and status are known values.</summary>
+/// <param name="Search">Text to find in the first name, last name, full name or email; null for no search.</param>
+/// <param name="Role">The role name (<c>Admin</c> or <c>Manager</c>); null for both.</param>
+/// <param name="Status">A <see cref="UserStatuses"/> value; null for all.</param>
+/// <param name="Page">The page number, from 1.</param>
+/// <param name="PageSize">Rows per page, from 1 to 100.</param>
+public sealed record UserListQuery(string? Search, string? Role, string? Status, int Page, int PageSize);
+
+/// <summary>One page of the roster and the number of matches over all pages.</summary>
+/// <param name="Items">The rows of the page.</param>
+/// <param name="Total">All matching rows.</param>
+public sealed record UserListPage(IReadOnlyList<UserListItem> Items, int Total);
 
 /// <summary>What a staff member sees about themselves.</summary>
 /// <param name="Id">The account id.</param>

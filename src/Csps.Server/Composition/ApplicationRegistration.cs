@@ -42,6 +42,7 @@ public static class ApplicationRegistration
         services.AddScoped<CheckEmailChangeHandler>();
         services.AddScoped<ResendEmailChangeHandler>();
         services.AddScoped<CancelEmailChangeHandler>();
+        services.AddScoped<ListUsersHandler>();
         return services;
     }
 }

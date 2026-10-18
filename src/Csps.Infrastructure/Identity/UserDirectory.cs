@@ -1,4 +1,6 @@
 using Csps.Application.Ports;
+using Csps.Application.Users;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +9,9 @@ namespace Csps.Infrastructure.Identity;
 /// <summary><see cref="IUserDirectory"/> over the Identity tables: untracked reads, so nothing is saved by accident.</summary>
 internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
 {
+    // The escape character of the LIKE pattern: it keeps a typed '%', '_', '[' or backslash literal.
+    private const string LikeEscape = "\\";
+
     public async Task<ProfileView?> GetProfileAsync(Guid userId, CancellationToken cancellationToken)
     {
         var row = await context.Users
@@ -34,4 +39,93 @@ internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
             ? null
             : new ProfileView(row.Id, row.FirstName, row.LastName, row.Email ?? string.Empty, row.Role ?? string.Empty, row.PendingEmail, row.CreatedAtUtc, row.EditVersion);
     }
+
+    public async Task<UserListPage> ListUsersAsync(UserListQuery query, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var matches = Filter(context.Users.AsNoTracking().Where(user => user.DeletedAtUtc == null), query);
+        var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var rows = await matches
+            .OrderBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .ThenBy(user => user.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(user => new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                user.Email,
+                Role = (from userRole in context.UserRoles
+                        join role in context.Roles on userRole.RoleId equals role.Id
+                        where userRole.UserId == user.Id
+                        orderby role.Name
+                        select role.Name).FirstOrDefault(),
+                user.IsActive,
+                Locked = user.ManagerLockedAtUtc != null,
+                HasPassword = user.PasswordHash != null,
+                LiveInvitation = context.AccountTokens.Any(token =>
+                    token.UserId == user.Id
+                    && token.Purpose == AccountTokenPurpose.Invitation
+                    && token.UsedAt == null
+                    && token.RevokedAt == null
+                    && token.ExpiresAt > now),
+                user.CreatedAtUtc,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<UserListItem> items =
+        [
+            .. rows.Select(row => new UserListItem(
+                row.Id,
+                row.FirstName,
+                row.LastName,
+                row.Email ?? string.Empty,
+                row.Role ?? string.Empty,
+                UserStatuses.Of(row.IsActive, row.Locked),
+                InviteStates.Of(row.HasPassword, row.LiveInvitation),
+                row.CreatedAtUtc)),
+        ];
+        return new UserListPage(items, total);
+    }
+
+    private IQueryable<ApplicationUser> Filter(IQueryable<ApplicationUser> users, UserListQuery query)
+    {
+        if (query.Role is { } roleName)
+        {
+            users = users.Where(user => context.UserRoles.Any(userRole =>
+                userRole.UserId == user.Id && context.Roles.Any(role => role.Id == userRole.RoleId && role.Name == roleName)));
+        }
+
+        users = query.Status switch
+        {
+            UserStatuses.Inactive => users.Where(user => !user.IsActive),
+            UserStatuses.Locked => users.Where(user => user.IsActive && user.ManagerLockedAtUtc != null),
+            UserStatuses.Active => users.Where(user => user.IsActive && user.ManagerLockedAtUtc == null),
+            _ => users,
+        };
+
+        if (query.Search is { } search)
+        {
+            var pattern = "%" + EscapeLike(search) + "%";
+            users = users.Where(user =>
+                EF.Functions.Like(user.FirstName, pattern, LikeEscape)
+                || EF.Functions.Like(user.LastName, pattern, LikeEscape)
+                || EF.Functions.Like(user.FirstName + " " + user.LastName, pattern, LikeEscape)
+                || EF.Functions.Like(user.Email!, pattern, LikeEscape));
+        }
+
+        return users;
+    }
+
+    // Puts the escape character before itself and before the three characters LIKE treats as wildcards.
+    private static string EscapeLike(string text) =>
+        text.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal);
 }

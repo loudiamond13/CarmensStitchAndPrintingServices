@@ -117,6 +117,9 @@ public static class AuthorizationMatrix
         // Calling the change off is naturally idempotent: with nothing waiting both roles still get 204.
         new("DELETE", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 204, Manager: 204),
 
+        // The staff roster (USER-01, USER-08): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 200),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
