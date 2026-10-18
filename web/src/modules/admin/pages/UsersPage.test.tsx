@@ -708,3 +708,116 @@ describe('U2 Add User from the page (USER-02, D-12)', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+describe('U3 Edit User from the page (USER-03)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+  const VERSION = '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3';
+
+  function paoloDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      ...ROWS[1],
+      hasPassword: true,
+      managerLocked: false,
+      pendingEmail: null,
+      updatedAt: null,
+      version: VERSION,
+      recordedBy: null,
+      lastChangedBy: null,
+      ...overrides,
+    };
+  }
+
+  /** A roster whose Paolo is renamed once the PUT lands; records the PUT bodies. */
+  function rosterThatRenamesPaolo(): { puts: unknown[]; calls: URL[] } {
+    const rows = [...ROWS];
+    const puts: unknown[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail())),
+      http.put(`*/api/v1/users/${PAOLO_ID}`, async ({ request }) => {
+        const body = (await request.json()) as { firstName: string; lastName: string; role: string };
+        puts.push(body);
+        rows[1] = person(PAOLO_ID, body.firstName, body.lastName, { role: body.role });
+        return HttpResponse.json(
+          paoloDetail({ firstName: body.firstName, lastName: body.lastName, role: body.role }),
+        );
+      }),
+    );
+    return { puts, calls };
+  }
+
+  const editButton = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('gives every other row a pencil "Edit {First Last}" and the signed-in Manager none', async () => {
+    backend();
+    await openPage();
+
+    for (const name of ['Paolo Garcia', 'Liza Mercado', 'Rhea Villanueva', 'Jomar Santos', 'Mario Lopez', 'Nena Cruz']) {
+      expect(within(rowOf(name)).getByRole('button', { name: `Edit ${name}` })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Edit Carmen Reyes' })).toBeNull();
+  });
+
+  it('opens the Edit User panel for that row with the person loaded and focus on First name', async () => {
+    rosterThatRenamesPaolo();
+    await openPage();
+
+    await userEvent.click(editButton('Paolo Garcia'));
+
+    expect(screen.getByRole('dialog', { name: 'Edit User' })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Paolo')).toHaveFocus();
+  });
+
+  it('after a save the panel closes, focus is on that row\'s Edit button, the roster reads again and the toast says User updated', async () => {
+    const { puts, calls } = rosterThatRenamesPaolo();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    const first = await screen.findByRole('textbox', { name: /^First name/ });
+    await user.clear(first);
+    await user.type(first, 'Paulo');
+    await user.click(screen.getByRole('radio', { name: 'Manager' }));
+    const before = calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(screen.getByText('Paulo Garcia · Manager')).toBeInTheDocument();
+    expect(puts).toEqual([
+      { firstName: 'Paulo', lastName: 'Garcia', email: 'paolo@example.ph', role: 'Manager', version: VERSION },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await screen.findByText('Paulo Garcia', { selector: 'td *, td' });
+    expect(calls.length).toBeGreaterThan(before);
+    await waitFor(() => {
+      expect(editButton('Paulo Garcia')).toHaveFocus();
+    });
+  });
+
+  it('Cancel closes the panel without a request and returns focus to that row\'s Edit button', async () => {
+    const { puts } = rosterThatRenamesPaolo();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(puts).toHaveLength(0);
+    expect(editButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it('has no axe violations with the Edit panel open', async () => {
+    rosterThatRenamesPaolo();
+    await openPage();
+    await userEvent.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+
+    await expectNoAxeViolations(document.body);
+  });
+});

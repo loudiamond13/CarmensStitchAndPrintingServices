@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { createUserSchema } from './usersSchemas';
+import { createUserSchema, updateUserSchema } from './usersSchemas';
 
 // The Add User form's zod mirror (OR-3) of CreateUserRequestValidator: names required after trim and at most 100, the email
 // required and shaped like one (at most 256), a role and a way to get access.
@@ -133,5 +133,78 @@ describe('createUserSchema temporary password (04 D-21, the basic rule only)', (
 
   it('applies only on the temporary route: an invitation ignores what the field holds', () => {
     expect(messages({ access: 'invitation', temporaryPassword: 'x' })).toEqual({});
+  });
+});
+
+// The Edit User form's zod mirror (OR-3) of UpdateUserRequestValidator and the D-45 choice: names, email and role as in Add
+// User, and a changed email (compared after trim, ignoring letter case, as the server does) needs a choice.
+describe('updateUserSchema', () => {
+  const SAVED = {
+    firstName: 'Paolo',
+    lastName: 'Garcia',
+    email: 'paolo@example.ph',
+    role: 'Admin',
+    emailChange: 'confirm',
+    savedEmail: 'paolo@example.ph',
+  };
+
+  function editMessages(overrides: Record<string, string> = {}): Record<string, string> {
+    const result = updateUserSchema.safeParse({ ...SAVED, ...overrides });
+    if (result.success) {
+      return {};
+    }
+    return Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+  }
+
+  it('accepts the saved values and trims the names and the email', () => {
+    const result = updateUserSchema.parse({
+      ...SAVED,
+      firstName: ' Paolo ',
+      lastName: ' Garcia ',
+      email: ' paolo@example.ph ',
+    });
+
+    expect(result).toMatchObject({ firstName: 'Paolo', lastName: 'Garcia', email: 'paolo@example.ph' });
+  });
+
+  it('refuses blank and over-long names with the Add User messages', () => {
+    expect(editMessages({ firstName: ' ', lastName: '' })).toEqual({
+      firstName: 'Enter a first name.',
+      lastName: 'Enter a last name.',
+    });
+    expect(editMessages({ firstName: 'a'.repeat(101) })).toEqual({
+      firstName: 'First name must be 100 characters or fewer.',
+    });
+    expect(editMessages({ firstName: 'a'.repeat(100), lastName: 'b'.repeat(100) })).toEqual({});
+  });
+
+  it('refuses a blank, misshapen or over-long email', () => {
+    expect(editMessages({ email: '  ', emailChange: '' })).toEqual({ email: 'Enter their email.' });
+    expect(editMessages({ email: 'paolo@' })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+    const at = (length: number) => `${'a'.repeat(length - '@e.ph'.length)}@e.ph`;
+    expect(editMessages({ email: at(256) })).toEqual({});
+    expect(editMessages({ email: at(257) })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+  });
+
+  it.each(['', 'Owner', 'admin '])('refuses the role %j', (role) => {
+    expect(editMessages({ role })).toEqual({ role: 'Choose a role.' });
+  });
+
+  it('needs no choice while the email is unchanged, also when it differs only by letter case or spaces', () => {
+    expect(editMessages({ emailChange: '' })).toEqual({});
+    expect(editMessages({ email: ' PAOLO@Example.ph ', emailChange: '' })).toEqual({});
+  });
+
+  it('needs a choice once the email changes (D-45)', () => {
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange: '' })).toEqual({
+      emailChange: 'Choose how the email change applies.',
+    });
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange: 'maybe' })).toEqual({
+      emailChange: 'Choose how the email change applies.',
+    });
+  });
+
+  it.each(['confirm', 'now'])('accepts the choice %s for a changed email', (emailChange) => {
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange })).toEqual({});
   });
 });

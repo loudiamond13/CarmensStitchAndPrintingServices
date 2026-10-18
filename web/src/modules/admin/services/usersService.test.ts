@@ -159,10 +159,62 @@ describe('usersService.create', () => {
   });
 });
 
+describe('usersService.update', () => {
+  const body = {
+    firstName: 'Paolo',
+    lastName: 'Garcia',
+    email: 'paolo@example.ph',
+    role: 'Manager',
+    version: detail.version,
+  };
+
+  it('calls PUT /api/v1/users/{id} with the body, sends no Idempotency-Key and resolves the saved person', async () => {
+    const saved = { ...detail, firstName: 'Paolo', role: 'Manager', version: '9d8c7b6a-1111-4222-8333-444455556666' };
+    const { fake, service } = serviceWith([{ body: saved }]);
+
+    await expect(service.update(detail.id, body)).resolves.toEqual(saved);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('PUT');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}`);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+
+  it('carries the email-change choice (D-45) when the body has one', async () => {
+    const { fake, service } = serviceWith([{ body: detail }]);
+
+    await service.update(detail.id, { ...body, emailChange: 'now' });
+
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ ...body, emailChange: 'now' });
+  });
+
+  it('encodes the id so it can never add a path segment or a query', async () => {
+    const { fake, service } = serviceWith([{ body: detail }]);
+
+    await service.update('a/b?c=d', body);
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/users/a%2Fb%3Fc%3Dd');
+  });
+
+  it.each([
+    [409, 'edit.stale'],
+    [422, 'users.last-active-manager'],
+    [404, 'users.not-found'],
+  ])('rejects with the status and machine code of a %i', async (status, code) => {
+    const { service } = serviceWith([
+      { status, headers: { 'Content-Type': 'application/problem+json' }, body: { title: 'x', status, code } },
+    ]);
+
+    await expect(service.update(detail.id, body)).rejects.toMatchObject({ kind: 'http', status, code });
+  });
+});
+
 describe('usersService', () => {
   it('exports an instance over the shared client', () => {
     expect(typeof usersService.list).toBe('function');
     expect(typeof usersService.get).toBe('function');
     expect(typeof usersService.create).toBe('function');
+    expect(typeof usersService.update).toBe('function');
   });
 });

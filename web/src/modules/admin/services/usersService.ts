@@ -14,6 +14,8 @@ export type CreateUserRequest = Omit<Schemas['CreateUserRequest'], 'temporaryPas
   temporaryPassword?: string;
 };
 export type CreateUserResponse = Schemas['CreateUserResponse'];
+/** The Edit User body (D-45): `email` is always sent; `emailChange` only when the email differs from the saved one. */
+export type UpdateUserRequest = Schemas['UpdateUserRequest'];
 
 export const USER_ROLE_FILTERS = ['admin', 'manager'] as const;
 export const USER_STATUS_FILTERS = ['active', 'inactive', 'locked'] as const;
@@ -39,6 +41,12 @@ export interface UsersService {
    * supplies one Idempotency-Key per submission. The answer is the new id only: the password never comes back (D-14).
    */
   create(body: CreateUserRequest, idempotencyKey: string, signal?: AbortSignal): Promise<CreateUserResponse>;
+  /**
+   * `PUT /api/v1/users/{id}`: saves names, email and role against the edit version; resolves the saved person with the
+   * new version. A PUT repeats safely, so it carries no Idempotency-Key. 409 `edit.stale`, 422 `users.last-active-manager`
+   * or `users.own-account`, 404 `users.not-found`.
+   */
+  update(id: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UserDetailResponse>;
 }
 
 export function createUsersService(client: HttpClient): UsersService {
@@ -51,6 +59,7 @@ export function createUsersService(client: HttpClient): UsersService {
     get: (id, signal) => client.get<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<CreateUserResponse>('/users', body, { idempotencyKey, signal }),
+    update: () => Promise.reject(new Error('not implemented')),
   };
 }
 

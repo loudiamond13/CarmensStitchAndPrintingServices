@@ -57,3 +57,17 @@ export const createUserSchema = z
   });
 
 export type CreateUserValues = z.infer<typeof createUserSchema>;
+
+export const EMAIL_CHANGES = ['confirm', 'now'] as const;
+export type EmailChange = (typeof EMAIL_CHANGES)[number];
+
+export const updateUserSchema = z.looseObject({});
+
+export type UpdateUserValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: UserRole;
+  emailChange: EmailChange | '';
+  savedEmail: string;
+};
