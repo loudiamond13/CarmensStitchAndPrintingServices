@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-16T07:40:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-18T18:10:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -126,6 +126,8 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@auth-multitab` | Two tabs of one browser share one session, in the three desktop engines: both tabs of the devices page reload at the same moment and both stay signed in (single-flight refresh, no false reuse sign-out), `Logout` in one tab sends the other to sign in with `Your session ended. Sign in again.` without a reload, and a listener on `BroadcastChannel('csps-auth')` records the sign-out message and no message carries a token or the email | plan 04-30 |
 | `@auth-overflow` | The overflow and accessibility sweep of the sign-in screens in all five projects: S1 (and S1 with a 5xx banner carrying its reference), S2 and S4 (sent) with a 64-character address, S3, S5 and S6 (form and invalid), each at 320, 375, 414, 768, 1024, 1280, 1536 and 1920 px wide in portrait and landscape (the phone projects check their own screen both ways): no horizontal scroll, one `h1` and one `main#main`, the skip link first, page-level axe clean; S7 `Signed-in devices` in Blush and Espresso with a 60-character device label and two rows with one label (table, scrolling wrapper and stacked cards); and the session-cap and S7 toasts inside a 320px window. The answers that need a real invite, reset link or code are served by `page.route`, so the sweep sends no mail and never meets the per-address limits | plan 04-32 |
 | `@dialog-fit` | Dialogs on short windows: the Delete Order dialog at 1440x900 (140px down), 1274x585 (fits, gap shrinks), 1280x420 (16px down, the backdrop scrolls by wheel and keyboard) and on phone pages / devices (96px down to 0, scrolls); the backdrop close rule: a drag or a press on the backdrop's scrollbar (classic and overlay, in the two scrollbar projects) and a middle or right press never close the dialog, and a left click on the dark area still does (all seven projects); from a scrolled backdrop (1280x420) a middle or right press and a press or drag on the backdrop's scrollbar keep the caret in the confirm field and the backdrop's scrollTop unchanged (Firefox's own middle-button scroll is the one documented exception), and on the phone screens a right press above the sheet keeps the caret (the focus trap returns focus without scrolling) | plans 02-41, 02-42, 02-43 (D-42) |
+| `@shell` | The admin and public shell geometry (plan 05-01: the phone tab bar at the viewport bottom, the pinned sidebar and top bar, the scrolling nav on short screens, full bleed) and, since plan 05-37, a no-sideways-scroll sweep of the Phase 5 screens (`/admin/users`, `/admin/profile` on each tab, `/admin/audit-log`, `/admin/components`, `/admin/sessions`, `/admin/confirm-email`, `/admin/login`, `/`) at 320, 375, 414, 768, 1024, 1280, 1536 and 1920 px, portrait and landscape, in Blush and Espresso | plans 05-01, 05-37 |
+| `@long-text` | 100-character names and 256-character emails (made with the staff fixture's optional `firstName`, `lastName` and `email`) on the Phase 5 screens at 320 and 390 px: the profile header, the Sign-in Email card, the pending-change note, the roster cells, the Edit and Add User panels, the dialog titles, the toast, the Audit Log and Users chips and the confirm-email page wrap or are cut short inside the width; the sidebar chip and the top bar name keep one line; the panels and dialogs keep their footer buttons reachable at 320 x 568 and at 640 x 360 (200% zoom) | plan 05-37 |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 
@@ -134,7 +136,7 @@ Every gate, its command and its pass rule, and the order to run them before veri
 The E2E host runs in the **Testing** environment of a **Debug** build, the same environment the .NET integration tests use. That gives E2E tests two things they need, because every sign-in ends with an emailed code (plan 04-10, QUAL-05):
 
 - `GET /api/testing/emails?after=<id>&to=<address>` returns the mail the app delivered to the in-memory sink as `[{ id, to, subject, text, html, sentAt }]`, oldest first. **E2E never sends real mail** (D-27): in Testing every email goes to the sink, and nothing is sent over SMTP.
-- `POST /api/testing/staff` with `{ "role": "Admin" | "Manager", "state"?: "active" | "deactivated" }` creates a fresh staff user (`e2e-<guid>@csps.test`, a random 16-character password that meets the password rule) and returns `{ userId, email, password }`. Every test makes its own user, so one test's resend cooldown, caps and lockouts never reach another.
+- `POST /api/testing/staff` with `{ "role": "Admin" | "Manager", "state"?: "active" | "deactivated" }` creates a fresh staff user (`e2e-<guid>@csps.test`, a random 16-character password that meets the password rule) and returns `{ userId, email, password }`. The optional `firstName` and `lastName` (1 to 100 characters) and `email` (an address ending in `@csps.test`, at most 256 characters) give the user a chosen identity; without them the user is "E2E Staff" with a random address. Every test makes its own user, so one test's resend cooldown, caps and lockouts never reach another.
 
 Both routes are compiled into Debug builds only (`CSPS_TESTING`), mapped only in the Testing environment, and a Release build is proven to contain none of it (`ReleaseHasNoEmailSinkTests`). A Debug build refuses to start as Production.
 
@@ -153,7 +155,7 @@ test('@example a staff user gets a code by email', async ({ request }) => {
 });
 ```
 
-`createStaff(request, role, state?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject?, after? })` are the whole API. `after` is the id of the last mail already seen, so a test that signs in twice reads the second code and not the first.
+`createStaff(request, role, state?, identity?)`, `readEmails(request, { to?, after? })` and `latestEmail(request, to, { subject?, after? })` are the whole API. `after` is the id of the last mail already seen, so a test that signs in twice reads the second code and not the first.
 
 `web/e2e/auth.ts` builds on them for the sign-in flow (plan 04-27):
 

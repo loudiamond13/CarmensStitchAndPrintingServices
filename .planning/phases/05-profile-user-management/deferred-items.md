@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T15:15:50-05:00
+updated: 2026-10-18T17:40:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -14,11 +14,51 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Why deferred:** The app has no host scheduler on the Basic hosting plan. Scheduled jobs run from GitHub Actions calling a secret-protected endpoint, and that endpoint and its job runner are built in Phase 9. Building a one-off purge now would create a second, unscheduled path to the same table.
 - **Covered meanwhile:** A deleted user's outbox rows are scrubbed at delete time (plan 05-26), so a removed staff address does not wait for the purge.
 
+## Security items for /gsd-secure-phase 5 (found in Phase 5; not fixed here)
+
+These are the Phase 5 findings that belong to the security review, kept together on purpose. Plan 05-37 recorded them and fixed none of them. Each names the plan that found it, the exposure, what covers it meanwhile and a likely fix.
+
+### Idempotency records keep an unsalted hash of password bodies (found in plan 05-12)
+
+- **What:** `IdempotencyRecords.RequestHash` is SHA-256 over the request target and body, with no salt. For `POST /api/v1/profile/password` (and the reset and invite accept calls) the body holds the passwords, so someone who could read that table could test guesses offline against the hash. The plan's T-05-32 says only the 204 answer is stored; the hash is stored too, for 24 hours.
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to key the hash with a server secret (HMAC) or to skip body bytes for password routes.
+- **Covered meanwhile:** the record expires after 24 hours, the table is not exposed by any endpoint, and the passwords themselves are never stored, logged or audited.
+
+### Email-change routes store the same unsalted body hash (found in plan 05-14)
+
+- **What (1):** `POST /api/v1/profile/email-change` has the current password in its body, and `.../confirm` has the link token, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of each for 24 hours. This is the same exposure as the password routes above (the token is also hashed in `AccountTokens`, so only the password body matters).
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the password-route item above (HMAC the hash or skip body bytes for these routes).
+- **Note for 05-16:** `ApplyPendingEmailAsync` records the account itself as the last changer with a second, unstamped save, so the result is right whether or not a session of someone else rides along on the anonymous confirm call. The web confirm page (05-16) need not send an Authorization header for this to hold.
+- **Covered meanwhile:** the record expires after 24 hours and no endpoint exposes the table; `TheLastChangerIsTheAccountItselfEvenAfterAnEarlierSelfEdit` pins the attribution.
+
+### Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
+
+- **What:** `POST /api/v1/users` with access `temporary-password` has the temporary password in its body, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of the target and body for 24 hours. This is the same exposure as the password and email-change routes above. The password itself is never stored in plain text, returned, logged, audited or emailed (a test reads the record and checks the response, location and route), and it is single-use: the person must replace it at their first sign-in.
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the items above (HMAC the hash or skip body bytes for these routes).
+- **Covered meanwhile:** the record expires after 24 hours, no endpoint exposes the table, and the value stops working as soon as the person sets their own password.
+
+### Session cache is evicted just before the idempotency transaction commits (found in plan 05-21)
+
+- **What:** `DeactivateUserHandler` and `ActivateUserHandler` evict the person from `ISessionCache` after their own unit of work returns, but the idempotency gate's outer transaction (which holds the state change, the revoked sessions and the stored answer) commits a moment later. A request by the deactivated person that reads the session in that few-millisecond window sees the old committed state and could cache "active" for up to 60 seconds. `SignOutOthersHandler`, `RevokeSessionHandler` and the password handlers have the same ordering.
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to evict from the idempotency middleware after the commit, or to drop the cache entry's lifetime for revoked sessions.
+- **Covered meanwhile:** the window needs a request from the person at that exact moment, the cache lifetime is 60 seconds, and the refresh route and a new sign-in re-check the account against the database, so a deactivated person cannot renew or start a session.
+
+### The idempotency gate lets three answers keep their changes without storing the answer (found in plans 05-12, 05-14 and 05-37)
+
+- **What:** The gate normally stores only 2xx, 400, 404 and 422 answers and rolls everything else back, so the same key may run again. Three endpoint branches opt out of the rollback with `IdempotencyOutcome.KeepChanges`: `POST /api/v1/profile/password` and `POST /api/v1/profile/email-change` when the answer is `429 profile.password-locked` (the wrong password that locked the account must stay counted), and `POST /api/v1/profile/email-change/confirm` when the answer is `409 email-change.taken` (the spent link and the cleared pending address must stay). The answer is not stored, so a retry with the same key runs the handler again instead of replaying.
+- **Why it needs the security review:** it is an opt-in that skips the gate's own safety net. A new endpoint that calls it by copy and paste would commit changes on a failure answer. The review should confirm that the three call sites are the only ones, that a retry of the same key cannot double a side effect (a second email, a second counted failure beyond the intended one), and whether an `ArchUnit` or coverage test should pin the list of call sites.
+- **Covered meanwhile:** only the three branches above call it (`grep KeepChanges`), each has an integration test for its 429 or 409 answer, and the lockout counter is the behaviour the owner asked for (Phase 4 D-39).
+
+### Where the Phase 5 security items are handled
+
+- All four items above and the one before this line go to `/gsd-secure-phase 5`. None of them blocks `/gsd-verify-work 5` or `/gsd-ship 5` on its own; the security gate decides.
+
 ## Slow first test in the admin route suite (found in plan 05-07)
 
 - **What:** In `web/src/modules/admin/routes.test.tsx`, the first test of the guarded-routes group ("opening /admin/orders without a session refreshes once and lands on the sign-in page with the return path") and, in one run, the dev-routes test ("with the dev routes added, /dev/components and the section previews render without a session or a refresh") timed out at the 5 s default in each of four full `npm --prefix web run test -- --run src/modules/admin` runs with 24 parallel workers. The file passes every time when it runs with only a few others.
 - **Cause (likely):** the first lazy route import is slow while many workers start at once. The plan 05-07 change was type-only in the web app, so it did not cause this.
 - **Deferred to:** the Phase 5 close-out test review, which can raise that one test's timeout or reduce worker load.
+- **Resolved in plan 05-37:** `routes.test.tsx` waits 15 s (the poll for the sign-in page in the first test, the showcase heading in the dev-routes test) and the file runs with a 15 s test timeout, set for that file only with `vi.setConfig`. The same cold-start wait is in `ResetPasswordPage.test.tsx` and `VerifyCodePage.test.tsx`. Three consecutive runs of `routes.test.tsx` passed 20 of 20 under load; the global 5 s default is unchanged.
 
 ## Owner wording review: OQ-7 and OQ-11 (owner, 2026-10-17)
 
@@ -32,20 +72,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Deferred to:** plan 05-37 (screen review), which already owns the `owner-review.mjs` page list. The same applies to `users` and `audit-log` when 05-20 and 05-33 replace their previews, so 05-37 needs a signed-in capture path (the E2E staff helper) rather than another unsigned list.
 - **Covered meanwhile:** `web/e2e/profile.spec.ts` (`@profile`) proves the real page on every tab, with axe and no sideways scrolling, in all five projects.
 - **Same for `/admin/users` (found in plan 05-20):** plan 05-20 made Users a real, Manager-only page and removed `users` from the `devRoutes`, so `owner-review.mjs` (`admin-users`) and `design-side-by-side.mjs` (`/admin/users`) now meet the sign-in page on the e2e host. Plan 05-37 gives them the signed-in capture path. `web/e2e/users.spec.ts` (`@users`) covers the real page with axe and the 320 px width meanwhile.
-
-## Idempotency records keep an unsalted hash of password bodies (found in plan 05-12)
-
-- **What:** `IdempotencyRecords.RequestHash` is SHA-256 over the request target and body, with no salt. For `POST /api/v1/profile/password` (and the reset and invite accept calls) the body holds the passwords, so someone who could read that table could test guesses offline against the hash. The plan's T-05-32 says only the 204 answer is stored; the hash is stored too, for 24 hours.
-- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to key the hash with a server secret (HMAC) or to skip body bytes for password routes.
-- **Covered meanwhile:** the record expires after 24 hours, the table is not exposed by any endpoint, and the passwords themselves are never stored, logged or audited.
-
-## Email-change routes store the same unsalted body hash (found in plan 05-14)
-
-- **What (1):** `POST /api/v1/profile/email-change` has the current password in its body, and `.../confirm` has the link token, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of each for 24 hours. This is the same exposure as the password routes above (the token is also hashed in `AccountTokens`, so only the password body matters).
-- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the password-route item above (HMAC the hash or skip body bytes for these routes).
-- **Note for 05-16:** `ApplyPendingEmailAsync` records the account itself as the last changer with a second, unstamped save, so the result is right whether or not a session of someone else rides along on the anonymous confirm call. The web confirm page (05-16) need not send an Authorization header for this to hold.
-- **Covered meanwhile:** the record expires after 24 hours and no endpoint exposes the table; `TheLastChangerIsTheAccountItselfEvenAfterAnEarlierSelfEdit` pins the attribution.
-
+- **Resolved in plan 05-37:** `owner-review.mjs` now signs a seeded Manager in through the Testing staff fixture and the code in the mail sink (the review host runs in the Testing environment like the E2E host) and photographs `/admin/users`, `/admin/profile` and the new `/admin/audit-log` signed in. `design-side-by-side.mjs` reads the same `shots/` files, so its Users and My Profile pairs are now the real pages with no change to its list. The Broken Windows ledger entry 3 is marked fixed.
 
 ## Firefox "font preloaded but not used" console warning under parallel Playwright load (found in plans 05-08, 05-18 and 05-28)
 
@@ -54,18 +81,6 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Covered meanwhile:** the failing runs pass at `--workers=2`; no product behavior is affected.
 - **Seen again in 05-28:** with 4 workers the long Firefox `@users-actions` journey (1.3 min) failed on this warning; the same test passes alone and at `--workers=2`. In the `@users` run at `--workers=2` it hit the untouched first `@users` roster test (passes alone). 05-28 code loads no fonts.
 - **Resolved in 05-33:** the `@audit` journeys on `/admin/audit-log` hit the warning in Firefox even with one worker (the warning follows the time a document stays open, not the load). `web/e2e/fixtures.ts` now ignores exactly this warning (the page's own `/assets/archivo-latin-wght-normal-*.woff2` and Firefox's wording), the way it already ignores WebKit's module-preload warning. The fonts spec still proves the font preloads once and loads from the same origin. The close-out test review can confirm or revert that guard change.
-
-## Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
-
-- **What:** `POST /api/v1/users` with access `temporary-password` has the temporary password in its body, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of the target and body for 24 hours. This is the same exposure as the password and email-change routes above. The password itself is never stored in plain text, returned, logged, audited or emailed (a test reads the record and checks the response, location and route), and it is single-use: the person must replace it at their first sign-in.
-- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the items above (HMAC the hash or skip body bytes for these routes).
-- **Covered meanwhile:** the record expires after 24 hours, no endpoint exposes the table, and the value stops working as soon as the person sets their own password.
-
-## Session cache is evicted just before the idempotency transaction commits (found in plan 05-21)
-
-- **What:** `DeactivateUserHandler` and `ActivateUserHandler` evict the person from `ISessionCache` after their own unit of work returns, but the idempotency gate's outer transaction (which holds the state change, the revoked sessions and the stored answer) commits a moment later. A request by the deactivated person that reads the session in that few-millisecond window sees the old committed state and could cache "active" for up to 60 seconds. `SignOutOthersHandler`, `RevokeSessionHandler` and the password handlers have the same ordering.
-- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to evict from the idempotency middleware after the commit, or to drop the cache entry's lifetime for revoked sessions.
-- **Covered meanwhile:** the window needs a request from the person at that exact moment, the cache lifetime is 60 seconds, and the refresh route and a new sign-in re-check the account against the database, so a deactivated person cannot renew or start a session.
 
 ## Owner ruling: pending email change hides Change Email (owner, 2026-10-18)
 
@@ -102,18 +117,50 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Cause (likely):** plan 05-20 added `min-w-0` to `cellUserTextClasses` (`web/src/components/lists/lists.recipe.ts`) so a long name or email wraps inside its column. The frozen reference fragment has `min-width: auto` there. Plan 05-35 touched no list code; it changed only the showcase files, the route table, the build rules and two shell previews, none of which the `@lists` scenarios render.
 - **Deferred to:** the Phase 5 close-out test review. Options: record a parity exception for `min-width` on that span (the 05-20 wrapping is a deliberate difference), or move the wrapping to a wrapper the reference does not have.
 - **Covered meanwhile:** the other 443 parity cases pass, including the shell layouts and the previews plan 05-35 changed; `UserCell` wrapping is pinned by the 05-20 unit tests and the `@users` E2E at 320 px.
+- **Resolved in plan 05-37 (choice recorded):** the smallest change that kept long-name wrapping and made the matrix green was a documented parity ruling, not a code change. Removing `min-w-0` from the user cell fixed the 390 and 1440 px rows but changed the 820 px table layout (the narrower minimum width of `overflow-wrap: anywhere` lets the table shrink), so two new Chromium rows failed. Moving the wrapping to a wrapper element would have been a structural difference from the approved markup. So the rulings layer gives the frozen reference's name column the same two declarations the app uses (`min-width: 0` and `overflow-wrap: anywhere`, ruling `P5 long-text`, `web/visual/reference/rulings.css`, listed in `docs/web/parity.md` section 6). All 48 `@lists` rows pass in Chromium, Firefox and WebKit and the matrix passes in full.
 
 ## Owner ruling: Firefox Archivo font-preload warning (owner, 2026-10-18)
 
 - **Ruled:** ignore it. The 05-33 e2e console-guard exception for Firefox's "preloaded but not used" warning on the Archivo font stays; no preload change is needed. Archivo is the body font (base.css `--font-sans`), so the warning is a timing artifact of short test page loads.
+- **Confirmed in plan 05-37:** the ruling stands. The exception in `web/e2e/fixtures.ts` (exactly Firefox's wording for the page's own `/assets/archivo-latin-wght-normal-*.woff2`) is kept, and the full E2E run in plan 05-37 shows it still needs no other exception.
 
 ## Flaky under load: AdminLayout "shows the new name in the Sidebar chip" (found in plan 05-42)
 
 - **What:** In one full `npm --prefix web run verify` run (186 files), `src/layouts/AdminLayout.test.tsx > AdminLayout session user (PROF-01) > shows the new name in the Sidebar chip and the user menu button after the session user changes, without a reload` failed with "Unable to find an element with the text: Ana Cruz". Run alone it passed 3 of 3 times, and the next full `verify` run passed all 5432 tests. Plan 05-42 touched no layout or session code.
 - **Likely cause:** a timing race in the test under a loaded machine (the name update is awaited with a short timeout).
 - **Deferred to:** the Phase 5 close-out test review.
+- **Resolved in plan 05-37:** the test waited for the new name synchronously after `act`. It now waits for the sidebar chip and the user menu button with `findBy` (5 s), so a loaded machine cannot fail it. The same close-out fixed the other load-flaky tests listed under "Other load-flaky tests" below.
 
 ## Stale build output makes `build-output.node.test.ts` fail until the next build (found in plan 05-42)
 
 - **What:** `verify` runs `test:coverage` before `build`, and `src/test/build-output.node.test.ts` reads `src/Csps.Server/wwwroot`. After a change to shipped showcase data (the owner's example.com ruling), the first `verify` fails on the address check until `npm --prefix web run build` has refreshed the output. Running `build` once, then `verify`, passes.
 - **Deferred to:** the Phase 5 close-out test review (option: order the build before the node build-output tests).
+
+## Other load-flaky tests fixed in plan 05-37
+
+- **`EditUserPanel` "shows Saving while the request runs and sends one request":** the mocked save answered after a fixed 400 ms, and two user-event clicks on a loaded machine can take longer than that, so the Saving label was gone before the test looked for it. The request now waits on a gate that the test opens after it has seen "Saving". It has no timing left in it.
+- **`AdminLayout` sidebar-name test:** see the entry above.
+- **`routes.test.tsx`, `ResetPasswordPage.test.tsx`, `VerifyCodePage.test.tsx` cold starts:** see "Slow first test in the admin route suite".
+- **How they were checked:** each fixed file was run several times together; the whole web suite was run twice in plan 05-37 (`npm --prefix web run verify`, then again) and the result is in the plan's SUMMARY.
+
+## Duplicate audit words (05-43 follow-up), fixed in plan 05-37
+
+- **What:** `SignOutOthersHandler`, `ChangePasswordHandler`, `CurrentPasswordCheck`, the six Users handlers that end sessions, `SetTemporaryPasswordHandler`, `CreateUserHandler`, `ConfirmEmailChangeHandler` and `ResendEmailChangeHandler` held their own copies of audit detail words.
+- **Fixed:** they now write `AuditActions.Detail*`. Four constants were added (`DetailProfile`, `DetailManager`, `DetailTaken`, `DetailResent`). The strings are the same, so no behaviour changed; the Domain and Application unit tests pass.
+
+## Stale build output makes `build-output.node.test.ts` fail until the next build (found in plan 05-42)
+
+- **Still deferred, with a reason:** `verify` runs `test:coverage` before `build`, and `web/scripts/verify.test.ts` pins that order. Reordering would move the build ahead of the type, lint and unit gates and make a broken build mask a test failure, so the step order is left as it is. The failure only happens after the shipped showcase data changes (the owner's example.com ruling) and `npm --prefix web run build` followed by `verify` passes. Plan 05-37 changed no shipped data and the gate ran after a fresh build.
+
+## Phase 5 close-out: what is still open for the owner (plan 05-37)
+
+The owner review pack is `artifacts/owner-review/index.html` (git-ignored; section "Profile, users and audit log (Phase 5)"). OQ-1 to OQ-11 are ruled (CONTEXT D-42 to D-48) and are listed on the pack's rulings page only as already ruled. What is **still open**:
+
+1. **Screen wording (D-48):** every new or amended string on the Phase 5 screens, including the sentences the executors wrote where the UI-SPEC had none (the Edit User email choice and notes, the refusals, the Audit Log "What changed" lines, "Unknown person", the toasts). The pack's table "Words on the Phase 5 screens" lists them all. Emails were approved on 2026-10-18 (plan 05-31) and are not part of this.
+2. **The four flagged edge assumptions:** PROF-02, PROF-03, USER-05, USER-07 (pack table "The four flagged edge assumptions").
+3. **The 40 temporary-password words** (plan 05-22; listed in the pack).
+4. **Motion and the tab bar on a real phone:** drawer, user menu and a dialog, with reduce motion on and off; the tab bar at the bottom on a short page.
+5. **The email-change mail in a real inbox** (SMTP on a dev account: the new-address link and the old-address notice).
+6. **The refresh cookie after the next deploy:** `Expires` only when "Keep me signed in" is ticked (Phase 4 carry-over).
+
+Wording the owner changes becomes a follow-up for `/gsd-verify-work 5`.
