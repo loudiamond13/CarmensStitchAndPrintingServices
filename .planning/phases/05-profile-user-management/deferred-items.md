@@ -102,3 +102,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Cause (likely):** plan 05-20 added `min-w-0` to `cellUserTextClasses` (`web/src/components/lists/lists.recipe.ts`) so a long name or email wraps inside its column. The frozen reference fragment has `min-width: auto` there. Plan 05-35 touched no list code; it changed only the showcase files, the route table, the build rules and two shell previews, none of which the `@lists` scenarios render.
 - **Deferred to:** the Phase 5 close-out test review. Options: record a parity exception for `min-width` on that span (the 05-20 wrapping is a deliberate difference), or move the wrapping to a wrapper the reference does not have.
 - **Covered meanwhile:** the other 443 parity cases pass, including the shell layouts and the previews plan 05-35 changed; `UserCell` wrapping is pinned by the 05-20 unit tests and the `@users` E2E at 320 px.
+
+## Owner ruling: Firefox Archivo font-preload warning (owner, 2026-10-18)
+
+- **Ruled:** ignore it. The 05-33 e2e console-guard exception for Firefox's "preloaded but not used" warning on the Archivo font stays; no preload change is needed. Archivo is the body font (base.css `--font-sans`), so the warning is a timing artifact of short test page loads.
