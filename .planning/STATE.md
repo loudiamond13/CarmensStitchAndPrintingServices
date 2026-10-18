@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-10-18T00:50:36.291Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-10-18T01:15:43.294Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: bce048fecba6034a3296b569d6f9a40b040ba0cd
+state_head: 8294272f92fa9fafbd5da941796dfb57b6d1c034
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 117
+  completed_plans: 118
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T14:20:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 4 of 43
+Plan: 5 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -173,6 +173,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P01 | 39 min | 3 tasks | 11 files |
 | Phase 05 P02 | 29 min | 3 tasks | 16 files |
 | Phase 05 P03 | 22 min | 2 tasks | 9 files |
+| Phase 05 P04 | 25 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -439,6 +440,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-01: sideways-scroll guard compares scrollWidth with clientWidth and requires html/body overflow-x visible; D-05 did not reproduce at this commit
 - [Phase 05]: 05-02: the presence node is the dialog panel and usePresence decides in a layout effect, so a no-animation dialog leaves before paint; the closing overlay is also inert
 - [Phase 05]: 05-03: a refresh that brings an unknown server role is refused as a 401 so ensureSession gives null and the session-ended path runs (IN-17) — One signed-out path for every refused refresh; the shell never guesses Manager
+- [Phase 05]: 05-04: shared sink wait (AuthClient.Patience) is 30 s, returning as soon as mail arrives; the resend-cap proof is unchanged
 
 ### Pending Todos
 
@@ -498,6 +500,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T00:50:35.637Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-10-18T01:15:42.598Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
