@@ -426,10 +426,16 @@ export interface paths {
         /** Reads one person with their edit version and who created and last changed them (SEC-08). */
         get: operations["GetUser"];
         /**
-         * Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409
-         *     `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`),
-         *     and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends every session of the
-         *     person at once. Saving the values already stored is a 200 that changes and records nothing.
+         * Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other
+         *     answers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422
+         *     `users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends
+         *     every session of the person at once. Saving the values already stored is a 200 that changes and records nothing.
+         *     When the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is
+         *     a 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,
+         *     with a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email
+         *     in the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves
+         *     at once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored
+         *     when the email is unchanged.
          */
         put: operations["UpdateUser"];
         post?: never;
@@ -471,6 +477,27 @@ export interface paths {
          */
         post: operations["DeactivateUser"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/email-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With
+         *     nothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My
+         *     Profile for their own account (422 `users.own-account`).
+         */
+        delete: operations["CancelUserEmailChange"];
         options?: never;
         head?: never;
         patch?: never;
@@ -755,8 +782,19 @@ export interface components {
             /** @description The edit version as a GUID in `D` form. */
             version: null | string;
         };
-        /** @description The Edit User form a Manager saves for another person: the names, the role and the edit version the form was opened with (SEC-07). */
+        /**
+         * @description The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was
+         *     opened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).
+         */
         UpdateUserRequest: {
+            /** @description The sign-in email the person should have; send the stored one to leave it alone. */
+            email?: null | string;
+            /**
+             * @description How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the
+             *     email changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an
+             *     invited person with no password yet always moves at once.
+             */
+            emailChange?: null | string;
             /** @description Given name. */
             firstName: null | string;
             /** @description Family name. */
@@ -2327,6 +2365,74 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CancelUserEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

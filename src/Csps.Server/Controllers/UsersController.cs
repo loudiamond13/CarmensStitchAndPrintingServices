@@ -17,6 +17,7 @@ namespace Csps.Server.Controllers;
 /// <param name="deactivate">The deactivate handler.</param>
 /// <param name="activate">The reactivate handler.</param>
 /// <param name="update">The edit-a-person handler.</param>
+/// <param name="cancelEmailChange">The handler that calls off a waiting email change.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
@@ -28,7 +29,8 @@ public sealed class UsersController(
     CreateUserHandler create,
     DeactivateUserHandler deactivate,
     ActivateUserHandler activate,
-    UpdateUserHandler update) : ControllerBase
+    UpdateUserHandler update,
+    CancelUserEmailChangeHandler cancelEmailChange) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -96,10 +98,16 @@ public sealed class UsersController(
     }
 
     /// <summary>
-    /// Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409
-    /// <c>edit.stale</c> and changes nothing (SEC-07). A Manager cannot edit their own account here (422 <c>users.own-account</c>),
-    /// and cannot demote the last active Manager (422 <c>users.last-active-manager</c>). A role change ends every session of the
-    /// person at once. Saving the values already stored is a 200 that changes and records nothing.
+    /// Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other
+    /// answers 409 <c>edit.stale</c> and changes nothing (SEC-07). A Manager cannot edit their own account here (422
+    /// <c>users.own-account</c>), and cannot demote the last active Manager (422 <c>users.last-active-manager</c>). A role change ends
+    /// every session of the person at once. Saving the values already stored is a 200 that changes and records nothing.
+    /// When the email differs from the stored one, <c>emailChange</c> must say how it applies (D-45), and a missing or unknown value is
+    /// a 400 on that field: <c>confirm</c> keeps the sign-in email and sends the new address a confirmation link that names the Manager,
+    /// with a notice to the old address (C-9), and the answer shows the new address as <c>pendingEmail</c>; <c>now</c> changes the email
+    /// in the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves
+    /// at once and gets a fresh invitation at the new address. A taken address is a 400 on <c>email</c>. <c>emailChange</c> is ignored
+    /// when the email is unchanged.
     /// </summary>
     /// <param name="id">The account id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
@@ -121,6 +129,28 @@ public sealed class UsersController(
     {
         var result = await update.HandleAsync(id, body ?? UpdateUserRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static person => TypedResults.Ok(person));
+    }
+
+    /// <summary>
+    /// Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With
+    /// nothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My
+    /// Profile for their own account (422 <c>users.own-account</c>).
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when two saves lost a race, or 422 for the caller's own account.</returns>
+    [HttpDelete("{id:guid}/email-change")]
+    [EndpointName("CancelUserEmailChange")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> CancelEmailChange(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await cancelEmailChange.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 
     /// <summary>

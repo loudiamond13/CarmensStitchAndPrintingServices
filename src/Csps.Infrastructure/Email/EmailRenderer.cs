@@ -56,6 +56,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             InviteEmail invite => Invite(invite),
             EmailChangeConfirmEmail confirm => ConfirmEmailChange(confirm),
             EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
+            ManagerEmailChangedEmail changed => ManagerEmailChanged(changed, clock.Zone),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -174,7 +175,9 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Heading: "Confirm your new email",
             Blocks:
             [
-                new ParagraphBlock($"You asked to change the sign-in email for your CSPS staff account from {email.OldEmail} to {email.To}.", Strong: email.To),
+                string.IsNullOrWhiteSpace(email.ChangedBy)
+                    ? new ParagraphBlock($"You asked to change the sign-in email for your CSPS staff account from {email.OldEmail} to {email.To}.", Strong: email.To)
+                    : new ParagraphBlock($"{email.ChangedBy} changed the sign-in email for your CSPS staff account to {email.To}.", Strong: email.To),
                 new ParagraphBlock($"Open the link to confirm. It works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
                 new ParagraphBlock("Didn't ask for this? Ignore this email. Nothing changes."),
             ],
@@ -193,6 +196,22 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new ParagraphBlock("If this wasn't you, change your password now and tell a Manager."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
+
+    // Wording is built from the owner's D-45 ruling and is not yet approved (D-48).
+    private static EmailContent ManagerEmailChanged(ManagerEmailChangedEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "A Manager changed your CSPS sign-in email",
+            Preheader: "Sign in with your new email from now on.",
+            Heading: "Your sign-in email was changed",
+            Blocks:
+            [
+                new ParagraphBlock($"{email.ChangedBy} changed your sign-in email to {email.NewEmail}.", Strong: email.NewEmail),
+                new MetaBlock($"Changed {Format(email.ChangedAt, zone)}."),
+                new ParagraphBlock($"From now on, sign in with {email.NewEmail}. This address, {email.To}, no longer signs in to CSPS."),
+                new ParagraphBlock(SessionsEndedLine),
+                new ParagraphBlock("If you didn't expect this, tell a Manager."),
+            ],
+            Button: null);
 
     // The branded frame (D-30): the HTML part and the plain-text part are both built from the same blocks.
     private static RenderedEmail Brand(EmailContent content)

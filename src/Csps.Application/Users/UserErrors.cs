@@ -30,6 +30,12 @@ public static class UserErrors
     /// <summary>The plain-English text under the email field when another account already uses the address.</summary>
     public const string EmailInUseMessage = "Another account already uses this email.";
 
+    /// <summary>The form field that says how a changed email applies (D-45).</summary>
+    public const string EmailChangeField = "emailChange";
+
+    /// <summary>The plain-English text under the email-change choice when it is missing or unknown.</summary>
+    public const string EmailChangeChoiceMessage = "Choose how the email change applies.";
+
     /// <summary>The code of a change that would leave no active Manager (D-18).</summary>
     public const string LastActiveManagerCode = "users.last-active-manager";
 
@@ -56,6 +62,12 @@ public static class UserErrors
 
     /// <summary>Gets the answer for a Manager acting on their own account: a 422 that changes nothing.</summary>
     public static Error OwnAccount { get; } = Error.BusinessRule(OwnAccountCode, OwnAccountMessage);
+
+    /// <summary>Gets the answer for a changed email with no valid choice of how it applies (D-45): a 400 on the choice field.</summary>
+    public static Error EmailChangeChoiceRequired { get; } = Error.Validation(
+        AuthErrors.ValidationCode,
+        AuthErrors.ValidationMessage,
+        new Dictionary<string, string[]> { [EmailChangeField] = [EmailChangeChoiceMessage] });
 
     /// <summary>Gets the answer for creating a person whose email another account already uses: a 400 on the email field.</summary>
     public static Error EmailInUse { get; } = Error.Validation(

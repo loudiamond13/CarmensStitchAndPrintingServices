@@ -78,11 +78,17 @@ public static class AuditActions
     /// <summary>A Manager reactivated a user; no detail (D-40).</summary>
     public const string UserActivated = "user.activated";
 
-    /// <summary>A Manager changed another person's first or last name; the detail lists the changed fields, never the names (D-40).</summary>
+    /// <summary>A Manager changed another person's first or last name or sign-in email; the detail lists the changed fields, never the values (D-40).</summary>
     public const string UserDetailsChanged = "user.details-changed";
 
     /// <summary>A Manager changed another person's role; the detail is <c>role=old&gt;new</c> in lower case, never a name (D-40).</summary>
     public const string UserRoleChanged = "user.role-changed";
+
+    /// <summary>A Manager started a confirm-by-link email change for another person; no detail and no address (C-9, D-40).</summary>
+    public const string UserEmailChangeStarted = "user.email-change-started";
+
+    /// <summary>A new invitation replaced the old one, because the invited person's address moved or a Manager sent it again; no detail (D-40).</summary>
+    public const string UserInvitationResent = "user.invitation-resent";
 
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
@@ -135,6 +141,8 @@ public static class AuditActions
         UserActivated,
         UserDetailsChanged,
         UserRoleChanged,
+        UserEmailChangeStarted,
+        UserInvitationResent,
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,

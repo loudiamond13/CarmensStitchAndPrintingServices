@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace Csps.EmailPreview;
 
 /// <summary>
-/// The email preview tool (D-30, D-27): shows the owner all seven auth emails rendered, either sent to one address through
+/// The email preview tool (D-30, D-27): shows the owner all eight auth emails rendered, either sent to one address through
 /// the real SMTP path (<c>--to</c>) or written as .html and .txt files (<c>--out</c>). It runs only in Development and uses
 /// fixed sample values, so nothing real is ever in a preview. Exit codes: 0 done, 1 failed, 2 refused, 64 usage or settings error.
 /// </summary>
@@ -102,7 +102,7 @@ public static class Program
         return await SendAsync(options.To!, rendered, configuration, transport, output, error, cancellationToken).ConfigureAwait(false);
     }
 
-    // Name, then the sample, for the seven auth emails. The values are fixed and fictional.
+    // Name, then the sample, for the eight auth emails. The values are fixed and fictional.
     private static IEnumerable<(string Name, AuthEmail Email)> Samples()
     {
         var chrome = new DeviceDescription("Chrome on Android", true);
@@ -113,6 +113,7 @@ public static class Program
         yield return ("manager-reset", new ManagerResetEmail(SampleAddress, "Carmen Reyes", SampleTime));
         yield return ("deactivated", new DeactivatedNoticeEmail(SampleAddress));
         yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddDays(7), SampleTime));
+        yield return ("manager-changed-email", new ManagerEmailChangedEmail(SampleAddress, "paolo.new@gmail.com", "Carmen Reyes", SampleTime));
     }
 
     // The files are only for looking at, so the logo is inlined as a data URL there (a browser has no CID parts).

@@ -706,8 +706,22 @@
         "type": "object"
       },
       "UpdateUserRequest": {
-        "description": "The Edit User form a Manager saves for another person: the names, the role and the edit version the form was opened with (SEC-07).",
+        "description": "The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was\r\nopened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).",
         "properties": {
+          "email": {
+            "description": "The sign-in email the person should have; send the stored one to leave it alone.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "emailChange": {
+            "description": "How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the\r\nemail changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an\r\ninvited person with no password yet always moves at once.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "firstName": {
             "description": "Given name.",
             "type": [
@@ -2985,7 +2999,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409\r\n`edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`),\r\nand cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends every session of the\r\nperson at once. Saving the values already stored is a 200 that changes and records nothing.",
+        "summary": "Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other\r\nanswers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422\r\n`users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends\r\nevery session of the person at once. Saving the values already stored is a 200 that changes and records nothing.\r\nWhen the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is\r\na 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,\r\nwith a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email\r\nin the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves\r\nat once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored\r\nwhen the email is unchanged.",
         "tags": [
           "Users"
         ]
@@ -3124,6 +3138,85 @@
           }
         },
         "summary": "Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old\r\ntoken is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/email-change": {
+      "delete": {
+        "operationId": "CancelUserEmailChange",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With\r\nnothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My\r\nProfile for their own account (422 `users.own-account`).",
         "tags": [
           "Users"
         ]

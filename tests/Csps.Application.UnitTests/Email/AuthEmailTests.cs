@@ -3,7 +3,7 @@ using Csps.Domain.Identity;
 
 namespace Csps.Application.UnitTests.Email;
 
-/// <summary>AUTH-13: the nine auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
+/// <summary>AUTH-13, D-45: the ten auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
 public sealed class AuthEmailTests
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 14, 8, 0, 0, TimeSpan.Zero);
@@ -24,6 +24,7 @@ public sealed class AuthEmailTests
             AuthEmailKind.Invite,
             AuthEmailKind.EmailChangeConfirm,
             AuthEmailKind.EmailChangeNotice,
+            AuthEmailKind.ManagerEmailChanged,
         ]);
     }
 
@@ -46,6 +47,7 @@ public sealed class AuthEmailTests
         new ManagerResetEmail("a@example.com", "Carmen Reyes", CreatedAt).NotAfter(CreatedAt).ShouldBe(expected);
         new DeactivatedNoticeEmail("a@example.com").NotAfter(CreatedAt).ShouldBe(expected);
         new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(expected);
+        new ManagerEmailChangedEmail("a@example.com", "b@example.com", "Carmen Reyes", CreatedAt).NotAfter(CreatedAt).ShouldBe(expected);
     }
 
     [Fact]
@@ -94,6 +96,14 @@ public sealed class AuthEmailTests
         notice.NewEmail.ShouldBe("b@example.com");
         notice.RequestedAt.ShouldBe(CreatedAt);
         notice.Device.ShouldBe(Device);
+        confirm.ChangedBy.ShouldBeNull();
+        new EmailChangeConfirmEmail("b@example.com", "t", ExpiresAt, CreatedAt, "a@example.com", "Carmen Reyes").ChangedBy.ShouldBe("Carmen Reyes");
+
+        var moved = new ManagerEmailChangedEmail("a@example.com", "b@example.com", "Carmen Reyes", CreatedAt);
+        moved.To.ShouldBe("a@example.com");
+        moved.NewEmail.ShouldBe("b@example.com");
+        moved.ChangedBy.ShouldBe("Carmen Reyes");
+        moved.ChangedAt.ShouldBe(CreatedAt);
     }
 
     private static AuthEmail[] Kinds() =>
@@ -107,5 +117,6 @@ public sealed class AuthEmailTests
         new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt),
         new EmailChangeConfirmEmail("b@example.com", "token", ExpiresAt, CreatedAt, "a@example.com"),
         new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device),
+        new ManagerEmailChangedEmail("a@example.com", "b@example.com", "Carmen Reyes", CreatedAt),
     ];
 }

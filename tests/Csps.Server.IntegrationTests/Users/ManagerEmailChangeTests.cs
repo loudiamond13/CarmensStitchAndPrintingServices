@@ -341,7 +341,7 @@ public sealed class ManagerEmailChangeTests(CspsDatabase database) : IClassFixtu
         var staff = await AuthClient.CreateStaffAsync(factory, role: Roles.Admin);
         var before = await UserFixtures.ReadDetailAsync(client, manager.AccessToken, staff.Id);
 
-        using var response = await PutAsync(client, manager.AccessToken, staff.Id, Form(before, new string('a', 250) + "@x.com", "now"));
+        using var response = await PutAsync(client, manager.AccessToken, staff.Id, Form(before, new string('a', 251) + "@x.com", "now"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("email")

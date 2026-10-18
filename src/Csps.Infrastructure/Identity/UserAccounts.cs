@@ -300,6 +300,12 @@ internal sealed class UserAccounts(
                 changed.Add(EditedFields.LastName);
             }
 
+            var emailChanges = change.Email is not null && !string.Equals(user.Email, change.Email, StringComparison.OrdinalIgnoreCase);
+            if (emailChanges)
+            {
+                changed.Add(EditedFields.Email);
+            }
+
             var previousRole = change.Role is null ? null : (await users.GetRolesAsync(user).ConfigureAwait(false)).FirstOrDefault();
             var roleChanges = change.Role is not null && !string.Equals(previousRole, change.Role, StringComparison.Ordinal);
             if (roleChanges)
@@ -317,13 +323,40 @@ internal sealed class UserAccounts(
                 ? await roles.FindByNameAsync(change.Role!).ConfigureAwait(false) ?? throw new InvalidOperationException($"The role '{change.Role}' does not exist.")
                 : null;
 
+            // Checked before anything is set, so a taken address leaves the account untouched (the unique index decides a race below).
+            var normalizedEmail = emailChanges ? users.NormalizeEmail(change.Email) : null;
+            if (emailChanges && await IsAddressHeldByAnotherAsync(id, normalizedEmail!, cancellationToken).ConfigureAwait(false))
+            {
+                return new DetailsEditResult(EditOutcome.EmailTaken, user.EditVersion, []);
+            }
+
             // The UPDATE's WHERE carries the version the form was opened with, so a racing save changes no row.
             context.Entry(user).Property(static account => account.EditVersion).OriginalValue = expectedVersion;
             user.FirstName = change.FirstName;
             user.LastName = change.LastName;
+            if (emailChanges)
+            {
+                user.Email = change.Email;
+                user.UserName = change.Email;
+                user.NormalizedEmail = normalizedEmail;
+                user.NormalizedUserName = users.NormalizeName(change.Email);
+                user.PendingEmail = null;
+            }
+
             user.EditVersion = Guid.NewGuid();
 
-            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            IdentityResult result;
+            try
+            {
+                result = await users.UpdateAsync(user).ConfigureAwait(false);
+            }
+            catch (DbUpdateException error) when (emailChanges && error.InnerException is SqlException { Number: 2601 or 2627 })
+            {
+                // Two accounts took the address in the same instant; the unique index let one through.
+                await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+                return new DetailsEditResult(EditOutcome.EmailTaken, user.EditVersion, []);
+            }
+
             if (result.Succeeded)
             {
                 if (newRole is not null)
@@ -332,6 +365,12 @@ internal sealed class UserAccounts(
                 }
 
                 return new DetailsEditResult(EditOutcome.Saved, user.EditVersion, changed, roleChanges ? previousRole : null);
+            }
+
+            if (emailChanges && result.Errors.Any(static error => error.Code is nameof(IdentityErrorDescriber.DuplicateEmail) or nameof(IdentityErrorDescriber.DuplicateUserName)))
+            {
+                await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+                return new DetailsEditResult(EditOutcome.EmailTaken, user.EditVersion, []);
             }
 
             if (attempt == CountAttempts || !IsConcurrencyFailure(result))
@@ -423,6 +462,10 @@ internal sealed class UserAccounts(
             await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private Task<bool> IsAddressHeldByAnotherAsync(Guid id, string normalized, CancellationToken cancellationToken) =>
+        context.Users.AnyAsync(
+            other => other.Id != id && (other.NormalizedEmail == normalized || other.NormalizedUserName == normalized), cancellationToken);
 
     // A person holds exactly one role. Only the link rows change, so the account row is not written a second time.
     private async Task SwapRoleAsync(Guid id, Guid roleId, CancellationToken cancellationToken)

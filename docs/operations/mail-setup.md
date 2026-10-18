@@ -1,6 +1,6 @@
 ---
 created: 2026-10-14T18:00:00-05:00
-updated: 2026-10-17T20:55:00-05:00
+updated: 2026-10-18T07:10:00-05:00
 ---
 
 # Mail setup: the app's sender mailbox and the .NET security update
@@ -86,7 +86,7 @@ This is the 2026-10-13 Microsoft security release. It is a free Microsoft downlo
 
 ## Preview the emails
 
-The seven emails staff receive (sign-in code, account locked, password reset, password changed, reset by a Manager, deactivated account, invite) are designed to match the site. Look at them before they go live. The preview uses made-up sample values (code 482913, Carmen Reyes, a token that does not work), so nothing real is in it. It runs only in Development and refuses anywhere else.
+The eight emails staff receive (sign-in code, account locked, password reset, password changed, reset by a Manager, deactivated account, invite, sign-in email changed by a Manager) are designed to match the site. Look at them before they go live. The preview uses made-up sample values (code 482913, Carmen Reyes, a token that does not work), so nothing real is in it. It runs only in Development and refuses anywhere else.
 
 Both commands run in a normal PowerShell window from the project folder, and the second line makes this terminal a Development one only for that window.
 

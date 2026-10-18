@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace Csps.Infrastructure.IntegrationTests.Email;
 
 /// <summary>
-/// AUTH-13, D-20, D-24, D-25, D-29, D-30, D-31, D-32: all nine auth emails carry the UI-SPEC words, business time,
+/// AUTH-13, D-20, D-24, D-25, D-29, D-30, D-31, D-32, D-45: all ten auth emails carry the UI-SPEC words, business time,
 /// a safe link, encoded values and no remote resource, IP address or unfilled placeholder.
 /// </summary>
 public sealed class EmailRendererTests
@@ -33,6 +33,7 @@ public sealed class EmailRendererTests
         new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At),
         new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"),
         new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome),
+        new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At),
     ];
 
     [Theory]
@@ -44,6 +45,7 @@ public sealed class EmailRendererTests
     [InlineData(AuthEmailKind.Invite, "Set up your CSPS staff account")]
     [InlineData(AuthEmailKind.EmailChangeConfirm, "Confirm your new CSPS email")]
     [InlineData(AuthEmailKind.EmailChangeNotice, "Your CSPS email is being changed")]
+    [InlineData(AuthEmailKind.ManagerEmailChanged, "A Manager changed your CSPS sign-in email")]
     public async Task EachKindRendersItsUiSpecSubject(AuthEmailKind kind, string subject)
     {
         var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
@@ -90,6 +92,7 @@ public sealed class EmailRendererTests
         { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
         { new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"), "Confirm your new email", "This link works for 24 hours.", "Confirm Email", $"{BaseUrl}/admin/confirm-email#token={Token}" },
         { new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome), "Email change requested", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
+        { new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At), "Your sign-in email was changed", "Sign in with your new email from now on.", null, null },
     };
 
     [Theory]
@@ -360,6 +363,64 @@ public sealed class EmailRendererTests
         CountOf(rendered.Html, Token).ShouldBe(2);
         rendered.Subject.ShouldNotContain(Token);
         rendered.Html.ShouldContain($"href=\"{link}\"");
+    }
+
+    [Fact]
+    public async Task AManagerStartedConfirmEmailNamesTheManagerInsteadOfTheSelfSentence()
+    {
+        var rendered = await RenderAsync(
+            new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com", ChangedBy: "Carmen Reyes"));
+
+        rendered.Subject.ShouldBe("Confirm your new CSPS email");
+        rendered.Text.ShouldContain("Carmen Reyes changed the sign-in email for your CSPS staff account to paolo.new@gmail.com.");
+        rendered.Text.ShouldNotContain("You asked to change");
+        rendered.Html.ShouldContain("<strong style=\"font-weight:700\">paolo.new@gmail.com</strong>");
+        rendered.Text.ShouldContain("Open the link to confirm. It works for 24 hours and only once.");
+        rendered.Text.ShouldContain($"Confirm Email: {BaseUrl}/admin/confirm-email#token={Token}");
+        CountOf(rendered.Text, Token).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheManagerNameIsHtmlEncodedAndABlankOneFallsBackToTheSelfSentence()
+    {
+        var encoded = await RenderAsync(
+            new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com", ChangedBy: "Carmen <Boss> & Co"));
+        var blank = await RenderAsync(
+            new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com", ChangedBy: "  "));
+
+        encoded.Html.ShouldContain("Carmen &lt;Boss&gt; &amp; Co changed the sign-in email");
+        encoded.Html.ShouldNotContain("<Boss>");
+        blank.Text.ShouldContain("You asked to change the sign-in email for your CSPS staff account from paolo.garcia@gmail.com to paolo.new@gmail.com.");
+    }
+
+    [Fact]
+    public async Task TheManagerChangedNoticeGoesToTheOldAddressWithTheTimeTheSignedOutLineAndNoLinkOrToken()
+    {
+        var rendered = await RenderAsync(new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At));
+
+        rendered.Subject.ShouldBe("A Manager changed your CSPS sign-in email");
+        rendered.Text.ShouldContain("Carmen Reyes changed your sign-in email to paolo.new@gmail.com.");
+        rendered.Text.ShouldContain("Changed Oct 14, 2026, 3:42 PM.");
+        rendered.Text.ShouldContain("From now on, sign in with paolo.new@gmail.com. This address, paolo.garcia@gmail.com, no longer signs in to CSPS.");
+        rendered.Text.ShouldContain("For your safety, every device signed in to your account was signed out.");
+        rendered.Text.ShouldContain("If you didn't expect this, tell a Manager.");
+        rendered.Text.ShouldNotContain("http");
+        rendered.Html.ShouldNotContain("<a ");
+        rendered.Html.ShouldContain("<strong style=\"font-weight:700\">paolo.new@gmail.com</strong>");
+    }
+
+    [Fact]
+    public async Task TheManagerChangedNoticeEncodesTheManagerNameAndBothAddresses()
+    {
+        var rendered = await RenderAsync(new ManagerEmailChangedEmail("old&y<i>@example.com", "new&x<b>@example.com", "Carmen <Boss>", At));
+
+        rendered.Html.ShouldContain("Carmen &lt;Boss&gt; changed your sign-in email to");
+        rendered.Html.ShouldContain("new&amp;x&lt;b&gt;@example.com");
+        rendered.Html.ShouldContain("old&amp;y&lt;i&gt;@example.com");
+        rendered.Html.ShouldNotContain("<Boss>");
+        rendered.Html.ShouldNotContain("<b>");
+        rendered.Html.ShouldNotContain("<i>");
+        rendered.Text.ShouldContain("Carmen <Boss> changed your sign-in email to new&x<b>@example.com.");
     }
 
     [Fact]

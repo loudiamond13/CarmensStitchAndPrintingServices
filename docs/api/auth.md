@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-18T01:35:00-05:00
+updated: 2026-10-18T07:20:00-05:00
 ---
 
 # The authentication and sessions API
@@ -94,6 +94,27 @@ The sign-in email changes only when the new inbox confirms. The link goes to the
 | `DELETE /profile/email-change` | Staff | none | `204`. Calls off the waiting change: its links stop working and the pending address is cleared. With nothing waiting it still answers `204` and records nothing. Takes no row version (naturally idempotent). `409` only when two saves lost a race. |
 
 The emailed link is `/admin/confirm-email#token=...` (the token sits in the fragment, never in a URL path or query). It works for 24 hours and only once.
+
+### A Manager changes a colleague's email (USER-03, C-9, D-45)
+
+A Manager edits another person with `PUT /users/{id}` (Manager policy; an Admin gets `403`). The body carries the names, the role, the edit
+version and the sign-in `email`, which is always required ("Enter a valid email, like name@gmail.com" under `email` when it is missing, blank or
+malformed). When the email differs from the stored one (a different letter case is the same address), the body must also say how it applies in
+`emailChange`. The server never infers it, and it is ignored when the email is unchanged.
+
+| `emailChange` | What happens |
+|---|---|
+| `confirm` | The sign-in email stays. The new address becomes `pendingEmail`, a 24-hour single-use link goes to it with the line "{Manager name} changed the sign-in email for your CSPS staff account to {new email}.", and a notice goes to the old address. The change applies only when the link is confirmed (`POST /profile/email-change/confirm`). The person is not signed out. Audit `user.email-change-started`. |
+| `now` | The email and user name change in the same guarded save. Every session of the person ends at once, any pending change and open email-change links are closed, and a notice ("A Manager changed your CSPS sign-in email") goes to the old address. Audit `user.details-changed` (`fields=email`) and `auth.sessions-revoked` (`account-changed`). |
+| missing or unknown | `400` under `emailChange` ("Choose how the email change applies."). Nothing changes. |
+
+A person invited but not yet set up has no password to confirm with, so the address always moves at once whichever value is sent: the old invitation
+link stops working and a fresh 7-day one goes to the new address (audit `user.details-changed` and `user.invitation-resent`). A taken address is
+`400` under `email` ("Another account already uses this email."). A stale `version` is `409` `edit.stale`.
+
+| Method and path | Policy | Body | Answers |
+|---|---|---|---|
+| `DELETE /users/{id}/email-change` | Manager | none | `204`. Calls off the person's waiting change: its links stop working and the pending address is cleared. With nothing waiting it still answers `204` and records nothing. Takes no row version. `404` `users.not-found` for an unknown or deleted person, `422` `users.own-account` for the caller's own account (they use My Profile), `409` only when two saves lost a race. Audit `profile.email-change-canceled` with the Manager as actor. |
 
 The password rule (D-11, `PasswordPolicy`): 8 to 64 characters with at least one number and one symbol, not on the
 breached-password list, and without the person's name or email parts of 3 or more characters.
@@ -221,6 +242,8 @@ in `AuditActions`; `docs/operations/audit-log.md` explains the log itself.
 | `auth.invite-accepted` | An invited person set a password and activated the account. |
 | `user.bootstrap-manager-created` | The first Manager was created by the bootstrap command. |
 | `user.invited` | A person was invited. |
+| `user.email-change-started` | A Manager started a confirm-by-link email change for another person. |
+| `user.invitation-resent` | A new invitation replaced the old one (a Manager moved the address of a person who has not set up their account). |
 
 ## For a future Android client
 

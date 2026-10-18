@@ -125,6 +125,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 400),
         // Editing another person (USER-03): Managers only. A random id with no body meets the same 400 field errors.
         new("PUT", "/api/v1/users/{id:guid}", "/api/v1/users/c2f6a8d3-91b4-47e5-8d0a-6b3e7f1c4a92", Anonymous: 401, Admin: 403, Manager: 400),
+        // Calling off a waiting email change (USER-03, C-9): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("DELETE", "/api/v1/users/{id:guid}/email-change", "/api/v1/users/e4b1d7a2-3c58-49f6-9a0e-5d2c8f1b6e37/email-change", Anonymous: 401, Admin: 403, Manager: 404),
         // Deactivating and reactivating (USER-03): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("POST", "/api/v1/users/{id:guid}/deactivate", "/api/v1/users/5b8e2c71-4d90-4a3f-8c16-0f7d3a9e6b24/deactivate", Anonymous: 401, Admin: 403, Manager: 404),
         new("POST", "/api/v1/users/{id:guid}/activate", "/api/v1/users/9c4a1e58-7f2b-4d63-b0a9-3e8d5c2f1a76/activate", Anonymous: 401, Admin: 403, Manager: 404),

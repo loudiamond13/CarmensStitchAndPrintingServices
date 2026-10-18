@@ -152,10 +152,12 @@ public interface IUserAccounts
     Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Changes the details a Manager edits on another person (names and role; the email follows) when
+    /// Changes the details a Manager edits on another person (names, role and, when asked, the sign-in email) when
     /// <paramref name="expectedVersion"/> is the stored edit version, and rotates that version (SEC-07). Identity bookkeeping
     /// never rotates it. Values that already match change nothing. A role change swaps the person's one role in the same
-    /// unit of work; ending their sessions is the caller's job.
+    /// unit of work; ending their sessions is the caller's job. A new email replaces <c>Email</c> and <c>UserName</c> with their
+    /// normalized forms and clears any pending address, in the same guarded update; another account holding it answers
+    /// <see cref="EditOutcome.EmailTaken"/> and changes nothing.
     /// </summary>
     /// <param name="id">The account id.</param>
     /// <param name="change">The new values, already trimmed.</param>
@@ -214,6 +216,9 @@ public enum EditOutcome
 
     /// <summary>No such account.</summary>
     NotFound = 3,
+
+    /// <summary>Another account already holds the new email, so nothing was written.</summary>
+    EmailTaken = 4,
 }
 
 /// <summary>The result of a versioned edit.</summary>
@@ -225,7 +230,8 @@ public readonly record struct EditResult(EditOutcome Outcome, Guid Version);
 /// <param name="FirstName">The new given name, already trimmed.</param>
 /// <param name="LastName">The new family name, already trimmed.</param>
 /// <param name="Role">The new role (<c>Admin</c> or <c>Manager</c>); null leaves the role alone.</param>
-public sealed record UserDetailsChange(string FirstName, string LastName, string? Role = null);
+/// <param name="Email">The new sign-in email, already trimmed; null leaves the email alone. The same address in another letter case is no change.</param>
+public sealed record UserDetailsChange(string FirstName, string LastName, string? Role = null, string? Email = null);
 
 /// <summary>The audit names of the fields a staff edit can change (field names only, D-40).</summary>
 public static class EditedFields
@@ -235,6 +241,9 @@ public static class EditedFields
 
     /// <summary>The family name.</summary>
     public const string LastName = "last-name";
+
+    /// <summary>The sign-in email.</summary>
+    public const string Email = "email";
 
     /// <summary>The role.</summary>
     public const string Role = "role";

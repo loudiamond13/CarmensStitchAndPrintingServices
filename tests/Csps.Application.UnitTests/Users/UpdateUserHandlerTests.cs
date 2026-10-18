@@ -1,5 +1,6 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
+using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.UnitTests.Auth;
@@ -20,6 +21,9 @@ namespace Csps.Application.UnitTests.Users;
 /// </summary>
 public sealed class UpdateUserHandlerTests
 {
+    private const string TargetEmail = "person@csps.test";
+    private const string Secret = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+
     private static readonly DateTimeOffset Start = new(2026, 10, 18, 8, 0, 0, TimeSpan.Zero);
     private static readonly Guid CallerId = Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43");
     private static readonly Guid TargetId = Guid.Parse("0d8f2f6e-5c0a-4a64-9f4e-2b6e4d1d7a10");
@@ -244,7 +248,7 @@ public sealed class UpdateUserHandlerTests
         var result = await harness.Handler.HandleAsync(TargetId, UpdateUserRequest.Empty, TestContext.Current.CancellationToken);
 
         result.Error.Code.ShouldBe(AuthErrors.ValidationCode);
-        result.Error.FieldErrors.ShouldNotBeNull().Keys.Order().ToArray().ShouldBe(["firstName", "lastName", "role", "version"]);
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.Order().ToArray().ShouldBe(["email", "firstName", "lastName", "role", "version"]);
         await harness.RosterLock.DidNotReceive().LockActiveManagersAsync(Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
@@ -310,7 +314,7 @@ public sealed class UpdateUserHandlerTests
     }
 
     private static UserAccount Account(Guid id, string role) =>
-        new(id, "person@csps.test", "Ana", "Abad", role, IsActive: true, EmailConfirmed: true, HasPassword: true, MustChangePassword: null, BreachRecheckPending: false, LockoutEnd: null);
+        new(id, TargetEmail, "Ana", "Abad", role, IsActive: true, EmailConfirmed: true, HasPassword: true, MustChangePassword: null, BreachRecheckPending: false, LockoutEnd: null);
 
     private sealed class Harness
     {
@@ -332,8 +336,15 @@ public sealed class UpdateUserHandlerTests
             RosterLock = Substitute.For<IManagerRosterLock>();
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
+            Tokens = Substitute.For<IAccountTokens>();
+            Tokens.When(store => store.Add(Arg.Any<AccountToken>())).Do(call => Added.Add(call.Arg<AccountToken>()));
+            Random = Substitute.For<ISecureRandom>();
+            Random.NewToken().Returns(Secret);
+            Directory.GetProfileAsync(CallerId, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<ProfileView?>(
+                new ProfileView(CallerId, "Carmen", "Reyes", "carmen@csps.test", "Manager", null, Start.AddDays(-90), Guid.NewGuid())));
             Handler = new UpdateUserHandler(
-                Accounts, Directory, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), request, new UpdateUserRequestValidator(), Audit, Unit, new FakeTimeProvider(Start));
+                Accounts, Directory, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), request, new UpdateUserRequestValidator(), Audit, Unit,
+                new FakeTimeProvider(Start), Tokens, Random, Outbox, new AuthSettings());
         }
 
         public UserAccount? Target { get; set; }
@@ -354,13 +365,22 @@ public sealed class UpdateUserHandlerTests
 
         public IManagerRosterLock RosterLock { get; }
 
+        public IAccountTokens Tokens { get; }
+
+        public ISecureRandom Random { get; }
+
+        public List<AccountToken> Added { get; } = [];
+
+        public RecordingOutbox Outbox { get; } = new();
+
         public RecordingAudit Audit { get; } = new();
 
         public FakeUnitOfWork Unit { get; } = new();
 
         public UpdateUserHandler Handler { get; }
 
-        public static UpdateUserRequest Form(string first, string last, string role) => new(first, last, role, OpenedVersion.ToString("D"));
+        public static UpdateUserRequest Form(string first, string last, string role, string email = TargetEmail, string? emailChange = null) =>
+            new(first, last, role, OpenedVersion.ToString("D"), email, emailChange);
 
         public Task<Result<UserDetailResponse>> SaveAsync(string first = "Ana", string last = "Cruz", string role = "Admin") =>
             Handler.HandleAsync(TargetId, Form(first, last, role), TestContext.Current.CancellationToken);

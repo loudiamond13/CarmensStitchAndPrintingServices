@@ -31,6 +31,9 @@ public enum AuthEmailKind
 
     /// <summary>The notice to the current address that an email change was requested (C-9).</summary>
     EmailChangeNotice = 9,
+
+    /// <summary>The notice to the old address that a Manager changed the sign-in email at once (D-45).</summary>
+    ManagerEmailChanged = 10,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -176,7 +179,9 @@ public sealed record InviteEmail(string To, string Token, DateTimeOffset Expires
 /// <param name="ExpiresAt">When the link stops working.</param>
 /// <param name="RequestedAt">When the change was requested.</param>
 /// <param name="OldEmail">The current sign-in email, named in the text.</param>
-public sealed record EmailChangeConfirmEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string OldEmail) : AuthEmail(To)
+/// <param name="ChangedBy">The Manager who started the change (C-9); null when the person asked for it themselves.</param>
+public sealed record EmailChangeConfirmEmail(
+    string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string OldEmail, string? ChangedBy = null) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.EmailChangeConfirm;
@@ -198,6 +203,20 @@ public sealed record EmailChangeNoticeEmail(string To, string NewEmail, DateTime
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.EmailChangeNotice;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The notice to the old address that a Manager changed the sign-in email at once and signed the person out (D-45).</summary>
+/// <param name="To">The old sign-in email.</param>
+/// <param name="NewEmail">The address that now signs in.</param>
+/// <param name="ChangedBy">The Manager's display name.</param>
+/// <param name="ChangedAt">When the email changed.</param>
+public sealed record ManagerEmailChangedEmail(string To, string NewEmail, string ChangedBy, DateTimeOffset ChangedAt) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.ManagerEmailChanged;
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
