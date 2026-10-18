@@ -5,7 +5,7 @@ using PreviewProgram = Csps.EmailPreview.Program;
 namespace Csps.Infrastructure.IntegrationTests.Email;
 
 /// <summary>
-/// D-30, D-27: the preview tool shows the owner all eight emails rendered. It runs only in Development, takes either an
+/// D-30, D-27: the preview tool shows the owner all fourteen emails rendered (every Phase 4 and Phase 5 email and variant). It runs only in Development, takes either an
 /// address or a folder, never opens SMTP when writing files and never sends real mail in a test.
 /// </summary>
 public sealed class EmailPreviewTests
@@ -15,7 +15,9 @@ public sealed class EmailPreviewTests
 
     private static readonly string[] ExpectedNames =
     [
-        "account-locked", "deactivated", "invite", "manager-changed-email", "manager-reset", "password-changed", "reset-link", "sign-in-code",
+        "account-locked", "deactivated", "email-change-confirm", "email-change-confirm-by-manager", "email-change-notice", "invite",
+        "invite-by-manager", "manager-changed-email", "manager-reset", "manager-reset-link", "password-changed",
+        "password-changed-other-devices", "reset-link", "sign-in-code",
     ];
 
     [Fact]
@@ -51,7 +53,7 @@ public sealed class EmailPreviewTests
     }
 
     [Fact]
-    public async Task OutWritesEightHtmlAndEightTextFilesAndNeverTouchesSmtp()
+    public async Task OutWritesFourteenHtmlAndFourteenTextFilesAndNeverTouchesSmtp()
     {
         var folder = NewFolder();
         try
@@ -63,7 +65,7 @@ public sealed class EmailPreviewTests
             run.ExitCode.ShouldBe(0, run.Error);
             transport.Sent.ShouldBeEmpty();
             var files = Directory.GetFiles(folder).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToList();
-            files.Count.ShouldBe(16);
+            files.Count.ShouldBe(28);
             files.ShouldBe(ExpectedNames.SelectMany(name => new[] { $"{name}.html", $"{name}.txt" }).Order(StringComparer.Ordinal));
 
             var signInHtml = await File.ReadAllTextAsync(Path.Combine(folder, "sign-in-code.html"), TestContext.Current.CancellationToken);
@@ -75,7 +77,21 @@ public sealed class EmailPreviewTests
             (await File.ReadAllTextAsync(Path.Combine(folder, "manager-reset.html"), TestContext.Current.CancellationToken)).ShouldContain("Carmen Reyes");
             (await File.ReadAllTextAsync(Path.Combine(folder, "manager-changed-email.txt"), TestContext.Current.CancellationToken))
                 .ShouldContain("Carmen Reyes changed your sign-in email to paolo.new@gmail.com.");
-            run.Output.ShouldContain("16 files");
+            (await File.ReadAllTextAsync(Path.Combine(folder, "invite-by-manager.txt"), TestContext.Current.CancellationToken))
+                .ShouldContain("Carmen Reyes set up your account.");
+            var managerLink = await File.ReadAllTextAsync(Path.Combine(folder, "manager-reset-link.txt"), TestContext.Current.CancellationToken);
+            managerLink.ShouldContain("Carmen Reyes sent you this link");
+            managerLink.ShouldContain("preview-token-not-valid");
+            (await File.ReadAllTextAsync(Path.Combine(folder, "email-change-confirm.txt"), TestContext.Current.CancellationToken))
+                .ShouldContain("You asked to change the sign-in email");
+            (await File.ReadAllTextAsync(Path.Combine(folder, "email-change-confirm-by-manager.txt"), TestContext.Current.CancellationToken))
+                .ShouldContain("Carmen Reyes changed the sign-in email");
+            (await File.ReadAllTextAsync(Path.Combine(folder, "email-change-notice.txt"), TestContext.Current.CancellationToken))
+                .ShouldContain("Someone asked to change the sign-in email");
+            var everywhere = await File.ReadAllTextAsync(Path.Combine(folder, "password-changed.txt"), TestContext.Current.CancellationToken);
+            var otherDevices = await File.ReadAllTextAsync(Path.Combine(folder, "password-changed-other-devices.txt"), TestContext.Current.CancellationToken);
+            otherDevices.ShouldNotBe(everywhere);
+            run.Output.ShouldContain("28 files");
         }
         finally
         {
@@ -84,19 +100,19 @@ public sealed class EmailPreviewTests
     }
 
     [Fact]
-    public async Task ToSendsTheEightSamplesToTheOneAddressAndPrintsOnlyTheCount()
+    public async Task ToSendsTheFourteenSamplesToTheOneAddressAndPrintsOnlyTheCount()
     {
         var transport = new RecordingTransport();
 
         var run = await RunAsync(["--to", Address], "Development", Settings(), transport);
 
         run.ExitCode.ShouldBe(0, run.Error);
-        transport.Sent.Count.ShouldBe(8);
+        transport.Sent.Count.ShouldBe(14);
         transport.Sent.ShouldAllBe(email => email.To == Address);
-        transport.Sent.Select(email => email.Subject).Distinct(StringComparer.Ordinal).Count().ShouldBe(8);
+        transport.Sent.Select(email => email.Subject).Distinct(StringComparer.Ordinal).Count().ShouldBe(14);
         transport.Sent.ShouldContain(email => email.Subject == "482913 is your CSPS sign-in code");
         transport.Sent.ShouldAllBe(email => email.Html.Contains("cid:csps-logo", StringComparison.Ordinal));
-        run.Output.Trim().ShouldBe("Sent 8 preview emails.");
+        run.Output.Trim().ShouldBe("Sent 14 preview emails.");
         run.Output.ShouldNotContain(Address);
     }
 
