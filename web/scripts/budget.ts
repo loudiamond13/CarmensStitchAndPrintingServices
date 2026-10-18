@@ -112,6 +112,10 @@ export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'visual/',
 ]);
 
+/** Inert placeholders until the showcase rule is built (plan 05-35). */
+export const SHOWCASE_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([]);
+export const SHOWCASE_PAGE = '';
+
 /**
  * Module ids the public initial JS must never contain (PERF-02): TanStack Query and the admin app load with the admin
  * chunks, so `/` ships only what the holding page needs. The admin route table (`routes.tsx`) is the one admin module
