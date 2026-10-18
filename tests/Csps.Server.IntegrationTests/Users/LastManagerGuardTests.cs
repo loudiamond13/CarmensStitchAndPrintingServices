@@ -8,8 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Server.IntegrationTests.Users;
 
 /// <summary>
-/// USER-04, D-18, D-19, T-05-60, T-05-70: the shop is never left without an active Manager, even when two Managers deactivate or lock each other at
-/// the same moment, and nobody acts on their own account. An active Manager is role Manager, active, not deleted and not
+/// USER-04, D-18, D-19, T-05-60, T-05-70: the shop is never left without an active Manager, even when two Managers deactivate, lock or
+/// delete each other at the same moment, and nobody acts on their own account. An active Manager is role Manager, active, not deleted and not
 /// Manager-locked; a failed-password lockout does not count against them.
 /// </summary>
 public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture<CspsDatabase>
@@ -226,6 +226,94 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
             {
                 new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
                     .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
+            }
+
+            (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
+        }
+    }
+
+    [Fact]
+    public async Task AManagerDeletesAnotherManagerWhileOneRemainsAndAnAdminIsNeverCounted()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var a = await TestSessions.StartAsync(factory, Roles.Manager);
+        var b = await TestSessions.StartAsync(factory, Roles.Manager);
+        var c = await TestSessions.StartAsync(factory, Roles.Admin);
+
+        using (var deleted = await UserFixtures.DeleteAsync(client, a.AccessToken, b.UserId))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        // An Admin is not a Manager, so deleting one never needs another Manager to remain.
+        using (var admin = await UserFixtures.DeleteAsync(client, a.AccessToken, c.UserId))
+        {
+            admin.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await ActiveManagersAsync()).ShouldBe([a.UserId]);
+    }
+
+    [Fact]
+    public async Task DeletingTheLastActiveManagerIsRefusedAndNothingChanges()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var a = await TestSessions.StartAsync(factory, Roles.Manager);
+        var b = await TestSessions.StartAsync(factory, Roles.Manager);
+        await AccountStateFixtures.ManagerLockAsync(factory, a.UserId);
+
+        // The caller is Manager-locked, so b is the only active Manager left.
+        using var response = await UserFixtures.DeleteAsync(client, a.AccessToken, b.UserId);
+
+        await AssertRefusedAsync(response, LastManagerCode, LastManagerMessage);
+        (await ActiveManagersAsync()).ShouldBe([b.UserId]);
+        (await UserFixtures.ReadDetailAsync(client, b.AccessToken, b.UserId)).GetProperty("status").GetString().ShouldBe("active");
+    }
+
+    [Fact]
+    public async Task AManagerDeletingTheirOwnAccountIsRefusedAndNothingChanges()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var a = await TestSessions.StartAsync(factory, Roles.Manager);
+        var b = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        using var response = await UserFixtures.DeleteAsync(client, a.AccessToken, a.UserId);
+
+        await AssertRefusedAsync(response, OwnAccountCode, OwnAccountMessage);
+        (await ActiveManagersAsync()).Order().ShouldBe(new[] { a.UserId, b.UserId }.Order());
+        (await UserFixtures.ReadDetailAsync(client, a.AccessToken, a.UserId)).GetProperty("status").GetString().ShouldBe("active");
+    }
+
+    [Fact]
+    public async Task TwoManagersDeletingEachOtherTogetherLeaveExactlyOneActiveEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+
+        for (var run = 0; run < 20; run++)
+        {
+            await database.ResetAsync();
+            var a = await TestSessions.StartAsync(factory, Roles.Manager);
+            var b = await TestSessions.StartAsync(factory, Roles.Manager);
+            (await AuthClient.SiteSettingsStatusAsync(client, a.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+            (await AuthClient.SiteSettingsStatusAsync(client, b.AccessToken)).ShouldBe(HttpStatusCode.OK, $"run {run}");
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => UserFixtures.DeleteAsync(client, a.AccessToken, b.UserId),
+                () => UserFixtures.DeleteAsync(client, b.AccessToken, a.UserId));
+            using (first)
+            using (second)
+            {
+                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
+                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
+                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
+                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");

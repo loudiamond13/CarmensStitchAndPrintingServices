@@ -37,7 +37,7 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         var linkBeforeDelete = await AuthClient.RequestResetTokenAsync(mailbox, staff.Email, emailsSoFar: 1);
         var before = await ReadRowAsync(staff.Id);
 
-        using (var deleted = await DeleteAsync(managerClient, manager.AccessToken, staff.Id))
+        using (var deleted = await UserFixtures.DeleteAsync(managerClient, manager.AccessToken, staff.Id))
         {
             deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
@@ -104,13 +104,13 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dan", "Twice", Roles.Admin);
 
-        using (var first = await DeleteAsync(client, manager.AccessToken, person.Id))
+        using (var first = await UserFixtures.DeleteAsync(client, manager.AccessToken, person.Id))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
         var afterFirst = await ReadRowAsync(person.Id);
-        using (var second = await DeleteAsync(client, manager.AccessToken, person.Id))
+        using (var second = await UserFixtures.DeleteAsync(client, manager.AccessToken, person.Id))
         {
             second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
             var problem = await ProblemJson.ReadAsync(second, TestContext.Current.CancellationToken);
@@ -131,7 +131,7 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         using var client = AuthClient.CreateClient(factory);
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
 
-        using var response = await DeleteAsync(client, manager.AccessToken, Guid.NewGuid());
+        using var response = await UserFixtures.DeleteAsync(client, manager.AccessToken, Guid.NewGuid());
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(NotFoundCode);
@@ -145,7 +145,7 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var old = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Olga", "Old", Roles.Admin);
 
-        using (var deleted = await DeleteAsync(client, manager.AccessToken, old.Id))
+        using (var deleted = await UserFixtures.DeleteAsync(client, manager.AccessToken, old.Id))
         {
             deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
@@ -168,7 +168,7 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Ari", "Audited", Roles.Admin);
 
-        (await DeleteAsync(client, manager.AccessToken, person.Id)).Dispose();
+        (await UserFixtures.DeleteAsync(client, manager.AccessToken, person.Id)).Dispose();
 
         await using var context = database.CreateContext();
         var key = person.Id.ToString("D");
@@ -188,8 +188,8 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         var admin = await TestSessions.StartAsync(factory, Roles.Admin);
         var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Una", "Untouched", Roles.Admin);
 
-        using var asAdmin = await DeleteAsync(client, admin.AccessToken, person.Id);
-        using var anonymous = await DeleteAsync(client, null, person.Id);
+        using var asAdmin = await UserFixtures.DeleteAsync(client, admin.AccessToken, person.Id);
+        using var anonymous = await UserFixtures.DeleteAsync(client, null, person.Id);
 
         asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -205,7 +205,7 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         using var client = AuthClient.CreateClient(factory);
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Rey", "Final", Roles.Admin);
-        (await DeleteAsync(client, manager.AccessToken, person.Id)).Dispose();
+        (await UserFixtures.DeleteAsync(client, manager.AccessToken, person.Id)).Dispose();
 
         using var response = await UserFixtures.ActionAsync(client, manager.AccessToken, person.Id, action);
 
@@ -213,12 +213,6 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         using var activate = await UserFixtures.ActionAsync(client, manager.AccessToken, person.Id, "activate");
         activate.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ReadRowAsync(person.Id)).DeletedAtUtc.ShouldNotBeNull();
-    }
-
-    private static async Task<HttpResponseMessage> DeleteAsync(HttpClient client, string? accessToken, Guid id)
-    {
-        using var request = ApiRequests.Create(HttpMethod.Delete, $"{UserFixtures.Route}/{id:D}", accessToken);
-        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task<HttpResponseMessage> InviteAsync(HttpClient client, string accessToken, string email)
