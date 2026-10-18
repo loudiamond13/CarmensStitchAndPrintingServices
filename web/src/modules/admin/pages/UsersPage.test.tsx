@@ -826,3 +826,208 @@ describe('U3 Edit User from the page (USER-03)', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+// U4 row actions (USER-03, OQ-1, OQ-3; plan 05-28): the status toggle, Deactivate behind a confirm, Activate at once.
+describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+  const LIZA_ID = '00000000-0000-4000-8000-000000000003';
+
+  interface Posted {
+    action: 'deactivate' | 'activate';
+    id: string;
+    key: string | null;
+  }
+
+  /** A roster whose rows change status when the POSTs land; records each POST with its Idempotency-Key. */
+  function rosterWithToggles(fail?: (action: string) => Response | null): { posted: Posted[]; calls: URL[] } {
+    const rows = ROWS.map((row) => ({ ...row }));
+    const posted: Posted[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    const handler =
+      (action: 'deactivate' | 'activate') =>
+      ({ params, request }: { params: Record<string, unknown>; request: Request }) => {
+        const id = String(params.id);
+        posted.push({ action, id, key: request.headers.get('Idempotency-Key') });
+        const refused = fail?.(action) ?? null;
+        if (refused !== null) {
+          return refused;
+        }
+        const row = rows.find((candidate) => candidate.id === id);
+        if (row !== undefined) {
+          row.status = action === 'deactivate' ? 'inactive' : 'active';
+        }
+        return new HttpResponse(null, { status: 204 });
+      };
+    server.use(
+      http.post('*/api/v1/users/:id/deactivate', handler('deactivate')),
+      http.post('*/api/v1/users/:id/activate', handler('activate')),
+    );
+    return { posted, calls };
+  }
+
+  const toggle = (name: string) => screen.getByRole('button', { name });
+
+  it('gives every other row a status toggle: Deactivate for Active and Locked, Activate for Inactive, none on your own row', async () => {
+    backend();
+    await openPage();
+
+    for (const [row, name, icon] of [
+      ['Paolo Garcia', 'Deactivate Paolo', 'lucide-user-x'],
+      ['Rhea Villanueva', 'Deactivate Rhea', 'lucide-user-x'],
+      ['Liza Mercado', 'Activate Liza', 'lucide-user-check'],
+    ] as const) {
+      const button = within(rowOf(row)).getByRole('button', { name });
+      expect(button).toHaveAttribute('title', name);
+      expect(button.querySelector('svg')).toHaveClass(icon);
+    }
+    expect(within(rowOf('Carmen Reyes')).queryByRole('button', { name: /^(De)?[Aa]ctivate/ })).toBeNull();
+  });
+
+  it('opens the Deactivate dialog for that person with "Keep Active" focused and sends nothing yet', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+
+    await userEvent.click(toggle('Deactivate Paolo'));
+
+    const dialog = screen.getByRole('dialog', { name: 'Deactivate Paolo Garcia?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Active' })).toHaveFocus();
+    expect(posted).toHaveLength(0);
+  });
+
+  it('Keep Active closes the dialog without a request and returns focus to the toggle', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+
+    await user.click(screen.getByRole('button', { name: 'Keep Active' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(posted).toHaveLength(0);
+    expect(toggle('Deactivate Paolo')).toHaveFocus();
+  });
+
+  it('after Deactivate User the dialog closes, the row is Inactive, the toggle reads "Activate Paolo" with focus, and the toast says so', async () => {
+    const { posted, calls } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+    const before = calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByText('User deactivated')).toBeInTheDocument();
+    expect(screen.getByText('Paolo Garcia can no longer sign in.')).toBeInTheDocument();
+    expect(posted.map(({ action, id }) => ({ action, id }))).toEqual([{ action: 'deactivate', id: PAOLO_ID }]);
+    expect(posted[0]?.key).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(within(cellOf(rowOf('Paolo Garcia'), 'Status')).getByText('Inactive')).toBeInTheDocument();
+    });
+    expect(calls.length).toBeGreaterThan(before);
+    await waitFor(() => {
+      expect(toggle('Activate Paolo')).toHaveFocus();
+    });
+  });
+
+  it('Activate acts at once: no dialog, the toggle keeps focus and flips, and the toast says they can sign in again', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(toggle('Activate Liza'));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByText('User activated')).toBeInTheDocument();
+    expect(screen.getByText('Liza Mercado can sign in again.')).toBeInTheDocument();
+    expect(posted.map(({ action, id }) => ({ action, id }))).toEqual([{ action: 'activate', id: LIZA_ID }]);
+    expect(posted[0]?.key).toBeTruthy();
+    await waitFor(() => {
+      expect(within(cellOf(rowOf('Liza Mercado'), 'Status')).getByText('Active')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(toggle('Deactivate Liza')).toHaveFocus();
+    });
+  });
+
+  it('can deactivate, activate and deactivate the same person again, each with a request of its own', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(toggle('Deactivate Paolo'));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+    await user.click(await screen.findByRole('button', { name: 'Activate Paolo' }));
+    await user.click(await screen.findByRole('button', { name: 'Deactivate Paolo' }));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    await waitFor(() => {
+      expect(posted.map((entry) => entry.action)).toEqual(['deactivate', 'activate', 'deactivate']);
+    });
+    expect(new Set(posted.map((entry) => entry.key)).size).toBe(3);
+  });
+
+  it('keeps the dialog open with the alert line when Deactivate fails, and a retry sends the same Idempotency-Key', async () => {
+    let refuse = true;
+    const { posted } = rosterWithToggles(() => (refuse ? problem(500) : null));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Deactivate Paolo Garcia?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    expect(within(dialog).getByRole('button', { name: 'Deactivate User' })).toHaveFocus();
+    refuse = false;
+    await user.click(within(dialog).getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByText('User deactivated')).toBeInTheDocument();
+    expect(posted).toHaveLength(2);
+    expect(posted[1]?.key).toBe(posted[0]?.key);
+  });
+
+  it('shows the last-Manager guard line in the Deactivate dialog for a 422', async () => {
+    rosterWithToggles(() =>
+      new HttpResponse(JSON.stringify({ title: 'x', status: 422, code: 'users.last-active-manager' }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Rhea'));
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "You can't remove the last active Manager. Make another user a Manager first, then try again.",
+    );
+    expect(screen.getByRole('dialog', { name: 'Deactivate Rhea Villanueva?' })).toBeInTheDocument();
+  });
+
+  it('raises a danger toast that stays when Activate fails, and the row stays Inactive', async () => {
+    rosterWithToggles(() => problem(500));
+    await openPage();
+
+    await userEvent.click(toggle('Activate Liza'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't activate Liza Mercado");
+    expect(alert).toHaveTextContent('Something went wrong. Please try again.');
+    expect(within(cellOf(rowOf('Liza Mercado'), 'Status')).getByText('Inactive')).toBeInTheDocument();
+    expect(toggle('Activate Liza')).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the Deactivate dialog open', async () => {
+    rosterWithToggles();
+    await openPage();
+    await userEvent.click(toggle('Deactivate Paolo'));
+
+    await expectNoAxeViolations(document.body);
+  });
+});

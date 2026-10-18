@@ -47,6 +47,18 @@ export interface UsersService {
    * or `users.own-account`, 404 `users.not-found`.
    */
   update(id: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UserDetailResponse>;
+  /**
+   * `POST /api/v1/users/{id}/deactivate`: they cannot sign in and every session of theirs ends at once (204; repeating it is
+   * also 204). One Idempotency-Key per submission. 422 `users.last-active-manager` or `users.own-account`, 404 `users.not-found`.
+   */
+  deactivate(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /** `POST /api/v1/users/{id}/activate`: lets them sign in again (204; repeating it is also 204). One Idempotency-Key per submission. */
+  activate(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `DELETE /api/v1/users/{id}`: removes them for good (204). A DELETE repeats safely, so it carries no Idempotency-Key; deleting
+   * someone already deleted is a 404. 422 `users.last-active-manager` or `users.own-account`.
+   */
+  remove(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 export function createUsersService(client: HttpClient): UsersService {
@@ -60,6 +72,9 @@ export function createUsersService(client: HttpClient): UsersService {
     create: (body, idempotencyKey, signal) =>
       client.post<CreateUserResponse>('/users', body, { idempotencyKey, signal }),
     update: (id, body, signal) => client.put<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, body, { signal }),
+    deactivate: () => Promise.reject(new Error('not implemented')),
+    activate: () => Promise.reject(new Error('not implemented')),
+    remove: () => Promise.reject(new Error('not implemented')),
   };
 }
 

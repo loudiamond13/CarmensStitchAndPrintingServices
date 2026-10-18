@@ -210,11 +210,87 @@ describe('usersService.update', () => {
   });
 });
 
+describe('usersService.deactivate and activate', () => {
+  it.each(['deactivate', 'activate'] as const)(
+    'calls POST /api/v1/users/{id}/%s with the Idempotency-Key and no body, and resolves on a 204',
+    async (action) => {
+      const { fake, service } = serviceWith([{ status: 204 }]);
+
+      await expect(service[action](detail.id, 'key-1')).resolves.toBeUndefined();
+
+      expect(fake.calls).toHaveLength(1);
+      expect(fake.calls[0]?.method).toBe('POST');
+      expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}/${action}`);
+      expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+      expect(fake.calls[0]?.body).toBeUndefined();
+    },
+  );
+
+  it.each(['deactivate', 'activate'] as const)('encodes the id for %s so it can never add a path segment', async (action) => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service[action]('a/b?c=d', 'key-1');
+
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/a%2Fb%3Fc%3Dd/${action}`);
+  });
+
+  it('rejects with the status and machine code of a 422', async () => {
+    const { service } = serviceWith([
+      {
+        status: 422,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 422, code: 'users.last-active-manager' },
+      },
+    ]);
+
+    await expect(service.deactivate(detail.id, 'key-1')).rejects.toMatchObject({
+      kind: 'http',
+      status: 422,
+      code: 'users.last-active-manager',
+    });
+  });
+});
+
+describe('usersService.remove', () => {
+  it('calls DELETE /api/v1/users/{id} with no Idempotency-Key and resolves on a 204', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await expect(service.remove(detail.id)).resolves.toBeUndefined();
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}`);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
+  });
+
+  it('encodes the id so it can never add a path segment or a query', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.remove('a/b?c=d');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/users/a%2Fb%3Fc%3Dd');
+  });
+
+  it.each([
+    [404, 'users.not-found'],
+    [422, 'users.own-account'],
+  ])('rejects with the status and machine code of a %i', async (status, code) => {
+    const { service } = serviceWith([
+      { status, headers: { 'Content-Type': 'application/problem+json' }, body: { title: 'x', status, code } },
+    ]);
+
+    await expect(service.remove(detail.id)).rejects.toMatchObject({ kind: 'http', status, code });
+  });
+});
+
 describe('usersService', () => {
   it('exports an instance over the shared client', () => {
     expect(typeof usersService.list).toBe('function');
     expect(typeof usersService.get).toBe('function');
     expect(typeof usersService.create).toBe('function');
     expect(typeof usersService.update).toBe('function');
+    expect(typeof usersService.deactivate).toBe('function');
+    expect(typeof usersService.activate).toBe('function');
+    expect(typeof usersService.remove).toBe('function');
   });
 });
