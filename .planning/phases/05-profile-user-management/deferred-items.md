@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T03:29:00-05:00
+updated: 2026-10-18T04:05:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -30,6 +30,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **What:** `web/scripts/owner-review.mjs` (REVIEW_TARGETS) and `web/scripts/design-side-by-side.mjs` (the admin pages list) screenshot `/admin/profile` on the e2e host with no sign-in, as the dev preview with the placeholder user. Plan 05-13 made My Profile a real, guarded page and removed `profile` from the `devRoutes`, so on the e2e host that path now sends a visitor without a session to the sign-in page. Their unit tests only check the lists, so nothing fails today; a real run would wait for an h1 that never shows.
 - **Deferred to:** plan 05-37 (screen review), which already owns the `owner-review.mjs` page list. The same applies to `users` and `audit-log` when 05-20 and 05-33 replace their previews, so 05-37 needs a signed-in capture path (the E2E staff helper) rather than another unsigned list.
 - **Covered meanwhile:** `web/e2e/profile.spec.ts` (`@profile`) proves the real page on every tab, with axe and no sideways scrolling, in all five projects.
+- **Same for `/admin/users` (found in plan 05-20):** plan 05-20 made Users a real, Manager-only page and removed `users` from the `devRoutes`, so `owner-review.mjs` (`admin-users`) and `design-side-by-side.mjs` (`/admin/users`) now meet the sign-in page on the e2e host. Plan 05-37 gives them the signed-in capture path. `web/e2e/users.spec.ts` (`@users`) covers the real page with axe and the 320 px width meanwhile.
 
 ## Idempotency records keep an unsalted hash of password bodies (found in plan 05-12)
 

@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-19-PLAN.md
-last_updated: "2026-10-18T08:33:20.299Z"
+stopped_at: Completed 05-20-PLAN.md
+last_updated: "2026-10-18T09:22:39.995Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 7ad8389ed97bae6fe8c5ba56396df9a315f5d74f
+state_head: c548f439634b41a3642d3a49ef0c0103b70549b0
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 135
+  completed_plans: 136
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-18T03:13:00-05:00"
+updated: "2026-10-18T04:27:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 22 of 43
+Plan: 23 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -191,6 +191,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P17 | 20 min | 3 tasks | 22 files |
 | Phase 05 P18 | 45 min | 3 tasks | 17 files |
 | Phase 05 P19 | 24 min | 3 tasks | 26 files |
+| Phase 05 P20 | 60 min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -493,6 +494,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-18: NewPasswordFields is generic over a form with at least the pair, so the profile form can add Current password; lock line is the server's own detail (profile.password-locked)
 - [Phase 05]: 05-19: a taken address is signalled by EmailInUseException from IUserAccounts.CreateAsync (Identity's duplicate check and the unique-index violation, which also detaches the failed row); CreateUserHandler turns it into the 400 on field email
 - [Phase 05]: 05-19: POST /api/v1/users accepts role and access in any letter case, an invitation ignores a temporaryPassword sent with it, and the temporary-password empty message is 'Enter a temporary password.'; CreateUserRequest.ToString hides the password
+- [Phase 05]: 05-20: The Users dev preview is removed from devRoutes (it shadowed the real roster in the e2e bundle, as profile did in 05-13); unsigned e2e page lists drop it — A signed-in e2e can only reach the guarded page if no preview sits at the same path
+- [Phase 05]: 05-20: Clear Filters clears the search, Role and Status but keeps Rows per page; the Add User button is left to 05-22 — reset() would also drop the page size; the Add User panel it opens is 05-22
+- [Phase 05]: 05-20: RowAction is a button/link union (to prop); UserCell text wraps anywhere for every list — The own-row pencil must be a router link in the icon-button look (D-19); long names must not widen the table
 
 ### Pending Todos
 
@@ -552,6 +556,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T08:33:19.637Z
-Stopped at: Completed 05-19-PLAN.md
+Last session: 2026-10-18T09:22:39.338Z
+Stopped at: Completed 05-20-PLAN.md
 Resume file: None
