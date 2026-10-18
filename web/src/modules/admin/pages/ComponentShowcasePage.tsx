@@ -39,7 +39,11 @@ import {
   titleRowClasses,
 } from '@/modules/admin/components/showcase/showcase.recipe';
 import { SHOWCASE_COPY } from '@/modules/admin/components/showcase/showcaseCopy';
-import { SHOWCASE_SECTIONS, scenariosBySection, type ShowcaseSectionId } from '@/modules/admin/components/showcase/showcaseSections';
+import {
+  SHOWCASE_SECTIONS,
+  scenariosBySection,
+  type ShowcaseSectionId,
+} from '@/modules/admin/components/showcase/showcaseSections';
 import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from '@/modules/admin/components/showcase/ShowcaseDemos';
 
 const BY_SECTION = scenariosBySection(scenarios);
