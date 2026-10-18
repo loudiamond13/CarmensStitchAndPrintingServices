@@ -130,6 +130,41 @@ public interface IUserAccounts
     /// <param name="cancellationToken">Cancels the update.</param>
     /// <returns>Whether it saved, changed nothing, lost to another edit, or found no account, and the version now stored.</returns>
     Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sets, replaces or clears the new email awaiting confirmation (D-24). The sign-in email and the edit version do not
+    /// change, so an open profile form stays current.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="email">The new address, already trimmed; null clears it.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>A task that completes when the change is saved.</returns>
+    Task SetPendingEmailAsync(Guid id, string? email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Makes the pending email the sign-in email: <c>Email</c> and <c>UserName</c> with their normalized forms, clears the
+    /// pending address, rotates the edit version and records the account itself as the last changer (PROF-02).
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>
+    /// Whether it applied, found nothing pending, or found the address already held by another account (checked first,
+    /// and again by the unique index). Nothing is written unless it applied.
+    /// </returns>
+    Task<EmailApplyOutcome> ApplyPendingEmailAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>What applying a pending email did.</summary>
+public enum EmailApplyOutcome
+{
+    /// <summary>The pending address is now the sign-in email.</summary>
+    Applied = 0,
+
+    /// <summary>Another account holds the address, so nothing changed.</summary>
+    Taken = 1,
+
+    /// <summary>No change was pending, so nothing changed.</summary>
+    NothingPending = 2,
 }
 
 /// <summary>What a versioned edit did.</summary>

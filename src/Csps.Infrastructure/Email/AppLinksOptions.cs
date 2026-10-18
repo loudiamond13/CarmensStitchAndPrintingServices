@@ -33,6 +33,11 @@ public sealed class AppLinksOptions
     /// <returns>The absolute URL.</returns>
     public string AcceptInviteLink(string token) => Build("/admin/accept-invite", token);
 
+    /// <summary>Returns the confirm-email page link with the token in the fragment.</summary>
+    /// <param name="token">The email-change token.</param>
+    /// <returns>The absolute URL.</returns>
+    public string ConfirmEmailLink(string token) => Build("/admin/confirm-email", token);
+
     /// <summary>Tells whether <paramref name="options"/> holds a usable base URL.</summary>
     /// <param name="options">The options to check.</param>
     /// <returns>True when the base URL is acceptable.</returns>

@@ -6,8 +6,11 @@ public enum AccountTokenPurpose : byte
     /// <summary>A password reset link (AUTH-08).</summary>
     PasswordReset = 1,
 
-    /// <summary>An invitation link (D-29). Phase 5 adds email-change confirmation here (D-28) without a schema change.</summary>
+    /// <summary>An invitation link (D-29).</summary>
     Invitation = 2,
+
+    /// <summary>A link to the new address that confirms an email change (PROF-02, D-25).</summary>
+    EmailChange = 3,
 }
 
 /// <summary>

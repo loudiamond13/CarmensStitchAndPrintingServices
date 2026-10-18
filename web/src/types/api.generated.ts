@@ -243,6 +243,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/email-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the
+         *     sign-in email changes only when the link is confirmed.
+         */
+        post: operations["RequestEmailChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email-change/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The
+         *     token travels in the body, never in a URL.
+         */
+        post: operations["ConfirmEmailChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/password": {
         parameters: {
             query?: never;
@@ -329,6 +369,16 @@ export interface components {
             /** @description The new password as typed. */
             newPassword: null | string;
         };
+        /** @description The answer to a confirmed email change. */
+        EmailChangeResponse: {
+            /** @description The sign-in email from now on, so the page can name it. */
+            newEmail: string;
+        };
+        /** @description The body of an email-change confirmation: the token from the emailed link. It travels in the body, never in a URL. */
+        EmailChangeTokenRequest: {
+            /** @description The 43-character token. */
+            token: null | string;
+        };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
         ForgotPasswordRequest: {
             /** @description The email address. */
@@ -383,6 +433,13 @@ export interface components {
              * @description The edit version to send back with the next save (SEC-07).
              */
             version: string;
+        };
+        /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
+        RequestEmailChangeRequest: {
+            /** @description The current password as typed. */
+            currentPassword: null | string;
+            /** @description The new address as typed. */
+            newEmail: null | string;
         };
         /** @description What sign-in and a code resend both answer: how long to wait before asking for a new code. */
         ResendWaitResponse: {
@@ -1214,6 +1271,105 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RequestEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["RequestEmailChangeRequest"];
+                "application/json": null | components["schemas"]["RequestEmailChangeRequest"];
+                "text/json": null | components["schemas"]["RequestEmailChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ConfirmEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "application/json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "text/json": null | components["schemas"]["EmailChangeTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

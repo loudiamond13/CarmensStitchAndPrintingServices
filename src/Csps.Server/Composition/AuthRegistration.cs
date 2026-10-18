@@ -41,6 +41,7 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<BootstrapManagerCommand>, BootstrapManagerCommandValidator>();
         services.AddSingleton<IValidator<UpdateProfileNameRequest>, UpdateProfileNameRequestValidator>();
         services.AddSingleton<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
+        services.AddSingleton<IValidator<RequestEmailChangeRequest>, RequestEmailChangeRequestValidator>();
         return services;
     }
 }

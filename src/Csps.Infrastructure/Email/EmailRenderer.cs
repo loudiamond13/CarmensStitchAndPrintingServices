@@ -54,6 +54,8 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ManagerResetEmail manager => ManagerReset(manager, clock.Zone),
             DeactivatedNoticeEmail deactivated => Deactivated(deactivated),
             InviteEmail invite => Invite(invite),
+            EmailChangeConfirmEmail confirm => ConfirmEmailChange(confirm),
+            EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -158,6 +160,33 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
             ],
             Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+
+    private EmailContent ConfirmEmailChange(EmailChangeConfirmEmail email) =>
+        new(
+            Subject: "Confirm your new CSPS email",
+            Preheader: $"This link works for {Span(email.RequestedAt, email.ExpiresAt)}.",
+            Heading: "Confirm your new email",
+            Blocks:
+            [
+                new ParagraphBlock($"You asked to change the sign-in email for your CSPS staff account from {email.OldEmail} to {email.To}.", Strong: email.To),
+                new ParagraphBlock($"Open the link to confirm. It works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
+                new ParagraphBlock("Didn't ask for this? Ignore this email. Nothing changes."),
+            ],
+            Button: new EmailButton("Confirm Email", links.Value.ConfirmEmailLink(email.Token)));
+
+    private EmailContent EmailChangeNotice(EmailChangeNoticeEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "Your CSPS email is being changed",
+            Preheader: "If this wasn't you, act now.",
+            Heading: "Email change requested",
+            Blocks:
+            [
+                new ParagraphBlock($"Someone asked to change the sign-in email for your CSPS staff account to {email.NewEmail}.", Strong: email.NewEmail),
+                new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
+                new ParagraphBlock($"The change happens only after the new address is confirmed. Until then, you still sign in with {email.To}."),
+                new ParagraphBlock("If this wasn't you, change your password now and tell a Manager."),
+            ],
+            Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
 
     // The branded frame (D-30): the HTML part and the plain-text part are both built from the same blocks.
     private static RenderedEmail Brand(EmailContent content)

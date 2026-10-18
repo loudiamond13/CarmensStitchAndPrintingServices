@@ -62,6 +62,9 @@ public sealed class AuthSettings
     /// <summary>How long an invitation link works.</summary>
     public TimeSpan InviteLinkLifetime { get; init; } = TimeSpan.FromDays(7);
 
+    /// <summary>How long an email-change confirmation link works (D-25).</summary>
+    public TimeSpan EmailChangeLinkLifetime { get; init; } = TimeSpan.FromHours(24);
+
     /// <summary>Returns the code and ticket rules for the Domain.</summary>
     /// <returns>The two-factor settings.</returns>
     public TwoFactorSettings ToTwoFactorSettings() => new()
@@ -101,6 +104,7 @@ public sealed class AuthSettings
         RequirePositive(RefreshGrace, nameof(RefreshGrace), problems);
         RequirePositive(ResetLinkLifetime, nameof(ResetLinkLifetime), problems);
         RequirePositive(InviteLinkLifetime, nameof(InviteLinkLifetime), problems);
+        RequirePositive(EmailChangeLinkLifetime, nameof(EmailChangeLinkLifetime), problems);
         RequirePositive(CodeAttempts, nameof(CodeAttempts), problems);
         RequirePositive(SendsPerHour, nameof(SendsPerHour), problems);
         RequirePositive(AccountFailureCap, nameof(AccountFailureCap), problems);

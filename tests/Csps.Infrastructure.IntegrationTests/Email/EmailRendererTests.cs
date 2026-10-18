@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace Csps.Infrastructure.IntegrationTests.Email;
 
 /// <summary>
-/// AUTH-13, D-20, D-24, D-25, D-29, D-30, D-31, D-32: all seven auth emails carry the UI-SPEC words, business time,
+/// AUTH-13, D-20, D-24, D-25, D-29, D-30, D-31, D-32: all nine auth emails carry the UI-SPEC words, business time,
 /// a safe link, encoded values and no remote resource, IP address or unfilled placeholder.
 /// </summary>
 public sealed class EmailRendererTests
@@ -31,6 +31,8 @@ public sealed class EmailRendererTests
         new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At),
         new DeactivatedNoticeEmail("paolo.garcia@gmail.com"),
         new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At),
+        new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"),
+        new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome),
     ];
 
     [Theory]

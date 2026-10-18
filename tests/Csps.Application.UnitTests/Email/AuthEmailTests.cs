@@ -3,7 +3,7 @@ using Csps.Domain.Identity;
 
 namespace Csps.Application.UnitTests.Email;
 
-/// <summary>AUTH-13: the seven auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
+/// <summary>AUTH-13: the nine auth email kinds, when each stops being worth sending, and that a secret never prints.</summary>
 public sealed class AuthEmailTests
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 14, 8, 0, 0, TimeSpan.Zero);
@@ -22,6 +22,8 @@ public sealed class AuthEmailTests
             AuthEmailKind.ManagerReset,
             AuthEmailKind.DeactivatedNotice,
             AuthEmailKind.Invite,
+            AuthEmailKind.EmailChangeConfirm,
+            AuthEmailKind.EmailChangeNotice,
         ]);
     }
 
@@ -31,6 +33,7 @@ public sealed class AuthEmailTests
         new SignInCodeEmail("a@example.com", "048213", ExpiresAt, CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
         new PasswordResetEmail("a@example.com", "token", ExpiresAt, CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
         new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt).NotAfter(CreatedAt).ShouldBe(ExpiresAt);
+        new EmailChangeConfirmEmail("b@example.com", "token", ExpiresAt, CreatedAt, "a@example.com").NotAfter(CreatedAt).ShouldBe(ExpiresAt);
     }
 
     [Fact]
@@ -42,6 +45,7 @@ public sealed class AuthEmailTests
         new PasswordChangedEmail("a@example.com", CreatedAt, SessionsEnded: true).NotAfter(CreatedAt).ShouldBe(expected);
         new ManagerResetEmail("a@example.com", "Carmen Reyes", CreatedAt).NotAfter(CreatedAt).ShouldBe(expected);
         new DeactivatedNoticeEmail("a@example.com").NotAfter(CreatedAt).ShouldBe(expected);
+        new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device).NotAfter(CreatedAt).ShouldBe(expected);
     }
 
     [Fact]
@@ -53,6 +57,8 @@ public sealed class AuthEmailTests
             .ShouldBe("PasswordResetEmail");
         new InviteEmail("a@example.com", "invite-token-value", ExpiresAt, CreatedAt).ToString()
             .ShouldBe("InviteEmail");
+        new EmailChangeConfirmEmail("b@example.com", "email-change-token-value", ExpiresAt, CreatedAt, "a@example.com").ToString()
+            .ShouldBe("EmailChangeConfirmEmail");
     }
 
     [Fact]
@@ -80,6 +86,14 @@ public sealed class AuthEmailTests
 
         new PasswordResetEmail("a@example.com", "t", ExpiresAt, CreatedAt, Device).Token.ShouldBe("t");
         new InviteEmail("a@example.com", "t", ExpiresAt, CreatedAt).Token.ShouldBe("t");
+
+        var confirm = new EmailChangeConfirmEmail("b@example.com", "t", ExpiresAt, CreatedAt, "a@example.com");
+        confirm.Token.ShouldBe("t");
+        confirm.OldEmail.ShouldBe("a@example.com");
+        var notice = new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device);
+        notice.NewEmail.ShouldBe("b@example.com");
+        notice.RequestedAt.ShouldBe(CreatedAt);
+        notice.Device.ShouldBe(Device);
     }
 
     private static AuthEmail[] Kinds() =>
@@ -91,5 +105,7 @@ public sealed class AuthEmailTests
         new ManagerResetEmail("a@example.com", "Carmen Reyes", CreatedAt),
         new DeactivatedNoticeEmail("a@example.com"),
         new InviteEmail("a@example.com", "token", ExpiresAt, CreatedAt),
+        new EmailChangeConfirmEmail("b@example.com", "token", ExpiresAt, CreatedAt, "a@example.com"),
+        new EmailChangeNoticeEmail("a@example.com", "b@example.com", CreatedAt, Device),
     ];
 }

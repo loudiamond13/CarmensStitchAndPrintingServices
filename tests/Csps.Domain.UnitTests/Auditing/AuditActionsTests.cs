@@ -8,9 +8,9 @@ public sealed class AuditActionsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileCode()
+    public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileCodes()
     {
-        AuditActions.All.Count.ShouldBe(22);
+        AuditActions.All.Count.ShouldBe(24);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -20,6 +20,15 @@ public sealed class AuditActionsTests
     {
         AuditActions.ProfileNameChanged.ShouldBe("profile.name-changed");
         AuditActions.All.ShouldContain(AuditActions.ProfileNameChanged);
+    }
+
+    [Fact]
+    public void TheEmailChangeCodesAreInTheCatalog()
+    {
+        AuditActions.ProfileEmailChangeRequested.ShouldBe("profile.email-change-requested");
+        AuditActions.ProfileEmailChanged.ShouldBe("profile.email-changed");
+        AuditActions.All.ShouldContain(AuditActions.ProfileEmailChangeRequested);
+        AuditActions.All.ShouldContain(AuditActions.ProfileEmailChanged);
     }
 
     [Fact]

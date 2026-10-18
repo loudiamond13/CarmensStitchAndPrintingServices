@@ -36,6 +36,8 @@ public static class ApplicationRegistration
         services.AddScoped<GetProfileHandler>();
         services.AddScoped<UpdateProfileNameHandler>();
         services.AddScoped<ChangePasswordHandler>();
+        services.AddScoped<RequestEmailChangeHandler>();
+        services.AddScoped<ConfirmEmailChangeHandler>();
         return services;
     }
 }

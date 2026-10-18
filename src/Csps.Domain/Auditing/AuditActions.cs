@@ -72,6 +72,12 @@ public static class AuditActions
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
 
+    /// <summary>A signed-in user asked to change their sign-in email; no detail and no address (D-40).</summary>
+    public const string ProfileEmailChangeRequested = "profile.email-change-requested";
+
+    /// <summary>A new sign-in email was confirmed and applied; no detail and no address (D-40).</summary>
+    public const string ProfileEmailChanged = "profile.email-changed";
+
     /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
     public static IReadOnlyList<string> SignInFailureReasons { get; } =
         ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"];
@@ -107,5 +113,7 @@ public static class AuditActions
         BootstrapManagerCreated,
         UserInvited,
         ProfileNameChanged,
+        ProfileEmailChangeRequested,
+        ProfileEmailChanged,
     ];
 }

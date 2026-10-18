@@ -106,6 +106,10 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 400, Manager: 400),
         // Changing the password (PROF-03): Staff only. With no body both roles meet the same 400 field errors; the idempotency gate runs after authorization.
         new("POST", "/api/v1/profile/password", "/api/v1/profile/password", Anonymous: 401, Admin: 400, Manager: 400),
+        // Asking to change the sign-in email (PROF-02): Staff only. With no body both roles meet the same 400 field errors.
+        new("POST", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 400, Manager: 400),
+        // Confirming it is anonymous (the emailed link is the proof). With no body every caller meets the same invalid-link 404; the session is ignored.
+        new("POST", "/api/v1/profile/email-change/confirm", "/api/v1/profile/email-change/confirm", Anonymous: 404, Admin: 404, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -136,6 +140,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/password/set-new/check",
             "POST /api/v1/auth/invite/check",
             "POST /api/v1/auth/invite/accept",
+            "POST /api/v1/profile/email-change/confirm",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

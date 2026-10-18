@@ -49,6 +49,35 @@
         ],
         "type": "object"
       },
+      "EmailChangeResponse": {
+        "description": "The answer to a confirmed email change.",
+        "properties": {
+          "newEmail": {
+            "description": "The sign-in email from now on, so the page can name it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "newEmail"
+        ],
+        "type": "object"
+      },
+      "EmailChangeTokenRequest": {
+        "description": "The body of an email-change confirmation: the token from the emailed link. It travels in the body, never in a URL.",
+        "properties": {
+          "token": {
+            "description": "The 43-character token.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "description": "The forgot-password form: the email the reset link goes to (D-16).",
         "properties": {
@@ -193,6 +222,30 @@
           "pendingEmail",
           "memberSince",
           "version"
+        ],
+        "type": "object"
+      },
+      "RequestEmailChangeRequest": {
+        "description": "The My Profile change-email form: the new sign-in email and the current password (PROF-02).",
+        "properties": {
+          "currentPassword": {
+            "description": "The current password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "newEmail": {
+            "description": "The new address as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "newEmail",
+          "currentPassword"
         ],
         "type": "object"
       },
@@ -1622,6 +1675,180 @@
           }
         },
         "summary": "Changes the caller's first and last name. The version must be the one the form was opened with.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change": {
+      "post": {
+        "operationId": "RequestEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the\r\nsign-in email changes only when the link is confirmed.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change/confirm": {
+      "post": {
+        "operationId": "ConfirmEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The\r\ntoken travels in the body, never in a URL.",
         "tags": [
           "Profile"
         ]

@@ -25,6 +25,12 @@ public enum AuthEmailKind
 
     /// <summary>The invitation to set a first password (D-29).</summary>
     Invite = 7,
+
+    /// <summary>The link to the new address that confirms an email change (PROF-02, D-25).</summary>
+    EmailChangeConfirm = 8,
+
+    /// <summary>The notice to the current address that an email change was requested (C-9).</summary>
+    EmailChangeNotice = 9,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -161,4 +167,37 @@ public sealed record InviteEmail(string To, string Token, DateTimeOffset Expires
     /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
     /// <returns>The type name.</returns>
     public override string ToString() => nameof(InviteEmail);
+}
+
+/// <summary>The link to the new address that confirms an email change (PROF-02, D-25).</summary>
+/// <param name="To">The new address.</param>
+/// <param name="Token">The confirmation token, placed in the link fragment.</param>
+/// <param name="ExpiresAt">When the link stops working.</param>
+/// <param name="RequestedAt">When the change was requested.</param>
+/// <param name="OldEmail">The current sign-in email, named in the text.</param>
+public sealed record EmailChangeConfirmEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string OldEmail) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.EmailChangeConfirm;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
+
+    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
+    /// <returns>The type name.</returns>
+    public override string ToString() => nameof(EmailChangeConfirmEmail);
+}
+
+/// <summary>The notice to the current address that an email change was requested (C-9).</summary>
+/// <param name="To">The current sign-in email.</param>
+/// <param name="NewEmail">The address the change would move to.</param>
+/// <param name="RequestedAt">When the change was requested.</param>
+/// <param name="Device">The coarse browser and device label.</param>
+public sealed record EmailChangeNoticeEmail(string To, string NewEmail, DateTimeOffset RequestedAt, DeviceDescription Device) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.EmailChangeNotice;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
 }

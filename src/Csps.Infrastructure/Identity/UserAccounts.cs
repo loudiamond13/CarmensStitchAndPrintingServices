@@ -6,6 +6,7 @@ using Csps.Application.Security;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Identity;
@@ -247,6 +248,100 @@ internal sealed class UserAccounts(
             await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    public async Task SetPendingEmailAsync(Guid id, string? email, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+            user.PendingEmail = email;
+            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                return;
+            }
+
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
+            {
+                Require(result, "Setting the pending email");
+            }
+
+            // The pending address is not version-guarded, so a racing edit just means: read the fresh row and set it again.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<EmailApplyOutcome> ApplyPendingEmailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+            if (user.PendingEmail is not { Length: > 0 } pending)
+            {
+                return EmailApplyOutcome.NothingPending;
+            }
+
+            var normalized = users.NormalizeEmail(pending);
+            if (await context.Users.AnyAsync(
+                other => other.Id != id && (other.NormalizedEmail == normalized || other.NormalizedUserName == normalized), cancellationToken).ConfigureAwait(false))
+            {
+                return EmailApplyOutcome.Taken;
+            }
+
+            user.Email = pending;
+            user.UserName = pending;
+            user.NormalizedEmail = normalized;
+            user.NormalizedUserName = users.NormalizeName(pending);
+            user.PendingEmail = null;
+            user.EditVersion = Guid.NewGuid();
+            user.UpdatedById = id;
+
+            IdentityResult result;
+            try
+            {
+                result = await users.UpdateAsync(user).ConfigureAwait(false);
+            }
+            catch (DbUpdateException error) when (error.InnerException is SqlException { Number: 2601 or 2627 })
+            {
+                // Two accounts took the address in the same instant; the unique index let one through.
+                await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+                return EmailApplyOutcome.Taken;
+            }
+
+            if (result.Succeeded)
+            {
+                await KeepAccountAsLastChangerAsync(user, id).ConfigureAwait(false);
+                return EmailApplyOutcome.Applied;
+            }
+
+            if (result.Errors.Any(static error => error.Code is nameof(IdentityErrorDescriber.DuplicateEmail) or nameof(IdentityErrorDescriber.DuplicateUserName)))
+            {
+                await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+                return EmailApplyOutcome.Taken;
+            }
+
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
+            {
+                Require(result, "Changing the email");
+            }
+
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // The stamp interceptor writes the signed-in user, or null with nobody signed in, over an unchanged UpdatedById. A second
+    // save that leaves the edit version alone is not a staff edit, so it is not stamped and the account itself stays on record.
+    private async Task KeepAccountAsLastChangerAsync(ApplicationUser user, Guid id)
+    {
+        if (user.UpdatedById != id)
+        {
+            user.UpdatedById = id;
+            Require(await users.UpdateAsync(user).ConfigureAwait(false), "Recording the last changer");
+        }
+    }
+
+    private static bool IsConcurrencyFailure(IdentityResult result) =>
+        result.Errors.Any(static error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure));
 
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
