@@ -26,6 +26,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-log/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,
+         *     then former staff by name. Names only, never an email address.
+         */
+        get: operations["ListAuditPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/invite/accept": {
         parameters: {
             query?: never;
@@ -714,6 +734,18 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description One person an audit filter can offer. */
+        AuditPerson: {
+            /** @description True when the account was deleted (D-47: shown as former staff). */
+            formerStaff: boolean;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description First and last name. */
+            name: string;
+        };
         /** @description The My Profile password form: the current password and the new one (PROF-03). */
         ChangePasswordRequest: {
             /** @description The current password as typed. */
@@ -1153,6 +1185,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListAuditPeople: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPerson"][];
                 };
             };
             /** @description Unauthorized */

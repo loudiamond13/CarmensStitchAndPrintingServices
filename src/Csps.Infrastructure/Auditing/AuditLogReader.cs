@@ -104,6 +104,21 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
         return new AuditLogPage(items, total);
     }
 
+    public async Task<IReadOnlyList<AuditPerson>> ListPeopleAsync(CancellationToken cancellationToken)
+    {
+        // Current staff first, then former staff; each group by name. Only names and ids leave the database.
+        var rows = await context.Users
+            .AsNoTracking()
+            .OrderBy(user => user.DeletedAtUtc != null)
+            .ThenBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .ThenBy(user => user.Id)
+            .Select(user => new { user.Id, user.FirstName, user.LastName, Former = user.DeletedAtUtc != null })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return [.. rows.Select(row => new AuditPerson(row.Id, $"{row.FirstName} {row.LastName}", row.Former))];
+    }
+
     // Applies the range and the three filters in SQL, before any paging.
     private async Task<IQueryable<AuditEntry>> FilterAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {

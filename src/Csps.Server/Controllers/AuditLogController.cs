@@ -1,4 +1,5 @@
 using Csps.Application.Audit;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Server.Http;
 using Microsoft.AspNetCore.Authorization;
@@ -11,12 +12,13 @@ namespace Csps.Server.Controllers;
 /// only and there is no export (D-29). Never cached.
 /// </summary>
 /// <param name="list">The audit list handler.</param>
+/// <param name="people">The handler that lists the people the filters offer.</param>
 [ApiController]
 [Route("api/v1/audit-log")]
 [Authorize(Policy = Policies.Manager)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class AuditLogController(ListAuditLogHandler list) : ControllerBase
+public sealed class AuditLogController(ListAuditLogHandler list, ListAuditPeopleHandler people) : ControllerBase
 {
     /// <summary>
     /// Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date
@@ -51,5 +53,22 @@ public sealed class AuditLogController(ListAuditLogHandler list) : ControllerBas
     {
         var result = await list.HandleAsync(new ListAuditLogRequest(from, to, actor, action, target, page, pageSize), cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static entries => TypedResults.Ok(entries));
+    }
+
+    /// <summary>
+    /// Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,
+    /// then former staff by name. Names only, never an email address.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the people, 401 without a valid token, or 403 for an Admin.</returns>
+    [HttpGet("people")]
+    [EndpointName("ListAuditPeople")]
+    [ProducesResponseType<IReadOnlyList<AuditPerson>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> ListPeople(CancellationToken cancellationToken)
+    {
+        var result = await people.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static found => TypedResults.Ok(found));
     }
 }

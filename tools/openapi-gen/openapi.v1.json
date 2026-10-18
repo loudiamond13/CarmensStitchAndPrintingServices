@@ -170,6 +170,30 @@
         ],
         "type": "object"
       },
+      "AuditPerson": {
+        "description": "One person an audit filter can offer.",
+        "properties": {
+          "formerStaff": {
+            "description": "True when the account was deleted (D-47: shown as former staff).",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "First and last name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "formerStaff"
+        ],
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "description": "The My Profile password form: the current password and the new one (PROF-03).",
         "properties": {
@@ -1297,6 +1321,50 @@
           }
         },
         "summary": "Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date\r\nis a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the\r\nwhole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored\r\nfixed words only: field names and role values, never a name or an email address (D-40).",
+        "tags": [
+          "AuditLog"
+        ]
+      }
+    },
+    "/api/v1/audit-log/people": {
+      "get": {
+        "operationId": "ListAuditPeople",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditPerson"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,\r\nthen former staff by name. Names only, never an email address.",
         "tags": [
           "AuditLog"
         ]

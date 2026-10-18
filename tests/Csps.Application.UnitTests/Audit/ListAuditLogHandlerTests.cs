@@ -382,6 +382,19 @@ public sealed class ListAuditLogHandlerTests
             entry.Id, entry.OccurredAt, new DoneBy(DoneByKinds.User, Ana), AuditActions.UserRoleChanged, Bea, "role=admin>manager", "198.51.100.0/24", "Chrome", entry.Reference));
     }
 
+    [Fact]
+    public async Task ThePeopleHandlerPassesTheReadersListThroughInItsOrder()
+    {
+        IReadOnlyList<AuditPerson> people = [new(Ana.Id, Ana.Name, false), new(Bea.Id, Bea.Name, true)];
+        var reader = Substitute.For<IAuditLogReader>();
+        reader.ListPeopleAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(people));
+
+        var result = await new ListAuditPeopleHandler(reader).HandleAsync(TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(people);
+    }
+
     private static DateTimeOffset Utc(int year, int month, int day, int hour) => new(year, month, day, hour, 0, 0, TimeSpan.Zero);
 
     private static AuditLogEntryView Entry(

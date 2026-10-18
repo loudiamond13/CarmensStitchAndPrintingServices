@@ -13,7 +13,21 @@ public interface IAuditLogReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The page and the number of entries in the range.</returns>
     Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists every person ever recorded as staff, for the Done by and Done to filters: current staff (active or inactive) first by name,
+    /// then former staff by name (D-11, D-26). Names and ids only, never an email address.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The people in that order.</returns>
+    Task<IReadOnlyList<AuditPerson>> ListPeopleAsync(CancellationToken cancellationToken);
 }
+
+/// <summary>One person an audit filter can offer.</summary>
+/// <param name="Id">The account id.</param>
+/// <param name="Name">First and last name.</param>
+/// <param name="FormerStaff">True when the account was deleted (D-47: shown as former staff).</param>
+public sealed record AuditPerson(Guid Id, string Name, bool FormerStaff);
 
 /// <summary>Whose actions to keep: a user id, or the system when <see cref="UserId"/> is null.</summary>
 /// <param name="UserId">The person; null for entries nobody signed in did and that are not a person's own self-service steps.</param>

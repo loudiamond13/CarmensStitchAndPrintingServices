@@ -144,6 +144,7 @@ public static class AuthorizationMatrix
 
         // The audit log viewer (AUDIT-02, D-26): Managers only, so an Admin meets 403. Read only; there is no export (D-29).
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
+        new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

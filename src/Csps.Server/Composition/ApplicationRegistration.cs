@@ -59,6 +59,7 @@ public static class ApplicationRegistration
         services.AddScoped<SendResetLinkHandler>();
         services.AddScoped<SetTemporaryPasswordHandler>();
         services.AddScoped<ListAuditLogHandler>();
+        services.AddScoped<ListAuditPeopleHandler>();
         services.AddScoped<IValidator<ListAuditLogRequest>, ListAuditLogRequestValidator>();
         return services;
     }
