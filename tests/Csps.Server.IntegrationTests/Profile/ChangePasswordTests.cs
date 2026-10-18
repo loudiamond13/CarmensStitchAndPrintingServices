@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Profile;
 
@@ -161,6 +164,167 @@ public sealed class ChangePasswordTests(CspsDatabase database) : IClassFixture<C
         using var fresh = AuthClient.CreateClient(factory);
         using var theirSignIn = await AuthClient.SignInAsync(fresh, someoneElse.Email, someoneElse.Password);
         theirSignIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AWrongCurrentPasswordIsAFieldErrorAndChangesNothing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var clientA = AuthClient.CreateClient(factory);
+        using var clientB = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var deviceA = await AuthClient.SignInFullyAsync(clientA, staff, signInsSoFar: 0);
+        var deviceB = await AuthClient.SignInFullyAsync(clientB, staff, signInsSoFar: 1);
+
+        using var response = await ChangeAsync(clientA, deviceA.AccessToken, "Not-My-Password1!", NewPassword);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").GetProperty("currentPassword").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["Your current password is incorrect."]);
+        (await AuthClient.SiteSettingsStatusAsync(clientA, deviceB.AccessToken)).ShouldBe(HttpStatusCode.OK);
+        (await StoredPasswordIsAsync(factory, staff.Id, staff.Password)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task FiveWrongCurrentPasswordsLockTheAccountLikeSignInDoes()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            using var wrong = await ChangeAsync(client, device.AccessToken, "Not-My-Password1!", NewPassword);
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest, $"attempt {attempt}");
+        }
+
+        using var fifth = await ChangeAsync(client, device.AccessToken, "Not-My-Password1!", NewPassword);
+        var problem = await ProblemJson.ReadAsync(fifth, TestContext.Current.CancellationToken);
+
+        fifth.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        problem.GetProperty("code").GetString().ShouldBe("profile.password-locked");
+        problem.GetProperty("detail").GetString().ShouldBe("Too many wrong passwords. Try again in 15 minutes.");
+        var wait = int.Parse(fifth.Headers.GetValues("Retry-After").Single(), System.Globalization.CultureInfo.InvariantCulture);
+        wait.ShouldBeInRange(890, 900);
+
+        using var lockedRight = await ChangeAsync(client, device.AccessToken, staff.Password, NewPassword);
+        lockedRight.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        (await ProblemJson.ReadAsync(lockedRight, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("profile.password-locked");
+
+        using var fresh = AuthClient.CreateClient(factory);
+        using var signIn = await AuthClient.SignInAsync(fresh, staff.Email, staff.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await StoredPasswordIsAsync(factory, staff.Id, staff.Password)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TheLockoutSendsOneEmailAndWritesOneAuditEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            using var wrong = await ChangeAsync(client, device.AccessToken, "Not-My-Password1!", NewPassword);
+            wrong.StatusCode.ShouldBe(attempt < 5 ? HttpStatusCode.BadRequest : HttpStatusCode.TooManyRequests);
+        }
+
+        var mails = await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 2);
+        mails.Count(static mail => mail.Subject.StartsWith("Your CSPS account is locked", StringComparison.Ordinal)).ShouldBe(1);
+        await using var context = database.CreateContext();
+        var key = staff.Id.ToString("D");
+        var lockout = await context.AuditLog.AsNoTracking().SingleAsync(
+            entry => entry.TargetId == key && entry.Action == AuditActions.Lockout, TestContext.Current.CancellationToken);
+        lockout.Detail.ShouldBe("password");
+        lockout.TargetType.ShouldBe("User");
+    }
+
+    [Fact]
+    public async Task TheCorrectCurrentPasswordResetsTheWrongCount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            using var wrong = await ChangeAsync(client, device.AccessToken, "Not-My-Password1!", NewPassword);
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        using var right = await ChangeAsync(client, device.AccessToken, staff.Password, NewPassword);
+        using var wrongAgain = await ChangeAsync(client, device.AccessToken, "Not-My-Password1!", "Another#Tahi2027");
+
+        right.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        wrongAgain.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("short1!", "Use at least 8 characters.")]
+    [InlineData("Paolo#2026x", "Don't use your name or email in your password.")]
+    [InlineData("Pwned#Pass2026", "This password has appeared in a data breach. Choose a different one.")]
+    public async Task ARefusedNewPasswordIsAFieldErrorOnNewPasswordAndChangesNothing(string password, string message)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var clientA = AuthClient.CreateClient(factory);
+        using var clientB = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var deviceA = await AuthClient.SignInFullyAsync(clientA, staff, signInsSoFar: 0);
+        var deviceB = await AuthClient.SignInFullyAsync(clientB, staff, signInsSoFar: 1);
+
+        using var response = await ChangeAsync(clientA, deviceA.AccessToken, staff.Password, password);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").GetProperty("newPassword").EnumerateArray().Select(static m => m.GetString()).ShouldBe([message]);
+        (await AuthClient.SiteSettingsStatusAsync(clientA, deviceB.AccessToken)).ShouldBe(HttpStatusCode.OK);
+        (await StoredPasswordIsAsync(factory, staff.Id, staff.Password)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TheCurrentPasswordAsTheNewOneIsRefused()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await ChangeAsync(client, device.AccessToken, staff.Password, staff.Password);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        problem.GetProperty("errors").GetProperty("newPassword").EnumerateArray().Select(static m => m.GetString()).ShouldBe(["Choose a different password from your current one."]);
+    }
+
+    [Fact]
+    public async Task WhenTheBreachServiceIsDownAnUncommonPasswordIsAcceptedAndMarkedForARecheck()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await ChangeAsync(client, device.AccessToken, staff.Password, "Hibp-Down#2026");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        (await context.Users.AsNoTracking().SingleAsync(user => user.Id == staff.Id, TestContext.Current.CancellationToken)).BreachRecheckPending.ShouldBeTrue();
+        var key = staff.Id.ToString("D");
+        (await context.AuditLog.AsNoTracking().CountAsync(
+            entry => entry.TargetId == key && entry.Action == AuditActions.BreachCheckUnavailable, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    private static async Task<bool> StoredPasswordIsAsync(WebApplicationFactory<Program> factory, Guid userId, string password)
+    {
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            return await accounts.CheckPasswordAsync(userId, password, TestContext.Current.CancellationToken) == PasswordCheck.Succeeded;
+        }
     }
 
     private static async Task<HttpResponseMessage> ChangeAsync(
