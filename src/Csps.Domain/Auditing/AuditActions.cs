@@ -117,15 +117,77 @@ public static class AuditActions
     /// <summary>A waiting email change was called off; the detail is none, or <c>taken</c> when the address was taken first (D-40).</summary>
     public const string ProfileEmailChangeCanceled = "profile.email-change-canceled";
 
+    /// <summary>Sign-in failure detail: no account has that email.</summary>
+    public const string DetailUnknownAccount = "unknown-account";
+
+    /// <summary>Sign-in failure detail: the password did not match.</summary>
+    public const string DetailBadPassword = "bad-password";
+
+    /// <summary>Sign-in failure detail: the account is locked after repeated failures.</summary>
+    public const string DetailLocked = "locked";
+
+    /// <summary>Sign-in failure and reset-request detail: the account is deactivated.</summary>
+    public const string DetailDeactivated = "deactivated";
+
+    /// <summary>Sign-in failure detail: the invitation was never accepted.</summary>
+    public const string DetailUnconfirmed = "unconfirmed";
+
+    /// <summary>Sign-in failure detail: the account has no password yet.</summary>
+    public const string DetailNoPassword = "no-password";
+
+    /// <summary>Sign-in failure and reset-request detail: a Manager locked the account.</summary>
+    public const string DetailManagerLocked = "manager-locked";
+
+    /// <summary>Sign-in failure detail: the account was deleted.</summary>
+    public const string DetailDeleted = "deleted";
+
+    /// <summary>Lockout detail: too many wrong passwords.</summary>
+    public const string DetailPassword = "password";
+
+    /// <summary>Lockout detail: too many wrong sign-in codes.</summary>
+    public const string DetailCode = "code";
+
+    /// <summary>Sessions-revoked detail: the person signed out their other sessions.</summary>
+    public const string DetailSignOutOthers = "sign-out-others";
+
+    /// <summary>Sessions-revoked detail: a password reset finished.</summary>
+    public const string DetailPasswordReset = "password-reset";
+
+    /// <summary>Sessions-revoked detail: the person changed their password.</summary>
+    public const string DetailPasswordChanged = "password-changed";
+
+    /// <summary>Sessions-revoked detail: a Manager changed the account.</summary>
+    public const string DetailAccountChanged = "account-changed";
+
+    /// <summary>Sessions-revoked detail: a Manager set a temporary password.</summary>
+    public const string DetailTemporaryPassword = "temporary-password";
+
+    /// <summary>Reset-request detail: the reset email went out.</summary>
+    public const string DetailSent = "sent";
+
+    /// <summary>Reset-request detail: the hourly cap was reached, so no email went out.</summary>
+    public const string DetailCapped = "capped";
+
+    /// <summary>Breach-check detail: the lookup failed while accepting an invitation.</summary>
+    public const string DetailInvite = "invite";
+
+    /// <summary>Invitation detail: sent by the bootstrap command.</summary>
+    public const string DetailBootstrap = "bootstrap";
+
     /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
     public static IReadOnlyList<string> SignInFailureReasons { get; } =
-        ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"];
+        [DetailUnknownAccount, DetailBadPassword, DetailLocked, DetailDeactivated, DetailUnconfirmed, DetailNoPassword, DetailManagerLocked, DetailDeleted];
 
     /// <summary>What triggered a lockout (the detail of <see cref="Lockout"/>).</summary>
-    public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];
+    public static IReadOnlyList<string> LockoutDetails { get; } = [DetailPassword, DetailCode];
 
     /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
-    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"];
+    public static IReadOnlyList<string> SessionsRevokedDetails { get; } =
+        [DetailSignOutOthers, DetailPasswordReset, DetailPasswordChanged, DetailAccountChanged, DetailTemporaryPassword];
+
+    /// <summary>What happened to a reset request (the detail of <see cref="PasswordResetRequested"/>).</summary>
+    public static IReadOnlyList<string> ResetRequestDetails { get; } =
+        [DetailUnknownAccount, DetailManagerLocked, DetailCapped, DetailSent, DetailDeactivated];
 
     /// <summary>
     /// The codes a person can cause without a signed-in token: sign-in, sign-in codes, password reset, invitation acceptance and the

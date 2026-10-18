@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
@@ -46,13 +45,12 @@ public sealed class AcceptInviteHandler(
 
         if (outcome.CheckUnavailableFor is { } userId)
         {
-            await audit.RecordIndependentlyAsync(AuditActions.BreachCheckUnavailable, UserTarget, Key(userId), "invite", cancellationToken).ConfigureAwait(false);
+            await audit.RecordIndependentlyAsync(AuditActions.BreachCheckUnavailable, UserTarget, AuditKey.Of(userId), AuditActions.DetailInvite, cancellationToken).ConfigureAwait(false);
         }
 
         return outcome.Result;
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     // The invite is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
     private async Task<Outcome> ProcessAsync(AcceptInviteRequest request, CancellationToken cancellationToken)
@@ -102,7 +100,7 @@ public sealed class AcceptInviteHandler(
 
                 await accounts.SetPasswordAsync(account.Id, request.NewPassword!, token).ConfigureAwait(false);
                 await accounts.ConfirmEmailAsync(account.Id, token).ConfigureAwait(false);
-                audit.Record(AuditActions.InviteAccepted, UserTarget, Key(account.Id), null);
+                audit.Record(AuditActions.InviteAccepted, UserTarget, AuditKey.Of(account.Id), null);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return new Outcome(Result.Success(), null);
             },

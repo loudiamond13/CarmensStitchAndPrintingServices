@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -58,7 +57,6 @@ public sealed class ResetPasswordHandler(
         return outcome.Result;
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     // The link is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
     private async Task<Outcome> ProcessAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
@@ -119,7 +117,7 @@ public sealed class ResetPasswordHandler(
         if (breachCheckSkipped)
         {
             await accounts.MarkBreachRecheckAsync(id, cancellationToken).ConfigureAwait(false);
-            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, Key(id), null);
+            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, AuditKey.Of(id), null);
         }
         else
         {
@@ -129,8 +127,8 @@ public sealed class ResetPasswordHandler(
         // Every session ends, the one that asked included; a reset signs nobody in (D-17).
         await sessions.RevokeAllAsync(id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, true), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordResetCompleted, UserTarget, Key(id), null);
-        audit.Record(AuditActions.SessionsRevoked, UserTarget, Key(id), "password-reset");
+        audit.Record(AuditActions.PasswordResetCompleted, UserTarget, AuditKey.Of(id), null);
+        audit.Record(AuditActions.SessionsRevoked, UserTarget, AuditKey.Of(id), AuditActions.DetailPasswordReset);
     }
 
     // EvictUser is set only for a committed reset.

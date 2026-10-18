@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -65,7 +64,7 @@ public sealed class SignInHandler(
         {
             // Same hashing work as a real check, so a missing account or password costs the same time.
             accounts.VerifyDummyPassword(password);
-            failure = account is null ? "unknown-account" : "no-password";
+            failure = account is null ? AuditActions.DetailUnknownAccount : AuditActions.DetailNoPassword;
         }
         else
         {
@@ -73,20 +72,20 @@ public sealed class SignInHandler(
             var check = await accounts.CheckPasswordAsync(account.Id, password, cancellationToken).ConfigureAwait(false);
             if (account.IsBlocked)
             {
-                failure = account.IsDeleted ? "deleted" : account.IsManagerLocked ? "manager-locked" : "deactivated";
+                failure = account.IsDeleted ? AuditActions.DetailDeleted : account.IsManagerLocked ? AuditActions.DetailManagerLocked : AuditActions.DetailDeactivated;
             }
             else if (!account.EmailConfirmed)
             {
-                failure = "unconfirmed";
+                failure = AuditActions.DetailUnconfirmed;
             }
             else if (IsLocked(account))
             {
-                failure = "locked";
+                failure = AuditActions.DetailLocked;
             }
             else if (check == PasswordCheck.Failed)
             {
                 await CountFailureAsync(account, cancellationToken).ConfigureAwait(false);
-                failure = "bad-password";
+                failure = AuditActions.DetailBadPassword;
             }
             else
             {
@@ -104,7 +103,7 @@ public sealed class SignInHandler(
 
         if (failure is not null)
         {
-            await audit.RecordIndependentlyAsync(AuditActions.SignInFailed, account is null ? null : UserTarget, account is null ? null : Key(account.Id), failure, cancellationToken).ConfigureAwait(false);
+            await audit.RecordIndependentlyAsync(AuditActions.SignInFailed, account is null ? null : UserTarget, account is null ? null : AuditKey.Of(account.Id), failure, cancellationToken).ConfigureAwait(false);
         }
 
         await ResponseFloor.WaitAsync(started, settings.ResponseFloor, time, cancellationToken).ConfigureAwait(false);
@@ -113,7 +112,6 @@ public sealed class SignInHandler(
             : Result.Success(outcome);
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private bool IsLocked(UserAccount account) => account.LockoutEnd is { } end && end > time.GetUtcNow();
 
@@ -127,7 +125,7 @@ public sealed class SignInHandler(
                 {
                     // LockoutEnd is always set when LockedNow is true (IUserAccounts contract).
                     await outbox.EnqueueAsync(new AccountLockedEmail(account.Email, result.LockoutEnd!.Value, LockoutCause.Password, settings.PasswordLockoutDuration), token).ConfigureAwait(false);
-                    audit.Record(AuditActions.Lockout, UserTarget, Key(account.Id), "password");
+                    audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailPassword);
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 }
 
@@ -159,7 +157,7 @@ public sealed class SignInHandler(
                 await accounts.ClearBreachRecheckAsync(account.Id, token).ConfigureAwait(false);
                 if (breached)
                 {
-                    audit.Record(AuditActions.PasswordBreachFound, UserTarget, Key(account.Id), null);
+                    audit.Record(AuditActions.PasswordBreachFound, UserTarget, AuditKey.Of(account.Id), null);
                 }
 
                 // Saved on both branches, so the clean branch does not rely on UserManager saving the shared context.
@@ -191,7 +189,7 @@ public sealed class SignInHandler(
                 await outbox.EnqueueAsync(
                     new SignInCodeEmail(account.Email, code, issued.ExpiresAt, now, DeviceSummary.Describe(requestContext.UserAgent)),
                     token).ConfigureAwait(false);
-                audit.Record(AuditActions.TwoFactorIssued, UserTarget, Key(account.Id), null);
+                audit.Record(AuditActions.TwoFactorIssued, UserTarget, AuditKey.Of(account.Id), null);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
 
                 return new SignInOutcome(ticket, challenge.ExpiresAt, (int)settings.ResendCooldown.TotalSeconds);

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Email;
@@ -48,7 +47,6 @@ public sealed class BootstrapManagerHandler(
         return await unitOfWork.InTransactionAsync(token => CreateAsync(command, token), cancellationToken).ConfigureAwait(false);
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private async Task<Result<Guid>> CreateAsync(BootstrapManagerCommand command, CancellationToken cancellationToken)
     {
@@ -74,8 +72,8 @@ public sealed class BootstrapManagerHandler(
         tokens.Add(invitation);
         await outbox.EnqueueAsync(new InviteEmail(email, secret, invitation.ExpiresAt, now), cancellationToken).ConfigureAwait(false);
 
-        audit.Record(AuditActions.BootstrapManagerCreated, UserTarget, Key(id), null);
-        audit.Record(AuditActions.UserInvited, UserTarget, Key(id), "bootstrap");
+        audit.Record(AuditActions.BootstrapManagerCreated, UserTarget, AuditKey.Of(id), null);
+        audit.Record(AuditActions.UserInvited, UserTarget, AuditKey.Of(id), AuditActions.DetailBootstrap);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(id);
     }

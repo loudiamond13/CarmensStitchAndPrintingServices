@@ -160,6 +160,12 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
+    public void ResetRequestDetailsAreTheFiveDocumentedOnes()
+    {
+        AuditActions.ResetRequestDetails.ShouldBe(["unknown-account", "manager-locked", "capped", "sent", "deactivated"]);
+    }
+
+    [Fact]
     public void SelfServiceHoldsOnlyCodesFromTheCatalogWithoutDuplicates()
     {
         AuditActions.SelfService.ShouldBeSubsetOf(AuditActions.All);
