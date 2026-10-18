@@ -22,3 +22,15 @@ export const usersPanelBodyClasses = tw('flex flex-col gap-5');
 
 /** The Role block: its label, the segmented control and the hint, 8px apart. */
 export const usersRoleBlockClasses = tw('flex flex-col items-start gap-2');
+
+/** CopyField: the read-only field and its button side by side, the button below the field on phones; 16px apart. */
+export const usersCopyRowClasses = tw('flex items-end gap-4 pg-phone:flex-col pg-phone:items-stretch');
+
+/** CopyField: the field takes the width the button leaves. */
+export const usersCopyFieldClasses = tw('min-w-0 flex-1 pg-phone:flex-none');
+
+/** CopyField: the row, its failure message and its live status in one column 8px apart. */
+export const usersCopyStackClasses = tw('flex flex-col gap-2');
+
+/** The New Suggestion button row under the temporary password field. */
+export const usersSuggestionClasses = tw('flex items-start');

@@ -339,6 +339,13 @@ const copyBox = () => screen.getByLabelText<HTMLInputElement>('Temporary passwor
 
 type User = ReturnType<typeof userEvent.setup>;
 
+/** Every key and value a Storage holds, as one text. */
+function storedText(storage: Storage): string {
+  return Object.keys(storage)
+    .map((key) => `${key}=${storage.getItem(key) ?? ''}`)
+    .join(' ');
+}
+
 async function chooseTemporary(user: User) {
   await user.click(screen.getByRole('radio', { name: 'Set a temporary password' }));
 }
@@ -628,8 +635,8 @@ describe('U2 the shown-once step (D-14)', () => {
     const password = await createWithTemporary(user);
     await user.click(screen.getByRole('button', { name: 'Done' }));
 
-    expect(JSON.stringify({ ...localStorage })).not.toContain(password);
-    expect(JSON.stringify({ ...sessionStorage })).not.toContain(password);
+    expect(storedText(localStorage)).not.toContain(password);
+    expect(storedText(sessionStorage)).not.toContain(password);
     expect(window.location.href).not.toContain(password);
     expect(document.title).not.toContain(password);
     expect(

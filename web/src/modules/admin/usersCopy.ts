@@ -28,7 +28,11 @@ export const USERS_COPY = {
   add: {
     open: 'Add User',
     title: 'Add User',
-    description: "We'll email them a link to set their own password.",
+    /** The panel description follows the access choice (OQ-7, App. E.12). */
+    description: {
+      invitation: "We'll email them a link to set their own password.",
+      temporary: 'They can sign in right away with a temporary password.',
+    },
     firstName: 'First name',
     lastName: 'Last name',
     email: 'Email',
@@ -42,9 +46,37 @@ export const USERS_COPY = {
         Manager: 'Managers can do everything Admins can, plus add, edit and remove users.',
       },
     },
+    // SPEC-GAP: the access choice (OQ-10, D-12).
+    access: {
+      legend: 'How they get access',
+      invitation: {
+        label: 'Email an invitation',
+        description: 'We email them a link to set their own password. It works for 7 days.',
+      },
+      temporary: {
+        label: 'Set a temporary password',
+        description: 'You give them a password to use once. They choose their own at first sign-in.',
+      },
+    },
+    temporaryPassword: {
+      label: 'Temporary password',
+      hint: "Share it privately. They'll be asked to change it on first sign-in.",
+      // SPEC-GAP: a fresh random suggestion.
+      newSuggestion: 'New Suggestion',
+    },
     cancel: 'Cancel',
     create: 'Create User',
     creating: 'Creating',
+    // SPEC-GAP: the shown-once step (D-14).
+    shownOnce: {
+      title: 'User created',
+      /** "{First Last} · {Role}" */
+      description: (name: string, role: string): string => `${name} · ${role}`,
+      fieldLabel: (first: string): string => `Temporary password for ${first}`,
+      note: (first: string): string =>
+        `This is the only time you'll see this password. Copy it now and give it to ${first} in person or by private message. If it gets lost, set a new one.`,
+      done: 'Done',
+    },
     toast: {
       title: 'User created',
       /** "{First Last} · {Role}. We emailed them an invitation that works for 7 days." */
@@ -59,7 +91,16 @@ export const USERS_COPY = {
       emailRequired: 'Enter their email.',
       roleRequired: 'Choose a role.',
       accessRequired: 'Choose how they get access.',
+      temporaryPasswordRequired: 'Enter a temporary password.',
     },
+  },
+  // SPEC-GAP: the CopyField beside a shown-once password (UI-SPEC "CopyField behaviour").
+  copyField: {
+    copy: 'Copy Password',
+    copied: 'Copied',
+    /** Read out politely once the copy worked. */
+    announce: 'Password copied.',
+    failed: "Copy didn't work. Select the password and copy it yourself.",
   },
   /** The no-match sentence's filter part: "No users with role Manager and status Locked." */
   filterSummary: (role: string | null, status: string | null): string =>

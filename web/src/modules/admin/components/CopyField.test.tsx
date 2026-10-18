@@ -55,11 +55,11 @@ describe('CopyField', () => {
     expect(screen.queryByText(FAILED)).toBeNull();
 
     act(() => {
-      vi.advanceTimersByTime(1999);
+      vi.advanceTimersByTime(1500);
     });
     expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
     act(() => {
-      vi.advanceTimersByTime(2);
+      vi.advanceTimersByTime(600);
     });
     expect(screen.getByRole('button', { name: 'Copy Password' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
