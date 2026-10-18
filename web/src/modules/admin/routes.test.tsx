@@ -114,6 +114,71 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
   });
 });
 
+const adminSession = () =>
+  sessionResponse({
+    user: {
+      id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+      email: 'lito@example.ph',
+      firstName: 'Lito',
+      lastName: 'Santos',
+      role: 'Admin',
+    },
+  });
+
+describe('Manager-only routes (USER-08)', () => {
+  /** The Signed-in devices list the index redirect lands on. */
+  function answerSessionsList(): void {
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+  }
+
+  it.each(['/admin/users', '/admin/audit-log'])(
+    'an Admin who opens %s lands on /admin and then Signed-in devices',
+    async (path) => {
+      answerRefresh(adminSession());
+      answerSessionsList();
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+
+      await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+      expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
+    },
+  );
+
+  it.each(['/admin/users', '/admin/audit-log'])('a Manager who opens %s stays and sees the page', async (path) => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe(path);
+  });
+
+  it.each(['/admin/users', '/admin/audit-log'])(
+    'a visitor without a session opening %s goes to sign-in with the return path',
+    async (path) => {
+      answerRefresh();
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+      expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
+    },
+  );
+
+  it('a session with an unknown role is sent to sign-in, never shown the Manager pages', async () => {
+    answerRefresh(sessionResponse({ user: { ...sessionResponse().user, role: 'Owner' } }));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(screen.queryByRole('heading', { level: 1, name: 'Page not found' })).toBeNull();
+  });
+});
+
 /** The route tree as a dev-route build has it: the unguarded previews in front of everything else. */
 function devTree(): RouteObject[] {
   const [root, ...rest] = routes;

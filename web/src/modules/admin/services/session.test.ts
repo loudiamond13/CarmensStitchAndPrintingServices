@@ -110,6 +110,66 @@ function newTab(hub: Hub, locks: Locks | null) {
   };
 }
 
+/** A session response whose user carries `role` exactly as given, or no role at all when it is undefined. */
+function responseWithRole(role: string | undefined): SessionResponse {
+  const { role: _dropped, ...user } = sessionResponse().user;
+  return sessionResponse({ user: role === undefined ? (user as SessionResponse['user']) : { ...user, role } });
+}
+
+describe('the role mapping fails closed (IN-17, USER-08)', () => {
+  it.each([
+    ['Admin', 'admin'],
+    ['Manager', 'manager'],
+  ])('maps the server role %s to %s', async (role, expected) => {
+    const a = newTab(createHub(), createLocks());
+
+    const user = a.tab.ensureSession();
+    await a.answer(responseWithRole(role));
+
+    await expect(user).resolves.toMatchObject({ role: expected });
+  });
+
+  it.each([
+    ['another casing (manager)', 'manager'],
+    ['another casing (MANAGER)', 'MANAGER'],
+    ['another casing (admin)', 'admin'],
+    ['a trailing space', 'Manager '],
+    ['a role the app does not know', 'Owner'],
+    ['an empty role', ''],
+    ['a missing role', undefined],
+  ])('%s ends the session as signed out instead of becoming Manager', async (_name, role) => {
+    const a = newTab(createHub(), createLocks());
+
+    const user = a.tab.ensureSession();
+    await a.answer(responseWithRole(role));
+
+    await expect(user).resolves.toBeNull();
+    expect(a.tab.getSessionUser()).toBeNull();
+    expect(a.tab.accessToken()).toBeNull();
+  });
+
+  it('tells no other tab that a session was refreshed when the role is refused', async () => {
+    const hub = createHub();
+    const a = newTab(hub, createLocks());
+
+    const user = a.tab.ensureSession();
+    await a.answer(responseWithRole('Owner'));
+    await user;
+
+    expect(hub.messages).toEqual([]);
+  });
+
+  it('drops a live session when a later response brings an unknown role', () => {
+    const a = newTab(createHub(), createLocks());
+    a.tab.acceptSession(sessionResponse());
+
+    a.tab.acceptSession(responseWithRole('Owner'));
+
+    expect(a.tab.getSessionUser()).toBeNull();
+    expect(a.tab.accessToken()).toBeNull();
+  });
+});
+
 describe('refreshSession single flight', () => {
   it('two concurrent calls in one tab send one request', async () => {
     const a = newTab(createHub(), createLocks());
@@ -640,6 +700,18 @@ describe('the shared session wired to the shared client', () => {
     acceptSession(sessionResponse());
     server.use(http.get('*/api/v1/ping', () => unauthorized()));
     answerRefresh(unauthorized);
+
+    await expect(apiClient.get('/ping')).rejects.toMatchObject({ status: 401 });
+
+    expect(getSessionUser()).toBeNull();
+    expect(takeSignInNotice()).toBe('session-ended');
+    expect(navigate).toHaveBeenCalledWith('/admin/login');
+  });
+
+  it('a 401 followed by a refresh with an unknown role signs the person out like a refused refresh', async () => {
+    acceptSession(sessionResponse());
+    server.use(http.get('*/api/v1/ping', () => unauthorized()));
+    answerRefresh(() => HttpResponse.json(responseWithRole('Owner')));
 
     await expect(apiClient.get('/ping')).rejects.toMatchObject({ status: 401 });
 
