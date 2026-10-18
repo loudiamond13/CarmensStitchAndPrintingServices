@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T11:30:00-05:00
+updated: 2026-10-18T12:47:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -53,6 +53,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Deferred to:** the Phase 5 close-out test review. Options: run Firefox with fewer workers, or ignore exactly this Firefox warning for the app's own preloaded woff2 in `web/e2e/fixtures.ts`, as the WebKit module-preload warning already is.
 - **Covered meanwhile:** the failing runs pass at `--workers=2`; no product behavior is affected.
 - **Seen again in 05-28:** with 4 workers the long Firefox `@users-actions` journey (1.3 min) failed on this warning; the same test passes alone and at `--workers=2`. In the `@users` run at `--workers=2` it hit the untouched first `@users` roster test (passes alone). 05-28 code loads no fonts.
+- **Resolved in 05-33:** the `@audit` journeys on `/admin/audit-log` hit the warning in Firefox even with one worker (the warning follows the time a document stays open, not the load). `web/e2e/fixtures.ts` now ignores exactly this warning (the page's own `/assets/archivo-latin-wght-normal-*.woff2` and Firefox's wording), the way it already ignores WebKit's module-preload warning. The fonts spec still proves the font preloads once and loads from the same origin. The close-out test review can confirm or revert that guard change.
 
 ## Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
 
@@ -87,3 +88,10 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Refusals (`edit.guards`, new):** users.blocked "This account is locked or deactivated. / Unlock or activate this person first."; users.already-set-up "They already have a password. / Send a reset link instead."; users.no-password "They haven't set a password yet. / Resend the invitation instead."; users.reset-link-capped "Too many reset links for this person. / Wait an hour, then try again."
 - **Lock and Set a temporary password:** `lock` (Lock {First Last}?, body, Keep Unlocked, Lock User, Locking) and `temporary` (Set a temporary password, For {First Last}, the Note, Set Password, Setting, Temporary password set) follow the UI-SPEC rows.
 - **Status:** present the rendered panel with each note, the pending note, both stacked dialogs and the toasts in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+
+## Owner wording review: Audit Log screen (added by plan 05-33, D-26..D-29, D-40, D-48)
+
+- **What:** The Audit Log page was built from the UI-SPEC wording as written (header, subline, toolbar, result bar, chips, columns, toggle names, empty and error states, the date messages, the action labels). The strings below are new: the UI-SPEC lines for "What changed" ("Name: {old} to {new}" and so on) could not be built, because the log keeps field names and role values only (D-40), so the executor chose the sentences. None is approved yet. They all live in `web/src/modules/admin/auditCopy.ts`.
+- **"What changed" sentences (`describeAuditDetail`):** "Name changed", "Email changed" (both together read "Name changed. Email changed"), "Role: Admin to Manager" and "Role: Manager to Admin" (UI-SPEC form), "Link sent again", "That address was taken"; for sign-in failures "No account with that email", "Wrong password", "The account was locked", "The account is deactivated", "The account is not confirmed yet", "No password set yet", "A Manager locked the account", "The account was deleted"; for lockouts "Too many wrong passwords", "Too many wrong sign-in codes"; for signed-out devices "Signed out of other devices", "After a password reset", "After a password change", "The account was changed", "After a temporary password was set"; for reset requests "Reset link emailed", "Notice emailed, the account is deactivated", "Nothing sent, a Manager locked the account", "Nothing sent, no account with that email", "Too many requests this hour"; "Changed in My Profile", "First Manager setup", "Invited by a Manager". A stored word the viewer does not know shows no "What changed" line.
+- **Other new strings:** "Unknown person" (a Done by or Done to chip whose person the staff list no longer names, for example a stale link), the no-match sentence "No audit entries with range Last 30 days and done by {name}. Try another search or clear the filters." (built from the shared list wording), the custom range chip "Range: Custom range" (it names the range, not the two dates), and the table noun "audit entries" for "Loading audit entries…" and "Couldn't load audit entries.".
+- **Status:** present the rendered page with a few entries open in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
