@@ -41,6 +41,8 @@ export interface ConfirmDialogProps {
   /** The confirmed action. Return its promise so the dialog can track the attempt. */
   onConfirm?: () => unknown;
   onCancel?: () => void;
+  /** Words for a failure the caller recognises; undefined leaves the line to describeHttpError. */
+  describeFailure?: (error: unknown) => ErrorCopy | undefined;
   inline?: boolean;
   loading?: boolean;
 }

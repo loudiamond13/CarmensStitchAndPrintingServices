@@ -336,6 +336,26 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(await screen.findByText(/Reference: 00-retry/)).toBeVisible();
   });
 
+  it('words a failure the caller recognises through describeFailure and leaves the rest to the mapper', async () => {
+    const user = userEvent.setup();
+    const guard = new Error('guard');
+    const describeFailure = (error: unknown) =>
+      error === guard ? { title: "You can't do this.", body: 'Try something else.' } : undefined;
+    const onConfirm = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ ok: false, error: guard })
+      .mockResolvedValueOnce({ ok: false, error: serverError('00-other') });
+    render(<DeleteOrder onConfirm={onConfirm} describeFailure={describeFailure} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+    expect(await screen.findByText("You can't do this. Try something else.")).toBeVisible();
+    await user.click(deleteButton());
+
+    expect(await screen.findByText(/Reference: 00-other/)).toBeVisible();
+    expect(screen.queryByText("You can't do this. Try something else.")).toBeNull();
+  });
+
   it('shows a title that already ends a sentence as it is, and a title alone when there is no body', async () => {
     const user = userEvent.setup();
     const badRequest = new HttpError({

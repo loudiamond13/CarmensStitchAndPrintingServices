@@ -1031,3 +1031,200 @@ describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () =>
     await expectNoAxeViolations(document.body);
   });
 });
+
+// U4 Delete (USER-03, USER-04, D-09, OQ-7; plan 05-28): the shared ConfirmDialog, focus that lands somewhere sensible, and the
+// guard line when the server refuses.
+describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+
+  /** A roster that loses a row when its DELETE lands; records each DELETE with its Idempotency-Key header. */
+  function rosterThatDeletes(
+    items: UserListItem[] = ROWS,
+    fail?: () => Response | null,
+  ): { deleted: { id: string; key: string | null }[] } {
+    const rows = items.map((row) => ({ ...row }));
+    const deleted: { id: string; key: string | null }[] = [];
+    backend(items, () => listOf(rows));
+    server.use(
+      http.delete('*/api/v1/users/:id', ({ params, request }) => {
+        const id = String(params.id);
+        deleted.push({ id, key: request.headers.get('Idempotency-Key') });
+        const refused = fail?.() ?? null;
+        if (refused !== null) {
+          return refused;
+        }
+        rows.splice(
+          rows.findIndex((row) => row.id === id),
+          1,
+        );
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return { deleted };
+  }
+
+  function refusal(status: number, code: string): Response {
+    return new HttpResponse(JSON.stringify({ title: 'x', status, code }), {
+      status,
+      headers: { 'Content-Type': 'application/problem+json' },
+    });
+  }
+
+  const deleteButton = (name: string) => screen.getByRole('button', { name: `Delete ${name}` });
+  const editButton = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('gives every other row a danger trash button "Delete {First Last}" and your own row none', async () => {
+    backend();
+    await openPage();
+
+    for (const name of [
+      'Paolo Garcia',
+      'Liza Mercado',
+      'Rhea Villanueva',
+      'Jomar Santos',
+      'Mario Lopez',
+      'Nena Cruz',
+    ]) {
+      const button = within(rowOf(name)).getByRole('button', { name: `Delete ${name}` });
+      expect(button.querySelector('svg')).toHaveClass('lucide-trash');
+    }
+    expect(screen.queryByRole('button', { name: 'Delete Carmen Reyes' })).toBeNull();
+  });
+
+  it('opens the shared confirm with the amended message, Cancel focused, and sends nothing yet', async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+
+    await userEvent.click(deleteButton('Paolo Garcia'));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Paolo Garcia?' });
+    expect(dialog).toHaveTextContent(
+      "They won't be able to sign in. Orders and expenses they recorded stay, under their name. If they might come back, deactivate instead. This can't be undone.",
+    );
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete User' })).toBeEnabled();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(deleted).toHaveLength(0);
+  });
+
+  it("Cancel closes the dialog without a request and returns focus to that row's Delete button", async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(deleted).toHaveLength(0);
+    expect(deleteButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it("removes the row after Delete User, sends a DELETE with no Idempotency-Key, toasts, and focuses the next row's Edit", async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByText('User deleted')).toBeInTheDocument();
+    expect(deleted).toEqual([{ id: PAOLO_ID, key: null }]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Paolo Garcia', { selector: 'strong' })).toBeNull();
+    });
+    expect(screen.getByText('User deleted').parentElement).toHaveTextContent('Paolo Garcia');
+    await waitFor(() => {
+      expect(editButton('Liza Mercado')).toHaveFocus();
+    });
+  });
+
+  it("moves focus to the previous row's Edit when the last row is deleted", async () => {
+    rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Nena Cruz'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await waitFor(() => {
+      expect(editButton('Mario Lopez')).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the page heading when no other row with an Edit button is left', async () => {
+    rosterThatDeletes([ROWS[0] as UserListItem, ROWS[1] as UserListItem]);
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toHaveFocus();
+    });
+  });
+
+  it('keeps the dialog open with the last-Manager guard line and focus on Delete User for a 422', async () => {
+    rosterThatDeletes(ROWS, () => refusal(422, 'users.last-active-manager'));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Rhea Villanueva'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Rhea Villanueva?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "You can't remove the last active Manager. Make another user a Manager first, then try again.",
+    );
+    expect(within(dialog).getByRole('button', { name: 'Delete User' })).toHaveFocus();
+    expect(screen.queryByText('User deleted')).toBeNull();
+  });
+
+  it('keeps the dialog open and says the user was deleted when the server answers 404', async () => {
+    rosterThatDeletes(ROWS, () => refusal(404, 'users.not-found'));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Paolo Garcia?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'This user was deleted. Close this and refresh the list.',
+    );
+  });
+
+  it('repeats the DELETE on a retry after a server error, with no Idempotency-Key', async () => {
+    let refuse = true;
+    const { deleted } = rosterThatDeletes(ROWS, () => (refuse ? problem(500) : null));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    refuse = false;
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByText('User deleted')).toBeInTheDocument();
+    expect(deleted).toEqual([
+      { id: PAOLO_ID, key: null },
+      { id: PAOLO_ID, key: null },
+    ]);
+  });
+
+  it('has no axe violations with the Delete dialog open', async () => {
+    rosterThatDeletes();
+    await openPage();
+    await userEvent.click(deleteButton('Paolo Garcia'));
+
+    await expectNoAxeViolations(document.body);
+  });
+});
