@@ -247,3 +247,52 @@ describe('select scenarios (the forms parity group)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('Select grouped options (UI-SPEC "Select group option")', () => {
+  const ACTIONS: readonly SelectOption[] = [
+    { value: 'all', label: 'All actions' },
+    { value: 'user.created', label: 'User created', group: 'Users' },
+    { value: 'user.locked', label: 'User locked', group: 'Users' },
+    { value: 'login.ok', label: 'Signed in', group: 'Sign-in' },
+    { value: 'user.deleted', label: 'User deleted', group: 'Users' },
+  ];
+
+  it('wraps consecutive options of one group in an optgroup with that label, in order', () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
+    const groups = [...container.querySelectorAll('optgroup')];
+
+    expect(groups.map((group) => group.label)).toEqual(['Users', 'Sign-in', 'Users']);
+    expect(groups.map((group) => [...group.querySelectorAll('option')].map((option) => option.value))).toEqual([
+      ['user.created', 'user.locked'],
+      ['login.ok'],
+      ['user.deleted'],
+    ]);
+  });
+
+  it('leaves options without a group directly under the select, in order', () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
+    const direct = [...container.querySelectorAll('select > option')].map((option) => option.textContent);
+
+    expect(direct).toEqual(['All actions']);
+    expect(container.querySelector('select')?.firstElementChild?.tagName).toBe('OPTION');
+  });
+
+  it('selects a value inside a group', async () => {
+    const onChange = vi.fn();
+    render(<Select label="Action" options={ACTIONS} onChange={onChange} />);
+    await userEvent.selectOptions(select('Action'), 'login.ok');
+
+    expect(select('Action')).toHaveValue('login.ok');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no optgroup when no option has a group', () => {
+    const { container } = render(<Select label="Payment method" options={METHODS} />);
+    expect(container.querySelector('optgroup')).toBeNull();
+  });
+
+  it('has no axe violations with groups', async () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
+    await expectNoAxeViolations(container);
+  });
+});
