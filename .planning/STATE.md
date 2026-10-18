@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-10-18T01:43:25.271Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-10-18T01:58:28.179Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 13f57af27d50c3e2a140da9d8953c502e4c2d4ef
+state_head: 32ffd26df9bdb1808677306e7c0dc1667ea38485
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 120
+  completed_plans: 121
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T14:20:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 7 of 43
+Plan: 8 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -176,6 +176,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P04 | 25 min | 2 tasks | 4 files |
 | Phase 05 P05 | 21 min | 2 tasks | 17 files |
 | Phase 05 P06 | 10 min | 2 tasks | 12 files |
+| Phase 05 P07 | 13 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -446,6 +447,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-05: deleted marker is nullable DeletedAtUtc and the Manager lock is ManagerLockedAtUtc, separate from LockoutEnd; one UserAccount.IsBlocked rule gates sign-in
 - [Phase 05]: 05-05: migration backfill SQL is wrapped in EXEC so the idempotent production script compiles it; tested both via IMigrator and via the script
 - [Phase 05]: D-13: invite links last 7 days via the single AuthSettings.InviteLinkLifetime; existing rows keep their 72-hour ExpiresAt
+- [Phase 05]: 05-07: ResendWaitResponse lives in Csps.Application.Auth so sign-in and resend share one contract schema (IN-12)
+- [Phase 05]: 05-07: outbox purge of closed rows deferred to Phase 9 JOB-01; retention rule (30 days after close) written in mail-setup.md (IN-08)
 
 ### Pending Todos
 
@@ -505,6 +508,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T01:43:24.568Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-10-18T01:58:27.515Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None
