@@ -299,6 +299,29 @@ public sealed class EmailRendererTests
     }
 
     [Fact]
+    public async Task AnInviteFromAManagerOpensWithTheirNameAndEncodesItInTheHtml()
+    {
+        const string Line = "Carmen O'Reyes <Boss> set up your account.";
+
+        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At, InvitedBy: "Carmen O'Reyes <Boss>"));
+
+        rendered.Text.ShouldContain(Line);
+        rendered.Text.IndexOf(Line, StringComparison.Ordinal).ShouldBeLessThan(rendered.Text.IndexOf("A staff account at", StringComparison.Ordinal));
+        rendered.Html.ShouldContain("Carmen O&#39;Reyes &lt;Boss&gt; set up your account.");
+        rendered.Html.ShouldNotContain("<Boss>");
+        rendered.Text.ShouldContain("This link works for 7 days and only once.");
+    }
+
+    [Fact]
+    public async Task AnInviteWithoutAManagerKeepsTheBootstrapText()
+    {
+        var rendered = await RenderAsync(new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At));
+
+        rendered.Text.ShouldNotContain("set up your account.");
+        rendered.Html.ShouldNotContain("set up your account.");
+    }
+
+    [Fact]
     public async Task LifetimesAreWordedFromTheRealExpiryNotFromFixedText()
     {
         var code = await RenderAsync(new SignInCodeEmail("paolo.garcia@gmail.com", "048213", At.AddMinutes(10), At, Chrome));
