@@ -39,6 +39,14 @@ export const SHOWCASE_COPY = {
     ['Show danger toast', 'toast-danger'],
     ['Show long toast', 'toast-long-copy'],
   ],
+  /** SPEC-GAP dev wording: the Staff and audit demos (plan 05-42). Made-up people and values only. */
+  staff: {
+    from: 'From',
+    to: 'To',
+    showConflict: 'Show stale save banner',
+    rosterCaption: 'Staff',
+    auditCaption: 'Audit log',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */

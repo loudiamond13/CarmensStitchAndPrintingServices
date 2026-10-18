@@ -41,6 +41,7 @@ import {
   loadedImageClasses,
   triggersClasses,
 } from './showcase.recipe';
+import { Phase5Demos } from './Phase5Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
 
@@ -422,4 +423,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   ],
   media: [{ id: 'showcase-lazy-image-loaded', Component: LoadedLazyImage }],
   auth: [{ id: 'showcase-session-toasts', Component: SessionToastTriggers }],
+  staff: [{ id: 'showcase-staff-and-audit', Component: Phase5Demos, demo: true }],
 };

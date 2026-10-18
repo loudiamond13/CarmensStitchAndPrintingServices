@@ -64,3 +64,6 @@ export const datesClasses = tw('m-0 flex flex-wrap gap-6');
 
 /** One date: its overline term over the value. */
 export const dateClasses = tw('flex flex-col gap-1');
+
+/** The Staff and audit demos, one case under another (each case keeps its own label and frame). */
+export const staffStackClasses = tw('flex w-full min-w-0 flex-col gap-6');

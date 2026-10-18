@@ -1,9 +1,9 @@
 // Phase 5 demos in the Component Showcase (UI-SPEC C1; D-32, D-33; plan 05-42): the new primitives and the roster, audit
 // row and profile pieces, all on made-up data and local state. No test here may cause a request.
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { ToastProvider } from '@/components';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -29,7 +29,7 @@ function caseFrame(id: string): HTMLElement {
 
 /** Every request the page makes, seen two ways: MSW's request events and a spy on fetch. */
 const requests: string[] = [];
-let fetchSpy: ReturnType<typeof vi.spyOn>;
+let fetchSpy: MockInstance<typeof fetch>;
 
 beforeEach(() => {
   requests.length = 0;
@@ -91,9 +91,10 @@ describe('Phase5Demos: the primitives', () => {
     const meta = within(caseFrame('staff-record-meta'));
 
     expect(meta.getByText('Recorded by')).toBeInTheDocument();
-    expect(meta.getByText(/^System · /)).toBeInTheDocument();
+    expect(meta.getByText(/^System ·/)).toBeInTheDocument();
     expect(meta.getByText('Last changed by')).toBeInTheDocument();
-    expect(meta.getByText(/Paolo Garcia \(former staff\)/)).toBeInTheDocument();
+    expect(meta.getByText(/^Paolo Garcia ·/)).toBeInTheDocument();
+    expect(meta.getByText('(former staff)')).toBeInTheDocument();
   });
 });
 
@@ -110,7 +111,11 @@ describe('Phase5Demos: the audit row and the roster', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(frame.getByText('Role: Admin to Manager')).toBeVisible();
-    expect(frame.getByText('IP address')).toBeVisible();
+    const detail = document.getElementById('staff-audit-detail-1');
+    if (detail === null) {
+      throw new Error('No audit detail.');
+    }
+    expect(within(detail).getByText('203.0.113.0')).toBeVisible();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -154,8 +159,12 @@ describe('Phase5Demos: made-up data, local state, no request (D-32, D-33)', () =
     renderDemos();
 
     await user.click(within(caseFrame('staff-radio-group')).getByRole('radio', { name: 'Set a temporary password' }));
-    await user.click(within(caseFrame('staff-audit-row')).getByRole('button', { name: /^Show details for/ }));
-    await user.click(within(caseFrame('staff-conflict-banner')).getByRole('button', { name: 'Show stale save banner' }));
+    await user.click(
+      within(caseFrame('staff-audit-row')).getByRole('button', { name: /^Show details for Role changed/ }),
+    );
+    await user.click(
+      within(caseFrame('staff-conflict-banner')).getByRole('button', { name: 'Show stale save banner' }),
+    );
     await user.click(within(caseFrame('staff-conflict-banner')).getByRole('button', { name: 'Load Latest' }));
 
     expect(requests).toEqual([]);
