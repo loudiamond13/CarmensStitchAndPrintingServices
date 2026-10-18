@@ -286,6 +286,95 @@ for (const path of SWEEP_PATHS) {
   });
 }
 
+// Plan 05-37 (UI Considerations, overflow backstop): the Phase 5 screens do not scroll sideways at the eight widths, in
+// portrait and landscape, in Blush and Espresso. Landscape is the phone or tablet turned on its side (width and height
+// swapped); a desktop width is already landscape. The theme comes from localStorage['csps-theme'] (D-13), and the public
+// site and the sign-in screens stay in Blush, so Espresso is swept only inside the admin shell.
+interface SweepViewport {
+  readonly width: number;
+  readonly height: number;
+  readonly label: string;
+}
+
+const PORTRAIT_HEIGHTS = new Map<number, number>([
+  [320, 568],
+  [375, 667],
+  [414, 896],
+  [768, 1024],
+  [1024, 1366],
+  [1280, 800],
+  [1536, 864],
+  [1920, 1080],
+]);
+
+const SWEEP_VIEWPORTS: readonly SweepViewport[] = SWEEP_WIDTHS.flatMap((width) => {
+  const height = PORTRAIT_HEIGHTS.get(width) ?? 900;
+  const portrait = { width, height, label: `${String(width)}x${String(height)}` };
+  return height > width
+    ? [portrait, { width: height, height: width, label: `${String(height)}x${String(width)}` }]
+    : [portrait];
+});
+
+interface ScreenCase {
+  readonly path: string;
+  /** True for a screen inside the admin shell: it needs a signed-in Manager and is swept in Espresso too. */
+  readonly shell: boolean;
+}
+
+const PHASE5_SCREENS: readonly ScreenCase[] = [
+  { path: '/admin/users', shell: true },
+  { path: '/admin/profile', shell: true },
+  { path: '/admin/profile?tab=security', shell: true },
+  { path: '/admin/profile?tab=appearance', shell: true },
+  { path: '/admin/audit-log', shell: true },
+  { path: '/admin/components', shell: true },
+  { path: '/admin/sessions', shell: true },
+  { path: '/admin/confirm-email', shell: false },
+  { path: '/admin/login', shell: false },
+  { path: '/', shell: false },
+];
+
+for (const { path, shell } of PHASE5_SCREENS) {
+  test(`@shell phase 5 no sideways scroll on ${path} at 8 widths, portrait and landscape${shell ? ', Blush and Espresso' : ''}`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(240_000);
+    // A signed-out page asks the refresh cookie for a session first; with none that answer is a 401.
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    if (shell) {
+      await signInAs(page, request, await createStaff(request, 'Manager'));
+    }
+    const failures: string[] = [];
+    for (const theme of shell ? (['light', 'dark'] as const) : (['light'] as const)) {
+      if (shell) {
+        await page.evaluate(`localStorage.setItem('csps-theme', '${theme}')`);
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(path);
+      await expect(page.locator('main')).toBeVisible();
+      await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+      await page.evaluate('document.fonts.ready.then(() => true)');
+      for (const viewport of SWEEP_VIEWPORTS) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        const reading = await page.evaluate<Sideways>(READ_SIDEWAYS);
+        if (reading.scrollWidth > reading.clientWidth) {
+          failures.push(
+            `${theme} ${viewport.label}: scrollWidth ${String(reading.scrollWidth)} > ${String(reading.clientWidth)} (${reading.offenders.join('; ')})`,
+          );
+        }
+        if (reading.htmlOverflowX !== 'visible' || reading.bodyOverflowX !== 'visible') {
+          failures.push(
+            `${theme} ${viewport.label}: html ${reading.htmlOverflowX}, body ${reading.bodyOverflowX} hide overflow`,
+          );
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+}
+
 // D-01: a short public page fills the viewport, so no band of another colour shows under it.
 for (const { width, height } of [
   { width: 1440, height: 900 },

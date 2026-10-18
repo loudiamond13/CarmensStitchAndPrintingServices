@@ -45,13 +45,19 @@ public sealed class TestingFixturesController(
     private const string Digits = "23456789";
     private const string Symbols = "!@#$%^&*-_=+?";
     private const int PasswordLength = 16;
+    private const int NameMaxLength = 100;
+    private const int EmailMaxLength = 256;
+    private const string TestingDomain = "@csps.test";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>The body of the create call.</summary>
     /// <param name="Role"><c>Admin</c> or <c>Manager</c>.</param>
     /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>manager-locked</c>, <c>must-change-temporary</c>, <c>must-change-breach</c> or <c>invited</c> (no password, a raw invite token returned).</param>
-    public sealed record StaffRequest(string? Role, string? State);
+    /// <param name="FirstName">Optional first name, 1 to 100 characters; <c>E2E</c> when missing (long-text specs).</param>
+    /// <param name="LastName">Optional last name, 1 to 100 characters; <c>Staff</c> when missing (long-text specs).</param>
+    /// <param name="Email">Optional address under <c>csps.test</c>, at most 256 characters; a random one when missing (long-text specs).</param>
+    public sealed record StaffRequest(string? Role, string? State, string? FirstName = null, string? LastName = null, string? Email = null);
 
     /// <summary>The new account and the password it was created with.</summary>
     /// <param name="UserId">The account id.</param>
@@ -96,14 +102,31 @@ public sealed class TestingFixturesController(
             return Rejected("The state must be active, deactivated, manager-locked, must-change-temporary, must-change-breach or invited.", "state");
         }
 
-        var email = $"e2e-{Guid.NewGuid():N}@csps.test";
+        var firstName = request?.FirstName ?? "E2E";
+        var lastName = request?.LastName ?? "Staff";
+        if (firstName.Length is < 1 or > NameMaxLength)
+        {
+            return Rejected("The first name must be 1 to 100 characters.", "firstName");
+        }
+
+        if (lastName.Length is < 1 or > NameMaxLength)
+        {
+            return Rejected("The last name must be 1 to 100 characters.", "lastName");
+        }
+
+        var email = request?.Email ?? $"e2e-{Guid.NewGuid():N}@csps.test";
+        if (email.Length > EmailMaxLength || !email.EndsWith(TestingDomain, StringComparison.Ordinal))
+        {
+            return Rejected("The email must end with @csps.test and have at most 256 characters.", "email");
+        }
+
         if (state == "invited")
         {
-            return await CreateInvitedAsync(email, role, cancellationToken).ConfigureAwait(false);
+            return await CreateInvitedAsync(email, firstName, lastName, role, cancellationToken).ConfigureAwait(false);
         }
 
         var password = NewPassword();
-        var id = await accounts.CreateAsync(new NewUserAccount(email, "E2E", "Staff", role, password), cancellationToken).ConfigureAwait(false);
+        var id = await accounts.CreateAsync(new NewUserAccount(email, firstName, lastName, role, password), cancellationToken).ConfigureAwait(false);
         if (state == "deactivated")
         {
             await activation.DeactivateAsync(id).ConfigureAwait(false);
@@ -122,9 +145,9 @@ public sealed class TestingFixturesController(
     }
 
     // No password and an unconfirmed address, like a real invited account; the raw token stands in for the emailed link.
-    private async Task<IResult> CreateInvitedAsync(string email, string role, CancellationToken cancellationToken)
+    private async Task<IResult> CreateInvitedAsync(string email, string firstName, string lastName, string role, CancellationToken cancellationToken)
     {
-        var id = await accounts.CreateAsync(new NewUserAccount(email, "E2E", "Staff", role, null), cancellationToken).ConfigureAwait(false);
+        var id = await accounts.CreateAsync(new NewUserAccount(email, firstName, lastName, role, null), cancellationToken).ConfigureAwait(false);
         var secret = random.NewToken();
         tokens.Add(AccountToken.Create(id, AccountTokenPurpose.Invitation, TokenHash.Compute(secret), time.GetUtcNow(), settings.InviteLinkLifetime));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
