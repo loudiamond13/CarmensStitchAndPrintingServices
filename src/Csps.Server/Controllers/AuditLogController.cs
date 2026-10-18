@@ -19,13 +19,20 @@ namespace Csps.Server.Controllers;
 public sealed class AuditLogController(ListAuditLogHandler list) : ControllerBase
 {
     /// <summary>
-    /// Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it. The
-    /// detail holds the stored fixed words only: field names and role values, never a name or an email address (D-40).
+    /// Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date
+    /// is a business day (<c>YYYY-MM-DD</c>, Manila time) from the start of the kept window (8 months) to today, and the range includes the
+    /// whole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored
+    /// fixed words only: field names and role values, never a name or an email address (D-40).
     /// </summary>
+    /// <param name="from">The first business day, <c>YYYY-MM-DD</c>; none means 6 days before today.</param>
+    /// <param name="to">The last business day, <c>YYYY-MM-DD</c>; none means today.</param>
+    /// <param name="actor">A user id, or <c>system</c>, to keep only what that person (or nobody) did.</param>
+    /// <param name="action">An action code, for example <c>user.deactivated</c>.</param>
+    /// <param name="target">A user id, to keep only entries about that person, including their session events.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <param name="page">The page number, from 1.</param>
     /// <param name="pageSize">Entries per page, from 1 to 100; 20 when not sent.</param>
-    /// <returns>200 with the page, 400 for a bad page, 401 without a valid token, or 403 for an Admin.</returns>
+    /// <returns>200 with the page, 400 for a bad filter, date or page, 401 without a valid token, or 403 for an Admin.</returns>
     [HttpGet]
     [EndpointName("ListAuditLog")]
     [ProducesResponseType<AuditLogResponse>(StatusCodes.Status200OK)]
@@ -33,11 +40,16 @@ public sealed class AuditLogController(ListAuditLogHandler list) : ControllerBas
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IResult> List(
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        [FromQuery] string? actor,
+        [FromQuery] string? action,
+        [FromQuery] string? target,
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = ListAuditLogRequest.DefaultPageSize)
     {
-        var result = await list.HandleAsync(new ListAuditLogRequest(page, pageSize), cancellationToken).ConfigureAwait(false);
+        var result = await list.HandleAsync(new ListAuditLogRequest(from, to, actor, action, target, page, pageSize), cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static entries => TypedResults.Ok(entries));
     }
 }

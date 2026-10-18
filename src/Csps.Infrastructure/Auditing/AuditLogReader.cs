@@ -1,6 +1,7 @@
-using System.Globalization;
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,9 +21,7 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var matches = context.AuditLog
-            .AsNoTracking()
-            .Where(entry => entry.OccurredAtUtc >= query.StartUtc && entry.OccurredAtUtc < query.EndUtcExclusive);
+        var matches = await FilterAsync(query, cancellationToken).ConfigureAwait(false);
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
 
         var rows = await matches
@@ -103,6 +102,64 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
                 row.CorrelationId)),
         ];
         return new AuditLogPage(items, total);
+    }
+
+    // Applies the range and the three filters in SQL, before any paging.
+    private async Task<IQueryable<AuditEntry>> FilterAsync(AuditLogQuery query, CancellationToken cancellationToken)
+    {
+        var matches = context.AuditLog
+            .AsNoTracking()
+            .Where(entry => entry.OccurredAtUtc >= query.StartUtc && entry.OccurredAtUtc < query.EndUtcExclusive);
+
+        if (query.Action is { } action)
+        {
+            matches = matches.Where(entry => entry.Action == action);
+        }
+
+        // The codes a person causes without a token: their entries have no actor, so they are matched by the person they are about.
+        List<string> selfService = [.. AuditActions.SelfService];
+
+        if (query.Target is { } target)
+        {
+            var targetKey = AuditKey.Of(target);
+            var targetSessions = await SessionKeysAsync(target, cancellationToken).ConfigureAwait(false);
+            matches = matches.Where(entry =>
+                (entry.TargetType == UserTarget && entry.TargetId == targetKey)
+                || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId)));
+        }
+
+        if (query.Actor is { UserId: { } actorId })
+        {
+            var actorKey = AuditKey.Of(actorId);
+            var actorSessions = await SessionKeysAsync(actorId, cancellationToken).ConfigureAwait(false);
+            matches = matches.Where(entry =>
+                entry.ActorUserId == actorId
+                || (entry.ActorUserId == null
+                    && selfService.Contains(entry.Action)
+                    && ((entry.TargetType == UserTarget && entry.TargetId == actorKey)
+                        || (entry.TargetType == SessionTarget && entry.TargetId != null && actorSessions.Contains(entry.TargetId)))));
+        }
+        else if (query.Actor is not null)
+        {
+            // The system: no actor, and not a self-service step that names a person or an unknown account (a failed sign-in with no target).
+            matches = matches.Where(entry =>
+                entry.ActorUserId == null
+                && !(selfService.Contains(entry.Action) && (entry.TargetType != null || entry.Action == AuditActions.SignInFailed)));
+        }
+
+        return matches;
+    }
+
+    // The ids of a person's sessions in the form audit targets use, so their session events can be matched by target id.
+    private async Task<List<string>> SessionKeysAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var ids = await context.UserSessions
+            .AsNoTracking()
+            .Where(session => session.UserId == userId)
+            .Select(session => session.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return [.. ids.Select(AuditKey.Of)];
     }
 
     // Target ids are written as lower-case "D" text (AuditKey.Of); anything else names no one.

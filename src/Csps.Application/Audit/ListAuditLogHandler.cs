@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.Time;
 using FluentValidation;
 
 namespace Csps.Application.Audit;
@@ -30,14 +31,36 @@ public sealed class ListAuditLogHandler(IAuditLogReader reader, IBusinessCalenda
         }
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var (start, end) = clock.UtcRange(clock.Today.AddDays(1 - DefaultDays), clock.Today);
+        var (start, end) = RangeOf(request, clock);
+        var query = new AuditLogQuery(
+            start,
+            end,
+            ActorOf(request.Actor),
+            AuditLogFilters.IsBlank(request.Action) ? null : request.Action,
+            AuditLogFilters.TryParseId(request.Target, out var target) ? target : null,
+            request.Page,
+            request.PageSize);
 
-        var page = await reader
-            .ListAsync(new AuditLogQuery(start, end, request.Page, request.PageSize), cancellationToken)
-            .ConfigureAwait(false);
+        var page = await reader.ListAsync(query, cancellationToken).ConfigureAwait(false);
         IReadOnlyList<AuditLogItem> items = [.. page.Items.Select(Map)];
         return Result.Success(new AuditLogResponse(items, page.Total, request.Page, request.PageSize));
     }
+
+    // Both dates: as given. Neither: the last 7 business days. Only a start: up to today. Only an end: from the start of the kept window.
+    // The validator has checked the dates, but its clock read was earlier than this one, so a start can never end up after the end.
+    private static (DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive) RangeOf(ListAuditLogRequest request, BusinessClock clock)
+    {
+        var hasFrom = AuditLogFilters.TryParseDay(request.From, out var fromDay);
+        var hasTo = AuditLogFilters.TryParseDay(request.To, out var toDay);
+        var to = hasTo ? toDay : clock.Today;
+        var from = hasFrom ? fromDay : hasTo ? clock.Today.AddMonths(-AuditRetention.Months) : clock.Today.AddDays(1 - DefaultDays);
+        return clock.UtcRange(from <= to ? from : to, to);
+    }
+
+    private static AuditActorFilter? ActorOf(string? actor) =>
+        AuditLogFilters.IsBlank(actor) ? null
+        : actor == AuditLogFilters.SystemActor ? new AuditActorFilter(null)
+        : new AuditActorFilter(Guid.ParseExact(actor!, "D"));
 
     private static AuditLogItem Map(AuditLogEntryView entry) =>
         new(entry.Id, entry.OccurredAt, DoneByOf(entry), entry.Action, entry.Target, entry.Detail, NetworkOf(entry.IpPrefix), entry.Device, entry.Reference);

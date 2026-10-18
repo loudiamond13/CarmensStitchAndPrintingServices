@@ -12,8 +12,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it. The
-         *     detail holds the stored fixed words only: field names and role values, never a name or an email address (D-40).
+         * Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date
+         *     is a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the
+         *     whole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored
+         *     fixed words only: field names and role values, never a name or an email address (D-40).
          */
         get: operations["ListAuditLog"];
         put?: never;
@@ -1114,6 +1116,16 @@ export interface operations {
     ListAuditLog: {
         parameters: {
             query?: {
+                /** @description The first business day, `YYYY-MM-DD`; none means 6 days before today. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; none means today. */
+                to?: string;
+                /** @description A user id, or `system`, to keep only what that person (or nobody) did. */
+                actor?: string;
+                /** @description An action code, for example `user.deactivated`. */
+                action?: string;
+                /** @description A user id, to keep only entries about that person, including their session events. */
+                target?: string;
                 /** @description The page number, from 1. */
                 page?: number | string;
                 /** @description Entries per page, from 1 to 100; 20 when not sent. */

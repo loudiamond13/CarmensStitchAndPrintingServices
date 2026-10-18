@@ -15,12 +15,20 @@ public interface IAuditLogReader
     Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken);
 }
 
+/// <summary>Whose actions to keep: a user id, or the system when <see cref="UserId"/> is null.</summary>
+/// <param name="UserId">The person; null for entries nobody signed in did and that are not a person's own self-service steps.</param>
+public sealed record AuditActorFilter(Guid? UserId);
+
 /// <summary>A checked audit query.</summary>
 /// <param name="StartUtc">The first instant included.</param>
 /// <param name="EndUtcExclusive">The first instant left out.</param>
+/// <param name="Actor">Keep only what this person (or the system) did; null for everyone. A person's own self-service steps count as theirs.</param>
+/// <param name="Action">Keep only this action code; null for all.</param>
+/// <param name="Target">Keep only entries about this person, including events of their sessions; null for all.</param>
 /// <param name="Page">The page number, from 1.</param>
 /// <param name="PageSize">Entries per page, from 1 to 100.</param>
-public sealed record AuditLogQuery(DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive, int Page, int PageSize);
+public sealed record AuditLogQuery(
+    DateTimeOffset StartUtc, DateTimeOffset EndUtcExclusive, AuditActorFilter? Actor, string? Action, Guid? Target, int Page, int PageSize);
 
 /// <summary>One stored entry with the people it names resolved. It carries only what the log stores (D-40).</summary>
 /// <param name="Id">The entry id; later entries have higher ids.</param>
