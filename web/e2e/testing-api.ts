@@ -5,7 +5,7 @@ import type { APIRequestContext } from '@playwright/test';
 import { expect } from './fixtures.ts';
 
 export type StaffRole = 'Admin' | 'Manager';
-export type StaffState = 'active' | 'deactivated' | 'must-change-temporary' | 'must-change-breach';
+export type StaffState = 'active' | 'deactivated' | 'manager-locked' | 'must-change-temporary' | 'must-change-breach';
 
 /** A staff user made for one test. The password is shown here once. */
 export interface TestStaff {

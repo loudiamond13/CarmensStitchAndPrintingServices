@@ -20,7 +20,7 @@ namespace Csps.Server.Controllers;
 /// Debug build only; later plans add more account states here.
 /// </summary>
 /// <param name="accounts">The staff accounts port.</param>
-/// <param name="activation">Deactivates an account.</param>
+/// <param name="activation">Deactivates or Manager-locks an account.</param>
 /// <param name="tokens">Stores the invitation token of the <c>invited</c> state.</param>
 /// <param name="random">Makes the invitation token.</param>
 /// <param name="unitOfWork">Saves the invitation token.</param>
@@ -50,7 +50,7 @@ public sealed class TestingFixturesController(
 
     /// <summary>The body of the create call.</summary>
     /// <param name="Role"><c>Admin</c> or <c>Manager</c>.</param>
-    /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>must-change-temporary</c>, <c>must-change-breach</c> or <c>invited</c> (no password, a raw invite token returned).</param>
+    /// <param name="State"><c>active</c> (default), <c>deactivated</c>, <c>manager-locked</c>, <c>must-change-temporary</c>, <c>must-change-breach</c> or <c>invited</c> (no password, a raw invite token returned).</param>
     public sealed record StaffRequest(string? Role, string? State);
 
     /// <summary>The new account and the password it was created with.</summary>
@@ -91,9 +91,9 @@ public sealed class TestingFixturesController(
             return Rejected("The role must be Admin or Manager.", "role");
         }
 
-        if (state is not ("active" or "deactivated" or "must-change-temporary" or "must-change-breach" or "invited"))
+        if (state is not ("active" or "deactivated" or "manager-locked" or "must-change-temporary" or "must-change-breach" or "invited"))
         {
-            return Rejected("The state must be active, deactivated, must-change-temporary, must-change-breach or invited.", "state");
+            return Rejected("The state must be active, deactivated, manager-locked, must-change-temporary, must-change-breach or invited.", "state");
         }
 
         var email = $"e2e-{Guid.NewGuid():N}@csps.test";
@@ -107,6 +107,10 @@ public sealed class TestingFixturesController(
         if (state == "deactivated")
         {
             await activation.DeactivateAsync(id).ConfigureAwait(false);
+        }
+        else if (state == "manager-locked")
+        {
+            await activation.ManagerLockAsync(id).ConfigureAwait(false);
         }
         else if (state is "must-change-temporary" or "must-change-breach")
         {
