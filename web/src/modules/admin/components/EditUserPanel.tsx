@@ -115,6 +115,8 @@ export interface EditUserPanelProps {
   onClose: () => void;
   /** The person was saved; the answer carries the new version and the saved names and role. */
   onSaved: (saved: UserDetailResponse) => void;
+  /** An account action (lock, unlock, resend, reset link, temporary password, cancel email change) changed the person. */
+  onAccountChanged?: () => void;
 }
 
 export function EditUserPanel({ open = true, userId, ...props }: EditUserPanelProps) {

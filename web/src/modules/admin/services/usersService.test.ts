@@ -286,6 +286,87 @@ describe('usersService.remove', () => {
   });
 });
 
+describe('usersService account access (USER-07, D-16; plan 05-30)', () => {
+  const ACTIONS = [
+    ['lock', 'lock'],
+    ['unlock', 'unlock'],
+    ['resendInvitation', 'resend-invitation'],
+    ['sendResetLink', 'send-reset-link'],
+  ] as const;
+
+  it.each(ACTIONS)(
+    '%s calls POST /api/v1/users/{id}/%s with the Idempotency-Key and no body, and resolves on a 204',
+    async (method, route) => {
+      const { fake, service } = serviceWith([{ status: 204 }]);
+
+      await expect(service[method](detail.id, 'key-1')).resolves.toBeUndefined();
+
+      expect(fake.calls).toHaveLength(1);
+      expect(fake.calls[0]?.method).toBe('POST');
+      expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}/${route}`);
+      expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+      expect(fake.calls[0]?.body).toBeNull();
+    },
+  );
+
+  it.each(ACTIONS)('%s encodes the id for /%s so it can never add a path segment or a query', async (method, route) => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service[method]('a/b?c=d', 'key-1');
+
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/a%2Fb%3Fc%3Dd/${route}`);
+  });
+
+  it('sends the temporary password in the body of POST /api/v1/users/{id}/temporary-password with the Idempotency-Key', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await expect(service.setTemporaryPassword(detail.id, 'Tela-Sukat-7381', 'key-2')).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}/temporary-password`);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-2');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ temporaryPassword: 'Tela-Sukat-7381' });
+  });
+
+  it('encodes the id for the temporary password route', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.setTemporaryPassword('a/b?c=d', 'Tela-Sukat-7381', 'key-2');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/users/a%2Fb%3Fc%3Dd/temporary-password');
+  });
+
+  it('calls DELETE /api/v1/users/{id}/email-change with no Idempotency-Key and resolves on a 204', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await expect(service.cancelEmailChange(detail.id)).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/users/${detail.id}/email-change`);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
+  });
+
+  it('encodes the id for the email-change route', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.cancelEmailChange('a/b?c=d');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/users/a%2Fb%3Fc%3Dd/email-change');
+  });
+
+  it.each([
+    ['lock', 422, 'users.last-active-manager'],
+    ['resendInvitation', 422, 'users.already-set-up'],
+    ['sendResetLink', 429, 'users.reset-link-capped'],
+  ] as const)('%s rejects with the status and machine code of a %i', async (method, status, code) => {
+    const { service } = serviceWith([
+      { status, headers: { 'Content-Type': 'application/problem+json' }, body: { title: 'x', status, code } },
+    ]);
+
+    await expect(service[method](detail.id, 'key-1')).rejects.toMatchObject({ kind: 'http', status, code });
+  });
+});
+
 describe('usersService', () => {
   it('exports an instance over the shared client', () => {
     expect(typeof usersService.list).toBe('function');

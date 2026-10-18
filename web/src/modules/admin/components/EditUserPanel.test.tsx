@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { EditUserPanel } from '@/modules/admin/components/EditUserPanel';
@@ -740,6 +741,344 @@ describe('U3 who recorded and last changed the person (SEC-08, D-11)', () => {
 
   it('has no axe violations with the record meta and the link showing', async () => {
     await openLoaded(detail({ recordedBy: { id: 'a1', name: 'Carmen Reyes', formerStaff: false } }));
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+// --- Account access (USER-03, USER-07, D-16, D-21; plan 05-30) ---
+
+interface AccessCall {
+  method: string;
+  /** The path after /users/{id}/. */
+  path: string;
+  key: string | null;
+  body: unknown;
+}
+
+interface Access {
+  calls: AccessCall[];
+  gets: number;
+  /** The person as the server now holds them. */
+  current: UserDetailResponse;
+}
+
+/** Answers GET /users/{id} and the account routes; each action changes the person the way the server does. */
+function accessBackend(
+  loaded: UserDetailResponse = detail(),
+  answers: Readonly<Record<string, () => Response>> = {},
+): Access {
+  const access: Access = { calls: [], gets: 0, current: loaded };
+  server.use(
+    http.get('*/api/v1/users/:id', () => {
+      access.gets += 1;
+      return HttpResponse.json(access.current);
+    }),
+    http.post('*/api/v1/users/:id/:action', async ({ request, params }) => {
+      const action = String(params.action);
+      const text = await request.text();
+      access.calls.push({
+        method: 'POST',
+        path: action,
+        key: request.headers.get('Idempotency-Key'),
+        body: text === '' ? null : (JSON.parse(text) as unknown),
+      });
+      const custom = answers[action];
+      if (custom !== undefined) {
+        return custom();
+      }
+      if (action === 'lock') {
+        access.current = { ...access.current, managerLocked: true, status: 'locked', version: NEXT_VERSION };
+      } else if (action === 'unlock') {
+        access.current = { ...access.current, managerLocked: false, status: 'active', version: NEXT_VERSION };
+      } else if (action === 'temporary-password') {
+        access.current = { ...access.current, version: NEXT_VERSION };
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.delete('*/api/v1/users/:id/email-change', ({ request }) => {
+      access.calls.push({
+        method: 'DELETE',
+        path: 'email-change',
+        key: request.headers.get('Idempotency-Key'),
+        body: null,
+      });
+      access.current = { ...access.current, pendingEmail: null };
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return access;
+}
+
+function renderAccessPanel(handlers: { onClose?: () => void; onSaved?: (saved: unknown) => void } = {}) {
+  const onClose = handlers.onClose ?? vi.fn();
+  const onSaved = handlers.onSaved ?? vi.fn();
+  const onAccountChanged = vi.fn();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ToastProvider>
+          <EditUserPanel userId={ID} onClose={onClose} onSaved={onSaved} onAccountChanged={onAccountChanged} />
+        </ToastProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  return { onClose, onSaved, onAccountChanged };
+}
+
+/** Opens the panel with the account routes answering, and waits until the person is loaded into the form. */
+async function openAccess(
+  loaded: UserDetailResponse = detail(),
+  answers: Readonly<Record<string, () => Response>> = {},
+) {
+  const access = accessBackend(loaded, answers);
+  const handlers = renderAccessPanel();
+  await waitFor(() => {
+    expect(firstName()).toHaveValue(loaded.firstName);
+  });
+  return { access, ...handlers };
+}
+
+const accessHeading = () => screen.queryByRole('heading', { level: 3, name: 'Account access' });
+const accessButton = (name: string) => screen.queryByRole('button', { name });
+const ACCESS_BUTTONS = ['Resend Invitation', 'Send Reset Link', 'Set Temporary Password', 'Lock', 'Unlock'] as const;
+
+function visibleAccessButtons(): string[] {
+  return ACCESS_BUTTONS.filter((name) => accessButton(name) !== null);
+}
+
+/** Confirms the open Lock dialog. */
+async function confirmLock(user: ReturnType<typeof userEvent.setup>) {
+  const dialog = await screen.findByRole('dialog', { name: 'Lock Paolo Garcia?' });
+  await user.click(within(dialog).getByRole('button', { name: 'Lock User' }));
+}
+
+describe('U3 Account access: what shows (USER-07, D-16, D-18)', () => {
+  it('shows Send Reset Link, Set Temporary Password and Lock for an active person with a password', async () => {
+    await openAccess();
+
+    expect(accessHeading()).toBeInTheDocument();
+    expect(visibleAccessButtons()).toEqual(['Send Reset Link', 'Set Temporary Password', 'Lock']);
+  });
+
+  it('shows Resend Invitation, Set Temporary Password and Lock for an invited person with no password yet', async () => {
+    await openAccess(detail({ hasPassword: false, inviteState: 'pending' }));
+
+    expect(visibleAccessButtons()).toEqual(['Resend Invitation', 'Set Temporary Password', 'Lock']);
+  });
+
+  it('shows Resend Invitation for an invitation that expired', async () => {
+    await openAccess(detail({ hasPassword: false, inviteState: 'expired' }));
+
+    expect(visibleAccessButtons()).toEqual(['Resend Invitation', 'Set Temporary Password', 'Lock']);
+  });
+
+  it('shows only Unlock for a person a Manager locked', async () => {
+    await openAccess(detail({ status: 'locked', managerLocked: true }));
+
+    expect(visibleAccessButtons()).toEqual(['Unlock']);
+  });
+
+  it('shows no Unlock for the failed-password lockout, only the heading', async () => {
+    await openAccess(detail({ status: 'locked', managerLocked: false }));
+
+    expect(accessHeading()).toBeInTheDocument();
+    expect(visibleAccessButtons()).toEqual([]);
+  });
+
+  it('shows only the heading for a deactivated person', async () => {
+    await openAccess(detail({ status: 'inactive' }));
+
+    expect(accessHeading()).toBeInTheDocument();
+    expect(visibleAccessButtons()).toEqual([]);
+  });
+
+  it('puts the section after the form fields, with an icon on each button', async () => {
+    await openAccess();
+
+    expect(screen.getByRole('button', { name: 'Lock' }).querySelector('svg')).not.toBeNull();
+    const heading = screen.getByRole('heading', { level: 3, name: 'Account access' });
+    expect(email().compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('has no axe violations with the section showing', async () => {
+    await openAccess();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('U3 Account access while the form is edited (D-21, T-05-88)', () => {
+  it('aria-disables every button with the hint "Save or discard your changes first." and sends nothing', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess();
+    expect(screen.queryByText('Save or discard your changes first.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lock' })).not.toHaveAttribute('aria-disabled');
+
+    await user.type(firstName(), 'o');
+
+    expect(screen.getByText('Save or discard your changes first.')).toBeInTheDocument();
+    for (const name of ['Send Reset Link', 'Set Temporary Password', 'Lock']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true');
+    }
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+    await user.click(screen.getByRole('button', { name: 'Set Temporary Password' }));
+    expect(screen.queryByRole('dialog', { name: 'Lock Paolo Garcia?' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Set a temporary password' })).toBeNull();
+    expect(access.calls).toEqual([]);
+  });
+
+  it('keeps the buttons focusable and points them at the hint', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.type(firstName(), 'o');
+
+    const lock = screen.getByRole('button', { name: 'Lock' });
+    const hint = screen.getByText('Save or discard your changes first.');
+    expect(lock).not.toBeDisabled();
+    expect(lock.getAttribute('aria-describedby')).toBe(hint.id);
+  });
+
+  it('enables them again once the typed change is undone', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.type(firstName(), 'o');
+    expect(screen.getByRole('button', { name: 'Lock' })).toHaveAttribute('aria-disabled', 'true');
+
+    await user.type(firstName(), '{Backspace}');
+
+    expect(screen.getByRole('button', { name: 'Lock' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByText('Save or discard your changes first.')).toBeNull();
+  });
+
+  it('has no axe violations while the buttons are aria-disabled', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.type(firstName(), 'o');
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('U3 Lock and Unlock (USER-03, D-16, U4)', () => {
+  it('opens the Lock confirm with "Keep Unlocked" focused and sends nothing until it is confirmed', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess();
+
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Lock Paolo Garcia?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Unlocked' })).toHaveFocus();
+    expect(access.calls).toEqual([]);
+  });
+
+  it('Esc closes only the confirm, and the panel stays open with focus back on Lock', async () => {
+    const user = userEvent.setup();
+    const { access, onClose } = await openAccess();
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Lock Paolo Garcia?' })).toBeNull();
+    });
+    expect(screen.getByRole('dialog', { name: 'Edit User' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(access.calls).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Lock' })).toHaveFocus();
+  });
+
+  it('locks at once with an Idempotency-Key and no body, reloads the person, toasts, and focuses Unlock', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged, onSaved } = await openAccess();
+    const getsBefore = access.gets;
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+
+    await confirmLock(user);
+
+    const unlock = await screen.findByRole('button', { name: 'Unlock' });
+    await waitFor(() => {
+      expect(unlock).toHaveFocus();
+    });
+    expect(access.calls).toEqual([{ method: 'POST', path: 'lock', key: expect.any(String) as unknown, body: null }]);
+    expect(access.gets).toBeGreaterThan(getsBefore);
+    expect(visibleAccessButtons()).toEqual(['Unlock']);
+    expect(screen.getByText('User locked')).toBeInTheDocument();
+    expect(screen.getByText("Paolo Garcia is signed out and can't sign in until you unlock them.")).toBeInTheDocument();
+    expect(screen.getByText('Locked')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Lock Paolo Garcia?' })).toBeNull();
+    expect(onAccountChanged).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('keeps the confirm open with the guard line when the server refuses, and reloads nothing', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess(detail(), {
+      lock: () => problem(422, { code: 'users.last-active-manager' }),
+    });
+    const getsBefore = access.gets;
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+
+    await confirmLock(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("You can't remove the last active Manager.");
+    expect(screen.getByRole('dialog', { name: 'Lock Paolo Garcia?' })).toBeInTheDocument();
+    expect(access.gets).toBe(getsBefore);
+    expect(onAccountChanged).not.toHaveBeenCalled();
+  });
+
+  it('unlocks at once with no confirm, reloads the person, and toasts', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess(detail({ status: 'locked', managerLocked: true }));
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+
+    expect(await screen.findByText('User unlocked')).toBeInTheDocument();
+    expect(screen.getByText('Paolo Garcia can sign in again.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /^Lock/ })).toBeNull();
+    expect(access.calls).toEqual([{ method: 'POST', path: 'unlock', key: expect.any(String) as unknown, body: null }]);
+    await waitFor(() => {
+      expect(visibleAccessButtons()).toEqual(['Send Reset Link', 'Set Temporary Password', 'Lock']);
+    });
+    expect(access.gets).toBeGreaterThan(getsBefore);
+    expect(onAccountChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('raises a danger toast that stays, with the mapper line, when Unlock fails', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess(detail({ status: 'locked', managerLocked: true }), {
+      unlock: () => problem(500),
+    });
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+
+    expect(await screen.findByText("Couldn't unlock Paolo Garcia")).toBeInTheDocument();
+    expect(screen.getByText('Please try again.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
+    expect(access.gets).toBe(getsBefore);
+    expect(onAccountChanged).not.toHaveBeenCalled();
+  });
+
+  it('can lock again after an unlock (a finished action is not replayed)', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess();
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+    await confirmLock(user);
+    await user.click(await screen.findByRole('button', { name: 'Unlock' }));
+    await user.click(await screen.findByRole('button', { name: 'Lock' }));
+    await confirmLock(user);
+
+    await screen.findByRole('button', { name: 'Unlock' });
+    expect(access.calls.map((call) => call.path)).toEqual(['lock', 'unlock', 'lock']);
+    expect(new Set(access.calls.map((call) => call.key)).size).toBe(3);
+  });
+
+  it('has no axe violations with the Lock confirm stacked over the panel', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
 
     await expectNoAxeViolations(document.body);
   });

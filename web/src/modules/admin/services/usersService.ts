@@ -59,6 +59,36 @@ export interface UsersService {
    * someone already deleted is a 404. 422 `users.last-active-manager` or `users.own-account`.
    */
   remove(id: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/users/{id}/lock`: they cannot sign in and every session of theirs ends at once; only a Manager lifts it (204).
+   * No version: it acts on the latest state (D-21). One Idempotency-Key per submission. 422 `users.last-active-manager` or
+   * `users.own-account`, 404 `users.not-found`.
+   */
+  lock(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /** `POST /api/v1/users/{id}/unlock`: lifts a Manager lock (204; repeating it is also 204). One Idempotency-Key per submission. */
+  unlock(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/users/{id}/resend-invitation`: a fresh 7-day link by email; the old one stops working (204). 422
+   * `users.already-set-up` or `users.blocked`, 404 `users.not-found`.
+   */
+  resendInvitation(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/users/{id}/send-reset-link`: a 30-minute reset link by email (204). 429 `users.reset-link-capped`, 422
+   * `users.no-password` or `users.blocked`, 404 `users.not-found`.
+   */
+  sendResetLink(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/users/{id}/temporary-password`: sets a one-time password and ends every session of theirs (204). The password
+   * is in the body only; the answer never holds it. 400 on `temporaryPassword`, 422 `users.own-account` or `users.blocked`.
+   */
+  setTemporaryPassword(
+    id: string,
+    temporaryPassword: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<void>;
+  /** `DELETE /api/v1/users/{id}/email-change`: calls off a waiting email change (204). A DELETE repeats safely: no Idempotency-Key. */
+  cancelEmailChange(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 export function createUsersService(client: HttpClient): UsersService {
@@ -77,6 +107,12 @@ export function createUsersService(client: HttpClient): UsersService {
     activate: (id, idempotencyKey, signal) =>
       client.post(`/users/${encodeURIComponent(id)}/activate`, undefined, { idempotencyKey, signal }),
     remove: (id, signal) => client.delete(`/users/${encodeURIComponent(id)}`, { signal }),
+    lock: () => Promise.reject(new Error('not implemented')),
+    unlock: () => Promise.reject(new Error('not implemented')),
+    resendInvitation: () => Promise.reject(new Error('not implemented')),
+    sendResetLink: () => Promise.reject(new Error('not implemented')),
+    setTemporaryPassword: () => Promise.reject(new Error('not implemented')),
+    cancelEmailChange: () => Promise.reject(new Error('not implemented')),
   };
 }
 
