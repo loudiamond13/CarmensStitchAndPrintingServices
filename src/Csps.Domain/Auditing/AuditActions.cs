@@ -1,7 +1,7 @@
 namespace Csps.Domain.Auditing;
 
 /// <summary>
-/// The audit action codes of Phase 4 (AUDIT-01). Each is a dotted lowercase code that <see cref="AuditEntry"/>
+/// The audit action codes (AUDIT-01, USER-06). Each is a dotted lowercase code that <see cref="AuditEntry"/>
 /// accepts. Entries reference people by user id only: never an e-mail address, name, code, token or password.
 /// </summary>
 public static class AuditActions
@@ -69,6 +69,9 @@ public static class AuditActions
     /// <summary>A user was invited.</summary>
     public const string UserInvited = "user.invited";
 
+    /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
+    public const string ProfileNameChanged = "profile.name-changed";
+
     /// <summary>Why a sign-in failed (the detail of <see cref="SignInFailed"/>).</summary>
     public static IReadOnlyList<string> SignInFailureReasons { get; } =
         ["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"];
@@ -103,5 +106,6 @@ public static class AuditActions
         InviteAccepted,
         BootstrapManagerCreated,
         UserInvited,
+        ProfileNameChanged,
     ];
 }

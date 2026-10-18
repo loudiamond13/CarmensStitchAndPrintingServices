@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-17T20:30:17-05:00
+updated: 2026-10-18T00:20:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -97,6 +97,17 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.invite-accepted` | An invited user sets a password and activates the account | `User` id | none | `Record` |
 | `user.bootstrap-manager-created` | The bootstrap command creates the first Manager | `User` id | none | `Record` |
 | `user.invited` | A user is invited | `User` id | none | `Record` |
+
+## Phase 5 profile and staff events (USER-06)
+
+Same rules as the Phase 4 table: the target is the thing acted on, by id, and the code is a constant in
+`Csps.Domain.Auditing.AuditActions`. **A detail holds field names and role values only, never a person's name or
+e-mail address (D-40).** An entry is kept for 8 months and cannot be scrubbed, so a name written here would stay.
+Handlers build the target id with `AuditKey.Of(id)` (lower-case `D` format).
+
+| Code | Written when | Target | Detail | Write path |
+|------|--------------|--------|--------|------------|
+| `profile.name-changed` | A signed-in user saves a first or last name that differs from the stored one (`PUT /api/v1/profile`). A save of the same names, a stale save and an invalid save write nothing | `User` id (the caller's own) | `fields=first-name`, `fields=last-name` or `fields=first-name,last-name`. Never the old or new name | `Record`, in the same transaction as the name save |
 
 ## Residual risk
 
