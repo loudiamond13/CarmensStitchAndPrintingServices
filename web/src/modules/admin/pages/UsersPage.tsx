@@ -11,6 +11,7 @@
 //   - The signed-in Manager's own row has one action, a pencil link to My Profile (D-19). Deleted users never appear (D-09).
 //   - Every other row has a pencil "Edit {First Last}" that opens the U3 panel (05-25); the panel is always mounted, and
 //     after a save the roster reads again and focus returns to that row's Edit button.
+//     An account action in the panel (lock, unlock, reset link; plan 05-30) also reads the roster again.
 //   - Every other row also has the status toggle (05-28): "Deactivate {first}" (user-x) opens DeactivateUserDialog, and
 //     "Activate {first}" (user-check) acts at once. Either way the roster reads again and the flipped toggle takes focus. The
 //     dialog sits in the page root, never in a table cell, and stays mounted with `open` so it can play its exit.
@@ -362,6 +363,9 @@ export function UsersRoute() {
           setEditing(false);
         }}
         onSaved={saved}
+        onAccountChanged={() => {
+          void queryClient.invalidateQueries({ queryKey: usersKey });
+        }}
       />
       {denied === null ? (
         <>

@@ -37,3 +37,18 @@ export const usersSuggestionClasses = tw('flex items-start');
 
 /** U3: the email-change choice and its message in one column 8px apart. */
 export const usersChoiceClasses = tw('flex flex-col gap-2');
+
+/** U3 Account access: a hairline above, 24px of padding, then the heading, the hint and the buttons 16px apart. */
+export const usersAccessClasses = tw('flex flex-col gap-4 border-t border-line pt-6');
+
+/** U3 Account access heading: the Label look (14px, 600, 20px). */
+export const usersAccessHeadingClasses = tw('text-[14px] leading-5 font-semibold text-ink');
+
+/** U3 Account access: the buttons side by side, one under the other on phones. */
+export const usersAccessButtonsClasses = tw('flex flex-wrap gap-3 pg-phone:flex-col');
+
+/** U3 Account access: each button takes the full width on phones. */
+export const usersAccessButtonClasses = tw('pg-phone:w-full');
+
+/** U3: a note and the ghost button that goes with it (Cancel Email Change), one column 8px apart. */
+export const usersPendingClasses = tw('flex flex-col items-start gap-2');

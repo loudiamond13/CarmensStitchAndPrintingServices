@@ -120,6 +120,42 @@ export const USERS_COPY = {
       },
       required: 'Choose how the email change applies.',
     },
+    // SPEC-GAP: Account access (OQ-1, D-21; plan 05-30). The wording is built, not yet approved (D-48).
+    accountAccess: {
+      heading: 'Account access',
+      /** Under the heading while the form has unsaved changes: the buttons wait (D-21). */
+      dirtyHint: 'Save or discard your changes first.',
+      resend: 'Resend Invitation',
+      sendReset: 'Send Reset Link',
+      setTemporary: 'Set Temporary Password',
+      lock: 'Lock',
+      unlock: 'Unlock',
+      toast: {
+        resent: {
+          title: 'Invitation sent',
+          message: (first: string): string =>
+            `We emailed ${first} a new link. It works for 7 days, and the old link no longer works.`,
+        },
+        resetSent: {
+          title: 'Reset link sent',
+          message: (first: string): string =>
+            `We emailed ${first} a link to set a new password. It works for 30 minutes.`,
+        },
+        locked: {
+          title: 'User locked',
+          message: (name: string): string => `${name} is signed out and can't sign in until you unlock them.`,
+        },
+        unlocked: {
+          title: 'User unlocked',
+          message: (name: string): string => `${name} can sign in again.`,
+        },
+      },
+      /** The danger toast's bold line; the mapper line follows. */
+      failed: {
+        email: "Couldn't send the email",
+        unlock: (name: string): string => `Couldn't unlock ${name}`,
+      },
+    },
     /** The link to this person's audit entries (the page lands in plan 05-33). */
     activityLink: "See this user's activity in the audit log",
     /** Refusals and the deleted notice: a bold line over a muted line (UI-SPEC "Error and guard states"). */
@@ -133,6 +169,11 @@ export const USERS_COPY = {
         body: 'Change your own details in My Profile.',
       },
       deleted: { title: 'This user was deleted.', body: 'Close this and refresh the list.' },
+      // SPEC-GAP: the account actions' own refusals (plan 05-30). The wording is built, not yet approved (D-48).
+      blocked: { title: 'This account is locked or deactivated.', body: 'Unlock or activate this person first.' },
+      alreadySetUp: { title: 'They already have a password.', body: 'Send a reset link instead.' },
+      noPassword: { title: "They haven't set a password yet.", body: 'Resend the invitation instead.' },
+      resetLinkCapped: { title: 'Too many reset links for this person.', body: 'Wait an hour, then try again.' },
     },
     toast: {
       title: 'User updated',
@@ -157,6 +198,14 @@ export const USERS_COPY = {
       title: 'User deactivated',
       message: (name: string): string => `${name} can no longer sign in.`,
     },
+  },
+  // SPEC-GAP: the Lock confirm (OQ-1, D-16). The wording is built, not yet approved (D-48).
+  lock: {
+    title: (name: string): string => `Lock ${name}?`,
+    body: "They'll be signed out on every device and can't sign in until a Manager unlocks them. Use this if their account may be at risk.",
+    keep: 'Keep Unlocked',
+    confirm: 'Lock User',
+    pending: 'Locking',
   },
   // SPEC-GAP: Activate acts at once, so only its toasts need words (D-48).
   activate: {

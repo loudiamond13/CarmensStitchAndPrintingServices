@@ -7,6 +7,9 @@
 //     under the Email field, "Confirm by link" (preselected) or "Save at once" (D-45). `emailChange` is sent only when the
 //     email changed. An invited person has no password: no choice is shown and `confirm` is sent (the server moves the
 //     address at once and re-invites either way).
+//   - Account access (USER-03, USER-07, D-16, D-21; plan 05-30): Lock (through LockUserDialog) and Unlock act at once on the
+//     latest state, with no version. They wait (aria-disabled, with a hint) while the form has unsaved changes. After one
+//     succeeds the person is read again, the roster is told through `onAccountChanged`, and a toast says what happened.
 // The form lives in a part that is mounted again on every open, so each open reads the person fresh.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
@@ -15,6 +18,7 @@ import clsx from 'clsx';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { RecordMeta } from '@/components/data';
+import { useToast } from '@/components/feedback';
 import { RadioGroup, type RadioOption } from '@/components/entry';
 import { Field, messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
@@ -22,10 +26,16 @@ import { loginLinkClasses, srOnlyClasses } from '@/components/layout/layout.reci
 import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
-import { useSubmission } from '@/lib/forms/useSubmission';
+import { useSubmission, type SubmissionState } from '@/lib/forms/useSubmission';
+import { LockUserDialog } from '@/modules/admin/components/LockUserDialog';
 import { RoleField } from '@/modules/admin/components/RoleField';
 import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import {
+  usersAccessButtonClasses,
+  usersAccessButtonsClasses,
+  usersAccessClasses,
+  usersAccessHeadingClasses,
+  usersCaptionClasses,
   usersChoiceClasses,
   usersFormGridClasses,
   usersPanelBodyClasses,
@@ -34,6 +44,7 @@ import {
 import { useUserQuery } from '@/modules/admin/hooks/useUserQuery';
 import { usersService, type UpdateUserRequest, type UserDetailResponse } from '@/modules/admin/services/usersService';
 import { USERS_COPY } from '@/modules/admin/usersCopy';
+import { describeUserGuard } from '@/modules/admin/usersGuards';
 import {
   emailChanged,
   updateUserSchema,
@@ -45,6 +56,7 @@ import {
 import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
 const COPY = USERS_COPY.edit;
+const ACCESS = COPY.accountAccess;
 const FIELDS = USERS_COPY.add;
 
 const EDIT_STALE = 'edit.stale';
@@ -90,6 +102,34 @@ function valuesOf(person: UserDetailResponse): UpdateUserValues {
   };
 }
 
+/** An account action's submission: it carries no data and nothing comes back. */
+type AccessAction = SubmissionState<undefined, unknown>;
+
+/** Which Account access buttons apply (UI-SPEC U3): the failed-password lockout and a deactivated person get none (D-16, D-18). */
+interface AccessButtons {
+  resend: boolean;
+  sendReset: boolean;
+  setTemporary: boolean;
+  lock: boolean;
+  unlock: boolean;
+}
+
+function accessButtonsFor(person: UserDetailResponse): AccessButtons {
+  const locked = person.status === 'locked' || person.managerLocked;
+  const usable = !locked && person.status !== 'inactive';
+  return {
+    resend: usable && !person.hasPassword,
+    sendReset: usable && person.hasPassword,
+    setTemporary: usable,
+    lock: usable,
+    unlock: person.managerLocked,
+  };
+}
+
+function anyAccess(buttons: AccessButtons): boolean {
+  return Object.values(buttons).some(Boolean);
+}
+
 /** The PUT body: the email always; the choice only when the email changed (an invited person always confirms). */
 function toRequest(values: UpdateUserValues, person: UserDetailResponse): UpdateUserRequest {
   const request: UpdateUserRequest = {
@@ -132,10 +172,23 @@ export function EditUserPanel({ open = true, userId, ...props }: EditUserPanelPr
   return userId === null ? null : <EditUserForm key={opens} userId={userId} open={open} {...props} />;
 }
 
-function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & { userId: string; open: boolean }) {
+function EditUserForm({
+  userId,
+  open,
+  onClose,
+  onSaved,
+  onAccountChanged,
+}: EditUserPanelProps & { userId: string; open: boolean }) {
   const formId = useId();
+  const accessHeadingId = useId();
+  const dirtyHintId = useId();
+  const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
+  const unlockRef = useRef<HTMLButtonElement>(null);
+  // Set when a reload should end with focus on the Unlock button that replaces Lock.
+  const focusUnlock = useRef(false);
+  const [lockOpen, setLockOpen] = useState(false);
   const query = useUserQuery(userId, open);
   // The person the form was filled from; the version a save sends is this one's.
   const [person, setPerson] = useState<UserDetailResponse | null>(null);
@@ -154,7 +207,14 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
   // The polite line read out after Load Latest.
   const [status, setStatus] = useState('');
 
-  const { control, handleSubmit, setError, setValue, reset } = useForm<UpdateUserValues>({
+  const {
+    control,
+    handleSubmit,
+    setError,
+    setValue,
+    reset,
+    formState: { isDirty },
+  } = useForm<UpdateUserValues>({
     resolver: zodResolver(updateUserSchema),
     mode: 'onBlur',
     defaultValues: EMPTY_VALUES,
@@ -256,34 +316,104 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
     await submit(values);
   };
 
-  /** Load Latest: the typed values are replaced only once the latest version has arrived. */
-  const loadLatest = async (): Promise<void> => {
-    setLoadingLatest(true);
+  /** Reads the person again; the typed values are replaced only once the latest version has arrived. Null when it did not. */
+  const readLatest = async (): Promise<UserDetailResponse | null> => {
     const result = await query.refetch();
-    setLoadingLatest(false);
     if (result.isError) {
       if (isHttpError(result.error) && result.error.status === 404) {
         setDeleted(true);
-        return;
+        return null;
       }
       const copy = describeHttpError(result.error);
       if (copy !== null) {
         setFailure(errorLine(copy));
       }
-      return;
+      return null;
     }
     const latest = result.data;
     if (latest === undefined) {
-      return;
+      return null;
     }
     setPerson(latest);
     reset(valuesOf(latest));
     setConflicts(0);
     setFailure(null);
     setRefusal(null);
-    setStatus(STATES_COPY.conflict.loaded);
-    focusFirstName();
+    return latest;
   };
+
+  /** Load Latest: after a stale save, the banner's button. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const latest = await readLatest();
+    setLoadingLatest(false);
+    if (latest !== null) {
+      setStatus(STATES_COPY.conflict.loaded);
+      focusFirstName();
+    }
+  };
+
+  // Account access (D-21): each action acts on the latest state with no version, so it never makes the open form stale; the
+  // buttons wait while the form has unsaved changes. After an action the person is read again (the form was clean) and the
+  // roster is told.
+  const lockAction = useSubmission<undefined, unknown>((key) => usersService.lock(userId, key));
+  const unlockAction = useSubmission<undefined, unknown>((key) => usersService.unlock(userId, key));
+  const waiting = isDirty || pending;
+  // The buttons point at the hint only while it shows.
+  const describedBy = isDirty ? { 'aria-describedby': dirtyHintId } : {};
+
+  const afterAction = async (action: AccessAction): Promise<void> => {
+    await readLatest();
+    action.reset();
+    onAccountChanged?.();
+  };
+
+  // A failed action with no dialog is a danger toast that stays until closed, with the mapper line.
+  const failAction = (title: string, error: unknown): void => {
+    if (isHttpError(error) && error.status === 404) {
+      setDeleted(true);
+    }
+    const copy = describeUserGuard(error) ?? describeHttpError(error);
+    if (copy !== null) {
+      toast.show({ tone: 'danger', title, message: errorLine(copy) });
+    }
+  };
+
+  const runAction = async (
+    action: AccessAction,
+    done: { title: string; message: string },
+    failedTitle: string,
+  ): Promise<void> => {
+    const outcome = await action.submit();
+    if (!outcome.ok) {
+      failAction(failedTitle, outcome.error);
+      return;
+    }
+    toast.show({ title: done.title, message: done.message });
+    await afterAction(action);
+  };
+
+  const confirmLock = async (name: string) => {
+    const outcome = await lockAction.submit();
+    if (outcome.ok) {
+      setLockOpen(false);
+      toast.show({
+        title: COPY.accountAccess.toast.locked.title,
+        message: COPY.accountAccess.toast.locked.message(name),
+      });
+      focusUnlock.current = true;
+      void afterAction(lockAction);
+    }
+    return outcome;
+  };
+
+  // The Unlock button that replaced Lock takes focus once the person has been read again.
+  useEffect(() => {
+    if (focusUnlock.current && person?.managerLocked === true) {
+      focusUnlock.current = false;
+      unlockRef.current?.focus();
+    }
+  }, [person]);
 
   const onInvalid = (errors: FieldErrors<UpdateUserValues>): void => {
     const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
@@ -314,8 +444,11 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
     );
   }
 
+  const personName = person === null ? '' : `${person.firstName} ${person.lastName}`.trim();
+  const shown = person === null ? null : accessButtonsFor(person);
+
   const main =
-    person === null ? (
+    person === null || shown === null ? (
       loadState
     ) : (
       <>
@@ -432,6 +565,70 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
             )}
           />
         </form>
+        <section aria-labelledby={accessHeadingId} className={usersAccessClasses}>
+          <h3 id={accessHeadingId} className={usersAccessHeadingClasses}>
+            {ACCESS.heading}
+          </h3>
+          {isDirty && (
+            <p id={dirtyHintId} className={usersCaptionClasses}>
+              {ACCESS.dirtyHint}
+            </p>
+          )}
+          {anyAccess(shown) && (
+            <div className={usersAccessButtonsClasses}>
+              {shown.resend && (
+                <Button icon="mail" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                  {ACCESS.resend}
+                </Button>
+              )}
+              {shown.sendReset && (
+                <Button icon="mail" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                  {ACCESS.sendReset}
+                </Button>
+              )}
+              {shown.setTemporary && (
+                <Button icon="key-round" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                  {ACCESS.setTemporary}
+                </Button>
+              )}
+              {shown.lock && (
+                <Button
+                  icon="lock"
+                  className={usersAccessButtonClasses}
+                  aria-disabled={waiting}
+                  {...describedBy}
+                  onClick={() => {
+                    setLockOpen(true);
+                  }}
+                >
+                  {ACCESS.lock}
+                </Button>
+              )}
+              {shown.unlock && (
+                <Button
+                  icon="lock-open"
+                  className={usersAccessButtonClasses}
+                  aria-disabled={waiting}
+                  {...describedBy}
+                  pending={unlockAction.pending}
+                  ref={unlockRef}
+                  onClick={() => {
+                    void runAction(
+                      unlockAction,
+                      {
+                        title: ACCESS.toast.unlocked.title,
+                        message: ACCESS.toast.unlocked.message(personName),
+                      },
+                      ACCESS.failed.unlock(personName),
+                    );
+                  }}
+                >
+                  {ACCESS.unlock}
+                </Button>
+              )}
+            </div>
+          )}
+        </section>
         <RecordMeta
           recordedBy={person.recordedBy}
           recordedAt={person.createdAt}
@@ -469,35 +666,47 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
   );
 
   return (
-    <Modal
-      open={open}
-      variant="slideover"
-      title={COPY.title}
-      description={COPY.description}
-      onClose={close}
-      loading={pending}
-      footer={
-        <>
-          <Button variant="secondary" onClick={close}>
-            {COPY.cancel}
-          </Button>
-          <Button
-            variant="primary"
-            type="submit"
-            form={formId}
-            icon="check"
-            pending={pending}
-            aria-disabled={!loaded || gone}
-            ref={saveRef}
-          >
-            {pending ? COPY.saving : COPY.save}
-          </Button>
-        </>
-      }
-    >
-      <LoadingRegion loading={!loaded && !loadFailed} failed={loadFailed} things={COPY.things}>
-        <div className={usersPanelBodyClasses}>{body}</div>
-      </LoadingRegion>
-    </Modal>
+    <>
+      <Modal
+        open={open}
+        variant="slideover"
+        title={COPY.title}
+        description={COPY.description}
+        onClose={close}
+        loading={pending}
+        footer={
+          <>
+            <Button variant="secondary" onClick={close}>
+              {COPY.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form={formId}
+              icon="check"
+              pending={pending}
+              aria-disabled={!loaded || gone}
+              ref={saveRef}
+            >
+              {pending ? COPY.saving : COPY.save}
+            </Button>
+          </>
+        }
+      >
+        <LoadingRegion loading={!loaded && !loadFailed} failed={loadFailed} things={COPY.things}>
+          <div className={usersPanelBodyClasses}>{body}</div>
+        </LoadingRegion>
+      </Modal>
+      {person !== null && (
+        <LockUserDialog
+          open={lockOpen}
+          user={person}
+          onConfirm={() => confirmLock(personName)}
+          onCancel={() => {
+            setLockOpen(false);
+          }}
+        />
+      )}
+    </>
   );
 }

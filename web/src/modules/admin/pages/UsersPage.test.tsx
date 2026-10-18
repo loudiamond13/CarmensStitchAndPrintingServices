@@ -817,6 +817,36 @@ describe('U3 Edit User from the page (USER-03)', () => {
     expect(editButton('Paolo Garcia')).toHaveFocus();
   });
 
+  it('locking from the open panel reads the roster again, so the row behind it turns Locked', async () => {
+    const rows = [...ROWS];
+    backend(ROWS, () => listOf(rows));
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () =>
+        HttpResponse.json(paoloDetail(rows[1]?.status === 'locked' ? { status: 'locked', managerLocked: true } : {})),
+      ),
+      http.post(`*/api/v1/users/${PAOLO_ID}/lock`, () => {
+        rows[1] = person(PAOLO_ID, 'Paolo', 'Garcia', { status: 'locked' });
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Lock Paolo Garcia?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Lock User' }));
+
+    await screen.findByRole('button', { name: 'Unlock' });
+    await waitFor(() => {
+      const row = screen
+        .getAllByRole('row', { hidden: true })
+        .find((candidate) => within(candidate).queryByText('Paolo Garcia') !== null);
+      expect(row?.querySelector('td[data-label="Status"]')).toHaveTextContent('Locked');
+    });
+  });
+
   it('has no axe violations with the Edit panel open', async () => {
     rosterThatRenamesPaolo();
     await openPage();

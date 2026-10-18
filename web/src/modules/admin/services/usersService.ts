@@ -1,4 +1,4 @@
-// Staff roster, add, edit, deactivate, activate and delete calls (USER-01, USER-02, USER-03; plans 05-20, 05-22, 05-25, 05-28). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
+// Staff roster, add, edit, deactivate, activate, delete and account-access calls (USER-01, USER-02, USER-03, USER-07; plans 05-20, 05-22, 05-25, 05-28, 05-30). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
 // an Admin or a Manager who lost the role mid-session gets 403. The id is encoded into the path, so it can never add a
 // segment or a query. A null search or filter is not sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
@@ -107,12 +107,21 @@ export function createUsersService(client: HttpClient): UsersService {
     activate: (id, idempotencyKey, signal) =>
       client.post(`/users/${encodeURIComponent(id)}/activate`, undefined, { idempotencyKey, signal }),
     remove: (id, signal) => client.delete(`/users/${encodeURIComponent(id)}`, { signal }),
-    lock: () => Promise.reject(new Error('not implemented')),
-    unlock: () => Promise.reject(new Error('not implemented')),
-    resendInvitation: () => Promise.reject(new Error('not implemented')),
-    sendResetLink: () => Promise.reject(new Error('not implemented')),
-    setTemporaryPassword: () => Promise.reject(new Error('not implemented')),
-    cancelEmailChange: () => Promise.reject(new Error('not implemented')),
+    lock: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/lock`, undefined, { idempotencyKey, signal }),
+    unlock: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/unlock`, undefined, { idempotencyKey, signal }),
+    resendInvitation: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/resend-invitation`, undefined, { idempotencyKey, signal }),
+    sendResetLink: (id, idempotencyKey, signal) =>
+      client.post(`/users/${encodeURIComponent(id)}/send-reset-link`, undefined, { idempotencyKey, signal }),
+    setTemporaryPassword: (id, temporaryPassword, idempotencyKey, signal) =>
+      client.post(
+        `/users/${encodeURIComponent(id)}/temporary-password`,
+        { temporaryPassword },
+        { idempotencyKey, signal },
+      ),
+    cancelEmailChange: (id, signal) => client.delete(`/users/${encodeURIComponent(id)}/email-change`, { signal }),
   };
 }
 
