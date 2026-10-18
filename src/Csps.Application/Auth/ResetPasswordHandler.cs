@@ -97,6 +97,7 @@ public sealed class ResetPasswordHandler(
     {
         var id = account.Id;
         await accounts.SetPasswordAsync(id, newPassword, cancellationToken).ConfigureAwait(false);
+        // D-17: this ends only the failed-password lockout, never a Manager lock, a deactivation or a delete.
         await accounts.ClearLockoutAsync(id, cancellationToken).ConfigureAwait(false);
         await accounts.ClearMustChangePasswordAsync(id, cancellationToken).ConfigureAwait(false);
 

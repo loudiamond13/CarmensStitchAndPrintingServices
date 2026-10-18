@@ -34,9 +34,9 @@ internal static class ResetLinkLookup
             return null;
         }
 
-        // A deactivated or unconfirmed account never resets into an active one (AUTH-10, D-19).
+        // A blocked (deactivated, Manager-locked or deleted) or unconfirmed account never resets into an active one (AUTH-10, D-17, D-19).
         var account = await accounts.FindByIdAsync(stored.UserId, cancellationToken).ConfigureAwait(false);
-        return account is { IsActive: true, EmailConfirmed: true } ? new ResetLink(stored, account) : null;
+        return account is { IsBlocked: false, EmailConfirmed: true } ? new ResetLink(stored, account) : null;
     }
 
     // 32 random bytes in base64url without padding.

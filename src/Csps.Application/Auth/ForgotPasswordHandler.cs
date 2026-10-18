@@ -12,7 +12,7 @@ namespace Csps.Application.Auth;
 /// <summary>
 /// Use case: ask for a password reset link by email (AUTH-08, D-16). The answer and its timing are the same for every
 /// address, so nothing says whether an account exists (CWE-204, D-39). An active account gets a link, a deactivated one
-/// a notice without a link (D-20), an unknown address nothing. At most 3 emails per account per hour go out (D-39), and a
+/// a notice without a link (D-20), a Manager-locked one nothing (D-41), and an unknown or deleted address nothing. At most 3 emails per account per hour go out (D-39), and a
 /// new link revokes the earlier ones, so one link works at a time.
 /// </summary>
 public sealed class ForgotPasswordHandler(
@@ -56,14 +56,19 @@ public sealed class ForgotPasswordHandler(
 
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
-    // An account that cannot sign in yet (invited, email unconfirmed) is answered like an unknown address.
+    // An account that cannot sign in yet (invited, email unconfirmed) or is deleted is answered like an unknown address.
+    // A Manager lock is checked before the deactivated notice, so a locked account never learns anything by email (D-41 Q5).
     private Task<bool> AnswerAsync(UserAccount? account, CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
             async token =>
             {
-                if (account is null || (account.IsActive && !account.EmailConfirmed))
+                if (account is null || account.IsDeleted || (account.IsActive && !account.EmailConfirmed))
                 {
                     audit.Record(AuditActions.PasswordResetRequested, null, null, "unknown-account");
+                }
+                else if (account.IsManagerLocked)
+                {
+                    audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "manager-locked");
                 }
                 else if (account.IsActive)
                 {

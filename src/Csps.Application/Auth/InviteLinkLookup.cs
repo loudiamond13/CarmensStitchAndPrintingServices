@@ -17,7 +17,7 @@ internal static class InviteLinkLookup
     /// <param name="tokens">The token store.</param>
     /// <param name="accounts">The accounts.</param>
     /// <param name="cancellationToken">Cancels the lookup.</param>
-    /// <returns>The invite, or null for a malformed, unknown, used, revoked or expired token or a deactivated account.</returns>
+    /// <returns>The invite, or null for a malformed, unknown, used, revoked or expired token or a blocked account.</returns>
     public static async Task<InviteLink?> FindAsync(
         string? token, DateTimeOffset now, IAccountTokens tokens, IUserAccounts accounts, CancellationToken cancellationToken)
     {
@@ -32,8 +32,8 @@ internal static class InviteLinkLookup
             return null;
         }
 
-        // An invited account is not confirmed yet; only a deactivated one is refused.
+        // An invited account is not confirmed yet; only a blocked one (deactivated, Manager-locked or deleted) is refused.
         var account = await accounts.FindByIdAsync(stored.UserId, cancellationToken).ConfigureAwait(false);
-        return account is { IsActive: true } ? new InviteLink(stored, account) : null;
+        return account is { IsBlocked: false } ? new InviteLink(stored, account) : null;
     }
 }
