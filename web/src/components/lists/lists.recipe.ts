@@ -63,6 +63,32 @@ export const tableRowClasses = {
   inactive: clsx(tw('group/row pg-phone:bg-surface-2'), rowCard),
 } as const;
 
+/**
+ * D-27 expandable rows (opt-in, only on a table that passes `detail`). An open row's card gives up its bottom corners,
+ * bottom border and margin, so the detail row below it continues the same card on phones.
+ */
+export const openRowClasses = {
+  active: tw(
+    'group/row pg-phone:relative pg-phone:block pg-phone:w-full pg-phone:rounded-t-md pg-phone:border pg-phone:border-b-0 pg-phone:border-line pg-phone:bg-surface pg-phone:px-4 pg-phone:py-3 pg-phone:in-data-[refetching=true]:bg-surface-2',
+  ),
+  inactive: tw(
+    'group/row pg-phone:relative pg-phone:block pg-phone:w-full pg-phone:rounded-t-md pg-phone:border pg-phone:border-b-0 pg-phone:border-line pg-phone:bg-surface-2 pg-phone:px-4 pg-phone:py-3',
+  ),
+} as const;
+
+/** The detail row: on phones the lower half of the card (no top border), 12px clear of the next card. */
+export const detailRowClasses = tw(
+  'group/row pg-phone:mb-3 pg-phone:block pg-phone:w-full pg-phone:rounded-b-md pg-phone:border pg-phone:border-t-0 pg-phone:border-line pg-phone:bg-surface-2 pg-phone:px-4 pg-phone:pb-3',
+);
+
+/** The detail cell: one cell over every column, 16px padded on `--surface-2`, no top rule (the row above drops its own). */
+export const detailCellClasses = tw(
+  'border-b border-line bg-surface-2 p-4 text-left group-last/row:border-b-0 pg-phone:block pg-phone:w-full pg-phone:border-b-0 pg-phone:bg-transparent pg-phone:p-0',
+);
+
+/** A row that has a detail row below it drops its rule when open or last, so the detail row has no top divider. */
+export const detailParentCellClasses = tw('group-data-[edge=true]/row:border-b-0');
+
 /** `.s-rt tfoot tr` on phones: the totals card on `--surface-2`. */
 export const tableFootRowClasses = clsx(tw('pg-phone:bg-surface-2'), rowCard);
 
