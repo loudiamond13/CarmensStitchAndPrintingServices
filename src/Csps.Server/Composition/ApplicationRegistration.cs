@@ -45,6 +45,7 @@ public static class ApplicationRegistration
         services.AddScoped<ListUsersHandler>();
         services.AddScoped<GetUserHandler>();
         services.AddScoped<CreateUserHandler>();
+        services.AddScoped<ManagerGuard>();
         services.AddScoped<DeactivateUserHandler>();
         services.AddScoped<ActivateUserHandler>();
         return services;

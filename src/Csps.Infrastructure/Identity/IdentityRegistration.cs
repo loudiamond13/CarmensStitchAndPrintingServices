@@ -66,6 +66,7 @@ public static class IdentityRegistration
             .ValidateOnStart();
         services.AddScoped<ITwoFactorChallenges, TwoFactorChallengeStore>();
         services.AddScoped<IAccountTokens, AccountTokenStore>();
+        services.AddScoped<IManagerRosterLock, ManagerRosterLock>();
         services.AddScoped<ISessions, SessionStore>();
         services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ICodeMac, HmacCodeMac>();

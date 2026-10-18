@@ -121,6 +121,15 @@ public interface IUserAccounts
     Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Counts active Managers (D-18): role Manager, active, not deleted and not Manager-locked. A failed-password lockout does not
+    /// count against a Manager. Call it under <see cref="IManagerRosterLock"/> so the answer cannot change before the caller acts.
+    /// </summary>
+    /// <param name="excluding">An account to leave out of the count, or null to count everyone.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The number of active Managers.</returns>
+    Task<int> CountActiveManagersAsync(Guid? excluding, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Deactivates or reactivates the account on its latest state, with no version to send (D-21). A change rotates the edit
     /// version, so a form opened earlier is stale, and counts as a staff edit for SEC-08.
     /// </summary>

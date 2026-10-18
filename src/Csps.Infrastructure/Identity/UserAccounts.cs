@@ -221,6 +221,20 @@ internal sealed class UserAccounts(
         return managers.Any(static manager => manager.IsActive);
     }
 
+    public async Task<int> CountActiveManagersAsync(Guid? excluding, CancellationToken cancellationToken)
+    {
+        var managerRole = await roles.FindByNameAsync(Roles.Manager).ConfigureAwait(false);
+        if (managerRole is null)
+        {
+            return 0;
+        }
+
+        return await context.Users.AsNoTracking()
+            .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null && user.Id != excluding)
+            .CountAsync(user => context.UserRoles.Any(link => link.UserId == user.Id && link.RoleId == managerRole.Id), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken)
     {
         for (var attempt = 1; ; attempt++)
