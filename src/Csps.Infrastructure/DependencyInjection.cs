@@ -79,6 +79,7 @@ public static class DependencyInjection
 
         // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
         services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<IAuditLogReader, AuditLogReader>();
         services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
 
         services.AddCspsIdentity();

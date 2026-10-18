@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it. The
+         *     detail holds the stored fixed words only: field names and role values, never a name or an email address (D-40).
+         */
+        get: operations["ListAuditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/invite/accept": {
         parameters: {
             query?: never;
@@ -646,6 +666,52 @@ export interface components {
             /** @description The actor's name, first then last. */
             name: string;
         };
+        /** @description One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40). */
+        AuditLogItem: {
+            /** @description The action code, for example `user.deactivated`. */
+            action: string;
+            /** @description The stored detail; null when none. */
+            detail: null | string;
+            /** @description The browser family; null when unknown. */
+            device: null | string;
+            /** @description Who did it. */
+            doneBy: components["schemas"]["DoneBy"];
+            doneTo: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: int64
+             * @description The entry id.
+             */
+            id: number | string;
+            /** @description The client network, /24 or /48; null when unknown. */
+            ipPrefix: null | string;
+            /**
+             * Format: date-time
+             * @description When it happened, in UTC.
+             */
+            occurredAt: string;
+            /** @description The correlation id, to find the request's log lines. */
+            reference: string;
+        };
+        /** @description One page of the audit log, newest first (AUDIT-02). */
+        AuditLogResponse: {
+            /** @description The entries of this page. */
+            items: components["schemas"]["AuditLogItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many entries match, across all pages.
+             */
+            total: number | string;
+        };
         /** @description The My Profile password form: the current password and the new one (PROF-03). */
         ChangePasswordRequest: {
             /** @description The current password as typed. */
@@ -678,6 +744,12 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description Who did it (D-27). */
+        DoneBy: {
+            /** @description One of DoneByKinds. */
+            kind: string;
+            person: null | components["schemas"]["ActorRef"];
         };
         /** @description The answer to a confirmed email change. */
         EmailChangeResponse: {
@@ -1039,6 +1111,58 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ListAuditLog: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1. */
+                page?: number | string;
+                /** @description Entries per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AcceptInvite: {
         parameters: {
             query?: never;

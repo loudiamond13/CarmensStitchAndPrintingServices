@@ -127,4 +127,32 @@ public sealed class AuditActionsTests
         AuditActions.LockoutDetails.ShouldBe(["password", "code"]);
         AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"]);
     }
+
+    [Fact]
+    public void SelfServiceHoldsOnlyCodesFromTheCatalogWithoutDuplicates()
+    {
+        AuditActions.SelfService.ShouldBeSubsetOf(AuditActions.All);
+        AuditActions.SelfService.Distinct(StringComparer.Ordinal).Count().ShouldBe(AuditActions.SelfService.Count);
+    }
+
+    [Fact]
+    public void SelfServiceCoversSignInCodesResetInvitationAndEmailConfirmationButNotManagerActions()
+    {
+        AuditActions.SelfService.ShouldContain(AuditActions.SignInFailed);
+        AuditActions.SelfService.ShouldContain(AuditActions.TwoFactorVerified);
+        AuditActions.SelfService.ShouldContain(AuditActions.SignedIn);
+        AuditActions.SelfService.ShouldContain(AuditActions.PasswordResetCompleted);
+        AuditActions.SelfService.ShouldContain(AuditActions.InviteAccepted);
+        AuditActions.SelfService.ShouldContain(AuditActions.ProfileEmailChanged);
+        AuditActions.SelfService.ShouldNotContain(AuditActions.UserDeactivated);
+        AuditActions.SelfService.ShouldNotContain(AuditActions.UserRoleChanged);
+        AuditActions.SelfService.ShouldNotContain(AuditActions.BootstrapManagerCreated);
+        AuditActions.SelfService.ShouldNotContain(AuditActions.UserInvited);
+    }
+
+    [Fact]
+    public void AuditEntriesAreKeptForEightMonths()
+    {
+        AuditRetention.Months.ShouldBe(8);
+    }
 }

@@ -176,7 +176,7 @@ public sealed class AuditLogEndpointTests(CspsDatabase database) : IClassFixture
         entry.GetProperty("action").GetString().ShouldBe("user.details-changed");
         var empty = items.Single(item => item.GetProperty("reference").GetString() == bare);
         empty.GetProperty("ipPrefix").ValueKind.ShouldBe(JsonValueKind.Null);
-        empty.GetProperty("device").ValueKind.ShouldBe(JsonValueKind.Null);
+        empty.GetProperty("device").GetString().ShouldBe(UserAgentFamily.Unknown);
         empty.GetProperty("doneTo").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 

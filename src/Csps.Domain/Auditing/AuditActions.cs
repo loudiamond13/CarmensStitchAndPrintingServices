@@ -127,6 +127,35 @@ public static class AuditActions
     /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
     public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"];
 
+    /// <summary>
+    /// The codes a person can cause without a signed-in token: sign-in, sign-in codes, password reset, invitation acceptance and the
+    /// email-confirmation steps. Such an entry has no actor, so the audit viewer reads the person it is about as the one who did it.
+    /// </summary>
+    public static IReadOnlyList<string> SelfService { get; } =
+    [
+        SignInFailed,
+        Lockout,
+        TwoFactorIssued,
+        TwoFactorResent,
+        TwoFactorVerified,
+        TwoFactorFailed,
+        TwoFactorExhausted,
+        SignedIn,
+        RefreshReuseDetected,
+        SignedOut,
+        SessionsRevoked,
+        SessionRevoked,
+        PasswordResetRequested,
+        PasswordResetCompleted,
+        PasswordResetLinkInvalid,
+        PasswordChanged,
+        PasswordBreachFound,
+        BreachCheckUnavailable,
+        InviteAccepted,
+        ProfileEmailChanged,
+        ProfileEmailChangeCanceled,
+    ];
+
     /// <summary>Every action code, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [

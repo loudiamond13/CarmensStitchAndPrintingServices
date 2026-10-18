@@ -142,6 +142,9 @@ public static class AuthorizationMatrix
         // Deleting (USER-03, D-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
         new("DELETE", "/api/v1/users/{id:guid}", "/api/v1/users/6f1d9b34-82c7-4e05-a3b8-d4c20e7a5f19", Anonymous: 401, Admin: 403, Manager: 404),
 
+        // The audit log viewer (AUDIT-02, D-26): Managers only, so an Admin meets 403. Read only; there is no export (D-29).
+        new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),

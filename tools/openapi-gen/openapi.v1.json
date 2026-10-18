@@ -49,6 +49,127 @@
         ],
         "type": "object"
       },
+      "AuditLogItem": {
+        "description": "One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40).",
+        "properties": {
+          "action": {
+            "description": "The action code, for example `user.deactivated`.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "The stored detail; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "device": {
+            "description": "The browser family; null when unknown.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doneBy": {
+            "$ref": "#/components/schemas/DoneBy",
+            "description": "Who did it."
+          },
+          "doneTo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The person it was done to; null when there is none."
+              }
+            ]
+          },
+          "id": {
+            "description": "The entry id.",
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "ipPrefix": {
+            "description": "The client network, /24 or /48; null when unknown.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "occurredAt": {
+            "description": "When it happened, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "reference": {
+            "description": "The correlation id, to find the request's log lines.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "occurredAt",
+          "doneBy",
+          "action",
+          "doneTo",
+          "detail",
+          "ipPrefix",
+          "device",
+          "reference"
+        ],
+        "type": "object"
+      },
+      "AuditLogResponse": {
+        "description": "One page of the audit log, newest first (AUDIT-02).",
+        "properties": {
+          "items": {
+            "description": "The entries of this page.",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many entries match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "description": "The My Profile password form: the current password and the new one (PROF-03).",
         "properties": {
@@ -140,6 +261,31 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DoneBy": {
+        "description": "Who did it (D-27).",
+        "properties": {
+          "kind": {
+            "description": "One of DoneByKinds.",
+            "type": "string"
+          },
+          "person": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The person for kind `user`; null for the other kinds."
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "person"
         ],
         "type": "object"
       },
@@ -1035,6 +1181,87 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/audit-log": {
+      "get": {
+        "operationId": "ListAuditLog",
+        "parameters": [
+          {
+            "description": "The page number, from 1.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Entries per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it. The\r\ndetail holds the stored fixed words only: field names and role values, never a name or an email address (D-40).",
+        "tags": [
+          "AuditLog"
+        ]
+      }
+    },
     "/api/v1/auth/invite/accept": {
       "post": {
         "operationId": "AcceptInvite",
@@ -3758,6 +3985,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "AuditLog"
+    },
     {
       "name": "AuthSession"
     },

@@ -1,7 +1,9 @@
+using Csps.Application.Audit;
 using Csps.Application.Auth;
 using Csps.Application.Content;
 using Csps.Application.Profile;
 using Csps.Application.Users;
+using FluentValidation;
 
 namespace Csps.Server.Composition;
 
@@ -56,6 +58,8 @@ public static class ApplicationRegistration
         services.AddScoped<ResendInvitationHandler>();
         services.AddScoped<SendResetLinkHandler>();
         services.AddScoped<SetTemporaryPasswordHandler>();
+        services.AddScoped<ListAuditLogHandler>();
+        services.AddScoped<IValidator<ListAuditLogRequest>, ListAuditLogRequestValidator>();
         return services;
     }
 }

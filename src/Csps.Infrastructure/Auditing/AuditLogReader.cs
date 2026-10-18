@@ -1,0 +1,111 @@
+using System.Globalization;
+using Csps.Application.Ports;
+using Csps.Application.Users;
+using Csps.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Csps.Infrastructure.Auditing;
+
+/// <summary>
+/// <see cref="IAuditLogReader"/> over the audit table: untracked LINQ reads only, so the viewer can never change the append-only log
+/// (T-05-86). A page is read newest first, then the people it names are read from their own rows in one lookup each.
+/// </summary>
+/// <param name="context">The scoped database context.</param>
+internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
+{
+    private const string UserTarget = "User";
+    private const string SessionTarget = "UserSession";
+
+    public async Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var matches = context.AuditLog
+            .AsNoTracking()
+            .Where(entry => entry.OccurredAtUtc >= query.StartUtc && entry.OccurredAtUtc < query.EndUtcExclusive);
+        var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var rows = await matches
+            .OrderByDescending(entry => entry.OccurredAtUtc)
+            .ThenByDescending(entry => entry.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(entry => new
+            {
+                entry.Id,
+                entry.OccurredAtUtc,
+                entry.ActorUserId,
+                entry.Action,
+                entry.TargetType,
+                entry.TargetId,
+                entry.Detail,
+                entry.IpPrefix,
+                entry.UserAgentFamily,
+                entry.CorrelationId,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // A session target names its owner, so look the owners up first.
+        var sessionIds = rows
+            .Where(row => row.TargetType == SessionTarget)
+            .Select(row => ParseId(row.TargetId))
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        var sessionOwners = sessionIds.Count == 0
+            ? []
+            : await context.UserSessions
+                .AsNoTracking()
+                .Where(session => sessionIds.Contains(session.Id))
+                .Select(session => new { session.Id, session.UserId })
+                .ToDictionaryAsync(session => session.Id, session => session.UserId, cancellationToken)
+                .ConfigureAwait(false);
+
+        Guid? TargetUser(string? targetType, string? targetId) => targetType switch
+        {
+            UserTarget => ParseId(targetId),
+            SessionTarget when ParseId(targetId) is { } sessionId && sessionOwners.TryGetValue(sessionId, out var owner) => owner,
+            _ => null,
+        };
+
+        var personIds = rows
+            .SelectMany(row => new[] { row.ActorUserId, TargetUser(row.TargetType, row.TargetId) })
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        var people = personIds.Count == 0
+            ? []
+            : await context.Users
+                .AsNoTracking()
+                .Where(user => personIds.Contains(user.Id))
+                .Select(user => new { user.Id, user.FirstName, user.LastName, Former = user.DeletedAtUtc != null })
+                .ToDictionaryAsync(user => user.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+        ActorRef? PersonOf(Guid? id) =>
+            id is { } known && people.TryGetValue(known, out var person)
+                ? new ActorRef(person.Id, $"{person.FirstName} {person.LastName}", person.Former)
+                : null;
+
+        IReadOnlyList<AuditLogEntryView> items =
+        [
+            .. rows.Select(row => new AuditLogEntryView(
+                row.Id,
+                row.OccurredAtUtc,
+                PersonOf(row.ActorUserId),
+                row.Action,
+                row.TargetType,
+                PersonOf(TargetUser(row.TargetType, row.TargetId)),
+                row.Detail,
+                row.IpPrefix,
+                row.UserAgentFamily,
+                row.CorrelationId)),
+        ];
+        return new AuditLogPage(items, total);
+    }
+
+    // Target ids are written as lower-case "D" text (AuditKey.Of); anything else names no one.
+    private static Guid? ParseId(string? text) =>
+        Guid.TryParseExact(text, "D", out var id) ? id : null;
+}
