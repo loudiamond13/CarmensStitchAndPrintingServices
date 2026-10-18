@@ -112,7 +112,7 @@ public static class Program
         yield return ("password-changed", new PasswordChangedEmail(SampleAddress, SampleTime, SessionsEnded: true));
         yield return ("manager-reset", new ManagerResetEmail(SampleAddress, "Carmen Reyes", SampleTime));
         yield return ("deactivated", new DeactivatedNoticeEmail(SampleAddress));
-        yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddHours(72), SampleTime));
+        yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddDays(7), SampleTime));
     }
 
     // The files are only for looking at, so the logo is inlined as a data URL there (a browser has no CID parts).

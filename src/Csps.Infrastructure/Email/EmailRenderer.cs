@@ -27,6 +27,8 @@ internal sealed record EmailButton(string Label, string Url);
 /// <param name="links">Builds the links.</param>
 internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLinksOptions> links)
 {
+    private const int MinutesPerDay = 24 * 60;
+
     // Invariant culture with a fixed pattern gives the en-PH look without depending on the host's ICU data.
     private const string TimeFormat = "MMM d, yyyy, h:mm tt";
 
@@ -183,12 +185,17 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
     }
 
-    // A lifetime in the words of the email: whole hours as hours, anything else as minutes.
+    // A lifetime in the words of the email: whole days from two up as days, other whole hours as hours, else minutes.
     private static string Span(DateTimeOffset from, DateTimeOffset to) => Span(to - from);
 
     private static string Span(TimeSpan length)
     {
         var minutes = Math.Max(1, (int)Math.Round(length.TotalMinutes));
+        if (minutes >= 2 * MinutesPerDay && minutes % MinutesPerDay == 0)
+        {
+            return Plural(minutes / MinutesPerDay, "day");
+        }
+
         return minutes % 60 == 0
             ? Plural(minutes / 60, "hour")
             : Plural(minutes, "minute");

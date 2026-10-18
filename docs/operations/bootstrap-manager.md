@@ -1,6 +1,6 @@
 # Runbook: create the first Manager on an empty database
 
-*Created: 2026-10-15T07:36:00-05:00 · Updated: 2026-10-15T07:36:00-05:00*
+*Created: 2026-10-15T07:36:00-05:00 · Updated: 2026-10-17T20:41:00-05:00*
 
 A new CSPS database has no staff accounts, so nobody can sign in. The `bootstrap-manager` command creates the first Manager and queues one email invite. The Manager opens the link, sets a password, and signs in with the 6-digit code that CSPS emails (AUTH-12, D-29).
 
@@ -58,11 +58,11 @@ The command never touches a `BetsLLC_*` database, `CSPS_Legacy_Restore` or a SQL
 
 ## After it runs
 
-1. The invite email arrives at the address. The link works once and lasts 72 hours.
+1. The invite email arrives at the address. The link works once and lasts 7 days.
 2. The Manager opens the link, sets a password, and signs in. Sign-in always ends with the emailed code.
 3. Every step is recorded in the audit log with the System actor: no user, no address, no session.
 
-If the 72 hours pass unused, the unaccepted account still counts as an active Manager, so the command refuses a second run. Resending an invite belongs to staff management in a later phase. Until then, an unused first account can only be cleared with a reviewed one-off database script, which needs the developer. It is safe because an unused account holds no data.
+If the 7 days pass unused, the unaccepted account still counts as an active Manager, so the command refuses a second run. Resending an invite belongs to staff management in a later phase. Until then, an unused first account can only be cleared with a reviewed one-off database script, which needs the developer. It is safe because an unused account holds no data.
 
 ## When mail breaks
 

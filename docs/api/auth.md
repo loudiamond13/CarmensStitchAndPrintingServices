@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-15T11:30:00-05:00
+updated: 2026-10-17T20:41:00-05:00
 ---
 
 # The authentication and sessions API
@@ -133,7 +133,7 @@ integration tests holds the same list and fails the build if an endpoint and its
 | Session | 90 days ("Keep me signed in") or 12 hours (browser session) | `AuthSettings` |
 | Refresh grace window | 30 seconds | `AuthSettings` |
 | Reset link | 30 minutes, single use; at most 3 reset emails per hour per account | `AuthSettings` |
-| Invite link | 72 hours, single use | `AuthSettings` |
+| Invite link | 7 days, single use | `AuthSettings` |
 
 Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`). A call over its limit gets `429`.
 
