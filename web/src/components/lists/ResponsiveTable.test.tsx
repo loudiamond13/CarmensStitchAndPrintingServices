@@ -572,3 +572,86 @@ describe('lists scenarios (the ResponsiveTable cases)', () => {
     }
   });
 });
+
+describe('ResponsiveTable expandable rows (D-27, UI-SPEC "ResponsiveTable expandable rows")', () => {
+  const detail = (user: User): ReactNode => <p>Details of {user.name}</p>;
+
+  it('renders a detail row right after each row, one cell spanning every column, hidden while collapsed', () => {
+    render(table({ detail, expandedKeys: new Set<string>() }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const trs = [...grid.querySelectorAll('tbody tr')];
+    expect(trs).toHaveLength(USERS.length * 2);
+    const detailRow = trs[1];
+    expect(detailRow).toHaveAttribute('hidden');
+    const cells = detailRow?.querySelectorAll('td');
+    expect(cells).toHaveLength(1);
+    expect(cells?.[0]).toHaveAttribute('colspan', String(COLUMNS.length));
+    expect(cells?.[0]).toHaveAttribute('data-label', 'Details');
+  });
+
+  it('shows the detail of an expanded row only, with its content', () => {
+    render(table({ detail, expandedKeys: new Set(['u1']) }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const trs = [...grid.querySelectorAll('tbody tr')];
+    expect(trs[1]).not.toHaveAttribute('hidden');
+    expect(within(trs[1] as HTMLElement).getByText('Details of Carmen Reyes')).toBeInTheDocument();
+    expect(trs[3]).toHaveAttribute('hidden');
+  });
+
+  it('puts the detail on the surface-2 ground with 16px padding and no top divider, stacked inside the phone card', () => {
+    render(table({ detail, expandedKeys: new Set(['u1']) }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const [row, detailRow] = [...grid.querySelectorAll('tbody tr')];
+    const cell = detailRow?.querySelector('td');
+    expect(tokens(cell?.className)).toEqual(expect.arrayContaining(['bg-surface-2', 'p-4']));
+    expect(tokens(cell?.className)).not.toContain('border-t');
+    expect(tokens(detailRow?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:border-t-0', 'pg-phone:rounded-b-md', 'pg-phone:block']),
+    );
+    expect(tokens(row?.className)).toEqual(expect.arrayContaining(['pg-phone:rounded-t-md', 'pg-phone:border-b-0']));
+    expect(tokens(row?.className)).not.toContain('pg-phone:mb-3');
+  });
+
+  it('keeps a collapsed row a plain card and leaves the toggle to the caller', () => {
+    const onToggleRow = vi.fn();
+    const columns: readonly ResponsiveTableColumn<User>[] = COLUMNS.map((column) =>
+      column.actions === true
+        ? {
+            ...column,
+            cell: (user: User) => (
+              <RowActions>
+                <RowAction
+                  icon="pencil"
+                  label={`Toggle ${user.name}`}
+                  onClick={() => {
+                    onToggleRow(user.id);
+                  }}
+                />
+              </RowActions>
+            ),
+          }
+        : column,
+    );
+    render(table({ columns, detail, expandedKeys: new Set<string>(), onToggleRow }));
+    const [row] = screen.getAllByRole('row', { hidden: false }).slice(1);
+    expect(tokens(row?.className)).toContain('pg-phone:mb-3');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle Jomar Santos' }));
+    expect(onToggleRow).toHaveBeenCalledWith('u5');
+  });
+
+  it('renders a table without detail exactly as before: one tr per row and no Details cell', () => {
+    render(table());
+    const grid = screen.getByRole('table', { name: 'Users' });
+    expect(grid.querySelectorAll('tbody tr')).toHaveLength(USERS.length);
+    expect(grid.querySelector('[data-label="Details"]')).toBeNull();
+    expect(grid.querySelector('[hidden]')).toBeNull();
+  });
+
+  it('has no axe violations collapsed or expanded', async () => {
+    const collapsed = render(table({ detail, expandedKeys: new Set<string>() }));
+    await expectNoAxeViolations(collapsed.container);
+    collapsed.unmount();
+    const expanded = render(table({ detail, expandedKeys: new Set(['u1', 'u5']) }));
+    await expectNoAxeViolations(expanded.container);
+  });
+});
