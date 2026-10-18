@@ -136,10 +136,9 @@ describe('Dialog exit motion (D-38, D-39)', () => {
   });
 
   it('passes the class gate and resolves every closed-state animation to a theme keyframe', async () => {
-    const tokens = [...new Set([...fixedOverlay, ...centred, ...slideover])];
-    const out = await buildCss(tokens);
+    const out = await buildCss([...new Set([...fixedOverlay, ...centred, ...slideover])]);
 
-    expect(await checkClassTokens(tokens, { file: recipeFile })).toEqual([]);
+    expect(await checkClassTokens(recipeTokens, { file: recipeFile })).toEqual([]);
     for (const name of ['csp-fade-out', 'csp-rise-out', 'csp-slide-out']) {
       expect(out, name).toContain(`@keyframes ${name}`);
       expect(out, name).toContain(`var(--animate-${name})`);

@@ -10,6 +10,8 @@
 //   `.csp-cascade-lead`, `.csp-cascade-foot`), and every overlay renders inside the page root, so their computed margin
 //   is 0 (`m-0`), as plan 02-21 found for `.csp-empty-msg`.
 // - D-31 O-6: reduced motion stops the overlay fade and the modal entry (`motion-reduce:animate-none`).
+// - D-39: a closing dialog (`data-state="closed"`) plays the `-out` animation and takes no clicks; reduced motion stops
+//   that too, so it leaves the DOM at once (usePresence).
 import clsx from 'clsx';
 import { tw } from '@/ui/tw';
 
@@ -41,7 +43,9 @@ export const overlayRegionClasses = tw(
 
 /** `.csp-overlay` and `.csp-overlay.is-inline`: how the overlay is placed. */
 const overlayPlacement = {
-  fixed: tw('fixed inset-0 animate-csp-fade motion-reduce:animate-none'),
+  fixed: tw(
+    'fixed inset-0 animate-csp-fade data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-fade-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none',
+  ),
   inline: tw(
     'relative inset-auto min-h-full animate-none in-data-[ui=s-overlay]:min-h-0 in-data-[ui=s-overlay]:w-full in-data-[ui=s-overlay]:bg-transparent in-data-[ui=s-overlay]:p-0',
   ),
@@ -83,6 +87,12 @@ const modalShape = {
   ),
 } as const;
 
+/** D-39: the exit motion of a closing dialog (the phone bottom sheet included), none for an inline one. */
+const modalExit = {
+  center: tw('data-[state=closed]:animate-csp-rise-out motion-reduce:data-[state=closed]:animate-none'),
+  slideover: tw('data-[state=closed]:animate-csp-slide-out motion-reduce:data-[state=closed]:animate-none'),
+} as const;
+
 /** `.csp-modal` max height (100vh less 32px), removed for the slide-over and inside an inline overlay. */
 const cappedHeight = tw('max-h-[calc(100vh-32px)]');
 const noMaxHeight = tw('max-h-none');
@@ -93,7 +103,11 @@ const modalHeight = {
 
 /** The dialog panel. */
 export function modalClasses({ variant, inline }: LayerOptions): string {
-  return clsx(modalBase, modalShape[variant], inline ? modalHeight[variant].inline : modalHeight[variant].fixed);
+  return clsx(
+    modalBase,
+    modalShape[variant],
+    inline ? modalHeight[variant].inline : [modalHeight[variant].fixed, modalExit[variant]],
+  );
 }
 
 /** `.csp-modal-head`: the title block and the Close button, 24px/24px/16px padding, a `--line` rule under it. */

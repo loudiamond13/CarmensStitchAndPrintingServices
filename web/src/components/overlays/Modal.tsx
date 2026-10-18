@@ -16,6 +16,9 @@
 // - SPEC-DEVIATION: R2-10 the page behind an open dialog is inert, except the toast layer (useInertOutside), so assistive
 //   technology, the keyboard and axe cannot reach it. An `inline` dialog, a static mock-up in an Overlay region, leaves
 //   the page alone. No style or layout change.
+// D-39: closing is animated. `open` going false keeps the dialog mounted as `data-state="closed"` until its exit animation
+// ends (usePresence, theme keyframes); at once the focus trap returns focus to the trigger, the page is live again, the
+// body scroll lock is released, and Esc, the scrim and the closing layer's pointer events do nothing.
 // It renders where it is placed, inside the page root, never in a portal, and never inside a ResponsiveTable frame,
 // whose paint containment would trap the fixed scrim: an open Modal there throws (code review WR-05, see
 // fixedLayerGuard.ts).
@@ -32,6 +35,7 @@ import {
   overlayClasses,
   type ModalVariant,
 } from './overlays.recipe';
+import { usePresence } from '@/hooks/usePresence';
 import { useFixedLayerGuard } from './fixedLayerGuard';
 import { useBodyScrollLock } from './useBodyScrollLock';
 import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
@@ -85,10 +89,19 @@ function samePositions(a: readonly number[], b: readonly number[]): boolean {
 }
 
 export function Modal({ open = true, ...props }: ModalProps) {
-  return open ? <OpenModal {...props} /> : null;
+  const presence = usePresence(open);
+  return presence.mounted ? <MountedModal {...props} open={open} presenceRef={presence.ref} /> : null;
 }
 
-function OpenModal({
+interface MountedModalProps extends Omit<ModalProps, 'open'> {
+  /** False while the exit animation plays. */
+  open: boolean;
+  presenceRef: (node: HTMLElement | null) => void;
+}
+
+function MountedModal({
+  open,
+  presenceRef,
   title,
   description,
   onClose,
@@ -98,7 +111,7 @@ function OpenModal({
   loading = false,
   initialFocus,
   children,
-}: Omit<ModalProps, 'open'>) {
+}: MountedModalProps) {
   // WR-05: first, so it throws before any focus or scroll side effect (ConfirmDialog and inline Modals included).
   useFixedLayerGuard('Modal');
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -107,13 +120,20 @@ function OpenModal({
   const descriptionId = useId();
   const hasDescription = Boolean(description);
 
-  useFocusTrap(dialogRef, { initialFocus });
+  // D-39: all three are released the moment `open` turns false, not when the exit animation ends.
+  useFocusTrap(dialogRef, { initialFocus, active: open });
   // After the trap, so the trap has captured its trigger before the page goes inert (see useInertOutside).
-  useInertOutside(dialogRef, !inline);
-  useBodyScrollLock();
+  useInertOutside(dialogRef, !inline && open);
+  useBodyScrollLock(open);
+
+  const setDialog = (node: HTMLDivElement | null) => {
+    dialogRef.current = node;
+    presenceRef(node);
+  };
+  const state = open ? 'open' : 'closed';
 
   const close = () => {
-    if (!loading) {
+    if (!loading && open) {
       onClose?.();
     }
   };
@@ -195,12 +215,18 @@ function OpenModal({
   }, [inline]);
 
   return (
-    <div ref={overlayRef} className={overlayClasses({ variant, inline })}>
+    <div
+      ref={overlayRef}
+      className={overlayClasses({ variant, inline })}
+      data-state={state}
+      inert={open ? undefined : true}
+    >
       {/* SPEC-DEVIATION: WEB-02 / A11Y-02. Named by its heading (aria-labelledby) and described by the description,
           instead of App. D.3's aria-label copy of the title; tabIndex -1 lets the trap focus the dialog when nothing
           inside can take focus. Attributes only; no visual change. */}
       <div
-        ref={dialogRef}
+        ref={setDialog}
+        data-state={state}
         className={modalClasses({ variant, inline })}
         role="dialog"
         aria-modal="true"
