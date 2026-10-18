@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-35-PLAN.md
-last_updated: "2026-10-18T19:29:43.233Z"
+stopped_at: Completed 05-42-PLAN.md
+last_updated: "2026-10-18T20:17:13.767Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 6c6411f3ec173bcdca38243bec6f2e70a349e964
+state_head: d936a8472167aa75bdabddb1f36c6bcc47ad7cba
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 155
+  completed_plans: 156
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T11:33:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 42 of 43
+Plan: 43 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -211,6 +211,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P33 | 59 min | 3 tasks | 25 files |
 | Phase 05 P43 | 25 min | 2 tasks | 30 files |
 | Phase 05 P35 | 55 min | 2 tasks | 19 files |
+| Phase 05 P42 | 50 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -559,6 +560,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-35: the showcase ships at /admin/components as a lazy chunk; budget.ts allows src/dev/ and the showcase parts in production only in chunks the showcase page reaches (never in initial JS, never imported from outside), and the parity entry, visual/, AdminPreviewPage and previewCopy stay out
 - [Phase 05]: 05-35: PreviewBody picks AdminPreviewPage only where __DEV_ROUTES__ is true, and the budget plugin counts a module only when it ships code beyond CommonJS import bindings, so AdminPreviewPage never ships with the kit
 - [Phase 05]: 05-35: the showcase chunk scan allows exact made-up addresses (spec section 12) and reserved example domains only; the sample gmail.com and yahoo.com addresses are flagged for the owner (public static chunk)
+- [Phase 05]: 05-42: the showcase Add User demo is a local-state twin of AddUserPanel (the real panel posts to the users API); dialogs that take their request as a prop use the real components with closing handlers
+- [Phase 05]: 05-42 (owner ruling 2026-10-18): every sample email in the shipped showcase and preview data uses example.com; name@gmail.com stays as the product's own validation hint
 
 ### Pending Todos
 
@@ -618,6 +621,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T19:29:42.557Z
-Stopped at: Completed 05-35-PLAN.md
+Last session: 2026-10-18T20:17:13.085Z
+Stopped at: Completed 05-42-PLAN.md
 Resume file: None
