@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-14-PLAN.md
-last_updated: "2026-10-18T05:55:34.984Z"
+stopped_at: Completed 05-39-PLAN.md
+last_updated: "2026-10-18T06:21:28.064Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: a74ac9b17e6a7cac497425279e754a3c03622edf
+state_head: 7ee0bfb793f626338cbe1bf02037bef8b77aa8bf
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 129
+  completed_plans: 130
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-17T22:24:00-05:00"
+updated: "2026-10-18T01:25:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 16 of 43
+Plan: 17 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -185,6 +185,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P38 | 10 min | 2 tasks | 9 files |
 | Phase 05 P12 | 26 min | 3 tasks | 25 files |
 | Phase 05 P14 | 22 min | 2 tasks | 27 files |
+| Phase 05 P39 | 22 min | 2 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -472,6 +473,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-12: IdempotencyOutcome.KeepChanges lets an endpoint commit its change when the answer is not stored; the profile password 429 uses it so the lock-causing wrong password is not rolled back (SEC-06 key stays required)
 - [Phase 05]: 05-14: email-change confirm applies the pending address before it spends the link, so a Taken or NothingPending outcome writes nothing and answers the one invalid 404 (05-15 owns the taken answer)
 - [Phase 05]: 05-14: ApplyPendingEmailAsync records the account itself as last changer with a second unstamped save, because the stamp interceptor nulls an unchanged UpdatedById when nobody is signed in
+- [Phase 05]: Plan 05-39: the email change reuses CurrentPasswordCheck (shared with the password change); a taken address is revealed only after the current password is right, and a correct password clears the wrong-password count
+- [Phase 05]: Plan 05-39: the same-address rule reaches the shared validator through ValidationContext.RootContextData (key currentEmail), so one validator holds every rule the browser mirrors
 
 ### Pending Todos
 
@@ -531,6 +534,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T05:55:34.312Z
-Stopped at: Completed 05-14-PLAN.md
+Last session: 2026-10-18T06:21:17.531Z
+Stopped at: Completed 05-39-PLAN.md
 Resume file: None
