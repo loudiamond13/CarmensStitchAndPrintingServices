@@ -227,6 +227,217 @@ public sealed class AuditLogEndpointTests(CspsDatabase database) : IClassFixture
         }
     }
 
+    [Fact]
+    public async Task TheActorFilterFindsWhatAPersonDidAndWhatTheyDidAsThemselvesAndSystemMeansNobody()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var person = await TestSessions.StartAsync(factory, Roles.Admin);
+        var other = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Oda", "Other", Roles.Admin);
+        var at = TimeProvider.System.GetUtcNow().AddMinutes(-2);
+        var byPerson = await InsertAsync(at, person.UserId, "user.activated", "User", other.Id.ToString("D"));
+        var signedIn = await InsertAsync(at, null, "auth.signed-in", "UserSession", person.SessionId.ToString("D"));
+        var asUser = await InsertAsync(at, null, "auth.2fa-verified", "User", person.UserId.ToString("D"));
+        var byOther = await InsertAsync(at, manager.UserId, "user.activated", "User", other.Id.ToString("D"));
+        var aboutPerson = await InsertAsync(at, null, "user.invited", "User", person.UserId.ToString("D"), detail: "bootstrap");
+        var noTarget = await InsertAsync(at, null, "auth.password-reset-link-invalid");
+        var unknown = await InsertAsync(at, null, "auth.sign-in-failed", detail: "unknown-account");
+
+        var theirs = await ReferencesAsync(client, manager.AccessToken, $"actor={person.UserId:D}&pageSize=100");
+        var system = await ReferencesAsync(client, manager.AccessToken, "actor=system&pageSize=100");
+
+        theirs.ShouldContain(byPerson);
+        theirs.ShouldContain(signedIn);
+        theirs.ShouldContain(asUser);
+        theirs.ShouldNotContain(byOther);
+        theirs.ShouldNotContain(aboutPerson);
+        theirs.ShouldNotContain(noTarget);
+        system.ShouldContain(aboutPerson);
+        system.ShouldContain(noTarget);
+        system.ShouldNotContain(byPerson);
+        system.ShouldNotContain(byOther);
+        system.ShouldNotContain(signedIn);
+        system.ShouldNotContain(asUser);
+        system.ShouldNotContain(unknown);
+    }
+
+    [Fact]
+    public async Task TheActionFilterKeepsOnlyThatKindOfEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var at = TimeProvider.System.GetUtcNow().AddMinutes(-2);
+        var deactivated = await InsertAsync(at, manager.UserId, "user.deactivated", "User", Guid.NewGuid().ToString("D"));
+        var activated = await InsertAsync(at, manager.UserId, "user.activated", "User", Guid.NewGuid().ToString("D"));
+
+        var page = await ReadPageAsync(client, manager.AccessToken, "action=user.deactivated&pageSize=100");
+
+        var items = page.GetProperty("items").EnumerateArray().ToList();
+        items.ShouldAllBe(item => item.GetProperty("action").GetString() == "user.deactivated");
+        items.Select(item => item.GetProperty("reference").GetString()).ShouldContain(deactivated);
+        items.Select(item => item.GetProperty("reference").GetString()).ShouldNotContain(activated);
+        page.GetProperty("total").GetInt32().ShouldBe(items.Count);
+    }
+
+    [Fact]
+    public async Task TheTargetFilterFindsEntriesAboutAPersonIncludingTheirSessionEvents()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var person = await TestSessions.StartAsync(factory, Roles.Admin);
+        var other = await TestSessions.StartAsync(factory, Roles.Admin);
+        var at = TimeProvider.System.GetUtcNow().AddMinutes(-2);
+        var aboutUser = await InsertAsync(at, manager.UserId, "user.locked", "User", person.UserId.ToString("D"));
+        var aboutSession = await InsertAsync(at, null, "auth.signed-out", "UserSession", person.SessionId.ToString("D"));
+        var aboutOther = await InsertAsync(at, manager.UserId, "user.locked", "User", other.UserId.ToString("D"));
+        var otherSession = await InsertAsync(at, null, "auth.signed-out", "UserSession", other.SessionId.ToString("D"));
+
+        var refs = await ReferencesAsync(client, manager.AccessToken, $"target={person.UserId:D}&pageSize=100");
+
+        refs.ShouldContain(aboutUser);
+        refs.ShouldContain(aboutSession);
+        refs.ShouldNotContain(aboutOther);
+        refs.ShouldNotContain(otherSession);
+    }
+
+    [Fact]
+    public async Task ADayRunsFromMidnightToTheEndOfThatManilaDayAndTheNextMidnightIsLeftOut()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var subject = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dan", "Day", Roles.Admin);
+        var clock = await BusinessClockAsync(factory);
+        var day = clock.Today.AddDays(-3);
+        var (start, endExclusive) = clock.UtcRange(day, day);
+        var key = subject.Id.ToString("D");
+        var before = await InsertAsync(start.AddSeconds(-1), manager.UserId, "user.activated", "User", key);
+        var atMidnight = await InsertAsync(start, manager.UserId, "user.activated", "User", key);
+        var lastSecond = await InsertAsync(endExclusive.AddSeconds(-1), manager.UserId, "user.activated", "User", key);
+        var nextMidnight = await InsertAsync(endExclusive, manager.UserId, "user.activated", "User", key);
+
+        var one = await ReferencesAsync(client, manager.AccessToken, $"target={subject.Id:D}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}");
+        var wide = await ReferencesAsync(client, manager.AccessToken, $"target={subject.Id:D}&from={day.AddDays(-1):yyyy-MM-dd}&to={day.AddDays(1):yyyy-MM-dd}");
+
+        one.ShouldBe([lastSecond, atMidnight], ignoreOrder: false);
+        wide.ShouldBe([nextMidnight, lastSecond, atMidnight, before]);
+    }
+
+    [Fact]
+    public async Task ARangeFromTheStartOfTheKeptWindowToTodayIsAcceptedAndReachesTheOldestDay()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var subject = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Flo", "Floor", Roles.Admin);
+        var clock = await BusinessClockAsync(factory);
+        var floor = clock.Today.AddMonths(-8);
+        var floorStart = clock.UtcRange(floor, floor).StartUtc;
+        var oldest = await InsertAsync(floorStart, manager.UserId, "user.activated", "User", subject.Id.ToString("D"));
+
+        var refs = await ReferencesAsync(
+            client, manager.AccessToken, $"target={subject.Id:D}&from={floor:yyyy-MM-dd}&to={clock.Today:yyyy-MM-dd}");
+
+        refs.ShouldBe([oldest]);
+    }
+
+    [Fact]
+    public async Task OnlyOneDateGivenMeansUntilTodayOrFromTheStartOfTheKeptWindow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var subject = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Ona", "Once", Roles.Admin);
+        var clock = await BusinessClockAsync(factory);
+        var key = subject.Id.ToString("D");
+        var longAgo = await InsertAsync(clock.UtcNow.AddDays(-40), manager.UserId, "user.activated", "User", key);
+        var recent = await InsertAsync(clock.UtcNow.AddDays(-2), manager.UserId, "user.activated", "User", key);
+
+        var fromOnly = await ReferencesAsync(client, manager.AccessToken, $"target={subject.Id:D}&from={clock.Today.AddDays(-10):yyyy-MM-dd}");
+        var toOnly = await ReferencesAsync(client, manager.AccessToken, $"target={subject.Id:D}&to={clock.Today.AddDays(-20):yyyy-MM-dd}");
+
+        fromOnly.ShouldBe([recent]);
+        toOnly.ShouldBe([longAgo]);
+    }
+
+    [Fact]
+    public async Task APageSizeAndPageSliceTheListAndTheTotalIsTheWholeCount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var subject = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Pia", "Pages", Roles.Admin);
+        var at = TimeProvider.System.GetUtcNow().AddMinutes(-5);
+        var first = await InsertAsync(at, manager.UserId, "user.activated", "User", subject.Id.ToString("D"));
+        var second = await InsertAsync(at, manager.UserId, "user.activated", "User", subject.Id.ToString("D"));
+        var third = await InsertAsync(at, manager.UserId, "user.activated", "User", subject.Id.ToString("D"));
+
+        var one = await ReadPageAsync(client, manager.AccessToken, $"target={subject.Id:D}&pageSize=2&page=1");
+        var two = await ReadPageAsync(client, manager.AccessToken, $"target={subject.Id:D}&pageSize=2&page=2");
+        var past = await ReadPageAsync(client, manager.AccessToken, $"target={subject.Id:D}&pageSize=2&page=3");
+
+        one.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("reference").GetString()).ShouldBe([third, second]);
+        two.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("reference").GetString()).ShouldBe([first]);
+        past.GetProperty("items").GetArrayLength().ShouldBe(0);
+        (one.GetProperty("total").GetInt32(), two.GetProperty("total").GetInt32(), past.GetProperty("total").GetInt32()).ShouldBe((3, 3, 3));
+    }
+
+    [Fact]
+    public async Task NoMatchIsAnEmptyListWithATotalOfZero()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        var page = await ReadPageAsync(client, manager.AccessToken, $"target={Guid.NewGuid():D}");
+
+        page.GetProperty("items").GetArrayLength().ShouldBe(0);
+        page.GetProperty("total").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ABadFilterIsA400NamingTheFieldWithThePlainMessage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var clock = await BusinessClockAsync(factory);
+        var floor = clock.Today.AddMonths(-8);
+        var window = $"Choose a date from {floor.ToString("MMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)} to today.";
+        var cases = new (string Query, string Field, string Message)[]
+        {
+            ($"from={floor.AddDays(-1):yyyy-MM-dd}", "from", window),
+            ($"to={clock.Today.AddDays(1):yyyy-MM-dd}", "to", window),
+            ($"from={clock.Today:yyyy-MM-dd}&to={clock.Today.AddDays(-1):yyyy-MM-dd}", "from", "The start date must be on or before the end date."),
+            ("from=2026-02-30", "from", "Enter a real date."),
+            ("to=tomorrow", "to", "Enter a real date."),
+            ("from=2026-2-3", "from", "Enter a real date."),
+            ("actor=not-a-guid", "actor", "Choose a person from the list."),
+            ("target=12345", "target", "Choose a person from the list."),
+            ("action=user.exploded", "action", "Choose an action from the list."),
+            ("pageSize=0", "pageSize", "Use a page size from 1 to 100."),
+            ("page=0", "page", "Use a page from 1 to 100000."),
+        };
+
+        foreach (var (query, field, message) in cases)
+        {
+            using var response = await client.SendAsync(ApiRequests.Get($"{Route}?{query}", manager.AccessToken), TestContext.Current.CancellationToken);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, query);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("errors").GetProperty(field).EnumerateArray().Select(static m => m.GetString()).ShouldBe([message], query);
+        }
+    }
+
+    private static async Task<List<string?>> ReferencesAsync(HttpClient client, string token, string query)
+    {
+        var page = await ReadPageAsync(client, token, query);
+        return [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("reference").GetString())];
+    }
+
     private static async Task<JsonElement> ReadPageAsync(HttpClient client, string token, string query)
     {
         using var request = ApiRequests.Get(query.Length == 0 ? Route : $"{Route}?{query}", token);
