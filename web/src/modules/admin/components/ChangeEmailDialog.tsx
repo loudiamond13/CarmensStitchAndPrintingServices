@@ -16,13 +16,10 @@ import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { PROFILE_COPY } from '@/modules/admin/profileCopy';
 import { changeEmailSchema, type ChangeEmailValues } from '@/modules/admin/profileSchemas';
-import { profileService, type ProfileResponse } from '@/modules/admin/services/profileService';
+import { PASSWORD_LOCKED_CODE, profileService, type ProfileResponse } from '@/modules/admin/services/profileService';
 import { errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
 const COPY = PROFILE_COPY.changeEmail;
-
-/** The machine code of a request refused while the account is locked after too many wrong passwords (D-41 Q9). */
-const PASSWORD_LOCKED = 'profile.password-locked';
 
 const FIELD_ORDER = ['newEmail', 'currentPassword'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
@@ -93,7 +90,7 @@ function ChangeEmailForm({ open, currentEmail, onClose, onSent }: ChangeEmailDia
       showLine(Object.values(error.fieldErrors)[0]?.[0] ?? errorLine(copy));
       return;
     }
-    if (isHttpError(error) && error.status === 429 && error.code === PASSWORD_LOCKED) {
+    if (isHttpError(error) && error.status === 429 && error.code === PASSWORD_LOCKED_CODE) {
       showLine(error.problem?.detail ?? PROFILE_COPY.errors.passwordLocked);
       return;
     }

@@ -14,12 +14,12 @@
 //     after a cancel). Resend and cancel act on the latest state and carry no edit version (D-21).
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useEffect, useId, useMemo, useRef, useState, type SyntheticEvent } from 'react';
+import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { Button, ButtonLink } from '@/components/actions';
 import { getTabPanelProps, SegmentedControl, Tabs, type SegmentOption, type TabItem } from '@/components/choice';
 import { Skeleton, useToast } from '@/components/feedback';
-import { Field } from '@/components/forms';
+import { Field, PasswordField } from '@/components/forms';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText, STATES_COPY } from '@/components/states';
 import { Avatar, Badge } from '@/components/status';
@@ -28,6 +28,7 @@ import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { profileKey } from '@/lib/query/keys';
 import { ChangeEmailDialog } from '@/modules/admin/components/ChangeEmailDialog';
+import { NewPasswordFields } from '@/modules/admin/components/NewPasswordFields';
 import {
   profileCardBodyClasses,
   profileCardClasses,
@@ -53,8 +54,18 @@ import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { useProfileQuery } from '@/modules/admin/hooks/useProfileQuery';
 import { PROFILE_TABS, useProfileTab, type ProfileTab } from '@/modules/admin/hooks/useProfileTab';
 import { PROFILE_COPY } from '@/modules/admin/profileCopy';
-import { profileNameSchema, type ProfileNameValues } from '@/modules/admin/profileSchemas';
-import { profileService, type ProfileResponse } from '@/modules/admin/services/profileService';
+import {
+  changePasswordSchema,
+  profileNameSchema,
+  type ChangePasswordValues,
+  type ProfileNameValues,
+} from '@/modules/admin/profileSchemas';
+import {
+  EMAIL_CHANGE_NONE_CODE,
+  PASSWORD_LOCKED_CODE,
+  profileService,
+  type ProfileResponse,
+} from '@/modules/admin/services/profileService';
 import { refreshSession } from '@/modules/admin/services/session';
 import type { Theme } from '@/modules/admin/theme';
 import { describeHttpError } from '@/utils/describeHttpError';
@@ -271,9 +282,6 @@ function PersonalInformationCard({
   );
 }
 
-/** The code of a resend that found no change waiting. */
-const EMAIL_CHANGE_NONE = 'email-change.none';
-
 /**
  * The Sign-in Email card (D-24): the current email, then Change Email (the P2 dialog), or while a change waits for its
  * link the note with Resend Link and Cancel Change. Resend and cancel act on the latest state, not on the edit version.
@@ -325,7 +333,7 @@ function SignInEmailCard({ profile }: { profile: ProfileResponse }) {
         void queryClient.invalidateQueries({ queryKey: profileKey });
       },
       onFailure: (failure, error) => {
-        if (isHttpError(error) && error.status === 404 && error.code === EMAIL_CHANGE_NONE) {
+        if (isHttpError(error) && error.status === 404 && error.code === EMAIL_CHANGE_NONE_CODE) {
           clearPending();
           toast.show({
             tone: 'info',
@@ -488,6 +496,142 @@ function AppearanceCard() {
   );
 }
 
+const PASSWORD_FIELDS = ['currentPassword', 'newPassword', 'confirmPassword'] as const;
+type PasswordFieldName = (typeof PASSWORD_FIELDS)[number];
+
+/**
+ * The Change Password card (PROF-03, OR-3): Current password, then the P4 new-password pair with its meter and rule hint. Every
+ * rule the server checks first is checked here, with the account's name and email. A wrong current password and a breached or
+ * common new password come back from the server under their fields with the cursor there (D-46); the lock shows the server's
+ * plain-English line in a banner. A saved change clears the form; the server keeps this device signed in and ends the others.
+ */
+function ChangePasswordCard({ profile }: { profile: ProfileResponse }) {
+  const copy = COPY.password;
+  const toast = useToast();
+  const headingId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  // The server's line for a locked account, shown above the fields until the next attempt.
+  const [lock, setLock] = useState<string | null>(null);
+  const { email, firstName, lastName } = profile;
+  const schema = useMemo(() => changePasswordSchema({ email, firstName, lastName }), [email, firstName, lastName]);
+  const { control, handleSubmit, setError, reset } = useForm<ChangePasswordValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+  });
+
+  const focusField = (name: PasswordFieldName): void => {
+    const element = formRef.current?.elements.namedItem(name);
+    if (element instanceof HTMLElement) {
+      element.focus();
+    }
+  };
+
+  const submission = useSubmission<ChangePasswordValues, undefined>(
+    async (key, values) => {
+      await profileService.changePassword(
+        { currentPassword: values.currentPassword, newPassword: values.newPassword },
+        key,
+      );
+      return undefined;
+    },
+    {
+      onSuccess: () => {
+        reset({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        // The form is empty again, so the next entry is a new submission.
+        submission.reset();
+        toast.show({ title: COPY.toasts.passwordUpdated.title, message: COPY.toasts.passwordUpdated.message });
+      },
+      onFailure: (failure, error) => {
+        if (isHttpError(error) && error.status === 400) {
+          let first: PasswordFieldName | null = null;
+          for (const name of PASSWORD_FIELDS) {
+            const message = serverFieldMessage(error.fieldErrors, name);
+            if (message !== undefined) {
+              setError(name, { type: 'server', message });
+              first ??= name;
+            }
+          }
+          if (first !== null) {
+            focusField(first);
+            return;
+          }
+          // No rendered field matches: say what the server said.
+          const other = Object.values(error.fieldErrors)[0]?.[0];
+          toast.show({
+            tone: 'danger',
+            title: other ?? failure.title,
+            message: other === undefined ? failure.body : '',
+          });
+          return;
+        }
+        if (isHttpError(error) && error.status === 429 && error.code === PASSWORD_LOCKED_CODE) {
+          setLock(error.problem?.detail ?? COPY.errors.passwordLocked);
+          return;
+        }
+        toast.show({ tone: 'danger', title: failure.title, message: failure.body });
+      },
+    },
+  );
+
+  const onValid = async (values: ChangePasswordValues): Promise<void> => {
+    setLock(null);
+    await submission.submit(values);
+  };
+
+  const onInvalid = (errors: FieldErrors<ChangePasswordValues>): void => {
+    const first = PASSWORD_FIELDS.find((name) => errors[name] !== undefined);
+    if (first !== undefined) {
+      focusField(first);
+    }
+  };
+
+  return (
+    <form
+      ref={formRef}
+      aria-labelledby={headingId}
+      noValidate
+      className={profileCardClasses}
+      onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
+        void handleSubmit(onValid, onInvalid)(event);
+      }}
+    >
+      <div className={profileCardHeadClasses}>
+        <div>
+          <h2 id={headingId} className={profileCardTitleClasses}>
+            {copy.title}
+          </h2>
+          <p className={profileCardHintClasses}>{copy.hint}</p>
+        </div>
+      </div>
+      <div className={profileCardBodyClasses}>
+        {lock !== null && <ErrorState align="start" title={lock} />}
+        <Controller
+          control={control}
+          name="currentPassword"
+          render={({ field, fieldState }) => (
+            <PasswordField
+              label={copy.currentPassword}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              autoComplete="current-password"
+              aria-required="true"
+            />
+          )}
+        />
+        <NewPasswordFields control={control} email={email} />
+      </div>
+      <div className={profileCardFootClasses}>
+        <Button type="submit" variant="primary" icon="lock" pending={submission.pending}>
+          {submission.pending ? copy.updating : copy.update}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function DevicesCard() {
   const headingId = useId();
   return (
@@ -552,6 +696,7 @@ function ProfileView({ profile, tab, onTab, reload }: ProfileViewProps) {
         <SignInEmailCard profile={profile} />
       </div>
       <div {...getTabPanelProps(ID_BASE, 'security')} hidden={tab !== 'security'} className={profileCardsClasses}>
+        <ChangePasswordCard profile={profile} />
         <DevicesCard />
       </div>
       <div {...getTabPanelProps(ID_BASE, 'appearance')} hidden={tab !== 'appearance'} className={profileCardsClasses}>

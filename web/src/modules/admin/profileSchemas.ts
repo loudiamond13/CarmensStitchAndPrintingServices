@@ -1,8 +1,9 @@
 // The My Profile forms' zod schemas (OR-3): each mirrors its server validator, so the browser checks every rule before a request
 // is sent. The name form (UpdateProfileNameRequestValidator): both names are trimmed, required, and at most 100 UTF-16 code
 // units (a JavaScript string length, the unit the server counts); the version is not typed by the person. The Change Email
-// dialog (RequestEmailChangeRequestValidator) is below.
+// dialog (RequestEmailChangeRequestValidator) and the Security tab password form (ChangePasswordRequestValidator) follow.
 import { z } from 'zod';
+import { checkPassword, PASSWORD_RULE_MESSAGES, type PersonalInfo } from '@/utils/passwordRules';
 import { AUTH_COPY } from './authCopy';
 import { isEmailShaped } from './authSchemas';
 import { NAME_MAX_LENGTH, PROFILE_COPY } from './profileCopy';
@@ -61,3 +62,38 @@ export function changeEmailSchema(currentEmail: string) {
 }
 
 export type ChangeEmailValues = z.infer<ReturnType<typeof changeEmailSchema>>;
+
+/**
+ * The Security tab's password form (ChangePasswordRequestValidator and ChangePasswordHandler, OR-3): the current password is
+ * required; the new one meets the shared password policy for this account (its name and email stay out of it) and differs
+ * from the current one; the confirmation matches. Whether the current password is right, and the breach and common-password
+ * lookups, stay with the server.
+ */
+export function changePasswordSchema(personal: PersonalInfo) {
+  return z
+    .object({
+      currentPassword: z.string().min(1, COPY.currentPasswordRequired),
+      newPassword: z.string().superRefine((value, context) => {
+        const failure = checkPassword(value, personal);
+        if (failure !== null) {
+          context.addIssue({ code: 'custom', message: PASSWORD_RULE_MESSAGES[failure] });
+        }
+      }),
+      confirmPassword: z.string().min(1, AUTH_COPY.newPassword.errors.confirmRequired),
+    })
+    .superRefine((values, context) => {
+      if (values.confirmPassword !== '' && values.confirmPassword !== values.newPassword) {
+        context.addIssue({ code: 'custom', path: ['confirmPassword'], message: AUTH_COPY.newPassword.errors.mismatch });
+      }
+      // The server compares the normalized forms, and only once the new password passes its rules.
+      if (
+        values.currentPassword !== '' &&
+        checkPassword(values.newPassword, personal) === null &&
+        values.currentPassword.normalize('NFC') === values.newPassword.normalize('NFC')
+      ) {
+        context.addIssue({ code: 'custom', path: ['newPassword'], message: COPY.samePassword });
+      }
+    });
+}
+
+export type ChangePasswordValues = z.infer<ReturnType<typeof changePasswordSchema>>;

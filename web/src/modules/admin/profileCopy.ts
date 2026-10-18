@@ -39,6 +39,14 @@ export const PROFILE_COPY = {
     cancel: 'Cancel Change',
     canceling: 'Canceling',
   },
+  // App. E.13 Change Password card on the Security tab (PROF-03); the new-password pair and its rule hint are the P4 ones.
+  password: {
+    title: 'Change Password',
+    hint: 'Use 8+ characters with a number and a symbol.',
+    currentPassword: 'Current password',
+    update: 'Update Password',
+    updating: 'Updating',
+  },
   // SPEC-GAP: P2 Change Email dialog (PROF-02, C-9, D-24, D-25).
   changeEmail: {
     title: 'Change your email',
@@ -52,6 +60,11 @@ export const PROFILE_COPY = {
   },
   toasts: {
     saved: { title: 'Changes saved', message: 'Your name is updated.' },
+    /** OQ-7: the amended App. E.13 wording; the other devices are named because they are signed out. */
+    passwordUpdated: {
+      title: 'Password updated',
+      message: 'Use your new password next time you sign in. Your other devices were signed out.',
+    },
     // SPEC-GAP: the email-change toasts. Each message names an address.
     emailSent: {
       title: 'Confirmation link sent',
@@ -79,6 +92,8 @@ export const PROFILE_COPY = {
     newEmailRequired: 'Enter your new email.',
     sameEmail: 'This is already your email.',
     currentPasswordRequired: 'Enter your current password.',
+    /** The same words as the server's, shown when the new password is the current one. */
+    samePassword: 'Choose a different password from your current one.',
     /** The server's own line is shown for the lock; this one covers a reply that carries none. */
     passwordLocked: 'Too many wrong passwords. Try again in 15 minutes.',
   },
