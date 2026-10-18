@@ -701,3 +701,46 @@ describe('U3 the detail cannot be loaded', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+describe('U3 who recorded and last changed the person (SEC-08, D-11)', () => {
+  it('shows Recorded by and Last changed by below the form, a deleted colleague still named', async () => {
+    await openLoaded(
+      detail({
+        recordedBy: { id: 'a1', name: 'Carmen Reyes', formerStaff: false },
+        lastChangedBy: { id: 'a2', name: 'Ana Cruz', formerStaff: true },
+        // 07:42 UTC is 3:42 PM in Manila.
+        createdAt: '2026-10-17T07:42:00Z',
+        updatedAt: '2026-10-18T01:05:00Z',
+      }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit User' });
+    expect(within(dialog).getByText('Recorded by').nextElementSibling).toHaveTextContent(
+      'Carmen Reyes · Oct 17, 2026, 3:42 PM',
+    );
+    expect(within(dialog).getByText('Last changed by').nextElementSibling).toHaveTextContent(
+      'Ana Cruz (former staff) · Oct 18, 2026, 9:05 AM',
+    );
+  });
+
+  it('reads System for a person made before actors were recorded and Not set for a person never changed', async () => {
+    await openLoaded(detail({ recordedBy: null, lastChangedBy: null, updatedAt: null }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit User' });
+    expect(within(dialog).getByText('Recorded by').nextElementSibling).toHaveTextContent(/^System · /);
+    expect(within(dialog).getByText('Last changed by').nextElementSibling).toHaveTextContent('Not set');
+  });
+
+  it("links to the person's activity in the audit log", async () => {
+    await openLoaded();
+
+    const link = screen.getByRole('link', { name: "See this user's activity in the audit log" });
+    expect(link).toHaveAttribute('href', `/admin/audit-log?target=${ID}&range=all`);
+  });
+
+  it('has no axe violations with the record meta and the link showing', async () => {
+    await openLoaded(detail({ recordedBy: { id: 'a1', name: 'Carmen Reyes', formerStaff: false } }));
+
+    await expectNoAxeViolations(document.body);
+  });
+});

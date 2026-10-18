@@ -76,6 +76,8 @@ const SPEC_GAP_COMPONENTS = [
   'Overlay',
   'Note',
   'ConflictBanner',
+  'ActorName',
+  'RecordMeta',
 ] as const;
 
 const exports: Readonly<Record<string, unknown>> = ui;

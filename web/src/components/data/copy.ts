@@ -5,3 +5,15 @@
 
 /** The line shown under the customer's name when an order has no team (spec §8.3, D-40). */
 export const WALK_IN_CUSTOMER = 'Walk-in customer';
+
+/** SEC-08 RecordMeta and ActorName (owner ruling D-47, OQ-8): who recorded and last changed a record. */
+export const RECORD_META_COPY = {
+  recordedBy: 'Recorded by',
+  lastChangedBy: 'Last changed by',
+  /** The actor of a record made before actors were recorded, or by the system itself. */
+  system: 'System',
+  /** Follows the name of an actor whose account was deleted. */
+  formerStaff: ' (former staff)',
+  /** Between the actor and the time. */
+  separator: ' · ',
+} as const;
