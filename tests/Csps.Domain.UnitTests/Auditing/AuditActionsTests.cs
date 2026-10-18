@@ -8,11 +8,18 @@ public sealed class AuditActionsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileCodes()
+    public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileAndUserCodes()
     {
-        AuditActions.All.Count.ShouldBe(25);
+        AuditActions.All.Count.ShouldBe(26);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void TheTemporaryPasswordCreateCodeIsInTheCatalog()
+    {
+        AuditActions.UserCreatedTemporary.ShouldBe("user.created-temporary");
+        AuditActions.All.ShouldContain(AuditActions.UserCreatedTemporary);
     }
 
     [Fact]

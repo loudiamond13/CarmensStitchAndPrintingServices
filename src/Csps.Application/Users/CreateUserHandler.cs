@@ -12,8 +12,9 @@ namespace Csps.Application.Users;
 
 /// <summary>
 /// Use case: a Manager adds a staff member (USER-02, C-4, D-12..D-15). The default route creates the account with no password,
-/// a 7-day single-use invitation link and an email that opens with the Manager's name. One transaction creates the account, the
-/// token, the email and the audit entry, or none of it. The new account's creator is the token's user, stamped by the
+/// a 7-day single-use invitation link and an email that opens with the Manager's name. The other route creates the account
+/// with the Manager's temporary password (basic rule only), marks it must-change and sends no email. One transaction creates the
+/// account, the token, the email and the audit entry, or none of it. The new account's creator is the token's user, stamped by the
 /// database layer (SEC-08); nothing in the request can name it. No name, email or secret reaches the audit trail.
 /// </summary>
 public sealed class CreateUserHandler(
@@ -67,10 +68,17 @@ public sealed class CreateUserHandler(
 
     private async Task<Guid> CreateAsync(CreateUserRequest request, string email, string invitedBy, CancellationToken cancellationToken)
     {
-        // The account is saved first (Identity saves on the shared context), then the token, email and audit together.
         var role = CreateUserRequestValidator.CanonicalRole(request.Role)!;
+        var names = (First: request.FirstName!.Trim(), Last: request.LastName!.Trim());
+
+        if (CreateUserRequestValidator.CanonicalAccess(request.Access) == CreateUserRequest.TemporaryPasswordAccess)
+        {
+            return await CreateWithTemporaryPasswordAsync(new NewUserAccount(email, names.First, names.Last, role, request.TemporaryPassword), cancellationToken).ConfigureAwait(false);
+        }
+
+        // The account is saved first (Identity saves on the shared context), then the token, email and audit together.
         var id = await accounts
-            .CreateAsync(new NewUserAccount(email, request.FirstName!.Trim(), request.LastName!.Trim(), role, null), cancellationToken)
+            .CreateAsync(new NewUserAccount(email, names.First, names.Last, role, null), cancellationToken)
             .ConfigureAwait(false);
 
         var secret = random.NewToken();
@@ -80,6 +88,17 @@ public sealed class CreateUserHandler(
         await outbox.EnqueueAsync(new InviteEmail(email, secret, invitation.ExpiresAt, now, invitedBy), cancellationToken).ConfigureAwait(false);
 
         audit.Record(AuditActions.UserInvited, UserTarget, AuditKey.Of(id), ManagerDetail);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return id;
+    }
+
+    // The password is hashed by the account port and goes nowhere else: no email, token, audit detail or response holds it (D-14).
+    private async Task<Guid> CreateWithTemporaryPasswordAsync(NewUserAccount account, CancellationToken cancellationToken)
+    {
+        var id = await accounts.CreateAsync(account, cancellationToken).ConfigureAwait(false);
+        await accounts.SetMustChangePasswordAsync(id, PasswordChangeReason.Temporary, cancellationToken).ConfigureAwait(false);
+
+        audit.Record(AuditActions.UserCreatedTemporary, UserTarget, AuditKey.Of(id), null);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return id;
     }

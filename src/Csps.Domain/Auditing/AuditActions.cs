@@ -69,6 +69,9 @@ public static class AuditActions
     /// <summary>A user was invited.</summary>
     public const string UserInvited = "user.invited";
 
+    /// <summary>A Manager created a user with a temporary password; no detail, and never the password (D-14, D-40).</summary>
+    public const string UserCreatedTemporary = "user.created-temporary";
+
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
 
@@ -115,6 +118,7 @@ public static class AuditActions
         InviteAccepted,
         BootstrapManagerCreated,
         UserInvited,
+        UserCreatedTemporary,
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,
