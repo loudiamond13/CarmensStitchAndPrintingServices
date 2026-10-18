@@ -123,6 +123,9 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/users/{id:guid}", "/api/v1/users/3d9b7a14-5c2e-4f08-a6d1-7e0b9c4f2a85", Anonymous: 401, Admin: 403, Manager: 404),
         // Adding a person (USER-02): Managers only. With no body a Manager meets the 400 field errors; an Admin never gets that far.
         new("POST", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 400),
+        // Deactivating and reactivating (USER-03): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/deactivate", "/api/v1/users/5b8e2c71-4d90-4a3f-8c16-0f7d3a9e6b24/deactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/users/{id:guid}/activate", "/api/v1/users/9c4a1e58-7f2b-4d63-b0a9-3e8d5c2f1a76/activate", Anonymous: 401, Admin: 403, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

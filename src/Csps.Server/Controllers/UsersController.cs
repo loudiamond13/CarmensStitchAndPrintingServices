@@ -14,12 +14,19 @@ namespace Csps.Server.Controllers;
 /// <param name="list">The roster list handler.</param>
 /// <param name="get">The single-person read handler.</param>
 /// <param name="create">The add-a-person handler.</param>
+/// <param name="deactivate">The deactivate handler.</param>
+/// <param name="activate">The reactivate handler.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class UsersController(ListUsersHandler list, GetUserHandler get, CreateUserHandler create) : ControllerBase
+public sealed class UsersController(
+    ListUsersHandler list,
+    GetUserHandler get,
+    CreateUserHandler create,
+    DeactivateUserHandler deactivate,
+    ActivateUserHandler activate) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -84,5 +91,42 @@ public sealed class UsersController(ListUsersHandler list, GetUserHandler get, C
     {
         var result = await create.HandleAsync(body ?? CreateUserRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static created => TypedResults.Created($"/api/v1/users/{created.Id:D}", created));
+    }
+
+    /// <summary>
+    /// Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old
+    /// token is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/deactivate")]
+    [EndpointName("DeactivateUser")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Deactivate(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await deactivate.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>Reactivates a person (USER-03). Repeating it on an active person is a 204 that changes nothing. It takes no version.</summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/activate")]
+    [EndpointName("ActivateUser")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Activate(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await activate.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

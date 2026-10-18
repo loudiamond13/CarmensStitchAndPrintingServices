@@ -72,6 +72,12 @@ public static class AuditActions
     /// <summary>A Manager created a user with a temporary password; no detail, and never the password (D-14, D-40).</summary>
     public const string UserCreatedTemporary = "user.created-temporary";
 
+    /// <summary>A Manager deactivated a user; no detail (D-40).</summary>
+    public const string UserDeactivated = "user.deactivated";
+
+    /// <summary>A Manager reactivated a user; no detail (D-40).</summary>
+    public const string UserActivated = "user.activated";
+
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
 
@@ -92,7 +98,7 @@ public static class AuditActions
     public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];
 
     /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
-    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed"];
+    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed", "account-changed"];
 
     /// <summary>Every action code, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
@@ -119,6 +125,8 @@ public static class AuditActions
         BootstrapManagerCreated,
         UserInvited,
         UserCreatedTemporary,
+        UserDeactivated,
+        UserActivated,
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,

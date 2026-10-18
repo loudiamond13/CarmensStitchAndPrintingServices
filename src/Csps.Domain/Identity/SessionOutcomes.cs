@@ -26,6 +26,9 @@ public enum SessionRevocationReason
 
     /// <summary>The user changed their password from My Profile; their other devices were signed out.</summary>
     PasswordChanged = 8,
+
+    /// <summary>A Manager deactivated or reactivated the account, so every session of that person ended.</summary>
+    AccountChanged = 9,
 }
 
 /// <summary>The decision for one presented refresh token.</summary>

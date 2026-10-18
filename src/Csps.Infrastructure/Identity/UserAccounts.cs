@@ -221,6 +221,34 @@ internal sealed class UserAccounts(
         return managers.Any(static manager => manager.IsActive);
     }
 
+    public async Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+            if (user.IsActive == active)
+            {
+                return false;
+            }
+
+            user.IsActive = active;
+            user.EditVersion = Guid.NewGuid();
+            var result = await users.UpdateAsync(user).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                return true;
+            }
+
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
+            {
+                Require(result, "Changing the account state");
+            }
+
+            // The row changed under us (a failed-password count, say): read the fresh row and decide again.
+            await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public async Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(firstName);

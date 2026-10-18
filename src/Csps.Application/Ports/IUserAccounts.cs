@@ -121,6 +121,16 @@ public interface IUserAccounts
     Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Deactivates or reactivates the account on its latest state, with no version to send (D-21). A change rotates the edit
+    /// version, so a form opened earlier is stale, and counts as a staff edit for SEC-08.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="active">True to reactivate, false to deactivate.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the state changed; false when the account was already in that state, and nothing was written.</returns>
+    Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Changes the first and last name when <paramref name="expectedVersion"/> is the stored edit version, and rotates
     /// that version (SEC-07). Identity bookkeeping never rotates it. Names that already match change nothing.
     /// </summary>
