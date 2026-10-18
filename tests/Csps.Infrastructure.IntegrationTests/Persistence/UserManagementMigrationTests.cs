@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
@@ -12,12 +13,14 @@ namespace Csps.Infrastructure.IntegrationTests.Persistence;
 /// date (from their audit entry when there is one), a fresh edit version and System attribution, then makes the
 /// creation date required. Each test uses its own database.
 /// </summary>
-public sealed class UserManagementMigrationTests
+public sealed partial class UserManagementMigrationTests
 {
     private const string Before = "20261015081003_AddIdempotencyRecords";
 
-    [Fact]
-    public async Task ExistingAccountsGetTheirCreationDateAFreshVersionAndSystemAttribution()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExistingAccountsGetTheirCreationDateAFreshVersionAndSystemAttribution(bool throughTheReviewedScript)
     {
         var created = new DateTimeOffset(2026, 10, 17, 10, 0, 0, TimeSpan.Zero);
         var withAudit = Guid.NewGuid();
@@ -43,7 +46,17 @@ public sealed class UserManagementMigrationTests
                 }
 
                 var started = TimeProvider.System.GetUtcNow();
-                await migrator.MigrateAsync(cancellationToken: TestContext.Current.CancellationToken);
+                if (throughTheReviewedScript)
+                {
+                    // The owner ships the idempotent script, so the backfill must also work as script text.
+                    await ApplyScriptAsync(
+                        database.ConnectionString,
+                        migrator.GenerateScript(fromMigration: Before, options: MigrationsSqlGenerationOptions.Idempotent));
+                }
+                else
+                {
+                    await migrator.MigrateAsync(cancellationToken: TestContext.Current.CancellationToken);
+                }
 
                 var read = new SqlConnection(database.ConnectionString);
                 await using (read)
@@ -64,6 +77,24 @@ public sealed class UserManagementMigrationTests
 
                     (await ScalarAsync(read, "SELECT is_nullable FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.AspNetUsers') AND name = N'CreatedAtUtc';"))
                         .ShouldBe(false);
+                }
+            }
+        }
+    }
+
+    private static async Task ApplyScriptAsync(string connectionString, string script)
+    {
+        var connection = new SqlConnection(connectionString);
+        await using (connection)
+        {
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            foreach (var batch in GoSeparator().Split(script).Where(static batch => !string.IsNullOrWhiteSpace(batch)))
+            {
+                var command = connection.CreateCommand();
+                await using (command)
+                {
+                    command.CommandText = batch;
+                    await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
                 }
             }
         }
@@ -136,4 +167,7 @@ public sealed class UserManagementMigrationTests
             return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
         }
     }
+
+    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex GoSeparator();
 }

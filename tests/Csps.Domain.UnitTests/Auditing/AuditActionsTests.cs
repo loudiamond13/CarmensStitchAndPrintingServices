@@ -35,9 +35,9 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
-    public void SignInFailureReasonsAreTheSixDocumentedOnes()
+    public void SignInFailureReasonsAreTheEightDocumentedOnes()
     {
-        AuditActions.SignInFailureReasons.ShouldBe(["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password"]);
+        AuditActions.SignInFailureReasons.ShouldBe(["unknown-account", "bad-password", "locked", "deactivated", "unconfirmed", "no-password", "manager-locked", "deleted"]);
     }
 
     [Fact]

@@ -61,6 +61,33 @@ namespace Csps.Infrastructure.Persistence.Migrations
                 type: "uniqueidentifier",
                 nullable: true);
 
+            // Accounts that existed before Phase 5: the earliest bootstrap or invite audit entry dates them, else now.
+            // Re-running is safe: only rows still without a date are touched, and AuditLog is only read.
+            // EXEC defers compiling the column name, which the idempotent script would otherwise reject in the batch that adds it.
+            const string Backfill =
+                """
+                UPDATE u
+                SET CreatedAtUtc = COALESCE(
+                    (SELECT MIN(a.OccurredAtUtc)
+                     FROM dbo.AuditLog a
+                     WHERE a.TargetType = N'User'
+                       AND a.Action IN (N'user.bootstrap-manager-created', N'user.invited')
+                       AND a.TargetId = LOWER(CONVERT(nvarchar(36), u.Id))),
+                    TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))
+                FROM dbo.AspNetUsers u
+                WHERE u.CreatedAtUtc IS NULL;
+                """;
+            migrationBuilder.Sql($"EXEC(N'{Backfill.Replace("'", "''", StringComparison.Ordinal)}');");
+
+            migrationBuilder.AlterColumn<DateTimeOffset>(
+                name: "CreatedAtUtc",
+                table: "AspNetUsers",
+                type: "datetimeoffset",
+                nullable: false,
+                oldClrType: typeof(DateTimeOffset),
+                oldType: "datetimeoffset",
+                oldNullable: true);
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUsers_CreatedById",
                 table: "AspNetUsers",

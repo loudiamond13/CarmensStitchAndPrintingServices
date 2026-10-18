@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-15T01:20:00-05:00
+updated: 2026-10-17T20:30:17-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -76,7 +76,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 
 | Code | Written when | Target | Detail | Write path |
 |------|--------------|--------|--------|------------|
-| `auth.sign-in-failed` | A password sign-in is refused | `User` id when the account is known, otherwise none | `unknown-account`, `bad-password`, `locked`, `deactivated`, `unconfirmed` or `no-password` (an invited user who has not set a password yet) | `RecordIndependentlyAsync` |
+| `auth.sign-in-failed` | A password sign-in is refused | `User` id when the account is known, otherwise none | `unknown-account`, `bad-password`, `locked`, `deactivated`, `unconfirmed`, `no-password` (an invited user who has not set a password yet), `manager-locked` (a Manager locked the account, D-16) or `deleted` (the account was soft-deleted, D-07). The caller still gets the same generic 401 and timing for every reason | `RecordIndependentlyAsync` |
 | `auth.lockout` | An account becomes locked after repeated failures | `User` id | `password` or `code` | `Record` for `password`: the sign-in handler commits it with the failed-password count and the one lockout e-mail, so the entry exists exactly when the lock does. The `code` path (the tenth wrong code in an hour) is the same: the code handler commits it with the cancelled challenges, the lock and the one lockout e-mail. |
 | `auth.2fa-issued` | A sign-in code is created and e-mailed | `User` id | none | `Record` |
 | `auth.2fa-resent` | A new sign-in code is requested | `User` id | none | `Record` |
@@ -88,7 +88,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.signed-out` | A user signs out of the current session | `UserSession` id | none | `Record` |
 | `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others` or `password-reset` | `Record` |
 | `auth.session-revoked` | One session is revoked: a deactivated or locked account tries to refresh, or a user signs out one of their other devices (`DELETE /api/v1/sessions/{id}`; nothing is written for a session already gone or refused) | `UserSession` id | none | `Record` |
-| `auth.password-reset-requested` | Forgot-password is asked for any address | `User` id; none for an unknown address | `sent` (link emailed), `deactivated` (notice emailed), `unknown-account` (nothing sent; also an unconfirmed account) or `capped` (3 emails in the hour, nothing sent). Never the email or the token | `Record` |
+| `auth.password-reset-requested` | Forgot-password is asked for any address | `User` id; none for an unknown address | `sent` (link emailed), `deactivated` (notice emailed), `manager-locked` (a Manager locked the account: nothing is sent, D-41), `unknown-account` (nothing sent; also an unconfirmed account) or `capped` (3 emails in the hour, nothing sent). Never the email or the token | `Record` |
 | `auth.password-reset-completed` | A password reset finishes | `User` id | none | `Record` |
 | `auth.password-reset-link-invalid` | A reset link is unknown, expired or already used | none | none | `RecordIndependentlyAsync` |
 | `auth.password-changed` | A signed-in user changes their own password | `User` id | none | `Record` |
