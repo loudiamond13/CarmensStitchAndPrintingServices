@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-26-PLAN.md
-last_updated: "2026-10-18T13:24:54.121Z"
+stopped_at: Completed 05-32-PLAN.md
+last_updated: "2026-10-18T13:48:14.873Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: d1a4aa31a9f59eb43ba88639a4bd831e6b39fb5a
+state_head: c89deff69216f76e72faa4402cada6584a4164cc
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 144
+  completed_plans: 145
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T06:57:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 31 of 43
+Plan: 32 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -200,6 +200,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P24 | 19 min | 2 tasks | 16 files |
 | Phase 05 P25 | 42 min | 3 tasks | 23 files |
 | Phase 05 P26 | 45 min | 3 tasks | 23 files |
+| Phase 05 P32 | 20 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -524,6 +525,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-25 ActorName and RecordMeta live in components/data for every later detail view: a null actor reads System, a deleted actor keeps the name with a muted former-staff suffix, a record with no time shows EmptyValue
 - [Phase 05]: D-07 soft delete: scrambled deleted-{id:N}@deleted.invalid address per id, names kept, DeletedAtUtc set, every session and open link revoked, final (no restore) — 05-26: D-07..D-11; a second DELETE is 404 and records nothing
 - [Phase 05]: Delete also scrubs the outbox: rows for the old and any pending address are expired if unsent, readdressed and left without bodies; the outbox refuses .invalid recipients (IN-08 part) — 05-26: defense in depth for deleted addresses; waiting email-change address scrubbed too
+- [Phase 05]: 05-32: AdminFrame takes withAuditLog (default false); only the real AdminShell sets it so the dev parity scenarios stay equal to the frozen reference — The Manager DEV_USER scenarios render AdminFrame; an unconditional prop would add a sixth nav item there
+- [Phase 05]: 05-32: DateInput shows the caller's message through error; range and format rules stay in the caller's zod schema (OR-3) — One source of validation rules
 
 ### Pending Todos
 
@@ -583,6 +586,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T13:24:53.451Z
-Stopped at: Completed 05-26-PLAN.md
+Last session: 2026-10-18T13:48:14.181Z
+Stopped at: Completed 05-32-PLAN.md
 Resume file: None
