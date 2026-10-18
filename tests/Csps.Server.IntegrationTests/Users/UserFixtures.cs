@@ -9,6 +9,7 @@ using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Users;
@@ -136,6 +137,66 @@ internal static class UserFixtures
         await AccountStateFixtures.MarkDeletedAsync(factory, jun.Id);
 
         return new RosterSeed(tag, [ana, bea, carla, dina, eli, fe, gina, hal, ivo, mae], jun);
+    }
+
+    /// <summary>Sets who created and who last changed an account, as the Manager screens would have recorded.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="userId">The account to stamp.</param>
+    /// <param name="createdById">Who created it; null reads as System.</param>
+    /// <param name="updatedById">Who last changed it; null reads as System.</param>
+    /// <param name="updatedAt">When it was last changed; null if never.</param>
+    /// <returns>A task that completes when the stamp is saved.</returns>
+    public static async Task StampAsync(CspsDatabase database, Guid userId, Guid? createdById, Guid? updatedById, DateTimeOffset? updatedAt)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var changed = await context.Users.Where(user => user.Id == userId).ExecuteUpdateAsync(
+            set => set
+                .SetProperty(user => user.CreatedById, createdById)
+                .SetProperty(user => user.UpdatedById, updatedById)
+                .SetProperty(user => user.UpdatedAtUtc, updatedAt),
+            TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    /// <summary>Puts an email change on hold for an account, as a request would.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="userId">The account.</param>
+    /// <param name="pendingEmail">The address waiting for confirmation.</param>
+    /// <returns>A task that completes when the address is saved.</returns>
+    public static async Task SetPendingEmailAsync(CspsDatabase database, Guid userId, string pendingEmail)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var changed = await context.Users.Where(user => user.Id == userId).ExecuteUpdateAsync(
+            set => set.SetProperty(user => user.PendingEmail, pendingEmail), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    /// <summary>Reads one person's detail.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The account id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get($"{Route}/{id:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads one person's detail and returns the 200 body.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="id">The account id.</param>
+    /// <returns>The JSON body.</returns>
+    public static async Task<JsonElement> ReadDetailAsync(HttpClient client, string accessToken, Guid id)
+    {
+        using var response = await GetAsync(client, accessToken, id);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, body);
+        using var document = JsonDocument.Parse(body);
+        return document.RootElement.Clone();
     }
 
     /// <summary>Lists the roster with a raw query string.</summary>
