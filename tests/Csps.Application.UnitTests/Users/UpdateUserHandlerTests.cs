@@ -14,7 +14,7 @@ using NSubstitute;
 namespace Csps.Application.UnitTests.Users;
 
 /// <summary>
-/// USER-03, USER-04, USER-05, USER-06, SEC-07, D-18, D-19, D-20, D-40: a Manager edits another person's name and role. The roster lock
+/// USER-03, USER-04, USER-05, USER-06, SEC-07, C-9, D-18, D-19, D-20, D-40, D-45: a Manager edits another person's name, role and email. The roster lock
 /// comes first when the role is not Manager, a real demotion meets the last-Manager guard, a role change ends every session and evicts
 /// after the commit, names and role are audited as separate entries with field names and role values only, and values that already
 /// match write nothing.
@@ -22,6 +22,7 @@ namespace Csps.Application.UnitTests.Users;
 public sealed class UpdateUserHandlerTests
 {
     private const string TargetEmail = "person@csps.test";
+    private const string NewEmail = "new.person@csps.test";
     private const string Secret = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
 
     private static readonly DateTimeOffset Start = new(2026, 10, 18, 8, 0, 0, TimeSpan.Zero);
@@ -313,6 +314,302 @@ public sealed class UpdateUserHandlerTests
         result.Error.ShouldBeSameAs(UserErrors.NotFound);
     }
 
+    // ---- the email: confirm by link, save at once, invited person (C-9, D-45) ----
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("later")]
+    public async Task AChangedEmailWithoutAValidChoiceIsRefusedBeforeAnythingIsLookedUpOrSaved(string? choice)
+    {
+        var harness = new Harness();
+
+        var result = await harness.EmailSaveAsync(NewEmail, choice);
+
+        result.Error.ShouldBeSameAs(UserErrors.EmailChangeChoiceRequired);
+        await harness.Accounts.DidNotReceive().FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().UpdateDetailsAsync(Arg.Any<Guid>(), Arg.Any<UserDetailsChange>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("person@csps.test", null)]
+    [InlineData("PERSON@csps.test", "whatever")]
+    [InlineData("  person@csps.test  ", "")]
+    public async Task AnUnchangedEmailIgnoresTheChoiceAndSendsNothing(string email, string? choice)
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin) };
+
+        var result = await harness.EmailSaveAsync(email, choice);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin), OpenedVersion, Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.Select(entry => entry.Action).ShouldBe([AuditActions.UserDetailsChanged]);
+    }
+
+    [Theory]
+    [InlineData(" NOW ")]
+    [InlineData("Now")]
+    public async Task TheChoiceIsTrimmedAndAnyLetterCaseWorks(string choice)
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.Email]) };
+
+        var result = await harness.EmailSaveAsync(NewEmail, choice);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin, NewEmail), OpenedVersion, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAddressAnotherLiveAccountUsesIsRefusedOnTheEmailFieldAndNothingIsSaved()
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin) };
+        harness.Accounts.FindByEmailAsync(NewEmail, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<UserAccount?>(Account(Guid.NewGuid(), Roles.Admin) with { Email = NewEmail }));
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now");
+
+        result.Error.ShouldBeSameAs(UserErrors.EmailInUse);
+        await harness.Accounts.DidNotReceive().UpdateDetailsAsync(Arg.Any<Guid>(), Arg.Any<UserDetailsChange>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ADeletedHolderOrTheSamePersonDoesNotBlockTheAddress(bool deleted)
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.Email]) };
+        var holder = deleted ? Account(Guid.NewGuid(), Roles.Admin) with { Email = NewEmail, IsDeleted = true } : Account(TargetId, Roles.Admin) with { Email = NewEmail };
+        harness.Accounts.FindByEmailAsync(NewEmail, Arg.Any<CancellationToken>()).Returns(Task.FromResult<UserAccount?>(holder));
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task AnAddressTakenInTheSameInstantIsTheSameRefusalAndSendsNothing()
+    {
+        var harness = new Harness
+        {
+            Target = Account(TargetId, Roles.Admin),
+            Edit = new DetailsEditResult(EditOutcome.EmailTaken, OpenedVersion, []),
+        };
+
+        var result = await harness.EmailSaveAsync(NewEmail, "confirm");
+
+        result.Error.ShouldBeSameAs(UserErrors.EmailInUse);
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(EditOutcome.Stale)]
+    [InlineData(EditOutcome.NotFound)]
+    public async Task AStaleFormOrAVanishedPersonSendsNothingAndStartsNoLink(EditOutcome outcome)
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(outcome, OpenedVersion, []) };
+
+        var result = await harness.EmailSaveAsync(NewEmail, "confirm");
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(outcome == EditOutcome.Stale ? EditErrors.Stale : UserErrors.NotFound);
+        await harness.Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task WithoutTheCallersProfileAChangedEmailAnswersSessionEndedAndSavesNothing()
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin) };
+        harness.Directory.GetProfileAsync(CallerId, Arg.Any<CancellationToken>()).Returns(Task.FromResult<ProfileView?>(null));
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now");
+
+        result.Error.ShouldBeSameAs(AuthErrors.SessionEnded);
+        await harness.Accounts.DidNotReceive().UpdateDetailsAsync(Arg.Any<Guid>(), Arg.Any<UserDetailsChange>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConfirmByLinkKeepsTheSignInStartsAPendingChangeAndEmailsBothAddresses()
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(EditOutcome.Unchanged, OpenedVersion, []) };
+
+        var result = await harness.EmailSaveAsync(NewEmail, "confirm");
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin), OpenedVersion, Arg.Any<CancellationToken>());
+        Received.InOrder(() =>
+        {
+            harness.Tokens.LockAccountAsync(TargetId, Arg.Any<CancellationToken>());
+            harness.Tokens.RevokeOpenAsync(TargetId, AccountTokenPurpose.EmailChange, Start, Arg.Any<CancellationToken>());
+            harness.Accounts.SetPendingEmailAsync(TargetId, NewEmail, Arg.Any<CancellationToken>());
+        });
+        var token = harness.Added.ShouldHaveSingleItem();
+        token.UserId.ShouldBe(TargetId);
+        token.Purpose.ShouldBe(AccountTokenPurpose.EmailChange);
+        (token.ExpiresAt - token.CreatedAt).ShouldBe(TimeSpan.FromHours(24));
+        var confirm = harness.Outbox.Emails.OfType<EmailChangeConfirmEmail>().ShouldHaveSingleItem();
+        confirm.To.ShouldBe(NewEmail);
+        confirm.OldEmail.ShouldBe(TargetEmail);
+        confirm.ChangedBy.ShouldBe("Carmen Reyes");
+        confirm.Token.ShouldBe(Secret);
+        confirm.ExpiresAt.ShouldBe(token.ExpiresAt);
+        var notice = harness.Outbox.Emails.OfType<EmailChangeNoticeEmail>().ShouldHaveSingleItem();
+        notice.To.ShouldBe(TargetEmail);
+        notice.NewEmail.ShouldBe(NewEmail);
+        harness.Outbox.Emails.Count.ShouldBe(2);
+        harness.Audit.Entries.ShouldBe([new AuditCall(AuditActions.UserEmailChangeStarted, "User", TargetId.ToString("D"), null, Independent: false)]);
+        await harness.Sessions.DidNotReceive().RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        harness.Cache.EvictedUsers.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ConfirmByLinkWithANameChangeRecordsBothEntriesInOrder()
+    {
+        var harness = new Harness
+        {
+            Target = Account(TargetId, Roles.Admin),
+            Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.FirstName]),
+        };
+
+        var result = await harness.EmailSaveAsync(NewEmail, "confirm", first: "Neda");
+
+        result.IsSuccess.ShouldBeTrue();
+        var key = TargetId.ToString("D");
+        harness.Audit.Entries.ShouldBe(
+        [
+            new AuditCall(AuditActions.UserDetailsChanged, "User", key, "fields=first-name", Independent: false),
+            new AuditCall(AuditActions.UserEmailChangeStarted, "User", key, null, Independent: false),
+        ]);
+    }
+
+    [Fact]
+    public async Task SaveAtOnceMovesTheEmailEndsEverySessionClosesOpenLinksAndNotifiesTheOldAddress()
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.Email]) };
+        harness.Sessions.RevokeAllAsync(TargetId, null, SessionRevocationReason.AccountChanged, Start, Arg.Any<CancellationToken>())
+            .Returns([Guid.NewGuid()]);
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now");
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin, NewEmail), OpenedVersion, Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.EmailChange, Start, Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        harness.Added.ShouldBeEmpty();
+        var notice = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<ManagerEmailChangedEmail>();
+        notice.To.ShouldBe(TargetEmail);
+        notice.NewEmail.ShouldBe(NewEmail);
+        notice.ChangedBy.ShouldBe("Carmen Reyes");
+        notice.ChangedAt.ShouldBe(Start);
+        var key = TargetId.ToString("D");
+        harness.Audit.Entries.ShouldBe(
+        [
+            new AuditCall(AuditActions.UserDetailsChanged, "User", key, "fields=email", Independent: false),
+            new AuditCall(AuditActions.SessionsRevoked, "User", key, "account-changed", Independent: false),
+        ]);
+        harness.Cache.EvictedUsers.ShouldBe([TargetId]);
+        harness.Cache.SavesWhenEvicted.ShouldBe(1);
+        harness.Cache.CommitsWhenEvicted.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task SaveAtOnceForSomeoneWithNoOpenSessionRecordsNoRevocationButStillEvicts()
+    {
+        var harness = new Harness { Target = Account(TargetId, Roles.Admin), Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.Email]) };
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now");
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Audit.Entries.Select(entry => entry.Action).ShouldBe([AuditActions.UserDetailsChanged]);
+        harness.Cache.EvictedUsers.ShouldBe([TargetId]);
+    }
+
+    [Fact]
+    public async Task ANameRoleAndAtOnceEmailInOneSaveRevokeOnceAndKeepTheEntriesSeparate()
+    {
+        var harness = new Harness
+        {
+            Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.FirstName, EditedFields.Email, EditedFields.Role], Roles.Manager),
+        };
+        harness.Sessions.RevokeAllAsync(TargetId, null, SessionRevocationReason.AccountChanged, Start, Arg.Any<CancellationToken>())
+            .Returns([Guid.NewGuid()]);
+
+        var result = await harness.EmailSaveAsync(NewEmail, "now", first: "Neda");
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Sessions.Received(1).RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        var key = TargetId.ToString("D");
+        harness.Audit.Entries.ShouldBe(
+        [
+            new AuditCall(AuditActions.UserDetailsChanged, "User", key, "fields=first-name,email", Independent: false),
+            new AuditCall(AuditActions.UserRoleChanged, "User", key, "role=manager>admin", Independent: false),
+            new AuditCall(AuditActions.SessionsRevoked, "User", key, "account-changed", Independent: false),
+        ]);
+    }
+
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("now")]
+    public async Task AnInvitedPersonMovesAtOnceWhicheverChoiceIsSentAndGetsAFreshInvitation(string choice)
+    {
+        var harness = new Harness
+        {
+            Target = Account(TargetId, Roles.Admin) with { HasPassword = false },
+            Edit = new DetailsEditResult(EditOutcome.Saved, SavedVersion, [EditedFields.Email]),
+        };
+
+        var result = await harness.EmailSaveAsync(NewEmail, choice);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin, NewEmail), OpenedVersion, Arg.Any<CancellationToken>());
+        Received.InOrder(() =>
+        {
+            harness.Tokens.LockAccountAsync(TargetId, Arg.Any<CancellationToken>());
+            harness.Tokens.RevokeOpenAsync(TargetId, AccountTokenPurpose.Invitation, Start, Arg.Any<CancellationToken>());
+        });
+        var token = harness.Added.ShouldHaveSingleItem();
+        token.Purpose.ShouldBe(AccountTokenPurpose.Invitation);
+        (token.ExpiresAt - token.CreatedAt).ShouldBe(TimeSpan.FromDays(7));
+        var invite = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<InviteEmail>();
+        invite.To.ShouldBe(NewEmail);
+        invite.Token.ShouldBe(Secret);
+        invite.InvitedBy.ShouldBe("Carmen Reyes");
+        invite.ExpiresAt.ShouldBe(token.ExpiresAt);
+        var key = TargetId.ToString("D");
+        harness.Audit.Entries.ShouldBe(
+        [
+            new AuditCall(AuditActions.UserDetailsChanged, "User", key, "fields=email", Independent: false),
+            new AuditCall(AuditActions.UserInvitationResent, "User", key, null, Independent: false),
+        ]);
+        await harness.Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await harness.Sessions.DidNotReceive().RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        harness.Cache.EvictedUsers.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-an-email")]
+    [InlineData("a@@b.com")]
+    public async Task ABlankOrMalformedEmailIsReportedOnTheEmailFieldAndTouchesNothing(string? email)
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            TargetId, new UpdateUserRequest("Ana", "Cruz", "Admin", OpenedVersion.ToString("D"), email, "now"), TestContext.Current.CancellationToken);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["email"].ShouldBe(["Enter a valid email, like name@gmail.com"]);
+        await harness.Accounts.DidNotReceive().FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
     private static UserAccount Account(Guid id, string role) =>
         new(id, TargetEmail, "Ana", "Abad", role, IsActive: true, EmailConfirmed: true, HasPassword: true, MustChangePassword: null, BreachRecheckPending: false, LockoutEnd: null);
 
@@ -381,6 +678,10 @@ public sealed class UpdateUserHandlerTests
 
         public static UpdateUserRequest Form(string first, string last, string role, string email = TargetEmail, string? emailChange = null) =>
             new(first, last, role, OpenedVersion.ToString("D"), email, emailChange);
+
+        public Task<Result<UserDetailResponse>> EmailSaveAsync(
+            string email, string? choice, string first = "Ana", string last = "Cruz", string role = "Admin") =>
+            Handler.HandleAsync(TargetId, Form(first, last, role, email, choice), TestContext.Current.CancellationToken);
 
         public Task<Result<UserDetailResponse>> SaveAsync(string first = "Ana", string last = "Cruz", string role = "Admin") =>
             Handler.HandleAsync(TargetId, Form(first, last, role), TestContext.Current.CancellationToken);
