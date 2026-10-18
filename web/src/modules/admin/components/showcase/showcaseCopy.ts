@@ -46,6 +46,22 @@ export const SHOWCASE_COPY = {
     showConflict: 'Show stale save banner',
     rosterCaption: 'Staff',
     auditCaption: 'Audit log',
+    openAddInvitation: 'Open Add User (invitation)',
+    openAddTemporary: 'Open Add User (temporary password)',
+    openDeactivate: 'Open Deactivate User',
+    openLock: 'Open Lock User',
+    openDelete: 'Open Delete User',
+    openTemporary: 'Open Set Temporary Password',
+    /** The person the Add User demo starts with; every value is made up. */
+    newUser: { firstName: 'Ana', lastName: 'Mendoza', email: 'ana.mendoza@example.com' },
+    /** The person the dialog demos name. */
+    dialogUser: { firstName: 'Paolo', lastName: 'Garcia' },
+    /** One line in each profile tab panel of the tabs demo. */
+    tabPanels: {
+      details: 'Personal information and the sign-in email go here.',
+      security: 'Change password and signed-in devices go here.',
+      appearance: 'The theme choice goes here.',
+    },
   },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },

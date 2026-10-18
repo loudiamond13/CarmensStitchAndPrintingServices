@@ -1,6 +1,6 @@
 // Phase 5 demos in the Component Showcase (UI-SPEC C1; D-32, D-33; plan 05-42): the new primitives and the roster, audit
 // row and profile pieces, all on made-up data and local state. No test here may cause a request.
-import { fireEvent, render, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
@@ -181,6 +181,14 @@ describe('Phase5Demos: made-up data, local state, no request (D-32, D-33)', () =
 
 const PASSWORD_SAMPLE = /^[A-Za-z]+-[A-Za-z]+-\d{4}$/;
 
+/** The text in an input. */
+function valueOf(element: HTMLElement): string {
+  if (!(element instanceof HTMLInputElement)) {
+    throw new Error('Not an input.');
+  }
+  return element.value;
+}
+
 describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
   it('opens Add User on the invitation route; Create User closes it and focus returns to the trigger', async () => {
     const user = userEvent.setup();
@@ -211,13 +219,13 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     await user.click(trigger);
     const panel = await screen.findByRole('dialog', { name: 'Add User' });
     expect(within(panel).getByRole('radio', { name: 'Set a temporary password' })).toBeChecked();
-    expect(within(panel).getByLabelText('Temporary password')).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+    expect(valueOf(within(panel).getByLabelText('Temporary password'))).toMatch(PASSWORD_SAMPLE);
 
     await user.click(within(panel).getByRole('button', { name: 'Create User' }));
     const done = await screen.findByRole('dialog', { name: 'User created' });
     const shown = within(done).getByLabelText('Temporary password for Ana');
     expect(shown).toHaveAttribute('readonly');
-    expect(shown).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+    expect(valueOf(shown)).toMatch(PASSWORD_SAMPLE);
 
     await user.click(within(done).getByRole('button', { name: 'Done' }));
     await waitFor(() => {
@@ -236,15 +244,14 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     const panel = await screen.findByRole('dialog', { name: 'Add User' });
     await user.click(within(panel).getByRole('radio', { name: 'Set a temporary password' }));
 
-    expect(within(panel).getByLabelText('Temporary password')).toHaveValue(expect.stringMatching(PASSWORD_SAMPLE));
+    expect(valueOf(within(panel).getByLabelText('Temporary password'))).toMatch(PASSWORD_SAMPLE);
   });
 
   it.each([
     ['Open Deactivate User', 'Deactivate Paolo Garcia?', 'Keep Active'],
     ['Open Lock User', 'Lock Paolo Garcia?', 'Keep Unlocked'],
     ['Open Delete User', 'Delete Paolo Garcia?', 'Cancel'],
-    ['Open Set Temporary Password', 'Set a temporary password', 'Cancel'],
-  ])('"%s" opens "%s" with focus on the safe button; it closes and focus returns', async (label, title, safe) => {
+  ])('"%s" opens "%s" with focus on its safe button; it closes and focus returns', async (label, title, safe) => {
     const user = userEvent.setup();
     renderDemos();
     const trigger = within(caseFrame('staff-user-dialogs')).getByRole('button', { name: label });
@@ -282,6 +289,25 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     expect(requests).toEqual([]);
   });
 
+  it('closes the Set Temporary Password dialog with Cancel and returns focus to its trigger', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+    const trigger = within(caseFrame('staff-user-dialogs')).getByRole('button', {
+      name: 'Open Set Temporary Password',
+    });
+
+    await user.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'Set a temporary password' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
+  });
+
   it('sets a temporary password in the demo dialog: the shown-once step carries a sample value, then Done closes it', async () => {
     const user = userEvent.setup();
     renderDemos();
@@ -293,9 +319,7 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Set Password' }));
 
     const done = await screen.findByRole('dialog', { name: 'Temporary password set' });
-    expect(within(done).getByLabelText('Temporary password for Paolo')).toHaveValue(
-      expect.stringMatching(PASSWORD_SAMPLE),
-    );
+    expect(valueOf(within(done).getByLabelText('Temporary password for Paolo'))).toMatch(PASSWORD_SAMPLE);
     await user.click(within(done).getByRole('button', { name: 'Done' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();

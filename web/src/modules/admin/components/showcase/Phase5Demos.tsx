@@ -6,20 +6,33 @@ import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode
 import {
   ActorName,
   Button,
+  ConfirmDialog,
   ConflictBanner,
   DateInput,
+  Field,
+  getTabPanelProps,
+  Modal,
+  Note,
   overlineClasses,
+  PasswordField,
   RadioGroup,
   RecordMeta,
   ResponsiveTable,
   RowAction,
   RowActions,
+  Tabs,
   UserCell,
   type RadioOption,
   type ResponsiveTableColumn,
+  type TabItem,
 } from '@/components';
 import { AUDIT_COPY, auditActionLabel } from '@/modules/admin/auditCopy';
 import { AuditDetail } from '@/modules/admin/components/AuditDetail';
+import { CopyField } from '@/modules/admin/components/CopyField';
+import { DeactivateUserDialog } from '@/modules/admin/components/DeactivateUserDialog';
+import { LockUserDialog } from '@/modules/admin/components/LockUserDialog';
+import { RoleField } from '@/modules/admin/components/RoleField';
+import { TemporaryPasswordDialog } from '@/modules/admin/components/TemporaryPasswordDialog';
 import {
   caseClasses,
   demoFrameClasses,
@@ -28,9 +41,16 @@ import {
 } from '@/modules/admin/components/showcase/showcase.recipe';
 import { SHOWCASE_COPY } from '@/modules/admin/components/showcase/showcaseCopy';
 import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
-import { usersFormGridClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
+import {
+  usersFormGridClasses,
+  usersPanelBodyClasses,
+  usersSuggestionClasses,
+  usersWrapClasses,
+} from '@/modules/admin/components/users.recipe';
+import { PROFILE_COPY } from '@/modules/admin/profileCopy';
 import { USERS_COPY } from '@/modules/admin/usersCopy';
-import type { UserAccess } from '@/modules/admin/usersSchemas';
+import type { UserAccess, UserRole } from '@/modules/admin/usersSchemas';
+import { newTemporaryPassword } from '@/utils/temporaryPassword';
 import { formatBusinessDate, formatBusinessDateTime } from '@/utils/format';
 
 const COPY = SHOWCASE_COPY.staff;
@@ -442,6 +462,264 @@ function RosterDemo() {
   );
 }
 
+const NEW_USER = COPY.newUser;
+const ADD = USERS_COPY.add;
+
+interface AddUserPanelDemoProps {
+  open: boolean;
+  /** The route the panel opens on; the radio can still switch it. */
+  initialAccess: UserAccess;
+  onClose: () => void;
+}
+
+/**
+ * Add User as a slide-over on made-up values: Create User ends an invitation at once, or for a temporary password moves
+ * to the shown-once step with a sample value. Nothing is created. Each open starts clean through the parent's key.
+ */
+function AddUserPanelDemo({ open, initialAccess, onClose }: AddUserPanelDemoProps) {
+  const [firstName, setFirstName] = useState<string>(NEW_USER.firstName);
+  const [lastName, setLastName] = useState<string>(NEW_USER.lastName);
+  const [email, setEmail] = useState<string>(NEW_USER.email);
+  const [role, setRole] = useState<UserRole>('Admin');
+  const [access, setAccess] = useState<UserAccess>(initialAccess);
+  const [password, setPassword] = useState(() =>
+    initialAccess === 'temporary-password' ? newTemporaryPassword() : '',
+  );
+  const [shown, setShown] = useState(false);
+  const accessName = useId();
+
+  const chooseAccess = (next: UserAccess): void => {
+    setAccess(next);
+    setPassword(next === 'temporary-password' ? newTemporaryPassword() : '');
+  };
+
+  const create = (): void => {
+    if (access === 'invitation') {
+      onClose();
+    } else {
+      setShown(true);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      variant="slideover"
+      title={shown ? ADD.shownOnce.title : ADD.title}
+      description={
+        shown
+          ? ADD.shownOnce.description(`${firstName} ${lastName}`, role)
+          : ADD.description[access === 'temporary-password' ? 'temporary' : 'invitation']
+      }
+      onClose={onClose}
+      footer={
+        shown ? (
+          <Button variant="primary" icon="check" onClick={onClose}>
+            {ADD.shownOnce.done}
+          </Button>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              {ADD.cancel}
+            </Button>
+            <Button variant="primary" icon="check" onClick={create}>
+              {ADD.create}
+            </Button>
+          </>
+        )
+      }
+    >
+      {shown ? (
+        <div className={usersPanelBodyClasses}>
+          <CopyField label={ADD.shownOnce.fieldLabel(firstName)} value={password} focusOnMount />
+          <Note icon="shield-check">{ADD.shownOnce.note(firstName)}</Note>
+        </div>
+      ) : (
+        <div className={usersPanelBodyClasses}>
+          <div className={usersFormGridClasses}>
+            <Field
+              label={ADD.firstName}
+              value={firstName}
+              autoComplete="off"
+              onChange={(event) => {
+                setFirstName(event.currentTarget.value);
+              }}
+            />
+            <Field
+              label={ADD.lastName}
+              value={lastName}
+              autoComplete="off"
+              onChange={(event) => {
+                setLastName(event.currentTarget.value);
+              }}
+            />
+          </div>
+          <Field
+            label={ADD.email}
+            type="email"
+            value={email}
+            hint={ADD.emailHint}
+            autoComplete="off"
+            onChange={(event) => {
+              setEmail(event.currentTarget.value);
+            }}
+          />
+          <RoleField value={role} onChange={setRole} />
+          <RadioGroup<UserAccess>
+            legend={ADD.access.legend}
+            name={accessName}
+            value={access}
+            options={ACCESS_OPTIONS}
+            onChange={chooseAccess}
+          />
+          {access === 'temporary-password' && (
+            <div className={usersPanelBodyClasses}>
+              <PasswordField
+                label={ADD.temporaryPassword.label}
+                showStrength
+                value={password}
+                hint={ADD.temporaryPassword.hint}
+                autoComplete="off"
+                onChange={(event) => {
+                  setPassword(event.currentTarget.value);
+                }}
+              />
+              <div className={usersSuggestionClasses}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setPassword(newTemporaryPassword(password));
+                  }}
+                >
+                  {ADD.temporaryPassword.newSuggestion}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** The two Add User triggers; the panel stays mounted so it can play its exit, and each open mounts it fresh. */
+function AddUserDemo() {
+  const [open, setOpen] = useState(false);
+  const [opens, setOpens] = useState(0);
+  const [route, setRoute] = useState<UserAccess>('invitation');
+  const show = (access: UserAccess): void => {
+    setRoute(access);
+    setOpens((count) => count + 1);
+    setOpen(true);
+  };
+  return (
+    <>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          show('invitation');
+        }}
+      >
+        {COPY.openAddInvitation}
+      </Button>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          show('temporary-password');
+        }}
+      >
+        {COPY.openAddTemporary}
+      </Button>
+      <AddUserPanelDemo
+        key={opens}
+        open={open}
+        initialAccess={route}
+        onClose={() => {
+          setOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+type DialogKind = 'deactivate' | 'lock' | 'delete' | 'temporary';
+
+const DIALOG_USER = COPY.dialogUser;
+
+/**
+ * The account dialogs on one made-up person. Each is always mounted with `open`, so it plays its exit. Confirming only
+ * closes the dialog: nothing is deactivated, locked, deleted or set.
+ */
+function UserDialogsDemo() {
+  const [openKind, setOpenKind] = useState<DialogKind | null>(null);
+  const close = (): void => {
+    setOpenKind(null);
+  };
+  const name = `${DIALOG_USER.firstName} ${DIALOG_USER.lastName}`;
+  const triggers: readonly (readonly [DialogKind, string])[] = [
+    ['deactivate', COPY.openDeactivate],
+    ['lock', COPY.openLock],
+    ['delete', COPY.openDelete],
+    ['temporary', COPY.openTemporary],
+  ];
+  return (
+    <>
+      {triggers.map(([kind, label]) => (
+        <Button
+          key={kind}
+          variant={kind === 'delete' ? 'danger' : 'secondary'}
+          size="sm"
+          onClick={() => {
+            setOpenKind(kind);
+          }}
+        >
+          {label}
+        </Button>
+      ))}
+      <DeactivateUserDialog open={openKind === 'deactivate'} user={DIALOG_USER} onConfirm={close} onCancel={close} />
+      <LockUserDialog open={openKind === 'lock'} user={DIALOG_USER} onConfirm={close} onCancel={close} />
+      <ConfirmDialog
+        open={openKind === 'delete'}
+        title={USERS_COPY.remove.title(name)}
+        message={USERS_COPY.remove.message}
+        confirmLabel={USERS_COPY.remove.confirm}
+        pendingLabel={USERS_COPY.remove.pending}
+        onConfirm={close}
+        onCancel={close}
+      />
+      <TemporaryPasswordDialog
+        open={openKind === 'temporary'}
+        user={DIALOG_USER}
+        onSet={() => Promise.resolve()}
+        onClose={close}
+      />
+    </>
+  );
+}
+
+type ProfileTabId = keyof typeof PROFILE_COPY.tabs;
+
+const PROFILE_TAB_ITEMS: readonly TabItem<ProfileTabId>[] = (Object.keys(PROFILE_COPY.tabs) as ProfileTabId[]).map(
+  (id) => ({ id, label: PROFILE_COPY.tabs[id] }),
+);
+
+/** The My Profile tab strip with one line per panel (the real cards load a profile, so they stay out of the showcase). */
+function ProfileTabsDemo() {
+  const idBase = useId();
+  const [tab, setTab] = useState<ProfileTabId>('details');
+  return (
+    <>
+      <Tabs idBase={idBase} items={PROFILE_TAB_ITEMS} value={tab} onChange={setTab} />
+      {PROFILE_TAB_ITEMS.map((item) => (
+        <div key={item.id} {...getTabPanelProps(idBase, item.id)} hidden={tab !== item.id}>
+          <p>{COPY.tabPanels[item.id]}</p>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** Every Phase 5 demo, one case under another. */
 export function Phase5Demos() {
   return (
@@ -463,6 +741,15 @@ export function Phase5Demos() {
       </DemoCase>
       <DemoCase id="staff-roster-rows">
         <RosterDemo />
+      </DemoCase>
+      <DemoCase id="staff-add-user" live>
+        <AddUserDemo />
+      </DemoCase>
+      <DemoCase id="staff-user-dialogs" live>
+        <UserDialogsDemo />
+      </DemoCase>
+      <DemoCase id="staff-profile-tabs">
+        <ProfileTabsDemo />
       </DemoCase>
     </div>
   );
