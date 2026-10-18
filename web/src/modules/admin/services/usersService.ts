@@ -9,6 +9,8 @@ type Schemas = components['schemas'];
 export type UserListItem = Schemas['UserListItem'];
 export type UserListResponse = Schemas['UserListResponse'];
 export type UserDetailResponse = Schemas['UserDetailResponse'];
+export type CreateUserRequest = Schemas['CreateUserRequest'];
+export type CreateUserResponse = Schemas['CreateUserResponse'];
 
 export const USER_ROLE_FILTERS = ['admin', 'manager'] as const;
 export const USER_STATUS_FILTERS = ['active', 'inactive', 'locked'] as const;
@@ -29,6 +31,8 @@ export interface UsersService {
   list(query: UsersListQuery, signal?: AbortSignal): Promise<UserListResponse>;
   /** `GET /api/v1/users/{id}`: one person with the edit version and who recorded and last changed them. */
   get(id: string, signal?: AbortSignal): Promise<UserDetailResponse>;
+  /** `POST /api/v1/users`: adds a person (RED stub). */
+  create(body: CreateUserRequest, idempotencyKey: string, signal?: AbortSignal): Promise<CreateUserResponse>;
 }
 
 export function createUsersService(client: HttpClient): UsersService {
@@ -39,6 +43,7 @@ export function createUsersService(client: HttpClient): UsersService {
         signal,
       }),
     get: (id, signal) => client.get<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, { signal }),
+    create: () => Promise.reject(new Error('not implemented')),
   };
 }
 

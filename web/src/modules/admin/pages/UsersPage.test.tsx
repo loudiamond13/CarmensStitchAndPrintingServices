@@ -5,6 +5,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -88,7 +89,9 @@ function Harness({ search, onUrlUpdate }: { search: string; onUrlUpdate: OnUrlUp
         hasMemory
       >
         <MemoryRouter>
-          <UsersRoute />
+          <ToastProvider>
+            <UsersRoute />
+          </ToastProvider>
         </MemoryRouter>
       </NuqsTestingAdapter>
     </QueryClientProvider>
@@ -611,5 +614,97 @@ describe('U1 refetch', () => {
     await waitFor(() => {
       expect(region).not.toHaveAttribute('data-refetching');
     });
+  });
+});
+
+describe('U2 Add User from the page (USER-02, D-12)', () => {
+  const ANA_ID = '00000000-0000-4000-8000-0000000000aa';
+
+  /** A roster that gains Ana once she is created. */
+  function rosterThatGainsAna(): { posted: unknown[]; calls: URL[] } {
+    const rows = [...ROWS];
+    const posted: unknown[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    server.use(
+      http.post('*/api/v1/users', async ({ request }) => {
+        posted.push(await request.json());
+        rows.push(person(ANA_ID, 'Ana', 'Reyes', { inviteState: 'pending' }));
+        return HttpResponse.json({ id: ANA_ID }, { status: 201 });
+      }),
+    );
+    return { posted, calls };
+  }
+
+  const addButton = () => screen.getByRole('button', { name: 'Add User' });
+
+  it('shows the primary "Add User" button in the header', async () => {
+    backend();
+    await openPage();
+
+    expect(addButton()).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the Add User panel with focus on First name', async () => {
+    backend();
+    await openPage();
+
+    await userEvent.click(addButton());
+
+    expect(screen.getByRole('dialog', { name: 'Add User' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^First name/ })).toHaveFocus();
+  });
+
+  it('after an invitation the panel closes, focus is on Add User, the roster reads again and the toast says 7 days', async () => {
+    const { posted, calls } = rosterThatGainsAna();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+    await user.type(screen.getByRole('textbox', { name: /^Last name/ }), 'Reyes');
+    await user.type(screen.getByRole('textbox', { name: /^Email/ }), 'ana@example.ph');
+
+    await user.click(screen.getByRole('button', { name: 'Create User' }));
+
+    expect(await screen.findByText('User created')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ana Reyes · Admin. We emailed them an invitation that works for 7 days.'),
+    ).toBeInTheDocument();
+    expect(posted).toEqual([
+      { firstName: 'Ana', lastName: 'Reyes', email: 'ana@example.ph', role: 'Admin', access: 'invitation' },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(addButton()).toHaveFocus();
+    const row = await screen.findByText('Ana Reyes');
+    expect(within(rowOf(row.textContent ?? '')).getByText('Invite pending')).toBeInTheDocument();
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Cancel closes the panel without a request, returns focus to Add User and reopens on the defaults', async () => {
+    const { posted } = rosterThatGainsAna();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(addButton()).toHaveFocus();
+    expect(posted).toHaveLength(0);
+    await user.click(addButton());
+    expect(screen.getByRole('textbox', { name: /^First name/ })).toHaveValue('');
+  });
+
+  it('has no axe violations with the panel open', async () => {
+    backend();
+    await openPage();
+    await userEvent.click(addButton());
+
+    await expectNoAxeViolations(document.body);
   });
 });

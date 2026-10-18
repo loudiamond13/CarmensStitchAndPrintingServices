@@ -110,9 +110,59 @@ describe('usersService.get', () => {
   });
 });
 
+describe('usersService.create', () => {
+  const body = {
+    firstName: 'Ana',
+    lastName: 'Reyes',
+    email: 'ana@example.ph',
+    role: 'Admin',
+    access: 'invitation',
+  } as const;
+
+  it('calls POST /api/v1/users with the body and the Idempotency-Key and resolves the new id', async () => {
+    const { fake, service } = serviceWith([{ status: 201, body: { id: detail.id } }]);
+
+    await expect(service.create(body, 'key-1')).resolves.toEqual({ id: detail.id });
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/users');
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+    expect(fake.calls[0]?.body).toEqual(body);
+  });
+
+  it('sends the temporary password on its own route', async () => {
+    const { fake, service } = serviceWith([{ status: 201, body: { id: detail.id } }]);
+
+    await service.create({ ...body, access: 'temporary-password', temporaryPassword: 'Tela-Sukat-7381' }, 'key-2');
+
+    expect(fake.calls[0]?.body).toEqual({
+      ...body,
+      access: 'temporary-password',
+      temporaryPassword: 'Tela-Sukat-7381',
+    });
+  });
+
+  it('rejects with the field errors of a 400', async () => {
+    const { service } = serviceWith([
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 400, errors: { email: ['Another account already uses this email.'] } },
+      },
+    ]);
+
+    await expect(service.create(body, 'key-3')).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { email: ['Another account already uses this email.'] },
+    });
+  });
+});
+
 describe('usersService', () => {
   it('exports an instance over the shared client', () => {
     expect(typeof usersService.list).toBe('function');
     expect(typeof usersService.get).toBe('function');
+    expect(typeof usersService.create).toBe('function');
   });
 });
