@@ -180,6 +180,28 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(screen.getAllByText('Carmen Reyes').length).toBeGreaterThan(0);
   });
 
+  it('gives the Manager an Audit Log item after Users in the sidebar and the drawer, but no tab (OQ-2)', async () => {
+    await renderAt('/admin');
+    const labels = within(sidebarNav())
+      .getAllByRole('link')
+      .map((link) => link.textContent.replace('Manager', ''));
+    expect(labels).toEqual(['Dashboard', 'Orders', 'Company Expenses', 'Users', 'Audit Log', 'My Profile']);
+    expect(sidebarLink('Audit Log')).toHaveAttribute('href', '/admin/audit-log');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(within(drawer).getByRole('link', { name: /^Audit Log/ })).toHaveAttribute('href', '/admin/audit-log');
+
+    const tabBar = document.querySelectorAll('nav[aria-label="Admin"]');
+    const tabs = [...tabBar].filter((nav) => !nav.closest('aside'));
+    expect(tabs.flatMap((nav) => [...nav.querySelectorAll('a')].map((link) => link.getAttribute('href')))).toEqual([
+      '/admin',
+      '/admin/orders',
+      '/admin/expenses',
+      '/admin/profile',
+    ]);
+  });
+
   it('follows a sidebar navigation: choosing Orders makes Orders current and retitles the page', async () => {
     const { router } = await renderAt('/admin');
     await userEvent.click(sidebarLink('Orders'));
