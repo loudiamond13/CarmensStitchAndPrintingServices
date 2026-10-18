@@ -437,12 +437,10 @@ public sealed class EmailChangeHandlerTests
         harness.Link.UsedAt.ShouldBeNull();
     }
 
-    [Theory]
-    [InlineData(EmailApplyOutcome.NothingPending)]
-    [InlineData(EmailApplyOutcome.Taken)]
-    public async Task AnAddressThatCannotBeAppliedIsInvalidAndLeavesTheLinkUnspent(EmailApplyOutcome outcome)
+    [Fact]
+    public async Task NothingPendingIsInvalidAndLeavesTheLinkUnspent()
     {
-        var harness = new Harness { Apply = outcome };
+        var harness = new Harness { Apply = EmailApplyOutcome.NothingPending };
 
         var result = await harness.ConfirmAsync(Secret);
 
@@ -450,6 +448,34 @@ public sealed class EmailChangeHandlerTests
         harness.Link.UsedAt.ShouldBeNull();
         harness.Audit.Entries.ShouldBeEmpty();
         await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAddressTakenMeanwhileSpendsTheLinkClearsThePendingAddressAndAnswersTaken()
+    {
+        var harness = new Harness { Apply = EmailApplyOutcome.Taken };
+
+        var result = await harness.ConfirmAsync(Secret);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("email-change.taken");
+        result.Error.Message.ShouldBe("This email can't be used.");
+        harness.Link.UsedAt.ShouldBe(Start);
+        await harness.Accounts.Received(1).SetPendingEmailAsync(UserId, null, Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(UserId, AccountTokenPurpose.EmailChange, Start, Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldBe([new AuditCall("profile.email-change-canceled", "User", UserId.ToString("D"), "taken", Independent: false)]);
+        harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ATakenAnswerNeverReadsAsAChange()
+    {
+        var harness = new Harness { Apply = EmailApplyOutcome.Taken };
+
+        await harness.ConfirmAsync(Secret);
+
+        harness.Audit.Entries.ShouldNotContain(static entry => entry.Action == "profile.email-changed");
     }
 
     [Fact]
@@ -494,6 +520,42 @@ public sealed class EmailChangeHandlerTests
         await harness.AssertNothingAppliedAsync();
         harness.Unit.Commits.ShouldBe(0);
         harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheCheckOfAnAddressAnotherLiveAccountNowUsesAnswersTaken()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: false) };
+
+        var result = await harness.CheckAsync(Secret);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("email-change.taken");
+        harness.Link.UsedAt.ShouldBeNull();
+        await harness.AssertNothingAppliedAsync();
+        harness.Unit.Commits.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TheCheckLooksTheHolderUpByThePendingAddress()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: false) };
+
+        await harness.CheckAsync(Secret);
+
+        await harness.Accounts.Received(1).FindByEmailAsync(NewEmail, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheCheckOfAnAddressHeldOnlyByADeletedAccountIsStillLive()
+    {
+        var harness = new Harness { Holder = Holder(isDeleted: true) };
+
+        var result = await harness.CheckAsync(Secret);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(new EmailChangeResponse(NewEmail));
     }
 
     [Theory]

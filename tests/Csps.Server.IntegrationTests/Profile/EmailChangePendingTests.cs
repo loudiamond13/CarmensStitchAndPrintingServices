@@ -1,16 +1,22 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Csps.Application.Auth;
+using Csps.Application.Ports;
+using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Profile;
 
 /// <summary>
 /// PROF-02, D-24, D-40, T-05-40: while an email change is waiting, the caller can send a fresh link (the older one dies) or
-/// call the change off, and the sign-in email stays the current one throughout.
+/// call the change off, and the sign-in email stays the current one throughout. If another account takes the new address first,
+/// the link says so, spends itself and clears the pending change.
 /// </summary>
 public sealed class EmailChangePendingTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -278,6 +284,180 @@ public sealed class EmailChangePendingTests(CspsDatabase database) : IClassFixtu
         resend.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         problem.GetProperty("code").GetString().ShouldBe("idempotency.key-missing");
         (await AuthClient.ReadEmailsAsync(client, newEmail)).Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnAddressTakenMeanwhileIsA409OnTheCheckAndTheAccountIsLeftAsItWas()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, newEmail, staff.Password);
+        await CreateAccountWithEmailAsync(factory, newEmail);
+
+        using var check = await CheckAsync(client, token);
+        var problem = await ProblemJson.ReadAsync(check, TestContext.Current.CancellationToken);
+
+        check.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        problem.GetProperty("code").GetString().ShouldBe("email-change.taken");
+        problem.GetProperty("detail").GetString().ShouldBe("This email can't be used.");
+        await using var context = database.CreateContext();
+        var user = await context.Users.AsNoTracking().SingleAsync(row => row.Id == staff.Id, TestContext.Current.CancellationToken);
+        user.Email.ShouldBe(staff.Email);
+        user.PendingEmail.ShouldBe(newEmail);
+    }
+
+    [Fact]
+    public async Task ConfirmingATakenAddressIsA409SpendsTheLinkAndClearsThePendingChange()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, newEmail, staff.Password);
+        var holder = await CreateAccountWithEmailAsync(factory, newEmail);
+
+        using var confirm = await ConfirmAsync(client, token);
+        var problem = await ProblemJson.ReadAsync(confirm, TestContext.Current.CancellationToken);
+
+        confirm.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        problem.GetProperty("code").GetString().ShouldBe("email-change.taken");
+        using var profileResponse = await GetProfileAsync(client, device.AccessToken);
+        var profile = await ReadAsync(profileResponse);
+        profile.GetProperty("email").GetString().ShouldBe(staff.Email);
+        profile.GetProperty("pendingEmail").ValueKind.ShouldBe(JsonValueKind.Null);
+        using var again = await ConfirmAsync(client, token);
+        using var recheck = await CheckAsync(client, token);
+        again.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        recheck.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        using var fresh = AuthClient.CreateClient(factory);
+        using var withOld = await AuthClient.SignInAsync(fresh, staff.Email, staff.Password);
+        withOld.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.Users.AsNoTracking().SingleAsync(row => row.Id == holder, TestContext.Current.CancellationToken)).Email.ShouldBe(newEmail);
+    }
+
+    [Fact]
+    public async Task ATakenAddressIsAuditedAsCanceledWithTheDetailTakenAndNeverAsChanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, newEmail, staff.Password);
+        await CreateAccountWithEmailAsync(factory, newEmail);
+        using var confirm = await ConfirmAsync(client, token);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        await using var context = database.CreateContext();
+        var key = staff.Id.ToString("D");
+        var entries = await context.AuditLog.AsNoTracking()
+            .Where(entry => entry.TargetId == key && entry.Action.StartsWith("profile.email-change"))
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        var canceled = entries.Single(static entry => entry.Action == "profile.email-change-canceled");
+        canceled.Detail.ShouldBe("taken");
+        canceled.TargetType.ShouldBe("User");
+        entries.ShouldNotContain(static entry => entry.Action == "profile.email-changed");
+        var everything = await context.AuditLog.AsNoTracking().Select(static entry => (entry.Detail ?? string.Empty) + "|" + (entry.TargetId ?? string.Empty)).ToListAsync(TestContext.Current.CancellationToken);
+        everything.ShouldAllBe(text => !text.Contains(newEmail, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task AnAddressFreedByASoftDeleteIsNotTaken()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+        var holder = await CreateAccountWithEmailAsync(factory, newEmail);
+        await SoftDeleteAsync(holder);
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, newEmail, staff.Password);
+
+        using var check = await CheckAsync(client, token);
+
+        check.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AManagerLockedAccountsLiveLinkIsTheInvalidAnswerOnCheckAndConfirm()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        await ManagerLockAsync(staff.Id);
+
+        using var check = await CheckAsync(client, token);
+        using var confirm = await ConfirmAsync(client, token);
+
+        check.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(check, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("email-change.invalid");
+        (await ProblemJson.ReadAsync(confirm, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("email-change.invalid");
+    }
+
+    [Fact]
+    public async Task ADeletedAccountsLiveLinkIsTheInvalidAnswerOnCheckAndConfirm()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        await SoftDeleteAsync(staff.Id);
+
+        using var check = await CheckAsync(client, token);
+        using var confirm = await ConfirmAsync(client, token);
+
+        check.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    private async Task ManagerLockAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        var now = TimeProvider.System.GetUtcNow();
+        var changed = await context.Users.Where(row => row.Id == id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.ManagerLockedAtUtc, now), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    // What the later delete feature does to a row (D-07, D-10): the address is scrambled, so it is free again.
+    private async Task SoftDeleteAsync(Guid id)
+    {
+        var scrambled = $"deleted-{id:N}@deleted.invalid";
+        var normalized = scrambled.ToUpperInvariant();
+        var now = TimeProvider.System.GetUtcNow();
+        await using var context = database.CreateContext();
+        var changed = await context.Users.Where(row => row.Id == id).ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(row => row.Email, scrambled)
+                .SetProperty(row => row.UserName, scrambled)
+                .SetProperty(row => row.NormalizedEmail, normalized)
+                .SetProperty(row => row.NormalizedUserName, normalized)
+                .SetProperty(row => row.DeletedAtUtc, now),
+            TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    // Another account takes the address while the link is out, as a Manager-created account would.
+    private static async Task<Guid> CreateAccountWithEmailAsync(WebApplicationFactory<Program> factory, string email)
+    {
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            return await accounts.CreateAsync(
+                new NewUserAccount(email, "Ana", "Cruz", Roles.Manager, $"Pw-{Guid.NewGuid():N}!x"),
+                TestContext.Current.CancellationToken);
+        }
     }
 
     private async Task<int> CountAuditAsync(Guid userId, string action)
