@@ -63,3 +63,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **What:** `DeactivateUserHandler` and `ActivateUserHandler` evict the person from `ISessionCache` after their own unit of work returns, but the idempotency gate's outer transaction (which holds the state change, the revoked sessions and the stored answer) commits a moment later. A request by the deactivated person that reads the session in that few-millisecond window sees the old committed state and could cache "active" for up to 60 seconds. `SignOutOthersHandler`, `RevokeSessionHandler` and the password handlers have the same ordering.
 - **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to evict from the idempotency middleware after the commit, or to drop the cache entry's lifetime for revoked sessions.
 - **Covered meanwhile:** the window needs a request from the person at that exact moment, the cache lifetime is 60 seconds, and the refresh route and a new sign-in re-check the account against the database, so a deactivated person cannot renew or start a session.
+
+## Owner ruling: pending email change hides Change Email (owner, 2026-10-18)
+
+- **Ruled:** keep 05-18's behavior. While an email change waits, My Profile shows Resend Link and Cancel Change and hides Change Email; replacing a pending change means Cancel Change first. Wording review stays on the rendered screens and emails in 05-31 and 05-37 (D-48).
