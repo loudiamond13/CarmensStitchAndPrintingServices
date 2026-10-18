@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T12:47:00-05:00
+updated: 2026-10-18T14:30:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -95,3 +95,10 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **"What changed" sentences (`describeAuditDetail`):** "Name changed", "Email changed" (both together read "Name changed. Email changed"), "Role: Admin to Manager" and "Role: Manager to Admin" (UI-SPEC form), "Link sent again", "That address was taken"; for sign-in failures "No account with that email", "Wrong password", "The account was locked", "The account is deactivated", "The account is not confirmed yet", "No password set yet", "A Manager locked the account", "The account was deleted"; for lockouts "Too many wrong passwords", "Too many wrong sign-in codes"; for signed-out devices "Signed out of other devices", "After a password reset", "After a password change", "The account was changed", "After a temporary password was set"; for reset requests "Reset link emailed", "Notice emailed, the account is deactivated", "Nothing sent, a Manager locked the account", "Nothing sent, no account with that email", "Too many requests this hour"; "Changed in My Profile", "First Manager setup", "Invited by a Manager". A stored word the viewer does not know shows no "What changed" line.
 - **Other new strings:** "Unknown person" (a Done by or Done to chip whose person the staff list no longer names, for example a stale link), the no-match sentence "No audit entries with range Last 30 days and done by {name}. Try another search or clear the filters." (built from the shared list wording), the custom range chip "Range: Custom range" (it names the range, not the two dates), and the table noun "audit entries" for "Loading audit entries…" and "Couldn't load audit entries.".
 - **Status:** present the rendered page with a few entries open in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+
+## Parity matrix: 28 `@lists` cases differ on `min-width` of the user cell text (found in plan 05-35)
+
+- **What:** `npm --prefix web run parity -- --grep @parity` passes 443 of 471 and fails 28 `@lists` cases (the `rt-users-populated` and `rt-long-name` scenarios, light and dark, 390 and 1440 px rest and hover, in chromium, firefox and webkit; the 320 and 820 px ones in chromium). Every difference is the same line: `td > span > span style min-width: reference auto | implementation 0px`.
+- **Cause (likely):** plan 05-20 added `min-w-0` to `cellUserTextClasses` (`web/src/components/lists/lists.recipe.ts`) so a long name or email wraps inside its column. The frozen reference fragment has `min-width: auto` there. Plan 05-35 touched no list code; it changed only the showcase files, the route table, the build rules and two shell previews, none of which the `@lists` scenarios render.
+- **Deferred to:** the Phase 5 close-out test review. Options: record a parity exception for `min-width` on that span (the 05-20 wrapping is a deliberate difference), or move the wrapping to a wrapper the reference does not have.
+- **Covered meanwhile:** the other 443 parity cases pass, including the shell layouts and the previews plan 05-35 changed; `UserCell` wrapping is pinned by the 05-20 unit tests and the `@users` E2E at 320 px.
