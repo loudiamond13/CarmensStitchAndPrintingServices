@@ -78,6 +78,9 @@ public static class AuditActions
     /// <summary>A Manager reactivated a user; no detail (D-40).</summary>
     public const string UserActivated = "user.activated";
 
+    /// <summary>A Manager changed another person's first or last name; the detail lists the changed fields, never the names (D-40).</summary>
+    public const string UserDetailsChanged = "user.details-changed";
+
     /// <summary>A signed-in user changed their own first or last name; the detail lists the changed fields, never the names (D-40).</summary>
     public const string ProfileNameChanged = "profile.name-changed";
 
@@ -127,6 +130,7 @@ public static class AuditActions
         UserCreatedTemporary,
         UserDeactivated,
         UserActivated,
+        UserDetailsChanged,
         ProfileNameChanged,
         ProfileEmailChangeRequested,
         ProfileEmailChanged,

@@ -705,6 +705,46 @@
         ],
         "type": "object"
       },
+      "UpdateUserRequest": {
+        "description": "The Edit User form a Manager saves for another person: the names, the role and the edit version the form was opened with (SEC-07).",
+        "properties": {
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "`Admin` or `Manager`, in any letter case.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version as a GUID in `D` form.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "role",
+          "version"
+        ],
+        "type": "object"
+      },
       "UserDetailResponse": {
         "description": "One person as a Manager sees them in the Edit panel (USER-01, SEC-08).",
         "properties": {
@@ -2814,6 +2854,138 @@
           }
         },
         "summary": "Reads one person with their edit version and who created and last changed them (SEC-08).",
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409\r\n`edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`).\r\nSaving the values already stored is a 200 that changes and records nothing.",
         "tags": [
           "Users"
         ]

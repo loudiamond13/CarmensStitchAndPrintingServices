@@ -152,6 +152,18 @@ public interface IUserAccounts
     Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Changes the details a Manager edits on another person (names now; the role and the email follow) when
+    /// <paramref name="expectedVersion"/> is the stored edit version, and rotates that version (SEC-07). Identity bookkeeping
+    /// never rotates it. Values that already match change nothing.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="change">The new values, already trimmed.</param>
+    /// <param name="expectedVersion">The edit version the form was opened with.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>What happened, the version now stored, and the fields that really changed (see <see cref="EditedFields"/>).</returns>
+    Task<DetailsEditResult> UpdateDetailsAsync(Guid id, UserDetailsChange change, Guid expectedVersion, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Sets, replaces or clears the new email awaiting confirmation (D-24). The sign-in email and the edit version do not
     /// change, so an open profile form stays current.
     /// </summary>
@@ -207,6 +219,31 @@ public enum EditOutcome
 /// <param name="Outcome">What happened.</param>
 /// <param name="Version">The edit version now stored; empty when the account was not found.</param>
 public readonly record struct EditResult(EditOutcome Outcome, Guid Version);
+
+/// <summary>The new values of a Manager's edit of another person.</summary>
+/// <param name="FirstName">The new given name, already trimmed.</param>
+/// <param name="LastName">The new family name, already trimmed.</param>
+public sealed record UserDetailsChange(string FirstName, string LastName);
+
+/// <summary>The audit names of the fields a staff edit can change (field names only, D-40).</summary>
+public static class EditedFields
+{
+    /// <summary>The given name.</summary>
+    public const string FirstName = "first-name";
+
+    /// <summary>The family name.</summary>
+    public const string LastName = "last-name";
+}
+
+/// <summary>The result of <see cref="IUserAccounts.UpdateDetailsAsync"/>.</summary>
+/// <param name="Outcome">What happened.</param>
+/// <param name="Version">The edit version now stored; empty when the account was not found.</param>
+/// <param name="ChangedFields">The fields that really changed, as <see cref="EditedFields"/> names; empty unless it saved.</param>
+public sealed record DetailsEditResult(EditOutcome Outcome, Guid Version, IReadOnlyList<string> ChangedFields)
+{
+    /// <summary>Gets the outcome and version as the plain edit result.</summary>
+    public EditResult Edit => new(Outcome, Version);
+}
 
 /// <summary>The result of checking a password.</summary>
 public enum PasswordCheck

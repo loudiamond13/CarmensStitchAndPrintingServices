@@ -48,6 +48,7 @@ public static class ApplicationRegistration
         services.AddScoped<ManagerGuard>();
         services.AddScoped<DeactivateUserHandler>();
         services.AddScoped<ActivateUserHandler>();
+        services.AddScoped<UpdateUserHandler>();
         return services;
     }
 }

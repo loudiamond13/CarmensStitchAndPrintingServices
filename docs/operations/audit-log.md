@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T05:12:00-05:00
+updated: 2026-10-18T06:15:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -100,6 +100,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `user.created-temporary` | A Manager adds a user with a temporary password (`POST /api/v1/users`, access `temporary-password`) | `User` id (the new account) | none. Never the password, name or email | `Record`, in the same transaction as the account and its must-change flag; no email is sent |
 | `user.deactivated` | A Manager deactivates a user (`POST /api/v1/users/{id}/deactivate`) | `User` id (the person deactivated) | none. Never the name or email. Written only when the state changed, so repeating it adds nothing | `Record`, in the same transaction as the state change, the session revocation and (when a session was open) the `auth.sessions-revoked` entry with detail `account-changed`; the actor is the Manager |
 | `user.activated` | A Manager reactivates a user (`POST /api/v1/users/{id}/activate`) | `User` id (the person reactivated) | none. Written only when the state changed | `Record`, in the same transaction as the state change; the actor is the Manager |
+| `user.details-changed` | A Manager saves another person's first or last name that differs from the stored one (`PUT /api/v1/users/{id}`). A save of the same values, a stale save, an invalid save and a save on the caller's own account write nothing | `User` id (the person edited) | `fields=first-name`, `fields=last-name` or `fields=first-name,last-name`. Never the old or new name | `Record`, in the same transaction as the name save; the actor is the Manager |
 
 ## Phase 5 profile and staff events (USER-06)
 

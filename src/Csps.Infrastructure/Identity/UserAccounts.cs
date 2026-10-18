@@ -267,41 +267,59 @@ internal sealed class UserAccounts(
     {
         ArgumentNullException.ThrowIfNull(firstName);
         ArgumentNullException.ThrowIfNull(lastName);
+        var edit = await UpdateDetailsAsync(id, new UserDetailsChange(firstName, lastName), expectedVersion, cancellationToken).ConfigureAwait(false);
+        return edit.Edit;
+    }
+
+    public async Task<DetailsEditResult> UpdateDetailsAsync(Guid id, UserDetailsChange change, Guid expectedVersion, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(change);
         cancellationToken.ThrowIfCancellationRequested();
 
         var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
         if (user is null)
         {
-            return new EditResult(EditOutcome.NotFound, Guid.Empty);
+            return new DetailsEditResult(EditOutcome.NotFound, Guid.Empty, []);
         }
 
         for (var attempt = 1; ; attempt++)
         {
             if (user.EditVersion != expectedVersion)
             {
-                return new EditResult(EditOutcome.Stale, user.EditVersion);
+                return new DetailsEditResult(EditOutcome.Stale, user.EditVersion, []);
             }
 
-            if (string.Equals(user.FirstName, firstName, StringComparison.Ordinal) && string.Equals(user.LastName, lastName, StringComparison.Ordinal))
+            var changed = new List<string>(2);
+            if (!string.Equals(user.FirstName, change.FirstName, StringComparison.Ordinal))
             {
-                return new EditResult(EditOutcome.Unchanged, user.EditVersion);
+                changed.Add(EditedFields.FirstName);
+            }
+
+            if (!string.Equals(user.LastName, change.LastName, StringComparison.Ordinal))
+            {
+                changed.Add(EditedFields.LastName);
+            }
+
+            if (changed.Count == 0)
+            {
+                return new DetailsEditResult(EditOutcome.Unchanged, user.EditVersion, []);
             }
 
             // The UPDATE's WHERE carries the version the form was opened with, so a racing save changes no row.
             context.Entry(user).Property(static account => account.EditVersion).OriginalValue = expectedVersion;
-            user.FirstName = firstName;
-            user.LastName = lastName;
+            user.FirstName = change.FirstName;
+            user.LastName = change.LastName;
             user.EditVersion = Guid.NewGuid();
 
             var result = await users.UpdateAsync(user).ConfigureAwait(false);
             if (result.Succeeded)
             {
-                return new EditResult(EditOutcome.Saved, user.EditVersion);
+                return new DetailsEditResult(EditOutcome.Saved, user.EditVersion, changed);
             }
 
-            if (attempt == CountAttempts || !result.Errors.Any(static error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+            if (attempt == CountAttempts || !IsConcurrencyFailure(result))
             {
-                Require(result, "Changing the name");
+                Require(result, "Changing the details");
             }
 
             // The row changed under us: bookkeeping (the stamp) retries on the fresh row, a staff edit is stale at the top of the loop.

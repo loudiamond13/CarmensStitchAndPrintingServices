@@ -16,6 +16,7 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The add-a-person handler.</param>
 /// <param name="deactivate">The deactivate handler.</param>
 /// <param name="activate">The reactivate handler.</param>
+/// <param name="update">The edit-a-person handler.</param>
 [ApiController]
 [Route("api/v1/users")]
 [Authorize(Policy = Policies.Manager)]
@@ -26,7 +27,8 @@ public sealed class UsersController(
     GetUserHandler get,
     CreateUserHandler create,
     DeactivateUserHandler deactivate,
-    ActivateUserHandler activate) : ControllerBase
+    ActivateUserHandler activate,
+    UpdateUserHandler update) : ControllerBase
 {
     /// <summary>
     /// Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.
@@ -91,6 +93,33 @@ public sealed class UsersController(
     {
         var result = await create.HandleAsync(body ?? CreateUserRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static created => TypedResults.Created($"/api/v1/users/{created.Id:D}", created));
+    }
+
+    /// <summary>
+    /// Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409
+    /// <c>edit.stale</c> and changes nothing (SEC-07). A Manager cannot edit their own account here (422 <c>users.own-account</c>).
+    /// Saving the values already stored is a 200 that changes and records nothing.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the person as saved, 400 for field errors, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when the form is out of date, or 422 for the caller's own account.</returns>
+    [HttpPut("{id:guid}")]
+    [EndpointName("UpdateUser")]
+    [ProducesResponseType<UserDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Update(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateUserRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await update.HandleAsync(id, body ?? UpdateUserRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static person => TypedResults.Ok(person));
     }
 
     /// <summary>

@@ -425,7 +425,12 @@ export interface paths {
         };
         /** Reads one person with their edit version and who created and last changed them (SEC-08). */
         get: operations["GetUser"];
-        put?: never;
+        /**
+         * Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409
+         *     `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`).
+         *     Saving the values already stored is a 200 that changes and records nothing.
+         */
+        put: operations["UpdateUser"];
         post?: never;
         delete?: never;
         options?: never;
@@ -746,6 +751,17 @@ export interface components {
             firstName: null | string;
             /** @description Family name. */
             lastName: null | string;
+            /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
+        };
+        /** @description The Edit User form a Manager saves for another person: the names, the role and the edit version the form was opened with (SEC-07). */
+        UpdateUserRequest: {
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description `Admin` or `Manager`, in any letter case. */
+            role: null | string;
             /** @description The edit version as a GUID in `D` form. */
             version: null | string;
         };
@@ -2108,6 +2124,90 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateUserRequest"];
+                "application/json": null | components["schemas"]["UpdateUserRequest"];
+                "text/json": null | components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

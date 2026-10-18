@@ -10,7 +10,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileAndUserCodes()
     {
-        AuditActions.All.Count.ShouldBe(28);
+        AuditActions.All.Count.ShouldBe(29);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -29,6 +29,13 @@ public sealed class AuditActionsTests
         AuditActions.UserActivated.ShouldBe("user.activated");
         AuditActions.All.ShouldContain(AuditActions.UserDeactivated);
         AuditActions.All.ShouldContain(AuditActions.UserActivated);
+    }
+
+    [Fact]
+    public void TheManagerEditCodeIsInTheCatalog()
+    {
+        AuditActions.UserDetailsChanged.ShouldBe("user.details-changed");
+        AuditActions.All.ShouldContain(AuditActions.UserDetailsChanged);
     }
 
     [Fact]

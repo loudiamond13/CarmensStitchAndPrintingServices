@@ -44,6 +44,7 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<RequestEmailChangeRequest>, RequestEmailChangeRequestValidator>();
         services.AddSingleton<IValidator<ListUsersRequest>, ListUsersRequestValidator>();
         services.AddSingleton<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
+        services.AddSingleton<IValidator<UpdateUserRequest>, UpdateUserRequestValidator>();
         return services;
     }
 }
