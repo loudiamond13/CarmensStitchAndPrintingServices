@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildCss, checkClassTokens, collectClassTokens } from '../../../scripts/class-gate.mjs';
-import { overlayRegionClasses } from './overlays.recipe.ts';
+import { modalClasses, overlayClasses, overlayRegionClasses } from './overlays.recipe.ts';
 
 /**
  * The D-42 transcription of App. C `.s-overlay`: the fixed scrim region as a column with 16px padding (0 on phone
@@ -99,5 +99,69 @@ describe('Overlay region recipe (App. C .s-overlay, owner ruling D-42)', () => {
 
   it('has no fixed 140px top gap any more', () => {
     expect(utilities).not.toContain('140px');
+  });
+});
+
+// D-38, D-39: every dialog animates out as well as in. The closed-state utilities read the theme keyframes in app.css
+// (transform and opacity only), and reduced motion stops both the open and the closed animation.
+describe('Dialog exit motion (D-38, D-39)', () => {
+  const fixedOverlay = tokensOf(overlayClasses({ variant: 'center', inline: false }));
+  const centred = tokensOf(modalClasses({ variant: 'center', inline: false }));
+  const slideover = tokensOf(modalClasses({ variant: 'slideover', inline: false }));
+  const inlineDialog = tokensOf(modalClasses({ variant: 'center', inline: true }));
+  const inlineOverlay = tokensOf(overlayClasses({ variant: 'center', inline: true }));
+
+  it('fades the fixed scrim out and stops it taking clicks while it closes', () => {
+    expect(fixedOverlay).toContain('data-[state=closed]:animate-csp-fade-out');
+    expect(fixedOverlay).toContain('data-[state=closed]:pointer-events-none');
+    expect(fixedOverlay).toContain('motion-reduce:animate-none');
+    expect(fixedOverlay).toContain('motion-reduce:data-[state=closed]:animate-none');
+  });
+
+  it('fades and scales the centred dialog out, the phone bottom sheet too', () => {
+    expect(centred).toContain('data-[state=closed]:animate-csp-rise-out');
+    expect(centred).toContain('motion-reduce:data-[state=closed]:animate-none');
+    expect(centred).not.toContain('data-[state=closed]:animate-csp-slide-out');
+  });
+
+  it('slides the slide-over back out', () => {
+    expect(slideover).toContain('data-[state=closed]:animate-csp-slide-out');
+    expect(slideover).toContain('motion-reduce:data-[state=closed]:animate-none');
+    expect(slideover).not.toContain('data-[state=closed]:animate-csp-rise-out');
+  });
+
+  it('keeps inline dialogs in an Overlay region without any motion', () => {
+    expect(inlineOverlay.some((token) => token.includes('animate-csp'))).toBe(false);
+    expect(inlineDialog.some((token) => token.includes('data-[state=closed]:animate-csp'))).toBe(false);
+  });
+
+  it('passes the class gate and resolves every closed-state animation to a theme keyframe', async () => {
+    const tokens = [...new Set([...fixedOverlay, ...centred, ...slideover])];
+    const out = await buildCss(tokens);
+
+    expect(await checkClassTokens(tokens, { file: recipeFile })).toEqual([]);
+    for (const name of ['csp-fade-out', 'csp-rise-out', 'csp-slide-out']) {
+      expect(out, name).toContain(`@keyframes ${name}`);
+      expect(out, name).toContain(`var(--animate-${name})`);
+    }
+  });
+
+  it('declares the 150 to 250 ms theme keyframes the dialogs and the phone drawer use', () => {
+    const theme = readFileSync(new URL('../../ui/app.css', import.meta.url), 'utf8');
+
+    for (const name of [
+      'csp-fade-out',
+      'csp-rise-out',
+      'csp-slide-out',
+      'csp-drawer-in',
+      'csp-drawer-out',
+      'csp-pop-in',
+      'csp-pop-out',
+    ]) {
+      expect(theme, name).toContain(`@keyframes ${name}`);
+      const duration = new RegExp(String.raw`--animate-${name}: ${name} (0\.\d+)s`).exec(theme)?.[1];
+      expect(Number(duration) * 1000, name).toBeGreaterThanOrEqual(150);
+      expect(Number(duration) * 1000, name).toBeLessThanOrEqual(250);
+    }
   });
 });
