@@ -58,6 +58,11 @@ export const createUserSchema = z
 
 export type CreateUserValues = z.infer<typeof createUserSchema>;
 
+/** The Set Temporary Password dialog (U5): the basic rule only. Stub for the RED commit. */
+export const temporaryPasswordSchema = z.object({ temporaryPassword: z.string() });
+
+export type TemporaryPasswordValues = z.infer<typeof temporaryPasswordSchema>;
+
 export const EMAIL_CHANGES = ['confirm', 'now'] as const;
 export type EmailChange = (typeof EMAIL_CHANGES)[number];
 

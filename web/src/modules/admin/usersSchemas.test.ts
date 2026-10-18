@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { createUserSchema, updateUserSchema } from './usersSchemas';
+import { createUserSchema, temporaryPasswordSchema, updateUserSchema } from './usersSchemas';
 
 // The Add User form's zod mirror (OR-3) of CreateUserRequestValidator: names required after trim and at most 100, the email
 // required and shaped like one (at most 256), a role and a way to get access.
@@ -133,6 +133,33 @@ describe('createUserSchema temporary password (04 D-21, the basic rule only)', (
 
   it('applies only on the temporary route: an invitation ignores what the field holds', () => {
     expect(messages({ access: 'invitation', temporaryPassword: 'x' })).toEqual({});
+  });
+});
+
+// The Set Temporary Password dialog (U5; plan 05-30): the same basic rule as Add User, mirrored from SetTemporaryPasswordRequestValidator.
+describe('temporaryPasswordSchema (04 D-21, the basic rule only)', () => {
+  const check = (temporaryPassword: string): Record<string, string> => {
+    const result = temporaryPasswordSchema.safeParse({ temporaryPassword });
+    return result.success
+      ? {}
+      : Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+  };
+
+  it.each([
+    ['', 'Enter a temporary password.'],
+    ['Ab1!', 'Use at least 8 characters.'],
+    ['Ab1!'.repeat(17), 'Use 64 characters or fewer.'],
+    ['Abcd\tefg1!', 'Remove tabs and line breaks from your password.'],
+    ['Abcdefgh!', 'Add at least one number.'],
+    ['Abcdefgh1', 'Add at least one symbol, like ! or #.'],
+  ])('refuses %j with the matching message', (password, message) => {
+    expect(check(password)).toEqual({ temporaryPassword: message });
+  });
+
+  it('accepts 8 and 64 characters, and a name or email part inside it', () => {
+    expect(check('Abcdef1!')).toEqual({});
+    expect(check(`${'a'.repeat(61)}1!x`)).toEqual({});
+    expect(check('Ana-Reyes-1234')).toEqual({});
   });
 });
 

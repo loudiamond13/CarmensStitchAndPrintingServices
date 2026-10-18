@@ -1083,3 +1083,273 @@ describe('U3 Lock and Unlock (USER-03, D-16, U4)', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+describe('U3 Resend Invitation and Send Reset Link (USER-07, D-13)', () => {
+  const INVITED = () => detail({ hasPassword: false, inviteState: 'pending' });
+
+  it('resends the invitation at once with an Idempotency-Key, reloads the person, and toasts the 7 days', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess(INVITED());
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Resend Invitation' }));
+
+    expect(await screen.findByText('Invitation sent')).toBeInTheDocument();
+    expect(
+      screen.getByText('We emailed Paolo a new link. It works for 7 days, and the old link no longer works.'),
+    ).toBeInTheDocument();
+    expect(access.calls).toEqual([
+      { method: 'POST', path: 'resend-invitation', key: expect.any(String) as unknown, body: null },
+    ]);
+    await waitFor(() => {
+      expect(access.gets).toBeGreaterThan(getsBefore);
+    });
+    await waitFor(() => {
+      expect(onAccountChanged).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByRole('dialog', { name: /^Lock/ })).toBeNull();
+  });
+
+  it('sends the reset link at once, reloads the person, and toasts the 30 minutes', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess();
+    const getsBefore = access.gets;
+
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(await screen.findByText('Reset link sent')).toBeInTheDocument();
+    expect(
+      screen.getByText('We emailed Paolo a link to set a new password. It works for 30 minutes.'),
+    ).toBeInTheDocument();
+    expect(access.calls).toEqual([
+      { method: 'POST', path: 'send-reset-link', key: expect.any(String) as unknown, body: null },
+    ]);
+    await waitFor(() => {
+      expect(access.gets).toBeGreaterThan(getsBefore);
+    });
+    await waitFor(() => {
+      expect(onAccountChanged).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('can send another reset link after the first (a finished action is not replayed)', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess();
+
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+    await waitFor(() => {
+      expect(access.gets).toBeGreaterThan(1);
+    });
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    await waitFor(() => {
+      expect(access.calls).toHaveLength(2);
+    });
+    expect(new Set(access.calls.map((call) => call.key)).size).toBe(2);
+  });
+
+  it.each([
+    [
+      'Resend Invitation',
+      'resend-invitation',
+      422,
+      'users.already-set-up',
+      'They already have a password. Send a reset link instead.',
+    ],
+    [
+      'Send Reset Link',
+      'send-reset-link',
+      429,
+      'users.reset-link-capped',
+      'Too many reset links for this person. Wait an hour, then try again.',
+    ],
+    [
+      'Send Reset Link',
+      'send-reset-link',
+      422,
+      'users.blocked',
+      'This account is locked or deactivated. Unlock or activate this person first.',
+    ],
+    [
+      'Send Reset Link',
+      'send-reset-link',
+      422,
+      'users.no-password',
+      "They haven't set a password yet. Resend the invitation instead.",
+    ],
+  ])(
+    '%s via /%s: a %i %s raises a danger toast that stays, with the mapper line',
+    async (button, path, status, code, line) => {
+      const user = userEvent.setup();
+      const { access, onAccountChanged } = await openAccess(button === 'Resend Invitation' ? INVITED() : detail(), {
+        [path]: () => problem(status, { code }),
+      });
+      const getsBefore = access.gets;
+
+      await user.click(screen.getByRole('button', { name: button }));
+
+      expect(await screen.findByText("Couldn't send the email")).toBeInTheDocument();
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(access.gets).toBe(getsBefore);
+      expect(onAccountChanged).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: button })).toBeInTheDocument();
+    },
+  );
+
+  it('says so when the person was deleted meanwhile (404)', async () => {
+    const user = userEvent.setup();
+    await openAccess(detail(), { 'send-reset-link': () => problem(404, { code: 'users.not-found' }) });
+
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(await screen.findByText("Couldn't send the email")).toBeInTheDocument();
+    expect(screen.getAllByText('This user was deleted.').length).toBeGreaterThan(0);
+  });
+});
+
+/** A readable sample the tests type into the dialog. */
+const TYPED = ['Tela', 'Sukat', '7381'].join('-');
+
+describe('U3 Set Temporary Password (USER-07, C-4, D-14, U5)', () => {
+  const field = () => screen.getByLabelText<HTMLInputElement>('Temporary password', { exact: true });
+  const setButton = () => screen.getByRole('button', { name: /^(Set Password|Setting)$/ });
+  const trigger = () => screen.getByRole('button', { name: 'Set Temporary Password' });
+
+  it('opens the set step stacked over the panel, with the cursor in the prefilled password', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+
+    await user.click(trigger());
+
+    const dialog = screen.getByRole('dialog', { name: 'Set a temporary password' });
+    expect(within(dialog).getByText('For Paolo Garcia')).toBeInTheDocument();
+    expect(field()).toHaveFocus();
+    expect(field().value).toMatch(/^[A-Z][a-z]+-[A-Z][a-z]+-\d{4}$/);
+  });
+
+  it('keeps focus inside the dialog while it is stacked over the panel', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.click(trigger());
+    const dialog = screen.getByRole('dialog', { name: 'Set a temporary password' });
+
+    for (let press = 0; press < 12; press += 1) {
+      await user.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  it('Esc closes only the dialog: the panel stays open and focus returns to Set Temporary Password', async () => {
+    const user = userEvent.setup();
+    const { access, onClose } = await openAccess();
+    await user.click(trigger());
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Set a temporary password' })).toBeNull();
+    });
+    expect(screen.getByRole('dialog', { name: 'Edit User' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(trigger()).toHaveFocus();
+    expect(access.calls).toEqual([]);
+  });
+
+  it('sets the password with the body and a key, shows it once, and reloads U3 only when Done closes it', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess();
+    const getsBefore = access.gets;
+    await user.click(trigger());
+    await user.clear(field());
+    await user.type(field(), TYPED);
+
+    await user.click(setButton());
+
+    const shown = await screen.findByRole('dialog', { name: 'Temporary password set' });
+    expect(within(shown).getByLabelText('Temporary password for Paolo')).toHaveValue(TYPED);
+    expect(access.calls).toEqual([
+      {
+        method: 'POST',
+        path: 'temporary-password',
+        key: expect.any(String) as unknown,
+        body: { temporaryPassword: TYPED },
+      },
+    ]);
+    expect(access.gets).toBe(getsBefore);
+    expect(onAccountChanged).not.toHaveBeenCalled();
+
+    await user.click(within(shown).getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Temporary password set' })).toBeNull();
+    });
+    expect(trigger()).toHaveFocus();
+    await waitFor(() => {
+      expect(access.gets).toBeGreaterThan(getsBefore);
+    });
+    await waitFor(() => {
+      expect(onAccountChanged).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(document.body.innerHTML).not.toContain(TYPED);
+    });
+  });
+
+  it('reloads nothing when the dialog is cancelled without setting a password', async () => {
+    const user = userEvent.setup();
+    const { access, onAccountChanged } = await openAccess();
+    const getsBefore = access.gets;
+    await user.click(trigger());
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Set a temporary password' })).toBeNull();
+    });
+    expect(access.gets).toBe(getsBefore);
+    expect(onAccountChanged).not.toHaveBeenCalled();
+  });
+
+  it('opens again with a fresh suggestion and nothing of the earlier password', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.click(trigger());
+    const first = field().value;
+    await user.click(setButton());
+    const shown = await screen.findByRole('dialog', { name: 'Temporary password set' });
+    await user.click(within(shown).getByRole('button', { name: 'Done' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Temporary password set' })).toBeNull();
+    });
+
+    await user.click(trigger());
+
+    expect(await screen.findByRole('dialog', { name: 'Set a temporary password' })).toBeInTheDocument();
+    expect(field().value).not.toBe(first);
+    expect(document.body.innerHTML).not.toContain(first);
+  });
+
+  it('keeps the dialog open with the guard line when the server refuses', async () => {
+    const user = userEvent.setup();
+    const { access } = await openAccess(detail(), {
+      'temporary-password': () => problem(422, { code: 'users.blocked' }),
+    });
+    const getsBefore = access.gets;
+    await user.click(trigger());
+
+    await user.click(setButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This account is locked or deactivated. Unlock or activate this person first.',
+    );
+    expect(screen.getByRole('dialog', { name: 'Set a temporary password' })).toBeInTheDocument();
+    expect(access.gets).toBe(getsBefore);
+  });
+
+  it('has no axe violations with the dialog stacked over the panel', async () => {
+    const user = userEvent.setup();
+    await openAccess();
+    await user.click(trigger());
+
+    await expectNoAxeViolations(document.body);
+  });
+});
