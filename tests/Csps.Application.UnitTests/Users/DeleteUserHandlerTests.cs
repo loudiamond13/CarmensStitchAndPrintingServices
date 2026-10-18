@@ -47,6 +47,40 @@ public sealed class DeleteUserHandlerTests
     }
 
     [Fact]
+    public async Task EveryOutboxRowForTheOldAddressIsScrubbedToTheScrambledAddressOnTheSameUnitOfWork()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var scrambled = DeletedAddress.For(TargetId);
+        await harness.Outbox.Received(1).ScrubRecipientAsync("person@csps.test", scrambled, Start, Arg.Any<CancellationToken>());
+        await harness.Outbox.Received(1).ScrubRecipientAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        Received.InOrder(() =>
+        {
+            harness.Accounts.SoftDeleteAsync(TargetId, Start, Arg.Any<CancellationToken>());
+            harness.Outbox.ScrubRecipientAsync("person@csps.test", scrambled, Start, Arg.Any<CancellationToken>());
+        });
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnAddressWaitingForAnEmailChangeConfirmationIsScrubbedToo()
+    {
+        var harness = new Harness();
+        harness.Directory.GetProfileAsync(TargetId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ProfileView?>(new ProfileView(TargetId, "Ana", "Abad", "person@csps.test", Roles.Admin, "new.address@csps.test", Start, Guid.NewGuid())));
+
+        var result = await harness.Handler.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var scrambled = DeletedAddress.For(TargetId);
+        await harness.Outbox.Received(1).ScrubRecipientAsync("person@csps.test", scrambled, Start, Arg.Any<CancellationToken>());
+        await harness.Outbox.Received(1).ScrubRecipientAsync("new.address@csps.test", scrambled, Start, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task TheOpenLinksOfAllThreeKindsAreRevokedAtTheCurrentTime()
     {
         var harness = new Harness();
@@ -196,6 +230,7 @@ public sealed class DeleteUserHandlerTests
     private static async Task AssertNothingChangedAsync(Harness harness)
     {
         await harness.Accounts.DidNotReceive().SoftDeleteAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        await harness.Outbox.DidNotReceive().ScrubRecipientAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         harness.Audit.Entries.ShouldBeEmpty();
         harness.Unit.Saves.ShouldBe(0);
@@ -223,7 +258,10 @@ public sealed class DeleteUserHandlerTests
             request.UserId.Returns(noCaller ? null : CallerId);
             RosterLock = Substitute.For<IManagerRosterLock>();
             Accounts.CountActiveManagersAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(1);
-            Handler = new DeleteUserHandler(Accounts, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), Tokens, request, Audit, Unit, new FakeTimeProvider(Start));
+            Directory = Substitute.For<IUserDirectory>();
+            Directory.GetProfileAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<ProfileView?>(null));
+            Outbox = Substitute.For<IEmailOutbox>();
+            Handler = new DeleteUserHandler(Accounts, Sessions, Cache, RosterLock, new ManagerGuard(Accounts), Tokens, Directory, Outbox, request, Audit, Unit, new FakeTimeProvider(Start));
         }
 
         public UserAccount? Target { get; set; }
@@ -235,6 +273,10 @@ public sealed class DeleteUserHandlerTests
         public IAccountTokens Tokens { get; }
 
         public IManagerRosterLock RosterLock { get; }
+
+        public IUserDirectory Directory { get; }
+
+        public IEmailOutbox Outbox { get; }
 
         public EvictionProbe Cache { get; }
 

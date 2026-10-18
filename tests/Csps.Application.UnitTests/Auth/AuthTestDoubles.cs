@@ -37,6 +37,9 @@ internal sealed class RecordingOutbox : IEmailOutbox
         Counts.Add((kind, toAddress, since));
         return Task.FromResult(Recent.GetValueOrDefault(kind));
     }
+
+    public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
 }
 
 /// <summary>An audit trail that keeps what was recorded.</summary>

@@ -14,7 +14,8 @@ namespace Csps.Application.Users;
 /// the audit trail records <c>user.deleted</c> (and the revocation, when a session was open). The person is then forgotten by the session
 /// cache. A person who does not exist or was already deleted is a 404 that changes and records nothing, the caller's own account and the
 /// last active Manager are refused (D-18, D-19), and the roster lock is taken first so two Managers deleting each other at once cannot
-/// both succeed. No version is sent: the delete applies to the latest state.
+/// both succeed. Mail still waiting for the old address is expired and every outbox row for it is readdressed (IN-08). No version is sent:
+/// the delete applies to the latest state.
 /// </summary>
 public sealed class DeleteUserHandler(
     IUserAccounts accounts,
@@ -23,6 +24,8 @@ public sealed class DeleteUserHandler(
     IManagerRosterLock rosterLock,
     ManagerGuard guard,
     IAccountTokens tokens,
+    IUserDirectory directory,
+    IEmailOutbox outbox,
     IRequestContext requestContext,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
@@ -77,6 +80,9 @@ public sealed class DeleteUserHandler(
             return Result.Failure<bool>(allowed.Error);
         }
 
+        // Read before the delete clears it: the address a waiting email change was sent to is forgotten too.
+        var pending = (await directory.GetProfileAsync(id, cancellationToken).ConfigureAwait(false))?.PendingEmail;
+
         // Identity saves on the shared context, so it goes first; the revocations and the audit rows are added after it.
         var now = time.GetUtcNow();
         if (!await accounts.SoftDeleteAsync(id, now, cancellationToken).ConfigureAwait(false))
@@ -87,6 +93,14 @@ public sealed class DeleteUserHandler(
         foreach (var purpose in Purposes)
         {
             _ = await tokens.RevokeOpenAsync(id, purpose, now, cancellationToken).ConfigureAwait(false);
+        }
+
+        // IN-08: nothing keeps the old address, and a mail still waiting for it is expired, never sent.
+        var scrambled = DeletedAddress.For(id);
+        _ = await outbox.ScrubRecipientAsync(target.Email, scrambled, now, cancellationToken).ConfigureAwait(false);
+        if (pending is { Length: > 0 })
+        {
+            _ = await outbox.ScrubRecipientAsync(pending, scrambled, now, cancellationToken).ConfigureAwait(false);
         }
 
         var key = AuditKey.Of(id);

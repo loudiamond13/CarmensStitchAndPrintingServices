@@ -310,6 +310,9 @@ public sealed class SignInHandlerTests
 
         public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken) =>
             Task.FromResult(0);
+
+        public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
     }
 
     private sealed class RecordingAudit : IAuditTrail
