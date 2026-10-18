@@ -153,7 +153,7 @@ export function Topbar({
       <button
         type="button"
         className={topbarMenuClasses}
-        aria-label="Open navigation"
+        aria-label={menuExpanded === true ? 'Close navigation' : 'Open navigation'}
         aria-expanded={menuExpanded}
         aria-controls={menuControls}
         onClick={onMenu}

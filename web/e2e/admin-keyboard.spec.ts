@@ -1,7 +1,8 @@
 // Admin keyboard journeys (A11Y-02, WEB-05, WCAG 2.1.1 / 2.1.2 / 2.4.3; plan 02-32): the phone navigation drawer and
 // the user menu work by keyboard alone on the real host, in all five projects. Every journey runs under the shared
 // guard (console, page errors, CSP, failed responses) and checks axe with the overlay open. The desktop projects run
-// the drawer journey on a 390px-wide page, where the Topbar shows its "Open navigation" button.
+// the drawer journey on a 390px-wide page, where the Topbar shows its "Open navigation" button (named "Close navigation"
+// while the drawer is open, D-34).
 //
 // WebKit's Tab stops on buttons and form fields only (Safari includes links only with "Press Tab to highlight each
 // item"), so in the webkit and iphone projects the Tab cycle in the drawer visits its buttons; the trap is the same.
@@ -43,7 +44,7 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
   page,
 }) => {
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await expect(menu).toBeVisible();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
@@ -57,7 +58,11 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
   expect(await menu.getAttribute('aria-controls')).toBe(await drawer.getAttribute('id'));
   expect((await focusState(page)).inDrawer).toBe(true);
 
-  // The 248px panel at the left edge, over the scrim, inside the viewport; body scroll is locked by the class.
+  // The 248px panel at the left edge, over the scrim, inside the viewport; body scroll is locked by the class. Measured
+  // once the slide-in (D-34) has finished.
+  await page.evaluate(
+    `Promise.all(document.querySelector('[role="dialog"][aria-label="Navigation"]').getAnimations().map((animation) => animation.finished))`,
+  );
   const box = await drawer.boundingBox();
   expect(box?.x).toBe(0);
   expect(box?.y).toBe(0);
@@ -94,7 +99,7 @@ test('@keyboard @admin following a link in the drawer goes there, closes the dra
   page,
 }) => {
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.focus();
   await page.keyboard.press('Enter');
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
@@ -114,7 +119,7 @@ test('@keyboard @admin following a link in the drawer goes there, closes the dra
 
 test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) => {
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.click();
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
   await expect(drawer).toBeVisible();

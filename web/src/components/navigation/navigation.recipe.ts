@@ -200,13 +200,18 @@ export const userMenuRoleClasses = tw('text-[12px]');
 // Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → MobileNavDrawer): the `--scrim` overlay at
 // `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root does not trap
 // fixed children (probed in Chromium, Firefox and WebKit), so the layer covers the viewport; the panel is sticky at the
-// viewport's height, so the whole Sidebar stays in view however far the page was scrolled.
+// viewport's height, so the whole Sidebar stays in view however far the page was scrolled. D-34: the scrim fades and the
+// panel slides in from the left and back out (theme keyframes, `data-state` from MobileNavDrawer; none under reduced motion).
 
 /** The drawer layer: the scrim over the whole page root at the overlay layer; the panel sits at its left edge. */
-export const drawerClasses = tw('fixed inset-0 z-(--z-overlay) flex items-start bg-scrim');
+export const drawerClasses = tw(
+  'fixed inset-0 z-(--z-overlay) flex animate-csp-fade items-start bg-scrim data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-fade-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none',
+);
 
 /** The panel: the full Sidebar at its 248px width and the viewport's height, scrolling inside when the phone is short. */
-export const drawerPanelClasses = tw('sticky top-0 h-dvh w-(--sidebar-width) overflow-y-auto overscroll-contain');
+export const drawerPanelClasses = tw(
+  'sticky top-0 h-dvh w-(--sidebar-width) animate-csp-drawer-in overflow-y-auto overscroll-contain data-[state=closed]:animate-csp-drawer-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none',
+);
 
 // ── User menu popover (SPEC-GAP: user menu, spec §6.6; plan 02-32) ──
 // Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → UserMenu). The Topbar is its containing

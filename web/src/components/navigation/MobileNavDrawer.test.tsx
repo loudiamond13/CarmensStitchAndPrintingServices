@@ -418,7 +418,9 @@ describe('MobileNavDrawer closing animation (D-34, D-38)', () => {
     const { panel } = await openAndEscape();
 
     act(() => {
-      within(panel).getByRole('link', { name: 'Orders' }).dispatchEvent(new Event('animationend', { bubbles: true }));
+      within(panel)
+        .getByRole('link', { name: 'Orders' })
+        .dispatchEvent(new Event('animationend', { bubbles: true }));
     });
     expect(panel).toBeInTheDocument();
 

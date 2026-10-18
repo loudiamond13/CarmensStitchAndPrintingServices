@@ -547,14 +547,16 @@ describe('AdminLayout re-render (React Compiler memo cache)', () => {
 });
 
 describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileNavDrawer, plan 02-32)', () => {
+  // D-34: the button is named for what it will do, so it is "Close navigation" while the drawer is open.
   function openNavigation(): HTMLElement {
-    return screen.getByRole('button', { name: 'Open navigation' });
+    return screen.getByRole('button', { name: /^(Open|Close) navigation$/ });
   }
 
   it('wires the Topbar menu button to the drawer: aria-controls names it, aria-expanded follows it', async () => {
     await renderAt('/admin/orders');
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
+    expect(openNavigation()).toHaveAccessibleName('Open navigation');
     const controls = openNavigation().getAttribute('aria-controls');
     expect(controls).toBeTruthy();
 
@@ -563,6 +565,7 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     const drawer = screen.getByRole('dialog', { name: 'Navigation' });
     expect(drawer.id).toBe(controls);
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'true');
+    expect(openNavigation()).toHaveAccessibleName('Close navigation');
     expect(within(drawer).getByRole('link', { name: 'Orders' })).toHaveAttribute('aria-current', 'page');
     expect(drawer).toContainElement(document.activeElement as HTMLElement);
   });
