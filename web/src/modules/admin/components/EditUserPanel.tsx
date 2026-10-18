@@ -16,7 +16,8 @@ import { Icon } from '@/components/brand';
 import { RadioGroup, type RadioOption } from '@/components/entry';
 import { Field, messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
-import { LoadingRegion, Note, SkeletonText } from '@/components/states';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
@@ -39,10 +40,20 @@ import {
   type UpdateUserValues,
   type UserRole,
 } from '@/modules/admin/usersSchemas';
-import { errorLine, type ErrorCopy } from '@/utils/describeHttpError';
+import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
 const COPY = USERS_COPY.edit;
 const FIELDS = USERS_COPY.add;
+
+const EDIT_STALE = 'edit.stale';
+
+/** The 422 answers a Manager can read but not fix by retyping: the last active Manager (D-18) and one's own account (D-19). */
+const REFUSALS: ReadonlyMap<string, { title: string; body: string }> = new Map<string, { title: string; body: string }>(
+  [
+    ['users.last-active-manager', COPY.guards.lastManager],
+    ['users.own-account', COPY.guards.ownAccount],
+  ],
+);
 
 const FIELD_ORDER = ['firstName', 'lastName', 'email', 'emailChange', 'role'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
@@ -130,8 +141,16 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
   }
   // The one line above the fields for a failure that belongs to no field.
   const [failure, setFailure] = useState<string | null>(null);
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  // A refusal the Manager can read but not fix by retyping (D-18, D-19), and the person deleted meanwhile (D-09).
+  const [refusal, setRefusal] = useState<{ title: string; body: string } | null>(null);
+  const [deleted, setDeleted] = useState(false);
+  // The polite line read out after Load Latest.
+  const [status, setStatus] = useState('');
 
-  const { control, handleSubmit, setError, setValue } = useForm<UpdateUserValues>({
+  const { control, handleSubmit, setError, setValue, reset } = useForm<UpdateUserValues>({
     resolver: zodResolver(updateUserSchema),
     mode: 'onBlur',
     defaultValues: EMPTY_VALUES,
@@ -142,6 +161,7 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
 
   const loaded = person !== null;
   const loadFailed = query.isError && !loaded;
+  const gone = deleted || (loadFailed && isHttpError(query.error) && query.error.status === 404);
   const showChoice = loaded && person.hasPassword && emailChanged(email, person.email);
 
   const focusField = (name: FieldName): void => {
@@ -153,6 +173,10 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
     if (target instanceof HTMLElement) {
       target.focus();
     }
+  };
+
+  const focusFirstName = (): void => {
+    formRef.current?.querySelector<HTMLElement>('input[name="firstName"]')?.focus();
   };
 
   // The person has arrived: the cursor goes to the first field.
@@ -168,6 +192,23 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
   };
 
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
+    // D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
+    if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+      setConflicts((count) => count + 1);
+      return;
+    }
+    if (isHttpError(error) && error.status === 422) {
+      const guard = REFUSALS.get(error.code ?? '');
+      if (guard !== undefined) {
+        setRefusal(guard);
+        saveRef.current?.focus();
+        return;
+      }
+    }
+    if (isHttpError(error) && error.status === 404) {
+      setDeleted(true);
+      return;
+    }
     if (isHttpError(error) && error.status === 400) {
       let first: FieldName | null = null;
       for (const name of FIELD_ORDER) {
@@ -207,7 +248,37 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
 
   const onValid = async (values: UpdateUserValues): Promise<void> => {
     setFailure(null);
+    setRefusal(null);
     await submit(values);
+  };
+
+  /** Load Latest: the typed values are replaced only once the latest version has arrived. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const result = await query.refetch();
+    setLoadingLatest(false);
+    if (result.isError) {
+      if (isHttpError(result.error) && result.error.status === 404) {
+        setDeleted(true);
+        return;
+      }
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        setFailure(errorLine(copy));
+      }
+      return;
+    }
+    const latest = result.data;
+    if (latest === undefined) {
+      return;
+    }
+    setPerson(latest);
+    reset(valuesOf(latest));
+    setConflicts(0);
+    setFailure(null);
+    setRefusal(null);
+    setStatus(STATES_COPY.conflict.loaded);
+    focusFirstName();
   };
 
   const onInvalid = (errors: FieldErrors<UpdateUserValues>): void => {
@@ -223,11 +294,25 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
     }
   };
 
-  const body =
+  let loadState = <SkeletonText />;
+  if (loadFailed) {
+    loadState = gone ? (
+      <></>
+    ) : (
+      <ErrorState
+        things={COPY.things}
+        error={query.error}
+        align="start"
+        onRetry={() => {
+          void query.refetch();
+        }}
+      />
+    );
+  }
+
+  const main =
     person === null ? (
-      loadFailed ? null : (
-        <SkeletonText />
-      )
+      loadState
     ) : (
       <>
         <div className={usersStatusClasses}>
@@ -346,6 +431,27 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
       </>
     );
 
+  // The banners sit at the top of the body (D-20): the deleted notice, else the stale-save banner, then a guard refusal.
+  const body = (
+    <>
+      {gone && <ErrorState title={COPY.guards.deleted.title} message={COPY.guards.deleted.body} align="start" />}
+      {!gone && conflicts > 0 && (
+        <ConflictBanner
+          key={conflicts}
+          pending={loadingLatest}
+          onLoadLatest={() => {
+            void loadLatest();
+          }}
+        />
+      )}
+      {refusal !== null && <ErrorState title={refusal.title} message={refusal.body} align="start" />}
+      {main}
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {status}
+      </div>
+    </>
+  );
+
   return (
     <Modal
       open={open}
@@ -365,7 +471,7 @@ function EditUserForm({ userId, open, onClose, onSaved }: EditUserPanelProps & {
             form={formId}
             icon="check"
             pending={pending}
-            aria-disabled={!loaded}
+            aria-disabled={!loaded || gone}
             ref={saveRef}
           >
             {pending ? COPY.saving : COPY.save}

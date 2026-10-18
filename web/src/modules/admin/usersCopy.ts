@@ -120,6 +120,18 @@ export const USERS_COPY = {
       },
       required: 'Choose how the email change applies.',
     },
+    /** Refusals and the deleted notice: a bold line over a muted line (UI-SPEC "Error and guard states"). */
+    guards: {
+      lastManager: {
+        title: "You can't remove the last active Manager.",
+        body: 'Make another user a Manager first, then try again.',
+      },
+      ownAccount: {
+        title: "You can't do this to your own account.",
+        body: 'Change your own details in My Profile.',
+      },
+      deleted: { title: 'This user was deleted.', body: 'Close this and refresh the list.' },
+    },
     toast: {
       title: 'User updated',
       /** "{First Last} · {Role}" */
