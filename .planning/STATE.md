@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-40-PLAN.md
-last_updated: "2026-10-18T11:50:56.527Z"
+stopped_at: Completed 05-24-PLAN.md
+last_updated: "2026-10-18T12:05:52.643Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 9230f04cfa5ff08d3a2146e3cc7e580f442e257e
+state_head: 9df0f3261b0672e7faccc5352615f0f46b71a2d5
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 141
+  completed_plans: 142
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T06:57:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 28 of 43
+Plan: 29 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -197,6 +197,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P22 | 44 min | 3 tasks | 22 files |
 | Phase 05 P23 | 30 min | 2 tasks | 17 files |
 | Phase 05 P40 | 30min | 2 tasks | 30 files |
+| Phase 05 P24 | 19 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -514,6 +515,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-23: ManagerGuard runs before the version check, so a stale form that would demote the last active Manager answers 422 rather than 409; a role change swaps the role link row after the guarded account UPDATE.
 - [Phase 05]: Plan 05-40: D-45 applied. PUT /users/{id} carries email (required) and emailChange (confirm | now); a changed email without a valid choice is 400 under emailChange; an invited person always moves at once with a fresh 7-day invitation; the 'now' path signs the person out and sends the new 'A Manager changed your CSPS sign-in email' notice to the old address (wording pending owner review, D-48)
 - [Phase 05]: Plan 05-40: AuditActions.UserInvitationResent (user.invitation-resent) is declared by 05-40; plan 05-27 must reuse it. The email preview tool has eight samples, so 05-31 expected counts rise by one
+- [Phase 05]: 05-24: Unlock takes no roster lock and runs no guard; lock runs the roster lock then ManagerGuard like deactivate (D-16, D-18, D-19)
+- [Phase 05]: 05-24: SetManagerLockAsync compares locked vs not locked only, so a repeat lock or unlock writes, audits and revokes nothing; no code reads the lock time as an expiry (D-16)
 
 ### Pending Todos
 
@@ -573,6 +576,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T11:50:55.814Z
-Stopped at: Completed 05-40-PLAN.md
+Last session: 2026-10-18T12:05:51.986Z
+Stopped at: Completed 05-24-PLAN.md
 Resume file: None
