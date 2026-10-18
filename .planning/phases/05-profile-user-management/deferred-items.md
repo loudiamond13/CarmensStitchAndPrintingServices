@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T10:57:00-05:00
+updated: 2026-10-18T11:30:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -23,8 +23,8 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 ## Owner wording review: OQ-7 and OQ-11 (owner, 2026-10-17)
 
 - **What:** The owner wants to review every new or amended string before it is approved: the UI-SPEC Copywriting section (OQ-7 amended App. E.12/E.13 wording, OQ-11 SPEC-GAP strings) and the Phase 5 email additions, including the new "email changed by a Manager" notice (D-45).
-- **Status:** Executors build the UI-SPEC wording as written (D-48), but it is not approved. Present it in the 05-31 email review and the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
-- **Added by plan 05-40 (wording pending owner review):** the new notice email "A Manager changed your CSPS sign-in email" (heading "Your sign-in email was changed", preheader "Sign in with your new email from now on.", body: "{Manager} changed your sign-in email to {new}.", "Changed {time}.", "From now on, sign in with {new}. This address, {old}, no longer signs in to CSPS.", the signed-out line, "If you didn't expect this, tell a Manager."), sent to the old address when a Manager saves an email at once (D-45). It is in the email preview tool as `manager-changed-email`, so 05-31 shows it; the tool now has eight samples, so 05-31's expected counts are one higher than that plan states. The error text "Choose how the email change applies." (field `emailChange`) also awaits review in 05-37.
+- **Status:** Executors build the UI-SPEC wording as written (D-48). **Phase 5 email wording: owner-approved 2026-10-18 (plan 05-31).** The owner reviewed all seven Phase 5 emails (invite-by-manager, manager-reset-link, email-change-confirm, email-change-confirm-by-manager, email-change-notice, password-changed-other-devices, manager-changed-email) against Phase 4's password-changed email and typed "approved", with no copy or look changes; the previews are in `artifacts/email-preview-phase5` (git-ignored). **Screen wording is still pending** for the 05-37 screen review; wording changes there become follow-ups for `/gsd-verify-work 5`.
+- **Added by plan 05-40 (email wording approved by the owner 2026-10-18 in plan 05-31; the error text below still awaits 05-37):** the new notice email "A Manager changed your CSPS sign-in email" (heading "Your sign-in email was changed", preheader "Sign in with your new email from now on.", body: "{Manager} changed your sign-in email to {new}.", "Changed {time}.", "From now on, sign in with {new}. This address, {old}, no longer signs in to CSPS.", the signed-out line, "If you didn't expect this, tell a Manager."), sent to the old address when a Manager saves an email at once (D-45). It is in the email preview tool as `manager-changed-email`, so 05-31 shows it; the tool now has eight samples, so 05-31's expected counts are one higher than that plan states. The error text "Choose how the email change applies." (field `emailChange`) also awaits review in 05-37.
 
 ## Review scripts still list /admin/profile as a dev preview (found in plan 05-13)
 
