@@ -13,7 +13,7 @@ public sealed class AppLinksOptions
 
     /// <summary>The failure message for a missing or malformed base URL. It never contains the value.</summary>
     public const string PublicBaseUrlInvalidMessage =
-        "App:PublicBaseUrl must be an absolute https URL with no query or fragment (http is allowed only for localhost). "
+        "App:PublicBaseUrl must be an absolute https URL with no user info, no path, no query and no fragment (http is allowed only for localhost). "
         + "In Development it is set in appsettings.Development.json; in Production set it in the host settings.";
 
     /// <summary>Gets or sets the site's public address, for example <c>https://example.com</c>.</summary>
@@ -39,7 +39,11 @@ public sealed class AppLinksOptions
     internal static bool IsValid(AppLinksOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var url) || !string.IsNullOrEmpty(url.Query) || !string.IsNullOrEmpty(url.Fragment))
+        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var url)
+            || !string.IsNullOrEmpty(url.Query)
+            || !string.IsNullOrEmpty(url.Fragment)
+            || !string.IsNullOrEmpty(url.UserInfo)
+            || url.AbsolutePath != "/")
         {
             return false;
         }
