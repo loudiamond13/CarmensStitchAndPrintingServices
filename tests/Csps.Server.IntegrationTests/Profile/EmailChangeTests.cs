@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Auth;
@@ -18,6 +19,7 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
 {
     private const string RequestRoute = "/api/v1/profile/email-change";
     private const string ConfirmRoute = "/api/v1/profile/email-change/confirm";
+    private const string CheckRoute = "/api/v1/profile/email-change/check";
     private const string ConfirmSubject = "Confirm your new CSPS email";
     private const string NoticeSubject = "Your CSPS email is being changed";
 
@@ -349,6 +351,144 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task ALiveLinkIsCheckedWithNoSessionAndTheCheckSpendsNothing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var newEmail = AuthClient.NewEmail();
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, newEmail, staff.Password);
+
+        using var anonymous = AuthClient.CreateClient(factory);
+        using var first = await CheckAsync(anonymous, null, token);
+        using var second = await CheckAsync(anonymous, null, token);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(first)).GetProperty("newEmail").GetString().ShouldBe(newEmail);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        var user = await context.Users.AsNoTracking().SingleAsync(row => row.Id == staff.Id, TestContext.Current.CancellationToken);
+        user.Email.ShouldBe(staff.Email);
+        user.PendingEmail.ShouldBe(newEmail);
+        (await context.AccountTokens.AsNoTracking().SingleAsync(row => row.UserId == staff.Id && row.Purpose == EmailChangePurpose, TestContext.Current.CancellationToken)).UsedAt.ShouldBeNull();
+        using var confirm = await ConfirmAsync(anonymous, token);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TheCheckIgnoresWhoeverIsSignedIn()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var mine = AuthClient.CreateClient(factory);
+        using var theirs = AuthClient.CreateClient(factory);
+        var me = await AuthClient.CreateStaffAsync(factory);
+        var someoneElse = await AuthClient.CreateStaffAsync(factory, role: Roles.Admin);
+        var myDevice = await AuthClient.SignInFullyAsync(mine, me);
+        var theirDevice = await AuthClient.SignInFullyAsync(theirs, someoneElse);
+        var newEmail = AuthClient.NewEmail();
+        var token = await RequestAndReadTokenAsync(mine, myDevice.AccessToken, newEmail, me.Password);
+
+        using var withMySession = await CheckAsync(mine, myDevice.AccessToken, token);
+        using var withTheirSession = await CheckAsync(theirs, theirDevice.AccessToken, token);
+
+        withMySession.StatusCode.ShouldBe(HttpStatusCode.OK);
+        withTheirSession.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(withTheirSession)).GetProperty("newEmail").GetString().ShouldBe(newEmail);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not-a-token")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    public async Task AMissingMalformedOrUnknownTokenIsTheSameInvalidAnswerOnTheCheck(string? token)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+
+        using var response = await CheckAsync(client, null, token);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        problem.GetProperty("code").GetString().ShouldBe("email-change.invalid");
+    }
+
+    [Fact]
+    public async Task AUsedLinkAndAReplacedLinkAreTheSameInvalidAnswerOnTheCheck()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var replaced = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        var used = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        using var confirm = await ConfirmAsync(client, used);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var afterReplace = await CheckAsync(client, null, replaced);
+        using var afterUse = await CheckAsync(client, null, used);
+
+        foreach (var response in new[] { afterReplace, afterUse })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("email-change.invalid");
+        }
+    }
+
+    [Fact]
+    public async Task TheCheckWorksUntilTheLastMomentAndIsInvalidAtExactlyTwentyFourHours()
+    {
+        var clock = new SteppedClock();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+
+        clock.Advance(TimeSpan.FromHours(24) - TimeSpan.FromMilliseconds(1));
+        using (var justInTime = await CheckAsync(client, null, token))
+        {
+            justInTime.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        using var expired = await CheckAsync(client, null, token);
+
+        expired.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(expired, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("email-change.invalid");
+    }
+
+    [Fact]
+    public async Task TheCheckOfADeactivatedAccountsLinkIsTheSameInvalidAnswer()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var token = await RequestAndReadTokenAsync(client, device.AccessToken, AuthClient.NewEmail(), staff.Password);
+        await AuthClient.DeactivateAsync(factory, staff.Id);
+
+        using var response = await CheckAsync(client, null, token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task TheTokenOfAnotherPurposeCannotBeCheckedAsAnEmailChange()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var resetToken = await AuthClient.RequestResetTokenAsync(client, staff.Email);
+
+        using var response = await CheckAsync(client, null, resetToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerCannotRequestAChange()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -559,6 +699,14 @@ public sealed class EmailChangeTests(CspsDatabase database) : IClassFixture<Csps
             request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
         }
 
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    // The check is a read-only lookup, so it carries no Idempotency-Key.
+    private static async Task<HttpResponseMessage> CheckAsync(HttpClient client, string? accessToken, string? token)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, CheckRoute, accessToken);
+        request.Content = JsonContent.Create(new { token });
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 

@@ -42,6 +42,8 @@ public sealed class EmailRendererTests
     [InlineData(AuthEmailKind.ManagerReset, "A Manager reset your CSPS password")]
     [InlineData(AuthEmailKind.DeactivatedNotice, "Your CSPS password reset request")]
     [InlineData(AuthEmailKind.Invite, "Set up your CSPS staff account")]
+    [InlineData(AuthEmailKind.EmailChangeConfirm, "Confirm your new CSPS email")]
+    [InlineData(AuthEmailKind.EmailChangeNotice, "Your CSPS email is being changed")]
     public async Task EachKindRendersItsUiSpecSubject(AuthEmailKind kind, string subject)
     {
         var email = AllKinds().Select(data => data.Data).Single(candidate => candidate.Kind == kind);
@@ -86,6 +88,8 @@ public sealed class EmailRendererTests
         { new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At), "Your password was reset", "Ask them for your temporary password.", null, null },
         { new DeactivatedNoticeEmail("paolo.garcia@gmail.com"), "Account deactivated", "Your account is deactivated.", null, null },
         { new InviteEmail("paolo.garcia@gmail.com", Token, At.AddDays(7), At), "You're invited", "Choose your password to get started.", "Set Your Password", $"{BaseUrl}/admin/accept-invite#token={Token}" },
+        { new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"), "Confirm your new email", "This link works for 24 hours.", "Confirm Email", $"{BaseUrl}/admin/confirm-email#token={Token}" },
+        { new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome), "Email change requested", "If this wasn't you, act now.", "Reset Password", $"{BaseUrl}/admin/forgot-password" },
     };
 
     [Theory]
@@ -316,6 +320,57 @@ public sealed class EmailRendererTests
         locked.Subject.ShouldBe("Your CSPS account is locked for 30 minutes");
         locked.Text.ShouldContain("we paused sign-in for 30 minutes.");
         locked.Text.ShouldNotContain("15 minutes");
+    }
+
+    [Fact]
+    public async Task TheConfirmEmailGoesToTheNewAddressWithTheContractWordsAndTheTokenOnlyInTheLink()
+    {
+        var rendered = await RenderAsync(new EmailChangeConfirmEmail("paolo.new@gmail.com", Token, At.AddHours(24), At, "paolo.garcia@gmail.com"));
+        var link = $"{BaseUrl}/admin/confirm-email#token={Token}";
+
+        rendered.Subject.ShouldBe("Confirm your new CSPS email");
+        rendered.Text.ShouldContain("You asked to change the sign-in email for your CSPS staff account from paolo.garcia@gmail.com to paolo.new@gmail.com.");
+        rendered.Text.ShouldContain("Open the link to confirm. It works for 24 hours and only once.");
+        rendered.Text.ShouldContain("Didn't ask for this? Ignore this email. Nothing changes.");
+        rendered.Text.ShouldContain($"Confirm Email: {link}");
+        CountOf(rendered.Text, Token).ShouldBe(1);
+        CountOf(rendered.Html, Token).ShouldBe(2);
+        rendered.Subject.ShouldNotContain(Token);
+        rendered.Html.ShouldContain($"href=\"{link}\"");
+    }
+
+    [Fact]
+    public async Task TheNoticeGoesToTheOldAddressWithTheManilaTimeTheDeviceAndNoToken()
+    {
+        var rendered = await RenderAsync(new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome));
+
+        rendered.Subject.ShouldBe("Your CSPS email is being changed");
+        rendered.Text.ShouldContain("Someone asked to change the sign-in email for your CSPS staff account to paolo.new@gmail.com.");
+        rendered.Text.ShouldContain("Requested Oct 14, 2026, 3:42 PM from Chrome on Android.");
+        rendered.Text.ShouldContain("The change happens only after the new address is confirmed. Until then, you still sign in with paolo.garcia@gmail.com.");
+        rendered.Text.ShouldContain("If this wasn't you, change your password now and tell a Manager.");
+        rendered.Text.ShouldContain($"Reset Password: {BaseUrl}/admin/forgot-password");
+        rendered.Text.ShouldNotContain("#token");
+        rendered.Html.ShouldNotContain("#token");
+        rendered.Text.ShouldNotContain("confirm-email");
+    }
+
+    [Fact]
+    public async Task BothEmailChangeAddressesAreHtmlEncodedAndPlainInTheText()
+    {
+        var confirm = await RenderAsync(new EmailChangeConfirmEmail("new&x<b>@example.com", Token, At.AddHours(24), At, "old&y<i>@example.com"));
+        var notice = await RenderAsync(new EmailChangeNoticeEmail("old&y<i>@example.com", "new&x<b>@example.com", At, Chrome));
+
+        foreach (var rendered in new[] { confirm, notice })
+        {
+            rendered.Html.ShouldContain("new&amp;x&lt;b&gt;@example.com");
+            rendered.Html.ShouldNotContain("<b>");
+            rendered.Html.ShouldNotContain("<i>");
+            rendered.Text.ShouldContain("new&x<b>@example.com");
+        }
+
+        confirm.Html.ShouldContain("old&amp;y&lt;i&gt;@example.com");
+        notice.Html.ShouldContain("old&amp;y&lt;i&gt;@example.com");
     }
 
     [Fact]

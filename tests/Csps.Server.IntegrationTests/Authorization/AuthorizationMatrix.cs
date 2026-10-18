@@ -110,6 +110,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 400, Manager: 400),
         // Confirming it is anonymous (the emailed link is the proof). With no body every caller meets the same invalid-link 404; the session is ignored.
         new("POST", "/api/v1/profile/email-change/confirm", "/api/v1/profile/email-change/confirm", Anonymous: 404, Admin: 404, Manager: 404),
+        // The read-only link check is anonymous too, and answers the same invalid-link 404 for a missing token whoever asks.
+        new("POST", "/api/v1/profile/email-change/check", "/api/v1/profile/email-change/check", Anonymous: 404, Admin: 404, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -141,6 +143,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/invite/check",
             "POST /api/v1/auth/invite/accept",
             "POST /api/v1/profile/email-change/confirm",
+            "POST /api/v1/profile/email-change/check",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
