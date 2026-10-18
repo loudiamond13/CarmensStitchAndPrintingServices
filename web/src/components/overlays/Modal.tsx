@@ -31,6 +31,7 @@ import {
   modalDescriptionClasses,
   modalFootClasses,
   modalHeadClasses,
+  modalHeadTextClasses,
   modalTitleClasses,
   overlayClasses,
   type ModalVariant,
@@ -235,7 +236,7 @@ function MountedModal({
         tabIndex={-1}
       >
         <header className={modalHeadClasses}>
-          <div>
+          <div className={modalHeadTextClasses}>
             <h2 id={titleId} className={modalTitleClasses}>
               {title}
             </h2>

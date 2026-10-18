@@ -36,6 +36,24 @@ const FULL_NAME = `${LONG_FIRST} ${LONG_LAST}`;
 /** True when the page does not scroll sideways (a page script: the node program has no DOM). */
 const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
 
+/** The widest elements when the page scrolls sideways, so a failure names them (a page script). */
+const READ_OFFENDERS = `(() => {
+  const edge = document.documentElement.clientWidth + 0.5;
+  const wide = [...document.body.querySelectorAll('*')].filter(
+    (element) => element.getClientRects().length > 0 && element.getBoundingClientRect().right > edge,
+  );
+  const outermost = wide.filter((element) => !wide.some((other) => other !== element && other.contains(element)));
+  return outermost.slice(0, 6).map((element) => element.tagName.toLowerCase() + '.' + String(element.className).slice(0, 60) + ' right ' + Math.round(element.getBoundingClientRect().right));
+})()`;
+
+/** The page does not scroll sideways; when it does, the failure names the elements that stick out. */
+async function expectNoSidewaysScroll(page: Page, what: string): Promise<void> {
+  if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
+    const offenders = await page.evaluate<string[]>(READ_OFFENDERS);
+    expect(offenders, `${what}: no sideways scroll`).toEqual([]);
+  }
+}
+
 interface Fit {
   readonly left: number;
   readonly right: number;
@@ -394,7 +412,7 @@ test('@long-text four-chip toolbars wrap on Users and on the Audit Log at 320 px
   await expect(page.getByText('Role: Admin')).toBeVisible();
   await expect(page.getByText('Status: Active')).toBeVisible();
   await expectTruncates(page.getByText(`Search: ${longSearch}`), 'Users: the long Search chip', longSearch);
-  expect(await page.evaluate(NO_SIDEWAYS_SCROLL), 'Users: no sideways scroll').toBe(true);
+  await expectNoSidewaysScroll(page, 'Users');
   await expectNoAxeViolations(page);
 
   // The Audit Log has four chips (Range, Done by, Action, Done to): the two people are the long-named one.
@@ -404,6 +422,6 @@ test('@long-text four-chip toolbars wrap on Users and on the Audit Log at 320 px
   await expect(page.getByText('Action: User details changed')).toBeVisible();
   await expectTruncates(page.getByText(`Done by: ${FULL_NAME}`), 'Audit Log: the Done by chip', FULL_NAME);
   await expectTruncates(page.getByText(`Done to: ${FULL_NAME}`), 'Audit Log: the Done to chip', FULL_NAME);
-  expect(await page.evaluate(NO_SIDEWAYS_SCROLL), 'Audit Log: no sideways scroll').toBe(true);
+  await expectNoSidewaysScroll(page, 'Audit Log');
   await expectNoAxeViolations(page);
 });

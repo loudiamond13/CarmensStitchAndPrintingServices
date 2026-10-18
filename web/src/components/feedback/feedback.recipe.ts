@@ -22,9 +22,10 @@ export const emptyTitleClasses = tw('m-0 font-display text-[26px] leading-[1.1] 
 /**
  * `.csp-empty-msg`: 14px/20px `--ink-muted`, at most 380px wide. Its own `margin: 0 0 12px` never applies in the
  * approved design: App. C `.s-page p { margin: 0 }` is more specific and comes later, and every EmptyState sits inside
- * the page root, so the computed margin is 0 and the gap above the action is the column's 8px.
+ * the page root, so the computed margin is 0 and the gap above the action is the column's 8px. A long name in the
+ * sentence (a no-match line) wraps anywhere, so it stays inside the screen.
  */
-export const emptyMessageClasses = tw('m-0 max-w-[380px] text-[14px] leading-5 text-ink-muted');
+export const emptyMessageClasses = tw('m-0 max-w-[380px] text-[14px] leading-5 wrap-anywhere text-ink-muted');
 
 /**
  * `.csp-skel`: a block shimmering from `--surface-2` through `--line` (background 200% wide, 1.4s). Its size and radius
@@ -62,8 +63,8 @@ export const toastIconToneClasses = {
   warning: tw('text-warning'),
 } as const satisfies Record<ToastTone, string>;
 
-/** `.csp-toast-text`: the bold title over the message, 14px/20px, taking the free width. */
-export const toastTextClasses = tw('flex flex-1 flex-col pt-1.5 text-[14px] leading-5');
+/** `.csp-toast-text`: the bold title over the message, 14px/20px, taking the free width; a long name wraps anywhere. */
+export const toastTextClasses = tw('flex flex-1 flex-col pt-1.5 text-[14px] leading-5 wrap-anywhere');
 
 /** `.csp-toast-text span`: the message in `--ink-muted`. */
 export const toastMessageClasses = tw('text-ink-muted');

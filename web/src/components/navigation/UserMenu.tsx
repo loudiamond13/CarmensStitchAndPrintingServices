@@ -109,7 +109,9 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
       >
         <Avatar name={user.name} size={32} />
         <span className={userMenuTextClasses}>
-          <strong className={userMenuNameClasses}>{user.name}</strong>
+          <strong className={userMenuNameClasses} title={user.name}>
+            {user.name}
+          </strong>
           <span className={userMenuRoleClasses}>{role === 'manager' ? 'Manager' : 'Admin'}</span>
         </span>
         <Icon name="chevron-down" size={16} className={userMenuChevronClasses} />

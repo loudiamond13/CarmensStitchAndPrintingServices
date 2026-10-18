@@ -5,6 +5,7 @@
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { settle } from './sweep.ts';
 import { createStaff } from './testing-api.ts';
 
 /** The geometry the tests read in the page (a page script: the node program has no DOM). */
@@ -358,6 +359,8 @@ for (const { path, shell } of PHASE5_SCREENS) {
       await page.evaluate('document.fonts.ready.then(() => true)');
       for (const viewport of SWEEP_VIEWPORTS) {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        // The list screens switch between table and cards by container query: read after the layout has settled.
+        await settle(page);
         const reading = await page.evaluate<Sideways>(READ_SIDEWAYS);
         if (reading.scrollWidth > reading.clientWidth) {
           failures.push(

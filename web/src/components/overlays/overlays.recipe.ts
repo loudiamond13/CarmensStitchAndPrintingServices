@@ -113,6 +113,9 @@ export function modalClasses({ variant, inline }: LayerOptions): string {
 /** `.csp-modal-head`: the title block and the Close button, 24px/24px/16px padding, a `--line` rule under it. */
 export const modalHeadClasses = tw('flex items-start justify-between gap-4 border-b border-line px-6 pt-6 pb-4');
 
+/** The title block (title and description): a long name wraps anywhere beside the Close button instead of widening the dialog. */
+export const modalHeadTextClasses = tw('wrap-anywhere');
+
 /** `.csp-modal-title`: the display face, 700, 24px with a 1.1 line height. */
 export const modalTitleClasses = tw('m-0 font-display text-[24px] leading-[1.1] font-bold');
 

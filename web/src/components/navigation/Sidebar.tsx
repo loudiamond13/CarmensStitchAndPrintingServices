@@ -29,6 +29,7 @@ import {
   sidebarTopLayoutClasses,
   sidebarUserClasses,
   sidebarUserNameClasses,
+  sidebarUserTextClasses,
   sidebarUserRoleClasses,
   sidebarWidthClasses,
 } from './navigation.recipe';
@@ -166,8 +167,10 @@ export function Sidebar({
         {user !== undefined && !collapsed && (
           <div className={sidebarUserClasses}>
             <Avatar name={user.name} size={32} context="sidebar" />
-            <div>
-              <strong className={sidebarUserNameClasses}>{user.name}</strong>
+            <div className={sidebarUserTextClasses}>
+              <strong className={sidebarUserNameClasses} title={user.name}>
+                {user.name}
+              </strong>
               <span className={sidebarUserRoleClasses}>{role === 'manager' ? 'Manager' : 'Admin'}</span>
             </div>
           </div>

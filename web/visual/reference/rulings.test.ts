@@ -38,6 +38,7 @@ const RULING_IDS = [
   'OQ-8',
   'OQ-9',
   'P5 D-35',
+  'P5 long-text',
 ] as const;
 
 interface Group {
@@ -297,6 +298,21 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
       ['.csp-modal', '.csp-overlay', '.csp-skel', '.csp-toast'].sort(),
     );
     expect(rules.map((rule) => normalize(rule.body))).toEqual(['animation: none;']);
+  });
+
+  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line', () => {
+    const groupsOfLongText = byRuling('P5 long-text');
+
+    expect(groupsOfLongText.map((group) => normalize(group.prelude))).toEqual([
+      '.csp-sidebar-user > div',
+      '.csp-sidebar-user strong, .csp-usermenu-text strong',
+      '.csp-usermenu-text',
+    ]);
+    expect(groupsOfLongText.map((group) => normalize(group.body))).toEqual([
+      'min-width: 0;',
+      'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+      'max-width: 200px;',
+    ]);
   });
 
   it('D-31 D-BL-02: the Manager tag is hidden on the current sidebar row', () => {

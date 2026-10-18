@@ -71,8 +71,11 @@ export const sidebarUserClasses = tw(
   'mb-1 flex items-center gap-3 border-b-2 border-dashed border-line px-2 pt-2 pb-3 pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-user strong`. */
-export const sidebarUserNameClasses = tw('block text-[14px] leading-[18px]');
+/** P5 long-text: the name and role column may shrink below its content, so a long name is cut short instead of widening the chip. */
+export const sidebarUserTextClasses = tw('min-w-0');
+
+/** `.csp-sidebar-user strong`; P5 long-text: one line, cut short with an ellipsis (the whole name stays in the text). */
+export const sidebarUserNameClasses = tw('block truncate text-[14px] leading-[18px]');
 
 /** `.csp-sidebar-user span`. */
 export const sidebarUserRoleClasses = tw('text-[12px] leading-4 text-nav-ink');
@@ -192,11 +195,11 @@ export const userMenuChevronClasses = tw(
   'transition-transform duration-200 ease-[ease] group-aria-expanded/um:rotate-180 motion-reduce:duration-0',
 );
 
-/** `.csp-usermenu-text`: the name over the role, hidden on phones. */
-export const userMenuTextClasses = tw('flex flex-col text-left leading-4 pg-phone:hidden');
+/** `.csp-usermenu-text`: the name over the role, hidden on phones; P5 long-text: at most 200px wide. */
+export const userMenuTextClasses = tw('flex max-w-[200px] flex-col text-left leading-4 pg-phone:hidden');
 
-/** `.csp-usermenu-text strong`. */
-export const userMenuNameClasses = tw('text-[14px] leading-[18px] text-ink');
+/** `.csp-usermenu-text strong`; P5 long-text: one line, cut short with an ellipsis (the whole name stays in the text). */
+export const userMenuNameClasses = tw('truncate text-[14px] leading-[18px] text-ink');
 
 /** `.csp-usermenu-text span`. */
 export const userMenuRoleClasses = tw('text-[12px]');
