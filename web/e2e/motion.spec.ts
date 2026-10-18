@@ -279,3 +279,117 @@ test('@motion drawer cls: opening and closing the drawer shifts no layout', asyn
   const after = await page.evaluate<number>('window.__cspsLayoutShift');
   expect(after - before, 'layout shift added by opening and closing').toBeLessThan(0.05);
 });
+
+// ── D-35: the user menu ──
+
+const MENU_VIEWPORTS = [
+  { label: 'desktop', width: 1440, height: 900 },
+  { label: 'phone', width: 390, height: 844 },
+] as const;
+
+interface MenuSample {
+  readonly attached: boolean;
+  readonly state: string | null;
+  readonly animationName: string;
+  readonly chevronTransform: string;
+  readonly chevronDuration: string;
+  readonly expanded: string | null;
+}
+
+const DESCRIBE_MENU = `(() => {
+  const popover = document.querySelector('[role="menu"]');
+  const button = document.querySelector('button[aria-haspopup="menu"]');
+  const chevron = button.lastElementChild;
+  return {
+    attached: popover !== null && popover.isConnected,
+    state: popover === null ? null : popover.getAttribute('data-state'),
+    animationName: popover === null ? '' : getComputedStyle(popover).animationName,
+    chevronTransform: getComputedStyle(chevron).transform,
+    chevronDuration: getComputedStyle(chevron).transitionDuration,
+    expanded: button.getAttribute('aria-expanded'),
+  };
+})()`;
+
+async function openAdminAt(page: Page, width: number, height: number): Promise<void> {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width, height });
+  const response = await page.goto('/admin');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Dashboard');
+}
+
+/** Clicks the user-menu button and describes the menu `delay` ms later, inside one page task. */
+function openMenuAndSample(page: Page, delay: number): Promise<MenuSample> {
+  return page.evaluate(`new Promise((resolve) => {
+    document.querySelector('button[aria-haspopup="menu"]').click();
+    setTimeout(() => resolve(${DESCRIBE_MENU}), ${String(delay)});
+  })`);
+}
+
+/** Presses Esc in the open menu and describes it `delay` ms later, inside one page task. */
+function escapeMenuAndSample(page: Page, delay: number): Promise<MenuSample> {
+  return page.evaluate(`new Promise((resolve) => {
+    document.querySelector('[role="menu"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    setTimeout(() => resolve(${DESCRIBE_MENU}), ${String(delay)});
+  })`);
+}
+
+/** True when a computed transform is a half turn (matrix(-1, ~0, ~0, -1, 0, 0)). */
+function isHalfTurn(transform: string): boolean {
+  const numbers = /^matrix\((.+)\)$/.exec(transform)?.[1]?.split(',').map(Number) ?? [];
+  const [a, b, c, d] = numbers;
+  return (
+    a !== undefined &&
+    b !== undefined &&
+    c !== undefined &&
+    d !== undefined &&
+    Math.abs(a + 1) < 0.001 &&
+    Math.abs(d + 1) < 0.001 &&
+    Math.abs(b) < 0.001 &&
+    Math.abs(c) < 0.001
+  );
+}
+
+for (const { label, width, height } of MENU_VIEWPORTS) {
+  test(`@motion user menu: ${label} pops in, turns the chevron, plays its exit, then leaves the DOM`, async ({
+    page,
+  }) => {
+    await openAdminAt(page, width, height);
+
+    const early = await openMenuAndSample(page, 40);
+    expect(early.state).toBe('open');
+    expect(early.animationName).toBe('csp-pop-in');
+    expect(early.expanded).toBe('true');
+    // The entry animation and the chevron transition have finished.
+    await page.waitForTimeout(350);
+    const open = await page.evaluate<MenuSample>(DESCRIBE_MENU);
+    expect(isHalfTurn(open.chevronTransform), open.chevronTransform).toBe(true);
+
+    const closing = await escapeMenuAndSample(page, 40);
+    expect(closing.attached, 'still attached while the exit plays').toBe(true);
+    expect(closing.state).toBe('closed');
+    expect(closing.animationName).toBe('csp-pop-out');
+    expect(closing.expanded).toBe('false');
+
+    await page.waitForTimeout(300);
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(page.locator('button[aria-haspopup="menu"]')).toBeFocused();
+    const closed = await page.evaluate<MenuSample>(DESCRIBE_MENU);
+    expect(isHalfTurn(closed.chevronTransform), 'the chevron turned back').toBe(false);
+  });
+
+  test(`@motion user menu reduced: ${label} does not move under reduced motion and leaves the DOM at once`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openAdminAt(page, width, height);
+
+    const opened = await openMenuAndSample(page, 40);
+    expect(opened.animationName).toBe('none');
+    expect(opened.chevronDuration).toBe('0s');
+
+    const early = await escapeMenuAndSample(page, 40);
+    expect(early.attached, JSON.stringify(early)).toBe(false);
+    await expect(page.locator('button[aria-haspopup="menu"]')).toBeFocused();
+  });
+}
