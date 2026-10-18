@@ -152,9 +152,10 @@ public interface IUserAccounts
     Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Changes the details a Manager edits on another person (names now; the role and the email follow) when
+    /// Changes the details a Manager edits on another person (names and role; the email follows) when
     /// <paramref name="expectedVersion"/> is the stored edit version, and rotates that version (SEC-07). Identity bookkeeping
-    /// never rotates it. Values that already match change nothing.
+    /// never rotates it. Values that already match change nothing. A role change swaps the person's one role in the same
+    /// unit of work; ending their sessions is the caller's job.
     /// </summary>
     /// <param name="id">The account id.</param>
     /// <param name="change">The new values, already trimmed.</param>
@@ -223,7 +224,8 @@ public readonly record struct EditResult(EditOutcome Outcome, Guid Version);
 /// <summary>The new values of a Manager's edit of another person.</summary>
 /// <param name="FirstName">The new given name, already trimmed.</param>
 /// <param name="LastName">The new family name, already trimmed.</param>
-public sealed record UserDetailsChange(string FirstName, string LastName);
+/// <param name="Role">The new role (<c>Admin</c> or <c>Manager</c>); null leaves the role alone.</param>
+public sealed record UserDetailsChange(string FirstName, string LastName, string? Role = null);
 
 /// <summary>The audit names of the fields a staff edit can change (field names only, D-40).</summary>
 public static class EditedFields
@@ -233,13 +235,17 @@ public static class EditedFields
 
     /// <summary>The family name.</summary>
     public const string LastName = "last-name";
+
+    /// <summary>The role.</summary>
+    public const string Role = "role";
 }
 
 /// <summary>The result of <see cref="IUserAccounts.UpdateDetailsAsync"/>.</summary>
 /// <param name="Outcome">What happened.</param>
 /// <param name="Version">The edit version now stored; empty when the account was not found.</param>
 /// <param name="ChangedFields">The fields that really changed, as <see cref="EditedFields"/> names; empty unless it saved.</param>
-public sealed record DetailsEditResult(EditOutcome Outcome, Guid Version, IReadOnlyList<string> ChangedFields)
+/// <param name="PreviousRole">The role the person held before, when the role changed; otherwise null.</param>
+public sealed record DetailsEditResult(EditOutcome Outcome, Guid Version, IReadOnlyList<string> ChangedFields, string? PreviousRole = null)
 {
     /// <summary>Gets the outcome and version as the plain edit result.</summary>
     public EditResult Edit => new(Outcome, Version);

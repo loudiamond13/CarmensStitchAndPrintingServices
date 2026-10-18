@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T06:15:00-05:00
+updated: 2026-10-18T06:30:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -86,7 +86,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.signed-in` | A sign-in completes and a session starts | `UserSession` id | none | `Record` |
 | `auth.refresh-reuse-detected` | A used refresh token is presented again and the session is revoked | `UserSession` id | none | `RecordIndependentlyAsync` |
 | `auth.signed-out` | A user signs out of the current session | `UserSession` id | none | `Record` |
-| `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others`, `password-reset` `password-changed` (the person changed their password from My Profile; written only when another device was signed out) or `account-changed` (a Manager deactivated or reactivated the person; written only when a session was open) | `Record` |
+| `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others`, `password-reset` `password-changed` (the person changed their password from My Profile; written only when another device was signed out) or `account-changed` (a Manager deactivated or reactivated the person, or changed their role; written only when a session was open) | `Record` |
 | `auth.session-revoked` | One session is revoked: a deactivated or locked account tries to refresh, or a user signs out one of their other devices (`DELETE /api/v1/sessions/{id}`; nothing is written for a session already gone or refused) | `UserSession` id | none | `Record` |
 | `auth.password-reset-requested` | Forgot-password is asked for any address | `User` id; none for an unknown address | `sent` (link emailed), `deactivated` (notice emailed), `manager-locked` (a Manager locked the account: nothing is sent, D-41), `unknown-account` (nothing sent; also an unconfirmed account) or `capped` (3 emails in the hour, nothing sent). Never the email or the token | `Record` |
 | `auth.password-reset-completed` | A password reset finishes | `User` id | none | `Record` |
@@ -101,6 +101,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `user.deactivated` | A Manager deactivates a user (`POST /api/v1/users/{id}/deactivate`) | `User` id (the person deactivated) | none. Never the name or email. Written only when the state changed, so repeating it adds nothing | `Record`, in the same transaction as the state change, the session revocation and (when a session was open) the `auth.sessions-revoked` entry with detail `account-changed`; the actor is the Manager |
 | `user.activated` | A Manager reactivates a user (`POST /api/v1/users/{id}/activate`) | `User` id (the person reactivated) | none. Written only when the state changed | `Record`, in the same transaction as the state change; the actor is the Manager |
 | `user.details-changed` | A Manager saves another person's first or last name that differs from the stored one (`PUT /api/v1/users/{id}`). A save of the same values, a stale save, an invalid save and a save on the caller's own account write nothing | `User` id (the person edited) | `fields=first-name`, `fields=last-name` or `fields=first-name,last-name`. Never the old or new name | `Record`, in the same transaction as the name save; the actor is the Manager |
+| `user.role-changed` | A Manager saves another person with a different role (`PUT /api/v1/users/{id}`). A save that keeps the role, a stale save, an invalid save, a refused demotion of the last active Manager and a save on the caller's own account write nothing | `User` id (the person edited) | `role=admin>manager` or `role=manager>admin` (old to new, lower case). Never a name or email | `Record`, in the same transaction as the role swap, the revocation of every session of the person and (when a session was open) `auth.sessions-revoked` with detail `account-changed`; a name change in the same save is its own `user.details-changed` entry; the actor is the Manager |
 
 ## Phase 5 profile and staff events (USER-06)
 

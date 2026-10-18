@@ -2985,7 +2985,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409\r\n`edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`).\r\nSaving the values already stored is a 200 that changes and records nothing.",
+        "summary": "Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409\r\n`edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`),\r\nand cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends every session of the\r\nperson at once. Saving the values already stored is a 200 that changes and records nothing.",
         "tags": [
           "Users"
         ]

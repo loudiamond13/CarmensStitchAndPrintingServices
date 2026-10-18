@@ -289,7 +289,7 @@ internal sealed class UserAccounts(
                 return new DetailsEditResult(EditOutcome.Stale, user.EditVersion, []);
             }
 
-            var changed = new List<string>(2);
+            var changed = new List<string>(3);
             if (!string.Equals(user.FirstName, change.FirstName, StringComparison.Ordinal))
             {
                 changed.Add(EditedFields.FirstName);
@@ -300,10 +300,22 @@ internal sealed class UserAccounts(
                 changed.Add(EditedFields.LastName);
             }
 
+            var previousRole = change.Role is null ? null : (await users.GetRolesAsync(user).ConfigureAwait(false)).FirstOrDefault();
+            var roleChanges = change.Role is not null && !string.Equals(previousRole, change.Role, StringComparison.Ordinal);
+            if (roleChanges)
+            {
+                changed.Add(EditedFields.Role);
+            }
+
             if (changed.Count == 0)
             {
                 return new DetailsEditResult(EditOutcome.Unchanged, user.EditVersion, []);
             }
+
+            // Looked up before the version is rotated, so an unknown role leaves the account untouched.
+            var newRole = roleChanges
+                ? await roles.FindByNameAsync(change.Role!).ConfigureAwait(false) ?? throw new InvalidOperationException($"The role '{change.Role}' does not exist.")
+                : null;
 
             // The UPDATE's WHERE carries the version the form was opened with, so a racing save changes no row.
             context.Entry(user).Property(static account => account.EditVersion).OriginalValue = expectedVersion;
@@ -314,7 +326,12 @@ internal sealed class UserAccounts(
             var result = await users.UpdateAsync(user).ConfigureAwait(false);
             if (result.Succeeded)
             {
-                return new DetailsEditResult(EditOutcome.Saved, user.EditVersion, changed);
+                if (newRole is not null)
+                {
+                    await SwapRoleAsync(id, newRole.Id, cancellationToken).ConfigureAwait(false);
+                }
+
+                return new DetailsEditResult(EditOutcome.Saved, user.EditVersion, changed, roleChanges ? previousRole : null);
             }
 
             if (attempt == CountAttempts || !IsConcurrencyFailure(result))
@@ -405,6 +422,15 @@ internal sealed class UserAccounts(
 
             await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    // A person holds exactly one role. Only the link rows change, so the account row is not written a second time.
+    private async Task SwapRoleAsync(Guid id, Guid roleId, CancellationToken cancellationToken)
+    {
+        var links = await context.UserRoles.Where(link => link.UserId == id).ToListAsync(cancellationToken).ConfigureAwait(false);
+        context.UserRoles.RemoveRange(links);
+        context.UserRoles.Add(new IdentityUserRole<Guid> { UserId = id, RoleId = roleId });
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     // The stamp interceptor writes the signed-in user, or null with nobody signed in, over an unchanged UpdatedById. A second

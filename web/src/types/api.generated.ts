@@ -426,9 +426,10 @@ export interface paths {
         /** Reads one person with their edit version and who created and last changed them (SEC-08). */
         get: operations["GetUser"];
         /**
-         * Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409
-         *     `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`).
-         *     Saving the values already stored is a 200 that changes and records nothing.
+         * Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409
+         *     `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422 `users.own-account`),
+         *     and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends every session of the
+         *     person at once. Saving the values already stored is a 200 that changes and records nothing.
          */
         put: operations["UpdateUser"];
         post?: never;

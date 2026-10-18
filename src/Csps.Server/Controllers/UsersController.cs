@@ -96,14 +96,15 @@ public sealed class UsersController(
     }
 
     /// <summary>
-    /// Edits another person's name (USER-03). The version must be the one the form was opened with: any other answers 409
-    /// <c>edit.stale</c> and changes nothing (SEC-07). A Manager cannot edit their own account here (422 <c>users.own-account</c>).
-    /// Saving the values already stored is a 200 that changes and records nothing.
+    /// Edits another person's name and role (USER-03). The version must be the one the form was opened with: any other answers 409
+    /// <c>edit.stale</c> and changes nothing (SEC-07). A Manager cannot edit their own account here (422 <c>users.own-account</c>),
+    /// and cannot demote the last active Manager (422 <c>users.last-active-manager</c>). A role change ends every session of the
+    /// person at once. Saving the values already stored is a 200 that changes and records nothing.
     /// </summary>
     /// <param name="id">The account id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the person as saved, 400 for field errors, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when the form is out of date, or 422 for the caller's own account.</returns>
+    /// <returns>200 with the person as saved, 400 for field errors, 401 without a valid token, 403 for an Admin, 404 when the person does not exist or was deleted, 409 when the form is out of date, or 422 for the caller's own account or the last active Manager.</returns>
     [HttpPut("{id:guid}")]
     [EndpointName("UpdateUser")]
     [ProducesResponseType<UserDetailResponse>(StatusCodes.Status200OK)]
