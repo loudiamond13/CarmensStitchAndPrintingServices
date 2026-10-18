@@ -47,7 +47,8 @@ function problemResponse(status: number, body: JsonBodyType = { title: 'No', sta
   return HttpResponse.json(body, { status, headers: problem });
 }
 
-const invalidLink = () => problemResponse(404, { title: 'This link has expired', status: 404, code: 'email-change.invalid' });
+const invalidLink = () =>
+  problemResponse(404, { title: 'This link has expired', status: 404, code: 'email-change.invalid' });
 const takenLink = () =>
   problemResponse(409, { title: "This email can't be used.", status: 409, code: 'email-change.taken' });
 
@@ -216,7 +217,7 @@ describe('P3 confirming', () => {
       confirm: () => {
         calls += 1;
         return calls === 1
-          ? problemResponse(503, { title: 'Down', status: 503 })
+          ? problemResponse(500, { title: 'Down', status: 500 })
           : HttpResponse.json({ newEmail: NEW_EMAIL });
       },
     });
@@ -251,7 +252,7 @@ describe('P3 confirming', () => {
     });
   });
 
-  it('turns to the can\'t-be-used state, naming the address, when another account took it before the press', async () => {
+  it("turns to the can't-be-used state, naming the address, when another account took it before the press", async () => {
     const user = userEvent.setup();
     answer({ confirm: takenLink });
     renderConfirm();
@@ -304,7 +305,7 @@ describe('P3 invalid, taken and failed links', () => {
     await expectNoAxeViolations(document.body);
   });
 
-  it('shows the can\'t-be-used state when the address was taken before the link was opened', async () => {
+  it("shows the can't-be-used state when the address was taken before the link was opened", async () => {
     answer({ check: takenLink });
     renderConfirm();
 

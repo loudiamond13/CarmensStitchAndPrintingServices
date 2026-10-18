@@ -8,7 +8,7 @@
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
 //     come in Phases 5-9 show the page-not-found screen inside the shell.
-//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite` and `admin/login/new-password`) sit in a pathless
+//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the D-22
 //     Component Showcase, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing there ships.
@@ -59,6 +59,10 @@ const resetPasswordPage = /* @__PURE__ */ lazyRoute(async () => ({
 
 const acceptInvitePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AcceptInvitePage')).AcceptInviteRoute,
+}));
+
+const confirmEmailPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ConfirmEmailPage')).ConfirmEmailRoute,
 }));
 
 const sessionsPage = /* @__PURE__ */ lazyRoute(async () => ({
@@ -130,6 +134,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'admin/reset-password', lazy: resetPasswordPage },
           // No sign-in check: an invite link works signed in or not.
           { path: 'admin/accept-invite', lazy: acceptInvitePage },
+          // No sign-in check: an email change link works signed in or not.
+          { path: 'admin/confirm-email', lazy: confirmEmailPage },
         ],
       },
     ],

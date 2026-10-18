@@ -49,4 +49,40 @@ export const PROFILE_COPY = {
     cta: 'View Signed-in Devices',
     path: '/admin/sessions',
   },
+  // SPEC-GAP: P3 Confirm your email, opened from the link sent to the new address (C-17, PROF-02).
+  confirmEmail: {
+    title: 'Confirm your email',
+    checking: 'Checking your link…',
+    checked: 'Link checked.',
+    /** The link could not be checked (network, 429, 5xx): the screen offers the check again. */
+    checkFailed: 'We could not check your link yet.',
+    retry: 'Try Again',
+    /** "Change your CSPS sign-in email to {new email}?" */
+    ready: { before: 'Change your CSPS sign-in email to ', after: '?' },
+    confirm: 'Confirm New Email',
+    confirming: 'Confirming',
+    back: 'Back to sign in',
+    done: {
+      title: 'Your email is changed',
+      /** "From now on, sign in with {new email}." */
+      body: { before: 'From now on, sign in with ', after: '.' },
+      continue: 'Continue to CSPS Admin',
+      path: '/admin',
+    },
+    invalid: {
+      title: 'This link has expired',
+      body: 'Email change links work for 24 hours and only once. Start the change again from My Profile.',
+    },
+    taken: {
+      title: "This email can't be used",
+      /** "Another account now uses {new email}. Start the change again from My Profile with a different email." */
+      body: {
+        before: 'Another account now uses ',
+        after: '. Start the change again from My Profile with a different email.',
+      },
+      /** The check's 409 does not name the address, so a taken link opened later says "this email". */
+      bodyNoAddress:
+        'Another account now uses this email. Start the change again from My Profile with a different email.',
+    },
+  },
 } as const;
