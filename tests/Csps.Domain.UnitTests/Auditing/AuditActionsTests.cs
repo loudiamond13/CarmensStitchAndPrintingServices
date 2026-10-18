@@ -51,6 +51,6 @@ public sealed class AuditActionsTests
     public void LockoutAndSessionRevokeDetailsAreFixed()
     {
         AuditActions.LockoutDetails.ShouldBe(["password", "code"]);
-        AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset"]);
+        AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset", "password-changed"]);
     }
 }
