@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-18-PLAN.md
-last_updated: "2026-10-18T08:09:29.452Z"
+stopped_at: Completed 05-19-PLAN.md
+last_updated: "2026-10-18T08:33:20.299Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: ce32d12e03f9825b29f216fcade6d6cd19201201
+state_head: 7ad8389ed97bae6fe8c5ba56396df9a315f5d74f
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 134
+  completed_plans: 135
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T03:13:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 21 of 43
+Plan: 22 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -190,6 +190,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P16 | 23 min | 2 tasks | 12 files |
 | Phase 05 P17 | 20 min | 3 tasks | 22 files |
 | Phase 05 P18 | 45 min | 3 tasks | 17 files |
+| Phase 05 P19 | 24 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -490,6 +491,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-18: Sign-in Email card hides Change Email while a change waits (UI-SPEC either/or); replacing a pending change means Cancel Change first. Owner may rule in the 05-37 review
 - [Phase 05]: 05-18: useSubmission with no data (Resend Link, Cancel Change) is reset after success, else the same-data rule makes the next press send nothing
 - [Phase 05]: 05-18: NewPasswordFields is generic over a form with at least the pair, so the profile form can add Current password; lock line is the server's own detail (profile.password-locked)
+- [Phase 05]: 05-19: a taken address is signalled by EmailInUseException from IUserAccounts.CreateAsync (Identity's duplicate check and the unique-index violation, which also detaches the failed row); CreateUserHandler turns it into the 400 on field email
+- [Phase 05]: 05-19: POST /api/v1/users accepts role and access in any letter case, an invitation ignores a temporaryPassword sent with it, and the temporary-password empty message is 'Enter a temporary password.'; CreateUserRequest.ToString hides the password
 
 ### Pending Todos
 
@@ -549,6 +552,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T08:09:28.746Z
-Stopped at: Completed 05-18-PLAN.md
+Last session: 2026-10-18T08:33:19.637Z
+Stopped at: Completed 05-19-PLAN.md
 Resume file: None
