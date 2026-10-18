@@ -48,6 +48,10 @@ builder.Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
 
+// The signed-in user for the SEC-08 attribution stamp. A singleton (the context factory is built from the root
+// provider), read per call from the accessor; registered before AddInfrastructure so its no-actor default is not used.
+builder.Services.AddSingleton<ICurrentActor, HttpCurrentActor>();
+
 // Composes EF Core, the cache and the ports. Never migrates or seeds at startup (D-08).
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 

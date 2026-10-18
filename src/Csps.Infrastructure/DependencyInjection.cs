@@ -117,8 +117,16 @@ public static class DependencyInjection
         // The interceptor wakes the email dispatcher after a commit that added outbox rows.
         services.TryAddSingleton<OutboxSignal>();
         services.TryAddSingleton<OutboxSignalInterceptor>();
+
+        // The one SEC-08 stamping point. The host registers its own ICurrentActor first; a plain collection (tests,
+        // tools) gets the no-actor default, so its writes read as System.
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ICurrentActor, NoCurrentActor>();
+        services.TryAddSingleton<RecordStampInterceptor>();
         services.AddDbContextFactory<CspsDbContext>((provider, options) =>
-            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(provider.GetRequiredService<OutboxSignalInterceptor>()));
+            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(
+                provider.GetRequiredService<OutboxSignalInterceptor>(),
+                provider.GetRequiredService<RecordStampInterceptor>()));
         return services;
     }
 }
