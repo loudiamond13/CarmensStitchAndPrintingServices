@@ -1300,7 +1300,8 @@ describe('U3 Set Temporary Password (USER-07, C-4, D-14, U5)', () => {
     const getsBefore = access.gets;
     await user.click(trigger());
 
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    const dialog = screen.getByRole('dialog', { name: 'Set a temporary password' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Set a temporary password' })).toBeNull();

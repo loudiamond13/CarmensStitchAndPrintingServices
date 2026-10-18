@@ -7,9 +7,10 @@
 //     under the Email field, "Confirm by link" (preselected) or "Save at once" (D-45). `emailChange` is sent only when the
 //     email changed. An invited person has no password: no choice is shown and `confirm` is sent (the server moves the
 //     address at once and re-invites either way).
-//   - Account access (USER-03, USER-07, D-16, D-21; plan 05-30): Lock (through LockUserDialog) and Unlock act at once on the
-//     latest state, with no version. They wait (aria-disabled, with a hint) while the form has unsaved changes. After one
-//     succeeds the person is read again, the roster is told through `onAccountChanged`, and a toast says what happened.
+//   - Account access (USER-03, USER-07, D-16, D-21; plan 05-30): Resend Invitation, Send Reset Link, Lock (through LockUserDialog)
+//     and Unlock act at once on the latest state, with no version. They wait (aria-disabled, with a hint) while the form has unsaved changes. After one
+//     succeeds the person is read again, the roster is told through `onAccountChanged`, and a toast says what happened. Set
+//     Temporary Password opens TemporaryPasswordDialog (stacked); closing it after a success reads the person again.
 // The form lives in a part that is mounted again on every open, so each open reads the person fresh.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
@@ -29,6 +30,7 @@ import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission, type SubmissionState } from '@/lib/forms/useSubmission';
 import { LockUserDialog } from '@/modules/admin/components/LockUserDialog';
 import { RoleField } from '@/modules/admin/components/RoleField';
+import { TemporaryPasswordDialog } from '@/modules/admin/components/TemporaryPasswordDialog';
 import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import {
   usersAccessButtonClasses,
@@ -189,6 +191,9 @@ function EditUserForm({
   // Set when a reload should end with focus on the Unlock button that replaces Lock.
   const focusUnlock = useRef(false);
   const [lockOpen, setLockOpen] = useState(false);
+  const [temporaryOpen, setTemporaryOpen] = useState(false);
+  // True once a temporary password was set in the open dialog: closing it then reads the person again.
+  const temporarySet = useRef(false);
   const query = useUserQuery(userId, open);
   // The person the form was filled from; the version a save sends is this one's.
   const [person, setPerson] = useState<UserDetailResponse | null>(null);
@@ -358,6 +363,8 @@ function EditUserForm({
   // roster is told.
   const lockAction = useSubmission<undefined, unknown>((key) => usersService.lock(userId, key));
   const unlockAction = useSubmission<undefined, unknown>((key) => usersService.unlock(userId, key));
+  const resendAction = useSubmission<undefined, unknown>((key) => usersService.resendInvitation(userId, key));
+  const resetLinkAction = useSubmission<undefined, unknown>((key) => usersService.sendResetLink(userId, key));
   const waiting = isDirty || pending;
   // The buttons point at the hint only while it shows.
   const describedBy = isDirty ? { 'aria-describedby': dirtyHintId } : {};
@@ -405,6 +412,17 @@ function EditUserForm({
       void afterAction(lockAction);
     }
     return outcome;
+  };
+
+  // Closing the temporary password dialog reads the person again when a password was set (the account's version moved).
+  const closeTemporary = (): void => {
+    setTemporaryOpen(false);
+    if (temporarySet.current) {
+      temporarySet.current = false;
+      void readLatest().then(() => {
+        onAccountChanged?.();
+      });
+    }
   };
 
   // The Unlock button that replaced Lock takes focus once the person has been read again.
@@ -577,17 +595,54 @@ function EditUserForm({
           {anyAccess(shown) && (
             <div className={usersAccessButtonsClasses}>
               {shown.resend && (
-                <Button icon="mail" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                <Button
+                  icon="mail"
+                  className={usersAccessButtonClasses}
+                  aria-disabled={waiting}
+                  {...describedBy}
+                  pending={resendAction.pending}
+                  onClick={() => {
+                    void runAction(
+                      resendAction,
+                      { title: ACCESS.toast.resent.title, message: ACCESS.toast.resent.message(person.firstName) },
+                      ACCESS.failed.email,
+                    );
+                  }}
+                >
                   {ACCESS.resend}
                 </Button>
               )}
               {shown.sendReset && (
-                <Button icon="mail" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                <Button
+                  icon="mail"
+                  className={usersAccessButtonClasses}
+                  aria-disabled={waiting}
+                  {...describedBy}
+                  pending={resetLinkAction.pending}
+                  onClick={() => {
+                    void runAction(
+                      resetLinkAction,
+                      {
+                        title: ACCESS.toast.resetSent.title,
+                        message: ACCESS.toast.resetSent.message(person.firstName),
+                      },
+                      ACCESS.failed.email,
+                    );
+                  }}
+                >
                   {ACCESS.sendReset}
                 </Button>
               )}
               {shown.setTemporary && (
-                <Button icon="key-round" className={usersAccessButtonClasses} aria-disabled={waiting} {...describedBy}>
+                <Button
+                  icon="key-round"
+                  className={usersAccessButtonClasses}
+                  aria-disabled={waiting}
+                  {...describedBy}
+                  onClick={() => {
+                    setTemporaryOpen(true);
+                  }}
+                >
                   {ACCESS.setTemporary}
                 </Button>
               )}
@@ -697,6 +752,18 @@ function EditUserForm({
           <div className={usersPanelBodyClasses}>{body}</div>
         </LoadingRegion>
       </Modal>
+      {person !== null && (
+        <TemporaryPasswordDialog
+          open={temporaryOpen}
+          user={person}
+          onSet={(temporaryPassword, idempotencyKey) =>
+            usersService.setTemporaryPassword(userId, temporaryPassword, idempotencyKey).then(() => {
+              temporarySet.current = true;
+            })
+          }
+          onClose={closeTemporary}
+        />
+      )}
       {person !== null && (
         <LockUserDialog
           open={lockOpen}

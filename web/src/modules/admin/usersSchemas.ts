@@ -1,4 +1,4 @@
-// The Add User form's zod schema (OR-3): it mirrors CreateUserRequestValidator, so the browser checks every rule before a
+// The Add User and Set Temporary Password zod schemas (OR-3): they mirror CreateUserRequestValidator and SetTemporaryPasswordRequestValidator, so the browser checks every rule before a
 // request is sent. Both names are trimmed, required and at most 100 UTF-16 code units (the unit the server counts); the
 // email is required and shaped like one; the role and the way to get access are one of their two values; on the temporary
 // route the password meets the basic rule only (04 D-21: length, no control character, a number, a symbol; no name or
@@ -29,6 +29,18 @@ function nameField(required: string, tooLong: string) {
     .refine((name) => name.length <= NAME_MAX_LENGTH, tooLong);
 }
 
+/** Adds the basic-rule message under the temporary password field when the password breaks it (04 D-21: no name or breach check). */
+function checkTemporaryPassword(password: string, context: z.RefinementCtx): void {
+  const failure = checkPasswordComposition(password);
+  if (failure !== null) {
+    context.addIssue({
+      code: 'custom',
+      path: ['temporaryPassword'],
+      message: failure === 'empty' ? COPY.temporaryPasswordRequired : PASSWORD_RULE_MESSAGES[failure],
+    });
+  }
+}
+
 export const createUserSchema = z
   .object({
     firstName: nameField(COPY.firstNameRequired, COPY.firstNameTooLong),
@@ -46,20 +58,15 @@ export const createUserSchema = z
     if (values.access !== 'temporary-password') {
       return;
     }
-    const failure = checkPasswordComposition(values.temporaryPassword);
-    if (failure !== null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['temporaryPassword'],
-        message: failure === 'empty' ? COPY.temporaryPasswordRequired : PASSWORD_RULE_MESSAGES[failure],
-      });
-    }
+    checkTemporaryPassword(values.temporaryPassword, context);
   });
 
 export type CreateUserValues = z.infer<typeof createUserSchema>;
 
-/** The Set Temporary Password dialog (U5): the basic rule only. Stub for the RED commit. */
-export const temporaryPasswordSchema = z.object({ temporaryPassword: z.string() });
+/** The Set Temporary Password dialog (U5; mirrors SetTemporaryPasswordRequestValidator): the basic rule only. */
+export const temporaryPasswordSchema = z.object({ temporaryPassword: z.string() }).superRefine((values, context) => {
+  checkTemporaryPassword(values.temporaryPassword, context);
+});
 
 export type TemporaryPasswordValues = z.infer<typeof temporaryPasswordSchema>;
 

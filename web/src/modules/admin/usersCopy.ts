@@ -207,6 +207,19 @@ export const USERS_COPY = {
     confirm: 'Lock User',
     pending: 'Locking',
   },
+  // SPEC-GAP: the Set Temporary Password dialog (U5, C-4, D-14). The wording is built, not yet approved (D-48). The field label,
+  // hint, New Suggestion and the shown-once step reuse `add.temporaryPassword` and `add.shownOnce`.
+  temporary: {
+    title: 'Set a temporary password',
+    /** "For {First Last}" */
+    description: (name: string): string => `For ${name}`,
+    note: (first: string): string =>
+      `This signs ${first} out on every device and emails them that a Manager reset their password. They'll choose their own password at the next sign-in.`,
+    cancel: 'Cancel',
+    set: 'Set Password',
+    setting: 'Setting',
+    doneTitle: 'Temporary password set',
+  },
   // SPEC-GAP: Activate acts at once, so only its toasts need words (D-48).
   activate: {
     toast: {
