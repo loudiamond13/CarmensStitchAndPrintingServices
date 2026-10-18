@@ -1,3 +1,4 @@
+using System.Globalization;
 using Csps.Application.Common;
 using FluentValidation;
 
@@ -6,8 +7,8 @@ namespace Csps.Application.UnitTests.Common;
 /// <summary>SEC-03: the shared page-size and search caps, counted in UTF-16 code units like the browser's string length.</summary>
 public sealed class ListQueryRulesTests
 {
-    private const string PageSizeMessage = "Use a page size from 1 to 100.";
-    private const string SearchMessage = "Use 100 characters or fewer.";
+    private static readonly string PageSizeMessage = string.Create(CultureInfo.InvariantCulture, $"Use a page size from 1 to {ListQueryLimits.MaxPageSize}.");
+    private static readonly string SearchMessage = string.Create(CultureInfo.InvariantCulture, $"Use {ListQueryLimits.MaxSearchLength} characters or fewer.");
 
     private static readonly TestValidator Validator = new();
 
@@ -54,6 +55,13 @@ public sealed class ListQueryRulesTests
         // Each emoji is two UTF-16 code units, which is what the browser's string length reports.
         Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("\U0001F600", 50)))).IsValid.ShouldBeTrue();
         Validator.Validate(new Query(10, string.Concat(Enumerable.Repeat("\U0001F600", 51)))).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void MessagesReadInPlainEnglishWithTheCurrentCaps()
+    {
+        PageSizeMessage.ShouldBe("Use a page size from 1 to 100.");
+        SearchMessage.ShouldBe("Use 100 characters or fewer.");
     }
 
     [Fact]
