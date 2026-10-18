@@ -173,6 +173,20 @@ internal static class UserFixtures
         changed.ShouldBe(1);
     }
 
+    /// <summary>Posts a lifecycle action (<c>deactivate</c>, <c>activate</c>) for one person with a fresh idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The account id.</param>
+    /// <param name="action">The route segment after the id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ActionAsync(HttpClient client, string? accessToken, Guid id, string action)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/{action}", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads one person's detail.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
