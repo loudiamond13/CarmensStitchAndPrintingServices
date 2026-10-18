@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-17-PLAN.md
-last_updated: "2026-10-18T07:23:42.219Z"
+stopped_at: Completed 05-18-PLAN.md
+last_updated: "2026-10-18T08:09:29.452Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: e470a74840dc55b6d1771090647b54539c34b4fa
+state_head: ce32d12e03f9825b29f216fcade6d6cd19201201
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 133
+  completed_plans: 134
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-18T01:25:00-05:00"
+updated: "2026-10-18T03:13:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 20 of 43
+Plan: 21 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -189,6 +189,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P15 | 18 min | 2 tasks | 18 files |
 | Phase 05 P16 | 23 min | 2 tasks | 12 files |
 | Phase 05 P17 | 20 min | 3 tasks | 22 files |
+| Phase 05 P18 | 45 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -485,6 +486,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-17: roster status is lowercase active|inactive|locked and inviteState none|pending|expired; both are computed by one shared function (UserStatuses.Of, InviteStates.Of) for the list and the detail
 - [Phase 05]: 05-17: roster page is capped at 100000 (400 above) so the row offset cannot overflow; the search is escaped LIKE with backslash as the escape character
 - [Phase 05]: 05-17: detail actors (recordedBy, lastChangedBy) are read from the actors' own rows; a soft-deleted actor keeps the name with formerStaff true, and a pre-Phase-5 account has null actors
+- [Phase 05]: 05-18: ChangeEmailDialog.onSent(newEmail, profile); the page writes the returned profile into the profile query (a pending email does not change the edit version, so the open name form stays current)
+- [Phase 05]: 05-18: Sign-in Email card hides Change Email while a change waits (UI-SPEC either/or); replacing a pending change means Cancel Change first. Owner may rule in the 05-37 review
+- [Phase 05]: 05-18: useSubmission with no data (Resend Link, Cancel Change) is reset after success, else the same-data rule makes the next press send nothing
+- [Phase 05]: 05-18: NewPasswordFields is generic over a form with at least the pair, so the profile form can add Current password; lock line is the server's own detail (profile.password-locked)
 
 ### Pending Todos
 
@@ -544,6 +549,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T07:23:41.495Z
-Stopped at: Completed 05-17-PLAN.md
+Last session: 2026-10-18T08:09:28.746Z
+Stopped at: Completed 05-18-PLAN.md
 Resume file: None
