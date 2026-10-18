@@ -14,12 +14,15 @@
 //   - Every other row also has the status toggle (05-28): "Deactivate {first}" (user-x) opens DeactivateUserDialog, and
 //     "Activate {first}" (user-check) acts at once. Either way the roster reads again and the flipped toggle takes focus. The
 //     dialog sits in the page root, never in a table cell, and stays mounted with `open` so it can play its exit.
+//   - Delete (05-28) opens the shared ConfirmDialog. Once the row is gone, focus goes to the Edit button of the row that took
+//     its place, else the row before, else the h1. A refusal (the last active Manager) or a 404 stays in the dialog.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
 import { useToast } from '@/components/feedback';
 import { isHttpError } from '@/core/api/errors';
 import { Select } from '@/components/forms';
+import { ConfirmDialog } from '@/components/overlays';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -85,6 +88,10 @@ function fullName(user: UserListItem): string {
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
+function isSelf(meId: string | null, user: UserListItem): boolean {
+  return meId !== null && user.id.toLowerCase() === meId.toLowerCase();
+}
+
 /** Active and Locked people are deactivated; only an Inactive one is activated. */
 function toggleLabel(user: UserListItem): string {
   return user.status === 'inactive'
@@ -97,12 +104,13 @@ interface RowWiring {
   edit: (user: UserListItem) => void;
   /** Deactivate opens the confirm; Activate acts at once. */
   toggle: (user: UserListItem) => void;
+  remove: (user: UserListItem) => void;
   registerEdit: (id: string, button: HTMLButtonElement | null) => void;
   registerToggle: (id: string, button: HTMLButtonElement | null) => void;
 }
 
 function columnsFor(meId: string | null, wiring: RowWiring): readonly ResponsiveTableColumn<UserListItem>[] {
-  const isMe = (user: UserListItem): boolean => meId !== null && user.id.toLowerCase() === meId.toLowerCase();
+  const isMe = (user: UserListItem): boolean => isSelf(meId, user);
   return [
     {
       key: 'user',
@@ -158,6 +166,14 @@ function columnsFor(meId: string | null, wiring: RowWiring): readonly Responsive
                 wiring.registerToggle(user.id, button);
               }}
             />
+            <RowAction
+              icon="trash-2"
+              label={COPY.remove.rowDelete(fullName(user))}
+              danger
+              onClick={() => {
+                wiring.remove(user);
+              }}
+            />
           </RowActions>
         ),
     },
@@ -176,6 +192,9 @@ export function UsersRoute() {
   const toggleFocus = useRowFocus();
   // The person the Deactivate dialog is open for, or was last open for (kept while it animates out).
   const [deactivating, setDeactivating] = useState<{ user: UserListItem; open: boolean } | null>(null);
+  // The same for the Delete confirm, and where focus goes once the deleted row has left the roster.
+  const [deleting, setDeleting] = useState<{ user: UserListItem; open: boolean } | null>(null);
+  const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [values, set] = useUsersListParams();
   const settled = useSettledListParams(values, 300);
@@ -254,6 +273,39 @@ export function UsersRoute() {
       return refreshThenFocusToggle(user);
     },
   );
+
+  const closeDelete = (): void => {
+    setDeleting((current) => (current === null ? null : { ...current, open: false }));
+  };
+
+  // Focus lands on the Edit button of the next row, else the previous one (your own row has no Edit button), else the h1.
+  const chooseFocusAfter = (user: UserListItem): string | null => {
+    const others = (query.data?.items ?? []).filter((item) => !isSelf(me?.id ?? null, item));
+    const index = others.findIndex((item) => item.id === user.id);
+    return others[index + 1]?.id ?? others[index - 1]?.id ?? null;
+  };
+
+  const removal = useUserAction(
+    (_key, user) => usersService.remove(user.id),
+    (user) => {
+      afterRemoval.current = { removedId: user.id, focusId: chooseFocusAfter(user) };
+      closeDelete();
+      toast.show({ title: COPY.remove.toast.title, message: COPY.remove.toast.message(fullName(user)) });
+      return queryClient.invalidateQueries({ queryKey: usersKey });
+    },
+  );
+
+  // Once the roster no longer holds the deleted row, move focus (the dialog's own return to the gone button has run).
+  useEffect(() => {
+    const wanted = afterRemoval.current;
+    if (wanted === null || query.data === undefined || query.data.items.some((item) => item.id === wanted.removedId)) {
+      return;
+    }
+    afterRemoval.current = null;
+    if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
+      headingRef.current?.focus();
+    }
+  });
 
   // Activate restores access, so it acts at once; a failure is a danger toast that stays until closed.
   const activate = async (user: UserListItem): Promise<void> => {
@@ -377,6 +429,9 @@ export function UsersRoute() {
                   setDeactivating({ user, open: true });
                 }
               },
+              remove: (user) => {
+                setDeleting({ user, open: true });
+              },
               registerEdit: rowFocus.register,
               registerToggle: toggleFocus.register,
             })}
@@ -419,6 +474,18 @@ export function UsersRoute() {
           user={deactivating.user}
           onConfirm={() => deactivation.submit(deactivating.user)}
           onCancel={closeDeactivate}
+        />
+      )}
+      {deleting !== null && (
+        <ConfirmDialog
+          open={deleting.open}
+          title={COPY.remove.title(fullName(deleting.user))}
+          message={COPY.remove.message}
+          confirmLabel={COPY.remove.confirm}
+          pendingLabel={COPY.remove.pending}
+          describeFailure={describeUserGuard}
+          onConfirm={() => removal.submit(deleting.user)}
+          onCancel={closeDelete}
         />
       )}
     </>

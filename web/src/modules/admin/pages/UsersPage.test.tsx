@@ -1158,7 +1158,7 @@ describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
   });
 
   it('moves focus to the page heading when no other row with an Edit button is left', async () => {
-    rosterThatDeletes([ROWS[0] as UserListItem, ROWS[1] as UserListItem]);
+    rosterThatDeletes(ROWS.slice(0, 2));
     await openPage();
     const user = userEvent.setup();
     await user.click(deleteButton('Paolo Garcia'));

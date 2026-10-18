@@ -76,8 +76,10 @@ export function ConfirmDialog({
   counts,
   confirmText,
   confirmLabel = 'Delete',
+  pendingLabel,
   onConfirm,
   onCancel,
+  describeFailure,
   inline = false,
   loading = false,
 }: ConfirmDialogProps) {
@@ -105,7 +107,7 @@ export function ConfirmDialog({
   const cascade = counts === undefined ? '' : cascadeSentence(counts);
 
   const fail = (error: unknown) => {
-    setFailure(describeHttpError(error));
+    setFailure(describeFailure?.(error) ?? describeHttpError(error));
     // The button leaves its pending state and takes focus back for a retry.
     confirmRef.current?.focus();
   };
@@ -168,7 +170,7 @@ export function ConfirmDialog({
             Cancel
           </Button>
           <Button variant="danger" icon="trash-2" disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
-            {confirmLabel}
+            {pending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
           </Button>
         </>
       }

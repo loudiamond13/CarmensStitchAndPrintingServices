@@ -167,6 +167,21 @@ export const USERS_COPY = {
     /** The danger toast's bold line; the mapper line follows. */
     failed: (name: string): string => `Couldn't activate ${name}`,
   },
+  // Delete (App. E.12; OQ-7 amended message): the shared ConfirmDialog, Cancel focused, no type-to-confirm (D-07, D-09).
+  remove: {
+    /** The row's trash button: "Delete Paolo Garcia". */
+    rowDelete: (name: string): string => `Delete ${name}`,
+    title: (name: string): string => `Delete ${name}?`,
+    // SPEC-DEVIATION: OQ-7 App. E.12's message is amended: it says what stays, points to deactivating, and ends with the final-action warning.
+    message:
+      "They won't be able to sign in. Orders and expenses they recorded stay, under their name. If they might come back, deactivate instead. This can't be undone.",
+    confirm: 'Delete User',
+    pending: 'Deleting',
+    toast: {
+      title: 'User deleted',
+      message: (name: string): string => name,
+    },
+  },
   // SPEC-GAP: the CopyField beside a shown-once password (UI-SPEC "CopyField behaviour").
   copyField: {
     copy: 'Copy Password',
