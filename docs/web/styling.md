@@ -1,6 +1,6 @@
 # Styling the web app: Tailwind utilities and the CSPS tokens
 
-*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-14T10:45:00-05:00*
+*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-17T19:40:00-05:00*
 
 This page explains how to style anything in `web/` (decision D-33, requirement WEB-02). It is written for every later phase. The short version: **all styling is Tailwind utility classes in the markup, built only from the CSPS tokens.** No hand-written CSS rules, no inline styles, and no colour or size picked by eye. Two automated gates enforce this, so a mistake fails the tests instead of quietly changing the look.
 
@@ -31,7 +31,7 @@ What you can use:
 - **Radii:** `rounded-xs`, `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-pill`.
 - **Shadows:** `shadow-level-1`, `shadow-level-2`, `shadow-level-3`.
 - **Fonts:** `font-sans`, `font-display`.
-- **Animations:** `animate-csp-spin`, `animate-csp-fade`, `animate-csp-rise`, `animate-csp-slide`, `animate-csp-shimmer`.
+- **Animations:** `animate-csp-spin`, `animate-csp-fade`, `animate-csp-rise`, `animate-csp-slide`, `animate-csp-shimmer`, and the exit and phone-drawer ones listed in section 8.
 - **Layout and z-index tokens:** read them with the var shorthand, never copy the number: `w-(--sidebar-width)`, `h-(--header-height)`, `z-(--z-overlay)`, `max-w-(--container-max)`.
 - **Font sizes and line heights** have no scale. Copy the spec value exactly: `text-[15px]`, `leading-5`, `leading-[.88]`. Never round to the "nearest" Tailwind value.
 
@@ -139,3 +139,15 @@ npm --prefix web run verify    # the full web gate: typecheck, lint, format, tes
 ```
 
 When the class gate fails, the message names the file, the line, the token and the reason (`unknown`, `colour-literal` or `opacity`). Fix the token; don't widen the allow-list unless the owner has made a recorded decision.
+
+## 8. Motion (D-37, D-38, D-39)
+
+Dialogs, slide-overs and the phone menu animate when they open **and** when they close. No animation package is used (D-37): the motion is theme keyframes plus one small hook.
+
+- **Keyframes live in `@theme`** in `web/src/ui/app.css`, each with a matching `--animate-csp-*` token, and are used as Tailwind utilities: in `animate-csp-fade`, `animate-csp-rise`, `animate-csp-slide`, `animate-csp-drawer-in`, `animate-csp-pop-in`; out `animate-csp-fade-out`, `animate-csp-rise-out`, `animate-csp-slide-out`, `animate-csp-drawer-out`, `animate-csp-pop-out`. An exit keyframe has only a `to` step and ends with `forwards`, so the node stays hidden until it leaves the DOM.
+- **150 to 250 ms, transform and opacity only.** Nothing that changes layout (no width, height, top or margin), so the page does not shift: the layout shift budget during open and close is under 0.05.
+- **`motion-reduce:animate-none` on every animated element**, and `motion-reduce:data-[state=closed]:animate-none` next to a `data-[state=closed]:animate-csp-*-out`. The reduced-motion rule in `base.css` stops transitions only, not animations. Under `prefers-reduced-motion` nothing moves and a closing dialog leaves the DOM at once.
+- **`usePresence(open)`** (`web/src/hooks/usePresence.ts`) keeps a closing node mounted until the exit ends. It returns `{ mounted, state, ref }`: render the node while `mounted`, put `data-state={state}` on it, and attach `ref` to the node that plays the longest animation. It unmounts at once when the node has no animation (jsdom, reduced motion), otherwise on that node's own `animationend` (events bubbling up from children are ignored) or after a 300 ms fallback. Opening again during the exit cancels the unmount.
+- **A closing layer is already dead.** In `Modal`, the focus trap, the inert page and the body scroll lock are released the moment `open` turns false, focus is back on the trigger, and the closing layer takes no clicks (`data-[state=closed]:pointer-events-none`) and is `inert`. Only the top dialog answers Esc.
+- **Keep the component mounted to get the exit.** `Modal`, `ConfirmDialog` and the sign-out dialogs take an `open` prop (default true). A caller that renders them conditionally (`{open && <Modal />}`) unmounts them at once and gets no exit; keep them mounted and pass `open`.
+- **Proof:** `web/src/hooks/usePresence.test.ts`, `web/src/components/overlays/Modal.test.tsx` and `overlays.recipe.node.test.ts` in Vitest, and `web/e2e/motion.spec.ts` (tag `@motion`) in Chromium, Firefox and WebKit.

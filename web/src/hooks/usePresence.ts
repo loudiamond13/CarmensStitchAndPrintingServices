@@ -2,7 +2,7 @@
 // and marks it `data-state={state}`; theme keyframes do the motion. With no animation (reduced motion, jsdom) the node
 // leaves in the same commit, because `animationend` never fires for `animation: none`. A 300 ms timer is the fallback
 // for an animation that never ends; an `animationend` that bubbles up from a child is not the node's own and is ignored.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /** The longest exit animation plus a margin (D-38 caps the motion at 250 ms). */
 const FALLBACK_MS = 300;
@@ -27,7 +27,8 @@ export function usePresence(open: boolean): Presence {
     setStillMounted(true);
   }
 
-  useEffect(() => {
+  // A layout effect, so a node with no animation is gone before the browser paints and does not wait for a later task.
+  useLayoutEffect(() => {
     const node = nodeRef.current;
     if (open) {
       return undefined;
