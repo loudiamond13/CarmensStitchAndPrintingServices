@@ -190,6 +190,15 @@ export const rowActionClasses = {
   danger: clsx(iconButtonBase, tw('hover:bg-danger-soft hover:text-danger')),
 } as const;
 
+/**
+ * D-27 an expand toggle's chevron: it turns 180 degrees over 0.2s when its row is open, and does not move under reduced
+ * motion. Only a RowAction with `expanded` carries it.
+ */
+export const rowActionChevronClasses = {
+  closed: tw('transition-transform duration-200 motion-reduce:transition-none'),
+  open: tw('rotate-180 transition-transform duration-200 motion-reduce:transition-none'),
+} as const;
+
 /* ───────────── FilterBar, SearchBox, ResultBar, FilterChip ───────────── */
 
 /**

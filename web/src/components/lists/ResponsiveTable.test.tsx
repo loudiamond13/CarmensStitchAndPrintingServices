@@ -397,7 +397,13 @@ describe('list cells (App. E.7/E.12)', () => {
 
   it('RowAction as an expand toggle (D-27): aria-expanded and aria-controls, a chevron that turns 180 degrees when open', () => {
     const { rerender } = render(
-      <RowAction icon="chevron-down" label="Show details" expanded={false} controls="detail-1" onClick={() => undefined} />,
+      <RowAction
+        icon="chevron-down"
+        label="Show details"
+        expanded={false}
+        controls="detail-1"
+        onClick={() => undefined}
+      />,
     );
     const closed = screen.getByRole('button', { name: 'Show details' });
     expect(closed).toHaveAttribute('aria-expanded', 'false');

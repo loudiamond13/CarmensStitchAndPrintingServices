@@ -77,6 +77,10 @@ const usersPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/UsersPage')).UsersRoute,
 }));
 
+const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -116,7 +120,7 @@ export const adminRoutes: RouteObject[] = [
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: notFoundPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
-          { path: 'audit-log', loader: requireManager, lazy: notFoundPage },
+          { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           { path: 'profile', lazy: profilePage },
         ],
       },

@@ -10,7 +10,10 @@ function entry(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
   return {
     id: 7,
     occurredAt: '2026-10-17T07:42:00Z',
-    doneBy: { kind: 'user', person: { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Carmen Reyes', formerStaff: false } },
+    doneBy: {
+      kind: 'user',
+      person: { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Carmen Reyes', formerStaff: false },
+    },
     action: 'user.role-changed',
     doneTo: { id: '00000000-0000-4000-8000-000000000002', name: 'Paolo Garcia', formerStaff: false },
     detail: 'role=admin>manager',

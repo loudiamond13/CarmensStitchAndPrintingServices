@@ -52,11 +52,13 @@ export interface ResultBarProps {
   things: string;
   /** "due date", read as " · sorted by due date". */
   sortLabel?: string | undefined;
+  /** A fixed order phrase, read as " · newest first" (the audit log, which cannot be sorted). */
+  orderNote?: string | undefined;
   /** One FilterChip per non-default filter. */
   children?: ReactNode;
 }
 
-export function ResultBar({ count, thing, things, sortLabel, children }: ResultBarProps) {
+export function ResultBar({ count, thing, things, sortLabel, orderNote, children }: ResultBarProps) {
   const chips = Children.toArray(children);
   if (count === 0 && chips.length === 0) {
     return null;
@@ -67,6 +69,7 @@ export function ResultBar({ count, thing, things, sortLabel, children }: ResultB
         <span>
           {LISTS_COPY.showing} <strong className={resultCountClasses}>{count}</strong> {nounFor(count, thing, things)}
           {sortLabel !== undefined && LISTS_COPY.sortedBy(sortLabel)}
+          {orderNote !== undefined && LISTS_COPY.orderNote(orderNote)}
         </span>
       )}
       {chips.length > 0 && <div className={chipGroupClasses}>{chips}</div>}

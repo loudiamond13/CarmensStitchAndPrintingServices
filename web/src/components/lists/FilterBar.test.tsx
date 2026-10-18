@@ -185,6 +185,11 @@ describe('ResultBar and FilterChip (App. E.7, zero-one-many)', () => {
     expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
   });
 
+  it('reads a fixed order phrase as "Showing 3 entries · newest first" (the audit log)', () => {
+    render(<ResultBar count={3} thing="entry" things="entries" orderNote="newest first" />);
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 3 entries · newest first');
+  });
+
   it('says "Showing 1 order" for exactly one', () => {
     renderToolbar('', 1);
     expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 1 order · sorted by due date');

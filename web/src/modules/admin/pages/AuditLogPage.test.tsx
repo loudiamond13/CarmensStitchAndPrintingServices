@@ -10,11 +10,7 @@ import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { AuditLogRoute } from '@/modules/admin/pages/AuditLogPage';
-import type {
-  AuditLogItem,
-  AuditLogResponse,
-  AuditPerson,
-} from '@/modules/admin/services/auditLogService';
+import type { AuditLogItem, AuditLogResponse, AuditPerson } from '@/modules/admin/services/auditLogService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -69,11 +65,7 @@ const ITEMS: AuditLogItem[] = [
   }),
 ];
 
-const PEOPLE: AuditPerson[] = [
-  { ...CARMEN },
-  { ...PAOLO },
-  { ...LIZA },
-];
+const PEOPLE: AuditPerson[] = [{ ...CARMEN }, { ...PAOLO }, { ...LIZA }];
 
 function pageOf(items: AuditLogItem[], total = items.length): AuditLogResponse {
   return { items, total, page: 1, pageSize: 20 };
@@ -230,14 +222,14 @@ describe('A1 the rows', () => {
       .getAllByRole('row')
       .map((row) => row.querySelector('td[data-label="Action"]')?.textContent)
       .filter((text): text is string => text !== undefined);
-    expect(actions).toEqual(['User role changed', 'Sign-in failed', 'User invited', 'orders.archived']);
+    expect(actions).toEqual(['Role changed', 'Sign-in failed', 'User invited', 'orders.archived']);
   });
 
   it('shows When as the business date and time inside a time element carrying the UTC instant', async () => {
     backend();
     await openPage();
 
-    const time = cellOf(rowOf('User role changed'), 'When').querySelector('time');
+    const time = cellOf(rowOf('Role changed'), 'When').querySelector('time');
     expect(time).toHaveTextContent('Oct 17, 2026, 3:42 PM');
     expect(time).toHaveAttribute('datetime', '2026-10-17T07:42:00Z');
   });
@@ -246,7 +238,7 @@ describe('A1 the rows', () => {
     backend();
     await openPage();
 
-    const row = rowOf('User role changed');
+    const row = rowOf('Role changed');
     expect(cellOf(row, 'Done by')).toHaveTextContent('Carmen Reyes');
     expect(cellOf(row, 'Done to')).toHaveTextContent('Paolo Garcia');
   });
@@ -303,8 +295,8 @@ describe('A1 expanding an entry (D-27)', () => {
     backend();
     await openPage();
 
-    const toggle = within(rowOf('User role changed')).getByRole('button', {
-      name: 'Show details for User role changed, Oct 17, 2026, 3:42 PM',
+    const toggle = within(rowOf('Role changed')).getByRole('button', {
+      name: 'Show details for Role changed, Oct 17, 2026, 3:42 PM',
     });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
@@ -314,17 +306,19 @@ describe('A1 expanding an entry (D-27)', () => {
     const user = userEvent.setup();
     await openPage();
 
-    await user.click(screen.getByRole('button', { name: 'Show details for User role changed, Oct 17, 2026, 3:42 PM' }));
+    await user.click(screen.getByRole('button', { name: 'Show details for Role changed, Oct 17, 2026, 3:42 PM' }));
 
-    const toggle = screen.getByRole('button', { name: 'Hide details for User role changed, Oct 17, 2026, 3:42 PM' });
+    const toggle = screen.getByRole('button', { name: 'Hide details for Role changed, Oct 17, 2026, 3:42 PM' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const detail = document.getElementById(toggle.getAttribute('aria-controls') ?? 'missing');
-    expect(detail).not.toBeNull();
+    if (detail === null) {
+      throw new Error('aria-controls names no element');
+    }
     expect(detail).toBeVisible();
-    expect(within(detail as HTMLElement).getByText('Role: Admin to Manager')).toBeInTheDocument();
-    expect(within(detail as HTMLElement).getByText('203.0.113.0/24')).toBeInTheDocument();
-    expect(within(detail as HTMLElement).getByText('Chrome on Android')).toBeInTheDocument();
-    expect(within(detail as HTMLElement).getByText('ref-4')).toBeInTheDocument();
+    expect(within(detail).getByText('Role: Admin to Manager')).toBeInTheDocument();
+    expect(within(detail).getByText('203.0.113.0/24')).toBeInTheDocument();
+    expect(within(detail).getByText('Chrome on Android')).toBeInTheDocument();
+    expect(within(detail).getByText('ref-4')).toBeInTheDocument();
   });
 
   it('keeps the detail hidden until its toggle is pressed', async () => {
@@ -339,10 +333,10 @@ describe('A1 expanding an entry (D-27)', () => {
     const user = userEvent.setup();
     await openPage();
 
-    await user.click(screen.getByRole('button', { name: /^Show details for User role changed/ }));
-    await user.click(screen.getByRole('button', { name: /^Hide details for User role changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Hide details for Role changed/ }));
 
-    expect(screen.getByRole('button', { name: /^Show details for User role changed/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Show details for Role changed/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
@@ -354,10 +348,10 @@ describe('A1 expanding an entry (D-27)', () => {
     const user = userEvent.setup();
     await openPage();
 
-    await user.click(screen.getByRole('button', { name: /^Show details for User role changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
     await user.click(screen.getByRole('button', { name: /^Show details for Sign-in failed/ }));
 
-    expect(screen.getByRole('button', { name: /^Hide details for User role changed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Hide details for Role changed/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Hide details for Sign-in failed/ })).toBeInTheDocument();
     expect(screen.getByText('Role: Admin to Manager')).toBeVisible();
     expect(screen.getByText('Unknown browser')).toBeVisible();
@@ -370,7 +364,7 @@ describe('A1 expanding an entry (D-27)', () => {
     await openPage('', onUrlUpdate);
     onUrlUpdate.mockClear();
 
-    await user.click(screen.getByRole('button', { name: /^Show details for User role changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
 
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
@@ -380,14 +374,14 @@ describe('A1 expanding an entry (D-27)', () => {
     const user = userEvent.setup();
     await openPage();
 
-    const toggle = screen.getByRole('button', { name: /^Show details for User role changed/ });
+    const toggle = screen.getByRole('button', { name: /^Show details for Role changed/ });
     expect(toggle.querySelector('svg')?.getAttribute('class')).toContain('motion-reduce:transition-none');
     expect(toggle.querySelector('svg')?.getAttribute('class')).not.toContain('rotate-180');
     await user.click(toggle);
 
-    expect(
-      screen.getByRole('button', { name: /^Hide details for User role changed/ }).querySelector('svg'),
-    ).toHaveClass('rotate-180');
+    expect(screen.getByRole('button', { name: /^Hide details for Role changed/ }).querySelector('svg')).toHaveClass(
+      'rotate-180',
+    );
   });
 
   it('never shows a name or an email in what changed (D-40)', async () => {
@@ -464,7 +458,7 @@ describe('A1 accessibility', () => {
     backend();
     const user = userEvent.setup();
     const { container } = await openPage();
-    await user.click(screen.getByRole('button', { name: /^Show details for User role changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
 
     await expectNoAxeViolations(container);
   });

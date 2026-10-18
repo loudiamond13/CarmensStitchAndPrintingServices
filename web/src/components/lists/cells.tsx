@@ -19,6 +19,7 @@ import {
   cellUserNameClasses,
   cellUserSubClasses,
   cellUserTextClasses,
+  rowActionChevronClasses,
   rowActionClasses,
   rowActionsClasses,
   whoSubClasses,
@@ -84,6 +85,10 @@ interface RowActionCommon {
 export interface RowActionButtonProps extends RowActionCommon {
   to?: undefined;
   onClick?: (() => void) | undefined;
+  /** D-27 an expand toggle: whether its row's detail is open. Sets aria-expanded and turns the icon when open. */
+  expanded?: boolean | undefined;
+  /** The id of the detail the toggle opens (aria-controls); used with `expanded`. */
+  controls?: string | undefined;
   /** The button element, for a screen that moves focus to it after a row changes. */
   ref?: Ref<HTMLButtonElement> | undefined;
 }
@@ -91,13 +96,25 @@ export interface RowActionButtonProps extends RowActionCommon {
 export interface RowActionLinkProps extends RowActionCommon {
   to: string;
   onClick?: undefined;
+  expanded?: undefined;
+  controls?: undefined;
   /** The anchor element. */
   ref?: Ref<HTMLAnchorElement> | undefined;
 }
 
 export type RowActionProps = RowActionButtonProps | RowActionLinkProps;
 
-export function RowAction({ icon, label, title, danger = false, to, onClick, ref }: RowActionProps) {
+export function RowAction({
+  icon,
+  label,
+  title,
+  danger = false,
+  to,
+  onClick,
+  expanded,
+  controls,
+  ref,
+}: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
   if (to !== undefined) {
     return (
@@ -106,16 +123,19 @@ export function RowAction({ icon, label, title, danger = false, to, onClick, ref
       </UiLink>
     );
   }
+  const turn: keyof typeof rowActionChevronClasses = expanded === true ? 'open' : 'closed';
   return (
     <button
       type="button"
       aria-label={label}
       title={title}
+      aria-expanded={expanded}
+      aria-controls={expanded === undefined ? undefined : controls}
       className={rowActionClasses[tone]}
       onClick={onClick}
       ref={ref}
     >
-      <Icon name={icon} size={18} />
+      <Icon name={icon} size={18} className={expanded === undefined ? '' : rowActionChevronClasses[turn]} />
     </button>
   );
 }
