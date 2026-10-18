@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-17T21:18:00-05:00
+updated: 2026-10-17T23:30:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -24,3 +24,10 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 
 - **What:** The owner wants to review every new or amended string before it is approved: the UI-SPEC Copywriting section (OQ-7 amended App. E.12/E.13 wording, OQ-11 SPEC-GAP strings) and the Phase 5 email additions, including the new "email changed by a Manager" notice (D-45).
 - **Status:** Executors build the UI-SPEC wording as written (D-48), but it is not approved. Present it in the 05-31 email review and the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+
+## Review scripts still list /admin/profile as a dev preview (found in plan 05-13)
+
+- **What:** `web/scripts/owner-review.mjs` (REVIEW_TARGETS) and `web/scripts/design-side-by-side.mjs` (the admin pages list) screenshot `/admin/profile` on the e2e host with no sign-in, as the dev preview with the placeholder user. Plan 05-13 made My Profile a real, guarded page and removed `profile` from the `devRoutes`, so on the e2e host that path now sends a visitor without a session to the sign-in page. Their unit tests only check the lists, so nothing fails today; a real run would wait for an h1 that never shows.
+- **Deferred to:** plan 05-37 (screen review), which already owns the `owner-review.mjs` page list. The same applies to `users` and `audit-log` when 05-20 and 05-33 replace their previews, so 05-37 needs a signed-in capture path (the E2E staff helper) rather than another unsigned list.
+- **Covered meanwhile:** `web/e2e/profile.spec.ts` (`@profile`) proves the real page on every tab, with axe and no sideways scrolling, in all five projects.
+
