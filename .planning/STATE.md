@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-28-PLAN.md
-last_updated: "2026-10-18T14:58:19.362Z"
+stopped_at: Completed 05-29-PLAN.md
+last_updated: "2026-10-18T15:22:30.267Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: cb0cba0b6a9d92a08a6fc4d0fc2773d19f517963
+state_head: 4da3e0e67d7c14ef730c6da2994c381b70b0e159
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 147
+  completed_plans: 148
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T09:22:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 34 of 43
+Plan: 35 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -203,6 +203,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P32 | 20 min | 3 tasks | 17 files |
 | Phase 05 P27 | 26 min | 3 tasks | 29 files |
 | Phase 05 P28 | 42 min | 3 tasks | 14 files |
+| Phase 05 P29 | 31 min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -536,6 +537,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-28: guard and deleted-meanwhile words ride an optional describeFailure prop on SignOutDialog and ConfirmDialog; ConfirmDialog gains pendingLabel (Deleting)
 - [Phase 05]: 05-28: useUserAction moves an identity generation after the roster refreshes so a repeated action on the same person sends a new request with a new Idempotency-Key
 - [Phase 05]: 05-28: focus after a delete skips the signed-in Manager's own row (no Edit button): next other row, else previous other row, else the h1
+- [Phase 05]: 05-29: ipPrefix is returned with its length (/24 or /48); the log stores the bare network address and UI-SPEC shows the length
+- [Phase 05]: 05-29: one done-by rule for the audit viewer rows and the actor filter (actor, else the person a self-service entry is about, else unknown account, else System); AuditActions.SelfService lists the 21 anonymous self-service codes
+- [Phase 05]: 05-29: audit-log from alone means up to today, to alone means from the start of the 8-month window; neither means the last 7 business days; actor accepts system or a dashed GUID only
 
 ### Pending Todos
 
@@ -595,6 +599,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T14:58:18.687Z
-Stopped at: Completed 05-28-PLAN.md
+Last session: 2026-10-18T15:22:29.584Z
+Stopped at: Completed 05-29-PLAN.md
 Resume file: None
