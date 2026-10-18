@@ -214,6 +214,55 @@ public sealed class AuditLogEndpointTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task APeopleListOffersEveryoneEverRecordedActiveAndInactiveFirstThenFormerStaffEachByName()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var tag = UserFixtures.NewTag();
+        var zane = await UserFixtures.CreateAsync(factory, tag, "Zane", "Lee", Roles.Admin);
+        var amy = await UserFixtures.CreateAsync(factory, tag, "Amy", "Lee", Roles.Admin);
+        var bo = await UserFixtures.CreateAsync(factory, tag, "Bo", "Lee", Roles.Admin);
+        var al = await UserFixtures.CreateAsync(factory, tag, "Al", "Lee", Roles.Admin);
+        using (var deactivated = await UserFixtures.ActionAsync(client, manager.AccessToken, amy.Id, "deactivate"))
+        {
+            deactivated.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        await AccountStateFixtures.MarkDeletedAsync(factory, bo.Id);
+        await AccountStateFixtures.MarkDeletedAsync(factory, al.Id);
+
+        var people = await ReadPeopleAsync(client, manager.AccessToken);
+
+        var ours = people.Where(person => person.GetProperty("name").GetString()!.Contains(tag, StringComparison.Ordinal)).ToList();
+        ours.Select(person => person.GetProperty("id").GetGuid()).ShouldBe([amy.Id, zane.Id, al.Id, bo.Id]);
+        ours.Select(person => person.GetProperty("formerStaff").GetBoolean()).ShouldBe([false, false, true, true]);
+        ours[0].GetProperty("name").GetString().ShouldBe($"{amy.FirstName} {amy.LastName}");
+
+        // Everyone current comes before everyone former, across the whole list; only id, name and formerStaff are sent (no email).
+        var flags = people.Select(person => person.GetProperty("formerStaff").GetBoolean()).ToList();
+        flags.SequenceEqual(flags.OrderBy(static flag => flag)).ShouldBeTrue();
+        foreach (var person in people)
+        {
+            person.EnumerateObject().Select(static property => property.Name).Order(StringComparer.Ordinal).ShouldBe(["formerStaff", "id", "name"]);
+        }
+    }
+
+    [Fact]
+    public async Task APeopleListIsRefusedToAnAdminWith403AndToAnAnonymousCallerWith401()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+
+        using var asAdmin = await client.SendAsync(ApiRequests.Get($"{Route}/people", admin.AccessToken), TestContext.Current.CancellationToken);
+        using var anonymous = await client.SendAsync(ApiRequests.Get($"{Route}/people"), TestContext.Current.CancellationToken);
+
+        asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task ThereIsNoExportRoute()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -446,6 +495,16 @@ public sealed class AuditLogEndpointTests(CspsDatabase database) : IClassFixture
         response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
         using var document = JsonDocument.Parse(body);
         return document.RootElement.Clone();
+    }
+
+    private static async Task<List<JsonElement>> ReadPeopleAsync(HttpClient client, string token)
+    {
+        using var request = ApiRequests.Get($"{Route}/people", token);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
+        using var document = JsonDocument.Parse(body);
+        return [.. document.RootElement.EnumerateArray().Select(static person => person.Clone())];
     }
 
     private static void AssertNewestFirst(List<JsonElement> items)
