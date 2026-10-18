@@ -11,7 +11,7 @@ import { fieldInputClasses } from './field.recipe';
 // format checks are the caller's (zod, OR-3); the caller's message shows under the field through `error`.
 
 function dateInput(name: string): HTMLInputElement {
-  return screen.getByLabelText<HTMLInputElement>(name);
+  return screen.getByLabelText<HTMLInputElement>(new RegExp(`^${name}`));
 }
 
 describe('DateInput (SPEC-GAP)', () => {
