@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-10-18T01:58:28.179Z"
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-10-18T02:52:53.302Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 32ffd26df9bdb1808677306e7c0dc1667ea38485
+state_head: 04081b5a3752c841daa2c3e29992927396fdf2ec
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 121
+  completed_plans: 122
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T14:20:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 8 of 43
+Plan: 9 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -177,6 +177,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P05 | 21 min | 2 tasks | 17 files |
 | Phase 05 P06 | 10 min | 2 tasks | 12 files |
 | Phase 05 P07 | 13 min | 3 tasks | 17 files |
+| Phase 05 P08 | 58 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -449,6 +450,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: D-13: invite links last 7 days via the single AuthSettings.InviteLinkLifetime; existing rows keep their 72-hour ExpiresAt
 - [Phase 05]: 05-07: ResendWaitResponse lives in Csps.Application.Auth so sign-in and resend share one contract schema (IN-12)
 - [Phase 05]: 05-07: outbox purge of closed rows deferred to Phase 9 JOB-01; retention rule (30 days after close) written in mail-setup.md (IN-08)
+- [Phase 05]: 05-08: closing drawer layer and user-menu popover are inert and pointer-events none, handlers ignore events while open is false (T-05-20)
+- [Phase 05]: 05-08: chevron parity difference recorded as P5 D-35 ruling on .csp-usermenu svg in rulings.css, no tolerance; no P5 D-34 group needed
 
 ### Pending Todos
 
@@ -508,6 +511,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T01:58:27.515Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-10-18T02:52:52.645Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
