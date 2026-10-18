@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace Csps.EmailPreview;
 
 /// <summary>
-/// The email preview tool (D-30, D-27): shows the owner all eight auth emails rendered, either sent to one address through
+/// The email preview tool (D-30, D-27): shows the owner all fourteen auth emails rendered (Phase 4 and Phase 5, with each variant), either sent to one address through
 /// the real SMTP path (<c>--to</c>) or written as .html and .txt files (<c>--out</c>). It runs only in Development and uses
 /// fixed sample values, so nothing real is ever in a preview. Exit codes: 0 done, 1 failed, 2 refused, 64 usage or settings error.
 /// </summary>
@@ -102,7 +102,7 @@ public static class Program
         return await SendAsync(options.To!, rendered, configuration, transport, output, error, cancellationToken).ConfigureAwait(false);
     }
 
-    // Name, then the sample, for the eight auth emails. The values are fixed and fictional.
+    // Name, then the sample, for the fourteen auth emails. The values are fixed and fictional.
     private static IEnumerable<(string Name, AuthEmail Email)> Samples()
     {
         var chrome = new DeviceDescription("Chrome on Android", true);
@@ -114,6 +114,14 @@ public static class Program
         yield return ("deactivated", new DeactivatedNoticeEmail(SampleAddress));
         yield return ("invite", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddDays(7), SampleTime));
         yield return ("manager-changed-email", new ManagerEmailChangedEmail(SampleAddress, "paolo.new@gmail.com", "Carmen Reyes", SampleTime));
+        yield return ("invite-by-manager", new InviteEmail(SampleAddress, SampleToken, SampleTime.AddDays(7), SampleTime, InvitedBy: "Carmen Reyes"));
+        yield return ("manager-reset-link", new ManagerResetLinkEmail(SampleAddress, SampleToken, SampleTime.AddMinutes(30), SampleTime, "Carmen Reyes"));
+        yield return ("email-change-confirm", new EmailChangeConfirmEmail("paolo.new@gmail.com", SampleToken, SampleTime.AddHours(24), SampleTime, SampleAddress));
+        yield return (
+            "email-change-confirm-by-manager",
+            new EmailChangeConfirmEmail("paolo.new@gmail.com", SampleToken, SampleTime.AddHours(24), SampleTime, SampleAddress, ChangedBy: "Carmen Reyes"));
+        yield return ("email-change-notice", new EmailChangeNoticeEmail(SampleAddress, "paolo.new@gmail.com", SampleTime, chrome));
+        yield return ("password-changed-other-devices", new PasswordChangedEmail(SampleAddress, SampleTime, SessionsEnded: true, OtherDevicesOnly: true));
     }
 
     // The files are only for looking at, so the logo is inlined as a data URL there (a browser has no CID parts).

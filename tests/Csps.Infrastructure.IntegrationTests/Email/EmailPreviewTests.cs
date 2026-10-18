@@ -109,7 +109,7 @@ public sealed class EmailPreviewTests
         run.ExitCode.ShouldBe(0, run.Error);
         transport.Sent.Count.ShouldBe(14);
         transport.Sent.ShouldAllBe(email => email.To == Address);
-        transport.Sent.Select(email => email.Subject).Distinct(StringComparer.Ordinal).Count().ShouldBe(14);
+        transport.Sent.Select(email => email.Subject).Distinct(StringComparer.Ordinal).Count().ShouldBe(10); // variants and the Manager reset link share their base subject
         transport.Sent.ShouldContain(email => email.Subject == "482913 is your CSPS sign-in code");
         transport.Sent.ShouldAllBe(email => email.Html.Contains("cid:csps-logo", StringComparison.Ordinal));
         run.Output.Trim().ShouldBe("Sent 14 preview emails.");
