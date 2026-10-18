@@ -2604,7 +2604,6 @@ const PHASE5_CAPTURES = Object.freeze({
   'edit-invited-email-note': async (c) => {
     const { panel } = await openEdit(c, c.seed.people.alma?.email ?? '');
     await panel.getByRole('textbox', { name: /^Email/ }).fill(`review-${c.seed.tag}-alma-new@csps.test`);
-    await panel.getByText('We’ll send the invitation to the new address instead.', { exact: false }).first().waitFor();
     await panel.getByText('invitation to the new address', { exact: false }).first().scrollIntoViewIfNeeded();
     await shoot(c);
     await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -2767,15 +2766,22 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
         if (capture === undefined) {
           throw new Error(`No capture is written for the Phase 5 case "${shot.id}"; update PHASE5_CAPTURES.`);
         }
-        await capture({
-          page: opened.page,
-          request,
-          origin,
-          seed,
-          browser,
-          target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
-        });
-        process.stdout.write(`review: ${shot.file}\n`);
+        try {
+          await capture({
+            page: opened.page,
+            request,
+            origin,
+            seed,
+            browser,
+            target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
+          });
+          process.stdout.write(`review: ${shot.file}\n`);
+        } catch (error) {
+          // One picture that cannot be taken is reported in the page's list of problems; the rest are still taken.
+          const reason = error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error);
+          problems.push(`${shot.file} could not be taken: ${reason}`);
+          process.stdout.write(`review: ${shot.file} FAILED: ${reason}\n`);
+        }
       }
     } finally {
       await opened.close();
@@ -2810,7 +2816,9 @@ async function captureShots(step) {
       // The roster is narrowed to this run's people, so they lead the list whatever earlier test runs left behind.
       const pagePath =
         signedIn !== undefined && shot.path === '/admin/users' ? `${shot.path}?q=review-${seed?.tag ?? ''}` : shot.path;
-      const opened = await openReviewPage(browser, step.origin, { ...shot, path: pagePath }, problems, signedIn);
+      // My Profile's h1 is the person's name, not the words "My Profile".
+      const h1 = signedIn !== undefined && shot.path === '/admin/profile' ? signedIn.staff.name : shot.h1;
+      const opened = await openReviewPage(browser, step.origin, { ...shot, path: pagePath, h1 }, problems, signedIn);
       try {
         await opened.page.screenshot({ path: assertWritable(path.join(OUTPUT_DIR, shot.file)), fullPage: true });
         process.stdout.write(`review: ${shot.file}\n`);
