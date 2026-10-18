@@ -109,9 +109,77 @@ describe('profileService.updateName', () => {
   });
 });
 
+describe('profileService.checkEmailChange', () => {
+  it('calls POST /api/v1/profile/email-change/check with the token in the JSON body and resolves the new email', async () => {
+    const fake = createFakeFetch([{ body: { newEmail: 'new@example.ph' } }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.checkEmailChange('tok-123')).resolves.toEqual({ newEmail: 'new@example.ph' });
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change/check');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ token: 'tok-123' });
+    expect(fake.calls[0]?.url).not.toContain('tok-123');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const fake = createFakeFetch([{ hang: true }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+    const controller = new AbortController();
+
+    const pending = service.checkEmailChange('tok-123', controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+
+  it('rejects with the machine code of a 409 email-change.taken', async () => {
+    const fake = createFakeFetch([
+      { status: 409, headers: PROBLEM, body: { title: 'Conflict', status: 409, code: 'email-change.taken' } },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.checkEmailChange('tok-123')).rejects.toMatchObject({
+      status: 409,
+      code: 'email-change.taken',
+    });
+  });
+});
+
+describe('profileService.confirmEmailChange', () => {
+  it('calls POST /api/v1/profile/email-change/confirm with the token in the body and the Idempotency-Key it was given', async () => {
+    const fake = createFakeFetch([{ body: { newEmail: 'new@example.ph' } }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.confirmEmailChange('tok-123', 'key-abc')).resolves.toEqual({ newEmail: 'new@example.ph' });
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/email-change/confirm');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ token: 'tok-123' });
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-abc');
+  });
+
+  it('rejects with the status of a 404 for a link that does not work', async () => {
+    const fake = createFakeFetch([
+      { status: 404, headers: PROBLEM, body: { title: 'This link has expired', status: 404 } },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.confirmEmailChange('tok-123', 'key-abc')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 describe('profileService (the exported instance)', () => {
-  it('exposes get and updateName over the shared client', () => {
+  it('exposes get, updateName and the email-change link calls over the shared client', () => {
     expect(typeof profileService.get).toBe('function');
     expect(typeof profileService.updateName).toBe('function');
+    expect(typeof profileService.checkEmailChange).toBe('function');
+    expect(typeof profileService.confirmEmailChange).toBe('function');
   });
 });

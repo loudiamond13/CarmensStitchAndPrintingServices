@@ -4,11 +4,11 @@ import { render, screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
-import { clearSession } from '@/modules/admin/services/session';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -176,6 +176,39 @@ describe('Manager-only routes (USER-08)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(screen.queryByRole('heading', { level: 1, name: 'Page not found' })).toBeNull();
+  });
+});
+
+describe('the confirm-email link (PROF-02, C-17)', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  function openConfirmEmail(): ReturnType<typeof createMemoryRouter> {
+    window.history.replaceState(null, '', `/admin/confirm-email#token=${'z'.repeat(43)}`);
+    server.use(
+      http.post('*/api/v1/profile/email-change/check', () => HttpResponse.json({ newEmail: 'carmen.new@example.ph' })),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/confirm-email'] });
+    render(<RouterProvider router={router} />);
+    return router;
+  }
+
+  it('renders without a session and does not send the person to sign in', async () => {
+    const probe = answerRefresh();
+    const router = openConfirmEmail();
+
+    expect(await screen.findByRole('button', { name: 'Confirm New Email' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/confirm-email');
+    expect(probe.count).toBe(0);
+  });
+
+  it('renders with a session too, with no redirect to the admin', async () => {
+    acceptSession(sessionResponse());
+    const router = openConfirmEmail();
+
+    expect(await screen.findByRole('button', { name: 'Confirm New Email' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/confirm-email');
   });
 });
 
