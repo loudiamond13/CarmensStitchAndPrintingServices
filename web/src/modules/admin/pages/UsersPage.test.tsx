@@ -1245,3 +1245,41 @@ describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+// D-39: the row dialogs stay mounted with `open` false so their exit can play. jsdom runs no CSS animation, so a closed
+// element reports one through getComputedStyle.
+describe('U4 dialogs close with motion (D-39)', () => {
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['Deactivate Paolo', 'Deactivate Paolo Garcia?', 'Keep Active'],
+    ['Delete Paolo Garcia', 'Delete Paolo Garcia?', 'Cancel'],
+  ])(
+    'keeps the dialog opened by %s in the tree, showing its person, while it closes',
+    async (opener, title, dismiss) => {
+      backend();
+      animateClosedElements();
+      const user = userEvent.setup();
+      await openPage();
+      await user.click(screen.getByRole('button', { name: opener }));
+      const dialog = screen.getByRole('dialog', { name: title });
+
+      await user.click(within(dialog).getByRole('button', { name: dismiss }));
+
+      expect(dialog.isConnected).toBe(true);
+      expect(dialog.getAttribute('data-state')).toBe('closed');
+      expect(dialog.textContent).toContain(title);
+    },
+  );
+});

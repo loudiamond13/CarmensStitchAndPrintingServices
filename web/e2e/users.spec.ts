@@ -8,8 +8,10 @@
 // temporary password (shown once, copied, then replaced at the first sign-in), and the panel fits a 320 px phone.
 // Plan 05-25 adds @users-edit: a Manager renames and promotes a person in one save, two pages meet the stale-save banner, and the
 // Edit panel fits a 320 px phone with the email choice and Recorded by / Last changed by.
+// Plan 05-28 adds @users-actions: Deactivate behind its confirm ends the person's session and Activate lets them sign in again,
+// Delete removes the row and their access, a Manager's own row has no toggle or Delete, and the dialogs fit a 320 px phone.
 import { randomUUID } from 'node:crypto';
-import type { Locator, Page } from '@playwright/test';
+import type { Browser, Locator, Page } from '@playwright/test';
 import { codeFromEmail, signInAs, typeCode } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { createInvitedStaff, createStaff, latestEmail, readEmails } from './testing-api.ts';
@@ -77,8 +79,8 @@ test('@users the roster shows staff in every state, filters and pages in the URL
   await expect(rows(page).first().locator('td[data-label="Status"]')).toHaveText('Active');
   await expect(rows(page).first().locator('td[data-label="Role"]')).toHaveText('Admin');
   await expect(rows(page).first().getByRole('link')).toHaveCount(0);
-  // Another person's row has their Edit button and nothing else (05-25; the row dialogs arrive with 05-28).
-  await expect(rows(page).first().getByRole('button')).toHaveCount(1);
+  // Another person's row has three buttons: Edit (05-25), the status toggle and Delete (05-28).
+  await expect(rows(page).first().getByRole('button')).toHaveCount(3);
 
   await searchFor(page, deactivated.email);
   await expect(rows(page)).toHaveCount(1);
@@ -624,4 +626,209 @@ test('@users-edit the panel fits a 320 px phone: it scrolls inside, the footer s
 
   await panel.getByRole('button', { name: 'Cancel' }).click();
   await expect(panel).toBeHidden();
+});
+
+// --- @users-actions (plan 05-28) ---
+
+/** Finds one person on the roster by their unique email and returns their row. */
+async function findPerson(page: Page, email: string) {
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+  await searchFor(page, email);
+  await expect(rows(page)).toHaveCount(1);
+  return rows(page).first();
+}
+
+/** Presses a button from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved. */
+async function press(page: Page, button: Locator): Promise<void> {
+  await button.focus();
+  await page.keyboard.press('Enter');
+}
+
+/** A second browser (its own cookies), for the person whose access a Manager changes. */
+function otherBrowser(browser: Browser, baseURL: string | undefined) {
+  return browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
+}
+
+test('@users-actions deactivating a signed-in colleague ends their session, and activating lets them sign in again', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  // Three sign-ins and two dialogs in one test: WebKit under four parallel workers needs more than 30 seconds.
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The deactivated person's next request is refused with a 401 (USER-05); that is the behavior under test.
+  guard.expectStatus('/api/v1/sessions', 401);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    const otherPage = await other.newPage();
+    await signInAs(otherPage, request, person);
+    await signInAs(page, request, manager);
+
+    const row = await findPerson(page, person.email);
+    const toggle = row.getByRole('button', { name: 'Deactivate E2E', exact: true });
+    await expect(toggle).toHaveAttribute('title', 'Deactivate E2E');
+
+    // OQ-3: the confirm names the person, says what happens and puts "Keep Active" in focus; Keep Active changes nothing.
+    await press(page, toggle);
+    const dialog = page.getByRole('dialog', { name: 'Deactivate E2E Staff?' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Keep Active' })).toBeFocused();
+    await expect(dialog).toContainText("They'll be signed out on every device and can't sign in.");
+    await expectNoAxeViolations(page);
+    await dialog.getByRole('button', { name: 'Keep Active' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(toggle).toBeFocused();
+    await expect(row.locator('td[data-label="Status"]')).toHaveText('Active');
+
+    // Deactivate User: the row turns Inactive, the toggle flips to Activate and takes focus, and the toast says so.
+    await press(page, toggle);
+    await dialog.getByRole('button', { name: 'Deactivate User' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('User deactivated')).toBeVisible();
+    await expect(page.getByText('E2E Staff can no longer sign in.')).toBeVisible();
+    await expect(row.locator('td[data-label="Status"]')).toHaveText('Inactive');
+    const activate = row.getByRole('button', { name: 'Activate E2E', exact: true });
+    await expect(activate).toBeFocused();
+    await expectNoAxeViolations(page);
+
+    // USER-05: the person's session ended at once. Their next move inside the app sends them to sign-in with the notice.
+    await otherPage.locator('button[aria-haspopup="menu"]').click();
+    await otherPage.getByRole('menuitem', { name: 'Signed-in Devices' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(otherPage.getByText('Your session ended. Sign in again.')).toBeVisible();
+
+    // Activate acts at once: no dialog, the toggle stays focused and flips, and the toast says they can sign in again.
+    await press(page, activate);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByText('User activated')).toBeVisible();
+    await expect(page.getByText('E2E Staff can sign in again.')).toBeVisible();
+    await expect(row.locator('td[data-label="Status"]')).toHaveText('Active');
+    await expect(row.getByRole('button', { name: 'Deactivate E2E', exact: true })).toBeFocused();
+
+    // The person signs in again with the same password.
+    await signInAs(otherPage, request, person);
+  } finally {
+    await other.close();
+  }
+});
+
+test('@users-actions deleting a colleague removes the row and ends their access, and a Manager can delete another Manager but not themselves', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The deleted person's sign-in is refused like any wrong password (D-09).
+  guard.expectStatus('/api/v1/auth/sign-in', 401);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+  const colleague = await createStaff(request, 'Manager');
+
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    await signInAs(page, request, manager);
+
+    const row = await findPerson(page, person.email);
+    const trash = row.getByRole('button', { name: 'Delete E2E Staff', exact: true });
+    await press(page, trash);
+
+    // D-09: the shared confirm names the person, says what stays, and puts Cancel in focus; Cancel changes nothing.
+    const dialog = page.getByRole('dialog', { name: 'Delete E2E Staff?' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await expect(dialog).toContainText(
+      "They won't be able to sign in. Orders and expenses they recorded stay, under their name. If they might come back, deactivate instead. This can't be undone.",
+    );
+    await expectNoAxeViolations(page);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(trash).toBeFocused();
+    await expect(rows(page)).toHaveCount(1);
+
+    // Delete User: the row leaves; with nothing else listed, focus goes to the page heading; the toast names the person.
+    await press(page, trash);
+    await dialog.getByRole('button', { name: 'Delete User' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('User deleted')).toBeVisible();
+    await expect(rows(page)).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeFocused();
+
+    // They cannot sign in any more.
+    const gonePage = await other.newPage();
+    await gonePage.goto('/admin/login');
+    await gonePage.getByLabel('Email').fill(person.email);
+    await gonePage.getByLabel('Password', { exact: true }).fill(person.password);
+    await gonePage.getByRole('button', { name: 'Sign In' }).click();
+    await expect(gonePage.getByText('Email or password is incorrect.')).toBeVisible();
+
+    // D-19: a Manager's own row has neither a status toggle nor Delete.
+    const own = await findPerson(page, manager.email);
+    await expect(own.getByRole('button')).toHaveCount(0);
+    await expect(own.getByRole('link', { name: 'Edit your details in My Profile' })).toBeVisible();
+
+    // Another Manager can be deleted while an active Manager remains (the guard allows it).
+    const colleagueRow = await findPerson(page, colleague.email);
+    await press(page, colleagueRow.getByRole('button', { name: 'Delete E2E Staff', exact: true }));
+    await dialog.getByRole('button', { name: 'Delete User' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('User deleted').first()).toBeVisible();
+    await expect(rows(page)).toHaveCount(0);
+  } finally {
+    await other.close();
+  }
+});
+
+test('@users-actions the Deactivate and Delete dialogs fit a 320 px phone and nothing scrolls sideways', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const person = await createStaff(request, 'Admin');
+  await page.setViewportSize({ width: 320, height: 568 });
+
+  const row = await findPerson(page, person.email);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  const deactivate = page.getByRole('dialog', { name: 'Deactivate E2E Staff?' });
+  await press(page, row.getByRole('button', { name: 'Deactivate E2E', exact: true }));
+  await expect(deactivate).toBeVisible();
+  await expect(deactivate.getByRole('button', { name: 'Keep Active' })).toBeInViewport();
+  await expect(deactivate.getByRole('button', { name: 'Deactivate User' })).toBeInViewport();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const dialog = document.querySelector('[role="dialog"]'); return dialog !== null && dialog.getBoundingClientRect().right <= window.innerWidth; })()`,
+    ),
+  ).toBe(true);
+  await expectNoAxeViolations(page);
+  await deactivate.getByRole('button', { name: 'Keep Active' }).click();
+  await expect(deactivate).toBeHidden();
+
+  const remove = page.getByRole('dialog', { name: 'Delete E2E Staff?' });
+  await press(page, row.getByRole('button', { name: 'Delete E2E Staff', exact: true }));
+  await expect(remove).toBeVisible();
+  await expect(remove.getByRole('button', { name: 'Cancel' })).toBeInViewport();
+  await expect(remove.getByRole('button', { name: 'Delete User' })).toBeInViewport();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const dialog = document.querySelector('[role="dialog"]'); return dialog !== null && dialog.getBoundingClientRect().right <= window.innerWidth; })()`,
+    ),
+  ).toBe(true);
+  await expectNoAxeViolations(page);
+  await remove.getByRole('button', { name: 'Cancel' }).click();
+  await expect(remove).toBeHidden();
 });
