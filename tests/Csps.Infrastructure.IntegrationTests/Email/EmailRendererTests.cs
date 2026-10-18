@@ -240,6 +240,33 @@ public sealed class EmailRendererTests
     }
 
     [Fact]
+    public async Task PasswordChangedFromMyProfileNamesOnlyTheOtherDevices()
+    {
+        var rendered = await RenderAsync(new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true, OtherDevicesOnly: true));
+
+        const string OtherDevices = "For your safety, every other device signed in to your account was signed out.";
+        rendered.Text.ShouldContain("The password for paolo.garcia@gmail.com was changed on Oct 14, 2026, 3:42 PM.");
+        rendered.Text.ShouldContain(OtherDevices);
+        rendered.Html.ShouldContain(OtherDevices);
+        rendered.Text.ShouldNotContain("every device signed in");
+        rendered.Html.ShouldNotContain("every device signed in");
+        rendered.Text.ShouldContain($"{BaseUrl}/admin/forgot-password");
+        rendered.Html.ShouldContain($"href=\"{BaseUrl}/admin/forgot-password\"");
+        rendered.Html.ShouldContain("Reset Password");
+    }
+
+    [Fact]
+    public async Task TheOtherDevicesLineNeedsTheFlagAndDoesNotChangeTheOtherVariants()
+    {
+        var plain = await RenderAsync(new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: false));
+        var reset = await RenderAsync(new PasswordChangedEmail("paolo.garcia@gmail.com", At, SessionsEnded: true));
+
+        plain.Text.ShouldNotContain("every other device");
+        reset.Text.ShouldNotContain("every other device");
+        reset.Text.ShouldContain("For your safety, every device signed in to your account was signed out.");
+    }
+
+    [Fact]
     public async Task ManagerResetNamesTheManagerAndHasNoLink()
     {
         var rendered = await RenderAsync(new ManagerResetEmail("paolo.garcia@gmail.com", "Carmen Reyes", At));
