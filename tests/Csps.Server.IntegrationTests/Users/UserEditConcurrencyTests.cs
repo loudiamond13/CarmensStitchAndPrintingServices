@@ -35,8 +35,8 @@ public sealed class UserEditConcurrencyTests(CspsDatabase database) : IClassFixt
             var byM2 = ("Bea" + round, "Dela");
 
             var (first, second) = await ConcurrentRequests.SendTogetherAsync(
-                () => PutAsync(client, m1.AccessToken, person.Id, byM1, role, version),
-                () => PutAsync(client, m2.AccessToken, person.Id, byM2, role, version));
+                () => PutAsync(client, m1.AccessToken, person.Id, byM1, role, version, person.Email),
+                () => PutAsync(client, m2.AccessToken, person.Id, byM2, role, version, person.Email));
             using var firstResponse = first;
             using var secondResponse = second;
 
@@ -60,10 +60,10 @@ public sealed class UserEditConcurrencyTests(CspsDatabase database) : IClassFixt
         }
     }
 
-    private static async Task<HttpResponseMessage> PutAsync(HttpClient client, string accessToken, Guid id, (string First, string Last) names, string role, string? version)
+    private static async Task<HttpResponseMessage> PutAsync(HttpClient client, string accessToken, Guid id, (string First, string Last) names, string role, string? version, string email)
     {
         using var request = ApiRequests.Create(HttpMethod.Put, $"{UserFixtures.Route}/{id:D}", accessToken);
-        request.Content = JsonContent.Create(new { firstName = names.First, lastName = names.Last, role, version });
+        request.Content = JsonContent.Create(new { firstName = names.First, lastName = names.Last, role, version, email });
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 

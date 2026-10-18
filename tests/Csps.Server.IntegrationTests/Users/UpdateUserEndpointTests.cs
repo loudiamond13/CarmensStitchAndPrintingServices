@@ -120,7 +120,7 @@ public sealed class UpdateUserEndpointTests(CspsDatabase database) : IClassFixtu
         var before = await UserFixtures.ReadDetailAsync(client, manager.AccessToken, person.Id);
         var version = sendVersion ? before.GetProperty("version").GetString() : null;
 
-        using var response = await PutAsync(client, manager.AccessToken, person.Id, new { firstName = first, lastName = last, role, version });
+        using var response = await PutAsync(client, manager.AccessToken, person.Id, new { firstName = first, lastName = last, role, version, email = person.Email });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
@@ -154,7 +154,7 @@ public sealed class UpdateUserEndpointTests(CspsDatabase database) : IClassFixtu
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var deleted = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Jun", "Javier", Roles.Admin);
         await AccountStateFixtures.MarkDeletedAsync(factory, deleted.Id);
-        var form = new { firstName = "Neda", lastName = "Santos", role = "Admin", version = Guid.NewGuid().ToString("D") };
+        var form = new { firstName = "Neda", lastName = "Santos", role = "Admin", version = Guid.NewGuid().ToString("D"), email = "neda@example.com" };
 
         foreach (var id in new[] { Guid.NewGuid(), deleted.Id })
         {
@@ -363,7 +363,7 @@ public sealed class UpdateUserEndpointTests(CspsDatabase database) : IClassFixtu
     }
 
     private static object Form(string firstName, string lastName, string role, JsonElement loaded) =>
-        new { firstName, lastName, role, version = loaded.GetProperty("version").GetString() };
+        new { firstName, lastName, role, version = loaded.GetProperty("version").GetString(), email = loaded.GetProperty("email").GetString() };
 
     private static async Task<HttpResponseMessage> PutAsync(HttpClient client, string? accessToken, Guid id, object body)
     {
