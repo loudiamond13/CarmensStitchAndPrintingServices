@@ -63,7 +63,7 @@ public sealed class RefreshHandler(
 
         var session = lookup.Session;
         var user = await accounts.FindByIdAsync(session.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null || !user.IsActive)
+        if (user is null || user.IsBlocked)
         {
             await EndForInactiveAccountAsync(lookup, now, cancellationToken).ConfigureAwait(false);
             return Result.Failure<RefreshOutcome>(AuthErrors.SessionEnded);
@@ -104,7 +104,7 @@ public sealed class RefreshHandler(
         }
     }
 
-    // A deactivated or removed account keeps no session (AUTH-10, T-04-53): revoke it now and make its access token fail at once.
+    // A deactivated, Manager-locked or deleted account keeps no session (AUTH-10, T-04-53): revoke it now and make its access token fail at once.
     private async Task EndForInactiveAccountAsync(RefreshLookup lookup, DateTimeOffset now, CancellationToken cancellationToken)
     {
         lookup.Session.Revoke(SessionRevocationReason.AccountInactive, now, lookup.Related);

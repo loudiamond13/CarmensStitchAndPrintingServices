@@ -33,7 +33,7 @@ internal static class PendingPasswordChangeLookup
         }
 
         var account = await accounts.FindByIdAsync(challenge.UserId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive || (account.LockoutEnd is { } lockedUntil && lockedUntil > now))
+        if (account is null || account.IsBlocked || (account.LockoutEnd is { } lockedUntil && lockedUntil > now))
         {
             return null;
         }
