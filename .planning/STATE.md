@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-24-PLAN.md
-last_updated: "2026-10-18T12:05:52.643Z"
+stopped_at: Completed 05-25-PLAN.md
+last_updated: "2026-10-18T12:51:33.260Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 9df0f3261b0672e7faccc5352615f0f46b71a2d5
+state_head: b759fe37c484c80993b1fda853e7c77a8f741576
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 142
+  completed_plans: 143
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T06:57:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 29 of 43
+Plan: 30 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -198,6 +198,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P23 | 30 min | 2 tasks | 17 files |
 | Phase 05 P40 | 30min | 2 tasks | 30 files |
 | Phase 05 P24 | 19 min | 2 tasks | 16 files |
+| Phase 05 P25 | 42 min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -517,6 +518,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: Plan 05-40: AuditActions.UserInvitationResent (user.invitation-resent) is declared by 05-40; plan 05-27 must reuse it. The email preview tool has eight samples, so 05-31 expected counts rise by one
 - [Phase 05]: 05-24: Unlock takes no roster lock and runs no guard; lock runs the roster lock then ManagerGuard like deactivate (D-16, D-18, D-19)
 - [Phase 05]: 05-24: SetManagerLockAsync compares locked vs not locked only, so a repeat lock or unlock writes, audits and revokes nothing; no code reads the lock time as an expiry (D-16)
+- [Phase 05]: 05-25 D-45 in the Edit User form: a changed email (compared after trim, ignoring letter case) needs a choice; the RadioGroup Confirm by link (preselected) or Save at once shows only for a person with a password; emailChange is sent only when the email changed, and an invited person always sends confirm
+- [Phase 05]: 05-25 The Edit User detail query has no cache lifetime and the panel trusts data only when isFetchedAfterMount, so every open reads the person and the edit version fresh; Load Latest also resets the form so typed values are replaced even when the latest version holds the same values
+- [Phase 05]: 05-25 ActorName and RecordMeta live in components/data for every later detail view: a null actor reads System, a deleted actor keeps the name with a muted former-staff suffix, a record with no time shows EmptyValue
 
 ### Pending Todos
 
@@ -576,6 +580,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T12:05:51.986Z
-Stopped at: Completed 05-24-PLAN.md
+Last session: 2026-10-18T12:51:22.660Z
+Stopped at: Completed 05-25-PLAN.md
 Resume file: None

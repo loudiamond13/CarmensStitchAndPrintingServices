@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T07:25:00-05:00
+updated: 2026-10-18T07:50:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -68,3 +68,10 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 ## Owner ruling: pending email change hides Change Email (owner, 2026-10-18)
 
 - **Ruled:** keep 05-18's behavior. While an email change waits, My Profile shows Resend Link and Cancel Change and hides Change Email; replacing a pending change means Cancel Change first. Wording review stays on the rendered screens and emails in 05-31 and 05-37 (D-48).
+
+## Owner wording review: Edit User email choice (added by plan 05-25, D-45, D-48)
+
+- **What:** The Edit User panel (U3) shows a choice under Email when a Manager changes the email of a person who already has a password. The wording was built from D-45 and is not approved.
+- **Strings (web/src/modules/admin/usersCopy.ts, `edit.emailChange`):** the group label "How this email change applies"; the row "Confirm by link" with "The new address must confirm first, and the old address is told."; the row "Save at once" with "The email changes now. The old address is told and they are signed out everywhere."; the message "Choose how the email change applies." (the same text the server sends under `emailChange`, also listed under plan 05-40).
+- **Status:** "Confirm by link" is preselected. Present the rendered panel in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+- **Left for plan 05-30:** the Email notes (invited person, pending change), the pending-change note with Cancel Email Change and the pending-aware toast. The choice sits in its own block under the Email field, so those notes can go beside it.
