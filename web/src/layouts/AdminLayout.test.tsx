@@ -106,6 +106,14 @@ function sidebarNav(): HTMLElement {
   return nav;
 }
 
+function sidebarAside(): HTMLElement {
+  const aside = document.querySelector('aside');
+  if (!(aside instanceof HTMLElement)) {
+    throw new Error('No sidebar.');
+  }
+  return aside;
+}
+
 function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
@@ -802,13 +810,13 @@ describe('AdminLayout session user (PROF-01)', () => {
     const router = createMemoryRouter(signedInTree(), { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
     await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
-    expect(within(sidebarNav().closest('aside') as HTMLElement).getByText('Carmen Reyes')).toBeInTheDocument();
+    expect(within(sidebarAside()).getByText('Carmen Reyes')).toBeInTheDocument();
 
     act(() => {
       acceptSession(renewedSession('Ana', 'Cruz'));
     });
 
-    expect(within(sidebarNav().closest('aside') as HTMLElement).getByText('Ana Cruz')).toBeInTheDocument();
+    expect(within(sidebarAside()).getByText('Ana Cruz')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ana Cruz/ })).toBeInTheDocument();
     expect(screen.queryByText('Carmen Reyes')).toBeNull();
   });

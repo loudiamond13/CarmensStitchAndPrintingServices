@@ -10,7 +10,9 @@
 // while it is open the frame behind it is `inert`, so neither the keyboard nor assistive technology reaches the page
 // under the scrim.
 // The toast layer sits inside the page root after the frame (ToastProvider, plan 02-21), so toasts take the theme.
-// The signed-in user comes from the route's loader data (the session user, or Carmen Reyes on the dev routes). Logout (in
+// The signed-in user comes from the route's loader data (the session user, or Carmen Reyes on the dev routes), kept in step
+// with the session: after a profile save the session is refreshed and the Sidebar chip and Topbar show the new name at once
+// (PROF-01). Logout (in
 // the Sidebar, the drawer and the Topbar's user menu) signs out and goes to /admin/login; when the server call fails the
 // person stays signed in on the page and a danger toast says so.
 // Theme (D-13): read once in a lazy useState initializer (no inline script), Blush when nothing valid is saved, written
@@ -35,9 +37,10 @@ import { SignOutOthersDialog } from '@/modules/admin/components/SignOutOthersDia
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { adminNavItemForPath, isShellUser, type ShellUser } from '@/modules/admin/sections';
 import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
+import { useSession } from '@/modules/admin/hooks/useSession';
 import { useSessionCapWarning } from '@/modules/admin/hooks/useSessionCapWarning';
 import { refreshAfterSignedOutOthers } from '@/modules/admin/hooks/useSessionsQuery';
-import { setNavigator, signOut } from '@/modules/admin/services/session';
+import { setNavigator, signOut, type SessionUser } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
 import { readTheme, writeTheme, type Theme } from '@/modules/admin/theme';
 
@@ -128,6 +131,21 @@ export function AdminFrame({
   );
 }
 
+/**
+ * Who the shell shows. The route loader's user is the session user as it was when the route loaded; while the same person
+ * is signed in, the session's copy is the fresh one (a renamed profile). Any other loader user (the dev routes' placeholder)
+ * is shown as it is.
+ */
+function currentShellUser(loaderUser: unknown, sessionUser: SessionUser | null): unknown {
+  const sameAccount =
+    sessionUser !== null &&
+    typeof loaderUser === 'object' &&
+    loaderUser !== null &&
+    'id' in loaderUser &&
+    loaderUser.id === sessionUser.id;
+  return sameAccount ? sessionUser : loaderUser;
+}
+
 /** The frame for the current path. Logout leaves for /admin/login once the server ended the session; if not, a toast says so. */
 function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   const navigate = useNavigate();
@@ -139,7 +157,9 @@ function AdminShell({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () 
   const failureToast = useRef<number | null>(null);
   useSessionCapWarning();
   usePostSignInToast();
-  const user: unknown = useLoaderData();
+  const loaderUser: unknown = useLoaderData();
+  const { user: sessionUser } = useSession();
+  const user = currentShellUser(loaderUser, sessionUser);
   // The session module navigates (a session that ended in this or another tab) without importing the router.
   useEffect(() => {
     setNavigator((to) => {

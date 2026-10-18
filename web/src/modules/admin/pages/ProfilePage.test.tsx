@@ -480,10 +480,10 @@ describe('P1 stale save (D-20, SEC-07)', () => {
   const NEWER: ProfileResponse = { ...PROFILE, firstName: 'Lito', lastName: 'Cruz', version: V2 };
 
   /** A backend whose saves are refused as stale until `accept()`; `elsewhere()` makes the stored profile the newer one. */
-  function staleBackend(get?: () => Response | Promise<Response>) {
+  function staleBackend(get?: (stored: ProfileResponse) => Response | Promise<Response>) {
     let stale = true;
     const state: Backend = backend(PROFILE, {
-      ...(get === undefined ? {} : { get }),
+      ...(get === undefined ? {} : { get: () => get(state.profile) }),
       put: (body) => {
         if (stale) {
           return problem(409, STALE_BODY);
@@ -578,11 +578,11 @@ describe('P1 stale save (D-20, SEC-07)', () => {
       release = resolve;
     });
     let hold = false;
-    const { elsewhere } = staleBackend(async () => {
+    const { elsewhere } = staleBackend(async (stored) => {
       if (hold) {
         await held;
       }
-      return HttpResponse.json(NEWER);
+      return HttpResponse.json(stored);
     });
     await openPage();
     await saveAs('Ana');
@@ -603,7 +603,7 @@ describe('P1 stale save (D-20, SEC-07)', () => {
 
   it('keeps the banner and the typed names, with a danger toast, when Load Latest cannot reach the server', async () => {
     let fail = false;
-    const { elsewhere } = staleBackend(() => (fail ? problem(500, {}) : HttpResponse.json(NEWER)));
+    const { elsewhere } = staleBackend((stored) => (fail ? problem(500, {}) : HttpResponse.json(stored)));
     await openPage();
     await saveAs('Ana');
     await screen.findByRole('alert');
