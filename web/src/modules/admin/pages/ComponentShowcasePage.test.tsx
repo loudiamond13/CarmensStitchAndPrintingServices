@@ -27,6 +27,7 @@ const SECTION_TITLES = [
   'Navigation',
   'Marketing',
   'Sign-in and devices',
+  'Staff and audit',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -169,6 +170,7 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Sign-in and devices')).toContainElement(caseFrame('verify-default'));
     expect(section('Sign-in and devices')).toContainElement(caseFrame('devices-populated'));
     expect(section('Sign-in and devices')).toContainElement(caseFrame('signout-others-open'));
+    expect(section('Staff and audit')).toContainElement(caseFrame('staff-roster-rows'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
