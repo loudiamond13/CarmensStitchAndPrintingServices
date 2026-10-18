@@ -105,7 +105,7 @@ describe('useAuditListParams reading', () => {
     'Carmen Reyes',
     '123',
     `${ID}x`,
-    `${ID.replaceAll('-', '')}`,
+    ID.replaceAll('-', ''),
   ])('refuses actor=%s and removes it with one replace', async (value) => {
     const { result, onUrlUpdate } = renderParams(`?actor=${value}`);
 

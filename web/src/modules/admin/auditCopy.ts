@@ -209,6 +209,32 @@ export const AUDIT_COPY = {
     all: 'Everything kept (8 months)',
     custom: 'Custom range',
   },
+  toolbar: {
+    dateRange: 'Date range',
+    from: 'From',
+    to: 'To',
+    doneBy: 'Done by',
+    anyone: 'Anyone',
+    action: 'Action',
+    allActions: 'All actions',
+    doneTo: 'Done to',
+    loadingStaff: 'Loading staff…',
+    system: 'System',
+  },
+  /** The chips: "Range: Last 30 days", "Done by: Paolo Garcia". */
+  chips: { range: 'Range', doneBy: 'Done by', action: 'Action', doneTo: 'Done to' },
+  /** The chip value of a person the staff list does not name (a stale link). */
+  unknownPerson: 'Unknown person',
+  /** The custom range's messages (OR-3): the same rules and words as the server's validator. */
+  errors: {
+    startRequired: 'Enter a start date.',
+    endRequired: 'Enter an end date.',
+    notReal: 'Enter a real date.',
+    order: 'The start date must be on or before the end date.',
+    outsideWindow: (floor: string): string => `Choose a date from ${floor} to today.`,
+  },
+  /** The no-match sentence's filter part: "range Last 30 days and done by Paolo Garcia". */
+  filterSummary: (parts: readonly string[]): string => parts.join(' and '),
   empty: {
     title: 'No entries in the last 7 days',
     message: 'Choose a wider date range to see older entries.',

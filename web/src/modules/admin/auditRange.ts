@@ -2,7 +2,13 @@
 // is this page's own preset. A preset is stored in the URL by name and worked out against the business today on every visit;
 // nothing here reads the machine clock, the caller passes today (businessToday). The window is the 8 months the log is kept
 // (D-32), counted the way the server counts it.
+import { z } from 'zod';
 import { CUSTOM_RANGE, isCalendarDate, resolveRangePreset, type RangePreset } from '@/lib/url-state/parsers';
+import { formatCalendarDate } from '@/utils/format';
+import { AUDIT_COPY } from './auditCopy';
+
+// The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
+z.config({ jitless: true });
 
 /** The kept window in months (D-32); the server's AuditRetention.Months. */
 export const AUDIT_KEPT_MONTHS = 8;
@@ -69,15 +75,50 @@ export function resolveAuditRange(state: AuditRangeState, today: string): AuditD
     return { from: keptFloor(today), to: today };
   }
   if (state.range === CUSTOM_RANGE) {
-    return resolveRangePreset(DEFAULT_AUDIT_RANGE, today);
+    // A custom range counts only when both dates pass the same checks as the inputs; until then the default stays.
+    const draft = { from: state.from ?? '', to: state.to ?? '' };
+    const errors = customRangeErrors(draft, today);
+    return errors.from === null && errors.to === null ? draft : resolveRangePreset(DEFAULT_AUDIT_RANGE, today);
   }
   return resolveRangePreset(state.range, today);
 }
 
-/** RED stub (plan 05-33 task 2): replaced in the GREEN commit. */
-export function customRangeErrors(
-  _draft: { from: string; to: string },
-  today: string,
-): { from: string | null; to: string | null } {
-  return today === '' ? { from: '', to: '' } : { from: null, to: null };
+/** The message under each custom-range date; null when that date is fine. */
+export interface CustomRangeErrors {
+  from: string | null;
+  to: string | null;
+}
+
+/** The custom range's schema (OR-3): the rules of the server's validator, so the browser checks them before any request. */
+function customRangeSchema(today: string) {
+  const floor = keptFloor(today);
+  const copy = AUDIT_COPY.errors;
+  const inWindow = (day: string): boolean => day >= floor && day <= today;
+  const date = (required: string) =>
+    z
+      .string()
+      .min(1, required)
+      .refine(isCalendarDate, copy.notReal)
+      .refine(inWindow, copy.outsideWindow(formatCalendarDate(floor) ?? floor));
+  return z.object({ from: date(copy.startRequired), to: date(copy.endRequired) }).superRefine((range, context) => {
+    const bothFine = [range.from, range.to].every((day) => isCalendarDate(day) && inWindow(day));
+    if (bothFine && range.from > range.to) {
+      context.addIssue({ code: 'custom', path: ['from'], message: copy.order });
+    }
+  });
+}
+
+/** What is wrong with the From and To inputs (empty text for no date), worked out against the business today. */
+export function customRangeErrors(draft: { from: string; to: string }, today: string): CustomRangeErrors {
+  const errors: CustomRangeErrors = { from: null, to: null };
+  const result = customRangeSchema(today).safeParse(draft);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const field = issue.path[0];
+      if ((field === 'from' || field === 'to') && errors[field] === null) {
+        errors[field] = issue.message;
+      }
+    }
+  }
+  return errors;
 }
