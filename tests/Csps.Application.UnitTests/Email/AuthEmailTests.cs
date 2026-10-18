@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Application.Email;
 using Csps.Domain.Identity;
 
@@ -65,6 +66,23 @@ public sealed class AuthEmailTests
             .ShouldBe("EmailChangeConfirmEmail");
         new ManagerResetLinkEmail("a@example.com", "manager-link-token-value", ExpiresAt, CreatedAt, "Carmen Reyes").ToString()
             .ShouldBe("ManagerResetLinkEmail");
+    }
+
+    [Fact]
+    public void EveryAuthEmailPrintsOnlyItsTypeNameNeverAnAddressOrName()
+    {
+        foreach (var email in Kinds())
+        {
+            email.ToString().ShouldBe(email.GetType().Name);
+        }
+    }
+
+    [Fact]
+    public void AnAccountPrintsOnlyItsTypeNameNeverAnAddressOrName()
+    {
+        var account = new UserAccount(Guid.NewGuid(), "carmen.reyes@example.com", "Carmen", "Reyes", "Manager", true, true, true, null, false, null);
+
+        account.ToString().ShouldBe("UserAccount");
     }
 
     [Fact]
