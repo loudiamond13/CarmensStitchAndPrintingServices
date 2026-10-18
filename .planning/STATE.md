@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-31-PLAN.md
-last_updated: "2026-10-18T16:32:07.540Z"
+stopped_at: Completed 05-34-PLAN.md
+last_updated: "2026-10-18T16:43:39.916Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 522244601af64f5bab9cadaa934333aee202c5d7
+state_head: ae285194209f5f09f14346bfc03e6ab0817567d9
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 150
+  completed_plans: 151
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T11:33:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 37 of 43
+Plan: 38 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -206,6 +206,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P29 | 31 min | 2 tasks | 17 files |
 | Phase 05 P30 | 65 min | 3 tasks | 17 files |
 | Phase 05 P31 | 12 min | 2 tasks | 3 files |
+| Phase 05 P34 | 25 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -545,6 +546,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-30 D-45: the Edit panel's Email note follows the Manager's live choice (invitation note for an invited person, confirmation-link note for Confirm by link, a new Save at once note), and the save toast says a link was sent or the email moved at once (onSaved reports plain, pending or moved)
 - [Phase 05]: 05-30: the Lock and Set Temporary Password dialogs are DOM siblings of the Edit slide-over; account actions are aria-disabled while the form is dirty (D-21), re-read the person after success, and tell the roster through onAccountChanged; the temporary password lives in the dialog's component state only and is dropped after close
 - [Phase 05]: 05-31: Owner approved the seven Phase 5 emails on 2026-10-18 with no copy or look changes; the optional wording suggestions were not taken
+- [Phase 05]: 05-34: the breach verdict is computed once before the transaction and reused by the conflict retry, so a retry never repeats the HTTP call
+- [Phase 05]: 05-34: AuthEmail.ToString is sealed and returns the type name; per-record overrides removed (IN-06)
 
 ### Pending Todos
 
@@ -604,6 +607,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T16:32:06.860Z
-Stopped at: Completed 05-31-PLAN.md
+Last session: 2026-10-18T16:43:39.242Z
+Stopped at: Completed 05-34-PLAN.md
 Resume file: None
