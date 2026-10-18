@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
@@ -74,10 +74,13 @@ function pageOf(items: AuditLogItem[], total = items.length): AuditLogResponse {
 type Responder = (url: URL) => AuditLogResponse | Response | Promise<AuditLogResponse | Response>;
 
 /** The fake API: the list (answered by `respond`, or a page of `items`) and the people. Returns the list calls. */
-function backend(items: AuditLogItem[] = ITEMS, respond?: Responder): { calls: URL[] } {
+function backend(items: AuditLogItem[] = ITEMS, respond?: Responder, peopleDelay = 0): { calls: URL[] } {
   const calls: URL[] = [];
   server.use(
-    http.get('*/api/v1/audit-log/people', () => HttpResponse.json(PEOPLE)),
+    http.get('*/api/v1/audit-log/people', async () => {
+      await delay(peopleDelay);
+      return HttpResponse.json(PEOPLE);
+    }),
     http.get('*/api/v1/audit-log', async ({ request }) => {
       const url = new URL(request.url);
       calls.push(url);
@@ -449,6 +452,407 @@ describe('A1 the states', () => {
 
     expect(await screen.findByText("You don't have access to this")).toBeInTheDocument();
     expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+/** The query a list call carried, as a plain object. */
+function paramsOf(call: URL | undefined): Record<string, string> {
+  return Object.fromEntries(call?.searchParams ?? []);
+}
+
+function lastQuery(calls: URL[]): Record<string, string> {
+  return paramsOf(calls.at(-1));
+}
+
+/** The query string of the last URL write, or null if there was none. */
+function lastUrl(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): string | null {
+  return spy.mock.calls.at(-1)?.[0].queryString ?? null;
+}
+
+describe('A1 the date range (D-26, WEB-10)', () => {
+  it('offers the six ranges in a Date range select, with Last 7 days chosen', async () => {
+    backend();
+    await openPage();
+
+    const select = screen.getByLabelText('Date range');
+    expect([...within(select).getAllByRole('option')].map((option) => option.textContent)).toEqual([
+      'Last 7 days',
+      'Last 30 days',
+      'This month',
+      'Last month',
+      'Everything kept (8 months)',
+      'Custom range',
+    ]);
+    expect(select).toHaveValue('last-7-days');
+  });
+
+  it('Last 30 days sends from and to worked out from the business today, and the URL keeps the name only', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Last 30 days');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ from: '2026-09-19', to: '2026-10-18' });
+    });
+    expect(lastUrl(onUrlUpdate)).toBe('?range=last-30-days');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
+    expect(screen.getByText('Range: Last 30 days')).toBeInTheDocument();
+  });
+
+  it('This month and Last month resolve against the business today', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.selectOptions(screen.getByLabelText('Date range'), 'This month');
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ from: '2026-10-01', to: '2026-10-18' });
+    });
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Last month');
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ from: '2026-09-01', to: '2026-09-30' });
+    });
+  });
+
+  it('Everything kept sends the start of the 8-month window through today', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Everything kept (8 months)');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ from: '2026-02-18', to: '2026-10-18' });
+    });
+    expect(screen.getByText('Range: Everything kept (8 months)')).toBeInTheDocument();
+  });
+
+  it('choosing Last 7 days again takes the range out of the URL and removes the chip', async () => {
+    backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('?range=last-30-days', onUrlUpdate);
+
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Last 7 days');
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('');
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Range: Last 30 days')).toBeNull();
+    });
+  });
+
+  it('a shared link with range=this-month is worked out against today, not against the day it was copied', async () => {
+    const { calls } = backend();
+    await openPage('?range=this-month');
+
+    expect(lastQuery(calls)).toMatchObject({ from: '2026-10-01', to: '2026-10-18' });
+    expect(screen.getByLabelText('Date range')).toHaveValue('this-month');
+  });
+
+  it('Custom range shows From and To, bounded by the start of the kept window and today', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage();
+    expect(screen.queryByLabelText('From')).toBeNull();
+
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Custom range');
+
+    const from = screen.getByLabelText('From');
+    const to = screen.getByLabelText('To');
+    expect(from).toHaveAttribute('type', 'date');
+    expect(from).toHaveAttribute('min', '2026-02-18');
+    expect(from).toHaveAttribute('max', '2026-10-18');
+    expect(to).toHaveAttribute('min', '2026-02-18');
+    expect(to).toHaveAttribute('max', '2026-10-18');
+  });
+
+  it('applies a custom range only once both dates are valid', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Custom range');
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('?range=custom');
+    });
+    const before = calls.length;
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+
+    expect(lastUrl(onUrlUpdate)).toBe('?range=custom');
+    expect(calls).toHaveLength(before);
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('?from=2026-10-01&range=custom&to=2026-10-12');
+    });
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ from: '2026-10-01', to: '2026-10-12' });
+    });
+  });
+
+  it('a shared link with a custom range reopens with the dates filled and sends them', async () => {
+    const { calls } = backend();
+    await openPage('?range=custom&from=2026-09-01&to=2026-09-15');
+
+    expect(screen.getByLabelText('From')).toHaveValue('2026-09-01');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-09-15');
+    expect(lastQuery(calls)).toMatchObject({ from: '2026-09-01', to: '2026-09-15' });
+  });
+
+  it('says "Enter a start date." and "Enter an end date." under the date that is missing', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Custom range');
+    expect(screen.queryByText('Enter a start date.')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+    expect(await screen.findByText('Enter a start date.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+
+    expect(await screen.findByText('Enter an end date.')).toBeInTheDocument();
+  });
+
+  it('says "The start date must be on or before the end date." and does not apply the range', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Custom range');
+    const before = calls.length;
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-05' } });
+
+    expect(await screen.findByText('The start date must be on or before the end date.')).toBeInTheDocument();
+    expect(calls).toHaveLength(before);
+  });
+
+  it('says "Choose a date from Feb 18, 2026 to today." for a date outside the kept window', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(screen.getByLabelText('Date range'), 'Custom range');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-02-17' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+
+    expect(await screen.findByText('Choose a date from Feb 18, 2026 to today.')).toBeInTheDocument();
+  });
+});
+
+describe('A1 Done by, Action and Done to (D-26)', () => {
+  it('lists staff by name, then former staff with the suffix, then System under Done by', async () => {
+    backend();
+    await openPage();
+
+    const select = screen.getByLabelText('Done by');
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect([...within(select).getAllByRole('option')].map((option) => option.textContent)).toEqual([
+      'Anyone',
+      'Carmen Reyes',
+      'Paolo Garcia',
+      'Liza Mercado (former staff)',
+      'System',
+    ]);
+  });
+
+  it('leaves System out of Done to', async () => {
+    backend();
+    await openPage();
+
+    const select = screen.getByLabelText('Done to');
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect([...within(select).getAllByRole('option')].map((option) => option.textContent)).toEqual([
+      'Anyone',
+      'Carmen Reyes',
+      'Paolo Garcia',
+      'Liza Mercado (former staff)',
+    ]);
+  });
+
+  it('disables both with "Loading staff…" while the staff list loads', async () => {
+    backend(ITEMS, undefined, 400);
+    await openPage();
+
+    for (const label of ['Done by', 'Done to']) {
+      const select = screen.getByLabelText(label);
+      expect(select).toBeDisabled();
+      expect(within(select).getByRole('option', { name: 'Loading staff…' })).toBeInTheDocument();
+    }
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done by')).toBeEnabled();
+    });
+  });
+
+  it('sends the chosen person as actor by id, keeps the id in the URL and shows the chip with the name', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done by')).toBeEnabled();
+    });
+
+    await user.selectOptions(screen.getByLabelText('Done by'), 'Paolo Garcia');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ actor: PAOLO.id });
+    });
+    expect(lastUrl(onUrlUpdate)).toBe(`?actor=${PAOLO.id}`);
+    expect(screen.getByText('Done by: Paolo Garcia')).toBeInTheDocument();
+  });
+
+  it('sends System as actor=system', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done by')).toBeEnabled();
+    });
+
+    await user.selectOptions(screen.getByLabelText('Done by'), 'System');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ actor: 'system' });
+    });
+    expect(screen.getByText('Done by: System')).toBeInTheDocument();
+  });
+
+  it('groups the actions under Sign-in and security, Staff accounts and Profile changes', async () => {
+    backend();
+    await openPage();
+
+    const select = screen.getByLabelText('Action');
+    expect(within(select).getByRole('option', { name: 'All actions' })).toBeInTheDocument();
+    for (const group of ['Sign-in and security', 'Staff accounts', 'Profile changes']) {
+      expect(within(select).getByRole('group', { name: group })).toBeInTheDocument();
+    }
+    const staff = within(select).getByRole('group', { name: 'Staff accounts' });
+    expect(within(staff).getByRole('option', { name: 'User deactivated' })).toBeInTheDocument();
+  });
+
+  it('sends the chosen action code and shows the chip with the label', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.selectOptions(screen.getByLabelText('Action'), 'User deactivated');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ action: 'user.deactivated' });
+    });
+    expect(screen.getByText('Action: User deactivated')).toBeInTheDocument();
+  });
+
+  it('sends the chosen person as target and shows the chip', async () => {
+    const { calls } = backend();
+    const user = userEvent.setup();
+    await openPage();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done to')).toBeEnabled();
+    });
+
+    await user.selectOptions(screen.getByLabelText('Done to'), 'Liza Mercado (former staff)');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ target: LIZA.id });
+    });
+    expect(screen.getByText('Done to: Liza Mercado (former staff)')).toBeInTheDocument();
+  });
+
+  it('shows the chips in order and clears one at a time, each with a replace', async () => {
+    backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage(`?range=last-30-days&actor=${CARMEN.id}&action=user.deactivated&target=${PAOLO.id}`, onUrlUpdate);
+
+    await waitFor(() => {
+      expect(screen.getByText('Done to: Paolo Garcia')).toBeInTheDocument();
+    });
+    const chips = screen
+      .getAllByRole('button', { name: /^Clear .* filter$/ })
+      .map((button) => button.getAttribute('aria-label'));
+    expect(chips).toEqual([
+      'Clear range filter',
+      'Clear done by filter',
+      'Clear action filter',
+      'Clear done to filter',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Clear action filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Action: User deactivated')).toBeNull();
+    });
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
+  });
+
+  it('reopens the link of a user activity (target and range=all): the person is the Done to filter', async () => {
+    const { calls } = backend();
+    await openPage(`?target=${PAOLO.id}&range=all`);
+
+    expect(lastQuery(calls)).toMatchObject({ target: PAOLO.id, from: '2026-02-18', to: '2026-10-18' });
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done to')).toHaveValue(PAOLO.id);
+    });
+    expect(screen.getByText('Done to: Paolo Garcia')).toBeInTheDocument();
+  });
+
+  it('drops an email in the actor and sends no actor (the URL never holds an email, D-40)', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?actor=carmen%40example.ph', onUrlUpdate);
+
+    expect(calls.every((call) => !call.searchParams.has('actor'))).toBe(true);
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(lastUrl(onUrlUpdate)).toBe('');
+  });
+
+  it('shows "No matches" with Clear Filters when a filter finds nothing, and Clear Filters resets them', async () => {
+    backend([]);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    renderPage('?action=user.deleted', onUrlUpdate);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('');
+    });
+  });
+
+  it('does not offer Show Everything Kept when an action filter is set (that is "No matches")', async () => {
+    backend([]);
+    renderPage('?action=user.deleted');
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show Everything Kept' })).toBeNull();
+  });
+
+  it('has no axe violations with the custom range and a filter shown', async () => {
+    vi.useRealTimers();
+    backend();
+    const { container } = await openPage('?range=custom&from=2026-09-01&to=2026-09-15&action=user.deactivated');
+    await waitFor(() => {
+      expect(screen.getByLabelText('Done by')).toBeEnabled();
+    });
+
+    await expectNoAxeViolations(container);
   });
 });
 

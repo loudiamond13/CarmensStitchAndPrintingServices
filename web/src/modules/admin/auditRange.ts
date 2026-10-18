@@ -73,3 +73,11 @@ export function resolveAuditRange(state: AuditRangeState, today: string): AuditD
   }
   return resolveRangePreset(state.range, today);
 }
+
+/** RED stub (plan 05-33 task 2): replaced in the GREEN commit. */
+export function customRangeErrors(
+  _draft: { from: string; to: string },
+  today: string,
+): { from: string | null; to: string | null } {
+  return today === '' ? { from: '', to: '' } : { from: null, to: null };
+}
