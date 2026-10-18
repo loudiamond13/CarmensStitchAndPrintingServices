@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-39-PLAN.md
-last_updated: "2026-10-18T06:21:28.064Z"
+stopped_at: Completed 05-15-PLAN.md
+last_updated: "2026-10-18T06:38:44.518Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 7ee0bfb793f626338cbe1bf02037bef8b77aa8bf
+state_head: 8a5f18c63373646848b7e043fd0a4b5b34764bc1
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 130
+  completed_plans: 131
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T01:25:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 17 of 43
+Plan: 18 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -186,6 +186,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P12 | 26 min | 3 tasks | 25 files |
 | Phase 05 P14 | 22 min | 2 tasks | 27 files |
 | Phase 05 P39 | 22 min | 2 tasks | 19 files |
+| Phase 05 P15 | 18 min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -475,6 +476,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-14: ApplyPendingEmailAsync records the account itself as last changer with a second unstamped save, because the stamp interceptor nulls an unchanged UpdatedById when nobody is signed in
 - [Phase 05]: Plan 05-39: the email change reuses CurrentPasswordCheck (shared with the password change); a taken address is revealed only after the current password is right, and a correct password clears the wrong-password count
 - [Phase 05]: Plan 05-39: the same-address rule reaches the shared validator through ValidationContext.RootContextData (key currentEmail), so one validator holds every rule the browser mirrors
+- [Phase 05]: 05-15: a taken-address confirm saves its writes (link spent, pending cleared, audit canceled/taken) and the controller marks the 409 KeepChanges because the idempotency gate rolls back unstored 4xx
+- [Phase 05]: 05-15: resend and cancel read the pending address through IUserDirectory inside the per-account link lock; cancel (DELETE) takes no row version and answers 204 with no audit when nothing is pending
 
 ### Pending Todos
 
@@ -534,6 +537,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T06:21:17.531Z
-Stopped at: Completed 05-39-PLAN.md
+Last session: 2026-10-18T06:38:43.851Z
+Stopped at: Completed 05-15-PLAN.md
 Resume file: None
