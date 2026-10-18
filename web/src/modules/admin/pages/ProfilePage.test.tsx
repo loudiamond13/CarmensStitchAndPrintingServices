@@ -1161,6 +1161,362 @@ describe('P1 Details: Sign-in Email (PROF-02, D-24)', () => {
   });
 });
 
+interface PasswordCall {
+  body: { currentPassword: string; newPassword: string };
+  key: string | null;
+}
+
+/** Answers POST /api/v1/profile/password (default: 204) and records what arrived. */
+function passwordChanges(reply: () => Response | Promise<Response> = () => new HttpResponse(null, { status: 204 })) {
+  const calls: PasswordCall[] = [];
+  server.use(
+    http.post('*/api/v1/profile/password', async ({ request }) => {
+      const body = (await request.json()) as PasswordCall['body'];
+      calls.push({ body, key: request.headers.get('Idempotency-Key') });
+      return reply();
+    }),
+  );
+  return calls;
+}
+
+const CURRENT_PASSWORD = 'Mabuhay#Tahi2026';
+const NEW_PASSWORD = 'Bagong#Landas2027';
+
+function securityPanel(): HTMLElement {
+  return screen.getByRole('tabpanel', { name: 'Security' });
+}
+
+function passwordCard(): HTMLElement {
+  return within(securityPanel()).getByRole('form', { name: 'Change Password' });
+}
+
+function currentPasswordBox(): HTMLInputElement {
+  return within(passwordCard()).getByLabelText<HTMLInputElement>('Current password');
+}
+
+function newPasswordBox(): HTMLInputElement {
+  return within(passwordCard()).getByLabelText<HTMLInputElement>('New password');
+}
+
+function confirmPasswordBox(): HTMLInputElement {
+  return within(passwordCard()).getByLabelText<HTMLInputElement>('Confirm new password');
+}
+
+function updateButton(): HTMLElement {
+  return within(passwordCard()).getByRole('button', { name: /^(Update Password|Updating)$/ });
+}
+
+async function typePasswords(
+  user: ReturnType<typeof userEvent.setup>,
+  values: { current?: string; next?: string; confirm?: string } = {},
+): Promise<void> {
+  const { current = CURRENT_PASSWORD, next = NEW_PASSWORD, confirm = next } = values;
+  if (current !== '') {
+    await user.type(currentPasswordBox(), current);
+  }
+  if (next !== '') {
+    await user.type(newPasswordBox(), next);
+  }
+  if (confirm !== '') {
+    await user.type(confirmPasswordBox(), confirm);
+  }
+}
+
+describe('P1 Security: Change Password (PROF-03, OR-3)', () => {
+  it('shows the Change Password card above Signed-in Devices with its three fields and Update Password', async () => {
+    backend();
+    await openPage('?tab=security');
+
+    const panel = securityPanel();
+    const headings = within(panel)
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual(['Change Password', 'Signed-in Devices']);
+    expect(within(panel).getByText('Use 8+ characters with a number and a symbol.')).toBeInTheDocument();
+    expect(currentPasswordBox()).toHaveAttribute('autocomplete', 'current-password');
+    expect(newPasswordBox()).toHaveAttribute('autocomplete', 'new-password');
+    expect(confirmPasswordBox()).toHaveAttribute('autocomplete', 'new-password');
+    expect(
+      within(passwordCard()).getByText(
+        "Use 8 to 64 characters with at least one number and one symbol. Don't use your name or email.",
+      ),
+    ).toBeInTheDocument();
+    expect(updateButton()).toHaveTextContent('Update Password');
+  });
+
+  it('carries the account email in a hidden username input for password managers', async () => {
+    backend();
+    await openPage('?tab=security');
+
+    const username = passwordCard().querySelector<HTMLInputElement>('input[name="username"]');
+    expect(username).not.toBeNull();
+    expect(username?.value).toBe('carmen@example.ph');
+    expect(username).toHaveAttribute('autocomplete', 'username');
+    expect(username?.hidden).toBe(true);
+  });
+
+  it('shows all three required messages before any request and puts the cursor in Current password', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+
+    await user.click(updateButton());
+
+    expect(await screen.findByText('Enter your current password.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a new password.')).toBeInTheDocument();
+    expect(screen.getByText('Enter the new password again.')).toBeInTheDocument();
+    expect(currentPasswordBox()).toHaveAttribute('aria-invalid', 'true');
+    expect(currentPasswordBox()).toHaveFocus();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a new password that holds the first name or the email, using the loaded profile', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+
+    await typePasswords(user, { next: 'Carmen#2027!' });
+    await user.click(updateButton());
+
+    expect(await screen.findByText("Don't use your name or email in your password.")).toBeInTheDocument();
+    expect(newPasswordBox()).toHaveFocus();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a confirmation that differs with "Passwords don\'t match."', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+
+    await typePasswords(user, { confirm: `${NEW_PASSWORD}!` });
+    await user.click(updateButton());
+
+    expect(await screen.findByText("Passwords don't match.")).toBeInTheDocument();
+    expect(confirmPasswordBox()).toHaveFocus();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a new password equal to the current one', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+
+    await typePasswords(user, { next: CURRENT_PASSWORD });
+    await user.click(updateButton());
+
+    expect(await screen.findByText('Choose a different password from your current one.')).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('sends both passwords (not the confirmation) with one Idempotency-Key, shows "Updating", then clears all three fields and toasts', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls = passwordChanges(async () => {
+      await held;
+      return new HttpResponse(null, { status: 204 });
+    });
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    expect(await within(passwordCard()).findByRole('button', { name: 'Updating' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    release();
+
+    expect(await screen.findByText('Password updated')).toBeInTheDocument();
+    expect(
+      screen.getByText('Use your new password next time you sign in. Your other devices were signed out.'),
+    ).toBeInTheDocument();
+    expect(calls).toEqual([
+      {
+        body: { currentPassword: CURRENT_PASSWORD, newPassword: NEW_PASSWORD },
+        key: expect.stringMatching(/\S/) as string,
+      },
+    ]);
+    expect(currentPasswordBox()).toHaveValue('');
+    expect(newPasswordBox()).toHaveValue('');
+    expect(confirmPasswordBox()).toHaveValue('');
+    expect(updateButton()).toHaveTextContent('Update Password');
+    expect(window.location.href).not.toContain('Bagong');
+  });
+
+  it('submits with Enter', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.type(confirmPasswordBox(), '{Enter}');
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it('can change the password a second time after the first succeeded, as a new request', async () => {
+    const calls = passwordChanges();
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+    await user.click(updateButton());
+    await screen.findByText('Password updated');
+
+    await typePasswords(user, { current: NEW_PASSWORD, next: 'Ikatlo#Landas2028' });
+    await user.click(updateButton());
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+    expect(calls[1]?.body).toEqual({ currentPassword: NEW_PASSWORD, newPassword: 'Ikatlo#Landas2028' });
+    expect(calls[1]?.key).not.toBe(calls[0]?.key);
+  });
+
+  it('shows a wrong current password under Current password with the cursor there, and keeps what was typed', async () => {
+    passwordChanges(() => problem(400, { errors: { currentPassword: ['Your current password is incorrect.'] } }));
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    expect(await screen.findByText('Your current password is incorrect.')).toBeInTheDocument();
+    expect(currentPasswordBox()).toHaveAttribute('aria-invalid', 'true');
+    expect(currentPasswordBox()).toHaveFocus();
+    expect(currentPasswordBox()).toHaveValue(CURRENT_PASSWORD);
+    expect(newPasswordBox()).toHaveValue(NEW_PASSWORD);
+    expect(screen.queryByText('Password updated')).toBeNull();
+    expect(screen.queryByText('Password not updated')).toBeNull();
+  });
+
+  it.each([
+    'This password has appeared in a data breach. Choose a different one.',
+    'This password is too common. Choose a different one.',
+  ])('shows the server answer "%s" under New password with the cursor there', async (message) => {
+    passwordChanges(() => problem(400, { errors: { NewPassword: [message] } }));
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(newPasswordBox()).toHaveAttribute('aria-invalid', 'true');
+    expect(newPasswordBox()).toHaveFocus();
+    expect(currentPasswordBox()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it("shows the server's plain-English lock line in the card's banner, with no field marked and the typed values kept", async () => {
+    passwordChanges(() =>
+      problem(429, {
+        detail: 'Too many wrong passwords. Try again in 15 minutes.',
+        code: 'profile.password-locked',
+      }),
+    );
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    const banner = await within(passwordCard()).findByRole('alert');
+    expect(banner).toHaveTextContent('Too many wrong passwords. Try again in 15 minutes.');
+    expect(currentPasswordBox()).not.toHaveAttribute('aria-invalid');
+    expect(currentPasswordBox()).toHaveValue(CURRENT_PASSWORD);
+    expect(screen.queryByText('Password updated')).toBeNull();
+  });
+
+  it('removes the lock banner when the next attempt starts', async () => {
+    let locked = true;
+    passwordChanges(() =>
+      locked
+        ? problem(429, {
+            detail: 'Too many wrong passwords. Try again in 15 minutes.',
+            code: 'profile.password-locked',
+          })
+        : new HttpResponse(null, { status: 204 }),
+    );
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+    await user.click(updateButton());
+    await within(passwordCard()).findByRole('alert');
+
+    locked = false;
+    await user.click(updateButton());
+
+    await waitFor(() => {
+      expect(within(passwordCard()).queryByRole('alert')).toBeNull();
+    });
+  });
+
+  it('shows the shared "Too many tries" toast for a 429 that is not the password lock', async () => {
+    passwordChanges(() => problem(429, {}));
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    expect(await screen.findByText('Too many tries')).toBeInTheDocument();
+    expect(within(passwordCard()).queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps what was typed and shows a danger toast when the server fails, and a retry reuses the Idempotency-Key', async () => {
+    let fail = true;
+    const calls = passwordChanges(() => (fail ? problem(500, {}) : new HttpResponse(null, { status: 204 })));
+    backend();
+    await openPage('?tab=security');
+    const user = userEvent.setup();
+    await typePasswords(user);
+
+    await user.click(updateButton());
+
+    expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+    expect(currentPasswordBox()).toHaveValue(CURRENT_PASSWORD);
+    expect(newPasswordBox()).toHaveValue(NEW_PASSWORD);
+
+    fail = false;
+    await user.click(updateButton());
+    expect(await screen.findByText('Password updated')).toBeInTheDocument();
+    expect(calls[1]?.key).toBe(calls[0]?.key);
+  });
+
+  it('has no axe violations on the Security tab with field errors and with the lock banner showing', async () => {
+    passwordChanges(() =>
+      problem(429, { detail: 'Too many wrong passwords. Try again in 15 minutes.', code: 'profile.password-locked' }),
+    );
+    backend();
+    const { container } = await openPage('?tab=security');
+    const user = userEvent.setup();
+    await user.click(updateButton());
+    await screen.findByText('Enter your current password.');
+    await expectNoAxeViolations(container);
+
+    await typePasswords(user);
+    await user.click(updateButton());
+    await within(passwordCard()).findByRole('alert');
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('P1 accessibility', () => {
   it('has no axe violations on the Details tab', async () => {
     backend();

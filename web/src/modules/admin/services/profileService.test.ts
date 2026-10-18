@@ -276,6 +276,73 @@ describe('profileService.cancelEmailChange', () => {
   });
 });
 
+describe('profileService.changePassword', () => {
+  const body = { currentPassword: 'Mabuhay#Tahi2026', newPassword: 'Bagong#Landas2027' };
+
+  it('calls POST /api/v1/profile/password with both passwords and the Idempotency-Key it was given, and resolves with nothing', async () => {
+    const fake = createFakeFetch([{ status: 204 }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.changePassword(body, 'key-abc')).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/profile/password');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-abc');
+  });
+
+  it('keeps both passwords out of the address', async () => {
+    const fake = createFakeFetch([{ status: 204 }]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await service.changePassword(body, 'key-abc');
+
+    expect(fake.calls[0]?.url).not.toMatch(/Mabuhay|Bagong/);
+  });
+
+  it('rejects with the field errors of a 400, keyed as the server wrote them', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 400,
+        headers: PROBLEM,
+        body: {
+          title: 'Bad Request',
+          status: 400,
+          errors: { currentPassword: ['Your current password is incorrect.'] },
+        },
+      },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.changePassword(body, 'key-abc')).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { currentPassword: ['Your current password is incorrect.'] },
+    });
+  });
+
+  it('rejects with the machine code and the plain-English detail of a 429 profile.password-locked', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 429,
+        headers: PROBLEM,
+        body: {
+          title: 'Too Many Requests',
+          status: 429,
+          detail: 'Too many wrong passwords. Try again in 15 minutes.',
+          code: 'profile.password-locked',
+        },
+      },
+    ]);
+    const service = createProfileService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+
+    await expect(service.changePassword(body, 'key-abc')).rejects.toMatchObject({
+      status: 429,
+      code: 'profile.password-locked',
+      problem: { detail: 'Too many wrong passwords. Try again in 15 minutes.' },
+    });
+  });
+});
+
 describe('profileService (the exported instance)', () => {
   it('exposes get, updateName and the email-change calls over the shared client', () => {
     expect(typeof profileService.get).toBe('function');
@@ -285,5 +352,6 @@ describe('profileService (the exported instance)', () => {
     expect(typeof profileService.requestEmailChange).toBe('function');
     expect(typeof profileService.resendEmailChange).toBe('function');
     expect(typeof profileService.cancelEmailChange).toBe('function');
+    expect(typeof profileService.changePassword).toBe('function');
   });
 });
