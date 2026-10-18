@@ -7,6 +7,10 @@
 //     under the Email field, "Confirm by link" (preselected) or "Save at once" (D-45). `emailChange` is sent only when the
 //     email changed. An invited person has no password: no choice is shown and `confirm` is sent (the server moves the
 //     address at once and re-invites either way).
+//   - Email differs from the saved one: a note under the field says what will happen, by invitation state and by the choice
+//     (the invited person's invitation moves; a link goes to the new address; or it changes at once). While a change waits
+//     for the new inbox a note names the address and "Cancel Email Change" calls it off (C-9). The save tells the roster
+//     whether a link was sent (pending), the email moved at once (moved) or neither (plain) so its toast can say so.
 //   - Account access (USER-03, USER-07, D-16, D-21; plan 05-30): Resend Invitation, Send Reset Link, Lock (through LockUserDialog)
 //     and Unlock act at once on the latest state, with no version. They wait (aria-disabled, with a hint) while the form has unsaved changes. After one
 //     succeeds the person is read again, the roster is told through `onAccountChanged`, and a toast says what happened. Set
@@ -41,6 +45,7 @@ import {
   usersChoiceClasses,
   usersFormGridClasses,
   usersPanelBodyClasses,
+  usersPendingClasses,
   usersStatusClasses,
 } from '@/modules/admin/components/users.recipe';
 import { useUserQuery } from '@/modules/admin/hooks/useUserQuery';
@@ -59,6 +64,7 @@ import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHt
 
 const COPY = USERS_COPY.edit;
 const ACCESS = COPY.accountAccess;
+const PENDING = COPY.pendingEmail;
 const FIELDS = USERS_COPY.add;
 
 const EDIT_STALE = 'edit.stale';
@@ -132,6 +138,20 @@ function anyAccess(buttons: AccessButtons): boolean {
   return Object.values(buttons).some(Boolean);
 }
 
+/** How the save treated the email, for the roster's toast: a link went out, the email moved at once, or neither. */
+function savedEmailOf(
+  saved: UserDetailResponse,
+  values: UpdateUserValues,
+  person: UserDetailResponse | null,
+): SavedEmail {
+  if (saved.pendingEmail !== null) {
+    return 'pending';
+  }
+  const movedAtOnce =
+    person !== null && person.hasPassword && emailChanged(values.email, person.email) && values.emailChange === 'now';
+  return movedAtOnce ? 'moved' : 'plain';
+}
+
 /** The PUT body: the email always; the choice only when the email changed (an invited person always confirms). */
 function toRequest(values: UpdateUserValues, person: UserDetailResponse): UpdateUserRequest {
   const request: UpdateUserRequest = {
@@ -191,8 +211,8 @@ function EditUserForm({
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const unlockRef = useRef<HTMLButtonElement>(null);
-  // Set when a reload should end with focus on the Unlock button that replaces Lock.
-  const focusUnlock = useRef(false);
+  // Where focus goes once the person has been read again: the Unlock button that replaces Lock, or Email after a cancelled change.
+  const focusAfterReload = useRef<'unlock' | 'email' | null>(null);
   const [lockOpen, setLockOpen] = useState(false);
   const [temporaryOpen, setTemporaryOpen] = useState(false);
   // True once a temporary password was set in the open dialog: closing it then reads the person again.
@@ -230,11 +250,13 @@ function EditUserForm({
   });
   const email = useWatch({ control, name: 'email' });
   const role = useWatch({ control, name: 'role' });
+  const emailChoice = useWatch({ control, name: 'emailChange' });
 
   const loaded = person !== null;
   const loadFailed = query.isError && !loaded;
   const gone = deleted || (loadFailed && isHttpError(query.error) && query.error.status === 404);
-  const showChoice = loaded && person.hasPassword && emailChanged(email, person.email);
+  const emailDiffers = loaded && emailChanged(email, person.email);
+  const showChoice = emailDiffers && person.hasPassword;
 
   const focusField = (name: FieldName): void => {
     const form = formRef.current;
@@ -309,8 +331,8 @@ function EditUserForm({
       return usersService.update(userId, toRequest(values, person));
     },
     {
-      onSuccess: (saved) => {
-        onSaved(saved, 'plain');
+      onSuccess: (saved, values) => {
+        onSaved(saved, savedEmailOf(saved, values, person));
         onClose();
       },
       onFailure: showFailure,
@@ -366,6 +388,7 @@ function EditUserForm({
   // roster is told.
   const lockAction = useSubmission<undefined, unknown>((key) => usersService.lock(userId, key));
   const unlockAction = useSubmission<undefined, unknown>((key) => usersService.unlock(userId, key));
+  const cancelEmailAction = useSubmission<undefined, unknown>(() => usersService.cancelEmailChange(userId));
   const resendAction = useSubmission<undefined, unknown>((key) => usersService.resendInvitation(userId, key));
   const resetLinkAction = useSubmission<undefined, unknown>((key) => usersService.sendResetLink(userId, key));
   const waiting = isDirty || pending;
@@ -393,6 +416,7 @@ function EditUserForm({
     action: AccessAction,
     done: { title: string; message: string },
     failedTitle: string,
+    focusAfter: 'email' | null = null,
   ): Promise<void> => {
     const outcome = await action.submit();
     if (!outcome.ok) {
@@ -400,6 +424,7 @@ function EditUserForm({
       return;
     }
     toast.show({ title: done.title, message: done.message });
+    focusAfterReload.current = focusAfter;
     await afterAction(action);
   };
 
@@ -411,7 +436,7 @@ function EditUserForm({
         title: COPY.accountAccess.toast.locked.title,
         message: COPY.accountAccess.toast.locked.message(name),
       });
-      focusUnlock.current = true;
+      focusAfterReload.current = 'unlock';
       void afterAction(lockAction);
     }
     return outcome;
@@ -428,11 +453,15 @@ function EditUserForm({
     }
   };
 
-  // The Unlock button that replaced Lock takes focus once the person has been read again.
+  // Focus moves on once the person has been read again: to the Unlock button that replaced Lock, or to Email once the waiting
+  // change is gone.
   useEffect(() => {
-    if (focusUnlock.current && person?.managerLocked === true) {
-      focusUnlock.current = false;
+    if (focusAfterReload.current === 'unlock' && person?.managerLocked === true) {
+      focusAfterReload.current = null;
       unlockRef.current?.focus();
+    } else if (focusAfterReload.current === 'email' && person?.pendingEmail === null) {
+      focusAfterReload.current = null;
+      formRef.current?.querySelector<HTMLElement>('input[name="email"]')?.focus();
     }
   }, [person]);
 
@@ -553,6 +582,36 @@ function EditUserForm({
               />
             )}
           />
+          {person.pendingEmail !== null && (
+            <div className={usersPendingClasses}>
+              <Note icon="info">
+                {PENDING.before}
+                <strong>{person.pendingEmail}</strong>
+                {PENDING.after}
+              </Note>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-disabled={waiting}
+                {...describedBy}
+                pending={cancelEmailAction.pending}
+                onClick={() => {
+                  void runAction(
+                    cancelEmailAction,
+                    {
+                      title: PENDING.toast.title,
+                      message: PENDING.toast.message(person.firstName, person.email),
+                    },
+                    PENDING.failed,
+                    'email',
+                  );
+                }}
+              >
+                {PENDING.cancel}
+              </Button>
+            </div>
+          )}
+          {emailDiffers && !person.hasPassword && <Note icon="info">{COPY.emailNote.invited}</Note>}
           {showChoice && (
             <Controller
               control={control}
@@ -572,6 +631,9 @@ function EditUserForm({
                       {fieldState.error.message}
                     </p>
                   )}
+                  <Note icon="info">
+                    {emailChoice === 'now' ? COPY.emailNote.now(person.firstName) : COPY.emailNote.confirm}
+                  </Note>
                 </div>
               )}
             />

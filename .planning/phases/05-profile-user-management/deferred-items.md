@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T09:55:00-05:00
+updated: 2026-10-18T10:57:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -76,3 +76,14 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Strings (web/src/modules/admin/usersCopy.ts, `edit.emailChange`):** the group label "How this email change applies"; the row "Confirm by link" with "The new address must confirm first, and the old address is told."; the row "Save at once" with "The email changes now. The old address is told and they are signed out everywhere."; the message "Choose how the email change applies." (the same text the server sends under `emailChange`, also listed under plan 05-40).
 - **Status:** "Confirm by link" is preselected. Present the rendered panel in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
 - **Left for plan 05-30:** the Email notes (invited person, pending change), the pending-change note with Cancel Email Change and the pending-aware toast. The choice sits in its own block under the Email field, so those notes can go beside it.
+
+## Owner wording review: Edit User account actions, email notes and refusals (added by plan 05-30, D-45, D-48)
+
+- **What:** Plan 05-30 finished the Edit User panel. UI-SPEC wording was built as written; the strings below were built from D-45 or from the plan's pattern and are not approved. They all live in `web/src/modules/admin/usersCopy.ts`.
+- **Email notes under Email (`edit.emailNote`):** invited person "We'll send the invitation to the new address instead. The old link stops working." (UI-SPEC); person with a password and "Confirm by link" "We'll email a confirmation link to the new address. The change applies when they open it." (UI-SPEC); with "Save at once" (new, D-45) "The email changes as soon as you save. The old address gets a notice and {first} is signed out on every device." The note follows the radio choice live.
+- **Save toasts (`edit.toast`):** link sent "{First Last} · {Role}. Their email changes when they open the link sent to {new email}." (UI-SPEC); saved at once (new, D-45) "{First Last} · {Role}. Their email is now {new email} and they are signed out everywhere."
+- **Pending change (`edit.pendingEmail`):** "Waiting for confirmation at {new email}." and "Cancel Email Change" (UI-SPEC); the toast "Email change canceled" / "{first} keeps signing in with {email}." and the failure line "Couldn't cancel the email change" are new.
+- **Account access (`edit.accountAccess`):** the heading, button names, the hint "Save or discard your changes first." and the success toasts (Invitation sent, Reset link sent, User locked, User unlocked) are UI-SPEC wording; the failure toast titles "Couldn't send the email" and "Couldn't unlock {First Last}" follow the UI-SPEC pattern.
+- **Refusals (`edit.guards`, new):** users.blocked "This account is locked or deactivated. / Unlock or activate this person first."; users.already-set-up "They already have a password. / Send a reset link instead."; users.no-password "They haven't set a password yet. / Resend the invitation instead."; users.reset-link-capped "Too many reset links for this person. / Wait an hour, then try again."
+- **Lock and Set a temporary password:** `lock` (Lock {First Last}?, body, Keep Unlocked, Lock User, Locking) and `temporary` (Set a temporary password, For {First Last}, the Note, Set Password, Setting, Temporary password set) follow the UI-SPEC rows.
+- **Status:** present the rendered panel with each note, the pending note, both stacked dialogs and the toasts in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.

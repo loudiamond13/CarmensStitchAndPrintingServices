@@ -10,6 +10,8 @@
 // Edit panel fits a 320 px phone with the email choice and Recorded by / Last changed by.
 // Plan 05-28 adds @users-actions: Deactivate behind its confirm ends the person's session and Activate lets them sign in again,
 // Delete removes the row and their access, a Manager's own row has no toggle or Delete, and the dialogs fit a 320 px phone.
+// Plan 05-30 adds @users-access: lock and unlock, a temporary password shown once, a reset link, a resent invitation, the email
+// choice (by link, cancelled, confirmed; at once) and the stacked dialogs at 320 px.
 import { randomUUID } from 'node:crypto';
 import type { Browser, Locator, Page } from '@playwright/test';
 import { codeFromEmail, signInAs, typeCode } from './auth.ts';
@@ -831,4 +833,412 @@ test('@users-actions the Deactivate and Delete dialogs fit a 320 px phone and no
   await expectNoAxeViolations(page);
   await remove.getByRole('button', { name: 'Cancel' }).click();
   await expect(remove).toBeHidden();
+});
+
+// --- @users-access (plan 05-30) ---
+
+const RESET_PASSWORD = 'Sulat#Hilo2026';
+
+/** The first link with a token in its fragment in an email's text part. */
+function tokenLinkFrom(text: string): string {
+  const match = /https?:\/\/[^\s"'<>]+#token=[^\s"'<>]+/.exec(text);
+  if (match === null) {
+    throw new Error('The email carries no link with a token.');
+  }
+  return match[0];
+}
+
+/** The id of the newest mail to an address in the sink, or 0 when it has none: later mail is found after it. */
+async function cursorFor(request: Parameters<typeof readEmails>[0], to: string): Promise<number> {
+  return (await readEmails(request, { to })).at(-1)?.id ?? 0;
+}
+
+test('@users-access a Manager locks a signed-in colleague, who is signed out, then unlocks them so they can sign in again', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The locked person's next request is refused with a 401 (USER-05); that is the behavior under test.
+  guard.expectStatus('/api/v1/sessions', 401);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    const otherPage = await other.newPage();
+    await signInAs(otherPage, request, person);
+    await signInAs(page, request, manager);
+
+    const { panel } = await openEdit(page, person.email);
+    // U3: the section names what applies to an active person with a password, and nothing else.
+    await expect(panel.getByRole('heading', { level: 3, name: 'Account access' })).toBeVisible();
+    for (const name of ['Send Reset Link', 'Set Temporary Password', 'Lock']) {
+      await expect(panel.getByRole('button', { name })).toBeVisible();
+    }
+    await expect(panel.getByRole('button', { name: 'Unlock' })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Resend Invitation' })).toHaveCount(0);
+
+    // D-21: the buttons wait while the form is edited, with the hint.
+    await panel.getByRole('textbox', { name: /^First name/ }).fill('Edited');
+    await expect(panel.getByText('Save or discard your changes first.')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Lock' })).toHaveAttribute('aria-disabled', 'true');
+    await expectNoAxeViolations(page);
+    await panel.getByRole('textbox', { name: /^First name/ }).fill('E2E');
+    await expect(panel.getByText('Save or discard your changes first.')).toHaveCount(0);
+
+    // U4: the confirm names the person and puts "Keep Unlocked" in focus; Keep Unlocked changes nothing.
+    const lock = panel.getByRole('button', { name: 'Lock', exact: true });
+    await press(page, lock);
+    const confirm = page.getByRole('dialog', { name: 'Lock E2E Staff?' });
+    await expect(confirm).toBeVisible();
+    await expect(confirm.getByRole('button', { name: 'Keep Unlocked' })).toBeFocused();
+    await expect(confirm).toContainText(
+      "They'll be signed out on every device and can't sign in until a Manager unlocks them.",
+    );
+    await expectNoAxeViolations(page);
+    await confirm.getByRole('button', { name: 'Keep Unlocked' }).click();
+    await expect(confirm).toBeHidden();
+    await expect(lock).toBeFocused();
+
+    // Lock User: the panel reloads, Unlock replaces Lock and takes focus, and the toast says so.
+    await press(page, lock);
+    await confirm.getByRole('button', { name: 'Lock User' }).click();
+    await expect(confirm).toBeHidden();
+    const unlock = panel.getByRole('button', { name: 'Unlock', exact: true });
+    await expect(unlock).toBeFocused();
+    await expect(page.getByText('User locked')).toBeVisible();
+    await expect(page.getByText("E2E Staff is signed out and can't sign in until you unlock them.")).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Lock', exact: true })).toHaveCount(0);
+    await expect(panel.getByText('Locked', { exact: true })).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // USER-05: the person's session ended at once. Their next move inside the app sends them to sign-in with the notice.
+    await otherPage.locator('button[aria-haspopup="menu"]').click();
+    await otherPage.getByRole('menuitem', { name: 'Signed-in Devices' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await expect(otherPage.getByText('Your session ended. Sign in again.')).toBeVisible();
+
+    // Unlock acts at once: no dialog, and the toast says they can sign in again.
+    await press(page, unlock);
+    await expect(page.getByText('User unlocked')).toBeVisible();
+    await expect(page.getByText('E2E Staff can sign in again.')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Lock', exact: true })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Unlock', exact: true })).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Cancel' }).click();
+    await expect(panel).toBeHidden();
+    await expect(rows(page).first().locator('td[data-label="Status"]')).toHaveText('Active');
+
+    await signInAs(otherPage, request, person);
+  } finally {
+    await other.close();
+  }
+});
+
+test('@users-access a Manager sets a temporary password that is shown once and must be replaced, and sends a reset link that works once', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  browserName,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const person = await createStaff(request, 'Admin');
+  await signInAs(page, request, manager);
+  const { panel } = await openEdit(page, person.email);
+
+  // U5: stacked over the panel, a readable suggestion with the cursor in it.
+  const trigger = panel.getByRole('button', { name: 'Set Temporary Password' });
+  await press(page, trigger);
+  const dialog = page.getByRole('dialog', { name: 'Set a temporary password' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('For E2E Staff')).toBeVisible();
+  const field = dialog.getByLabel('Temporary password', { exact: true });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(/^[A-Z][a-z]+-[A-Z][a-z]+-\d{4}$/);
+  await expect(
+    dialog.getByText('This signs E2E out on every device and emails them that a Manager reset their password.', {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  // Esc closes only the dialog: the panel stays open and the trigger has focus again.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(trigger).toBeFocused();
+
+  await press(page, trigger);
+  const password = await field.inputValue();
+  await dialog.getByRole('button', { name: 'Set Password' }).click();
+
+  // D-14: the shown-once step, with focus on the read-only field holding the value.
+  const shown = page.getByRole('dialog', { name: 'Temporary password set' });
+  await expect(shown).toBeVisible();
+  const shownField = shown.getByLabel('Temporary password for E2E');
+  await expect(shownField).toBeFocused();
+  await expect(shownField).toHaveValue(password);
+  await expect(shownField).toHaveAttribute('readonly', '');
+  await expect(shown.getByText("This is the only time you'll see this password.", { exact: false })).toBeVisible();
+  await expectNoAxeViolations(page);
+  if (browserName === 'chromium') {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
+  await shown.getByRole('button', { name: 'Copy Password' }).click();
+  await expect(shown.getByRole('button', { name: 'Copied' }).or(shown.getByText(COPY_FAILED))).toBeVisible();
+
+  // Done closes it for good: focus is back on the trigger, and the value is nowhere on the page.
+  await shown.getByRole('button', { name: 'Done' }).click();
+  await expect(shown).toBeHidden();
+  await expect(trigger).toBeFocused();
+  const value = JSON.stringify(password);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        `document.body.innerHTML.includes(${value}) || Array.from(document.querySelectorAll('input')).some((input) => input.value === ${value})`,
+      ),
+    )
+    .toBe(false);
+
+  // The person signs in with the shown value in their own browser: the emailed code first, then a new password.
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    const otherPage = await other.newPage();
+    await otherPage.goto('/admin/login');
+    await otherPage.getByLabel('Email').fill(person.email);
+    await otherPage.getByLabel('Password', { exact: true }).fill(password);
+    await otherPage.getByRole('button', { name: 'Sign In' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Check your email' })).toBeVisible();
+    const code = await latestEmail(request, person.email, { subject: 'is your CSPS sign-in code' });
+    await typeCode(otherPage, codeFromEmail(code));
+    await otherPage.getByRole('button', { name: 'Verify Code' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeVisible();
+    await otherPage.getByLabel('New password', { exact: true }).fill(OWN_PASSWORD);
+    await otherPage.getByLabel('Confirm new password').fill(OWN_PASSWORD);
+    await otherPage.getByRole('button', { name: 'Save Password' }).click();
+    await expect(otherPage.getByRole('main')).toBeVisible();
+  } finally {
+    await other.close();
+  }
+
+  // USER-07: a reset link at once; the toast says 30 minutes, the sink holds the link, and it works once.
+  const cursor = await cursorFor(request, person.email);
+  await press(page, panel.getByRole('button', { name: 'Send Reset Link' }));
+  await expect(page.getByText('Reset link sent')).toBeVisible();
+  await expect(page.getByText('We emailed E2E a link to set a new password. It works for 30 minutes.')).toBeVisible();
+  const reset = await latestEmail(request, person.email, { subject: 'Reset your CSPS password', after: cursor });
+  expect(reset.text).toContain('sent you this link');
+  const link = tokenLinkFrom(reset.text);
+
+  const fresh = await otherBrowser(browser, baseURL);
+  try {
+    const freshPage = await fresh.newPage();
+    await freshPage.goto(link);
+    await expect(freshPage.getByLabel('New password', { exact: true })).toBeVisible();
+    await freshPage.getByLabel('New password', { exact: true }).fill(RESET_PASSWORD);
+    await freshPage.getByLabel('Confirm new password').fill(RESET_PASSWORD);
+    await freshPage.getByRole('button', { name: 'Save Password' }).click();
+    await expect(freshPage.getByText('Your password was changed. Sign in with your new password.')).toBeVisible();
+  } finally {
+    await fresh.close();
+  }
+});
+
+test('@users-access resending an invitation makes the new link work and the old one expire', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const invited = await createInvitedStaff(request, 'Admin');
+  await signInAs(page, request, manager);
+  const { panel } = await openEdit(page, invited.email);
+
+  await expect(panel.getByRole('button', { name: 'Resend Invitation' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Send Reset Link' })).toHaveCount(0);
+  const cursor = await cursorFor(request, invited.email);
+  await press(page, panel.getByRole('button', { name: 'Resend Invitation' }));
+  await expect(page.getByText('Invitation sent')).toBeVisible();
+  await expect(
+    page.getByText('We emailed E2E a new link. It works for 7 days, and the old link no longer works.'),
+  ).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  const mail = await latestEmail(request, invited.email, { subject: 'Set up your CSPS staff account', after: cursor });
+  const fresh = /\/admin\/accept-invite#token=[\w-]+/.exec(mail.text)?.[0];
+  if (fresh === undefined) {
+    throw new Error('The invitation held no accept-invite link.');
+  }
+  expect(fresh).not.toContain(invited.inviteToken);
+
+  // The old link is refused; the new one sets the password. Both open in a browser of their own.
+  guard.expectStatus('/api/v1/auth/invite/check', 404);
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    const otherPage = await other.newPage();
+    await otherPage.goto(`/admin/accept-invite#token=${invited.inviteToken}`);
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'This invite has expired' })).toBeVisible();
+    // A page of its own: only the fragment differs, so the same page would not read the new link.
+    const newPage = await other.newPage();
+    await newPage.goto(fresh);
+    await expect(newPage.getByRole('heading', { level: 1, name: 'Set your password' })).toBeVisible();
+    await newPage.getByLabel('New password', { exact: true }).fill(OWN_PASSWORD);
+    await newPage.getByLabel('Confirm new password').fill(OWN_PASSWORD);
+    await newPage.getByRole('button', { name: 'Save Password' }).click();
+    await expect(newPage.getByText('Your password is set. Sign in to continue.')).toBeVisible();
+  } finally {
+    await other.close();
+  }
+});
+
+test("@users-access a Manager changes a colleague's email by link (pending, cancelled, then confirmed) and at once (signed out)", async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(360_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The signed-out person's next request is refused with a 401 (USER-05).
+  guard.expectStatus('/api/v1/sessions', 401);
+  const manager = await createStaff(request, 'Manager');
+  const byLink = await createStaff(request, 'Admin');
+  const atOnce = await createStaff(request, 'Admin');
+  await signInAs(page, request, manager);
+  const confirmNote = "We'll email a confirmation link to the new address. The change applies when they open it.";
+
+  // Confirm by link: the note follows the choice, the save leaves the sign-in alone and says the link was sent.
+  const first = `moved-${randomUUID().slice(0, 8)}@csps.test`;
+  const second = `moved-${randomUUID().slice(0, 8)}@csps.test`;
+  let { panel } = await openEdit(page, byLink.email);
+  await panel.getByRole('textbox', { name: /^Email/ }).fill(first);
+  await expect(panel.getByRole('radio', { name: 'Confirm by link' })).toBeChecked();
+  await expect(panel.getByText(confirmNote)).toBeVisible();
+  await expectNoAxeViolations(page);
+  await panel.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(panel).toBeHidden();
+  await expect(page.getByText('User updated')).toBeVisible();
+  await expect(
+    page.getByText(`E2E Staff · Admin. Their email changes when they open the link sent to ${first}.`),
+  ).toBeVisible();
+  await expect(rows(page).first()).toContainText(byLink.email);
+
+  // The waiting change shows on a fresh open and Cancel Email Change calls it off.
+  ({ panel } = await openEdit(page, byLink.email));
+  await expect(panel.getByText(`Waiting for confirmation at ${first}.`)).toBeVisible();
+  await expectNoAxeViolations(page);
+  await press(page, panel.getByRole('button', { name: 'Cancel Email Change' }));
+  await expect(page.getByText('Email change canceled')).toBeVisible();
+  await expect(page.getByText(`E2E keeps signing in with ${byLink.email}.`)).toBeVisible();
+  await expect(panel.getByText('Waiting for confirmation at', { exact: false })).toHaveCount(0);
+  await expect(panel.getByRole('textbox', { name: /^Email/ })).toBeFocused();
+
+  // A second change is confirmed from the new inbox, after which only the new address signs in.
+  await panel.getByRole('textbox', { name: /^Email/ }).fill(second);
+  await panel.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(panel).toBeHidden();
+  const mail = await latestEmail(request, second, { subject: 'Confirm your new CSPS email' });
+  const other = await otherBrowser(browser, baseURL);
+  try {
+    const otherPage = await other.newPage();
+    await otherPage.goto(tokenLinkFrom(mail.text));
+    // An explicit press confirms it, so a mail scanner opening the link changes nothing.
+    await otherPage.getByRole('button', { name: 'Confirm New Email' }).click();
+    await expect(otherPage.getByRole('heading', { level: 1, name: 'Your email is changed' })).toBeVisible();
+    await signInAs(otherPage, request, { userId: byLink.userId, email: second, password: byLink.password });
+  } finally {
+    await other.close();
+  }
+
+  // Save at once: the note says so, the email moves, the toast says they are signed out, and their session is gone.
+  const third = `moved-${randomUUID().slice(0, 8)}@csps.test`;
+  const away = await otherBrowser(browser, baseURL);
+  try {
+    const awayPage = await away.newPage();
+    await signInAs(awayPage, request, atOnce);
+
+    ({ panel } = await openEdit(page, atOnce.email));
+    await panel.getByRole('textbox', { name: /^Email/ }).fill(third);
+    await panel.getByRole('radio', { name: 'Save at once' }).click();
+    await expect(
+      panel.getByText(
+        'The email changes as soon as you save. The old address gets a notice and E2E is signed out on every device.',
+      ),
+    ).toBeVisible();
+    await expect(panel.getByText(confirmNote)).toHaveCount(0);
+    await expectNoAxeViolations(page);
+    await panel.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(panel).toBeHidden();
+    await expect(
+      page.getByText(`E2E Staff · Admin. Their email is now ${third} and they are signed out everywhere.`),
+    ).toBeVisible();
+
+    await awayPage.locator('button[aria-haspopup="menu"]').click();
+    await awayPage.getByRole('menuitem', { name: 'Signed-in Devices' }).click();
+    await expect(awayPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    await signInAs(awayPage, request, { userId: atOnce.userId, email: third, password: atOnce.password });
+  } finally {
+    await away.close();
+  }
+});
+
+test('@users-access the Lock and Set a temporary password dialogs fit a 320 px phone stacked over the panel', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const person = await createStaff(request, 'Admin');
+  await page.setViewportSize({ width: 320, height: 568 });
+
+  const { panel } = await openEdit(page, person.email);
+  // The section is below the form: scrolled into view, its heading and buttons fit the width.
+  await panel.getByRole('heading', { level: 3, name: 'Account access' }).scrollIntoViewIfNeeded();
+  await expect(panel.getByRole('button', { name: 'Lock', exact: true })).toBeInViewport();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+
+  const lock = page.getByRole('dialog', { name: 'Lock E2E Staff?' });
+  await press(page, panel.getByRole('button', { name: 'Lock', exact: true }));
+  await expect(lock).toBeVisible();
+  await expect(lock.getByRole('button', { name: 'Keep Unlocked' })).toBeInViewport();
+  await expect(lock.getByRole('button', { name: 'Lock User' })).toBeInViewport();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const dialogs = document.querySelectorAll('[role="dialog"]'); const top = dialogs[dialogs.length - 1]; return top !== undefined && top.getBoundingClientRect().right <= window.innerWidth; })()`,
+    ),
+  ).toBe(true);
+  await expectNoAxeViolations(page);
+  await lock.getByRole('button', { name: 'Keep Unlocked' }).click();
+  await expect(lock).toBeHidden();
+
+  const temporary = page.getByRole('dialog', { name: 'Set a temporary password' });
+  await press(page, panel.getByRole('button', { name: 'Set Temporary Password' }));
+  await expect(temporary).toBeVisible();
+  await expect(temporary.getByRole('button', { name: 'Cancel' })).toBeInViewport();
+  await expect(temporary.getByRole('button', { name: 'Set Password' })).toBeInViewport();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const dialogs = document.querySelectorAll('[role="dialog"]'); const top = dialogs[dialogs.length - 1]; return top !== undefined && top.getBoundingClientRect().right <= window.innerWidth; })()`,
+    ),
+  ).toBe(true);
+  await expectNoAxeViolations(page);
+  await temporary.getByRole('button', { name: 'Cancel' }).click();
+  await expect(temporary).toBeHidden();
 });

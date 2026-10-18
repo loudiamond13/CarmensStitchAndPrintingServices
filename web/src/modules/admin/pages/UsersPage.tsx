@@ -47,7 +47,7 @@ import { Badge } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
 import { DeactivateUserDialog } from '@/modules/admin/components/DeactivateUserDialog';
-import { EditUserPanel } from '@/modules/admin/components/EditUserPanel';
+import { EditUserPanel, type SavedEmail } from '@/modules/admin/components/EditUserPanel';
 import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import { usersCaptionClasses, usersTitleRowClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -237,12 +237,16 @@ export function UsersRoute() {
   };
 
   // The roster reads again; once it has, focus goes back to that row's Edit button, or to the heading when the row left the list.
-  const saved = (person: UserDetailResponse): void => {
-    toast.show({
-      tone: 'success',
-      title: COPY.edit.toast.title,
-      message: COPY.edit.toast.message(`${person.firstName} ${person.lastName}`, person.role),
-    });
+  const saved = (person: UserDetailResponse, email: SavedEmail): void => {
+    const name = `${person.firstName} ${person.lastName}`;
+    // The toast says when the email waits for the new inbox (C-9) or moved at once and signed them out (D-45).
+    let message = COPY.edit.toast.message(name, person.role);
+    if (email === 'pending' && person.pendingEmail !== null) {
+      message = COPY.edit.toast.pending(name, person.role, person.pendingEmail);
+    } else if (email === 'moved') {
+      message = COPY.edit.toast.moved(name, person.role, person.email);
+    }
+    toast.show({ tone: 'success', title: COPY.edit.toast.title, message });
     void queryClient.invalidateQueries({ queryKey: usersKey }).then(() => {
       if (!rowFocus.focusRow(person.id)) {
         headingRef.current?.focus();

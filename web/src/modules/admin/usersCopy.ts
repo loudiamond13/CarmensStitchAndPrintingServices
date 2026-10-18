@@ -120,6 +120,26 @@ export const USERS_COPY = {
       },
       required: 'Choose how the email change applies.',
     },
+    // SPEC-GAP: the notes under Email while it differs from the saved address (C-9, OQ-4, D-45; plan 05-30). They follow the
+    // Manager's choice; the wording is built, not yet approved (D-48).
+    emailNote: {
+      invited: "We'll send the invitation to the new address instead. The old link stops working.",
+      confirm: "We'll email a confirmation link to the new address. The change applies when they open it.",
+      now: (first: string): string =>
+        `The email changes as soon as you save. The old address gets a notice and ${first} is signed out on every device.`,
+    },
+    // SPEC-GAP: a change that waits for the new inbox, and calling it off (C-9; plan 05-30). Built, not yet approved (D-48).
+    pendingEmail: {
+      /** "Waiting for confirmation at {new email}." with the address in bold between the two parts. */
+      before: 'Waiting for confirmation at ',
+      after: '.',
+      cancel: 'Cancel Email Change',
+      toast: {
+        title: 'Email change canceled',
+        message: (first: string, email: string): string => `${first} keeps signing in with ${email}.`,
+      },
+      failed: "Couldn't cancel the email change",
+    },
     // SPEC-GAP: Account access (OQ-1, D-21; plan 05-30). The wording is built, not yet approved (D-48).
     accountAccess: {
       heading: 'Account access',
@@ -179,6 +199,12 @@ export const USERS_COPY = {
       title: 'User updated',
       /** "{First Last} · {Role}" */
       message: (name: string, role: string): string => `${name} · ${role}`,
+      /** A confirmation link went to the new address (C-9). */
+      pending: (name: string, role: string, email: string): string =>
+        `${name} · ${role}. Their email changes when they open the link sent to ${email}.`,
+      /** The email moved at once and they were signed out (D-45). Wording built, not yet approved (D-48). */
+      moved: (name: string, role: string, email: string): string =>
+        `${name} · ${role}. Their email is now ${email} and they are signed out everywhere.`,
     },
   },
   // U4 row actions (App. E.12, OQ-1, OQ-3; plan 05-28). Title Case for buttons, sentence case for the rest.

@@ -281,7 +281,7 @@ describe('U3 saving (USER-03)', () => {
     server.use(
       http.put('*/api/v1/users/:id', async () => {
         seen.puts.push('slow');
-        await delay(80);
+        await delay(400);
         return HttpResponse.json(detail());
       }),
     );
