@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-10-18T01:34:14.592Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-10-18T01:43:25.271Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 05 execution started
-state_head: 1e7370dcde3b6202fbfa8df2ed182ff665d5ce9f
+state_head: 13f57af27d50c3e2a140da9d8953c502e4c2d4ef
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 157
-  completed_plans: 119
+  completed_plans: 120
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-17T14:20:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 05 (Profile & User Management) — EXECUTING
-Plan: 6 of 43
+Plan: 7 of 43
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 05 execution started
 
@@ -175,6 +175,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P03 | 22 min | 2 tasks | 9 files |
 | Phase 05 P04 | 25 min | 2 tasks | 4 files |
 | Phase 05 P05 | 21 min | 2 tasks | 17 files |
+| Phase 05 P06 | 10 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -444,6 +445,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-04: shared sink wait (AuthClient.Patience) is 30 s, returning as soon as mail arrives; the resend-cap proof is unchanged
 - [Phase 05]: 05-05: deleted marker is nullable DeletedAtUtc and the Manager lock is ManagerLockedAtUtc, separate from LockoutEnd; one UserAccount.IsBlocked rule gates sign-in
 - [Phase 05]: 05-05: migration backfill SQL is wrapped in EXEC so the idempotent production script compiles it; tested both via IMigrator and via the script
+- [Phase 05]: D-13: invite links last 7 days via the single AuthSettings.InviteLinkLifetime; existing rows keep their 72-hour ExpiresAt
 
 ### Pending Todos
 
@@ -503,6 +505,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T01:34:13.907Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-10-18T01:43:24.568Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
