@@ -18,30 +18,35 @@ function hasUnsafeCharacter(text: string): boolean {
 }
 
 /**
- * The path to return to after sign-in. Only a same-origin path under /admin that is not the sign-in area is accepted
- * (checked once decoded, so encoded tricks fail too); anything else gives /admin. The path never carries a token or code.
+ * The path to return to after sign-in, returned exactly as validated. Only a literal path that starts with a single
+ * "/" under /admin (and not the sign-in area) is accepted: the path part is checked once decoded, the query and hash are
+ * kept as given, so a literal "%25" survives. An encoded start, "//host" and backslash forms give /admin (CWE-601).
  */
 export function safeReturnUrl(value: string | null | undefined): string {
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || !value.startsWith('/') || value.startsWith('//')) {
     return ADMIN_HOME;
   }
+  if (hasUnsafeCharacter(value)) {
+    return ADMIN_HOME;
+  }
+  const path = value.split(/[?#]/)[0] ?? '';
   let decoded: string;
   try {
-    decoded = decodeURIComponent(value);
+    decoded = decodeURIComponent(path);
   } catch {
     return ADMIN_HOME;
   }
   // A second layer of encoding would decode to a different path later, so it is refused.
-  if (decoded.includes('%') || hasUnsafeCharacter(decoded) || hasUnsafeCharacter(value)) {
+  if (decoded.includes('%') || hasUnsafeCharacter(decoded)) {
     return ADMIN_HOME;
   }
-  if (decoded !== ADMIN_HOME && !/^\/admin[/?#]/.test(decoded)) {
+  if (decoded !== ADMIN_HOME && !decoded.startsWith(`${ADMIN_HOME}/`)) {
     return ADMIN_HOME;
   }
   if (decoded.toLowerCase().startsWith(LOGIN_PATH)) {
     return ADMIN_HOME;
   }
-  const segments = (decoded.split(/[?#]/)[0] ?? '').split('/');
+  const segments = decoded.split('/');
   if (segments.includes('..') || segments.includes('.')) {
     return ADMIN_HOME;
   }

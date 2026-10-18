@@ -74,6 +74,8 @@ export function VerifyCodeRoute() {
   const [now, setNow] = useState(Date.now);
   // True once a cooldown has run on this screen, so the end of it is announced (and a quiet start is not).
   const [cooled, setCooled] = useState(() => secondsLeft(getResendAvailableAt(), Date.now()) > 0);
+  // The length of the current cooldown, so the spoken wait is the same number the countdown starts from (IN-16).
+  const [cooldownSeconds, setCooldownSeconds] = useState(() => secondsLeft(getResendAvailableAt(), Date.now()));
   const [announce, setAnnounce] = useState(false);
   const [capReached, setCapReached] = useState(false);
   const { control, handleSubmit, setError, setValue } = useForm<VerifyValues>({
@@ -86,7 +88,7 @@ export function VerifyCodeRoute() {
   let status = '';
   if (announce) {
     if (remaining > 0) {
-      status = AUTH_COPY.verify.resendStarted;
+      status = AUTH_COPY.verify.resendStarted(cooldownSeconds);
     } else if (cooled) {
       status = AUTH_COPY.verify.resendReady;
     }
@@ -195,10 +197,12 @@ export function VerifyCodeRoute() {
     const outcome = await resend();
     if (outcome.ok) {
       const current = Date.now();
-      const at = current + Number(outcome.value.resendAfterSeconds) * 1000;
+      const seconds = Number(outcome.value.resendAfterSeconds);
+      const at = current + seconds * 1000;
       setResendAvailableAt(at);
       setNow(current);
       setResendAt(at);
+      setCooldownSeconds(seconds);
       setCooled(true);
       setResent(true);
       return;

@@ -20,7 +20,6 @@ export const AUTH_COPY = {
     eyebrow: 'Staff area',
     quote: 'Orders, payments and expenses, all in one place.',
   },
-  fallbackEmail: 'your email',
 
   /** S1 Sign in (App. E.5). */
   signIn: {
@@ -54,7 +53,8 @@ export const AUTH_COPY = {
     pending: 'Verifying',
     resend: 'Resend Code',
     resendIn: (minutesAndSeconds: string): string => `Resend code in ${minutesAndSeconds}`,
-    resendStarted: 'We sent a new code. You can ask for another in 60 seconds.',
+    resendStarted: (seconds: number): string =>
+      `We sent a new code. You can ask for another in ${String(seconds)} seconds.`,
     resendReady: 'You can ask for a new code now.',
     resent: 'We sent you a new code.',
     note: 'Never share this code. CSPS staff will never ask you for it.',
@@ -90,14 +90,6 @@ export const AUTH_COPY = {
     pending: 'Saving',
     back: 'Use a different account',
     errors: {
-      required: 'Enter a new password.',
-      tooShort: 'Use at least 8 characters.',
-      tooLong: 'Use 64 characters or fewer.',
-      noNumber: 'Add at least one number.',
-      noSymbol: 'Add at least one symbol, like ! or #.',
-      containsIdentity: "Don't use your name or email in your password.",
-      breached: 'This password has appeared in a data breach. Choose a different one.',
-      common: 'This password is too common. Choose a different one.',
       confirmRequired: 'Enter the new password again.',
       mismatch: "Passwords don't match.",
       breachCheckDown: { title: "We couldn't check your password right now.", body: 'Wait a minute, then try again.' },
@@ -169,11 +161,7 @@ export const AUTH_COPY = {
     passwordRequired: 'Enter your password.',
   },
 
-  /** The user menu items, the sign-out dialogs and the toasts. */
-  menu: {
-    devices: 'Signed-in Devices',
-    signOutOthers: 'Sign Out Other Devices',
-  },
+  /** The sign-out dialogs and the toasts. */
   signOutOthersDialog: {
     title: 'Sign out of other devices?',
     body: "You'll stay signed in on this device. Any other phone, tablet or computer signed in to your account will be signed out. Use this if you signed in on a shared or lost device.",
@@ -215,7 +203,6 @@ export const AUTH_COPY = {
     keepBadge: 'Keep me signed in',
     untilClose: 'Until browser closes',
     unknownBrowser: 'Unknown browser',
-    deviceLabel: (browser: string, device: string): string => `${browser} on ${device}`,
     activeNow: 'Active now',
     justNow: 'Just now',
     minutesAgo: (minutes: number): string => `${String(minutes)} min ago`,
