@@ -1,7 +1,7 @@
 // Which showcase section shows which scenario (D-22).
 import { describe, expect, it } from 'vitest';
-import { scenarios } from './scenarios';
-import type { Scenario } from './scenarios/types';
+import { scenarios } from '@/dev/scenarios';
+import type { Scenario } from '@/dev/scenarios/types';
 import { LAYOUT_GROUPS, SHOWCASE_SECTIONS, scenariosBySection } from './showcaseSections';
 
 function scenario(id: string, group: string): Scenario {

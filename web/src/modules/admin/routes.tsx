@@ -10,8 +10,10 @@
 //     come in Phases 5-9 show the page-not-found screen inside the shell.
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
-//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the D-22
-//     Component Showcase, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing there ships.
+//   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
+//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
+//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing
+//     there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import { redirect, type LoaderFunction, type RouteObject } from 'react-router';
@@ -81,6 +83,10 @@ const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
 
+const showcasePage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ComponentShowcasePage')).ComponentShowcaseRoute,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -121,6 +127,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'expenses', lazy: notFoundPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
+          // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
+          { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
         ],
       },
@@ -177,9 +185,7 @@ export const devRoutes: RouteObject[] = [
       {
         path: 'components',
         ErrorBoundary: AdminRouteErrorBoundary,
-        lazy: /* @__PURE__ */ lazyRoute(async () => ({
-          Component: (await import('@/dev/ComponentShowcase')).default,
-        })),
+        lazy: showcasePage,
       },
     ],
   },

@@ -1,6 +1,7 @@
-// The D-22 Component Showcase (/dev/components; dev and e2e builds only, D-20): the `.s-ph` page head, one `.s-card`
-// section per group in the UI-SPEC order, every scenario of the shared list in its own `[data-case]` frame, the 56
-// icon names, and the live demos (toasts, dialogs, the phone drawer) with real handlers. Nothing is deleted or saved.
+// The Component Showcase (D-22, D-30..D-33; /admin/components for Managers, /dev/components in dev builds): the `.s-ph`
+// page head with the Demo data badge and banner, one `.s-card` section per group in the UI-SPEC order, every scenario of
+// the shared list in its own `[data-case]` frame, the 56 icon names, and the live demos (toasts, dialogs, the phone
+// drawer) with real handlers. Nothing is deleted or saved.
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
@@ -11,8 +12,8 @@ import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
 import { ICONS } from '@/components/brand/icons';
-import ComponentShowcase, { ShowcaseSection } from './ComponentShowcase';
-import { scenarios } from './scenarios';
+import { ComponentShowcaseRoute, ShowcaseSection } from './ComponentShowcasePage';
+import { scenarios } from '@/dev/scenarios';
 
 /** The UI-SPEC group order, then the two groups the UI-SPEC list predates (Navigation, Marketing). */
 const SECTION_TITLES = [
@@ -41,7 +42,7 @@ function renderShowcase() {
   return render(
     <MemoryRouter>
       <ToastProvider>
-        <ComponentShowcase />
+        <ComponentShowcaseRoute />
       </ToastProvider>
     </MemoryRouter>,
   );
@@ -202,7 +203,7 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     rerender(
       <MemoryRouter>
         <ToastProvider>
-          <ComponentShowcase />
+          <ComponentShowcaseRoute />
         </ToastProvider>
       </MemoryRouter>,
     );

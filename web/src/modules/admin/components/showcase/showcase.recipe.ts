@@ -1,4 +1,4 @@
-// The Component Showcase looks (D-22, UI-SPEC "Phase 2 pages" → ComponentShowcase; dev only, never shipped, D-20).
+// The Component Showcase looks (D-22, UI-SPEC "Phase 2 pages" → ComponentShowcase, C1).
 // The showcase adds no type values of its own: sections take the App. C `.s-card` / `.s-card-h` / `.s-card-b` looks,
 // group headings the `.s-card-h h2` look, variant labels the `.csp-overline` look (overlineClasses) and icon names the
 // `.csp-label` look (labelClasses). Every string here is a class list (the class gate compiles each one).
@@ -6,6 +6,9 @@ import clsx from 'clsx';
 import { cardClasses, labelClasses } from '@/components';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { tw } from '@/ui/tw';
+
+/** The h1 and its "Demo data" badge in one wrapping row, 10px apart (as the Users title row). */
+export const titleRowClasses = tw('flex flex-wrap items-center gap-2.5');
 
 /** `.s-card`: one section per group. */
 export const sectionClasses = clsx(cardClasses, tw('min-w-0'));

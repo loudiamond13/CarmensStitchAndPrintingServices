@@ -1,8 +1,10 @@
-// SPEC-GAP: ComponentShowcase (D-22; UI-SPEC "Phase 2 pages" → ComponentShowcase; WEB-06, A11Y-01). Dev and e2e
-// builds only (D-20, CWE-489): the router mounts it at /dev/components inside the admin shell, so the theme toggle
-// applies, and a production build has no route to it. One page shows every shared building block:
-//   - the `.s-ph` page head with the h1 "Component Showcase" and the UI-SPEC subline; document title
-//     "Component Showcase · CSPS (dev)";
+// SPEC-GAP: ComponentShowcasePage (UI-SPEC C1 and "Phase 2 pages" → ComponentShowcase; WEB-06, A11Y-01, D-22, D-30..D-33).
+// The living style guide at /admin/components for Managers, inside the admin shell so the theme toggle applies, and at
+// /dev/components in dev builds. It is a lazy chunk of its own, so it adds nothing to the initial admin JS. One page shows
+// every shared building block:
+//   - the `.s-ph` page head with the h1 "Component Showcase" and a warning "Demo data" badge (10px apart) over the
+//     UI-SPEC subline; document title "Component Showcase · CSPS Admin";
+//   - the Demo data Note as the first block after the head (D-32), so nobody reads a made-up record as a real one;
 //   - one `.s-card` section per group (./showcaseSections.ts) with an h2 in the `.s-card-h h2` look;
 //   - every scenario of the shared list (the implementation side of the look-equality proof, D-33), rendered through
 //     the same renderNode and impl kit as the parity page, each in a fixed-width `[data-case]` frame (L-29) under its
@@ -14,17 +16,18 @@
 //   - the extra cases no scenario has: the icon names, the toast triggers, dates and a loaded LazyImage.
 // The seed data is spec §12's (Carmen Reyes, Jomar Santos inactive, ORD-2026-0148, ORD-2026-0151), from the scenarios.
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { Button, overlineClasses } from '@/components';
+import { Button, Note, overlineClasses } from '@/components';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
-import { kit } from './kit';
-import { renderNode } from './renderScenario';
-import { scenarios } from './scenarios';
-import type { Scenario } from './scenarios/types';
+import { Badge } from '@/components/status';
+import { kit } from '@/dev/kit';
+import { renderNode } from '@/dev/renderScenario';
+import { scenarios } from '@/dev/scenarios';
+import type { Scenario } from '@/dev/scenarios/types';
 import {
   caseClasses,
   demoFrameClasses,
@@ -33,10 +36,11 @@ import {
   sectionClasses,
   sectionHeadClasses,
   sectionTitleClasses,
-} from './showcase.recipe';
-import { SHOWCASE_COPY } from './showcaseCopy';
-import { SHOWCASE_SECTIONS, scenariosBySection, type ShowcaseSectionId } from './showcaseSections';
-import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from './ShowcaseDemos';
+  titleRowClasses,
+} from '@/modules/admin/components/showcase/showcase.recipe';
+import { SHOWCASE_COPY } from '@/modules/admin/components/showcase/showcaseCopy';
+import { SHOWCASE_SECTIONS, scenariosBySection, type ShowcaseSectionId } from '@/modules/admin/components/showcase/showcaseSections';
+import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from '@/modules/admin/components/showcase/ShowcaseDemos';
 
 const BY_SECTION = scenariosBySection(scenarios);
 
@@ -158,7 +162,8 @@ export function ShowcaseSection({ id, title }: { id: ShowcaseSectionId; title: s
   );
 }
 
-export default function ComponentShowcase() {
+/** The route component of /admin/components and /dev/components. */
+export function ComponentShowcaseRoute() {
   useEffect(() => {
     document.title = SHOWCASE_COPY.documentTitle;
   }, []);
@@ -166,10 +171,14 @@ export default function ComponentShowcase() {
     <>
       <div className={pageHeadClasses}>
         <div className={pageHeadTitleClasses}>
-          <h1 className={pageTitleClasses}>{SHOWCASE_COPY.heading}</h1>
+          <div className={titleRowClasses}>
+            <h1 className={pageTitleClasses}>{SHOWCASE_COPY.heading}</h1>
+            <Badge tone="warning">{SHOWCASE_COPY.badge}</Badge>
+          </div>
           <p className={pageSublineClasses}>{SHOWCASE_COPY.subline}</p>
         </div>
       </div>
+      <Note icon="info">{SHOWCASE_COPY.banner}</Note>
       {SHOWCASE_SECTIONS.map((section) => (
         <ShowcaseSection key={section.id} id={section.id} title={section.title} />
       ))}

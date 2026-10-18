@@ -1,4 +1,4 @@
-// The Component Showcase's live demos and extra cases (D-22; dev only, never shipped, D-20). Fixed-position cases
+// The Component Showcase's live demos and extra cases (D-22, D-30..D-33). Fixed-position cases
 // (the `viewport` scenarios: dialogs and the phone drawer) cannot sit open in a page of cases, so each one is a
 // trigger that opens the real component with real handlers: Cancel, Esc and the scrim close it, focus returns to the
 // trigger, and nothing is saved or deleted (the Delete Order demo only raises the spec §9.3 success toast). The extra
@@ -27,11 +27,11 @@ import { ICONS, type IconName } from '@/components/brand/icons';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
 import { SignOutDialog } from '@/modules/admin/components/SignOutDialog';
-import { FailedConfirmDialog } from './previews/FailedConfirmDialog';
-import { OpenedDialog } from './previews/OpenedDialog';
-import { LONG_DEVICE_LABEL, SAMPLE_DEVICE } from './previews/SessionScreens';
-import { serverError } from './previews/serverError';
-import { scenarioById } from './scenarios';
+import { FailedConfirmDialog } from '@/dev/previews/FailedConfirmDialog';
+import { OpenedDialog } from '@/dev/previews/OpenedDialog';
+import { LONG_DEVICE_LABEL, SAMPLE_DEVICE } from '@/dev/previews/SessionScreens';
+import { serverError } from '@/dev/previews/serverError';
+import { scenarioById } from '@/dev/scenarios';
 import {
   dateClasses,
   datesClasses,

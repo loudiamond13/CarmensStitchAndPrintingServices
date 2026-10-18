@@ -1,9 +1,14 @@
-// The Component Showcase copy (D-22; dev only, never shipped, D-20). The page head and the document title are the
-// UI-SPEC's ("Phase 2 pages" → ComponentShowcase). The demo trigger labels are SPEC-GAP dev wording (the UI-SPEC names
-// the triggers but not their words); the dialogs and toasts they open reuse the scenario copy (spec §9.3, App. E.10).
+// The Component Showcase copy (D-22, D-30..D-33). The page head, the badge, the banner and the document title are the
+// UI-SPEC's (C1 and the Copywriting showcase row). The demo trigger labels are SPEC-GAP wording (the UI-SPEC names the
+// triggers but not their words); the dialogs and toasts they open reuse the scenario copy (spec §9.3, App. E.10).
 export const SHOWCASE_COPY = {
-  documentTitle: 'Component Showcase · CSPS (dev)',
+  documentTitle: 'Component Showcase · CSPS Admin',
   heading: 'Component Showcase',
+  /** D-32: the warning badge beside the h1. */
+  badge: 'Demo data',
+  /** D-32: the Note first in main after the page head. */
+  banner:
+    'Demo data. Every order, name and amount on this page is made up to show the design. Nothing here is a real record.',
   subline: 'Every shared building block, in the current theme. Use the moon/sun button to switch themes.',
   /** SPEC-GAP: shows a case that would otherwise move focus when the page loads (the open user menu). */
   showExample: 'Show this example',

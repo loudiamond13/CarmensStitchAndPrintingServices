@@ -6,7 +6,7 @@
 // files) in the order listed, except the scenarios an id prefix moves to another section (LazyImage and
 // MediaPlaceholder belong to Media). The whole-page layout groups are left out: each is a page with its own h1, main
 // and skip link, shown by its own route (/, /admin/…), never inside this page.
-import type { Scenario } from './scenarios/types';
+import type { Scenario } from '@/dev/scenarios/types';
 
 export const SHOWCASE_SECTIONS = [
   { id: 'brand', title: 'Brand & icons', groups: ['brand'] },
