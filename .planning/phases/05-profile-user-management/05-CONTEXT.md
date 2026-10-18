@@ -1,6 +1,6 @@
 # Phase 5: Profile & User Management - Context
 
-*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-17T16:31:03-05:00*
+*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-17T21:18:00-05:00*
 
 **Gathered:** 2026-10-17
 **Status:** Ready for planning
@@ -86,6 +86,20 @@ The owner added four items in this discussion: the full-bleed app shell, the sti
 - **D-39 Dialogs and modals animate:** Every Modal (centered and `variant="slideover"`) and ConfirmDialog animates on open and close at all widths, mobile or not: the scrim fades, a centered dialog fades and scales, and a slide-over slides in from its edge and back out. Close finishes before unmount, focus return and the focus-trap stack still work, and later phases inherit this from the shared components.
 - **D-40 Audit detail without personal data:** The audit log stores field names and role values only, never names or emails. The viewer shows "Name changed", "Email changed" and "Role: Admin to Manager". This replaces the UI-SPEC lines "Name: {old} to {new}" and "Email: {old} to {new}" and keeps `docs/operations/audit-log.md` intact.
 - **D-41 Research defaults accepted:** For the remaining open questions in 05-RESEARCH.md, the contract defaults apply: scenario demo data ships inside the lazy showcase chunk while the parity entry, `visual/`, `AdminPreviewPage` and `/dev/*` routes stay out (Q3); `DELETE /api/v1/users/{id}` takes no row version, recorded as a SEC-06 wording deviation like `DELETE /api/v1/sessions/{id}` (Q4); a Manager-locked user gets no reset link and the same neutral response as a deactivated one (Q5); the `env()` safe-area padding goes in now and `viewport-fit=cover` is deferred to the PWA work (Q6); a wrong current password on profile changes counts toward the per-account lockout and rate limit (Q9).
+
+### UI-SPEC owner rulings (owner, execute-phase 2026-10-17)
+- **D-42 OQ-1 Account actions:** Contract default A. Each roster row keeps Edit, the Deactivate/Activate toggle (`user-x` / `user-check`) and Delete. Resend Invitation, Send Reset Link, Set Temporary Password and Lock/Unlock sit in the Edit panel's "Account access" section.
+- **D-43 OQ-2 Audit Log nav:** Contract default A. A Sidebar item "Audit Log" (`history`, Manager tag) after Users, in the drawer too, not in the phone tab bar.
+- **D-44 OQ-3 Deactivate confirm:** Contract default. Deactivate from the row opens a confirm dialog with "Keep Active" focused first; Activate stays one tap.
+- **D-45 OQ-4 Manager changes a colleague's email (CHANGES the contract default):** The Manager chooses how it applies, each time they change someone else's email:
+  - **Confirm by link** (the C-9 way, as planned in 05-40/05-30): a confirmation link to the new address, a notice to the old one, and the change applies on confirmation.
+  - **Save at once:** the email changes immediately; a notice goes to the old address saying a Manager changed it; all of the person's sessions are revoked (same path as USER-05 role/status changes) so they sign in again with the new email; audited as "Email changed" (field name only, D-40). Uniqueness and the email rules still apply.
+  - For an invited person with no password yet, the address moves at once and the invitation is replaced by a fresh 7-day one to the new address, whichever option is chosen (as planned).
+  - The UI default selection is "Confirm by link". The API carries the choice explicitly; the server never infers it. The "changed by a Manager" notice is a new email in the P4 look, added to the 05-31 owner email review.
+- **D-46 OQ-6:** Contract default. "Your current password is incorrect" shows under the Current password field with focus moved there; no danger toast.
+- **D-47 OQ-8 / OQ-10:** Contract defaults. "{name} (former staff)" with a muted suffix; Add User's access choice is a RadioGroup of two rows with one-line descriptions.
+- **D-48 OQ-7 / OQ-11 wording:** Build the UI-SPEC wording as written, but it is **not approved**: the owner reviews every new or amended string (screens and emails) before release. Parked in deferred-items.md for the 05-31 and 05-37 reviews.
+- OQ-5 was already ruled by D-23; OQ-9 (six icons) shipped in 05-03.
 
 ### Claude's Discretion
 - The exact deleted-marker shape (a nullable `DeletedAtUtc` vs a status enum value), as long as D-07..D-11 hold and the roster's status filter stays Active, Inactive, Locked.
