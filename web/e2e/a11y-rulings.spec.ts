@@ -263,14 +263,10 @@ for (const pageCase of PAGES.filter((candidate) => candidate.path.startsWith('/a
     const rows = await page.evaluate<ManagerRow[]>(READ_MANAGER_TAGS);
     const users = rows.find((row) => row.row === 'Users');
     expect(users?.tag, 'the Users row has a Manager tag in the DOM').not.toBeNull();
-    if (pageCase.path === '/admin/users') {
-      expect(users?.current).toBe(true);
-      expect(users?.tag?.visible).toBe(false);
-    } else {
-      expect(users?.current).toBe(false);
-      // FYI-01: the tag on a row that is not current shows at full opacity.
-      expect(users?.tag).toEqual({ visible: true, opacity: 1 });
-    }
+    // The Users page itself is a real, signed-in page (e2e/users.spec.ts checks its hidden tag), so none of these is current.
+    expect(users?.current).toBe(false);
+    // FYI-01: the tag on a row that is not current shows at full opacity.
+    expect(users?.tag).toEqual({ visible: true, opacity: 1 });
   });
 }
 

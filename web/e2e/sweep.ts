@@ -10,7 +10,7 @@ import { expect } from './fixtures.ts';
 export type Theme = 'light' | 'dark';
 
 export interface PageCase {
-  /** The name in test titles and failure lines, e.g. "/admin/users (dark)". */
+  /** The name in test titles and failure lines, e.g. "/admin/orders (dark)". */
   readonly name: string;
   readonly path: string;
   readonly theme: Theme;
@@ -24,7 +24,6 @@ const ADMIN_PAGES = [
   { path: '/admin', h1: 'Dashboard' },
   { path: '/admin/orders', h1: 'Orders' },
   { path: '/admin/expenses', h1: 'Company Expenses' },
-  { path: '/admin/users', h1: 'Users' },
   { path: '/dev/components', h1: 'Component Showcase' },
 ] as const;
 

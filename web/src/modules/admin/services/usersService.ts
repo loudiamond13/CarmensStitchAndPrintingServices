@@ -1,4 +1,6 @@
-// Staff roster calls (USER-01; plan 05-20). Types come from the generated OpenAPI types (D-16). Stub for the RED commit.
+// Staff roster calls (USER-01; plan 05-20). Types come from the generated OpenAPI types (D-16). Both calls are Manager only:
+// an Admin or a Manager who lost the role mid-session gets 403. The id is encoded into the path, so it can never add a
+// segment or a query. A null search or filter is not sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
 import type { components } from '@/types/api.generated';
 
@@ -13,7 +15,7 @@ export const USER_STATUS_FILTERS = ['active', 'inactive', 'locked'] as const;
 export type UserRoleFilter = (typeof USER_ROLE_FILTERS)[number];
 export type UserStatusFilter = (typeof USER_STATUS_FILTERS)[number];
 
-/** What `GET /api/v1/users` is asked for; a null filter or search is not sent. */
+/** What `GET /api/v1/users` is asked for. */
 export interface UsersListQuery {
   q: string | null;
   role: UserRoleFilter | null;
@@ -23,15 +25,20 @@ export interface UsersListQuery {
 }
 
 export interface UsersService {
+  /** `GET /api/v1/users`: one page of the roster, sorted by first name, last name, id. */
   list(query: UsersListQuery, signal?: AbortSignal): Promise<UserListResponse>;
+  /** `GET /api/v1/users/{id}`: one person with the edit version and who recorded and last changed them. */
   get(id: string, signal?: AbortSignal): Promise<UserDetailResponse>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- RED stub: the calls arrive in the GREEN commit.
 export function createUsersService(client: HttpClient): UsersService {
   return {
-    list: () => Promise.reject(new Error('not implemented')),
-    get: () => Promise.reject(new Error('not implemented')),
+    list: (query, signal) =>
+      client.get<UserListResponse>('/users', {
+        params: { q: query.q, role: query.role, status: query.status, page: query.page, pageSize: query.pageSize },
+        signal,
+      }),
+    get: (id, signal) => client.get<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, { signal }),
   };
 }
 

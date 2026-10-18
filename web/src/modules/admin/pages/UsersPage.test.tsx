@@ -260,8 +260,11 @@ describe('U1 the rows', () => {
     renderPage();
     await screen.findByText('Maximiliano Villavicencio-Montenegro');
 
-    expect(screen.getByText('Maximiliano Villavicencio-Montenegro').className).toContain('wrap-anywhere');
-    expect(screen.getByText('maximiliano.villavicencio.montenegro.the.third@example.ph').className).toContain(
+    // overflow-wrap is inherited, so the name's wrapper carries it.
+    expect(tokens(screen.getByText('Maximiliano Villavicencio-Montenegro').parentElement?.className ?? '')).toContain(
+      'wrap-anywhere',
+    );
+    expect(tokens(screen.getByText('maximiliano.villavicencio.montenegro.the.third@example.ph').className)).toContain(
       'wrap-anywhere',
     );
   });

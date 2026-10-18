@@ -6,9 +6,11 @@
 //   - CustomerCell: App. E.7's `.s-who` (the team over the customer, or the customer over "Walk-in customer"; the
 //     shared WALK_IN_CUSTOMER, owner ruling D-40, so the card and the table rows always match).
 //   - RowActions and RowAction: App. E.7/E.12's `.s-acts` group of 36px `.s-iconbtn` buttons (18px icons), each named
-//     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`.
+//     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`. With `to` the action is a
+//     router link in the same look (the signed-in Manager's pencil to My Profile, D-19).
 // The looks are in lists.recipe.ts.
 import type { ReactNode, Ref } from 'react';
+import { UiLink } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { WALK_IN_CUSTOMER } from '@/components/data';
 import { Avatar } from '@/components/status';
@@ -97,12 +99,11 @@ export type RowActionProps = RowActionButtonProps | RowActionLinkProps;
 
 export function RowAction({ icon, label, title, danger = false, to, onClick, ref }: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
-  // RED stub: the link form is not built yet and renders as a plain button.
   if (to !== undefined) {
     return (
-      <button type="button" aria-label={label} title={title} className={rowActionClasses[tone]}>
+      <UiLink to={to} aria-label={label} title={title} className={rowActionClasses[tone]} ref={ref}>
         <Icon name={icon} size={18} />
-      </button>
+      </UiLink>
     );
   }
   return (

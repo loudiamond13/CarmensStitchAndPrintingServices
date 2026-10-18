@@ -133,8 +133,11 @@ export const mutedCellClasses = tw('text-ink-muted');
 /** `.csp-cell-user`: the avatar and the name block, 12px apart. */
 export const cellUserClasses = tw('flex items-center gap-3');
 
-/** `.csp-cell-user span` on the name's wrapper span: 12px `--ink-muted` (it also reaches the name, rule 8). */
-export const cellUserTextClasses = tw('text-[12px] text-ink-muted');
+/**
+ * `.csp-cell-user span` on the name's wrapper span: 12px `--ink-muted` (it also reaches the name, rule 8). A long name or
+ * sub line wraps anywhere (it may shrink beside the avatar) instead of widening the table.
+ */
+export const cellUserTextClasses = tw('min-w-0 text-[12px] wrap-anywhere text-ink-muted');
 
 /** `.csp-cell-user strong`: the name on its own line, 600. */
 export const cellUserNameClasses = tw('block font-semibold');

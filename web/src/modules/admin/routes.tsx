@@ -73,6 +73,10 @@ const profilePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ProfilePage')).ProfileRoute,
 }));
 
+const usersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/UsersPage')).UsersRoute,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -111,7 +115,7 @@ export const adminRoutes: RouteObject[] = [
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: notFoundPage },
-          { path: 'users', loader: requireManager, lazy: notFoundPage },
+          { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: notFoundPage },
           { path: 'profile', lazy: profilePage },
         ],
@@ -156,7 +160,6 @@ export const devRoutes: RouteObject[] = [
           { index: true, lazy: previewPage },
           { path: 'orders', lazy: previewPage },
           { path: 'expenses', lazy: previewPage },
-          { path: 'users', lazy: previewPage },
         ],
       },
     ],
