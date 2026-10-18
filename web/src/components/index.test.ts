@@ -74,6 +74,7 @@ const SPEC_GAP_COMPONENTS = [
   'UserMenu',
   'Overlay',
   'Note',
+  'ConflictBanner',
 ] as const;
 
 const exports: Readonly<Record<string, unknown>> = ui;

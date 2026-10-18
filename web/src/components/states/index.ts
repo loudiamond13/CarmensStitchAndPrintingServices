@@ -1,6 +1,8 @@
 // States barrel (SPEC-GAP loading, error and image states, plan 02-28): ErrorState, the Skeleton family, LoadingRegion,
 // useDelayedFlag, LazyImage, the states copy and Note (plan 04-26). SkeletonTable comes with ResponsiveTable (plan 02-30).
 export { STATES_COPY } from './copy';
+export { ConflictBanner } from './ConflictBanner';
+export type { ConflictBannerProps } from './ConflictBanner';
 export { EmptyValue } from './EmptyValue';
 export { ErrorState } from './ErrorState';
 export type { ErrorStateProps } from './ErrorState';

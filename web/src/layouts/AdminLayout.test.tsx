@@ -775,6 +775,54 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
   });
 });
 
+describe('AdminLayout session user (PROF-01)', () => {
+  afterEach(() => {
+    clearSession();
+  });
+
+  /** The admin tree as production has it: the layout loader gives the session user. */
+  function signedInTree(): RouteObject[] {
+    return adminTree({ layout: { loader: () => getSessionUser() } });
+  }
+
+  function renewedSession(firstName: string, lastName: string) {
+    return sessionResponse({
+      user: {
+        id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+        email: 'carmen@example.ph',
+        firstName,
+        lastName,
+        role: 'Manager',
+      },
+    });
+  }
+
+  it('shows the new name in the Sidebar chip and the user menu button after the session user changes, without a reload', async () => {
+    acceptSession(renewedSession('Carmen', 'Reyes'));
+    const router = createMemoryRouter(signedInTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
+    expect(within(sidebarNav().closest('aside') as HTMLElement).getByText('Carmen Reyes')).toBeInTheDocument();
+
+    act(() => {
+      acceptSession(renewedSession('Ana', 'Cruz'));
+    });
+
+    expect(within(sidebarNav().closest('aside') as HTMLElement).getByText('Ana Cruz')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ana Cruz/ })).toBeInTheDocument();
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+  });
+
+  it('keeps the placeholder user of the dev routes, whatever session the tab holds', async () => {
+    acceptSession(renewedSession('Ana', 'Cruz'));
+
+    await renderAt('/admin');
+
+    expect(screen.getByRole('button', { name: /Carmen Reyes/ })).toBeInTheDocument();
+    expect(screen.queryByText('Ana Cruz')).toBeNull();
+  });
+});
+
 describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
   it('AdminFrame shows the user it is given, with the role', () => {
     const router = createMemoryRouter([
