@@ -617,6 +617,7 @@ function AddUserDemo() {
     <>
       <Button
         variant="secondary"
+        size="sm"
         onClick={() => {
           show('invitation');
         }}
@@ -625,6 +626,7 @@ function AddUserDemo() {
       </Button>
       <Button
         variant="secondary"
+        size="sm"
         onClick={() => {
           show('temporary-password');
         }}

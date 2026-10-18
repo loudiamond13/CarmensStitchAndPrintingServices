@@ -263,7 +263,7 @@ test('@showcase the Staff and audit demos open and close for a Manager, show a s
   await expect(staff.locator('[data-case="staff-roster-rows"]')).toBeVisible();
 
   // Add User by the temporary password route: the shown-once step carries a sample value.
-  await staff.getByRole('button', { name: 'Open Add User (temporary password)' }).click();
+  await staff.getByRole('button', { name: 'Open Add User (password)' }).click();
   const panel = page.getByRole('dialog', { name: 'Add User' });
   await expect(panel).toBeVisible();
   await panel.getByRole('button', { name: 'Create User' }).click();

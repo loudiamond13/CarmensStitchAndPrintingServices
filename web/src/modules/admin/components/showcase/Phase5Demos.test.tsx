@@ -193,7 +193,7 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
   it('opens Add User on the invitation route; Create User closes it and focus returns to the trigger', async () => {
     const user = userEvent.setup();
     renderDemos();
-    const trigger = within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invitation)' });
+    const trigger = within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invite)' });
 
     await user.click(trigger);
     const panel = await screen.findByRole('dialog', { name: 'Add User' });
@@ -213,7 +213,7 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     const user = userEvent.setup();
     renderDemos();
     const trigger = within(caseFrame('staff-add-user')).getByRole('button', {
-      name: 'Open Add User (temporary password)',
+      name: 'Open Add User (password)',
     });
 
     await user.click(trigger);
@@ -240,7 +240,7 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     const user = userEvent.setup();
     renderDemos();
 
-    await user.click(within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invitation)' }));
+    await user.click(within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (invite)' }));
     const panel = await screen.findByRole('dialog', { name: 'Add User' });
     await user.click(within(panel).getByRole('radio', { name: 'Set a temporary password' }));
 
@@ -349,9 +349,7 @@ describe('Phase5Demos: the panels, dialogs and profile tabs are live', () => {
     const user = userEvent.setup();
     renderDemos();
 
-    await user.click(
-      within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (temporary password)' }),
-    );
+    await user.click(within(caseFrame('staff-add-user')).getByRole('button', { name: 'Open Add User (password)' }));
     const panel = await screen.findByRole('dialog', { name: 'Add User' });
     await user.click(within(panel).getByRole('button', { name: 'Create User' }));
     const done = await screen.findByRole('dialog', { name: 'User created' });
