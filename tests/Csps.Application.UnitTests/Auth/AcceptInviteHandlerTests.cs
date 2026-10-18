@@ -229,6 +229,64 @@ public sealed class AcceptInviteHandlerTests
         }
     }
 
+    [Fact]
+    public async Task TheBreachCheckRunsAfterTheLookupAndBeforeTheTransactionThenTheInviteIsReadAgainInside()
+    {
+        var harness = Harness.Create();
+        var events = new List<string>();
+        harness.Tokens.FindByHashAsync(Arg.Any<byte[]>(), AccountTokenPurpose.Invitation, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                events.Add(harness.Unit.InTransaction ? "lookup:inside" : "lookup:outside");
+                return Task.FromResult<AccountToken?>(harness.Token);
+            });
+        harness.Pwned.CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                events.Add(harness.Unit.InTransaction ? "breach:inside" : "breach:outside");
+                return Task.FromResult(BreachCheckResult.NotBreached);
+            });
+
+        var result = await harness.Handler.HandleAsync(new AcceptInviteRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        events.ShouldBe(["lookup:outside", "breach:outside", "lookup:inside"]);
+    }
+
+    [Fact]
+    public async Task AnInviteSpentDuringTheBreachCheckIsTheInvalidAnswerAndChangesNothingMore()
+    {
+        var harness = Harness.Create();
+        harness.Pwned.CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                harness.Token.Use(Start);
+                return Task.FromResult(BreachCheckResult.NotBreached);
+            });
+
+        var result = await harness.Handler.HandleAsync(new AcceptInviteRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        AssertInvalidInvite(result);
+        harness.Unit.Saves.ShouldBe(0);
+        await harness.Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARetryAfterALostRaceDoesNotCallTheBreachServiceAgain()
+    {
+        var harness = Harness.Create();
+        harness.Unit.FailFirstSaveWithConflict();
+        harness.Tokens.FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult<AccountToken?>(NewToken()));
+
+        var result = await harness.Handler.HandleAsync(new AcceptInviteRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Unit.Rollbacks.ShouldBe(1);
+        await harness.Pwned.Received(1).CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     private static AccountToken NewToken() =>
         AccountToken.Create(UserId, AccountTokenPurpose.Invitation, TokenHash.Compute(Secret), Start, TimeSpan.FromHours(72));
 
