@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T03:28:00-05:00
+updated: 2026-10-18T05:12:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -86,7 +86,7 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.signed-in` | A sign-in completes and a session starts | `UserSession` id | none | `Record` |
 | `auth.refresh-reuse-detected` | A used refresh token is presented again and the session is revoked | `UserSession` id | none | `RecordIndependentlyAsync` |
 | `auth.signed-out` | A user signs out of the current session | `UserSession` id | none | `Record` |
-| `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others`, `password-reset` or `password-changed` (the person changed their password from My Profile; written only when another device was signed out) | `Record` |
+| `auth.sessions-revoked` | Several sessions are revoked at once | `User` id | `sign-out-others`, `password-reset` `password-changed` (the person changed their password from My Profile; written only when another device was signed out) or `account-changed` (a Manager deactivated or reactivated the person; written only when a session was open) | `Record` |
 | `auth.session-revoked` | One session is revoked: a deactivated or locked account tries to refresh, or a user signs out one of their other devices (`DELETE /api/v1/sessions/{id}`; nothing is written for a session already gone or refused) | `UserSession` id | none | `Record` |
 | `auth.password-reset-requested` | Forgot-password is asked for any address | `User` id; none for an unknown address | `sent` (link emailed), `deactivated` (notice emailed), `manager-locked` (a Manager locked the account: nothing is sent, D-41), `unknown-account` (nothing sent; also an unconfirmed account) or `capped` (3 emails in the hour, nothing sent). Never the email or the token | `Record` |
 | `auth.password-reset-completed` | A password reset finishes | `User` id | none | `Record` |
@@ -98,6 +98,8 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `user.bootstrap-manager-created` | The bootstrap command creates the first Manager | `User` id | none | `Record` |
 | `user.invited` | A user is invited: by the bootstrap command (first Manager), or by a Manager who adds a user by invitation (`POST /api/v1/users`, access `invitation`) | `User` id (the new account) | `bootstrap` (first Manager, actor System) or `manager` (a Manager added the user; the actor is that Manager). Never the name, email or token | `Record`, in the same transaction as the account, the 7-day link and the invitation email |
 | `user.created-temporary` | A Manager adds a user with a temporary password (`POST /api/v1/users`, access `temporary-password`) | `User` id (the new account) | none. Never the password, name or email | `Record`, in the same transaction as the account and its must-change flag; no email is sent |
+| `user.deactivated` | A Manager deactivates a user (`POST /api/v1/users/{id}/deactivate`) | `User` id (the person deactivated) | none. Never the name or email. Written only when the state changed, so repeating it adds nothing | `Record`, in the same transaction as the state change, the session revocation and (when a session was open) the `auth.sessions-revoked` entry with detail `account-changed`; the actor is the Manager |
+| `user.activated` | A Manager reactivates a user (`POST /api/v1/users/{id}/activate`) | `User` id (the person reactivated) | none. Written only when the state changed | `Record`, in the same transaction as the state change; the actor is the Manager |
 
 ## Phase 5 profile and staff events (USER-06)
 
