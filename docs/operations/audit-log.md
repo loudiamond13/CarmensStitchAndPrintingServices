@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-18T01:35:00-05:00
+updated: 2026-10-18T03:28:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -96,7 +96,8 @@ Entries never contain an e-mail address, a name, a sign-in code, a token or a pa
 | `auth.breach-check-unavailable` | The breached-password lookup could not be reached | `User` id when known | none | `RecordIndependentlyAsync` |
 | `auth.invite-accepted` | An invited user sets a password and activates the account | `User` id | none | `Record` |
 | `user.bootstrap-manager-created` | The bootstrap command creates the first Manager | `User` id | none | `Record` |
-| `user.invited` | A user is invited | `User` id | none | `Record` |
+| `user.invited` | A user is invited: by the bootstrap command (first Manager), or by a Manager who adds a user by invitation (`POST /api/v1/users`, access `invitation`) | `User` id (the new account) | `bootstrap` (first Manager, actor System) or `manager` (a Manager added the user; the actor is that Manager). Never the name, email or token | `Record`, in the same transaction as the account, the 7-day link and the invitation email |
+| `user.created-temporary` | A Manager adds a user with a temporary password (`POST /api/v1/users`, access `temporary-password`) | `User` id (the new account) | none. Never the password, name or email | `Record`, in the same transaction as the account and its must-change flag; no email is sent |
 
 ## Phase 5 profile and staff events (USER-06)
 

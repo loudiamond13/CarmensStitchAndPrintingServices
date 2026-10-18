@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T03:12:00-05:00
+updated: 2026-10-18T03:29:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -50,3 +50,9 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **What:** With 4 Playwright workers and a long Firefox test on a page that preloads the Archivo font (for example `/admin/profile`), Firefox writes "The resource ... archivo-latin-wght-normal ... preloaded with link preload was not used within a few seconds". The e2e guard fails the test on any console warning. In the 05-18 full `@profile` run it failed four Firefox tests, two of them in the untouched `profile.spec.ts`; the same tests pass with `--workers=2` or alone. Nothing in the 05-18 code loads fonts.
 - **Deferred to:** the Phase 5 close-out test review. Options: run Firefox with fewer workers, or ignore exactly this Firefox warning for the app's own preloaded woff2 in `web/e2e/fixtures.ts`, as the WebKit module-preload warning already is.
 - **Covered meanwhile:** the failing runs pass at `--workers=2`; no product behavior is affected.
+
+## Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
+
+- **What:** `POST /api/v1/users` with access `temporary-password` has the temporary password in its body, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of the target and body for 24 hours. This is the same exposure as the password and email-change routes above. The password itself is never stored in plain text, returned, logged, audited or emailed (a test reads the record and checks the response, location and route), and it is single-use: the person must replace it at their first sign-in.
+- **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the items above (HMAC the hash or skip body bytes for these routes).
+- **Covered meanwhile:** the record expires after 24 hours, no endpoint exposes the table, and the value stops working as soon as the person sets their own password.
