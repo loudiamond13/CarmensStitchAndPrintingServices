@@ -171,6 +171,36 @@ export function describeAuditDetail(action: string, detail: string | null): stri
   return REASONS.get(action)?.get(detail) ?? null;
 }
 
+/** One "What changed" sentence: the action and the stored word that give it. */
+export interface AuditDetailSentence {
+  readonly action: string;
+  readonly word: string;
+  readonly sentence: string;
+}
+
+/**
+ * Every "What changed" sentence the viewer can say, read from the same tables as describeAuditDetail, so the owner's wording
+ * review (the owner review pack) lists exactly what a screen can show: the field sentences, both role changes and each reason.
+ */
+export const AUDIT_DETAIL_SENTENCES: readonly AuditDetailSentence[] = [
+  ...[...FIELD_SENTENCES.entries()].map(([field, sentence]) => ({
+    action: 'user.details-changed',
+    word: `${FIELDS_PREFIX}${field}`,
+    sentence,
+  })),
+  ...[
+    ['admin', 'manager'],
+    ['manager', 'admin'],
+  ].map(([from = '', to = '']) => ({
+    action: 'user.role-changed',
+    word: `role=${from}>${to}`,
+    sentence: `Role: ${ROLE_WORDS.get(from) ?? ''} to ${ROLE_WORDS.get(to) ?? ''}`,
+  })),
+  ...[...REASONS.entries()].flatMap(([action, reasons]) =>
+    [...reasons.entries()].map(([word, sentence]) => ({ action, word, sentence })),
+  ),
+];
+
 /** The copy of the Audit Log page (A1). */
 export const AUDIT_COPY = {
   /** The document title is "{title} · CSPS Admin". */

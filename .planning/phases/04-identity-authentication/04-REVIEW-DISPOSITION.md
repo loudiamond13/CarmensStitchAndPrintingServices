@@ -21,27 +21,27 @@ findings:
     title: "A temporary lockout makes Refresh revoke the session for good, so anyone who knows an email can force a sign-out"
   - id: IN-01
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`PasswordRules.CheckAsync` awaits the breach call without `ConfigureAwait(false)`"
   - id: IN-02
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "Magic strings and repeated helpers"
   - id: IN-03
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "Dead port member and discarded return values"
   - id: IN-04
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`ListQueryRules` messages hard-code the limits"
   - id: IN-05
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "The breach lookup (an outbound HTTP call) runs inside an open database transaction"
   - id: IN-06
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`ToString` on some records can print personal data, and an audit doc line is wrong"
   - id: WR-05
     severity: warning
@@ -65,7 +65,7 @@ findings:
     title: "A failure after a successful SMTP send is recorded as a send failure and retried, so staff can get duplicate emails"
   - id: IN-07
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`BootstrapTargetGuard.IsLocalServer` misses some loopback forms, so the `CSPS_*` allow-list is skipped"
   - id: IN-08
     severity: info
@@ -73,11 +73,11 @@ findings:
     title: "Closed email-outbox rows keep the recipient address indefinitely"
   - id: IN-09
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`HibpPwnedPasswords.CheckAsync` omits `ConfigureAwait(false)` and has no response size cap"
   - id: IN-10
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`AppLinksOptions.IsValid` accepts URLs with user info"
   - id: WR-10
     severity: warning
@@ -97,11 +97,11 @@ findings:
     title: "The admin bundle budget is not enforced for the shipped admin app"
   - id: IN-11
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "Duplicate literal for the E2E origin in `playwright.config.ts`"
   - id: IN-12
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`SignInResponse` and `ResendCodeResponse` are identical records declared in the controller file"
   - id: CR-01
     severity: critical
@@ -121,37 +121,37 @@ findings:
     title: "Boot treats any HTTP failure as \"no session\", then the sign-in loader drops the return path"
   - id: IN-13
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`refreshFailure` goes stale on the peer-tab shortcut, which can suppress the sign-out after a 401"
   - id: IN-14
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`safeReturnUrl` validates the decoded text but returns the raw text, and refuses any legitimate percent sign"
   - id: IN-15
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "Dead copy keys duplicate the password rule messages"
   - id: IN-16
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "The resend announcement hardcodes 60 seconds while the countdown follows the server"
   - id: IN-17
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "An unknown server role silently becomes `manager` in the shell"
   - id: IN-18
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "Page-to-page import and triplicated form scaffolding"
   - id: IN-19
     severity: info
-    disposition: deferred
+    disposition: fixed
     title: "`navigator` inside `createSession` shadows the global"
 open: 0
 total: 36
 recorded: 2026-10-15T19:42:31.781Z
 created: "2026-10-15T14:42:31-05:00"
-updated: "2026-10-17T14:45:00-05:00"
+updated: "2026-10-18T15:50:00-05:00"
 ---
 
 # Phase 04: Code Review Disposition
@@ -162,38 +162,38 @@ updated: "2026-10-17T14:45:00-05:00"
 | WR-02 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-03 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-04 | warning | fixed | 04-REVIEW-FIX.md |
-| IN-01 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-02 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-03 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-04 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-05 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-06 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
+| IN-01 | info | fixed | Fixed in plan 05-34, commit ae28519 (`ConfigureAwait(false)` on the breach call) |
+| IN-02 | info | fixed | Fixed in plan 05-43, commit 6ba90ce (audit words, `AuditKey.Of`, one empty-password message, one link lookup) |
+| IN-03 | info | fixed | Fixed in plan 05-34, commit ae28519 (dead `IsLockedOutAsync` removed, discarded results are constants) |
+| IN-04 | info | fixed | Fixed in plan 05-43, commit e7df2a3 (list messages built from the caps) |
+| IN-05 | info | fixed | Fixed in plan 05-34, commit 8b9b8ff (breach lookup runs before the database transaction) |
+| IN-06 | info | fixed | Fixed in plan 05-34, commit ae28519 (`ToString` prints the type name only) |
 | WR-05 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-06 | warning | skipped | 04-REVIEW-FIX.md |
 | WR-07 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-08 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-09 | warning | fixed | 04-REVIEW-FIX.md |
-| IN-07 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-08 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-09 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-10 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
+| IN-07 | info | fixed | Fixed in plan 05-07, commit 32ffd26 (loopback forms count as this machine) |
+| IN-08 | info | deferred | Deferred to Phase 9 JOB-01: the host has no scheduler and the job runner is built there. The retention rule is written in docs/operations/mail-setup.md (plan 05-07, commit 32ffd26) and a deleted user's outbox rows are scrubbed at delete time (plan 05-26) |
+| IN-09 | info | fixed | Fixed in plan 05-07, commit e9c32dc (1 MB cap and `ConfigureAwait(false)`) |
+| IN-10 | info | fixed | Fixed in plan 05-07, commit e9c32dc (no user info, no path in the public base URL) |
 | WR-10 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-11 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-12 | warning | deferred | Owner ruling D-49 (2026-10-15): the /64 IPv6 key stays; the change was reverted (04-REVIEW-FIX.md) |
 | WR-13 | warning | fixed | 04-REVIEW-FIX.md |
-| IN-11 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-12 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
+| IN-11 | info | fixed | Fixed in plan 05-36, commit 8ce3c25 (one E2E origin constant) |
+| IN-12 | info | fixed | Fixed in plan 05-07, commit 4f64b03 (one `ResendWaitResponse`) |
 | CR-01 | critical | fixed | 04-REVIEW-FIX.md |
 | WR-14 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-15 | warning | fixed | 04-REVIEW-FIX.md |
 | WR-16 | warning | fixed | 04-REVIEW-FIX.md |
-| IN-13 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-14 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-15 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-16 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-17 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-18 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
-| IN-19 | info | deferred | Moved to Phase 5 by the owner (2026-10-17, ROADMAP Phase 5 carry-over) |
+| IN-13 | info | fixed | Fixed in plan 05-36, commit 05a7272 (refresh failure reset on every refresh) |
+| IN-14 | info | fixed | Fixed in plan 05-36, commit 8559e0a (exact return paths) |
+| IN-15 | info | fixed | Fixed in plan 05-36, commit 8559e0a (dead copy keys deleted) |
+| IN-16 | info | fixed | Fixed in plan 05-36, commit 8559e0a (announcement follows the server wait) |
+| IN-17 | info | fixed | Fixed in plan 05-03, commit df84585 (only the exact roles Admin and Manager make a session) |
+| IN-18 | info | fixed | Fixed in plans 05-16 (commit 8030735, fragment helpers) and 05-36 (commit 18f9ef3, shared set-password form hook) |
+| IN-19 | info | fixed | Fixed in plan 05-36, commit 05a7272 (router callback renamed) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
