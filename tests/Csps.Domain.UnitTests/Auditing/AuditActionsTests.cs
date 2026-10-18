@@ -1,3 +1,4 @@
+using System.Reflection;
 using Csps.Domain.Auditing;
 
 namespace Csps.Domain.UnitTests.Auditing;
@@ -126,6 +127,36 @@ public sealed class AuditActionsTests
     {
         AuditActions.LockoutDetails.ShouldBe(["password", "code"]);
         AuditActions.SessionsRevokedDetails.ShouldBe(["sign-out-others", "password-reset", "password-changed", "account-changed", "temporary-password"]);
+    }
+
+    [Fact]
+    public void EveryDetailWordHasAConstant()
+    {
+        var constants = typeof(AuditActions)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)
+            .ToList();
+
+        foreach (var word in AuditActions.SignInFailureReasons.Concat(AuditActions.LockoutDetails).Concat(AuditActions.SessionsRevokedDetails).Concat(["capped", "sent"]))
+        {
+            constants.ShouldContain(word);
+        }
+    }
+
+    [Fact]
+    public void EveryDetailListIsBuiltFromItsConstants()
+    {
+        var listed = typeof(AuditActions)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string) && field.Name.StartsWith("Detail", StringComparison.Ordinal))
+            .Select(field => (string)field.GetRawConstantValue()!)
+            .ToList();
+
+        listed.Count.ShouldBeGreaterThan(0);
+        AuditActions.SignInFailureReasons.ShouldBeSubsetOf(listed);
+        AuditActions.LockoutDetails.ShouldBeSubsetOf(listed);
+        AuditActions.SessionsRevokedDetails.ShouldBeSubsetOf(listed);
     }
 
     [Fact]
