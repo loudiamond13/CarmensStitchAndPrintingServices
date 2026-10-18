@@ -17,6 +17,7 @@ paths = [
   '''^tests/Csps\.Server\.IntegrationTests/Auth/MustChangePasswordTests\.cs$''',
   '''^tests/Csps\.Server\.IntegrationTests/Auth/PasswordResetTests\.cs$''',
   '''^tests/Csps\.Server\.IntegrationTests/Logging/SensitiveDataMaskingTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Users/CreateUserEndpointTests\.cs$''',
 ]
 
 [[allowlists]]
