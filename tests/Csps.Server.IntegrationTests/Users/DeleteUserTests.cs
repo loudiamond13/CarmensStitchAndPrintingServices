@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Csps.Application.Email;
 using Csps.Application.Security;
+using Csps.Infrastructure.Email;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
@@ -178,6 +180,44 @@ public sealed class DeleteUserTests(CspsDatabase database) : IClassFixture<CspsD
         entry.TargetType.ShouldBe("User");
         entry.Detail.ShouldBeNull();
         entry.ActorUserId.ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task AMailWaitingForTheDeletedPersonIsNeverSentAndNoOutboxRowKeepsTheOldAddress()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        using var mailbox = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var staff = await AuthClient.CreateStaffAsync(factory, role: Roles.Admin);
+        var now = TimeProvider.System.GetUtcNow();
+        var waiting = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.PasswordReset, staff.Email, "subject", "text", "html", now.AddMinutes(30), now.AddHours(2));
+        var closed = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.PasswordReset, staff.Email, "subject", "text", "html", now, now.AddHours(1));
+        closed.MarkSent(now);
+        await using (var seed = database.CreateContext())
+        {
+            seed.EmailOutbox.AddRange(waiting, closed);
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var mailsBefore = (await AuthClient.ReadEmailsAsync(mailbox, staff.Email)).Count;
+
+        using (var deleted = await UserFixtures.DeleteAsync(client, manager.AccessToken, staff.Id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.CountAsync(message => message.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        var rows = await context.EmailOutbox.AsNoTracking()
+            .Where(message => message.Id == waiting.Id || message.Id == closed.Id)
+            .ToDictionaryAsync(message => message.Id, TestContext.Current.CancellationToken);
+        rows.Values.ShouldAllBe(row => row.ToAddress == $"deleted-{staff.Id:N}{DeletedDomain}" && row.ProtectedSubject == null && row.ProtectedText == null && row.ProtectedHtml == null);
+        rows[waiting.Id].SentAt.ShouldBeNull();
+        rows[waiting.Id].ExpiredAt.ShouldNotBeNull();
+        rows[closed.Id].SentAt.ShouldNotBeNull();
+        await Task.Delay(TimeSpan.FromSeconds(2.5), TestContext.Current.CancellationToken);
+        (await AuthClient.ReadEmailsAsync(mailbox, staff.Email)).Count.ShouldBe(mailsBefore);
     }
 
     [Fact]

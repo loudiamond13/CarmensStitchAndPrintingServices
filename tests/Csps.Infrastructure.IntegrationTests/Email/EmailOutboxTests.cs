@@ -194,6 +194,42 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
         }
     }
 
+    [Theory]
+    [InlineData("someone@deleted.invalid")]
+    [InlineData("someone@DELETED.INVALID")]
+    [InlineData("someone@mail.example.invalid")]
+    [InlineData("someone@invalid")]
+    public async Task MailToAReservedInvalidDomainIsRefusedWithoutEchoingTheAddressAndQueuesNothing(string to)
+    {
+        var transport = new RecordingTransport();
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var outbox = scope.ServiceProvider.GetRequiredService<IEmailOutbox>();
+            var refused = await Should.ThrowAsync<ArgumentException>(async () => await outbox.EnqueueAsync(CodeEmail(to), TestContext.Current.CancellationToken));
+            refused.Message.ShouldNotContain("someone");
+            refused.Message.ShouldNotContain("invalid", Case.Insensitive);
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        (await FindRowsAsync(host, to)).ShouldBeEmpty();
+        transport.Messages(to).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task MailToAnAddressThatOnlyEndsLikeInvalidIsStillQueued()
+    {
+        var transport = new RecordingTransport();
+        var to = $"paolo.{Guid.NewGuid():N}@notinvalid.example.com";
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+
+        await QueueCodeAsync(host, to);
+
+        (await ReadRowAsync(host, to)).ToAddress.ShouldBe(to);
+    }
+
     private static string NewAddress() => $"paolo.{Guid.NewGuid():N}@example.com";
 
     private static SignInCodeEmail CodeEmail(string to)
