@@ -94,6 +94,38 @@ export const USERS_COPY = {
       temporaryPasswordRequired: 'Enter a temporary password.',
     },
   },
+  // U3 Edit User (App. E.12, the SEC-08 user detail; plan 05-25). Title Case for buttons, sentence case for the rest.
+  edit: {
+    title: 'Edit User',
+    description: 'Update details or change their role.',
+    /** The noun of the detail load: "Loading user details…", "User details loaded.", "Couldn't load user details." */
+    things: 'user details',
+    /** The roster's pencil: "Edit Paolo Garcia". */
+    rowEdit: (name: string): string => `Edit ${name}`,
+    cancel: 'Cancel',
+    save: 'Save Changes',
+    saving: 'Saving',
+    /** USER-05: shown while Role differs from the saved role. */
+    roleChangeNote: (first: string): string => `Changing the role signs ${first} out on every device.`,
+    // SPEC-GAP: D-45 the Manager chooses how a changed email applies. The wording is built, not yet approved (D-48).
+    emailChange: {
+      legend: 'How this email change applies',
+      confirm: {
+        label: 'Confirm by link',
+        description: 'The new address must confirm first, and the old address is told.',
+      },
+      now: {
+        label: 'Save at once',
+        description: 'The email changes now. The old address is told and they are signed out everywhere.',
+      },
+      required: 'Choose how the email change applies.',
+    },
+    toast: {
+      title: 'User updated',
+      /** "{First Last} · {Role}" */
+      message: (name: string, role: string): string => `${name} · ${role}`,
+    },
+  },
   // SPEC-GAP: the CopyField beside a shown-once password (UI-SPEC "CopyField behaviour").
   copyField: {
     copy: 'Copy Password',

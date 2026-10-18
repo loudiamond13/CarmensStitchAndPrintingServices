@@ -9,9 +9,11 @@
 //   - Add User opens the U2 panel (05-22); the panel is always mounted so it can animate out. After a create the roster
 //     reads again.
 //   - The signed-in Manager's own row has one action, a pencil link to My Profile (D-19). Deleted users never appear (D-09).
-//     The other rows' actions arrive with the Edit panel (05-25) and the row dialogs (05-28).
+//   - Every other row has a pencil "Edit {First Last}" that opens the U3 panel (05-25); the panel is always mounted, and
+//     after a save the roster reads again and focus returns to that row's Edit button. The other row actions arrive with
+//     the row dialogs (05-28).
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
 import { useToast } from '@/components/feedback';
 import { isHttpError } from '@/core/api/errors';
@@ -35,22 +37,21 @@ import {
   type ResponsiveTableColumn,
 } from '@/components/lists';
 import { ErrorState } from '@/components/states';
-import { Badge, type BadgeTone } from '@/components/status';
+import { Badge } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
-import {
-  usersCaptionClasses,
-  usersStatusClasses,
-  usersTitleRowClasses,
-  usersWrapClasses,
-} from '@/modules/admin/components/users.recipe';
+import { EditUserPanel } from '@/modules/admin/components/EditUserPanel';
+import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
+import { usersCaptionClasses, usersTitleRowClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
+import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useUsersListParams } from '@/modules/admin/hooks/useUsersListParams';
 import { useUsersQuery, usersKey } from '@/modules/admin/hooks/useUsersQuery';
 import {
   USER_ROLE_FILTERS,
   USER_STATUS_FILTERS,
+  type UserDetailResponse,
   type UserListItem,
   type UserRoleFilter,
   type UserStatusFilter,
@@ -74,43 +75,17 @@ function asStatus(value: string): UserStatusFilter | null {
   return USER_STATUS_FILTERS.find((status) => status === value) ?? null;
 }
 
-const STATUS_BADGES: ReadonlyMap<string, { tone: BadgeTone; label: string }> = new Map([
-  ['active', { tone: 'success', label: COPY.statusFilter.active }],
-  ['inactive', { tone: 'neutral', label: COPY.statusFilter.inactive }],
-  ['locked', { tone: 'warning', label: COPY.statusFilter.locked }],
-]);
-
-const INVITE_BADGES: ReadonlyMap<string, { tone: BadgeTone; label: string }> = new Map([
-  ['pending', { tone: 'info', label: COPY.invite.pending }],
-  ['expired', { tone: 'warning', label: COPY.invite.expired }],
-]);
-
 function fullName(user: UserListItem): string {
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
-function RoleBadge({ role }: { role: string }) {
-  return role === 'Manager' ? <Badge tone="accent">{role}</Badge> : <Badge tone="neutral">{role}</Badge>;
+/** What the roster needs to wire a row's Edit button: open the panel, and keep the button for focus return. */
+interface EditWiring {
+  open: (user: UserListItem) => void;
+  register: (id: string, button: HTMLButtonElement | null) => void;
 }
 
-/** The status badge and, when no password is set yet, the invitation badge; null for a status the page does not know. */
-function statusCell(user: UserListItem): ReactNode {
-  const status = STATUS_BADGES.get(user.status);
-  const invite = INVITE_BADGES.get(user.inviteState);
-  if (status === undefined) {
-    return null;
-  }
-  return (
-    <span className={usersStatusClasses}>
-      <Badge tone={status.tone} dot>
-        {status.label}
-      </Badge>
-      {invite !== undefined && <Badge tone={invite.tone}>{invite.label}</Badge>}
-    </span>
-  );
-}
-
-function columnsFor(meId: string | null): readonly ResponsiveTableColumn<UserListItem>[] {
+function columnsFor(meId: string | null, edit: EditWiring): readonly ResponsiveTableColumn<UserListItem>[] {
   const isMe = (user: UserListItem): boolean => meId !== null && user.id.toLowerCase() === meId.toLowerCase();
   return [
     {
@@ -125,7 +100,11 @@ function columnsFor(meId: string | null): readonly ResponsiveTableColumn<UserLis
       cell: (user) => <span className={usersWrapClasses}>{user.email}</span>,
     },
     { key: 'role', header: COPY.columns.role, cell: (user) => <RoleBadge role={user.role} /> },
-    { key: 'status', header: COPY.columns.status, cell: statusCell },
+    {
+      key: 'status',
+      header: COPY.columns.status,
+      cell: (user) => <StatusBadges status={user.status} inviteState={user.inviteState} />,
+    },
     { key: 'created', header: COPY.columns.created, muted: true, cell: (user) => formatBusinessDate(user.createdAt) },
     {
       key: 'actions',
@@ -138,7 +117,20 @@ function columnsFor(meId: string | null): readonly ResponsiveTableColumn<UserLis
           <RowActions>
             <RowAction to="/admin/profile" icon="pencil" label={COPY.ownRowEdit} />
           </RowActions>
-        ) : null,
+        ) : (
+          <RowActions>
+            <RowAction
+              icon="pencil"
+              label={COPY.edit.rowEdit(fullName(user))}
+              onClick={() => {
+                edit.open(user);
+              }}
+              ref={(button) => {
+                edit.register(user.id, button);
+              }}
+            />
+          </RowActions>
+        ),
     },
   ];
 }
@@ -148,6 +140,11 @@ export function UsersRoute() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
+  // The person whose Edit panel is open or was last open (kept while it animates out), and each row's Edit button.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const rowFocus = useRowFocus();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [values, set] = useUsersListParams();
   const settled = useSettledListParams(values, 300);
   const query = useUsersQuery({
@@ -187,6 +184,20 @@ export function UsersRoute() {
     }
   };
 
+  // The roster reads again; once it has, focus goes back to that row's Edit button, or to the heading when the row left the list.
+  const saved = (person: UserDetailResponse): void => {
+    toast.show({
+      tone: 'success',
+      title: COPY.edit.toast.title,
+      message: COPY.edit.toast.message(`${person.firstName} ${person.lastName}`, person.role),
+    });
+    void queryClient.invalidateQueries({ queryKey: usersKey }).then(() => {
+      if (!rowFocus.focusRow(person.id)) {
+        headingRef.current?.focus();
+      }
+    });
+  };
+
   const forbidden = isHttpError(query.error) && query.error.status === 403;
   const denied = forbidden ? describeHttpError(query.error) : null;
   const filtered = values.role !== null || values.status !== null;
@@ -198,7 +209,7 @@ export function UsersRoute() {
       <div className={pageHeadClasses}>
         <div className={pageHeadTitleClasses}>
           <div className={usersTitleRowClasses}>
-            <h1 id={HEADING_ID} tabIndex={-1} className={pageTitleClasses}>
+            <h1 id={HEADING_ID} ref={headingRef} tabIndex={-1} className={pageTitleClasses}>
               {COPY.title}
             </h1>
             <Badge tone="accent" icon="shield-check">
@@ -223,6 +234,14 @@ export function UsersRoute() {
           setAdding(false);
         }}
         onCreated={created}
+      />
+      <EditUserPanel
+        userId={editingId}
+        open={editing}
+        onClose={() => {
+          setEditing(false);
+        }}
+        onSaved={saved}
       />
       {denied === null ? (
         <>
@@ -278,7 +297,13 @@ export function UsersRoute() {
           </ResultBar>
           <ResponsiveTable<UserListItem>
             caption={COPY.title}
-            columns={columnsFor(me?.id ?? null)}
+            columns={columnsFor(me?.id ?? null, {
+              open: (user) => {
+                setEditingId(user.id);
+                setEditing(true);
+              },
+              register: rowFocus.register,
+            })}
             rows={query.data?.items}
             rowKey={(user) => user.id}
             // SPEC-DEVIATION: C-35 an inactive row sits on surface-2 by colour, with full-opacity text (App. E.12 faded it).

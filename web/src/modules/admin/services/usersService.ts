@@ -1,4 +1,4 @@
-// Staff roster and add calls (USER-01, USER-02; plans 05-20, 05-22). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
+// Staff roster, add and edit calls (USER-01, USER-02, USER-03; plans 05-20, 05-22, 05-25). Types come from the generated OpenAPI types (D-16). All calls are Manager only:
 // an Admin or a Manager who lost the role mid-session gets 403. The id is encoded into the path, so it can never add a
 // segment or a query. A null search or filter is not sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
@@ -59,7 +59,7 @@ export function createUsersService(client: HttpClient): UsersService {
     get: (id, signal) => client.get<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<CreateUserResponse>('/users', body, { idempotencyKey, signal }),
-    update: () => Promise.reject(new Error('not implemented')),
+    update: (id, body, signal) => client.put<UserDetailResponse>(`/users/${encodeURIComponent(id)}`, body, { signal }),
   };
 }
 

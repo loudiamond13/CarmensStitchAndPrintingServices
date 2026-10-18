@@ -34,3 +34,6 @@ export const usersCopyStackClasses = tw('flex flex-col gap-2');
 
 /** The New Suggestion button row under the temporary password field. */
 export const usersSuggestionClasses = tw('flex items-start');
+
+/** U3: the email-change choice and its message in one column 8px apart. */
+export const usersChoiceClasses = tw('flex flex-col gap-2');

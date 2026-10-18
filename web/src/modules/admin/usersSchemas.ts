@@ -61,13 +61,34 @@ export type CreateUserValues = z.infer<typeof createUserSchema>;
 export const EMAIL_CHANGES = ['confirm', 'now'] as const;
 export type EmailChange = (typeof EMAIL_CHANGES)[number];
 
-export const updateUserSchema = z.looseObject({});
+/** True when `email` is a different address from `saved`: compared after trim, ignoring letter case, as the server does. */
+export function emailChanged(email: string, saved: string): boolean {
+  return email.trim().toLowerCase() !== saved.trim().toLowerCase();
+}
 
-export type UpdateUserValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: UserRole;
-  emailChange: EmailChange | '';
-  savedEmail: string;
-};
+const EDIT_COPY = USERS_COPY.edit;
+
+/**
+ * The Edit User form (UpdateUserRequestValidator and the D-45 choice). `savedEmail` rides in the values so the schema can
+ * tell a changed email, which needs a choice (`confirm` or `now`), from an unchanged one, which ignores it.
+ */
+export const updateUserSchema = z
+  .object({
+    firstName: nameField(COPY.firstNameRequired, COPY.firstNameTooLong),
+    lastName: nameField(COPY.lastNameRequired, COPY.lastNameTooLong),
+    email: z
+      .string()
+      .trim()
+      .min(1, COPY.emailRequired)
+      .refine((email) => email === '' || isEmailShaped(email), AUTH_COPY.errors.emailInvalid),
+    role: z.enum(USER_ROLES, { error: COPY.roleRequired }),
+    emailChange: z.enum(['', ...EMAIL_CHANGES], { error: EDIT_COPY.emailChange.required }),
+    savedEmail: z.string(),
+  })
+  .superRefine((values, context) => {
+    if (isEmailShaped(values.email) && emailChanged(values.email, values.savedEmail) && values.emailChange === '') {
+      context.addIssue({ code: 'custom', path: ['emailChange'], message: EDIT_COPY.emailChange.required });
+    }
+  });
+
+export type UpdateUserValues = z.infer<typeof updateUserSchema>;

@@ -738,9 +738,7 @@ describe('U3 Edit User from the page (USER-03)', () => {
         const body = (await request.json()) as { firstName: string; lastName: string; role: string };
         puts.push(body);
         rows[1] = person(PAOLO_ID, body.firstName, body.lastName, { role: body.role });
-        return HttpResponse.json(
-          paoloDetail({ firstName: body.firstName, lastName: body.lastName, role: body.role }),
-        );
+        return HttpResponse.json(paoloDetail({ firstName: body.firstName, lastName: body.lastName, role: body.role }));
       }),
     );
     return { puts, calls };
@@ -752,7 +750,14 @@ describe('U3 Edit User from the page (USER-03)', () => {
     backend();
     await openPage();
 
-    for (const name of ['Paolo Garcia', 'Liza Mercado', 'Rhea Villanueva', 'Jomar Santos', 'Mario Lopez', 'Nena Cruz']) {
+    for (const name of [
+      'Paolo Garcia',
+      'Liza Mercado',
+      'Rhea Villanueva',
+      'Jomar Santos',
+      'Mario Lopez',
+      'Nena Cruz',
+    ]) {
       expect(within(rowOf(name)).getByRole('button', { name: `Edit ${name}` })).toBeInTheDocument();
     }
     expect(screen.queryByRole('button', { name: 'Edit Carmen Reyes' })).toBeNull();
@@ -768,7 +773,7 @@ describe('U3 Edit User from the page (USER-03)', () => {
     expect(await screen.findByDisplayValue('Paolo')).toHaveFocus();
   });
 
-  it('after a save the panel closes, focus is on that row\'s Edit button, the roster reads again and the toast says User updated', async () => {
+  it("after a save the panel closes, focus is on that row's Edit button, the roster reads again and the toast says User updated", async () => {
     const { puts, calls } = rosterThatRenamesPaolo();
     await openPage();
     const user = userEvent.setup();
@@ -796,7 +801,7 @@ describe('U3 Edit User from the page (USER-03)', () => {
     });
   });
 
-  it('Cancel closes the panel without a request and returns focus to that row\'s Edit button', async () => {
+  it("Cancel closes the panel without a request and returns focus to that row's Edit button", async () => {
     const { puts } = rosterThatRenamesPaolo();
     await openPage();
     const user = userEvent.setup();

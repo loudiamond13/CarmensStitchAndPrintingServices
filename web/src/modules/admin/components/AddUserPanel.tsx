@@ -13,19 +13,18 @@ import { useEffect, useEffectEvent, useId, useRef, useState, type SyntheticEvent
 import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
-import { SegmentedControl, type SegmentOption } from '@/components/choice';
 import { RadioGroup, type RadioOption } from '@/components/entry';
-import { Field, labelClasses, messageClasses, PasswordField } from '@/components/forms';
+import { Field, messageClasses, PasswordField } from '@/components/forms';
 import { Modal } from '@/components/overlays';
 import { Note } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { CopyField } from '@/modules/admin/components/CopyField';
+import { RoleField } from '@/modules/admin/components/RoleField';
 import {
   usersFormGridClasses,
   usersPanelBodyClasses,
-  usersRoleBlockClasses,
   usersSuggestionClasses,
 } from '@/modules/admin/components/users.recipe';
 import { usersService, type CreateUserRequest } from '@/modules/admin/services/usersService';
@@ -38,11 +37,6 @@ const COPY = USERS_COPY.add;
 
 const FIELD_ORDER = ['firstName', 'lastName', 'email', 'role', 'access', 'temporaryPassword'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
-
-const ROLE_OPTIONS: readonly SegmentOption<UserRole>[] = [
-  { value: 'Admin', label: COPY.role.admin, icon: 'user-round', showLabel: true },
-  { value: 'Manager', label: COPY.role.manager, icon: 'shield-check', showLabel: true },
-];
 
 // SPEC-DEVIATION: D-12 App. E.12 always set a fixed temporary password; here the Manager chooses between an emailed
 // invitation (the default) and a temporary password (OQ-10, D-47: two radio rows with one-line descriptions).
@@ -353,19 +347,7 @@ function AddUserForm({ open, onClose, onCreated }: AddUserPanelProps & { open: b
             control={control}
             name="role"
             render={({ field, fieldState }) => (
-              <div className={usersRoleBlockClasses}>
-                <span className={labelClasses}>{COPY.role.label}</span>
-                <SegmentedControl<UserRole>
-                  label={COPY.role.label}
-                  options={ROLE_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-                <p className={messageClasses({ error: fieldState.error !== undefined })}>
-                  {fieldState.error !== undefined && <Icon name="triangle-alert" size={14} />}
-                  {fieldState.error?.message ?? COPY.role.hint[field.value]}
-                </p>
-              </div>
+              <RoleField value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
             )}
           />
           <Controller
