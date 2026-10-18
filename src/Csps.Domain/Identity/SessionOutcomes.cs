@@ -23,6 +23,9 @@ public enum SessionRevocationReason
 
     /// <summary>The session reached its fixed end.</summary>
     Expired = 7,
+
+    /// <summary>The user changed their password from My Profile; their other devices were signed out.</summary>
+    PasswordChanged = 8,
 }
 
 /// <summary>The decision for one presented refresh token.</summary>

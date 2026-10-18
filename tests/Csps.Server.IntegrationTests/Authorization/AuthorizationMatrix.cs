@@ -104,6 +104,8 @@ public static class AuthorizationMatrix
         // The caller's own profile (PROF-01): Staff only, no id in the route. A PUT with no body meets the same 400 field errors.
         new("GET", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 200, Manager: 200),
         new("PUT", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 400, Manager: 400),
+        // Changing the password (PROF-03): Staff only. With no body both roles meet the same 400 field errors; the idempotency gate runs after authorization.
+        new("POST", "/api/v1/profile/password", "/api/v1/profile/password", Anonymous: 401, Admin: 400, Manager: 400),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

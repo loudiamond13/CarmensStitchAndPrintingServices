@@ -25,6 +25,30 @@
         ],
         "type": "object"
       },
+      "ChangePasswordRequest": {
+        "description": "The My Profile password form: the current password and the new one (PROF-03).",
+        "properties": {
+          "currentPassword": {
+            "description": "The current password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "newPassword": {
+            "description": "The new password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "description": "The forgot-password form: the email the reset link goes to (D-16).",
         "properties": {
@@ -1598,6 +1622,94 @@
           }
         },
         "summary": "Changes the caller's first and last name. The version must be the one the form was opened with.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/password": {
+      "post": {
+        "operationId": "ChangePassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in.",
         "tags": [
           "Profile"
         ]

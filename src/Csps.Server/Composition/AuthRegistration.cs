@@ -40,6 +40,7 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<AcceptInviteRequest>, AcceptInviteRequestValidator>();
         services.AddSingleton<IValidator<BootstrapManagerCommand>, BootstrapManagerCommandValidator>();
         services.AddSingleton<IValidator<UpdateProfileNameRequest>, UpdateProfileNameRequestValidator>();
+        services.AddSingleton<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
         return services;
     }
 }

@@ -80,7 +80,7 @@ public static class AuditActions
     public static IReadOnlyList<string> LockoutDetails { get; } = ["password", "code"];
 
     /// <summary>Why sessions were revoked (the detail of <see cref="SessionsRevoked"/>).</summary>
-    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset"];
+    public static IReadOnlyList<string> SessionsRevokedDetails { get; } = ["sign-out-others", "password-reset", "password-changed"];
 
     /// <summary>Every action code, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =

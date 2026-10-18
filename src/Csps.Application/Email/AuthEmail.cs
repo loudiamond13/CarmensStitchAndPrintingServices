@@ -111,7 +111,8 @@ public sealed record PasswordResetEmail(string To, string Token, DateTimeOffset 
 /// <param name="To">The recipient address.</param>
 /// <param name="ChangedAt">When the password changed.</param>
 /// <param name="SessionsEnded">True when every signed-in device was signed out (the reset path).</param>
-public sealed record PasswordChangedEmail(string To, DateTimeOffset ChangedAt, bool SessionsEnded) : AuthEmail(To)
+/// <param name="OtherDevicesOnly">True when only the other devices were signed out (a change from My Profile, PROF-03).</param>
+public sealed record PasswordChangedEmail(string To, DateTimeOffset ChangedAt, bool SessionsEnded, bool OtherDevicesOnly = false) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.PasswordChanged;
