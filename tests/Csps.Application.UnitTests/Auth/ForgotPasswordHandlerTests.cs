@@ -30,6 +30,8 @@ public sealed class ForgotPasswordHandlerTests
     [InlineData("active")]
     [InlineData("active-capped")]
     [InlineData("deactivated-capped")]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
     public async Task EveryBranchAnswersTheSameSuccessAtTheSameInstant(string branch)
     {
         var harness = Harness.For(branch);
@@ -48,7 +50,8 @@ public sealed class ForgotPasswordHandlerTests
     [Theory]
     [InlineData("unknown")]
     [InlineData("unconfirmed")]
-    public async Task AnUnknownOrUnconfirmedAddressGetsNothingButAnAuditEntry(string branch)
+    [InlineData("deleted")]
+    public async Task AnUnknownUnconfirmedOrDeletedAddressGetsNothingButAnAuditEntry(string branch)
     {
         var harness = Harness.For(branch);
 
@@ -63,6 +66,27 @@ public sealed class ForgotPasswordHandlerTests
         entry.TargetType.ShouldBeNull();
         entry.TargetId.ShouldBeNull();
         entry.Independent.ShouldBeFalse();
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("manager-locked")]
+    [InlineData("manager-locked-deactivated")]
+    public async Task AManagerLockedAccountGetsNothingAndAnAuditEntryWithItsReason(string branch)
+    {
+        var harness = Harness.For(branch);
+
+        await harness.RunAsync();
+
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Outbox.Counts.ShouldBeEmpty();
+        harness.Tokens.DidNotReceive().Add(Arg.Any<AccountToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Action.ShouldBe(AuditActions.PasswordResetRequested);
+        entry.Detail.ShouldBe("manager-locked");
+        entry.TargetType.ShouldBe("User");
+        entry.TargetId.ShouldBe(UserId.ToString("D"));
         harness.Unit.Saves.ShouldBe(1);
     }
 
@@ -260,6 +284,9 @@ public sealed class ForgotPasswordHandlerTests
                 "unknown" => null,
                 "unconfirmed" => Account(confirmed: false),
                 "deactivated" or "deactivated-capped" => Account(isActive: false),
+                "manager-locked" => Account(managerLocked: true),
+                "manager-locked-deactivated" => Account(isActive: false, managerLocked: true),
+                "deleted" => Account(deleted: true),
                 _ => Account(),
             };
             harness.Accounts.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(account));
@@ -284,7 +311,7 @@ public sealed class ForgotPasswordHandlerTests
             return await task;
         }
 
-        private static UserAccount Account(bool isActive = true, bool confirmed = true) =>
-            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, true, null, false, null);
+        private static UserAccount Account(bool isActive = true, bool confirmed = true, bool managerLocked = false, bool deleted = false) =>
+            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, true, null, false, null, managerLocked, deleted);
     }
 }

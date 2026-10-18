@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Http;
@@ -234,6 +236,35 @@ public sealed class InactiveAccountTests(CspsDatabase database) : IClassFixture<
         (await context.UserSessions.AsNoTracking().CountAsync(s => s.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
         (await context.AuditLog.AsNoTracking().AnyAsync(
             a => a.Action == AuditActions.PasswordChanged && a.TargetId == staff.Id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData(DeactivatedBlock)]
+    [InlineData(ManagerLockedBlock)]
+    [InlineData(DeletedBlock)]
+    public async Task ABlockedInvitedAccountsLinkIsTheSameInvalidInvite404(string block)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        using var created = await client.PostAsJsonAsync(
+            new Uri("/api/testing/staff", UriKind.Relative), new { role = "Manager", state = "invited" }, TestContext.Current.CancellationToken);
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        using var document = JsonDocument.Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var userId = document.RootElement.GetProperty("userId").GetGuid();
+        var token = document.RootElement.GetProperty("inviteToken").GetString().ShouldNotBeNull();
+        await ApplyBlockAsync(factory, userId, block);
+
+        using var check = await AuthClient.CheckInviteAsync(client, token);
+        using var accept = await AuthClient.AcceptInviteAsync(client, token, "Mabuhay#Tahi2026");
+
+        foreach (var response in new[] { check, accept })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.invite-invalid");
+        }
+
+        await using var context = database.CreateContext();
+        (await context.Users.AsNoTracking().SingleAsync(u => u.Id == userId, TestContext.Current.CancellationToken)).PasswordHash.ShouldBeNull();
     }
 
     [Fact]

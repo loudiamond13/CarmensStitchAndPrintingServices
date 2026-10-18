@@ -193,6 +193,30 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
     }
 
     [Fact]
+    public async Task ClearingTheLockoutNeverLiftsAManagerLockADeactivationOrADelete()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var id = await accounts.CreateAsync(NewAccount(Roles.Admin, Password), TestContext.Current.CancellationToken);
+        var user = (await users.FindByIdAsync(id.ToString("D", CultureInfo.InvariantCulture))).ShouldNotBeNull();
+        user.IsActive = false;
+        user.ManagerLockedAtUtc = DateTimeOffset.UnixEpoch.AddYears(56);
+        user.DeletedAtUtc = DateTimeOffset.UnixEpoch.AddYears(56);
+        (await users.UpdateAsync(user)).Succeeded.ShouldBeTrue();
+        await accounts.LockUntilAsync(id, TimeProvider.System.GetUtcNow().Add(LockoutLength), TestContext.Current.CancellationToken);
+
+        await accounts.ClearLockoutAsync(id, TestContext.Current.CancellationToken);
+
+        var after = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        after.LockoutEnd.ShouldBeNull();
+        after.IsActive.ShouldBeFalse();
+        after.IsManagerLocked.ShouldBeTrue();
+        after.IsDeleted.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task ResetFailedCountStartsTheCountAgain()
     {
         await using var provider = BuildProvider(database.ConnectionString);
