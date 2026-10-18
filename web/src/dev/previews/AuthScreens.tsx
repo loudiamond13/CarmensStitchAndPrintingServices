@@ -52,7 +52,7 @@ export interface AuthCardProps {
   traceId?: string;
 }
 
-const DEFAULT_EMAIL = 'paolo.garcia@gmail.com';
+const DEFAULT_EMAIL = 'paolo.garcia@example.com';
 const DEFAULT_TRACE_ID = '00-4bf92f3577b34da6a3ce929d0e0e4736-01';
 /** A password that shows the strength meter and the rule hint without an error. */
 const SAMPLE_PASSWORD = 'Sampaguita#2026';

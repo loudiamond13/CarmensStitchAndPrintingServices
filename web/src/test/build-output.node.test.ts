@@ -220,15 +220,9 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     ['cloud key', /\b(?:AKIA[0-9A-Z]{16}|sk_(?:live|test)_\w{10,}|cloudinary:\/\/\S+)/],
     ['bearer token', /\bBearer\s+[\w-]{20,}/],
   ];
-  /** The made-up addresses of spec §12 and the reserved example domains; any other address in a showcase chunk is a finding. */
+  /** Addresses allowed outside a reserved example domain; any other address in a showcase chunk is a finding. */
   const DEMO_ADDRESSES = new Set([
-    'carmen.reyes.csp@gmail.com',
-    'paolo.garcia@gmail.com',
     'liza.mercado@example.com',
-    'lizamercado09@gmail.com',
-    'jomar.santos@yahoo.com',
-    'rhea.villanueva@gmail.com',
-    'maria.villanueva.delacruzada@gmail.com',
     'maria.concepcion.villanueva.dela.cruz.j@barangay-sanroque.gov.ph',
     'name@gmail.com',
     'carmen@x.ph',
