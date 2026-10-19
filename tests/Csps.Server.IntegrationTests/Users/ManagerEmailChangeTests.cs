@@ -200,6 +200,37 @@ public sealed class ManagerEmailChangeTests(CspsDatabase database) : IClassFixtu
         await AssertNoAddressInAuditAsync(staff.Id, staff.Email, newEmail, laterEmail);
     }
 
+    [Theory]
+    [InlineData("now", true)]
+    [InlineData("confirm", false)]
+    public async Task OnlyAnAtOnceEmailMoveClosesAResetLinkSentToTheOldAddress(string mode, bool linkDies)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var staff = await AuthClient.CreateStaffAsync(factory, role: Roles.Admin);
+        var token = await AuthClient.RequestResetTokenAsync(client, staff.Email);
+        var before = await UserFixtures.ReadDetailAsync(client, manager.AccessToken, staff.Id);
+
+        using (var response = await PutAsync(client, manager.AccessToken, staff.Id, Form(before, AuthClient.NewEmail(), mode)))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using var check = await AuthClient.CheckResetLinkAsync(client, token);
+        if (linkDies)
+        {
+            check.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(check, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.link-invalid");
+            using var reset = await AuthClient.ResetPasswordAsync(client, token, "Another-Pass-9021");
+            reset.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+        else
+        {
+            check.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+    }
+
     [Fact]
     public async Task ANameChangeAndAnAtOnceEmailInOneSaveAreOneDetailsEntryWithOnlyFieldNames()
     {

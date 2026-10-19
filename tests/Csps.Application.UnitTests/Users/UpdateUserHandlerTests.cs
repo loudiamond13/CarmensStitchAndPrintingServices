@@ -463,6 +463,7 @@ public sealed class UpdateUserHandlerTests
         notice.To.ShouldBe(TargetEmail);
         notice.NewEmail.ShouldBe(NewEmail);
         harness.Outbox.Emails.Count.ShouldBe(2);
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), AccountTokenPurpose.PasswordReset, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         harness.Audit.Entries.ShouldBe([new AuditCall(AuditActions.UserEmailChangeStarted, "User", TargetId.ToString("D"), null, Independent: false)]);
         await harness.Sessions.DidNotReceive().RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         harness.Cache.EvictedUsers.ShouldBeEmpty();
@@ -501,6 +502,7 @@ public sealed class UpdateUserHandlerTests
         result.IsSuccess.ShouldBeTrue();
         await harness.Accounts.Received(1).UpdateDetailsAsync(TargetId, new UserDetailsChange("Ana", "Cruz", Roles.Admin, NewEmail), OpenedVersion, Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.EmailChange, Start, Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().SetPendingEmailAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
         harness.Added.ShouldBeEmpty();
         var notice = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<ManagerEmailChangedEmail>();
@@ -574,6 +576,7 @@ public sealed class UpdateUserHandlerTests
             harness.Tokens.LockAccountAsync(TargetId, Arg.Any<CancellationToken>());
             harness.Tokens.RevokeOpenAsync(TargetId, AccountTokenPurpose.Invitation, Start, Arg.Any<CancellationToken>());
         });
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), AccountTokenPurpose.PasswordReset, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         var token = harness.Added.ShouldHaveSingleItem();
         token.Purpose.ShouldBe(AccountTokenPurpose.Invitation);
         (token.ExpiresAt - token.CreatedAt).ShouldBe(TimeSpan.FromDays(7));
