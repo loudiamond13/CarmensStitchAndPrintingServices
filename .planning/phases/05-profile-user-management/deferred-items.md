@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T19:59:00-05:00
+updated: 2026-10-19T03:30:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -23,6 +23,7 @@ These are the Phase 5 findings that belong to the security review, kept together
 - **What:** `IdempotencyRecords.RequestHash` is SHA-256 over the request target and body, with no salt. For `POST /api/v1/profile/password` (and the reset and invite accept calls) the body holds the passwords, so someone who could read that table could test guesses offline against the hash. The plan's T-05-32 says only the 204 answer is stored; the hash is stored too, for 24 hours.
 - **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`). A fix is to key the hash with a server secret (HMAC) or to skip body bytes for password routes.
 - **Covered meanwhile:** the record expires after 24 hours, the table is not exposed by any endpoint, and the passwords themselves are never stored, logged or audited.
+- **Resolved by plan 05-49 (owner ruling D-50, 2026-10-19):** keyed HMAC-SHA256, expired rows removed in batches.
 
 ### Email-change routes store the same unsalted body hash (found in plan 05-14)
 
@@ -30,12 +31,14 @@ These are the Phase 5 findings that belong to the security review, kept together
 - **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the password-route item above (HMAC the hash or skip body bytes for these routes).
 - **Note for 05-16:** `ApplyPendingEmailAsync` records the account itself as the last changer with a second, unstamped save, so the result is right whether or not a session of someone else rides along on the anonymous confirm call. The web confirm page (05-16) need not send an Authorization header for this to hold.
 - **Covered meanwhile:** the record expires after 24 hours and no endpoint exposes the table; `TheLastChangerIsTheAccountItselfEvenAfterAnEarlierSelfEdit` pins the attribution.
+- **Resolved by plan 05-49 (owner ruling D-50, 2026-10-19):** keyed HMAC-SHA256, expired rows removed in batches.
 
 ### Add User with a temporary password stores the same unsalted body hash (found in plan 05-19)
 
 - **What:** `POST /api/v1/users` with access `temporary-password` has the temporary password in its body, so `IdempotencyRecords.RequestHash` holds an unsalted SHA-256 of the target and body for 24 hours. This is the same exposure as the password and email-change routes above. The password itself is never stored in plain text, returned, logged, audited or emailed (a test reads the record and checks the response, location and route), and it is single-use: the person must replace it at their first sign-in.
 - **Deferred to:** the Phase 5 security review (`/gsd-secure-phase 5`), together with the items above (HMAC the hash or skip body bytes for these routes).
 - **Covered meanwhile:** the record expires after 24 hours, no endpoint exposes the table, and the value stops working as soon as the person sets their own password.
+- **Resolved by plan 05-49 (owner ruling D-50, 2026-10-19):** keyed HMAC-SHA256, expired rows removed in batches.
 
 ### Session cache is evicted just before the idempotency transaction commits (found in plan 05-21)
 

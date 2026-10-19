@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-18T11:45:00-05:00
+updated: 2026-10-19T03:30:00-05:00
 ---
 
 # The authentication and sessions API
@@ -138,6 +138,14 @@ or re-scoping the refresh cookie signs every device out once.
 | `Idempotency-Key: <uuid>` | request | Needed by every `POST` and `DELETE` that changes something and is not on the allow-list. Send a fresh UUID per user action and **reuse it when you retry the same action**. The same key with the same body returns the stored answer; the same key with another body is `422` `idempotency.key-mismatch`; a duplicate while the first still runs is `409` `idempotency.in-progress`; a missing or non-UUID key is `400` `idempotency.key-missing`. |
 | `Idempotent-Replayed: true` | response | The answer is the stored one from an earlier call with this key. |
 | `Retry-After: <seconds>` | response | Sent with a `429` that has a wait time (the resend cooldown and the per-address limits). The hourly resend cap sends none. |
+
+### How a repeat is recognised
+
+The server keeps, for 24 hours, the answer and a keyed HMAC-SHA256 of the request target and body (never the body itself),
+so a copy of the stored record cannot be used to test password guesses (D-50). Expired records are removed by later
+`POST` calls, up to 100 at a time; a scheduled sweep comes with Phase 9 JOB-01. Deploying this change or rotating
+`Auth:CodeMacKey` makes earlier records non-matching: a retry with an earlier key gets `422` `idempotency.key-mismatch` and
+nothing runs twice, and the client sends its next attempt with a new key.
 
 ## Idempotency allow-list (D-40)
 
