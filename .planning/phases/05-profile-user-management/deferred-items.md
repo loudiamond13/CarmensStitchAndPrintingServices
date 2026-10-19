@@ -135,6 +135,7 @@ These are the Phase 5 findings that belong to the security review, kept together
 
 - **What:** `verify` runs `test:coverage` before `build`, and `src/test/build-output.node.test.ts` reads `src/Csps.Server/wwwroot`. After a change to shipped showcase data (the owner's example.com ruling), the first `verify` fails on the address check until `npm --prefix web run build` has refreshed the output. Running `build` once, then `verify`, passes.
 - **Deferred to:** the Phase 5 close-out test review (option: order the build before the node build-output tests).
+- **Still deferred, with a reason:** `verify` runs `test:coverage` before `build`, and `web/scripts/verify.test.ts` pins that order. Reordering would move the build ahead of the type, lint and unit gates and make a broken build mask a test failure, so the step order is left as it is. The failure only happens after the shipped showcase data changes (the owner's example.com ruling) and `npm --prefix web run build` followed by `verify` passes. Plan 05-37 changed no shipped data and the gate ran after a fresh build.
 
 ## Other load-flaky tests fixed in plan 05-37
 
@@ -148,9 +149,12 @@ These are the Phase 5 findings that belong to the security review, kept together
 - **What:** `SignOutOthersHandler`, `ChangePasswordHandler`, `CurrentPasswordCheck`, the six Users handlers that end sessions, `SetTemporaryPasswordHandler`, `CreateUserHandler`, `ConfirmEmailChangeHandler` and `ResendEmailChangeHandler` held their own copies of audit detail words.
 - **Fixed:** they now write `AuditActions.Detail*`. Four constants were added (`DetailProfile`, `DetailManager`, `DetailTaken`, `DetailResent`). The strings are the same, so no behaviour changed; the Domain and Application unit tests pass.
 
-## Stale build output makes `build-output.node.test.ts` fail until the next build (found in plan 05-42)
+## Audit Log "Done by" and "Done to" lists everyone, which WebKit cannot render at thousands of people (found in plan 05-37)
 
-- **Still deferred, with a reason:** `verify` runs `test:coverage` before `build`, and `web/scripts/verify.test.ts` pins that order. Reordering would move the build ahead of the type, lint and unit gates and make a broken build mask a test failure, so the step order is left as it is. The failure only happens after the shipped showcase data changes (the owner's example.com ruling) and `npm --prefix web run build` followed by `verify` passes. Plan 05-37 changed no shipped data and the gate ran after a fresh build.
+- **What:** `GET /api/v1/audit-log/people` lists every person ever recorded as staff, and the Audit Log fills two native selects with all of them (UI-SPEC A1, D-47). The long-lived `CSPS_E2E` database had grown to 2,891 staff (every E2E run makes hundreds), so each select held about 2,900 options. With that many, the `@audit` journey "a Manager finds a deactivation by Action and Done to" timed out at 180 s in WebKit and on the iPhone profile (32 s in Chromium, 44 s in Firefox), and the page froze while it rendered. After `dotnet run --project tools/Csps.DevSeed -- --reset --database CSPS_E2E` (the documented way to rebuild that database) it passes in all five projects.
+- **Why it is only recorded:** production will have tens of staff, so the page is fine there. The gap is a design limit, not a bug in a plan: a native select does not scale to thousands of options.
+- **Suggestions:** a searchable combobox (or a type-ahead) for the two selects once the list passes a few hundred people, for `/gsd-ui-review 5` or a later UI pass; and a periodic reset of `CSPS_E2E` (or a cleanup of E2E staff) so the shared test database does not grow without limit. Plan 05-37 reset `CSPS_E2E` once with the guarded tool before the last E2E runs.
+- **Also found and fixed in plan 05-37:** the `@audit` link-state journey assumed earlier runs had left more than ten sign-in entries in the shared database, so it failed on a fresh one; it now makes its own entries.
 
 ## Phase 5 close-out: what is still open for the owner (plan 05-37)
 
