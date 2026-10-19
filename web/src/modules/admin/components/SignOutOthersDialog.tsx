@@ -28,6 +28,8 @@ export function SignOutOthersDialog({ open = true, onClose, onSignedOut }: SignO
     },
     {
       onSuccess: () => {
+        // The dialog stays mounted, so a later press is a new request. Safe here: this also closes the dialog.
+        submission.reset();
         toast.show({ title: AUTH_COPY.toasts.signedOutOthers.title, message: AUTH_COPY.toasts.signedOutOthers.body });
         onSignedOut?.();
         onClose();
