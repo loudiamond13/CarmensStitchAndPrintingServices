@@ -4,7 +4,7 @@ plan: 37
 subsystem: testing
 tags: [playwright, owner-review, overflow, long-text, parity, api-docs, close-out]
 created: 2026-10-18T19:50:00-05:00
-updated: 2026-10-18T19:50:00-05:00
+updated: 2026-10-18T20:05:00-05:00
 
 requires:
   - phase: 05-profile-user-management
@@ -19,10 +19,10 @@ affects: [gsd-secure-phase 5, gsd-ui-review 5, gsd-verify-work 5, gsd-ship 5]
 # Actuals (#2632): chars/4 over the realized diff.
 actuals:
   tokens: 69000
-  tasks: 2
-  commits: 12
+  tasks: 3
+  commits: 13
 plan_head_before: ca70cd25d024aed7e1098788f20637ad2b0a4d2f
-plan_head_after: ed47c56e83985b00971a1dea5bc926c2484d879b
+plan_head_after: a39bbba9050d081784e12bd09aa7770daab27128
 
 tech-stack:
   added: []
@@ -109,27 +109,27 @@ coverage:
         status: pass
     human_judgment: false
   - id: D7
-    description: "The owner's rulings: the screen wording, the four flagged edge assumptions, the 40 temporary-password words, the phone motion check, the inbox check and the cookie check after deploy"
+    description: "The owner's rulings: the screen wording, the four flagged edge assumptions and the 40 temporary-password words (approved 2026-10-18); the phone motion check, the inbox check and the cookie check after deploy (not yet done, parked for /gsd-verify-work 5)"
     verification: []
     human_judgment: true
-    rationale: "Owner decisions and real-world checks that no test can make (Task 3 checkpoint, not yet answered)"
+    rationale: "Owner decisions and real-world checks that no test can make. The first three were approved by the owner on 2026-10-18; the last three were not reported done and stay open in deferred-items.md"
 
 # Metrics
 duration: 4h 25m
-completed: pending the owner's verdict (Task 3)
-status: halted
+completed: 2026-10-18
+status: complete
 ---
 
 # Phase 5 Plan 37: Phase close-out Summary
 
-**Every Phase 5 screen now passes the overflow and long-text sweeps in three engines and on phones (six shared-component fixes found by the sweeps), the owner review pack photographs the real signed-in screens with a rulings page that lists only what is still open, and the full local gate is green. Task 3, the owner's review, is waiting for the owner: nothing was approved.**
+**Every Phase 5 screen now passes the overflow and long-text sweeps in three engines and on phones (six shared-component fixes found by the sweeps), the owner review pack photographs the real signed-in screens with a rulings page that lists only what is still open, and the full local gate is green. The owner reviewed Phase 5 on 2026-10-18 and approved the screen wording, the four flagged edge assumptions and the 40 temporary-password words, with no changes; the real-phone, inbox and post-deploy cookie checks are still the owner's to do and are parked for `/gsd-verify-work 5`.**
 
 ## Performance
 
 - **Duration:** about 4 h 25 min (the full E2E run alone was 1.6 h at 2 workers; the parity matrix 35 min)
 - **Started:** 2026-10-18T15:20:00-05:00
-- **Ended:** 2026-10-18T19:45:00-05:00 (Tasks 1 and 2); Task 3 is open
-- **Tasks:** 2 of 3 done; Task 3 is the owner checkpoint
+- **Ended:** 2026-10-18T19:45:00-05:00 (Tasks 1 and 2); Task 3 (the owner's review) was answered on 2026-10-18
+- **Tasks:** 3 of 3 done (Task 3 is the owner checkpoint, answered "approved")
 - **Files modified:** 50 (2,643 insertions, 209 deletions)
 
 ## Accomplishments
@@ -148,7 +148,7 @@ status: halted
 
 1. **Task 1 (tracer):** `3720de7` test (RED: sweeps and the fixture), `5452423` fix (GREEN: the shared components and the P5 long-text parity ruling), `8b27f11` fix (parity ruling for the user cell name column)
 2. **Task 2:** `10af63a` test (RED: the review pack), `27521db` feat (the pack, the API guide, the dispositions), `e90c6f0` test (RED: audit detail constants), `0a69ee7` refactor (the shared words), `449d09a` fix (load-flaky tests), `548f6a1` fix (review: My Profile h1, per-picture errors), `140b89c` docs (records, security items, e2e tags, ledger), `1739728` fix (E2E specs the gate found failing), `ed47c56` docs (validation map)
-3. **Task 3:** not done (owner checkpoint)
+3. **Task 3 (owner checkpoint):** answered "approved" on 2026-10-18; recorded in this SUMMARY and `deferred-items.md` (docs commit, no code)
 
 ## Gate results (run after the preflight; `CSPS_TEST_SQL=localdb` for that process only)
 
@@ -235,26 +235,30 @@ None. The review pack's people and pictures are sample data under `csps.test` on
 
 None new. The fixture's optional fields exist only in Testing builds and accept only `@csps.test` addresses. T-05-101 (screenshots or credentials in the public repo): `git status --porcelain artifacts/` prints nothing and the gitleaks scan passed on every commit.
 
-## Owner review (Task 3): not answered
+## Owner review (Task 3): answered "approved", 2026-10-18
 
-**Do not read anything here as approved.** The review pack is `artifacts/owner-review/index.html` (git-ignored), section "Profile, users and audit log (Phase 5)" and the pages "Admin: Users", "Admin: My Profile" and "Admin: Audit Log" near the top. OQ-1 to OQ-11 are already ruled (D-42 to D-48) and are listed only as ruled. **Still open for the owner:**
+The owner reviewed Phase 5 with the pack at `artifacts/owner-review/index.html` (git-ignored), section "Profile, users and audit log (Phase 5)" and the pages "Admin: Users", "Admin: My Profile" and "Admin: Audit Log". On 2026-10-18 the owner typed "approved" with no wording changes. What that covers:
 
-1. The screen wording (D-48), including every sentence the executors wrote where the UI-SPEC had none.
-2. The four flagged edge assumptions: PROF-02, PROF-03, USER-05, USER-07.
-3. The 40 temporary-password words (plan 05-22).
-4. Motion and the tab bar on a real phone.
-5. The email-change mail in a real inbox (SMTP on a dev account).
-6. The refresh cookie `Expires` after the next deploy (Phase 4 carry-over).
+1. **Screen wording (D-48): approved as built, no changes.** `deferred-items.md` now shows the screen-wording review as closed, owner-approved 2026-10-18. The Phase 5 emails were already approved on 2026-10-18 in plan 05-31.
+2. **The four flagged edge assumptions (PROF-02, PROF-03, USER-05, USER-07): approved as the planner stated them.**
+3. **The 40 temporary-password words (plan 05-22): approved.**
+4. **OQ-1 to OQ-11:** already ruled (D-42 to D-48); no change.
 
-The owner's verdict and rulings, with the date, are recorded here when given; a changed ruling becomes a follow-up for `/gsd-verify-work 5` in `deferred-items.md`.
+**Not reported done, so not marked done.** The owner did not report doing these three real-world checks. They are parked in `deferred-items.md` under "Owner checks still to do (for /gsd-verify-work 5)", with the pack path and the plan's exact steps:
+
+- Motion and the tab bar on a real phone (drawer, user menu, dialog, reduced motion on and off, tab bar at the bottom of a short page).
+- The email-change mail in a real inbox (SMTP on a dev account: the new-address link and the old-address notice).
+- The refresh cookie `Expires` after the next deploy, only when "Keep me signed in" is ticked (Phase 4 carry-over).
+
+No ruling changed a contract default, so there are no wording follow-ups from this review.
 
 ## Next Phase Readiness
 
-- Ready for `/gsd-secure-phase 5` (the three security items are together in `deferred-items.md`), `/gsd-ui-review 5` (the Audit Log selects at scale is noted for it) and `/gsd-verify-work 5`, once the owner has answered Task 3.
-- `state.advance-plan`, the ROADMAP progress row and the requirement check-offs are for the final close-out after the owner's verdict.
+- Ready for `/gsd-secure-phase 5` (the security items are together in `deferred-items.md`), `/gsd-ui-review 5` (the Audit Log selects at scale is noted for it) and `/gsd-verify-work 5`, which should collect the owner's results for the three parked checks above.
+- This is the last plan of Phase 5. Phase verification is next.
 
 ---
 *Phase: 05-profile-user-management*
-*Completed: pending the owner's verdict (Task 3)*
+*Completed: 2026-10-18*
 
 ## Self-Check: PASSED

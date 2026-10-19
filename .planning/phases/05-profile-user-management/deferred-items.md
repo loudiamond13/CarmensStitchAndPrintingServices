@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-18T17:40:00-05:00
+updated: 2026-10-18T19:59:00-05:00
 ---
 
 # Phase 5: deferred items
@@ -63,8 +63,8 @@ These are the Phase 5 findings that belong to the security review, kept together
 ## Owner wording review: OQ-7 and OQ-11 (owner, 2026-10-17)
 
 - **What:** The owner wants to review every new or amended string before it is approved: the UI-SPEC Copywriting section (OQ-7 amended App. E.12/E.13 wording, OQ-11 SPEC-GAP strings) and the Phase 5 email additions, including the new "email changed by a Manager" notice (D-45).
-- **Status:** Executors build the UI-SPEC wording as written (D-48). **Phase 5 email wording: owner-approved 2026-10-18 (plan 05-31).** The owner reviewed all seven Phase 5 emails (invite-by-manager, manager-reset-link, email-change-confirm, email-change-confirm-by-manager, email-change-notice, password-changed-other-devices, manager-changed-email) against Phase 4's password-changed email and typed "approved", with no copy or look changes; the previews are in `artifacts/email-preview-phase5` (git-ignored). **Screen wording is still pending** for the 05-37 screen review; wording changes there become follow-ups for `/gsd-verify-work 5`.
-- **Added by plan 05-40 (email wording approved by the owner 2026-10-18 in plan 05-31; the error text below still awaits 05-37):** the new notice email "A Manager changed your CSPS sign-in email" (heading "Your sign-in email was changed", preheader "Sign in with your new email from now on.", body: "{Manager} changed your sign-in email to {new}.", "Changed {time}.", "From now on, sign in with {new}. This address, {old}, no longer signs in to CSPS.", the signed-out line, "If you didn't expect this, tell a Manager."), sent to the old address when a Manager saves an email at once (D-45). It is in the email preview tool as `manager-changed-email`, so 05-31 shows it; the tool now has eight samples, so 05-31's expected counts are one higher than that plan states. The error text "Choose how the email change applies." (field `emailChange`) also awaits review in 05-37.
+- **Status:** Executors build the UI-SPEC wording as written (D-48). **Phase 5 email wording: owner-approved 2026-10-18 (plan 05-31).** The owner reviewed all seven Phase 5 emails (invite-by-manager, manager-reset-link, email-change-confirm, email-change-confirm-by-manager, email-change-notice, password-changed-other-devices, manager-changed-email) against Phase 4's password-changed email and typed "approved", with no copy or look changes; the previews are in `artifacts/email-preview-phase5` (git-ignored). **Screen wording: owner-approved as built on 2026-10-18 in the 05-37 review (typed "approved", no wording changes), so this review is closed.**
+- **Added by plan 05-40 (email wording approved by the owner 2026-10-18 in plan 05-31; the error text below was approved with the screens in 05-37 on 2026-10-18):** the new notice email "A Manager changed your CSPS sign-in email" (heading "Your sign-in email was changed", preheader "Sign in with your new email from now on.", body: "{Manager} changed your sign-in email to {new}.", "Changed {time}.", "From now on, sign in with {new}. This address, {old}, no longer signs in to CSPS.", the signed-out line, "If you didn't expect this, tell a Manager."), sent to the old address when a Manager saves an email at once (D-45). It is in the email preview tool as `manager-changed-email`, so 05-31 shows it; the tool now has eight samples, so 05-31's expected counts are one higher than that plan states. The error text "Choose how the email change applies." (field `emailChange`) was approved in the 05-37 screen review (2026-10-18).
 
 ## Review scripts still list /admin/profile as a dev preview (found in plan 05-13)
 
@@ -90,7 +90,7 @@ These are the Phase 5 findings that belong to the security review, kept together
 
 - **What:** The Edit User panel (U3) shows a choice under Email when a Manager changes the email of a person who already has a password. The wording was built from D-45 and is not approved.
 - **Strings (web/src/modules/admin/usersCopy.ts, `edit.emailChange`):** the group label "How this email change applies"; the row "Confirm by link" with "The new address must confirm first, and the old address is told."; the row "Save at once" with "The email changes now. The old address is told and they are signed out everywhere."; the message "Choose how the email change applies." (the same text the server sends under `emailChange`, also listed under plan 05-40).
-- **Status:** "Confirm by link" is preselected. Present the rendered panel in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+- **Status:** "Confirm by link" is preselected. Approved as built by the owner in the 05-37 screen review, 2026-10-18 (no changes).
 - **Left for plan 05-30:** the Email notes (invited person, pending change), the pending-change note with Cancel Email Change and the pending-aware toast. The choice sits in its own block under the Email field, so those notes can go beside it.
 
 ## Owner wording review: Edit User account actions, email notes and refusals (added by plan 05-30, D-45, D-48)
@@ -102,14 +102,14 @@ These are the Phase 5 findings that belong to the security review, kept together
 - **Account access (`edit.accountAccess`):** the heading, button names, the hint "Save or discard your changes first." and the success toasts (Invitation sent, Reset link sent, User locked, User unlocked) are UI-SPEC wording; the failure toast titles "Couldn't send the email" and "Couldn't unlock {First Last}" follow the UI-SPEC pattern.
 - **Refusals (`edit.guards`, new):** users.blocked "This account is locked or deactivated. / Unlock or activate this person first."; users.already-set-up "They already have a password. / Send a reset link instead."; users.no-password "They haven't set a password yet. / Resend the invitation instead."; users.reset-link-capped "Too many reset links for this person. / Wait an hour, then try again."
 - **Lock and Set a temporary password:** `lock` (Lock {First Last}?, body, Keep Unlocked, Lock User, Locking) and `temporary` (Set a temporary password, For {First Last}, the Note, Set Password, Setting, Temporary password set) follow the UI-SPEC rows.
-- **Status:** present the rendered panel with each note, the pending note, both stacked dialogs and the toasts in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+- **Status:** approved as built by the owner in the 05-37 screen review, 2026-10-18 (no changes).
 
 ## Owner wording review: Audit Log screen (added by plan 05-33, D-26..D-29, D-40, D-48)
 
 - **What:** The Audit Log page was built from the UI-SPEC wording as written (header, subline, toolbar, result bar, chips, columns, toggle names, empty and error states, the date messages, the action labels). The strings below are new: the UI-SPEC lines for "What changed" ("Name: {old} to {new}" and so on) could not be built, because the log keeps field names and role values only (D-40), so the executor chose the sentences. None is approved yet. They all live in `web/src/modules/admin/auditCopy.ts`.
 - **"What changed" sentences (`describeAuditDetail`):** "Name changed", "Email changed" (both together read "Name changed. Email changed"), "Role: Admin to Manager" and "Role: Manager to Admin" (UI-SPEC form), "Link sent again", "That address was taken"; for sign-in failures "No account with that email", "Wrong password", "The account was locked", "The account is deactivated", "The account is not confirmed yet", "No password set yet", "A Manager locked the account", "The account was deleted"; for lockouts "Too many wrong passwords", "Too many wrong sign-in codes"; for signed-out devices "Signed out of other devices", "After a password reset", "After a password change", "The account was changed", "After a temporary password was set"; for reset requests "Reset link emailed", "Notice emailed, the account is deactivated", "Nothing sent, a Manager locked the account", "Nothing sent, no account with that email", "Too many requests this hour"; "Changed in My Profile", "First Manager setup", "Invited by a Manager". A stored word the viewer does not know shows no "What changed" line.
 - **Other new strings:** "Unknown person" (a Done by or Done to chip whose person the staff list no longer names, for example a stale link), the no-match sentence "No audit entries with range Last 30 days and done by {name}. Try another search or clear the filters." (built from the shared list wording), the custom range chip "Range: Custom range" (it names the range, not the two dates), and the table noun "audit entries" for "Loading audit entries…" and "Couldn't load audit entries.".
-- **Status:** present the rendered page with a few entries open in the 05-37 screen review; wording changes become follow-ups for `/gsd-verify-work 5`.
+- **Status:** approved as built by the owner in the 05-37 screen review, 2026-10-18 (no changes).
 
 ## Parity matrix: 28 `@lists` cases differ on `min-width` of the user cell text (found in plan 05-35)
 
@@ -156,15 +156,22 @@ These are the Phase 5 findings that belong to the security review, kept together
 - **Suggestions:** a searchable combobox (or a type-ahead) for the two selects once the list passes a few hundred people, for `/gsd-ui-review 5` or a later UI pass; and a periodic reset of `CSPS_E2E` (or a cleanup of E2E staff) so the shared test database does not grow without limit. Plan 05-37 reset `CSPS_E2E` once with the guarded tool before the last E2E runs.
 - **Also found and fixed in plan 05-37:** the `@audit` link-state journey assumed earlier runs had left more than ten sign-in entries in the shared database, so it failed on a fresh one; it now makes its own entries.
 
-## Phase 5 close-out: what is still open for the owner (plan 05-37)
+## Phase 5 close-out: the owner's rulings (plan 05-37, owner, 2026-10-18)
 
-The owner review pack is `artifacts/owner-review/index.html` (git-ignored; section "Profile, users and audit log (Phase 5)"). OQ-1 to OQ-11 are ruled (CONTEXT D-42 to D-48) and are listed on the pack's rulings page only as already ruled. What is **still open**:
+The owner reviewed Phase 5 with the pack at `artifacts/owner-review/index.html` (git-ignored; section "Profile, users and audit log (Phase 5)") and typed "approved", with no wording changes. OQ-1 to OQ-11 were already ruled (CONTEXT D-42 to D-48) and are unchanged.
 
-1. **Screen wording (D-48):** every new or amended string on the Phase 5 screens, including the sentences the executors wrote where the UI-SPEC had none (the Edit User email choice and notes, the refusals, the Audit Log "What changed" lines, "Unknown person", the toasts). The pack's table "Words on the Phase 5 screens" lists them all. Emails were approved on 2026-10-18 (plan 05-31) and are not part of this.
-2. **The four flagged edge assumptions:** PROF-02, PROF-03, USER-05, USER-07 (pack table "The four flagged edge assumptions").
-3. **The 40 temporary-password words** (plan 05-22; listed in the pack).
-4. **Motion and the tab bar on a real phone:** drawer, user menu and a dialog, with reduce motion on and off; the tab bar at the bottom on a short page.
-5. **The email-change mail in a real inbox** (SMTP on a dev account: the new-address link and the old-address notice).
-6. **The refresh cookie after the next deploy:** `Expires` only when "Keep me signed in" is ticked (Phase 4 carry-over).
+1. **Screen wording (D-48): approved as built, no changes.** Closed as owner-approved 2026-10-18. Emails were already approved 2026-10-18 in plan 05-31.
+2. **The four flagged edge assumptions (PROF-02, PROF-03, USER-05, USER-07): approved as the planner stated them.**
+3. **The 40 temporary-password words (plan 05-22): approved.**
 
-Wording the owner changes becomes a follow-up for `/gsd-verify-work 5`.
+No ruling changed a contract default, so there is no wording follow-up for `/gsd-verify-work 5` from this review.
+
+## Owner checks still to do (for /gsd-verify-work 5)
+
+The owner did **not** report doing these three in the 2026-10-18 review, so they are **not done**. They are real-world checks that no test can make. The pack is `artifacts/owner-review/index.html` (git-ignored). Plan 05-37 Task 3 gave these steps:
+
+1. **Motion and the tab bar on a real phone.** Open and close the navigation drawer, the user menu and a dialog. Turn on reduced motion and repeat (nothing should move). Check the tab bar sits at the bottom on a short page.
+2. **The email-change mail in a real inbox.** Change your own email on a dev account with SMTP configured and confirm both emails arrive: the new-address link and the old-address notice.
+3. **The refresh cookie after the next deploy (Phase 4 carry-over).** Sign in on the live site with and without "Keep me signed in" and check the refresh cookie carries `Expires` only when it is ticked.
+
+`/gsd-verify-work 5` should ask the owner for each result and record it.
