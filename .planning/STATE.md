@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-48-PLAN.md
-last_updated: "2026-10-19T08:18:08.580Z"
+stopped_at: Completed 05-49-PLAN.md
+last_updated: "2026-10-19T08:29:28.191Z"
 last_activity: 2026-10-18
 last_activity_desc: Phase 05 execution started
-state_head: 4daba0e1b19db5b2ee8390bf74843f2658e45e56
+state_head: f6f4663164805bde1360432a41bfc4392e9f1c6a
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 166
-  completed_plans: 161
+  completed_plans: 162
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T20:52:38-05:00"
@@ -217,6 +217,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P45 | 20 min | 3 tasks | 10 files |
 | Phase 05 P46 | 25 min | 2 tasks | 11 files |
 | Phase 05 P48 | 10 min | 2 tasks | 5 files |
+| Phase 05 P49 | 17 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -571,6 +572,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-45: ChangePasswordHandler takes the account lock first and revokes PasswordReset tokens in the same transaction; UpdateUserHandler revokes them only on the MoveNow path for a person with a password (confirm and invited leave them alone)
 - [Phase 05]: 05-46: temporary-password accounts are created with NewUserAccount.KeepEmailUnconfirmed (password set at create, address unconfirmed) instead of create-then-SetPasswordAsync, which deadlocked the same-email race test
 - [Phase 05]: 05-48: AnyActiveManagerAsync delegates to CountActiveManagersAsync(null), one D-18 active-Manager rule for the bootstrap gate; SoftDeleteAsync unchanged
+- [Phase 05]: 05-49: idempotency request hash is HMAC-SHA256 under an HKDF key from Auth:CodeMacKey (label csps/idempotency/request-hash/v1); an old or rotated-key record is a 422 mismatch and never runs again; each covered POST purges up to 100 expired rows (D-50)
 
 ### Pending Todos
 
@@ -632,6 +634,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T08:18:07.892Z
-Stopped at: Completed 05-48-PLAN.md
+Last session: 2026-10-19T08:29:27.489Z
+Stopped at: Completed 05-49-PLAN.md
 Resume file: None
