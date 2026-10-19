@@ -19,7 +19,7 @@ namespace Csps.Application.Users;
 /// a new password. The password is never returned, mailed, logged or audited, and only the basic rule applies. A Manager never does this
 /// to their own account (D-19) and a deactivated or locked person is refused (D-41 Q5). A person invited but not yet set up gets the
 /// password as their first one: the address counts as confirmed, as when an account is added with a temporary password, and the open
-/// invitation stops working. No version is sent: the action acts on the latest state (D-21).
+/// invitation stops working. For every person, any reset link already emailed stops working too (WR-01). No version is sent: the action acts on the latest state (D-21).
 /// </summary>
 public sealed class SetTemporaryPasswordHandler(
     IUserAccounts accounts,
@@ -110,6 +110,7 @@ public sealed class SetTemporaryPasswordHandler(
             await tokens.RevokeOpenAsync(id, AccountTokenPurpose.Invitation, now, cancellationToken).ConfigureAwait(false);
         }
 
+        await tokens.RevokeOpenAsync(id, AccountTokenPurpose.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var revoked = await sessions.RevokeAllAsync(id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new ManagerResetEmail(target.Email, managerName, now), cancellationToken).ConfigureAwait(false);
 
