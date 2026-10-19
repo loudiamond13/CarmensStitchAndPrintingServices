@@ -1,9 +1,11 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Users;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -155,6 +157,35 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         (await context.AuditLog.AsNoTracking()
             .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken))
             .ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task ATemporaryPasswordPersonGetsNothingBeforeTheFirstCorrectCodeAndTheUsualAnswerAfterTheFloor()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var email = AuthClient.NewEmail();
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, manager.AccessToken, email, "Tela-Sukat-7381");
+        await using var context = database.CreateContext();
+        var unknownBefore = await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using var response = await AuthClient.ForgotPasswordAsync(client, email);
+        stopwatch.Stop();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(490));
+        (await context.EmailOutbox.AsNoTracking().CountAsync(m => m.ToAddress == email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AccountTokens.AsNoTracking().CountAsync(t => t.UserId == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken))
+            .ShouldBe(unknownBefore + 1);
+        (await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == id.ToString("D"), TestContext.Current.CancellationToken))
+            .ShouldBe(0);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Net;
+using Csps.Application.Email;
 using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
@@ -21,6 +22,7 @@ public sealed class ManagerResetLinkTests(CspsDatabase database) : IClassFixture
     private const string SentAction = "user.reset-link-sent";
     private const string LinkStart = "https://localhost/admin/reset-password#token=";
     private const string Action = "send-reset-link";
+    private const string Temporary = "Tela-Sukat-7381";
 
     [Fact]
     public async Task ASentLinkNamesTheManagerWorksOnceForThirtyMinutesEndsTheSessionsAndIsNeverShownToTheManager()
@@ -215,6 +217,41 @@ public sealed class ManagerResetLinkTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task BeforeTheFirstCorrectCodeATemporaryPasswordPersonGetsNoLinkWithTheUsualAnswerAndAfterItOne()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var email = $"unproved.{Guid.NewGuid():N}@example.com";
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, manager.AccessToken, email, Temporary);
+
+        using (var refused = await UserFixtures.ActionAsync(client, manager.AccessToken, id, Action))
+        {
+            refused.StatusCode.ShouldBe(HttpStatusCode.NoContent, await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            (await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        }
+
+        await AssertNothingSentAsync(id, email);
+
+        using (var verify = await AuthClient.SignInThroughCodeAsync(client, new TestStaff(id, email, Temporary)))
+        {
+            verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var sent = await UserFixtures.ActionAsync(client, manager.AccessToken, id, Action))
+        {
+            sent.StatusCode.ShouldBe(HttpStatusCode.NoContent, await sent.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await using var context = database.CreateContext();
+        (await context.AccountTokens.AsNoTracking().CountAsync(item => item.UserId == id && item.Purpose == AccountTokenPurpose.PasswordReset, TestContext.Current.CancellationToken))
+            .ShouldBe(1);
+        (await context.EmailOutbox.AsNoTracking().CountAsync(item => item.ToAddress == email && item.Kind == AuthEmailKind.ManagerReset, TestContext.Current.CancellationToken))
+            .ShouldBe(1);
+        (await AuditOfAsync(id)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task AnUnknownOrDeletedPersonAnswers404()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -261,6 +298,15 @@ public sealed class ManagerResetLinkTests(CspsDatabase database) : IClassFixture
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe(code);
         problem.GetProperty("detail").GetString().ShouldBe(message);
+    }
+
+    private async Task AssertNothingSentAsync(Guid id, string email)
+    {
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.AsNoTracking().CountAsync(item => item.ToAddress == email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AccountTokens.AsNoTracking().CountAsync(item => item.UserId == id && item.Purpose == AccountTokenPurpose.PasswordReset, TestContext.Current.CancellationToken))
+            .ShouldBe(0);
+        (await AuditOfAsync(id)).ShouldBeEmpty();
     }
 
     private async Task<List<AuditEntry>> AuditOfAsync(Guid userId)

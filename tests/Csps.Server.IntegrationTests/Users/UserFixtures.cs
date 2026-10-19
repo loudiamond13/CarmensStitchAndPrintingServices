@@ -187,6 +187,32 @@ internal static class UserFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Adds a staff member through <c>POST /api/v1/users</c> with a Manager-set temporary password, so the address stays unproved until the first correct code (D-49).</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="managerToken">The Manager's bearer token.</param>
+    /// <param name="email">The new person's address.</param>
+    /// <param name="temporaryPassword">The temporary password.</param>
+    /// <returns>The new account id.</returns>
+    public static async Task<Guid> CreateWithTemporaryPasswordAsync(HttpClient client, string managerToken, string email, string temporaryPassword)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, Route, managerToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        request.Content = JsonContent.Create(new
+        {
+            firstName = "Tia",
+            lastName = "Temporal",
+            email,
+            role = Roles.Admin,
+            access = "temporary-password",
+            temporaryPassword,
+        });
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return body.RootElement.GetProperty("id").GetGuid();
+    }
+
     /// <summary>Deletes one person (<c>DELETE /api/v1/users/{id}</c>). The call takes no key and no version.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
