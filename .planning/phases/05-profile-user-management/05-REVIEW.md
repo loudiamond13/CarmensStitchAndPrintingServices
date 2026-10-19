@@ -2,22 +2,22 @@
 phase: 05-profile-user-management
 reviewed: 2026-10-18T20:22:00-05:00
 created: 2026-10-18T20:22:00-05:00
-updated: 2026-10-18T20:22:00-05:00
+updated: 2026-10-19T04:59:39-05:00
 depth: standard
 files_reviewed: 400
 files_reviewed_list:
   - "412 files from the 43 SUMMARY key-files plus the phase evaluation scope, reviewed in four lanes (lists kept outside the repo)"
 findings:
   critical: 1
-  warning: 21
-  info: 24
-  total: 46
+  warning: 22
+  info: 30
+  total: 53
 status: issues_found
 ---
 
 # Phase 5: Code Review Report
 
-*Created: 2026-10-18T20:22:00-05:00 · Updated: 2026-10-18T20:22:00-05:00*
+*Created: 2026-10-18T20:22:00-05:00 · Updated: 2026-10-19T04:59:39-05:00*
 
 The scope (412 files) was too large for one reviewer, so four gsd-code-reviewer lanes reviewed it at standard depth in parallel and their reports are merged here. Finding ids are renumbered across lanes; each finding names its lane and its id inside that lane. Items already recorded in `deferred-items.md` for the security review (unsalted RequestHash, KeepChanges opt-in, 60 s eviction window) were excluded from all lanes.
 
@@ -439,6 +439,43 @@ if (result.status !== 0) {
 
 *Lane: Shared web (web/ outside modules/admin, .gitleaks.toml) (lane id WR-03).*
 
+### WR-22: The new `ConfirmEmailAsync` call can turn a double-submitted first code into a 500
+
+**File:** `src/Csps.Application/Auth/VerifyCodeHandler.cs:97-100` (with `src/Csps.Infrastructure/Identity/UserAccounts.cs:188-189, 593-598`)
+**Issue:** `CheckAsync` loads the account at `:69`, which goes through `UserManager.FindByIdAsync` and so tracks the entity with
+its current `ConcurrencyStamp`. `ConfirmEmailAsync` then reuses that tracked entity (`LoadAsync` is `FindByIdAsync`) and
+calls `UserManager.UpdateAsync`, which always writes a new stamp. If a second request for the same ticket (a double click, a
+retry, two tabs) confirmed the address between those two points, the first one's write finds a changed stamp.
+`UserManager.UpdateAsync` turns that into `IdentityResult.ConcurrencyFailure`, `UpdateAsync` in `UserAccounts` calls
+`Require`, and `Require` throws `InvalidOperationException`. `VerifyCodeHandler.HandleAsync` catches only
+`ConcurrencyConflictException`, so the loser answers 500 "Something went wrong" instead of the intended `TicketExpired`
+that a double-submit gets for every already-confirmed account (the challenge `Complete` conflict). This is the WR-02 class
+from the earlier review, but D-49 newly puts it on the sign-in path, and only for the first sign-in of an unconfirmed
+account, which is when an unfamiliar person is most likely to double-click. The effect is a confusing error on a one-time
+step, not a security hole: the code is still single-use and the retry shows the normal expired-ticket answer.
+**Fix:** Make the confirm tolerant of the race, in either place:
+```csharp
+// UserAccounts.cs: reload-and-retry like MarkStaffEditAsync, or treat "already confirmed" as done.
+public async Task ConfirmEmailAsync(Guid id, CancellationToken cancellationToken)
+{
+    for (var attempt = 1; ; attempt++)
+    {
+        var user = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
+        if (user.EmailConfirmed) return;
+        user.EmailConfirmed = true;
+        var result = await users.UpdateAsync(user).ConfigureAwait(false);
+        if (result.Succeeded) return;
+        if (attempt == CountAttempts || !IsConcurrencyFailure(result)) Require(result, "Confirming the email");
+        await context.Entry(user).ReloadAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+```
+Add a unit or integration test that submits the same first code twice at once and expects one success and one
+`TicketExpired`, never a 500.
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NWR-01).*
+
+
 ## Info
 
 ### IN-01: Hard-coded "15 minutes" in the lockout message, while the duration is configurable
@@ -683,6 +720,90 @@ _Depth: standard_
 
 *Lane: Shared web (web/ outside modules/admin, .gitleaks.toml) (lane id IN-08).*
 
+### IN-25: Filter-chip tap areas overlap when chips wrap onto separate rows
+
+**File:** `web/src/components/lists/FilterBar.tsx:97`, `web/src/components/lists/lists.recipe.ts:254-267`
+**Issue:** The chip is 28 px tall (`h-7`) with 8 px between wrapped rows (`gap-2`), so rows sit 36 px apart. Each clear
+button's 44 px square reaches 8 px past the chip, so two chips on consecutive rows whose clear buttons line up within about
+44 px horizontally overlap by 8 px, and the later chip's area wins the tap. At 320 px, where chips wrap one per row, the
+right ends of "Role: Manager" and "Status: Active" are close, so this is likely. A tap in that strip clears the wrong filter
+(reversible, and the strip is outside both drawn buttons). The brief and the e2e both say the squares must not overlap; the
+e2e only shows two chips on one line, so it cannot see this. Chips in one row do not overlap (the areas reach 5 px past the
+chip and the gap is 8 px). The area can also reach 8 px above the chip into the control above it.
+**Fix:** Give the chip group a vertical gap of at least 16 px (`gap-x-2 gap-y-4`) or make the chip area `before:h-7 before:w-11`
+(full chip height, 44 px wide). Add an e2e case at 320 px with four chips that checks no two chip clear areas intersect.
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-01).*
+
+### IN-26: The purge comment promises more than the code can
+
+**File:** `src/Csps.Infrastructure/Idempotency/IdempotencyGate.cs:185-186`
+**Issue:** "its row locks end at once and never wait on a handler" is not true for one case. `InspectAsync` (`:244-248`)
+deletes an expired row of the same key inside the lease transaction, which then holds that row's lock for the whole handler.
+A purge from another request that wants the same expired row waits for it (until the command timeout, then the
+`DbException` is logged and ignored). It needs a key reused after 24 hours at the same instant as another POST, so it is rare
+and harmless, but the guarantee in the comment is wrong.
+**Fix:** Reword to "short and outside the request's transaction; a lock held by another request can delay it, and a failure
+is logged and ignored".
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-02).*
+
+### IN-27: A Manager is told "Reset link sent" when D-49 sent nothing
+
+**File:** `src/Csps.Application/Users/SendResetLinkHandler.cs:75-79` (toast in `web/src/modules/admin/usersCopy.ts:160`)
+**Issue:** For an unconfirmed temporary-password person the handler returns the same 204 with no email, no token and no audit
+entry, so the Manager sees the "Reset link sent" toast and the audit log shows nothing. The neutral answer is the owner's D-49
+rule and protects the mailbox, but the Manager is not a stranger to the account and is being misled about their own action. A
+colleague who never got a link will ask why.
+**Fix:** If D-49 allows it, return a distinct 422 (`users.email-not-proved`, "They have not signed in yet. Set a temporary
+password again or ask them to sign in first.") since only a Manager can call this route, or at least hide the button until
+the first sign-in. If the same answer must stay, record an audit entry with a "not confirmed" detail.
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-03).*
+
+### IN-28: A person's own email change still leaves a reset link to the old address alive
+
+**File:** `src/Csps.Application/Profile/ConfirmEmailChangeHandler.cs:77`
+**Issue:** WR-01 named three flows, and all three are fixed. The same shape exists in the profile flow: confirming the new
+address revokes only `EmailChange` links, so a reset link emailed to the old address stays valid for its 30 minutes after
+the person has moved to the new one. The person proved their password and the new mailbox here, so the exposure is smaller
+than the Manager at-once move, but the old mailbox is exactly the one being left.
+**Fix:** Add `tokens.RevokeOpenAsync(account.Id, AccountTokenPurpose.PasswordReset, now, ct)` next to line 77 and a test
+beside `ChangePasswordTests.AResetLinkEmailedBeforeThePasswordChange...`.
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-04).*
+
+### IN-29: A new comment contradicts the hook's own header
+
+**File:** `web/src/modules/admin/components/SignOutOthersDialog.tsx:31` versus `web/src/lib/forms/useSubmission.ts:23-24`
+**Issue:** `useSubmission` documents "Call reset() ... not inside onSuccess, or the double-click protection above is lost".
+`SignOutOthersDialog` and `VerifyCodePage` now do exactly that, with a comment saying it is safe because the dialog closes.
+It is safe here (the in-flight guard covers the double click, and a second click after close cannot land), but the two
+comments now disagree and the next author will follow the header. A second click that lands after the response but before
+the exit animation ends would send one more sign-out, which is harmless but is the thing the header warns about.
+**Fix:** Add a sentence to the hook header: "A one-shot confirm that stays mounted may reset() inside onSuccess when its
+request is safe to repeat (sign out others, resend a code)."
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-05).*
+
+### IN-30: Test timeouts raised instead of the slow gate fixed
+
+**File:** `web/scripts/tailwind-classes.test.ts:272-275, 387-399`
+**Issue:** The class-gate tests go from 30 s to 90 s (and two more to 30 s) because they run slowly while the full coverage
+run loads every core. A 90 s budget hides a real regression in the gate's speed and makes a hung build wait 90 s before it
+fails. The comments say "loads every core", so this is load, not logic.
+**Fix:** Acceptable now; if it recurs, build the CSS once in a `beforeAll` and share it, or cap the coverage run's worker
+count, rather than raising the budget again.
+
+---
+
+_Reviewed: 2026-10-19_
+_Reviewer: Claude (gsd-code-reviewer)_
+_Depth: standard (incremental)_
+
+*Lane: gap-closure re-review 2026-10-19 (re-review id NIN-06).*
+
+
 ## Id map
 
 | Id | Lane | Id in lane |
@@ -733,3 +854,118 @@ _Depth: standard_
 | IN-22 | Shared web (web/ outside modules/admin, .gitleaks.toml) | IN-06 |
 | IN-23 | Shared web (web/ outside modules/admin, .gitleaks.toml) | IN-07 |
 | IN-24 | Shared web (web/ outside modules/admin, .gitleaks.toml) | IN-08 |
+
+## Gap-closure re-review (2026-10-19)
+
+An incremental review of the 52 files changed by gap plans 05-44 to 05-52 (diff base 85dcdc3). Its new findings are WR-22 and IN-25 to IN-30 above. Prior findings it re-checked:
+
+#### CR-01 (Sign Out Other Devices does nothing after the first use): FIXED
+
+`web/src/modules/admin/components/SignOutOthersDialog.tsx:30-31` calls `submission.reset()` first thing in `onSuccess`, so
+the next press is a new submission with a new key. Tests: `SignOutOthersDialog.test.tsx` "signs out the others on every use
+of one mounted dialog" (two uses on one mounted instance, `probe.calls` equals 1 then 2, toast twice) and "sends one request
+for two fast clicks" (the in-flight guard still holds), `SessionsPage.test.tsx` "signs out the others again on a second use
+in one visit and refreshes the list each time", and the e2e `session-menu.spec.ts` second-use journey. The same defect in
+the Verify Code resend (`VerifyCodePage.tsx:124-128, 201-202`, `resetResend()` after a good answer) is fixed too, with a
+test. See NIN-05 for a comment that now contradicts the hook's header.
+
+#### WR-01 (open reset links survive three account-takeback flows): FIXED
+
+- `ChangePasswordHandler.cs:103` takes the account lock first and `:117` revokes open `PasswordReset` tokens, both inside
+  `InTransactionAsync` and before the one `SaveChanges`.
+- `SetTemporaryPasswordHandler.cs:113` revokes for every person (not only the `!HasPassword` branch); the lock was already
+  taken at `:88`.
+- `UpdateUserHandler.cs:251` revokes on `EmailStep.MoveNow` only. The `confirm` choice keeps the old address as the sign-in
+  address, so keeping the link is right there.
+
+`RevokeOpenAsync` (`AccountTokenStore.cs:45-58`) only marks tracked tokens, so they commit with the same `SaveChanges`:
+same transaction, as required. Tests: `ChangePasswordHandlerTests` (`Received.InOrder` lock, set password, revoke, revoke
+sessions), `ChangePasswordTests.AResetLinkEmailedBeforeThePasswordChangeStopsWorkingAndThisDeviceStaysSignedIn`,
+`TemporaryPasswordTests.AResetLinkEmailedBeforeATemporaryPasswordStopsWorkingAndTheMustChangeFlagStays`,
+`ManagerEmailChangeTests.OnlyAnAtOnceEmailMoveClosesAResetLinkSentToTheOldAddress` (both `now` and `confirm`). One related
+path is not covered: NIN-04.
+
+#### WR-03 (temporary-password account born with a confirmed, unproved address): FIXED
+
+- `CreateUserHandler.cs:83` passes `KeepEmailUnconfirmed: true`; `UserAccounts.cs:68` stores
+  `EmailConfirmed = Password is not null && !KeepEmailUnconfirmed`. Bootstrap and invite use the default `false` and a
+  null password, so they are unchanged (tests assert `!a.KeepEmailUnconfirmed` on the invitation route).
+- `SignInHandler.cs:78` lets an unconfirmed account through only when `MustChangePassword == Temporary`. A wrong password
+  still counts toward lockout, and every other unconfirmed state keeps the generic 401 (`unconfirmed-breach` theory rows).
+- `VerifyCodeHandler.cs:97-100` confirms on the first correct code, before the hand-over, and only for an unconfirmed
+  account. A wrong, used-up or expired code never reaches `AcceptAsync` (test `AWrongUsedUpOrExpiredCodeNeverConfirms...`).
+- `SendResetLinkHandler.cs:76-79` answers success and sends nothing. Forgot-password already did not send for
+  `IsActive && !EmailConfirmed` (`ForgotPasswordHandler.cs:63`), and `AccountLinkLookup.MayUse` (`:49`) refuses a reset
+  token for an unconfirmed account, so a link emailed earlier is dead too.
+- `SetTemporaryPasswordHandler` no longer calls `ConfirmEmailAsync` for an invited person; the invitation is still revoked.
+
+Tests: `ForgotPasswordTests.ATemporaryPasswordPersonGetsNothing...` (asserts on the outbox and token tables, not the
+racy sink, and the 500 ms floor), `ManagerResetLinkTests.BeforeTheFirstCorrectCode...`,
+`CreateUserEndpointTests.ATemporaryPasswordAddressStaysUnprovedUntilTheFirstCorrectCode` (full journey: wrong code leaves it
+unconfirmed, right code confirms and returns `set-new-password` with reason `temporary`). Residual concurrency risk on the
+new `ConfirmEmailAsync` call: NWR-01.
+
+#### WR-05 (two definitions of "active Manager"): FIXED
+
+`UserAccounts.cs:233-234`: `AnyActiveManagerAsync` is now `CountActiveManagersAsync(null, ct) > 0`, one definition
+(active, not Manager-locked, not deleted). A missing Manager role returns 0, so a first bootstrap still runs. The
+`IUserAccounts` doc matches.
+
+#### WR-08 (BootstrapManager tests aim a connection string at a BetsLLC database): FIXED
+
+`BootstrapManagerTests.cs:21-22` defines `UnreachableBetsConnection` with `Server=db.invalid.example;Database=BetsLLC_Dev;
+...;Connect Timeout=1`, used by both tests (`:321`, `:344`). A guard regression now fails to connect instead of reaching the
+shared LocalDB instance. No `BetsLLC_` string is left pointing at `(localdb)`.
+
+#### WR-09 (profile password route missing from the rate-limit list): FIXED
+
+`RateLimitTests.cs:63` adds `POST /api/v1/profile/password`, and the new `EveryRateLimitedEndpointIsInTheList` discovers
+every endpoint carrying `EnableRateLimitingAttribute` and fails in both directions, with a floor of 20 so discovery cannot
+pass vacuously. This closes the "next endpoint is forgotten" gap I suggested.
+
+#### WR-14 (no test pinned the bootstrap "active Manager" definition): FIXED
+
+`UserAccountsTests.cs` adds `ManagerLockedManagerDoesNotCount`, `DeletedManagerDoesNotCount` (both assert
+`AnyActiveManagerAsync == false` and the count 0), `AFailedPasswordLockoutStillCounts` (the password lockout must still count
+as active) and, in `BootstrapManagerTests`, `ARunCreatesANewManagerWhenTheOnlyManagerCannotAct` for locked, deleted and
+deactivated.
+
+#### WR-20 (controls under the 44 px rule): FIXED, one caveat (NIN-01)
+
+- `button.recipe.ts` adds `targetAreaClasses`: a `relative` button with an empty `::before` 44 px square centred on it. No
+  inline style (CSP), no change to the control's own box. `button.recipe.node.test.ts` pins the token list, the compiled CSS
+  and that only `.relative` lands on the element itself.
+- Applied to the row actions (`cells.tsx:122-129, 141`), the sidebar toggle (`Sidebar.tsx:125`), the phone menu button
+  (`Topbar.tsx:156`) and the filter chip clear (`FilterBar.tsx:97`). The user menu (`UserMenu.tsx:97`) reuses the existing
+  OQ-5 `hitAreaClasses`. None of the host classes sets another `position`, so `relative` does not fight `absolute`.
+- D-51: `rowActionsClasses` is `gap-2` (8 px). With 36 px buttons and 44 px areas each area reaches 4 px into the gap, so
+  neighbours meet at exactly 8 px and never overlap. The e2e asserts the gaps are `[8, 8]`, probes nine points per control, and
+  sweeps the drawn-box corners so no tap area covers another control. The O-8 exception list holds only the theme switch and
+  fails on an entry that matches nothing.
+- `rulings.css` and `rulings.test.ts` record D-51 and WR-20 as rulings, matching the converted screen.
+- OR-4: no em or en dash and no `style=` in any added web line (grepped the diff).
+
+### Focus checks
+
+**D-49 path.** Sign-in reaches the code step for an unconfirmed Temporary account; forgot-password and the Manager link send
+nothing; the first correct code confirms; bootstrap and invite are unaffected. `ConfirmEmailAsync` does not stamp
+"last changed by": the interceptor stamps only when `EditVersion` changes (`RecordStampInterceptor.cs:66-70`). The
+Breach-reason unconfirmed state stays refused. No path other than `VerifyCodeHandler` confirms the address.
+
+**D-50 hash.** `IdempotencyRequestHasher` derives a 32-byte key with `HKDF.DeriveKey(SHA256, codeKey, 32, salt: [], info:
+"csps/idempotency/request-hash/v1")` and builds an `IncrementalHash` HMAC. The raw code key is never used for the hash, and the
+code MAC (`HmacCodeMac`) uses the raw key directly, so the two are domain-separated. The key comes only from
+`Auth:CodeMacKey`, which `IdentityRegistration.cs:65-66` validates on start; the lazy throw carries only the setting name.
+No secret in code: the tests use `TestSecrets.CodeMacKeyBase64` and keys derived by hashing a phrase at run time. The stored
+column stays 32 bytes (no migration). Comparison is `FixedTimeEquals` (`IdempotencyGate.cs:251`). An old unkeyed record
+or a rotated key mismatches and gets 422 without running the handler again; tests
+`ARecordStoredBeforeTheKeyedHashIsAMismatch...` and `ARetryAfterTheCodeKeyChangedIsAMismatch...` pin that. The purge runs at
+`:170`, before `BeginTransactionAsync`, as one `DELETE ... TOP 100 ORDER BY ExpiresAt` over the `IX_IdempotencyRecords_ExpiresAt`
+index, so it is outside the request transaction; only `DbException` is swallowed (logged without request data), so a purge
+failure never fails the POST while a client abort still cancels. Tests cover any key/route/user, the 100-row batch cap, and
+that an unexpired row is never deleted. See NIN-02 for one overstated comment.
+
+**Reset-token revocation.** Same transaction in all three handlers (see WR-01 above), plus the account lock in
+`ChangePasswordHandler` so a racing forgot-password lands before or after, never between.
+
+**44 px areas.** See WR-20 above and NIN-01.
