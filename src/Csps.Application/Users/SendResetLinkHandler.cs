@@ -13,7 +13,8 @@ namespace Csps.Application.Users;
 /// Use case: a Manager emails a colleague a password reset link that the colleague opens themself (USER-07). The link lasts 30
 /// minutes and works once, names the Manager, replaces any open reset link and counts toward the same hourly cap as forgot-password
 /// (D-39). Only an active person who has a password gets one: a deactivated or Manager-locked person is refused (<c>users.blocked</c>,
-/// D-41 Q5) and a person who never set a password is pointed to the invitation (<c>users.no-password</c>). The link travels only by
+/// D-41 Q5) and a person who never set a password is pointed to the invitation (<c>users.no-password</c>). A person whose address no correct sign-in code has proved yet gets nothing and the
+/// same success answer (D-49), so a mistyped address never receives a link. The link travels only by
 /// email; nothing returned to the Manager holds it. No version is sent: the action acts on the latest state and does not change the
 /// account itself (D-21). The account lock makes two requests run one after the other, so the cap is counted after the first committed.
 /// </summary>
@@ -69,6 +70,12 @@ public sealed class SendResetLinkHandler(
         if (!target.HasPassword)
         {
             return Result.Failure(UserErrors.NoPassword);
+        }
+
+        // D-49: no code has proved this address yet, so no link goes to it; the answer stays the same success.
+        if (!target.EmailConfirmed)
+        {
+            return Result.Success();
         }
 
         var now = time.GetUtcNow();

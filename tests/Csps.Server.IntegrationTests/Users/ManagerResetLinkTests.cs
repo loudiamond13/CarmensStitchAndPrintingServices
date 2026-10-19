@@ -246,7 +246,7 @@ public sealed class ManagerResetLinkTests(CspsDatabase database) : IClassFixture
         await using var context = database.CreateContext();
         (await context.AccountTokens.AsNoTracking().CountAsync(item => item.UserId == id && item.Purpose == AccountTokenPurpose.PasswordReset, TestContext.Current.CancellationToken))
             .ShouldBe(1);
-        (await context.EmailOutbox.AsNoTracking().CountAsync(item => item.ToAddress == email && item.Kind == AuthEmailKind.ManagerReset, TestContext.Current.CancellationToken))
+        (await context.EmailOutbox.AsNoTracking().CountAsync(item => item.ToAddress == email && item.Kind == AuthEmailKind.ManagerResetLink, TestContext.Current.CancellationToken))
             .ShouldBe(1);
         (await AuditOfAsync(id)).ShouldHaveSingleItem();
     }
