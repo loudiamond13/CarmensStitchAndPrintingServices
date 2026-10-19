@@ -269,20 +269,25 @@ describe('runClassGate: class strings imported from another module (TOOL-WR-06)'
     return root;
   }
 
-  it('reads a class const exported by a plain module (through a barrel) and reports it in that module', async () => {
-    const webRoot = project({
-      'src/components/copy.ts': "export const panelClasses = 'p-4 bg-blue-500';\n",
-      'src/components/index.ts': "export { panelClasses } from './copy';\n",
-      'src/modules/public/pages/Page.tsx':
-        "import { panelClasses } from '@/components';\nexport const Page = () => <div className={panelClasses} />;\n",
-    });
-    const findings = await runClassGate(webRoot);
-    expect(findings.map((finding) => [finding.file, finding.line, finding.token, finding.kind])).toEqual([
-      ['src/components/copy.ts', 1, 'bg-blue-500', 'unknown'],
-    ]);
-  });
+  // Both tests run the real gate, which builds CSS and is slow while the full coverage run loads every core.
+  it(
+    'reads a class const exported by a plain module (through a barrel) and reports it in that module',
+    { timeout: 30_000 },
+    async () => {
+      const webRoot = project({
+        'src/components/copy.ts': "export const panelClasses = 'p-4 bg-blue-500';\n",
+        'src/components/index.ts': "export { panelClasses } from './copy';\n",
+        'src/modules/public/pages/Page.tsx':
+          "import { panelClasses } from '@/components';\nexport const Page = () => <div className={panelClasses} />;\n",
+      });
+      const findings = await runClassGate(webRoot);
+      expect(findings.map((finding) => [finding.file, finding.line, finding.token, finding.kind])).toEqual([
+        ['src/components/copy.ts', 1, 'bg-blue-500', 'unknown'],
+      ]);
+    },
+  );
 
-  it('does not read a recipe const twice', async () => {
+  it('does not read a recipe const twice', { timeout: 30_000 }, async () => {
     const webRoot = project({
       'src/components/a.recipe.ts': "export const aClasses = 'p-4 bg-blue-500';\n",
       'src/modules/public/pages/Page.tsx':
@@ -379,7 +384,8 @@ describe('the real source', () => {
     expect(files.filter((file) => /\.test\.tsx?$|^src\/test\/|\.d\.ts$/.test(file))).toEqual([]);
   });
 
-  it('collects the real class tokens (so the sweep below is not vacuous)', () => {
+  // It reads every src file, which is slow while the full coverage run loads every core (30 s budget).
+  it('collects the real class tokens (so the sweep below is not vacuous)', { timeout: 30_000 }, () => {
     const tokens = listSourceFiles().flatMap((file) =>
       collectClassTokens(file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).map(
         (entry) => entry.token,
@@ -389,11 +395,11 @@ describe('the real source', () => {
     expect(tokens).toContain('pg-phone:text-[52px]');
   });
 
-  // It compiles every token in src one by one: under 1 s alone, but past the 5 s default while the full coverage run
-  // loads every core (it timed out at 5 s in plan 02-25's verify run), so it gets its own 30 s budget. Same check.
+  // It compiles every class token in src one at a time: seconds alone, but well over 30 s while the full coverage run
+  // loads every core, so it gets a 90 s budget.
   it(
     'every class token in src compiles, with no colour literal and no stray opacity',
-    { timeout: 30_000 },
+    { timeout: 90_000 },
     async () => {
       expect(await runClassGate()).toEqual([]);
     },
