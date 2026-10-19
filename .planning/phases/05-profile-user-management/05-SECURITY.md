@@ -7,16 +7,16 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-10-18T20:30:33-05:00"
-updated: "2026-10-18T20:30:33-05:00"
+updated: "2026-10-19T04:57:29-05:00"
 ---
 
 # Phase 05: Security
 
-*Created: 2026-10-18T20:30:33-05:00 · Updated: 2026-10-18T20:30:33-05:00*
+*Created: 2026-10-18T20:30:33-05:00 · Updated: 2026-10-19T04:57:29-05:00*
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107 unique threats (T-05-01 to T-05-106, plus T-05-SC repeated in every plan). One `gsd-security-auditor` run (ASVS level 1, static inspection, no tests run) checked each mitigation in the code and the test the plan claims, and returned SECURED with 0 open threats. The phase test run on the same day (.NET 3,250 passed, 1 skipped) backs the cited tests.
+The register comes from the `<threat_model>` blocks of plans 05-01 to 05-52: 127 unique threats (T-05-01 to T-05-126, plus T-05-SC repeated in every plan). Plans 05-44 to 05-52 are the 2026-10-19 gap closure; a second auditor run checked T-05-107 to T-05-126 and returned SECURED. One `gsd-security-auditor` run (ASVS level 1, static inspection, no tests run) checked each mitigation in the code and the test the plan claims, and returned SECURED with 0 open threats. The phase test run on the same day (.NET 3,250 passed, 1 skipped) backs the cited tests.
 
 ---
 
@@ -92,6 +92,22 @@ The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107
 | Manager browser → audit people list | Names of every staff member ever recorded | 05-41 |
 | public static assets → anyone | The showcase chunk is downloadable without signing in | 05-42 |
 | handlers → append-only audit log | Detail words become a permanent record | 05-43 |
+| browser UI state → POST /api/v1/auth/sign-out-others | A person ends their other sessions from a dialog that stays mounted for the whole visit | 05-44 |
+| browser UI state → POST /api/v1/auth/two-factor/resend | A person asks for a new sign-in code from a page that stays mounted | 05-44 |
+| email inbox → anonymous reset link | A 30-minute bearer link that sets a password and clears the must-change flag | 05-45 |
+| Manager / signed-in session → account take-back | A temporary password, an own password change or an at-once email move that should end every earlier way in | 05-45 |
+| Manager form → POST /api/v1/users | The Manager types an address nobody has proved yet | 05-46 |
+| email inbox → sign-in code | The code step is the first proof that the person controls the mailbox | 05-46 |
+| anonymous → sign-in | Unconfirmed accounts must keep the one generic refusal, except the temporary-password case D-49 lets through | 05-46 |
+| Manager browser → POST /api/v1/users/{id}/send-reset-link | A Manager action that emails a bearer reset link | 05-47 |
+| anonymous → POST /api/v1/auth/password/forgot | Anyone can ask for a reset link for any address | 05-47 |
+| operator CLI → database | The bootstrap command decides from the roster whether it may create a Manager | 05-48 |
+| test process → shared LocalDB instance | Tests on this machine share an instance with TheBETSLLC | 05-48 |
+| request body → IdempotencyRecords | Passwords in the password, email-change, Add User and temporary-password bodies are hashed into a table kept for 24 hours | 05-49 |
+| host settings → key derivation | `Auth:CodeMacKey` (a host secret) keys both the sign-in code MAC and, through a derived key, the request hash | 05-49 |
+| browser rendering | Pure CSS and markup; no data crosses a boundary | 05-50 |
+| browser rendering | Pure CSS and markup; no data crosses a boundary | 05-51 |
+| any address → POST /api/v1/profile/password | A stolen or unattended session can try current passwords | 05-52 |
 
 ---
 
@@ -130,7 +146,7 @@ The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107
 | T-05-29 | Tampering | Singleton actor leaking one request's user into another | medium | mitigate | Actor read per call from IHttpContextAccessor (AsyncLocal per request), never cached; no-actor default outside requests | closed | `src/Csps.Server/Http/HttpCurrentActor.cs:15-16`; `RecordStampInterceptorTests.cs:86` |
 | T-05-30 | Information Disclosure | Attribution exposing deleted users' emails | low | mitigate | Reads show names only (D-08, D-11); emails of deleted rows are scrambled (05-26) | closed | `UserDirectory.cs:142`; `UserAccounts.cs` `SoftDeleteAsync`; `DeletedAddress.cs` |
 | T-05-31 | Spoofing | Account takeover through an unattended session (CWE-620) | high | mitigate | Current password required; wrong ones count to the 5-try lockout with email; per-address Reset rate limit; other sessions revoked on success | closed | `CurrentPasswordCheck.cs:28-52`; `ChangePasswordHandler.cs:115`; `ProfileController.cs:76`; `ChangePasswordTests.cs:29,189,222` |
-| T-05-32 | Information Disclosure | Passwords in logs, audit or idempotency storage (CWE-532) | high | mitigate | 204 with no body is what the idempotency record stores; masking enricher; audit details are fixed words | closed | `ProfileController.cs:75-100` (204, no body stored); `SensitiveDataMasking.cs:15-52`; `ChangePasswordTests.cs:88-117`. Residual: deferred item 1 |
+| T-05-32 | Information Disclosure | Passwords in logs, audit or idempotency storage (CWE-532) | high | mitigate | 204 with no body is what the idempotency record stores; masking enricher; audit details are fixed words | closed | `ProfileController.cs:75-100` (204, no body stored); `SensitiveDataMasking.cs:15-52`; `ChangePasswordTests.cs:88-117`. Residual deferred item 1 closed by 05-49 (D-50) |
 | T-05-33 | Tampering | Unvalidated `tab` param | low | mitigate | Literal parser with a default and one replace on invalid input (WEB-10) | closed | `useProfileTab.ts:10` (`literalParser`); `useProfileTab.test.tsx` |
 | T-05-34 | Tampering | Stored XSS via names (CWE-79) | medium | mitigate | React text nodes only; ESLint bans dangerouslySetInnerHTML | closed | Text nodes only; no HTML sink (see T-05-24) |
 | T-05-35 | Tampering | Lost edit after a conflict (SEC-07) | medium | mitigate | ConflictBanner keeps values; Load Latest is explicit; e2e two-page test | closed | `ConflictBanner` in `ProfilePage.tsx`; `ProfilePage.test.tsx:647`; `web/e2e/profile.spec.ts:166` |
@@ -152,7 +168,7 @@ The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107
 | T-05-51 | Information Disclosure | Passwords kept in memory, URL or logs | medium | mitigate | RHF state cleared on success; no password in query strings, toasts or console; zero-console guard | closed | `ProfilePage.test.tsx:1315`; zero-console guard in `web/e2e/fixtures.ts` |
 | T-05-52 | Spoofing | Double submission changing the password twice or sending two links | low | mitigate | WEB-09 pending state and one Idempotency-Key per submission | closed | `ProfilePage.test.tsx:1315` (one Idempotency-Key); `IdempotencyMiddleware.cs:56-90` |
 | T-05-53 | Elevation of Privilege | Admins creating Managers or any staff (CWE-269) | high | mitigate | Manager policy; matrix rows; role limited to Admin or Manager by the validator | closed | `UsersController.cs:29`; `AuthorizationMatrix.cs:125`; `CreateUserRequestValidator.CanonicalRole` |
-| T-05-54 | Information Disclosure | Temporary password in a response, log, audit or idempotency record (CWE-532) | high | mitigate | Response is only the id; the idempotency record stores the response, not the body; masking; tests assert absence | closed | `CreateUserResponse.cs` (Id only); `CreateUserEndpointTests.cs:186-197`. Residual: deferred item 1 |
+| T-05-54 | Information Disclosure | Temporary password in a response, log, audit or idempotency record (CWE-532) | high | mitigate | Response is only the id; the idempotency record stores the response, not the body; masking; tests assert absence | closed | `CreateUserResponse.cs` (Id only); `CreateUserEndpointTests.cs:186-197`. Residual deferred item 1 closed by 05-49 (D-50) |
 | T-05-55 | Spoofing | Forged CreatedBy (CWE-915) | high | mitigate | Interceptor from the token; forged-field test | closed | `RecordStampInterceptor.cs:46-52`; forged-field test in `CreateUserEndpointTests.cs` |
 | T-05-56 | Tampering | Two accounts for one email by a race | medium | mitigate | Unique normalized-email index; mapped to the field error; 20-run race test | closed | `ApplicationUserConfiguration.cs:30-33` (unique `EmailIndex`); `CreateUserEndpointTests.cs:287-300` (20 runs) |
 | T-05-57 | Tampering | Unvalidated URL params reaching queries (CWE-20) | medium | mitigate | Allow-list parsers with one replace; parsed values only in query keys; search capped at 100 | closed | `useUsersListParams.ts:10-16` (allow-list parsers); search cap 100 |
@@ -178,7 +194,7 @@ The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107
 | T-05-77 | Information Disclosure | Reset or invite token visible to the Manager (CWE-640) | high | mitigate | Links only in email; responses are 204; tests assert no token in bodies | closed | `UsersController.cs` (204); `ManagerResetLinkTests.cs:40-56`; `ResendInvitationTests.cs:39-40` |
 | T-05-78 | Denial of Service | Mail flooding a colleague with reset links | medium | mitigate | Shared hourly cap with forgot-password (429); one live link | closed | `SendResetLinkHandler.cs:75-77` and `ForgotPasswordHandler.cs:86` share `ResetEmailCap` |
 | T-05-79 | Elevation of Privilege | A temporary password left usable with old sessions alive (04 D-24) | high | mitigate | All sessions revoked and evicted; must-change at next sign-in; still needs the emailed code (04 D-22) | closed | `SetTemporaryPasswordHandler.cs:81,103-113` |
-| T-05-80 | Information Disclosure | Temporary password in logs or idempotency storage (CWE-532) | high | mitigate | 204 with no body is what is stored; masking; audit details are fixed words | closed | `UsersController.cs` (204); `TemporaryPasswordTests.cs:105-119`; null audit detail. Residual: deferred item 1 |
+| T-05-80 | Information Disclosure | Temporary password in logs or idempotency storage (CWE-532) | high | mitigate | 204 with no body is what is stored; masking; audit details are fixed words | closed | `UsersController.cs` (204); `TemporaryPasswordTests.cs:105-119`; null audit detail. Residual deferred item 1 closed by 05-49 (D-50) |
 | T-05-81 | Tampering | Accidental deactivation or delete from close 36px icons on phones | medium | mitigate | Confirm dialogs with a specific dismiss focused first (OQ-3), danger styling for Delete | closed | `ConfirmDialog.tsx:166` (`initialFocus` on cancel); `DeactivateUserDialog.tsx`; `UsersPage.tsx:172-173` |
 | T-05-82 | Repudiation | Double submission of a destructive action | low | mitigate | WEB-09 pending, one Idempotency-Key per POST submission, DELETE naturally idempotent (404 on repeat) | closed | `useUserAction.ts` (`useSubmission`, one key per intent); DELETE answers 404 on repeat |
 | T-05-83 | Information Disclosure | Audit log readable by Admins (CWE-862) | high | mitigate | Manager policy; matrix rows | closed | `AuditLogController.cs:18`; `AuthorizationMatrix.cs:146` |
@@ -206,6 +222,26 @@ The register comes from the `<threat_model>` blocks of plans 05-01 to 05-43: 107
 | T-05-105 | Information Disclosure | A demo calling a live service and showing real records (D-32) | medium | mitigate | Demos hold local state only; tests assert no request; grep gate against service imports | closed | `Phase5Demos.tsx` imports no service or client; `Phase5Demos.test.tsx:156` |
 | T-05-106 | Repudiation | A mistyped audit detail word breaking the documented audit catalogue | low | mitigate | Constants with an AuditActionsTests check that every written word is listed; the full integration suite proves stored entries are unchanged | closed | `AuditActionsTests.cs:133,148` |
 | T-05-SC | Tampering | npm/pip/cargo installs | high | mitigate | No installs in this plan (D-37) | closed | No change across the phase to `web/package.json`, `web/package-lock.json`, `Directory.Packages.props`, `Directory.Build.props`, `global.json`, any `*.csproj`, `packages.lock.json` or `docs/license-exceptions.json` |
+| T-05-107 | Elevation of Privilege | SignOutOthersDialog: a second use sends nothing, so a lost or shared device keeps its session while the person believes it ended | high | mitigate | Reset the finished submission on success; component test (two requests on one mounted dialog) and E2E (a device signed in after the first use is signed out by the second) | closed | `SignOutOthersDialog.tsx:32` calls `submission.reset()` in `onSuccess`; `SignOutOthersDialog.test.tsx:244-264` (two requests on one mounted dialog); e2e `web/e2e/session-menu.spec.ts:85-132` |
+| T-05-108 | Denial of Service | VerifyCodePage: a second Resend Code sends nothing, so a person whose code mail was lost cannot get a new one | low | mitigate | Reset the resend submission on success; test of two resends across the countdown | closed | `VerifyCodePage.tsx:127,199-202` resets after a successful resend; `VerifyCodePage.test.tsx:511-528` |
+| T-05-109 | Elevation of Privilege | SetTemporaryPasswordHandler: an open reset link or the suspect mailbox sets a password after the Manager's temporary one and cancels the forced change | high | mitigate | Revoke open PasswordReset tokens in the same transaction after the account lock; integration test that the earlier link answers 404 and the must-change flag stays | closed | `SetTemporaryPasswordHandler.cs:88,113` lock then `RevokeOpenAsync(PasswordReset)` in the transaction; `TemporaryPasswordTests.cs:253-274` |
+| T-05-110 | Spoofing | ChangePasswordHandler: an open reset link survives the person's own password change | medium | mitigate | Account lock, then revoke PasswordReset tokens in the same transaction; integration and unit tests | closed | `ChangePasswordHandler.cs:103,117`; `ChangePasswordTests.cs:55-81` |
+| T-05-111 | Spoofing | UpdateUserHandler MoveNow: a reset link at the old address (the one the Manager no longer trusts) survives the at-once move | medium | mitigate | Revoke PasswordReset tokens on the MoveNow path for a person with a password; integration and unit tests | closed | `UpdateUserHandler.cs:234,249-252` (MoveNow only); `ManagerEmailChangeTests.cs:203-232` |
+| T-05-112 | Spoofing | CreateUserHandler temporary route: a mistyped address lets the stranger who owns it use a reset path, get the code and sign in as Admin or Manager | high | mitigate | The account stays unconfirmed until a correct code (D-49); reset paths refuse unconfirmed accounts (ForgotPassword, AccountLinkLookup, and the Manager link in 05-47); integration test | closed | `CreateUserHandler.cs:83` (`KeepEmailUnconfirmed`); `UserAccounts.cs:68`; `VerifyCodeHandler.cs:97-100`; `CreateUserEndpointTests.cs:141-184`; `VerifyCodeHandlerTests.cs:135` |
+| T-05-113 | Elevation of Privilege | SignInHandler: the temporary-password exception lets other unconfirmed accounts reach the code step | medium | mitigate | The exception needs `MustChangePassword == Temporary` and the correct password; unit tests that other unconfirmed accounts still get the generic 401 with the same hash count and floor | closed | `SignInHandler.cs:73,78,86-90,110`; `SignInHandlerTests.cs:32-33,139-160` |
+| T-05-114 | Spoofing | SendResetLinkHandler: a Manager's reset link reaches a mistyped, unproved address | medium | mitigate | Send nothing for an unconfirmed person (same 204, D-49); integration test counts no outbox row and no token | closed | `SendResetLinkHandler.cs:76-79`; `ManagerResetLinkTests.cs:220-252`; `AccountAccessHandlerTests.cs:183` |
+| T-05-115 | Information Disclosure | Reset endpoints revealing whether an address is confirmed (CWE-204) | low | mitigate | Forgot-password keeps the same 202 and floor; the Manager route keeps the same 204; tests assert the status and, for forgot, the floor | closed | `ForgotPasswordHandler.cs:52,63-66`; `ForgotPasswordTests.cs:163-189` |
+| T-05-116 | Denial of Service | AnyActiveManagerAsync: a roster whose only Manager is locked or deleted refuses the recovery command, leaving no way back in | medium | mitigate | One active-Manager definition (D-18) for the gate; command-level recovery tests and UserAccountsTests cases | closed | `UserAccounts.cs:233-245` (one rule via `CountActiveManagersAsync`); `BootstrapManagerTests.cs:239-270`; `UserAccountsTests.cs:403,423,443` |
+| T-05-117 | Tampering | BootstrapManagerTests: a guard regression would let the real command connect to TheBETSLLC's database on the shared instance and write staff, tokens, mail and audit rows | high | mitigate | The two command tests use an unreachable host with the same protected name, so a regression fails to connect; grep gate in this plan | closed | `BootstrapManagerTests.cs:22` `UnreachableBetsConnection` (`db.invalid.example`) used at `:318-349`; the remaining LocalDB string is a pure guard theory that never connects |
+| T-05-118 | Information Disclosure | IdempotencyMiddleware: an unsalted SHA-256 of password-bearing bodies lets someone with a copy of the table test guesses offline (CWE-759, CWE-916) | medium | mitigate | HMAC-SHA256 with a key derived from `Auth:CodeMacKey` for this purpose only (HKDF label); tests pin the format and show another key gives another hash | closed | `IdempotencyRequestHasher.cs:19,24-30` (HKDF label `csps/idempotency/request-hash/v1`, HMAC-SHA256); `IdempotencyMiddleware.cs:138-167`; `IdempotencyRequestHasherTests.cs:30-58`; `IdempotencyTests.cs:483-507` |
+| T-05-119 | Information Disclosure | IdempotencyRecords kept far beyond 24 hours because nothing deleted them | low | mitigate | Bounded purge of expired rows on each covered POST; tests for removal, the batch bound and an unexpired row kept | closed | `IdempotencyGate.cs:170,187-202` (bounded purge, 100 rows); `IdempotencyTests.cs:553-624` |
+| T-05-120 | Tampering | A retry across the deploy or a key rotation runs a POST twice | medium | mitigate | A non-matching stored hash is a Mismatch (422) and never a new run; tests with an old-format record and with a second key | closed | `IdempotencyGate.cs:251-253` mismatch, `IdempotencyMiddleware.cs:87-89` 422; `IdempotencyTests.cs:510-550` |
+| T-05-121 | Denial of Service | The purge holding row locks during a slow handler, or a purge failure breaking every POST | low | mitigate | One short statement before the request transaction, at most 100 rows, a `DbException` logged and ignored | closed | `IdempotencyGate.cs:170-205` (purge before the transaction, `DbException` logged, POST continues). No test forces a purge failure |
+| T-05-122 | Tampering | A new tap area covering a neighbour's drawn box, so a tap meant for one control triggers another | medium | mitigate | E2E drawn-box sweep on /admin/users at 390 and 1280 px; areas placed only over free space | closed | `web/e2e/target-size.spec.ts:68-137,265-297` |
+| T-05-123 | Tampering | Strict CSP regressed by the tap-area styling (an inline or injected style) | low | mitigate | Tailwind utilities only (a ::before through `before:` variants); the E2E guard's CSP listener and zero-console rule; the class gate | closed | `button.recipe.ts:105-114` (`before:` tokens only); `button.recipe.node.test.ts:43-76`; CSP listener `web/e2e/fixtures.ts:50-55` |
+| T-05-124 | Tampering | RowAction tap areas overlapping so a tap on Deactivate triggers the destructive Delete | medium | mitigate | Areas never cover a neighbour's drawn box (owner ruling D-51 decides height-only or wider spacing); E2E drawn-box sweep; Delete still opens its confirm dialog (T-05-81) | closed | `cells.tsx:126,141` (`targetAreaClasses`); `lists.recipe.ts:180-183` (`gap-2`); `target-size.spec.ts:265-297` |
+| T-05-125 | Repudiation | A look change to the approved row layout made without the owner | low | mitigate | Blocking owner checkpoint (never auto-approved); for "space" the change is recorded as D-51 in rulings.css and pinned by rulings.test.ts | closed | D-51 in `05-CONTEXT.md`; `web/visual/reference/rulings.css:374-426`; `rulings.test.ts:402-432` |
+| T-05-126 | Spoofing | ProfileController password change: a dropped or renamed rate-limit attribute leaves current-password guessing limited only by the per-account lockout (CWE-307) | medium | mitigate | The endpoint's row in the rate-limit theory and a discovery guard over every rate-limited endpoint | closed | `ProfileController.cs:75-76` (Reset policy); `RateLimitTests.cs:63,92-108` (row plus discovery guard) |
 
 *Status: open · closed · open, below high threshold (non-blocking)*
 *Severity: critical > high > medium > low. Only open threats at or above `workflow.security_block_on` (high) count toward threats_open.*
@@ -231,7 +267,7 @@ These three items were parked during execution for this review. They sit outside
 
 | # | Item | Verdict | Severity | Recommendation |
 |---|------|---------|----------|----------------|
-| D-1 | `IdempotencyRecords.RequestHash` is an unsalted SHA-256 over request bodies that carry passwords (`profile/password`, `profile/email-change`, `POST /users`, `users/{id}/temporary-password`; the reset and invite routes also carry a 256-bit token, so they are not practically crackable) | Real weakness | medium | **Mitigate before the first production deploy.** Switch `IdempotencyMiddleware.HashRequestAsync` to HMAC-SHA256 keyed from the existing required secret (`Auth:CodeMacKey`) with a purpose label. The hash stays 32 bytes, so there is no schema change. Add a test that the stored hash changes under a different key. Note: no code deletes expired idempotency rows until Phase 9 JOB-01, so these hashes stay longer than the 24 hours the note assumed. Exploiting this needs database read access. If the owner reads T-05-32, T-05-54 and T-05-80 as covering derived password data, they would be open at high until fixed. |
+| D-1 | `IdempotencyRecords.RequestHash` is an unsalted SHA-256 over request bodies that carry passwords (`profile/password`, `profile/email-change`, `POST /users`, `users/{id}/temporary-password`; the reset and invite routes also carry a 256-bit token, so they are not practically crackable) | **RESOLVED 2026-10-19 (D-50, plan 05-49)** | medium | Fixed: HMAC-SHA256 under an HKDF key derived from `Auth:CodeMacKey`, bounded purge of expired rows, old records answer 422. Original recommendation: Switch `IdempotencyMiddleware.HashRequestAsync` to HMAC-SHA256 keyed from the existing required secret (`Auth:CodeMacKey`) with a purpose label. The hash stays 32 bytes, so there is no schema change. Add a test that the stored hash changes under a different key. Note: no code deletes expired idempotency rows until Phase 9 JOB-01, so these hashes stay longer than the 24 hours the note assumed. Exploiting this needs database read access. If the owner reads T-05-32, T-05-54 and T-05-80 as covering derived password data, they would be open at high until fixed. |
 | D-2 | `IdempotencyOutcome.KeepChanges` opt-in on 429 `profile.password-locked` (password and email-change) and 409 `email-change.taken` | Accept | low | A replay while locked returns before any count or second email. After the lock expires, a replay counts as a fresh attempt, as Phase 4 D-39 intends. A replayed confirm gets a stored 404 because the link is spent. Optional: add an architecture test pinning `KeepChanges` to these three call sites. |
 | D-3 | The session cache is evicted before the idempotency transaction commits, a window of up to 60 s | Accept (window closed under READ COMMITTED) | low | Revocation locks the session rows before eviction, and `SessionCache.LoadAsync` waits for the commit under READ COMMITTED. The live database has RCSI off (01-13). **Re-open if READ_COMMITTED_SNAPSHOT or snapshot isolation is ever enabled.** The "after the commit" comments in the lifecycle handlers and `ChangePasswordHandler` are inaccurate and should be corrected. |
 
@@ -270,6 +306,15 @@ The security audit verifies the planned mitigations and does not hunt for new th
 - [x] Accepted risks documented in Accepted Risks Log
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
-- [ ] Owner decision on deferred items D-1 to D-3
+- [x] D-1 fixed by D-50 (05-49)
+- [ ] Owner decision on deferred items D-2 and D-3
 
-**Approval:** verified 2026-10-18 (register). Deferred items D-1 to D-3 await the owner.
+**Approval:** verified 2026-10-18 (register), re-verified 2026-10-19 after gap closure (128 threats closed). D-1 fixed; D-2 and D-3 await the owner.
+
+## Security Audit 2026-10-19
+
+| Metric | Count |
+|---|---|
+| Threats found | 128 |
+| Closed | 128 |
+| Open | 0 |
