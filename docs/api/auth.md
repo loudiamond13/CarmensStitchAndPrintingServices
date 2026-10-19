@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-19T03:30:00-05:00
+updated: 2026-10-19T04:05:00-05:00
 ---
 
 # The authentication and sessions API
@@ -188,7 +188,7 @@ Per-address limits (D-39, sliding window, configurable under `RateLimits:Auth`).
 | `auth-verify` | verify code | 10 per minute |
 | `auth-resend` | resend code | 5 per minute |
 | `auth-forgot` | forgot password | 5 per 15 minutes |
-| `auth-reset` | reset check, reset, set-new, invite check, invite accept, email-change request, resend, check and confirm | 10 per 15 minutes |
+| `auth-reset` | reset check, reset, set-new, set-new check, profile password change, invite check, invite accept, email-change request, resend, check and confirm | 10 per 15 minutes |
 | `auth-refresh` | refresh, sign-out, sign-out-others, the devices list and sign-out of a device | 60 per minute |
 
 ## Error codes
