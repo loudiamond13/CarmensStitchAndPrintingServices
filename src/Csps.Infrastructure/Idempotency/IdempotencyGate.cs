@@ -151,7 +151,7 @@ public sealed class IdempotencyGate(CspsDbContext context)
     /// <param name="key">The client's request key.</param>
     /// <param name="route">The method and route pattern.</param>
     /// <param name="userId">The signed-in user, or null.</param>
-    /// <param name="requestHash">The SHA-256 of the request body.</param>
+    /// <param name="requestHash">The keyed HMAC-SHA256 of the request target and body.</param>
     /// <param name="now">The current UTC time.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The lease. The caller disposes it.</returns>
