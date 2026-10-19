@@ -52,6 +52,35 @@ public sealed class ChangePasswordTests(CspsDatabase database) : IClassFixture<C
     }
 
     [Fact]
+    public async Task AResetLinkEmailedBeforeThePasswordChangeStopsWorkingAndThisDeviceStaysSignedIn()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        using var mailbox = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var device = await AuthClient.SignInFullyAsync(client, staff);
+        var token = await AuthClient.RequestResetTokenAsync(mailbox, staff.Email, emailsSoFar: 1);
+
+        using (var change = await ChangeAsync(client, device.AccessToken, staff.Password, NewPassword))
+        {
+            change.StatusCode.ShouldBe(HttpStatusCode.NoContent, await change.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using var check = await AuthClient.CheckResetLinkAsync(mailbox, token);
+        using var reset = await AuthClient.ResetPasswordAsync(mailbox, token, "Another-Pass-9021");
+
+        foreach (var response in new[] { check, reset })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.link-invalid");
+        }
+
+        (await AuthClient.SiteSettingsStatusAsync(client, device.AccessToken)).ShouldBe(HttpStatusCode.OK);
+        using var refresh = await AuthClient.RefreshAsync(client);
+        refresh.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task TheNewPasswordSignsInAndTheOldOneDoesNot()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

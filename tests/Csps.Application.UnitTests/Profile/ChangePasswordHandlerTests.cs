@@ -36,6 +36,15 @@ public sealed class ChangePasswordHandlerTests
         var result = await harness.RunAsync(Current, Good);
 
         result.IsSuccess.ShouldBeTrue();
+        Received.InOrder(() =>
+        {
+            harness.Tokens.LockAccountAsync(UserId, Arg.Any<CancellationToken>());
+            harness.Accounts.SetPasswordAsync(UserId, Good, Arg.Any<CancellationToken>());
+            harness.Tokens.RevokeOpenAsync(UserId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
+            harness.Sessions.RevokeAllAsync(UserId, ThisSession, SessionRevocationReason.PasswordChanged, Start, Arg.Any<CancellationToken>());
+        });
+        await harness.Tokens.Received(1).LockAccountAsync(UserId, Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(UserId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).SetPasswordAsync(UserId, Good, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).ResetFailedCountAsync(UserId, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).ClearBreachRecheckAsync(UserId, Arg.Any<CancellationToken>());
@@ -426,6 +435,8 @@ public sealed class ChangePasswordHandlerTests
 
         public ISessionCache SessionCache { get; } = Substitute.For<ISessionCache>();
 
+        public IAccountTokens Tokens { get; } = Substitute.For<IAccountTokens>();
+
         public RecordingOutbox Outbox { get; } = new();
 
         public RecordingAudit Audit { get; } = new();
@@ -454,6 +465,8 @@ public sealed class ChangePasswordHandlerTests
             await Accounts.DidNotReceive().MarkBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Sessions.DidNotReceiveWithAnyArgs().RevokeAllAsync(default, default, default, default, default);
+            await Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            await Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
             await SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             Outbox.Emails.OfType<PasswordChangedEmail>().ShouldBeEmpty();
         }
