@@ -400,6 +400,66 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
     }
 
     [Fact]
+    public async Task ManagerLockedManagerDoesNotCount()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.ManagerLockedAtUtc = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+    }
+
+    [Fact]
+    public async Task DeletedManagerDoesNotCount()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.DeletedAtUtc = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+    }
+
+    [Fact]
+    public async Task AFailedPasswordLockoutStillCounts()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.LockoutEnd = new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(1);
+        }
+    }
+
+    [Fact]
     public async Task CreatingADuplicateEmailFails()
     {
         await using var provider = BuildProvider(database.ConnectionString);
