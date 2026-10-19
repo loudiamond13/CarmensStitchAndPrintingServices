@@ -105,3 +105,10 @@ export function buttonClasses(options: ButtonClassOptions): string {
 export const hitAreaClasses = tw(
   "relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-['']",
 );
+
+// SPEC-DEVIATION: WR-20 (D-31 O-8 keeps the drawn size of the small icon controls). This adds an invisible 44px square
+// `::before` tap area centred on the control, so a tap anywhere in it counts and nothing drawn changes.
+/** An invisible 44px square tap area centred on a small icon control. */
+export const targetAreaClasses = tw(
+  "relative before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
+);
