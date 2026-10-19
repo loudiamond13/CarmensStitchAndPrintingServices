@@ -81,3 +81,52 @@ test('@session-menu Sign Out Other Devices from the user menu ends the other bro
     await other.close();
   }
 });
+
+test('@session-menu a second Sign Out Other Devices in one visit ends a device that signed in after the first', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const staff = await createStaff(request, 'Manager');
+  const contextOptions = { baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true };
+  const second = await browser.newContext(contextOptions);
+  const third = await browser.newContext(contextOptions);
+  try {
+    await signInAs(page, request, staff);
+    const secondPage = await second.newPage();
+    await signInAs(secondPage, request, staff);
+
+    const menuButton = page.locator('button[aria-haspopup="menu"]');
+    const menu = page.getByRole('menu');
+    const dialog = page.getByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await menuButton.click();
+    await menu.getByRole('menuitem', { name: 'Sign Out Other Devices' }).click();
+    await dialog.getByRole('button', { name: 'Sign Out Other Devices' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(menuButton).toBeFocused();
+    await secondPage.goto('/admin/sessions');
+    await expect(secondPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+
+    // A device signs in after the first use; this page is not reloaded before the second.
+    const thirdPage = await third.newPage();
+    await signInAs(thirdPage, request, staff);
+
+    await menuButton.click();
+    await menu.getByRole('menuitem', { name: 'Sign Out Other Devices' }).click();
+    await dialog.getByRole('button', { name: 'Sign Out Other Devices' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('Signed out of other devices').first()).toBeVisible();
+    await expect(menuButton).toBeFocused();
+
+    await thirdPage.goto('/admin/sessions');
+    await expect(thirdPage.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+  } finally {
+    await second.close();
+    await third.close();
+  }
+});
