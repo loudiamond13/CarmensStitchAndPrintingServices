@@ -121,9 +121,11 @@ export function VerifyCodeRoute() {
       },
     },
   );
-  const { submit: resend, pending: resendPending } = useSubmission<undefined, ResendWaitResponse>(() =>
-    authService.resendCode(),
-  );
+  const {
+    submit: resend,
+    pending: resendPending,
+    reset: resetResend,
+  } = useSubmission<undefined, ResendWaitResponse>(() => authService.resendCode());
 
   useEffect(() => {
     document.title = `${AUTH_COPY.verify.title}${ADMIN_COPY.titleSuffix}`;
@@ -196,6 +198,8 @@ export function VerifyCodeRoute() {
     setResent(false);
     const outcome = await resend();
     if (outcome.ok) {
+      // The countdown blocks presses, so a later press is a new request.
+      resetResend();
       const current = Date.now();
       const seconds = Number(outcome.value.resendAfterSeconds);
       const at = current + seconds * 1000;
