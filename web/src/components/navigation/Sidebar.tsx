@@ -16,7 +16,7 @@
 import clsx from 'clsx';
 import { useId, useState } from 'react';
 import type { Role } from '@/utils/csps';
-import { UiLink } from '@/components/actions';
+import { targetAreaClasses, UiLink } from '@/components/actions';
 import { Icon, Logo, type IconName } from '@/components/brand';
 import { Avatar } from '@/components/status';
 import {
@@ -122,7 +122,7 @@ export function Sidebar({
         )}
         <button
           type="button"
-          className={sidebarToggleClasses}
+          className={clsx(sidebarToggleClasses, targetAreaClasses)}
           onClick={() => {
             setCollapsedState(!collapsed);
           }}

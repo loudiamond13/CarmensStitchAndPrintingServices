@@ -11,7 +11,9 @@
 // URL) and wires each control and each chip's clear to the list hook's setFilter, a replace that resets the page.
 // SPEC-DEVIATION: PERF-03 (UI-SPEC overflow row) the chips sit in their own wrapping group with the label in a
 // truncating span, so four chips at 320px wrap instead of scrolling; App. E.7 puts its one chip straight in the bar.
+import clsx from 'clsx';
 import { Children, type ReactNode } from 'react';
+import { targetAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { LISTS_COPY, nounFor } from './copy';
 import {
@@ -92,7 +94,7 @@ export function FilterChip({ label, value, onClear }: FilterChipProps) {
       <span className={filterChipLabelClasses}>{LISTS_COPY.chip(label, value)}</span>
       <button
         type="button"
-        className={filterChipClearClasses}
+        className={clsx(filterChipClearClasses, targetAreaClasses)}
         aria-label={LISTS_COPY.clearFilter(label)}
         onClick={onClear}
       >
