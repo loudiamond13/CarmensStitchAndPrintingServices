@@ -1,3 +1,4 @@
+using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Seeding;
@@ -230,6 +231,39 @@ public sealed class BootstrapManagerTests
         await using var after = database.CreateContext();
         (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
         (await after.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("locked")]
+    [InlineData("deleted")]
+    [InlineData("deactivated")]
+    public async Task ARunCreatesANewManagerWhenTheOnlyManagerCannotAct(string state)
+    {
+        await using var database = await CspsDatabase.CreateAsync();
+        (await RunAsync(database, "carmen@csps.test")).ExitCode.ShouldBe(0);
+        var stamp = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+        await using (var context = database.CreateContext())
+        {
+            _ = state switch
+            {
+                "locked" => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.ManagerLockedAtUtc, stamp), TestContext.Current.CancellationToken),
+                "deleted" => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.DeletedAtUtc, stamp), TestContext.Current.CancellationToken),
+                _ => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.IsActive, false), TestContext.Current.CancellationToken),
+            };
+        }
+
+        var recovery = await RunAsync(database, "other@csps.test");
+
+        recovery.ExitCode.ShouldBe(0, recovery.Error);
+        recovery.Output.ShouldContain("Invite queued for other@csps.test.");
+        await using var after = database.CreateContext();
+        (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+        var created = await after.Users.AsNoTracking().SingleAsync(user => user.Email == "other@csps.test", TestContext.Current.CancellationToken);
+        (await after.UserRoles.AsNoTracking().CountAsync(
+            link => link.UserId == created.Id && after.Roles.Any(role => role.Id == link.RoleId && role.Name == Roles.Manager),
+            TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.AccountTokens.AsNoTracking().CountAsync(token => token.UserId == created.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
     }
 
     [Fact]
