@@ -69,8 +69,8 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
 - [ ] **SEC-06**: Form posts are idempotent, so a double-click, retry or network replay never creates a duplicate (owner, 2026-10-07). Every state-changing `POST` requires an `Idempotency-Key` header holding a client-generated UUID. The server stores each key in a relational table with the user id (none for anonymous forms), the route, a SHA-256 hash of the request body, and the response status and body (`nvarchar`, never a JSON column, D-13) for 24 hours, and a key only ever matches for the same user and route. A replay with the same key and body returns the stored response without running the handler again. The same key with a different body gets a 422 ProblemDetails, a duplicate arriving while the first request is still running gets 409, and a missing or malformed key gets 400. Expired keys are ignored at once, and a JOB-01 maintenance job purges them (cron-endpoint pattern, no host scheduler). The only exemptions are POSTs on an explicit allow-list with a written reason, such as sign-in, 2FA verify, refresh and sign-out (their responses carry tokens, which must never be stored) and analytics beacons (ANL-05; beacons can't send headers). The endpoint discovery test (SEC-02) fails on any POST that is neither covered nor allow-listed, and an integration test proves a duplicate POST creates exactly one record. PUT and PATCH rely on `rowversion` instead (SEC-07), so a replay can never apply a second change. `DELETE /api/v1/sessions/{id}` and `DELETE /api/v1/users/{id}` act on the latest state without a row version and are naturally idempotent (04 D-43; 05 D-21, D-41 Q4): repeating one changes nothing more
-- [x] **SEC-07**: Concurrent writes never lose an update or produce wrong money (owner, 2026-10-07). This sharpens CEXP-02, ORD-08 and USER-04 and applies to every later aggregate. Every mutable aggregate (orders with their items, payments, discounts and expenses; company expenses; users; site content; money transfers) uses optimistic concurrency: a `rowversion` (for users, a `rowversion` or Identity's concurrency stamp) comes with every read and must match on every update or delete. A stale write gets a 409 ProblemDetails reading "This was changed by someone else. Reload and try again.", and the UI shows that message and reloads the latest version (ORD-08 also keeps the user's typed input). Check-then-write money operations, such as the transfer balance check (MONEY-05) and the overpayment rule (ORD-05), run in one transaction with locking (e.g. `UPDLOCK, HOLDLOCK` on the guarded rows, or SERIALIZABLE), so two concurrent requests can't both pass the check. Order totals, balances and other server-computed figures are never served stale after a write: no server cache holds them across a write, and the client invalidates every affected query after each mutation. For each aggregate, integration tests run two concurrent conflicting writes and assert that exactly one wins, the other gets 409 or a refusal, and totals and balances stay exact
-- [x] **SEC-08**: Every record staff create or edit shows who entered it and who last changed it (owner, 2026-10-07). Each such record stores `CreatedBy`, `CreatedAt` (UTC), `UpdatedBy` and `UpdatedAt` (UTC). This covers at least orders and their items, payments, discounts, order expenses and images; company expenses; money transfers; site content (settings, product lines and prices, testimonials, closures and gallery items); users; and inquiries once staff edit them. The server sets these values in one place (e.g. an EF `SaveChanges` interceptor, like Phase 1's audit interceptor) from the signed-in user (`IRequestContext.UserId`, the token's `sub` claim) and from `TimeProvider`, never from the request: request DTOs have no such fields, and anything a client sends for them is ignored (spoofing; CWE-915 mass assignment). Nobody can edit them, and no endpoint accepts them. `UpdatedBy` and `UpdatedAt` stay empty until the first change, then change on every staff edit (including actions such as lock, deactivate or a role change), but not on system bookkeeping such as Identity's failed-attempt counter, security stamp or token rotation. A change to a child record (for example a payment) stamps the child and its order, as ORD-08 treats child-only edits as order edits. `CreatedBy` and `UpdatedBy` reference the user, and the name still shows after that user is deactivated or deleted (as CEXP-04, USER-03); the C-41 ruling decides whether that is the soft-deleted user's kept name or a stored name snapshot. Records written with no signed-in user get a fixed attribution that can't sign in: "System" for tools such as the AUTH-12 bootstrap-manager command and for rows that exist before the fields are added, and "Legacy import" for migrated records whose creator is unknown (MIG-10). Anonymous visitor submissions (INQ-01) have no creator. Read endpoints return the values, and every detail or edit view shows them read-only as "Recorded by" and "Last changed by", with the name and the date in business time (ORD-09). They are separate from the domain's people fields: on a payment, Received by (ORD-22) is who took the money and `CreatedBy` is who entered it; on an expense, Paid by (CEXP-05, ORD-23) is whose money paid it. MONEY-04's "recorded by, recorded at" are a transfer's `CreatedBy` and `CreatedAt`. Deletes are covered by the audit log (AUDIT-01), not by these fields. For every aggregate, an integration test sends forged values for all four fields on create and on update and asserts that the stored values come from the token and the clock ⚑ C-41
+- [ ] **SEC-07**: Concurrent writes never lose an update or produce wrong money (owner, 2026-10-07). This sharpens CEXP-02, ORD-08 and USER-04 and applies to every later aggregate. Every mutable aggregate (orders with their items, payments, discounts and expenses; company expenses; users; site content; money transfers) uses optimistic concurrency: a `rowversion` (for users, a `rowversion` or Identity's concurrency stamp) comes with every read and must match on every update or delete. A stale write gets a 409 ProblemDetails reading "This was changed by someone else. Reload and try again.", and the UI shows that message and reloads the latest version (ORD-08 also keeps the user's typed input). Check-then-write money operations, such as the transfer balance check (MONEY-05) and the overpayment rule (ORD-05), run in one transaction with locking (e.g. `UPDLOCK, HOLDLOCK` on the guarded rows, or SERIALIZABLE), so two concurrent requests can't both pass the check. Order totals, balances and other server-computed figures are never served stale after a write: no server cache holds them across a write, and the client invalidates every affected query after each mutation. For each aggregate, integration tests run two concurrent conflicting writes and assert that exactly one wins, the other gets 409 or a refusal, and totals and balances stay exact
+- [ ] **SEC-08**: Every record staff create or edit shows who entered it and who last changed it (owner, 2026-10-07). Each such record stores `CreatedBy`, `CreatedAt` (UTC), `UpdatedBy` and `UpdatedAt` (UTC). This covers at least orders and their items, payments, discounts, order expenses and images; company expenses; money transfers; site content (settings, product lines and prices, testimonials, closures and gallery items); users; and inquiries once staff edit them. The server sets these values in one place (e.g. an EF `SaveChanges` interceptor, like Phase 1's audit interceptor) from the signed-in user (`IRequestContext.UserId`, the token's `sub` claim) and from `TimeProvider`, never from the request: request DTOs have no such fields, and anything a client sends for them is ignored (spoofing; CWE-915 mass assignment). Nobody can edit them, and no endpoint accepts them. `UpdatedBy` and `UpdatedAt` stay empty until the first change, then change on every staff edit (including actions such as lock, deactivate or a role change), but not on system bookkeeping such as Identity's failed-attempt counter, security stamp or token rotation. A change to a child record (for example a payment) stamps the child and its order, as ORD-08 treats child-only edits as order edits. `CreatedBy` and `UpdatedBy` reference the user, and the name still shows after that user is deactivated or deleted (as CEXP-04, USER-03); the C-41 ruling decides whether that is the soft-deleted user's kept name or a stored name snapshot. Records written with no signed-in user get a fixed attribution that can't sign in: "System" for tools such as the AUTH-12 bootstrap-manager command and for rows that exist before the fields are added, and "Legacy import" for migrated records whose creator is unknown (MIG-10). Anonymous visitor submissions (INQ-01) have no creator. Read endpoints return the values, and every detail or edit view shows them read-only as "Recorded by" and "Last changed by", with the name and the date in business time (ORD-09). They are separate from the domain's people fields: on a payment, Received by (ORD-22) is who took the money and `CreatedBy` is who entered it; on an expense, Paid by (CEXP-05, ORD-23) is whose money paid it. MONEY-04's "recorded by, recorded at" are a transfer's `CreatedBy` and `CreatedAt`. Deletes are covered by the audit log (AUDIT-01), not by these fields. For every aggregate, an integration test sends forged values for all four fields on create and on update and asserts that the stored values come from the token and the clock ⚑ C-41
 
 ### Authentication (AUTH)
 
@@ -90,26 +90,26 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Profile (PROF)
 
-- [x] **PROF-01**: Any signed-in user can update their first and last name
-- [x] **PROF-02**: A user can change their email after entering their current password. A confirmation link goes to the new address and a notice to the old one, and the change applies only after confirmation ⚑ C-9
-- [x] **PROF-03**: A user can change their password after entering the current one. The policy is enforced, other sessions are revoked and a notification email is sent
-- [x] **PROF-04**: A user can toggle the admin theme between Blush (light) and Espresso (dark). The choice persists in `localStorage['csps-theme']` and the public site stays light ⚑ C-11
+- [ ] **PROF-01**: Any signed-in user can update their first and last name
+- [ ] **PROF-02**: A user can change their email after entering their current password. A confirmation link goes to the new address and a notice to the old one, and the change applies only after confirmation ⚑ C-9
+- [ ] **PROF-03**: A user can change their password after entering the current one. The policy is enforced, other sessions are revoked and a notification email is sent
+- [ ] **PROF-04**: A user can toggle the admin theme between Blush (light) and Espresso (dark). The choice persists in `localStorage['csps-theme']` and the public site stays light ⚑ C-11
 
 ### User Management — Manager only (USER)
 
-- [x] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status. The search, filters and page live in the URL (WEB-10)
-- [x] **USER-02**: A Manager can create a user (first name, last name, email, role) who is onboarded by an emailed 7-day invitation link (the default) or by a Manager-set temporary password the person must replace at first sign-in (C-4, 04 D-23) ⚑ C-4
-- [x] **USER-03**: A Manager can edit a user's name, email and role, lock/unlock, deactivate/reactivate, and delete with confirmation. Deleted users' names remain on the orders and expenses they recorded ⚑ C-41
-- [x] **USER-04**: A Manager cannot delete, deactivate or demote themselves, and the system never allows removing the last active Manager (race-safe)
-- [x] **USER-05**: Role or status changes revoke the affected user's sessions immediately
-- [x] **USER-06**: All user-management actions are written to the audit log
-- [x] **USER-07**: A Manager can resend an invitation or send a password-reset link from the Users screen
-- [x] **USER-08**: Non-Managers never see the Users navigation item, and hitting `/admin/users` redirects them to `/admin`. The API returns 403
+- [ ] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status. The search, filters and page live in the URL (WEB-10)
+- [ ] **USER-02**: A Manager can create a user (first name, last name, email, role) who is onboarded by an emailed 7-day invitation link (the default) or by a Manager-set temporary password the person must replace at first sign-in (C-4, 04 D-23) ⚑ C-4
+- [ ] **USER-03**: A Manager can edit a user's name, email and role, lock/unlock, deactivate/reactivate, and delete with confirmation. Deleted users' names remain on the orders and expenses they recorded ⚑ C-41
+- [ ] **USER-04**: A Manager cannot delete, deactivate or demote themselves, and the system never allows removing the last active Manager (race-safe)
+- [ ] **USER-05**: Role or status changes revoke the affected user's sessions immediately
+- [ ] **USER-06**: All user-management actions are written to the audit log
+- [ ] **USER-07**: A Manager can resend an invitation or send a password-reset link from the Users screen
+- [ ] **USER-08**: Non-Managers never see the Users navigation item, and hitting `/admin/users` redirects them to `/admin`. The API returns 403
 
 ### Audit (AUDIT)
 
 - [ ] **AUDIT-01**: These events are recorded in the audit log: sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/change, email change, session revocation, user CRUD/role/status changes, order and company-expense deletions, order status changes and site-content changes
-- [x] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern). The filters and page live in the URL (WEB-10), and the actor filter holds the user id, never an email
+- [ ] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern). The filters and page live in the URL (WEB-10), and the actor filter holds the user id, never an email
 
 ### Company Expenses (CEXP)
 
@@ -369,8 +369,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 14 | Pending |
 | SEC-06 | Phase 4 | Partial: idempotency done in Phase 4; JOB-01 key purge in Phase 9 |
-| SEC-07 | Phase 5 | Complete |
-| SEC-08 | Phase 5 | Complete |
+| SEC-07 | Phase 5 | Gaps Found |
+| SEC-08 | Phase 5 | Gaps Found |
 | AUTH-01 | Phase 4 | Complete |
 | AUTH-02 | Phase 4 | Complete |
 | AUTH-03 | Phase 4 | Complete |
@@ -384,20 +384,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-11 | Phase 4 | Complete |
 | AUTH-12 | Phase 4 | Complete |
 | AUTH-13 | Phase 4 | Complete |
-| PROF-01 | Phase 5 | Complete |
-| PROF-02 | Phase 5 | Complete |
-| PROF-03 | Phase 5 | Complete |
-| PROF-04 | Phase 5 | Complete |
-| USER-01 | Phase 5 | Complete |
-| USER-02 | Phase 5 | Complete |
-| USER-03 | Phase 5 | Complete |
-| USER-04 | Phase 5 | Complete |
-| USER-05 | Phase 5 | Complete |
-| USER-06 | Phase 5 | Complete |
-| USER-07 | Phase 5 | Complete |
-| USER-08 | Phase 5 | Complete |
+| PROF-01 | Phase 5 | Gaps Found |
+| PROF-02 | Phase 5 | Gaps Found |
+| PROF-03 | Phase 5 | Gaps Found |
+| PROF-04 | Phase 5 | Gaps Found |
+| USER-01 | Phase 5 | Gaps Found |
+| USER-02 | Phase 5 | Gaps Found |
+| USER-03 | Phase 5 | Gaps Found |
+| USER-04 | Phase 5 | Gaps Found |
+| USER-05 | Phase 5 | Gaps Found |
+| USER-06 | Phase 5 | Gaps Found |
+| USER-07 | Phase 5 | Gaps Found |
+| USER-08 | Phase 5 | Gaps Found |
 | AUDIT-01 | Phase 4 | Partial: auth events done in Phase 4; user, order, expense and content events with their features |
-| AUDIT-02 | Phase 5 | Complete |
+| AUDIT-02 | Phase 5 | Gaps Found |
 | CEXP-01 | Phase 6 | Pending |
 | CEXP-02 | Phase 6 | Pending |
 | CEXP-03 | Phase 6 | Pending |
