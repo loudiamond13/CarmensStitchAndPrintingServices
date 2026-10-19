@@ -18,6 +18,9 @@ public sealed class BootstrapManagerTests
     private const string Password = "NotARealSecret1";
     private const string PublicBaseUrl = "https://csps.example.test";
 
+    // The protected name is kept but the host cannot resolve, so a guard regression fails to connect instead of reaching the shared instance.
+    private const string UnreachableBetsConnection = "Server=db.invalid.example;Database=BetsLLC_Dev;Integrated Security=true;Connect Timeout=1";
+
     [Theory]
     [InlineData("Server=db.example.net;Database=CspsLive;User ID=app;Password=NotARealSecret1;Encrypt=True", "CspsLive")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true", "CSPS_Dev")]
@@ -315,11 +318,9 @@ public sealed class BootstrapManagerTests
     [Fact]
     public async Task ABetsDatabaseIsRefusedWithoutOpeningAConnection()
     {
-        var connection = @"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true";
-
         var run = await RunCommandAsync(
             ["--email", "carmen@csps.test", "--first-name", "Carmen", "--last-name", "Reyes", "--confirm-database", "BetsLLC_Dev", "--public-base-url", PublicBaseUrl],
-            Environment(connection),
+            Environment(UnreachableBetsConnection),
             prompt: null);
 
         run.ExitCode.ShouldBe(2);
@@ -338,12 +339,10 @@ public sealed class BootstrapManagerTests
     [Fact]
     public async Task APromptedConnectionIsUsedWhenTheVariableIsNotSet()
     {
-        var connection = @"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true";
-
         var run = await RunCommandAsync(
             ["--email", "carmen@csps.test", "--first-name", "Carmen", "--last-name", "Reyes", "--confirm-database", "BetsLLC_Dev", "--public-base-url", PublicBaseUrl],
             static _ => null,
-            prompt: () => connection);
+            prompt: () => UnreachableBetsConnection);
 
         run.ExitCode.ShouldBe(2);
         run.Error.ShouldContain("BetsLLC_");
