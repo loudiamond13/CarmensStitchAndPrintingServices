@@ -1,6 +1,7 @@
-// Touch-target size in the browser (WR-20, CLAUDE.md 44 px rule; plan 05-50). The phone menu button, the sidebar toggle and
-// the filter-chip clear keep their drawn size (D-31 O-8) and answer a tap anywhere in an invisible 44 x 44 px square
-// centred on them. The probes ask the browser what is under a point, so they measure what a tap would actually hit.
+// Touch-target size in the browser (WR-20, CLAUDE.md 44 px rule). The phone menu button, the sidebar toggle, the
+// filter-chip clear and the row actions keep their drawn size (D-31 O-8) and answer a tap anywhere in an invisible
+// 44 x 44 px square centred on them; row actions sit 8 px apart so those squares never overlap (D-51). The probes ask the
+// browser what is under a point, so they measure what a tap would actually hit.
 import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
@@ -127,6 +128,22 @@ async function expectNoCoveredControls(page: Page): Promise<void> {
   expect(sweep.failures, 'drawn-box points that hit another element').toEqual([]);
 }
 
+// Every row action on the Users page: Edit, the status toggle and Delete buttons, and the own row's Edit link.
+const ROW_ACTIONS =
+  'table button[aria-label^="Edit "], table button[aria-label^="Deactivate "], table button[aria-label^="Activate "], table button[aria-label^="Delete "], table a[href="/admin/profile"]';
+
+// A page script: the gap in px between each row action and the next one in its group.
+const ROW_ACTION_GAPS = `(() => {
+  const gaps = [];
+  for (const element of document.querySelectorAll(${JSON.stringify(ROW_ACTIONS)})) {
+    const next = element.nextElementSibling;
+    if (next !== null && element.getClientRects().length > 0) {
+      gaps.push(next.getBoundingClientRect().left - element.getBoundingClientRect().right);
+    }
+  }
+  return gaps;
+})()`;
+
 const CHIP_CLEAR = 'button[aria-label^="Clear "][aria-label$=" filter"]';
 
 for (const size of [
@@ -145,6 +162,28 @@ for (const size of [
     await openUsersWithChips(page, request, size);
 
     await expectTapAreas(page, CHIP_CLEAR, 22, 2);
+  });
+
+  test(`@target-size at ${at} each row action answers a tap anywhere in a 44 px square, is drawn 36 px and sits 8 px from the next`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(90_000);
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    const manager = await createStaff(request, 'Manager');
+    const colleague = await createStaff(request, 'Admin');
+    await signInAs(page, request, manager);
+    await page.setViewportSize(size);
+    await page.goto('/admin/users');
+    await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+    await page.getByPlaceholder('Name or email').fill(colleague.email);
+    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(colleague.email);
+    await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(1);
+
+    await expectTapAreas(page, ROW_ACTIONS, 36, 3);
+    const gaps = await page.evaluate<number[]>(ROW_ACTION_GAPS);
+    expect(gaps, 'gaps between neighbouring row actions').toEqual([8, 8]);
   });
 
   test(`@target-size at ${at} no tap area covers another control's drawn box on the Users page`, async ({
