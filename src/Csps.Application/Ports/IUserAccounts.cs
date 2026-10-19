@@ -119,7 +119,10 @@ public interface IUserAccounts
     /// <returns>A task that completes when the mark is saved.</returns>
     Task ClearBreachRecheckAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Tells whether any active Manager exists (the bootstrap command only runs when none does).</summary>
+    /// <summary>
+    /// Tells whether any active Manager exists, active as in D-18: not deactivated, Manager-locked or deleted. The bootstrap
+    /// command only runs when none does.
+    /// </summary>
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>True when at least one active Manager exists.</returns>
     Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken);

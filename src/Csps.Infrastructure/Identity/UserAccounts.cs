@@ -230,12 +230,8 @@ internal sealed class UserAccounts(
     public Task ClearBreachRecheckAsync(Guid id, CancellationToken cancellationToken) =>
         UpdateAsync(id, user => user.BreachRecheckPending = false, cancellationToken);
 
-    public async Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var managers = await users.GetUsersInRoleAsync(Roles.Manager).ConfigureAwait(false);
-        return managers.Any(static manager => manager.IsActive);
-    }
+    public async Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken) =>
+        await CountActiveManagersAsync(null, cancellationToken).ConfigureAwait(false) > 0;
 
     public async Task<int> CountActiveManagersAsync(Guid? excluding, CancellationToken cancellationToken)
     {
