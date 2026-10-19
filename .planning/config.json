@@ -50,7 +50,7 @@
     "security_block_on": "high",
     "tdd_mode": true,
     "_auto_chain_active": false,
-    "use_worktrees": false,
+    "use_worktrees": true,
     "code_review_point": "execute:wave:post"
   },
   "ship": {
