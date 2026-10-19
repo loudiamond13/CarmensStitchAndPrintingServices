@@ -14,12 +14,13 @@ namespace Csps.Application.Profile;
 /// one meets the full rule (the breach lookup runs before the transaction), and on success every other device of the
 /// caller is signed out while this one stays signed in. A wrong current password counts toward the same five-try
 /// lockout as sign-in, and a locked account is refused without a password check (D-41 Q9, CWE-307). The target is
-/// always the token's user (CWE-639), and neither password reaches a log, an audit entry or a response.
+/// always the token's user (CWE-639). Any reset link already emailed stops working (WR-01). Neither password reaches a log, an audit entry or a response.
 /// </summary>
 public sealed class ChangePasswordHandler(
     IUserAccounts accounts,
     ISessions sessions,
     ISessionCache sessionCache,
+    IAccountTokens tokens,
     PasswordRules passwordRules,
     IEmailOutbox outbox,
     IAuditTrail audit,
@@ -94,10 +95,12 @@ public sealed class ChangePasswordHandler(
         return Result.Success();
     }
 
-    // Identity changes first (Pitfall 13): UserManager saves the shared context, so the session, email and audit rows
-    // are added only after it, and one SaveChanges commits them together.
+    // The account lock orders a racing forgot-password before or after the change. Identity changes come next (Pitfall 13):
+    // UserManager saves the shared context, so the revocations, email and audit rows are added only after it, and one
+    // SaveChanges commits them together.
     private async Task<bool> ApplyAsync(UserAccount account, Guid sessionId, string newPassword, bool breachCheckSkipped, CancellationToken cancellationToken)
     {
+        await tokens.LockAccountAsync(account.Id, cancellationToken).ConfigureAwait(false);
         var now = time.GetUtcNow();
         var key = AuditKey.Of(account.Id);
         await accounts.SetPasswordAsync(account.Id, newPassword, cancellationToken).ConfigureAwait(false);
@@ -111,6 +114,7 @@ public sealed class ChangePasswordHandler(
             await accounts.ClearBreachRecheckAsync(account.Id, cancellationToken).ConfigureAwait(false);
         }
 
+        await tokens.RevokeOpenAsync(account.Id, AccountTokenPurpose.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var revoked = await sessions
             .RevokeAllAsync(account.Id, sessionId, SessionRevocationReason.PasswordChanged, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, SessionsEnded: true, OtherDevicesOnly: true), cancellationToken).ConfigureAwait(false);

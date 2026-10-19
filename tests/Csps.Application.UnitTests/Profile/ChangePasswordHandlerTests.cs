@@ -483,6 +483,7 @@ public sealed class ChangePasswordHandlerTests
                 Accounts,
                 Sessions,
                 SessionCache,
+                Tokens,
                 PasswordRules,
                 Outbox,
                 Audit,
