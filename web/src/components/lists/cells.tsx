@@ -9,8 +9,9 @@
 //     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`. With `to` the action is a
 //     router link in the same look (the signed-in Manager's pencil to My Profile, D-19).
 // The looks are in lists.recipe.ts.
+import clsx from 'clsx';
 import type { ReactNode, Ref } from 'react';
-import { UiLink } from '@/components/actions';
+import { targetAreaClasses, UiLink } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { WALK_IN_CUSTOMER } from '@/components/data';
 import { Avatar } from '@/components/status';
@@ -118,7 +119,13 @@ export function RowAction({
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
   if (to !== undefined) {
     return (
-      <UiLink to={to} aria-label={label} title={title} className={rowActionClasses[tone]} ref={ref}>
+      <UiLink
+        to={to}
+        aria-label={label}
+        title={title}
+        className={clsx(rowActionClasses[tone], targetAreaClasses)}
+        ref={ref}
+      >
         <Icon name={icon} size={18} />
       </UiLink>
     );
@@ -131,7 +138,7 @@ export function RowAction({
       title={title}
       aria-expanded={expanded}
       aria-controls={expanded === undefined ? undefined : controls}
-      className={rowActionClasses[tone]}
+      className={clsx(rowActionClasses[tone], targetAreaClasses)}
       onClick={onClick}
       ref={ref}
     >

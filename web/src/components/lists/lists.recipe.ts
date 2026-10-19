@@ -177,8 +177,10 @@ export const whoTitleClasses = tw('block font-semibold');
 /** `.s-who span`: the customer (or "Walk-in customer") on its own line, 12px/16px `--ink-muted`. */
 export const whoSubClasses = tw('block text-[12px] leading-4 text-ink-muted');
 
-/** `.s-acts`: the row's icon buttons, 2px apart, end-aligned. */
-export const rowActionsClasses = tw('inline-flex justify-end gap-0.5');
+// SPEC-DEVIATION: D-51 (owner, WR-20) App. E `.s-acts` puts 2px between the icon buttons; 8px lets each button have a 44px
+// tap area without touching its neighbour's.
+/** `.s-acts`: the row's icon buttons, 8px apart, end-aligned. */
+export const rowActionsClasses = tw('inline-flex justify-end gap-2');
 
 const iconButtonBase = tw(
   'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink-muted',

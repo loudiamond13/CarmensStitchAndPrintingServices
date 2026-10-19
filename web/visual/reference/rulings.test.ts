@@ -35,6 +35,7 @@ const RULING_IDS = [
   'D-41 R2-03',
   'D-42',
   'OQ-5',
+  'D-51',
   'OQ-8',
   'OQ-9',
   'P5 D-35',
@@ -395,6 +396,21 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(declarations('OQ-5')).toContain(
       'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
     );
+  });
+
+  it('D-51: the row action group puts 8px between its buttons and each button gets the invisible 44px ::before tap area, nothing else', () => {
+    const groupsOfD51 = byRuling('D-51');
+
+    expect(groupsOfD51.map((group) => group.prelude)).toEqual([
+      '.s-acts',
+      '.s-acts .s-iconbtn',
+      '.s-acts .s-iconbtn::before',
+    ]);
+    expect(groupsOfD51.map((group) => normalize(group.body))).toEqual([
+      'gap: 8px;',
+      'position: relative;',
+      'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+    ]);
   });
 
   it('OQ-8: the sign-in brand panel keeps the dot mesh the spec text asks for (the approved render lost it), nothing else', () => {

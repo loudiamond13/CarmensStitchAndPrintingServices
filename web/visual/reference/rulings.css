@@ -371,6 +371,30 @@ button.csp-nav {
   transform: translateY(-50%);
 }
 
+/* D-51 (owner, 2026-10-19, WR-20) the row action buttons (.s-iconbtn, 36px) sit 8px apart instead of 2px, so each one gets a
+   full 44px tap area that never reaches its neighbour. The buttons keep their size and look; only the space between them
+   grows. The tap area is an invisible 44px ::before box centred on each button, like the converted screen draws, and
+   paints nothing. */
+.s-acts {
+  gap: 8px;
+}
+
+/* D-51 each row action button is the box its tap area is placed in. */
+.s-acts .s-iconbtn {
+  position: relative;
+}
+
+/* D-51 the tap area itself: 44px square, centred on the button. */
+.s-acts .s-iconbtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 /* OQ-8 (owner, plan 04-32) the sign-in brand panel keeps the dot mesh. The spec text gives the panel the .s-mesh class,
    but App. C's later `.s-login-brand { background: var(--surface) }` wipes the dots out of the approved render. The owner
    chose to keep them, so the reference draws the same dots as .s-mesh does elsewhere. */
