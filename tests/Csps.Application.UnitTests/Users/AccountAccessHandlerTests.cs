@@ -262,7 +262,8 @@ public sealed class AccountAccessHandlerTests
             harness.Sessions.RevokeAllAsync(TargetId, null, SessionRevocationReason.PasswordReset, Start, Arg.Any<CancellationToken>());
         });
         await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), AccountTokenPurpose.Invitation, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBe(new ManagerResetEmail("person@csps.test", ManagerName, Start));
         harness.Audit.Entries.ShouldBe(
         [
@@ -297,6 +298,7 @@ public sealed class AccountAccessHandlerTests
         result.IsSuccess.ShouldBeTrue();
         await harness.Accounts.Received(1).ConfirmEmailAsync(TargetId, Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.Invitation, Start, Arg.Any<CancellationToken>());
+        await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).SetMustChangePasswordAsync(TargetId, PasswordChangeReason.Temporary, Arg.Any<CancellationToken>());
     }
 
@@ -309,6 +311,7 @@ public sealed class AccountAccessHandlerTests
 
         result.Error.ShouldBeSameAs(UserErrors.OwnAccount);
         await harness.Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -339,6 +342,7 @@ public sealed class AccountAccessHandlerTests
 
         result.Error.ShouldBeSameAs(UserErrors.NotFound);
         await harness.Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         harness.Audit.Entries.ShouldBeEmpty();
     }
@@ -354,6 +358,7 @@ public sealed class AccountAccessHandlerTests
 
         result.Error.ShouldBeSameAs(UserErrors.Blocked);
         await harness.Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         harness.Outbox.Emails.ShouldBeEmpty();
         harness.Audit.Entries.ShouldBeEmpty();
     }

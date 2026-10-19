@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
@@ -8,6 +9,7 @@ using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Users;
 
@@ -239,6 +241,30 @@ public sealed class TemporaryPasswordTests(CspsDatabase database) : IClassFixtur
     }
 
     [Fact]
+    public async Task AResetLinkEmailedBeforeATemporaryPasswordStopsWorkingAndTheMustChangeFlagStays()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var staff = await AuthClient.CreateStaffAsync(factory, role: Roles.Admin);
+        var token = await AuthClient.RequestResetTokenAsync(client, staff.Email);
+
+        using (var set = await SetAsync(client, manager.AccessToken, staff.Id, Temporary))
+        {
+            set.StatusCode.ShouldBe(HttpStatusCode.NoContent, await set.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using var check = await AuthClient.CheckResetLinkAsync(client, token);
+        using var reset = await AuthClient.ResetPasswordAsync(client, token, "Another-Pass-9021");
+
+        await AssertDeadLinkAsync(check);
+        await AssertDeadLinkAsync(reset);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var account = (await scope.ServiceProvider.GetRequiredService<IUserAccounts>().FindByIdAsync(staff.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        account.MustChangePassword.ShouldBe(PasswordChangeReason.Temporary);
+    }
+
+    [Fact]
     public async Task AnUnknownOrDeletedPersonAnswers404()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -293,6 +319,12 @@ public sealed class TemporaryPasswordTests(CspsDatabase database) : IClassFixtur
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe(code);
         problem.GetProperty("detail").GetString().ShouldBe(message);
+    }
+
+    private static async Task AssertDeadLinkAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.link-invalid");
     }
 
     private async Task<List<AuditEntry>> AuditOfAsync(Guid userId, string action)
