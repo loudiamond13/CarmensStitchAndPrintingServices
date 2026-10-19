@@ -632,6 +632,26 @@ describe('S7 Sign Out Other Devices', () => {
     expect(state.signOutOthersCalls).toBe(1);
   });
 
+  it('signs out the others again on a second use in one visit and refreshes the list each time', async () => {
+    const state = backend([CURRENT, PHONE, TABLET]);
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Safari on iPhone');
+
+    for (let use = 1; use <= 2; use += 1) {
+      const listedBefore = state.listCalls;
+      await user.click(screen.getByRole('button', { name: 'Sign Out Other Devices' }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign Out Other Devices' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      await waitFor(() => {
+        expect(state.listCalls).toBeGreaterThan(listedBefore);
+      });
+      expect(state.signOutOthersCalls).toBe(use);
+    }
+  });
+
   it('is enabled while the list is still loading and when it failed to load', async () => {
     server.use(http.get('*/api/v1/sessions', () => HttpResponse.json({ title: 'Boom', status: 500 }, { status: 500 })));
     renderPage();

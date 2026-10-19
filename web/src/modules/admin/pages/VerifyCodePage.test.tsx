@@ -508,6 +508,25 @@ describe('S2 resend countdown (AUTH-04, OQ-6, D-10)', () => {
     expect(seen).toEqual([started(5), READY, started(60)]);
   });
 
+  it('a second resend after the countdown sends a second request and restarts the countdown from its answer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const waits = [20, 45];
+    const probe = answerResendWith(() => HttpResponse.json({ resendAfterSeconds: waits[probe.count - 1] }));
+    renderVerify();
+
+    await user.click(await screen.findByRole('button', { name: 'Resend Code' }));
+    expect(await screen.findByRole('button', { name: 'Resend code in 0:20' })).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(21_000);
+    });
+    await user.click(screen.getByRole('button', { name: 'Resend Code' }));
+
+    expect(await screen.findByRole('button', { name: 'Resend code in 0:45' })).toBeInTheDocument();
+    expect(probe.count).toBe(2);
+    expect(screen.getByText('We sent you a new code.')).toBeVisible();
+  });
+
   it('announces the wait the server gave on a resend, the same number as the countdown (IN-16)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
