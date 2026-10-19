@@ -179,6 +179,20 @@ public sealed class AccountAccessHandlerTests
         harness.AssertNothingSent();
     }
 
+    [Fact]
+    public async Task ALinkForAPersonWhoseAddressIsNotConfirmedYetSendsNothingAndAnswersSuccessWithoutReadingTheCap()
+    {
+        var harness = new Harness { Target = Account() with { EmailConfirmed = false } };
+        harness.Outbox.Recent[AuthEmailKind.PasswordReset] = 3;
+
+        var result = await harness.SendLink.HandleAsync(TargetId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Outbox.Counts.ShouldBeEmpty();
+        await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        harness.AssertNothingSent();
+    }
+
     [Theory]
     [InlineData(3, 0, 1)]
     [InlineData(0, 3, 2)]
@@ -289,14 +303,14 @@ public sealed class AccountAccessHandlerTests
     }
 
     [Fact]
-    public async Task AnInvitedPersonGetsTheirFirstPasswordTheAddressCountsAsConfirmedAndTheInvitationDies()
+    public async Task AnInvitedPersonGetsTheirFirstPasswordTheAddressStaysUnprovedAndTheInvitationDies()
     {
         var harness = new Harness { Target = Account(hasPassword: false) with { EmailConfirmed = false } };
 
         var result = await harness.SetPassword.HandleAsync(TargetId, new SetTemporaryPasswordRequest(Temporary), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        await harness.Accounts.Received(1).ConfirmEmailAsync(TargetId, Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.Invitation, Start, Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).SetMustChangePasswordAsync(TargetId, PasswordChangeReason.Temporary, Arg.Any<CancellationToken>());

@@ -228,8 +228,17 @@ public sealed class TemporaryPasswordTests(CspsDatabase database) : IClassFixtur
             response.StatusCode.ShouldBe(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
 
+        (await IsConfirmedAsync(invited.Id)).ShouldBeFalse();
+
         using var verify = await AuthClient.SignInThroughCodeAsync(personClient, new TestStaff(invited.Id, invited.Email, Temporary));
         verify.StatusCode.ShouldBe(HttpStatusCode.OK, await verify.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using (var verified = JsonDocument.Parse(await verify.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)))
+        {
+            verified.RootElement.GetProperty("next").GetString().ShouldBe("set-new-password");
+            verified.RootElement.GetProperty("reason").GetString().ShouldBe("temporary");
+        }
+
+        (await IsConfirmedAsync(invited.Id)).ShouldBeTrue();
         var detail = await UserFixtures.ReadDetailAsync(client, manager.AccessToken, invited.Id);
         detail.GetProperty("hasPassword").GetBoolean().ShouldBeTrue();
         detail.GetProperty("inviteState").GetString().ShouldBe("none");
@@ -325,6 +334,12 @@ public sealed class TemporaryPasswordTests(CspsDatabase database) : IClassFixtur
     {
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.link-invalid");
+    }
+
+    private async Task<bool> IsConfirmedAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        return await context.Users.AsNoTracking().Where(user => user.Id == id).Select(user => user.EmailConfirmed).SingleAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<List<AuditEntry>> AuditOfAsync(Guid userId, string action)
