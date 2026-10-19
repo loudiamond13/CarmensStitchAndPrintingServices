@@ -5,7 +5,8 @@
 // /admin. The shared CSPS_E2E database keeps every entry earlier runs made (all staff are named "E2E Staff"), so the person is
 // picked by their user id and never counted by name. Every test runs under the shared guard (console, page errors, CSP, failed
 // responses).
-import type { Locator, Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { createStaff } from './testing-api.ts';
@@ -36,6 +37,23 @@ function detailValue(scope: Locator, term: string): Locator {
 async function press(page: Page, button: Locator): Promise<void> {
   await button.focus();
   await page.keyboard.press('Enter');
+}
+
+/**
+ * Makes `count` audit entries without a sign-in: a reset request for an address no account has is logged as "Password reset
+ * requested" and answers 202 like any other, so a journey that needs a second page of entries makes its own and does not
+ * depend on what earlier test runs left in the shared database.
+ */
+async function makeResetRequests(request: APIRequestContext, count: number): Promise<void> {
+  await Promise.all(
+    Array.from({ length: count }, async () => {
+      const response = await request.post('/api/v1/auth/password/forgot', {
+        data: { email: `nobody-${randomUUID()}@csps.test` },
+        headers: { 'Idempotency-Key': randomUUID() },
+      });
+      expect(response.status()).toBe(202);
+    }),
+  );
 }
 
 /** Opens the in-app Users page from the shell: the sidebar link on desktop, and on a phone the one in the navigation drawer. */
@@ -164,11 +182,12 @@ test('@audit the page and the filters of a link survive a trip to Users and Back
   const manager = await createStaff(request, 'Manager');
   await signInAs(page, request, manager);
 
-  // WEB-10: page 2 of everything kept, 10 a page, for one action (every sign-in the suite made is in the shared database).
-  await page.goto('/admin/audit-log?action=auth.signed-in&range=all&size=10&page=2');
+  // WEB-10: page 2 of everything kept, 10 a page, for one action (twelve of them made here, so a second page always exists).
+  await makeResetRequests(request, 12);
+  await page.goto('/admin/audit-log?action=auth.password-reset-requested&range=all&size=10&page=2');
   await expect(page.getByRole('navigation', { name: 'Pagination' })).toContainText('Page 2 of');
   await expect(entryRows(page).first()).toBeVisible();
-  await expect(page.getByText('Action: Signed in')).toBeVisible();
+  await expect(page.getByText('Action: Password reset requested')).toBeVisible();
   await goToUsers(page);
   await page.goBack();
   await expect(page.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible();
@@ -176,8 +195,8 @@ test('@audit the page and the filters of a link survive a trip to Users and Back
   expect(query(page).get('page')).toBe('2');
   expect(query(page).get('size')).toBe('10');
   expect(query(page).get('range')).toBe('all');
-  expect(query(page).get('action')).toBe('auth.signed-in');
-  await expect(page.getByLabel('Action', { exact: true })).toHaveValue('auth.signed-in');
+  expect(query(page).get('action')).toBe('auth.password-reset-requested');
+  await expect(page.getByLabel('Action', { exact: true })).toHaveValue('auth.password-reset-requested');
 
   // A bad link is cleaned up once and shows the default view: an email as the actor is dropped from the address.
   await page.goto('/admin/audit-log?actor=someone%40example.ph&action=orders.archived&range=forever&page=0');

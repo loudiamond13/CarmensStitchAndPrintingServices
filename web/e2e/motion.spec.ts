@@ -42,7 +42,7 @@ async function openShowcase(page: Page): Promise<void> {
 
 /** Opens by keyboard: WebKit does not focus a button on a mouse click, and the trap returns focus to what had it. */
 async function openFromTrigger(page: Page, trigger: string): Promise<void> {
-  await page.getByRole('button', { name: trigger }).focus();
+  await page.getByRole('button', { name: trigger, exact: true }).focus();
   await page.keyboard.press('Enter');
 }
 
@@ -104,7 +104,7 @@ for (const { trigger, name, exit } of DIALOGS) {
 
     await page.waitForTimeout(SETTLED_MS);
     await expect(page.getByRole('dialog', { name })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: trigger })).toBeFocused();
+    await expect(page.getByRole('button', { name: trigger, exact: true })).toBeFocused();
   });
 
   test(`@motion reduced: ${name} does not move under reduced motion and leaves the DOM at once`, async ({ page }) => {
@@ -119,7 +119,7 @@ for (const { trigger, name, exit } of DIALOGS) {
 
     expect(early.attached, JSON.stringify(early)).toBe(false);
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('button', { name: trigger })).toBeFocused();
+    await expect(page.getByRole('button', { name: trigger, exact: true })).toBeFocused();
   });
 }
 

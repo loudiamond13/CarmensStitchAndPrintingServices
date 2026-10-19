@@ -314,7 +314,7 @@ const ENTRY_ANIMATIONS = ['csp-fade', 'csp-rise', 'csp-slide'];
 
 /** Opens a demo dialog, reads its layer's animation names, then closes it with Esc. */
 async function dialogAnimations(page: Page, trigger: string): Promise<string[]> {
-  await page.getByRole('button', { name: trigger }).click();
+  await page.getByRole('button', { name: trigger, exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   const names = await page.evaluate<string[]>(readAnimations('[data-ui="s-overlay"], [role="dialog"]'));
   await page.keyboard.press('Escape');
