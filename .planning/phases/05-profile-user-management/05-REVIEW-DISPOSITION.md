@@ -246,7 +246,7 @@ recorded: 2026-10-19T10:00:09.190Z
 | WR-19 | warning | open | - |
 | WR-20 | warning | fixed | gap plans 05-50 and 05-51 (owner D-51), re-review 2026-10-19 |
 | WR-21 | warning | open | - |
-| WR-22 | warning | open | - |
+| WR-22 | warning | deferred | owner D-53 2026-10-19: next phase |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
@@ -273,8 +273,8 @@ recorded: 2026-10-19T10:00:09.190Z
 | IN-24 | info | open | - |
 | IN-25 | info | open | - |
 | IN-26 | info | open | - |
-| IN-27 | info | open | - |
-| IN-28 | info | open | - |
+| IN-27 | info | deferred | owner D-54 2026-10-19: tell the Manager, next phase |
+| IN-28 | info | deferred | owner D-55 2026-10-19: end old-address links, next phase |
 | IN-29 | info | open | - |
 | IN-30 | info | open | - |
 

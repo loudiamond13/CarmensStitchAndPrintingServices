@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-19T03:30:00-05:00
+updated: 2026-10-19T05:10:32-05:00
 ---
 
 # Phase 5: deferred items
@@ -178,3 +178,9 @@ The owner did **not** report doing these three in the 2026-10-18 review, so they
 3. **The refresh cookie after the next deploy (Phase 4 carry-over).** Sign in on the live site with and without "Keep me signed in" and check the refresh cookie carries `Expires` only when it is ticked.
 
 `/gsd-verify-work 5` should ask the owner for each result and record it.
+
+## Next phase (owner, 2026-10-19, after gap closure)
+
+- WR-22 (D-53): retry once on a concurrency conflict in `UserAccounts.ConfirmEmailAsync`, so two concurrent first-code submits get the expired-ticket answer, not a 500.
+- IN-27 (D-54): Send Reset Link to an unproved address tells the Manager no link was sent and to set a temporary password instead.
+- IN-28 (D-55): confirming your own email change also revokes open reset links (same rule as WR-01).

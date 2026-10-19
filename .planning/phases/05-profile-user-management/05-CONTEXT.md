@@ -1,6 +1,6 @@
 # Phase 5: Profile & User Management - Context
 
-*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-19T02:20:30-05:00*
+*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-19T05:10:04-05:00*
 
 **Gathered:** 2026-10-17
 **Status:** Ready for planning
@@ -105,6 +105,9 @@ The owner added four items in this discussion: the full-bleed app shell, the sti
 - **D-49 WR-03 Temporary-password email is unproved until first sign-in:** An account created with a temporary password keeps `EmailConfirmed = false`. The first emailed sign-in code the person enters correctly proves the mailbox and sets it confirmed. Until then, forgot-password and any reset-link path send nothing for that account (same neutral response). Sign-in with the temporary password must still reach the code step. The Add User flow is unchanged for the Manager.
 - **D-50 Security D-1 Keyed idempotency hash, fix now:** `IdempotencyRecords.RequestHash` becomes HMAC-SHA256 keyed from the existing required secret (`Auth:CodeMacKey`) with a purpose label, still 32 bytes (no schema change). Expired idempotency rows are deleted so the 24-hour lifetime is real before Phase 9 JOB-01. A test proves the stored hash changes under a different key.
 - **D-51 WR-20 row-action spacing (owner, 2026-10-19): space.** Row actions (Edit, Deactivate, Delete) get 8 px between them and a full 44 x 44 px tap area each. The 6 px wider spacing is an accepted change to the approved row layout, recorded in the look-equality rulings.
+- **D-53 WR-22 deferred (owner, 2026-10-19):** the 500 on two concurrent first-code submits goes to the next phase (a retry on conflict in `UserAccounts.ConfirmEmailAsync`).
+- **D-54 IN-27 tell the Manager (owner, 2026-10-19):** when Send Reset Link does nothing because the person's address is unproved (D-49), the Manager sees a plain note that no link was sent and to set a temporary password instead, not "Reset link sent". This refines D-49's "same neutral response" for the Manager route only; forgot-password stays neutral. To implement next phase.
+- **D-55 IN-28 end old-address reset links (owner, 2026-10-19):** confirming one's own email change also revokes open reset links, the same rule as WR-01. To implement next phase.
 - **D-52 SEC-06 wording (owner, 2026-10-19): update.** With D-50, the SEC-06 text in REQUIREMENTS.md changes "a SHA-256 hash of the request body" to "a keyed HMAC-SHA256 of the request target and body (05 D-50)" and states that later POSTs remove expired keys in small batches before the Phase 9 JOB-01 purge.
 
 ### Claude's Discretion
