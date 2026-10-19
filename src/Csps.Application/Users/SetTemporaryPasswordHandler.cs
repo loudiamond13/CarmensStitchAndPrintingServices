@@ -18,7 +18,8 @@ namespace Csps.Application.Users;
 /// The person is forgotten by the session cache after the commit. The next sign-in still needs the emailed code (04 D-22) and then forces
 /// a new password. The password is never returned, mailed, logged or audited, and only the basic rule applies. A Manager never does this
 /// to their own account (D-19) and a deactivated or locked person is refused (D-41 Q5). A person invited but not yet set up gets the
-/// password as their first one: the address counts as confirmed, as when an account is added with a temporary password, and the open
+/// password as their first one: the address stays unproved until their first correct sign-in code (D-49), as when an account is added with
+/// a temporary password, and the open
 /// invitation stops working. For every person, any reset link already emailed stops working too (WR-01). No version is sent: the action acts on the latest state (D-21).
 /// </summary>
 public sealed class SetTemporaryPasswordHandler(
@@ -106,7 +107,6 @@ public sealed class SetTemporaryPasswordHandler(
         await accounts.MarkStaffEditAsync(id, cancellationToken).ConfigureAwait(false);
         if (!target.HasPassword)
         {
-            await accounts.ConfirmEmailAsync(id, cancellationToken).ConfigureAwait(false);
             await tokens.RevokeOpenAsync(id, AccountTokenPurpose.Invitation, now, cancellationToken).ConfigureAwait(false);
         }
 
