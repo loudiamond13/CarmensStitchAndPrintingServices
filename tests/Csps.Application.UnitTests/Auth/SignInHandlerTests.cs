@@ -30,6 +30,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked", 1, 0)]
     [InlineData("deactivated", 1, 0)]
     [InlineData("unconfirmed", 1, 0)]
+    [InlineData("unconfirmed-breach", 1, 0)]
     [InlineData("success", 1, 0)]
     public async Task EveryBranchChecksExactlyOnePasswordHash(string branch, int realChecks, int dummyChecks)
     {
@@ -48,6 +49,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked")]
     [InlineData("deactivated")]
     [InlineData("unconfirmed")]
+    [InlineData("unconfirmed-breach")]
     [InlineData("success")]
     public async Task EveryBranchTakesTheFullResponseFloor(string branch)
     {
@@ -69,6 +71,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked")]
     [InlineData("deactivated")]
     [InlineData("unconfirmed")]
+    [InlineData("unconfirmed-breach")]
     public async Task EverySixFailuresReturnTheSameError(string branch)
     {
         var harness = Harness.For(branch);
@@ -89,6 +92,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked", 0)]
     [InlineData("deactivated", 0)]
     [InlineData("unconfirmed", 0)]
+    [InlineData("unconfirmed-breach", 0)]
     [InlineData("success", 0)]
     public async Task OnlyAWrongPasswordOnAnOpenAccountCountsAsAFailure(string branch, int counted)
     {
@@ -103,6 +107,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked")]
     [InlineData("deactivated")]
     [InlineData("unconfirmed")]
+    [InlineData("unconfirmed-breach")]
     public async Task ABlockedAccountWithAWrongPasswordIsStillNotCounted(string branch)
     {
         var harness = Harness.For(branch, passwordIsRight: false);
@@ -117,6 +122,7 @@ public sealed class SignInHandlerTests
     [Theory]
     [InlineData("deactivated")]
     [InlineData("unconfirmed")]
+    [InlineData("unconfirmed-breach")]
     [InlineData("locked")]
     public async Task ABlockedAccountNeverGetsAChallengeOrACodeEmail(string branch)
     {
@@ -127,6 +133,37 @@ public sealed class SignInHandlerTests
         harness.Challenges.DidNotReceive().Add(Arg.Any<TwoFactorChallenge>());
         harness.Outbox.Emails.ShouldBeEmpty();
         harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AnUnconfirmedAccountWithATemporaryPasswordAndTheRightPasswordStartsAChallengeAndQueuesTheCodeEmail()
+    {
+        var harness = Harness.For("unconfirmed-temporary");
+
+        var result = await harness.RunAsync();
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Accounts.Received(1).CheckPasswordAsync(UserId, Password, Arg.Any<CancellationToken>());
+        harness.Accounts.DidNotReceive().VerifyDummyPassword(Arg.Any<string>());
+        harness.Challenges.Received(1).Add(Arg.Any<TwoFactorChallenge>());
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<SignInCodeEmail>();
+        harness.Audit.Entries.ShouldHaveSingleItem().Action.ShouldBe(AuditActions.TwoFactorIssued);
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnUnconfirmedAccountWithATemporaryPasswordAndAWrongPasswordIsCountedLikeAnyOther()
+    {
+        var harness = Harness.For("unconfirmed-temporary", passwordIsRight: false);
+
+        var result = await harness.RunAsync();
+
+        result.Error.ShouldBeSameAs(AuthErrors.InvalidCredentials);
+        await harness.Accounts.Received(1).CheckPasswordAsync(UserId, Password, Arg.Any<CancellationToken>());
+        await harness.Accounts.Received(1).RecordFailedPasswordAsync(UserId, Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("bad-password");
+        harness.Challenges.DidNotReceive().Add(Arg.Any<TwoFactorChallenge>());
+        harness.Outbox.Emails.ShouldBeEmpty();
     }
 
     [Fact]
@@ -241,6 +278,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked", "locked", true)]
     [InlineData("deactivated", "deactivated", true)]
     [InlineData("unconfirmed", "unconfirmed", true)]
+    [InlineData("unconfirmed-breach", "unconfirmed", true)]
     public async Task EveryFailureIsAuditedIndependentlyWithItsReason(string branch, string reason, bool targetKnown)
     {
         var harness = Harness.For(branch);
@@ -336,6 +374,7 @@ public sealed class SignInHandlerTests
     [InlineData("locked")]
     [InlineData("deactivated")]
     [InlineData("unconfirmed")]
+    [InlineData("unconfirmed-breach")]
     public async Task TheBreachRecheckNeverRunsOnAFailureBranch(string branch)
     {
         var harness = Harness.For(branch, recheckPending: true);
@@ -455,6 +494,8 @@ public sealed class SignInHandlerTests
                 "locked" => Account(lockoutEnd: Start.AddMinutes(10), recheck: recheckPending),
                 "deactivated" => Account(isActive: false, recheck: recheckPending),
                 "unconfirmed" => Account(confirmed: false, recheck: recheckPending),
+                "unconfirmed-breach" => Account(confirmed: false, recheck: recheckPending, mustChange: PasswordChangeReason.Breach),
+                "unconfirmed-temporary" => Account(confirmed: false, recheck: recheckPending, mustChange: PasswordChangeReason.Temporary),
                 _ => Account(recheck: recheckPending),
             };
             harness.Accounts.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(account));
@@ -475,7 +516,7 @@ public sealed class SignInHandlerTests
         }
 
         private static UserAccount Account(
-            bool isActive = true, bool confirmed = true, bool hasPassword = true, DateTimeOffset? lockoutEnd = null, bool recheck = false) =>
-            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, hasPassword, null, recheck, lockoutEnd);
+            bool isActive = true, bool confirmed = true, bool hasPassword = true, DateTimeOffset? lockoutEnd = null, bool recheck = false, PasswordChangeReason? mustChange = null) =>
+            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, hasPassword, mustChange, recheck, lockoutEnd);
     }
 }

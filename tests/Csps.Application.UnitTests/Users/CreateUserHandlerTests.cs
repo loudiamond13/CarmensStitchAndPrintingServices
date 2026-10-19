@@ -65,7 +65,7 @@ public sealed class CreateUserHandlerTests
         var result = await harness.Handler.HandleAsync(Request(temporaryPassword: Temporary), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        await harness.Accounts.Received(1).CreateAsync(Arg.Is<NewUserAccount>(a => a.Password == null), Arg.Any<CancellationToken>());
+        await harness.Accounts.Received(1).CreateAsync(Arg.Is<NewUserAccount>(a => a.Password == null && !a.KeepEmailUnconfirmed), Arg.Any<CancellationToken>());
         harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<InviteEmail>();
     }
 
@@ -79,8 +79,9 @@ public sealed class CreateUserHandlerTests
 
         result.Value.Id.ShouldBe(NewId);
         await harness.Accounts.Received(1).CreateAsync(
-            Arg.Is<NewUserAccount>(a => a.Role == Roles.Manager && a.Password == Temporary), Arg.Any<CancellationToken>());
+            Arg.Is<NewUserAccount>(a => a.Role == Roles.Manager && a.Password == Temporary && a.KeepEmailUnconfirmed), Arg.Any<CancellationToken>());
         await harness.Accounts.Received(1).SetMustChangePasswordAsync(NewId, PasswordChangeReason.Temporary, Arg.Any<CancellationToken>());
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         harness.AddedToken.ShouldBeNull();
         harness.Outbox.Emails.ShouldBeEmpty();
 

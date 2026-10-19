@@ -47,6 +47,22 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.Email.ShouldBe(email);
     }
 
+    [Fact]
+    public async Task APasswordAccountKeptUnconfirmedHoldsTheHashButNotTheConfirmation()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+
+        var id = await accounts.CreateAsync(
+            new NewUserAccount(NewEmail(), "Tess", "Tan", Roles.Manager, Password, KeepEmailUnconfirmed: true), TestContext.Current.CancellationToken);
+
+        var found = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        found.HasPassword.ShouldBeTrue();
+        found.EmailConfirmed.ShouldBeFalse();
+        (await accounts.CheckPasswordAsync(id, Password, TestContext.Current.CancellationToken)).ShouldBe(PasswordCheck.Succeeded);
+    }
+
     [Theory]
     [InlineData("o'brien.{0}@example.com")]
     [InlineData("rey!#$%&*=?^{0}@example.com")]
