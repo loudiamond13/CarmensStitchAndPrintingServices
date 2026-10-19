@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-45-PLAN.md
-last_updated: "2026-10-19T07:53:04.004Z"
+stopped_at: Completed 05-46-PLAN.md
+last_updated: "2026-10-19T08:12:42.547Z"
 last_activity: 2026-10-18
 last_activity_desc: Phase 05 execution started
-state_head: dfbe53b27662fd3bd6189c598a19d8ab0e6735bf
+state_head: 7054ae63db207978a0ab683b639017384d8f5b08
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 166
-  completed_plans: 159
+  completed_plans: 160
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T20:52:38-05:00"
@@ -215,6 +215,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P37 | 4h 25m | 3 tasks | 50 files |
 | Phase 05 P44 | 20 min | 2 tasks | 6 files |
 | Phase 05 P45 | 20 min | 3 tasks | 10 files |
+| Phase 05 P46 | 25 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -567,6 +568,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-42 (owner ruling 2026-10-18): every sample email in the shipped showcase and preview data uses example.com; name@gmail.com stays as the product's own validation hint
 - [Phase 05]: 05-44: a no-data useSubmission on an always-mounted component calls reset() when its success settles (SignOutOthersDialog, VerifyCodePage resend); CR-01 closed
 - [Phase 05]: 05-45: ChangePasswordHandler takes the account lock first and revokes PasswordReset tokens in the same transaction; UpdateUserHandler revokes them only on the MoveNow path for a person with a password (confirm and invited leave them alone)
+- [Phase 05]: 05-46: temporary-password accounts are created with NewUserAccount.KeepEmailUnconfirmed (password set at create, address unconfirmed) instead of create-then-SetPasswordAsync, which deadlocked the same-email race test
 
 ### Pending Todos
 
@@ -628,6 +630,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T07:53:03.310Z
-Stopped at: Completed 05-45-PLAN.md
+Last session: 2026-10-19T08:12:41.863Z
+Stopped at: Completed 05-46-PLAN.md
 Resume file: None
