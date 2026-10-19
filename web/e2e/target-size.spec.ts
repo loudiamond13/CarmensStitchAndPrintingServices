@@ -114,6 +114,14 @@ async function openUsersWithChips(
 ): Promise<void> {
   const manager = await createStaff(request, 'Manager');
   await signInAs(page, request, manager);
+  await showUsersWithChips(page, size);
+}
+
+/** Opens /admin/users at the size with the Role and Status filters set, so two chips show. */
+async function showUsersWithChips(
+  page: Page,
+  size: { readonly width: number; readonly height: number },
+): Promise<void> {
   await page.setViewportSize(size);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
@@ -143,6 +151,96 @@ const ROW_ACTION_GAPS = `(() => {
   }
   return gaps;
 })()`;
+
+/** One control that is under 44 px: the sweep's report of what is small. */
+interface SmallControl {
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** What the roster sweep reports: how many controls it checked and the ones that fall short of the 44 px square. */
+interface SmallControlSweep {
+  readonly checked: number;
+  readonly small: readonly SmallControl[];
+}
+
+// A page script: scrolls every visible button and link into view and hit-tests the centre and the eight points 21 px away
+// (the same 44 x 44 px square as the probes above). A control with a miss is small and is reported with its accessible name
+// and drawn size. A control drawn 44 x 44 px or larger passes without probes. A control with pointer events off, with its
+// centre outside the viewport or visually hidden (the skip link, 1 px until focused) cannot be tapped and is not checked.
+const SWEEP_SMALL_CONTROLS = `(() => {
+  const small = [];
+  let checked = 0;
+  for (const element of document.querySelectorAll('button, a[href]')) {
+    const style = getComputedStyle(element);
+    if (element.getClientRects().length === 0 || style.visibility === 'hidden' || style.pointerEvents === 'none') {
+      continue;
+    }
+    element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+    const box = element.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight || box.width < 2 || box.height < 2) {
+      continue;
+    }
+    checked += 1;
+    if (Math.round(box.width) >= 44 && Math.round(box.height) >= 44) {
+      continue;
+    }
+    const missed = [[0, 0], [21, 0], [-21, 0], [0, 21], [0, -21], [21, 21], [21, -21], [-21, 21], [-21, -21]].some(([dx, dy]) => {
+      const hit = document.elementFromPoint(x + dx, y + dy);
+      return hit === null || !(hit === element || element.contains(hit));
+    });
+    if (missed) {
+      const name = element.getAttribute('aria-label') ?? element.textContent?.trim() ?? '';
+      small.push({ name, width: Math.round(box.width), height: Math.round(box.height) });
+    }
+  }
+  return { checked, small };
+})()`;
+
+/** A small control the owner kept at its designed size. */
+interface Exception {
+  /** Matches the control's accessible name. */
+  readonly name: RegExp;
+  /** The drawn size in px; the control must still be exactly this size. */
+  readonly width?: number;
+  readonly height: number;
+  readonly reason: string;
+}
+
+// Every control on /admin/users under 44 px must match an entry here, so a small control added later fails the sweep until
+// it gets a tap area or the owner keeps it. An entry that matches no control at either width fails too.
+const O8_EXCEPTIONS: readonly Exception[] = [
+  {
+    name: /^Switch to (dark|light) mode$/,
+    width: 36,
+    height: 36,
+    reason: 'D-31 O-8: the theme switch is a .csp-iconbtn, kept at its designed 36 px',
+  },
+];
+
+/** Reports the small controls on the page that no exception covers, and marks the exceptions that matched. */
+async function unlistedSmallControls(page: Page, matched: Set<Exception>): Promise<string[]> {
+  const sweep = await page.evaluate<SmallControlSweep>(SWEEP_SMALL_CONTROLS);
+  expect(sweep.checked, 'controls checked').toBeGreaterThan(10);
+  const unlisted: string[] = [];
+  for (const control of sweep.small) {
+    const exception = O8_EXCEPTIONS.find(
+      (entry) =>
+        entry.name.test(control.name) &&
+        entry.height === control.height &&
+        (entry.width === undefined || entry.width === control.width),
+    );
+    if (exception === undefined) {
+      unlisted.push(`"${control.name}" ${String(control.width)} x ${String(control.height)}`);
+    } else {
+      matched.add(exception);
+    }
+  }
+  return unlisted;
+}
 
 const CHIP_CLEAR = 'button[aria-label^="Clear "][aria-label$=" filter"]';
 
@@ -233,4 +331,72 @@ test('@target-size on a phone the Open navigation button answers a tap anywhere 
   await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
 
   await expectTapAreas(page, 'button[aria-label="Open navigation"]', 36);
+});
+
+for (const size of [
+  { width: 390, height: 844 },
+  { width: 1280, height: 900 },
+] as const) {
+  test(`@target-size at ${String(size.width)} px the own row's Edit link answers a tap anywhere in a 44 px square and is drawn 36 px`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(90_000);
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    const manager = await createStaff(request, 'Manager');
+    await signInAs(page, request, manager);
+    await page.setViewportSize(size);
+    await page.goto('/admin/users');
+    await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+    await page.getByPlaceholder('Name or email').fill(manager.email);
+    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(manager.email);
+    await expect(page.locator('table a[href="/admin/profile"]')).toBeVisible();
+
+    await expectTapAreas(page, 'table a[href="/admin/profile"]', 36);
+  });
+
+  test(`@target-size at ${String(size.width)} px the audit log row toggle answers a tap anywhere in a 44 px square and is drawn 36 px`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(90_000);
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    const manager = await createStaff(request, 'Manager');
+    await signInAs(page, request, manager);
+    await page.setViewportSize(size);
+    await page.goto('/admin/audit-log');
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Show details for / }).first()).toBeVisible();
+
+    await expectTapAreas(page, 'table button[aria-label^="Show details for "]', 36);
+  });
+}
+
+test('@target-size on the Users page at 390 px and 1280 px every control is a 44 px target or a listed O-8 exception', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const matched = new Set<Exception>();
+  const unlisted: string[] = [];
+  for (const size of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 900 },
+  ] as const) {
+    await showUsersWithChips(page, size);
+    unlisted.push(
+      ...(await unlistedSmallControls(page, matched)).map((control) => `${String(size.width)} px: ${control}`),
+    );
+  }
+
+  expect(unlisted, 'controls under 44 px that no O8_EXCEPTIONS entry covers').toEqual([]);
+  expect(
+    O8_EXCEPTIONS.filter((entry) => !matched.has(entry)).map((entry) => String(entry.name)),
+    'O8_EXCEPTIONS entries that match no control',
+  ).toEqual([]);
 });
