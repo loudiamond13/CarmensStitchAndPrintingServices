@@ -2,9 +2,13 @@ using System.Net;
 using System.Text;
 using Csps.Domain.Auditing;
 using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Authorization;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.RateLimiting;
 
@@ -81,6 +85,40 @@ public sealed class RateLimitTests(CspsDatabase database) : IClassFixture<CspsDa
         rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         (await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("rate-limited");
         rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task EveryRateLimitedEndpointIsInTheList()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var limited = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(static endpoint => endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>() is not null)
+            .SelectMany(AuthorizationCoverage.KeysOf)
+            .ToList();
+        var rows = LimitedEndpoints.Select(static row => (Method: row.Data.Item1, Path: row.Data.Item2)).ToList();
+
+        // Discovery must actually see the limited endpoints, or an empty list would pass vacuously.
+        limited.Count.ShouldBeGreaterThanOrEqualTo(20);
+        limited.Where(key => !rows.Any(row => RowMatches(row.Method, row.Path, key)))
+            .ShouldBeEmpty("rate-limited endpoints missing from LimitedEndpoints");
+        rows.Where(row => !limited.Any(key => RowMatches(row.Method, row.Path, key)))
+            .ShouldBeEmpty("LimitedEndpoints rows that match no rate-limited endpoint");
+    }
+
+    // A row matches a "METHOD /pattern" key when the methods agree and each {parameter} segment stands for one path segment.
+    private static bool RowMatches(string method, string path, string key)
+    {
+        var space = key.IndexOf(' ', StringComparison.Ordinal);
+        if (key[..space] != method)
+        {
+            return false;
+        }
+
+        var pattern = key[(space + 1)..].Split('/');
+        var actual = path.Split('/');
+        return pattern.Length == actual.Length
+            && pattern.Zip(actual).All(static pair => (pair.First.StartsWith('{') && pair.First.EndsWith('}')) || pair.First == pair.Second);
     }
 
     [Fact]
