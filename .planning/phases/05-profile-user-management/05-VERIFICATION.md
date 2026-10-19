@@ -1,7 +1,7 @@
 ---
 phase: 05-profile-user-management
 created: 2026-10-18T21:45:00-05:00
-updated: 2026-10-18T21:45:00-05:00
+updated: 2026-10-18T22:17:49-05:00
 verified: 2026-10-19T02:45:00Z
 status: gaps_found
 score: 7/8 must-haves verified
@@ -231,14 +231,15 @@ Debt-marker gate: not run as a repo-wide scan (no per-file diff list was practic
 - Code review: 1 critical (CR-01, confirmed above), 21 warnings, 24 info, all `open`. I confirmed CR-01, WR-01, WR-03 and WR-05 in source; the rest are reviewer-reported.
 - UI review: 17/24, code-only.
 
-### Regression gate (PENDING, to be filled by the orchestrator)
+### Regression gate (filled by the orchestrator, 2026-10-18)
 
 | Gate | Result |
 |------|--------|
-| `npm --prefix web run verify` re-run after quick 261018-st8 (commit 831f3fa, class-gate sweep budget 90 s) | PENDING. Earlier: 5,449 of 5,450 passed, three runs failed only on the `tailwind-classes.test.ts` 30 s timeout under coverage load (file passes alone) |
-| Full Playwright E2E (1,031 tests, `--workers=2`) | PENDING (197 passed, 0 failed so far at hand-off) |
+| .NET full suite (`dotnet test --solution Csps.slnx`, `CSPS_TEST_SQL=localdb`) | PASSED: 3,250 passed, 1 skipped, 0 failed (4 m 24 s) |
+| `npm --prefix web run verify` after quick 261018-st8 (commit 831f3fa, class-gate sweep budget 90 s) | PASSED: 186 files, 5,450 of 5,450 tests; coverage 96.45% statements, 91.93% branches, 98.5% functions, 99.24% lines; build, budget, license gate and notices check passed. The sweep took 27.0 s, so 30 s was too tight under load |
+| Full Playwright E2E (1,031 tests, `--workers=2`, 1.5 h) | 993 passed, 37 skipped, 1 failed: `[firefox] auth-multitab.spec.ts:19` hit the 120 s test timeout on `page.goto('/admin/sessions')` for the second tab. Run on its own (`--grep @auth-multitab --project firefox`), it passed in 9.0 s. Classed as a load flake, not a regression. Recorded, not hidden |
 
-Nothing here is marked passed. A CR-01 fix will need the web verify run again.
+No prior-phase regression was found. A CR-01 fix will need `verify` and the `@auth`/`@sessions` E2E specs to run again.
 
 ### Human Verification Required
 
