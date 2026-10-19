@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
-status: verifying
+status: executing
 stopped_at: Completed 05-37-PLAN.md (owner approved Phase 5 review 2026-10-18)
-last_updated: "2026-10-19T01:52:26.887Z"
-last_activity: 2026-10-17
+last_updated: "2026-10-19T07:21:44.776Z"
+last_activity: 2026-10-18
 last_activity_desc: Phase 05 execution started
-state_head: 831f3fadcbc6b6c82ac430cb1d7f288b24b07a86
+state_head: 4f57d38ab301b1753cb28843e5f61707dcb052fe
 progress:
   total_phases: 17
   completed_phases: 4
-  total_plans: 157
+  total_plans: 166
   completed_plans: 157
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 
 ## Current Position
 
-Phase: 05 (Profile & User Management) — EXECUTING
+Phase: 05 (Profile & User Management) — READY TO EXECUTE
 Plan: 43 of 43
-Status: Phase complete — ready for verification
+Status: Ready to execute
 Last activity: 2026-10-18 - Completed quick task 261018-st8: Raise the class-gate sweep test timeout so web verify passes under full coverage load
 
 Progress: [██░░░░░░░░] 24%
@@ -582,6 +582,7 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- [Phase 5 gap planning, owner 2026-10-19]: Decision-coverage gate override. D-44..D-48 (UI-SPEC OQ rulings made during execution) are covered by executed plans under their OQ ids: OQ-3 (05-28), OQ-4 (05-30, 05-40), OQ-6 (05-18), OQ-7 (05-28), OQ-8 (05-25), OQ-10 (05-22), OQ-11 (05-37); 05-VERIFICATION confirmed them.
 
 ### Quick Tasks Completed
 

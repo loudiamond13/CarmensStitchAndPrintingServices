@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-18T11:33:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-19T02:05:00-05:00*
 
 ## Overview
 
@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 43/43 plans executed in 21 waves (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 43/52 plans executed: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -650,6 +650,23 @@ Plans:
 
 **Wave 21** *(blocked on Wave 20 completion)*
 - [x] 05-37-PLAN.md — Phase gate: overflow and long-text sweeps, owner review pack and OQ rulings, review dispositions, full local gate (checkpoint)
+
+**Gap closure** (planned 2026-10-19 from 05-VERIFICATION.md gaps_found and owner rulings D-49, D-50; 9 plans in 3 waves)
+
+**Gap wave 1**
+- [ ] 05-44-PLAN.md — Sign Out Other Devices works on every use again; Resend Code too (CR-01, AUTH-06)
+- [ ] 05-45-PLAN.md — Temporary password, profile password change and at-once email move end open reset links (WR-01)
+- [ ] 05-46-PLAN.md — Temporary-password address unproved until the first correct code; sign-in still reaches the code (D-49, WR-03)
+- [ ] 05-48-PLAN.md — One active-Manager rule for the bootstrap gate; bootstrap tests can never reach TheBETSLLC's database (WR-05, WR-14, WR-08)
+- [ ] 05-49-PLAN.md — Keyed idempotency request hash and a real 24-hour lifetime (D-50, security D-1)
+
+**Gap wave 2** *(blocked on Gap wave 1 completion)*
+- [ ] 05-47-PLAN.md — No reset link to an unproved address; an invited person's temporary password leaves it unproved (D-49, WR-03)
+- [ ] 05-50-PLAN.md — 44 px tap areas for the phone menu button, sidebar toggle and filter-chip clear (WR-20, part 1)
+- [ ] 05-52-PLAN.md — Rate-limit test for the profile password change and a guard over every limited endpoint (WR-09)
+
+**Gap wave 3** *(blocked on Gap wave 2 completion)*
+- [ ] 05-51-PLAN.md — Owner ruling D-51 on row-action spacing, row-action tap areas and the roster target-size sweep (WR-20, part 2; checkpoint)
 
 **UI hint**: yes
 

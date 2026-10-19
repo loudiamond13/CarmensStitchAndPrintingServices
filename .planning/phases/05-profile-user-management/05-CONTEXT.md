@@ -1,6 +1,6 @@
 # Phase 5: Profile & User Management - Context
 
-*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-17T21:18:00-05:00*
+*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-19T02:20:30-05:00*
 
 **Gathered:** 2026-10-17
 **Status:** Ready for planning
@@ -100,6 +100,12 @@ The owner added four items in this discussion: the full-bleed app shell, the sti
 - **D-47 OQ-8 / OQ-10:** Contract defaults. "{name} (former staff)" with a muted suffix; Add User's access choice is a RadioGroup of two rows with one-line descriptions.
 - **D-48 OQ-7 / OQ-11 wording:** Build the UI-SPEC wording as written, but it is **not approved**: the owner reviews every new or amended string (screens and emails) before release. Parked in deferred-items.md for the 05-31 and 05-37 reviews.
 - OQ-5 was already ruled by D-23; OQ-9 (six icons) shipped in 05-03.
+
+### Gap-closure rulings (owner, 2026-10-19, after 05-VERIFICATION gaps_found)
+- **D-49 WR-03 Temporary-password email is unproved until first sign-in:** An account created with a temporary password keeps `EmailConfirmed = false`. The first emailed sign-in code the person enters correctly proves the mailbox and sets it confirmed. Until then, forgot-password and any reset-link path send nothing for that account (same neutral response). Sign-in with the temporary password must still reach the code step. The Add User flow is unchanged for the Manager.
+- **D-50 Security D-1 Keyed idempotency hash, fix now:** `IdempotencyRecords.RequestHash` becomes HMAC-SHA256 keyed from the existing required secret (`Auth:CodeMacKey`) with a purpose label, still 32 bytes (no schema change). Expired idempotency rows are deleted so the 24-hour lifetime is real before Phase 9 JOB-01. A test proves the stored hash changes under a different key.
+- **D-51 WR-20 row-action spacing (owner, 2026-10-19): space.** Row actions (Edit, Deactivate, Delete) get 8 px between them and a full 44 x 44 px tap area each. The 6 px wider spacing is an accepted change to the approved row layout, recorded in the look-equality rulings.
+- **D-52 SEC-06 wording (owner, 2026-10-19): update.** With D-50, the SEC-06 text in REQUIREMENTS.md changes "a SHA-256 hash of the request body" to "a keyed HMAC-SHA256 of the request target and body (05 D-50)" and states that later POSTs remove expired keys in small batches before the Phase 9 JOB-01 purge.
 
 ### Claude's Discretion
 - The exact deleted-marker shape (a nullable `DeletedAtUtc` vs a status enum value), as long as D-07..D-11 hold and the roster's status filter stays Active, Inactive, Locked.
