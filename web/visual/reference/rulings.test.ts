@@ -36,6 +36,7 @@ const RULING_IDS = [
   'D-42',
   'OQ-5',
   'D-51',
+  'WR-20',
   'OQ-8',
   'OQ-9',
   'P5 D-35',
@@ -410,6 +411,23 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
       'gap: 8px;',
       'position: relative;',
       'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+    ]);
+  });
+
+  it('WR-20: the sidebar toggle, the phone menu button and the user menu get an invisible ::before tap area, nothing else', () => {
+    const groupsOfWr20 = byRuling('WR-20');
+
+    expect(groupsOfWr20.map((group) => selectorsOf(group.prelude))).toEqual([
+      ['.csp-sidebar .csp-iconbtn', '.csp-topbar-menu'],
+      ['.csp-sidebar .csp-iconbtn::before', '.csp-topbar-menu::before'],
+      ['.csp-usermenu'],
+      ['.csp-usermenu::before'],
+    ]);
+    expect(groupsOfWr20.map((group) => normalize(group.body))).toEqual([
+      'position: relative;',
+      'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+      'position: relative;',
+      'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
     ]);
   });
 

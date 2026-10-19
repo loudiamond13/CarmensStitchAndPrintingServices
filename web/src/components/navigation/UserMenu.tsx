@@ -23,7 +23,7 @@
 import clsx from 'clsx';
 import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import type { Role } from '@/utils/csps';
-import { UiLink } from '@/components/actions';
+import { hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { rovingItem } from '@/components/choice/roving';
 import { Avatar } from '@/components/status';
@@ -94,7 +94,7 @@ export function UserMenu({ user, role, onLogout, devicesPath, onSignOutOthers }:
         ref={buttonRef}
         id={buttonId}
         type="button"
-        className={userMenuClasses}
+        className={clsx(userMenuClasses, hitAreaClasses)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

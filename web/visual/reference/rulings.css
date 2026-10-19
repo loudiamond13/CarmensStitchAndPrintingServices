@@ -395,6 +395,41 @@ button.csp-nav {
   transform: translate(-50%, -50%);
 }
 
+/* WR-20 (D-31 O-8 keeps the drawn size of the small icon buttons) the sidebar collapse toggle and the phone "Open
+   navigation" button (36px) each get an invisible 44px square tap area centred on them, like the converted screen draws;
+   nothing is painted and the buttons keep their size and look. */
+.csp-sidebar .csp-iconbtn,
+.csp-topbar-menu {
+  position: relative;
+}
+
+/* WR-20 the square tap area itself. */
+.csp-sidebar .csp-iconbtn::before,
+.csp-topbar-menu::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* WR-20 the top bar user menu button (.csp-usermenu, 40px tall) gets an invisible 44px-tall tap area, as wide as the button
+   and centred on it; nothing is painted and the button keeps its size and look. */
+.csp-usermenu {
+  position: relative;
+}
+
+/* WR-20 the user menu tap area itself. */
+.csp-usermenu::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
 /* OQ-8 (owner, plan 04-32) the sign-in brand panel keeps the dot mesh. The spec text gives the panel the .s-mesh class,
    but App. C's later `.s-login-brand { background: var(--surface) }` wipes the dots out of the approved render. The owner
    chose to keep them, so the reference draws the same dots as .s-mesh does elsewhere. */
