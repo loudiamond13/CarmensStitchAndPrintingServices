@@ -1,6 +1,6 @@
 # Runbook: create the first Manager on an empty database
 
-*Created: 2026-10-15T07:36:00-05:00 · Updated: 2026-10-17T20:41:00-05:00*
+*Created: 2026-10-15T07:36:00-05:00 · Updated: 2026-10-19T03:20:00-05:00*
 
 A new CSPS database has no staff accounts, so nobody can sign in. The `bootstrap-manager` command creates the first Manager and queues one email invite. The Manager opens the link, sets a password, and signs in with the 6-digit code that CSPS emails (AUTH-12, D-29).
 
@@ -50,9 +50,11 @@ A connection argument such as `--connection` is rejected. Close the terminal, or
 | Exit code | Meaning |
 |---|---|
 | 0 | Done. The line `Invite queued for <email>. The running CSPS site sends it within a minute.` is printed. |
-| 2 | Refused, and nothing was created: the wrong or unconfirmed database, a database that is not migrated, an active Manager already exists, or the email already belongs to an account. |
+| 2 | Refused, and nothing was created: the wrong or unconfirmed database, a database that is not migrated, an active Manager already exists (one who is not deactivated, locked by a Manager or deleted), or the email already belongs to an account. |
 | 64 | A problem with the arguments or settings, such as a bad email or an unusable site address. |
 | 1 | Failed, for example the database could not be reached. Messages never include the connection string. |
+
+If the only Manager is locked or deleted, the command runs and creates a new Manager. That is the recovery path.
 
 The command never touches a `BetsLLC_*` database, `CSPS_Legacy_Restore` or a SQL Server system database. On this machine it works only on `CSPS_Dev`, `CSPS_E2E` and `CSPS_Test_<guid>`.
 
