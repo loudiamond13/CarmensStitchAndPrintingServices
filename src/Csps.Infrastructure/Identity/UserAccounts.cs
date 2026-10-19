@@ -65,7 +65,7 @@ internal sealed class UserAccounts(
             Email = account.Email,
             FirstName = account.FirstName,
             LastName = account.LastName,
-            EmailConfirmed = account.Password is not null,
+            EmailConfirmed = account.Password is not null && !account.KeepEmailUnconfirmed,
             CreatedAtUtc = time.GetUtcNow(),
         };
         if (account.Password is not null)

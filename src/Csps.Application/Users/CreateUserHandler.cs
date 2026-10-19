@@ -80,7 +80,7 @@ public sealed class CreateUserHandler(
 
         if (CreateUserRequestValidator.CanonicalAccess(request.Access) == CreateUserRequest.TemporaryPasswordAccess)
         {
-            return await CreateWithTemporaryPasswordAsync(new NewUserAccount(email, names.First, names.Last, role, request.TemporaryPassword), cancellationToken).ConfigureAwait(false);
+            return await CreateWithTemporaryPasswordAsync(new NewUserAccount(email, names.First, names.Last, role, request.TemporaryPassword, KeepEmailUnconfirmed: true), cancellationToken).ConfigureAwait(false);
         }
 
         // The account is saved first (Identity saves on the shared context), then the token, email and audit together.
@@ -100,6 +100,7 @@ public sealed class CreateUserHandler(
     }
 
     // The password is hashed by the account port and goes nowhere else: no email, token, audit detail or response holds it (D-14).
+    // The address stays unconfirmed until the first correct sign-in code (D-49).
     private async Task<Guid> CreateWithTemporaryPasswordAsync(NewUserAccount account, CancellationToken cancellationToken)
     {
         var id = await accounts.CreateAsync(account, cancellationToken).ConfigureAwait(false);

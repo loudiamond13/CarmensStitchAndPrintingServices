@@ -44,5 +44,6 @@ public sealed record UserAccount(
 /// <param name="FirstName">Given name.</param>
 /// <param name="LastName">Family name.</param>
 /// <param name="Role">The role to assign, <c>Admin</c> or <c>Manager</c>.</param>
-/// <param name="Password">The first password, or null for an account that sets it later. A given password is stored NFC-normalized and marks the email confirmed.</param>
-public sealed record NewUserAccount(string Email, string FirstName, string LastName, string Role, string? Password);
+/// <param name="Password">The first password, or null for an account that sets it later. A given password is stored NFC-normalized and marks the email confirmed, unless <paramref name="KeepEmailUnconfirmed"/> is set.</param>
+/// <param name="KeepEmailUnconfirmed">True for a Manager-set temporary password: the email stays unconfirmed until the first correct sign-in code (D-49).</param>
+public sealed record NewUserAccount(string Email, string FirstName, string LastName, string Role, string? Password, bool KeepEmailUnconfirmed = false);

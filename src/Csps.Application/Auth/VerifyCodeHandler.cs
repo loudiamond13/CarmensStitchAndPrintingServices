@@ -91,8 +91,14 @@ public sealed class VerifyCodeHandler(
 
 
     // A correct code: either a session starts, or the account is handed to the set-new-password step (D-13).
+    // A correct code also proves the mailbox, so the first one confirms the address (D-49).
     private async Task<VerifyCodeOutcome> AcceptAsync(TwoFactorChallenge challenge, UserAccount user, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        if (!user.EmailConfirmed)
+        {
+            await accounts.ConfirmEmailAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        }
+
         if (user.MustChangePassword is { } reason)
         {
             challenge.RequirePasswordChange(reason);

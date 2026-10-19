@@ -22,7 +22,8 @@ public sealed record SignInOutcome(string Ticket, DateTimeOffset TicketExpiresAt
 /// <summary>
 /// Use case: the email and password step of staff sign-in (AUTH-01, AUTH-02, AUTH-07, AUTH-10). Every branch checks
 /// exactly one password hash and takes at least the response floor, and every failure is the same 401, so neither the
-/// answer nor its timing says whether an account exists (CWE-203, CWE-204, D-02, D-39).
+/// answer nor its timing says whether an account exists (CWE-203, CWE-204, D-02, D-39). An unconfirmed account that holds a
+/// Manager-set temporary password still reaches the code step, whose first correct code confirms the address (D-49).
 /// </summary>
 public sealed class SignInHandler(
     IUserAccounts accounts,
@@ -74,7 +75,7 @@ public sealed class SignInHandler(
             {
                 failure = account.IsDeleted ? AuditActions.DetailDeleted : account.IsManagerLocked ? AuditActions.DetailManagerLocked : AuditActions.DetailDeactivated;
             }
-            else if (!account.EmailConfirmed)
+            else if (!account.EmailConfirmed && account.MustChangePassword != PasswordChangeReason.Temporary)
             {
                 failure = AuditActions.DetailUnconfirmed;
             }
