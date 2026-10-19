@@ -137,6 +137,52 @@ public sealed class CreateUserEndpointTests(CspsDatabase database) : IClassFixtu
         audit.ActorUserId.ShouldBe(manager.UserId);
     }
 
+    [Fact]
+    public async Task ATemporaryPasswordAddressStaysUnprovedUntilTheFirstCorrectCode()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var email = NewEmail("unproved");
+
+        using var created = await PostAsync(client, manager.AccessToken, Body("Una", "Proved", email, "Admin", "temporary-password", TemporaryPassword));
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var id = await ReadIdAsync(created);
+        (await IsConfirmedAsync(id)).ShouldBeFalse();
+
+        using (var signIn = await AuthClient.SignInAsync(client, email, TemporaryPassword))
+        {
+            signIn.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var code = await AuthClient.ReadCodeAsync(client, email);
+        using (var wrong = await AuthClient.VerifyAsync(client, code == "000000" ? "111111" : "000000"))
+        {
+            wrong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            (await ProblemJson.ReadAsync(wrong, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("auth.code-wrong");
+        }
+
+        (await IsConfirmedAsync(id)).ShouldBeFalse();
+
+        using (var verify = await AuthClient.VerifyAsync(client, code))
+        {
+            verify.StatusCode.ShouldBe(HttpStatusCode.OK);
+            using var verified = JsonDocument.Parse(await verify.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            verified.RootElement.GetProperty("next").GetString().ShouldBe("set-new-password");
+            verified.RootElement.GetProperty("reason").GetString().ShouldBe("temporary");
+        }
+
+        (await IsConfirmedAsync(id)).ShouldBeTrue();
+
+        using (var saved = await AuthClient.SetNewPasswordAsync(client, FirstPassword))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var again = await AuthClient.SignInAsync(client, email, FirstPassword);
+        again.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Theory]
     [InlineData("Ab1!", "Use at least 8 characters.")]
     [InlineData("Abcdefgh!", "Add at least one number.")]
@@ -341,6 +387,12 @@ public sealed class CreateUserEndpointTests(CspsDatabase database) : IClassFixtu
                 .SetProperty(user => user.DeletedAtUtc, TimeProvider.System.GetUtcNow()),
             TestContext.Current.CancellationToken);
         changed.ShouldBe(1);
+    }
+
+    private async Task<bool> IsConfirmedAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        return await context.Users.AsNoTracking().Where(user => user.Id == id).Select(user => user.EmailConfirmed).SingleAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<Row> ReadRowAsync(Guid id)
