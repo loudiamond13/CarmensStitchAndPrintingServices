@@ -23,8 +23,8 @@ namespace Csps.Application.Users;
 /// before the target is read or Managers are counted, and a real demotion is checked by <see cref="ManagerGuard"/> (D-18).
 /// A changed email follows the Manager's explicit choice (D-45), which the server never infers: <c>confirm</c> keeps the sign-in email,
 /// stores the new address as pending and sends the person's new address a link that names the Manager, with a notice to the old address
-/// (C-9); <c>now</c> moves the email in the same guarded save, ends every session, closes open email-change links and tells the old
-/// address. An invited person with no password yet always moves at once, and the invitation is replaced by a fresh one to the new address.
+/// (C-9); <c>now</c> moves the email in the same guarded save, ends every session, closes open email-change and password-reset links
+/// (WR-01) and tells the old address. An invited person with no password yet always moves at once, and the invitation is replaced by a fresh one to the new address.
 /// </summary>
 public sealed class UpdateUserHandler(
     IUserAccounts accounts,
@@ -248,6 +248,9 @@ public sealed class UpdateUserHandler(
         await tokens.RevokeOpenAsync(target.Id, AccountTokenPurpose.EmailChange, now, cancellationToken).ConfigureAwait(false);
         if (email.Step == EmailStep.MoveNow)
         {
+            // A reset link sent to the old address must not outlive the move.
+            await tokens.RevokeOpenAsync(target.Id, AccountTokenPurpose.PasswordReset, now, cancellationToken).ConfigureAwait(false);
+
             // The pending address was cleared in the same save as the move; the old address is told.
             await outbox.EnqueueAsync(new ManagerEmailChangedEmail(target.Email, email.NewEmail, email.ManagerName, now), cancellationToken).ConfigureAwait(false);
             return;
