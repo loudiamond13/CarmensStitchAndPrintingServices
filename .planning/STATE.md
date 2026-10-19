@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-50-PLAN.md
-last_updated: "2026-10-19T08:58:34.890Z"
+stopped_at: Completed 05-52-PLAN.md
+last_updated: "2026-10-19T09:02:42.909Z"
 last_activity: 2026-10-18
 last_activity_desc: Phase 05 execution started
-state_head: 3aa0f7bb2cde5f1cdbd10f33950e265647436b5a
+state_head: be80674cd93409893c552d4deb6baaa9b841e40c
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 166
-  completed_plans: 164
+  completed_plans: 165
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T20:52:38-05:00"
@@ -220,6 +220,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P49 | 17 min | 2 tasks | 10 files |
 | Phase 05 P47 | 15 min | 2 tasks | 9 files |
 | Phase 05 P50 | 15 min | 2 tasks | 7 files |
+| Phase 05 P52 | 5 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -576,6 +577,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-48: AnyActiveManagerAsync delegates to CountActiveManagersAsync(null), one D-18 active-Manager rule for the bootstrap gate; SoftDeleteAsync unchanged
 - [Phase 05]: 05-49: idempotency request hash is HMAC-SHA256 under an HKDF key from Auth:CodeMacKey (label csps/idempotency/request-hash/v1); an old or rotated-key record is a 422 mismatch and never runs again; each covered POST purges up to 100 expired rows (D-50)
 - [Phase 05]: 05-47: SendResetLinkHandler sends nothing, with the usual 204, for an unconfirmed person (checked before the cap); SetTemporaryPasswordHandler no longer confirms an invited person's address (D-49)
+- [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
 
 ### Pending Todos
 
@@ -637,6 +639,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T08:58:34.197Z
-Stopped at: Completed 05-50-PLAN.md
+Last session: 2026-10-19T09:02:42.216Z
+Stopped at: Completed 05-52-PLAN.md
 Resume file: None

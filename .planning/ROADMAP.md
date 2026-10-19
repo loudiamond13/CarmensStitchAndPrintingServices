@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 50/52 plans executed: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 51/52 plans executed: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -663,7 +663,7 @@ Plans:
 **Gap wave 2** *(blocked on Gap wave 1 completion)*
 - [x] 05-47-PLAN.md — No reset link to an unproved address; an invited person's temporary password leaves it unproved (D-49, WR-03)
 - [x] 05-50-PLAN.md — 44 px tap areas for the phone menu button, sidebar toggle and filter-chip clear (WR-20, part 1)
-- [ ] 05-52-PLAN.md — Rate-limit test for the profile password change and a guard over every limited endpoint (WR-09)
+- [x] 05-52-PLAN.md — Rate-limit test for the profile password change and a guard over every limited endpoint (WR-09)
 
 **Gap wave 3** *(blocked on Gap wave 2 completion)*
 - [ ] 05-51-PLAN.md — Owner ruling D-51 on row-action spacing, row-action tap areas and the roster target-size sweep (WR-20, part 2; checkpoint)
@@ -1162,7 +1162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 50/52 | In Progress | - |
+| 5. Profile & User Management | 51/52 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
