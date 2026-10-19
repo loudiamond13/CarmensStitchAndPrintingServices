@@ -10,7 +10,7 @@ created: "2026-10-17"
 
 # Phase 05 — Validation Strategy
 
-*Created: 2026-10-17T16:31:26-05:00 · Updated: 2026-10-18T22:17:57-05:00*
+*Created: 2026-10-17T16:31:26-05:00 · Updated: 2026-10-19T05:01:00-05:00*
 
 > Per-phase validation contract for feedback sampling during execution. Source: `05-RESEARCH.md` § Validation Architecture.
 
@@ -183,6 +183,20 @@ Status is the result when the plan closed; plan 05-37 re-ran the whole gate at t
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Gap-closure verification map (plans 05-44 to 05-52, 2026-10-19)
+
+| Plan | Gap | Automated verification | Status |
+|------|-----|------------------------|--------|
+| 05-44 | CR-01 Sign Out Other Devices on every use; Resend Code sibling | `npm --prefix web run test -- --run src/modules/admin/components/SignOutOthersDialog.test.tsx src/modules/admin/pages/SessionsPage.test.tsx src/modules/admin/pages/VerifyCodePage.test.tsx`; `npm --prefix web run e2e -- --grep @session-menu` | ✅ |
+| 05-45 | WR-01 reset links end on temporary password, password change, at-once email move | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*TemporaryPasswordTests"` (also `*ChangePasswordTests`, `*ManagerEmailChangeTests`) | ✅ |
+| 05-46 | D-49 temporary-password address unproved until the first correct code | `--filter-class "*CreateUserEndpointTests"`, `"*SignInHandlerTests"`, `"*VerifyCodeHandlerTests"` | ✅ |
+| 05-47 | D-49 no reset link to an unproved address | `--filter-class "*ManagerResetLinkTests"`, `"*ForgotPasswordTests"`, `"*AccountAccessHandlerTests"` | ✅ |
+| 05-48 | WR-05/WR-14 one active-Manager rule; WR-08 unreachable bootstrap host | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*BootstrapManagerTests"` (also `*UserAccountsTests`) | ✅ |
+| 05-49 | D-50 keyed idempotency hash and bounded purge | `--filter-class "*IdempotencyRequestHasherTests"`, `"*IdempotencyTests"` | ✅ (purge-failure path has no test; recorded as human judgment) |
+| 05-50 | WR-20 tap areas: menu button, sidebar toggle, chip clear | `npm --prefix web run e2e -- --grep @target-size`; `button.recipe.node.test.ts` | ✅ |
+| 05-51 | WR-20 row actions (D-51 space) and roster sweep | `npm --prefix web run e2e -- --grep @target-size`; `npm --prefix web run parity -- --grep "@parity @(navigation|layouts-admin|lists)"`; `rulings.test.ts` | ✅ |
+| 05-52 | WR-09 profile password rate limit and discovery guard | `--filter-class "*RateLimitTests"` | ✅ |
+
 ---
 
 ## Wave 0 Requirements
@@ -229,3 +243,12 @@ Status is the result when the plan closed; plan 05-37 re-ran the whole gate at t
 | Escalated | 0 |
 
 Audited 2026-10-18 (evening, Manila business date; heading is UTC) by /gsd-execute-phase 5 verify gates: every mapped test class and file exists; the full .NET suite (3,250 passed, 1 skipped), web `verify` (5,450 of 5,450, after quick 261018-st8 raised the class-gate sweep budget) and E2E (993 passed, 37 skipped, 1 Firefox load flake that passes alone) ran green. Nyquist compliance holds. CR-01 (05-REVIEW.md) is a behavior defect with no covering test, so it is tracked as a verification gap, not a sampling gap.
+
+## Validation Audit 2026-10-19
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+| Gap plans mapped | 9 |
