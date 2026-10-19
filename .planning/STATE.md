@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Profile & User Management
 status: executing
-stopped_at: Completed 05-44-PLAN.md
-last_updated: "2026-10-19T07:39:48.263Z"
+stopped_at: Completed 05-45-PLAN.md
+last_updated: "2026-10-19T07:53:04.004Z"
 last_activity: 2026-10-18
 last_activity_desc: Phase 05 execution started
-state_head: d04d40c82bc6267013abcf3d2af8ce4812b8f64b
+state_head: dfbe53b27662fd3bd6189c598a19d8ab0e6735bf
 progress:
   total_phases: 17
   completed_phases: 4
   total_plans: 166
-  completed_plans: 158
+  completed_plans: 159
   percent: 24
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-18T20:52:38-05:00"
@@ -214,6 +214,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 05 P42 | 50 min | 2 tasks | 16 files |
 | Phase 05 P37 | 4h 25m | 3 tasks | 50 files |
 | Phase 05 P44 | 20 min | 2 tasks | 6 files |
+| Phase 05 P45 | 20 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -565,6 +566,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-42: the showcase Add User demo is a local-state twin of AddUserPanel (the real panel posts to the users API); dialogs that take their request as a prop use the real components with closing handlers
 - [Phase 05]: 05-42 (owner ruling 2026-10-18): every sample email in the shipped showcase and preview data uses example.com; name@gmail.com stays as the product's own validation hint
 - [Phase 05]: 05-44: a no-data useSubmission on an always-mounted component calls reset() when its success settles (SignOutOthersDialog, VerifyCodePage resend); CR-01 closed
+- [Phase 05]: 05-45: ChangePasswordHandler takes the account lock first and revokes PasswordReset tokens in the same transaction; UpdateUserHandler revokes them only on the MoveNow path for a person with a password (confirm and invited leave them alone)
 
 ### Pending Todos
 
@@ -626,6 +628,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T07:39:47.564Z
-Stopped at: Completed 05-44-PLAN.md
+Last session: 2026-10-19T07:53:03.310Z
+Stopped at: Completed 05-45-PLAN.md
 Resume file: None

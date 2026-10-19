@@ -564,7 +564,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 44/52 plans executed: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+**Plans**: 45/52 plans executed: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
 
 **Wave 1**
 - [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
@@ -655,7 +655,7 @@ Plans:
 
 **Gap wave 1**
 - [x] 05-44-PLAN.md — Sign Out Other Devices works on every use again; Resend Code too (CR-01, AUTH-06)
-- [ ] 05-45-PLAN.md — Temporary password, profile password change and at-once email move end open reset links (WR-01)
+- [x] 05-45-PLAN.md — Temporary password, profile password change and at-once email move end open reset links (WR-01)
 - [ ] 05-46-PLAN.md — Temporary-password address unproved until the first correct code; sign-in still reaches the code (D-49, WR-03)
 - [ ] 05-48-PLAN.md — One active-Manager rule for the bootstrap gate; bootstrap tests can never reach TheBETSLLC's database (WR-05, WR-14, WR-08)
 - [ ] 05-49-PLAN.md — Keyed idempotency request hash and a real 24-hour lifetime (D-50, security D-1)
@@ -1162,7 +1162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
-| 5. Profile & User Management | 44/52 | In Progress | - |
+| 5. Profile & User Management | 45/52 | In Progress | - |
 | 6. Company Expenses | 0/TBD | Not started | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
