@@ -549,6 +549,80 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         rotatedProbe.Runs.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task ExpiredRecordsOfAnyKeyRouteOrUserAreDeletedByTheNextCoveredPost()
+    {
+        var probe = new IdempotencyProbe();
+        var clock = new SteppedClock();
+        await using var host = ProbeHost(probe, clock);
+        using var client = host.Factory.CreateClient();
+        var manager = await TestSessions.StartAsync(host.Root, "Manager");
+        var anonymousKey = Guid.NewGuid();
+        var otherRouteKey = Guid.NewGuid();
+        var managerKey = Guid.NewGuid();
+        var freshKey = Guid.NewGuid();
+
+        using var anonymous = await SendAsync(client, ProbeStatusPath, anonymousKey.ToString("D"));
+        using var otherRoute = await SendAsync(client, $"{ProbePrefix}/status/202", otherRouteKey.ToString("D"));
+        using var asManager = await SendAsync(client, ProbeStatusPath, managerKey.ToString("D"), bearer: manager.AccessToken);
+        clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
+        using var fresh = await SendAsync(client, ProbeStatusPath, freshKey.ToString("D"));
+
+        fresh.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadRecordsAsync(anonymousKey)).ShouldBeEmpty();
+        (await ReadRecordsAsync(otherRouteKey)).ShouldBeEmpty();
+        (await ReadRecordsAsync(managerKey)).ShouldBeEmpty();
+        (await ReadRecordsAsync(freshKey)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task OneRequestDeletesAtMostOneBatch()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        var route = $"POST /probe/purge-batch/{Guid.NewGuid():N}";
+        var stale = TimeProvider.System.GetUtcNow() - TimeSpan.FromHours(25);
+        await using (var context = database.CreateContext())
+        {
+            for (var index = 0; index < IdempotencyGate.PurgeBatchSize + 5; index++)
+            {
+                context.Add(IdempotencyRecord.Create(Guid.NewGuid(), null, route, new byte[32], 200, null, null, null, stale));
+            }
+
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var first = await SendAsync(client, ProbeStatusPath, Guid.NewGuid().ToString("D"));
+        var afterFirst = await CountRecordsAsync(route);
+        using var second = await SendAsync(client, ProbeStatusPath, Guid.NewGuid().ToString("D"));
+        var afterSecond = await CountRecordsAsync(route);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        afterFirst.ShouldBe(5);
+        afterSecond.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AnUnexpiredRecordIsNeverDeleted()
+    {
+        var probe = new IdempotencyProbe();
+        var clock = new SteppedClock();
+        await using var host = ProbeHost(probe, clock);
+        using var client = host.Factory.CreateClient();
+        var keptKey = Guid.NewGuid().ToString("D");
+
+        using var first = await SendAsync(client, ProbeStatusPath, keptKey);
+        clock.Advance(TimeSpan.FromHours(23) + TimeSpan.FromMinutes(59));
+        using var other = await SendAsync(client, ProbeStatusPath, Guid.NewGuid().ToString("D"));
+        using var repeat = await SendAsync(client, ProbeStatusPath, keptKey);
+
+        other.StatusCode.ShouldBe(HttpStatusCode.OK);
+        repeat.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+        probe.Runs.ShouldBe(2);
+        (await ReadRecordsAsync(Guid.Parse(keptKey))).ShouldHaveSingleItem();
+    }
+
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string path, string? rawKey, string? body = "{}", string? bearer = null)
     {
         using var request = ApiRequests.Create(HttpMethod.Post, path, bearer);
@@ -614,6 +688,12 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         }
 
         return rows;
+    }
+
+    private async Task<int> CountRecordsAsync(string route)
+    {
+        await using var context = database.CreateContext();
+        return await context.Set<IdempotencyRecord>().CountAsync(record => record.Route == route, TestContext.Current.CancellationToken);
     }
 
     private async Task StoreAsync(IdempotencyRecord record)

@@ -145,6 +145,9 @@ public sealed class IdempotencyLease : IAsyncDisposable
 /// <param name="context">The request's scoped context.</param>
 public sealed class IdempotencyGate(CspsDbContext context)
 {
+    /// <summary>The most expired rows one request deletes.</summary>
+    public const int PurgeBatchSize = 100;
+
     private const int ResourceMaxLength = 255;
 
     /// <summary>Opens the transaction, takes the key's lock and reads any stored answer.</summary>
