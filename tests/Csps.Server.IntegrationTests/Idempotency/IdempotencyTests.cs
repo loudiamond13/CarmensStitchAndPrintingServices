@@ -1,5 +1,8 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
+using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Idempotency;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
@@ -8,6 +11,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Csps.Server.IntegrationTests.Idempotency;
 
@@ -19,6 +23,8 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
 {
     private const string ForgotRoute = "POST /api/v1/auth/password/forgot";
     private const string ProbePrefix = "/api/test/idempotency";
+    private const string ProbeStatusRoute = "POST /api/test/idempotency/status/{code:int}";
+    private const string ProbeStatusPath = "/api/test/idempotency/status/200";
     private const string KeyMissingText = "This form needs a fresh request key. Reload and try again.";
 
     [Fact]
@@ -473,6 +479,76 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         (await ReadRecordsAsync(key)).ShouldHaveSingleItem();
     }
 
+    [Fact]
+    public async Task TheStoredHashIsAKeyedHmacThatChangesWithTheKey()
+    {
+        var otherKey = Convert.ToBase64String(SHA384.HashData(Encoding.UTF8.GetBytes("another code key")));
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        await using var otherHost = ProbeHost(new IdempotencyProbe(), codeMacKey: otherKey);
+        using var client = host.Factory.CreateClient();
+        using var otherClient = otherHost.Factory.CreateClient();
+        var key = Guid.NewGuid();
+        var otherRecordKey = Guid.NewGuid();
+
+        using var stored = await SendAsync(client, ProbeStatusPath, key.ToString("D"));
+        using var storedElsewhere = await SendAsync(otherClient, ProbeStatusPath, otherRecordKey.ToString("D"));
+
+        stored.StatusCode.ShouldBe(HttpStatusCode.OK);
+        storedElsewhere.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var hash = (await ReadRecordsAsync(key)).ShouldHaveSingleItem().RequestHash;
+        var otherHash = (await ReadRecordsAsync(otherRecordKey)).ShouldHaveSingleItem().RequestHash;
+        hash.Length.ShouldBe(32);
+        otherHash.Length.ShouldBe(32);
+        hash.ShouldNotBe(otherHash);
+        hash.ShouldBe(KeyedHash(TestSecrets.CodeMacKeyBase64, ProbeStatusPath, "{}"));
+        otherHash.ShouldBe(KeyedHash(otherKey, ProbeStatusPath, "{}"));
+        hash.ShouldNotBe(PlainHash(ProbeStatusPath, "{}"));
+    }
+
+    [Fact]
+    public async Task ARecordStoredBeforeTheKeyedHashIsAMismatchAndNeverRunsAgain()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+        var key = Guid.NewGuid();
+        var oldHash = PlainHash(ProbeStatusPath, "{}");
+        await StoreAsync(IdempotencyRecord.Create(key, null, ProbeStatusRoute, oldHash, 200, """{"runs":1}""", "application/json", null, TimeProvider.System.GetUtcNow()));
+
+        using var retry = await SendAsync(client, ProbeStatusPath, key.ToString("D"));
+
+        retry.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        retry.Headers.Contains(AuthClient.ReplayedHeader).ShouldBeFalse();
+        (await ProblemJson.ReadAsync(retry, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.key-mismatch");
+        probe.Runs.ShouldBe(0);
+        var record = (await ReadRecordsAsync(key)).ShouldHaveSingleItem();
+        record.RequestHash.ShouldBe(oldHash);
+        record.StatusCode.ShouldBe(200);
+    }
+
+    [Fact]
+    public async Task ARetryAfterTheCodeKeyChangedIsAMismatchAndNeverRunsAgain()
+    {
+        var otherKey = Convert.ToBase64String(SHA384.HashData(Encoding.UTF8.GetBytes("rotated code key")));
+        var probe = new IdempotencyProbe();
+        var rotatedProbe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        await using var rotatedHost = ProbeHost(rotatedProbe, codeMacKey: otherKey);
+        using var client = host.Factory.CreateClient();
+        using var rotatedClient = rotatedHost.Factory.CreateClient();
+        var key = Guid.NewGuid().ToString("D");
+
+        using var first = await SendAsync(client, ProbeStatusPath, key);
+        using var retry = await SendAsync(rotatedClient, ProbeStatusPath, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        retry.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(retry, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.key-mismatch");
+        probe.Runs.ShouldBe(1);
+        rotatedProbe.Runs.ShouldBe(0);
+    }
+
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string path, string? rawKey, string? body = "{}", string? bearer = null)
     {
         using var request = ApiRequests.Create(HttpMethod.Post, path, bearer);
@@ -490,19 +566,27 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     // A host with the probe endpoints added. Disposes both the derived host and the root it came from.
-    private ProbeHostHandle ProbeHost(IdempotencyProbe probe, TimeProvider? clock = null)
+    private ProbeHostHandle ProbeHost(IdempotencyProbe probe, TimeProvider? clock = null, string? codeMacKey = null)
     {
         var root = CspsApiFactory.ForDatabase(database.ConnectionString);
-        var derived = root.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        var derived = root.WithWebHostBuilder(builder =>
         {
-            services.AddControllers().AddApplicationPart(typeof(IdempotencyProbeController).Assembly);
-            services.AddSingleton(probe);
-            if (clock is not null)
+            if (codeMacKey is not null)
             {
-                services.RemoveAll<TimeProvider>();
-                services.AddSingleton(clock);
+                builder.UseSetting(TestSecrets.CodeMacKeySetting, codeMacKey);
             }
-        }));
+
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddControllers().AddApplicationPart(typeof(IdempotencyProbeController).Assembly);
+                services.AddSingleton(probe);
+                if (clock is not null)
+                {
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton(clock);
+                }
+            });
+        });
         return new ProbeHostHandle(root, derived);
     }
 
@@ -512,7 +596,7 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         var connection = context.Database.GetDbConnection();
         await context.Database.OpenConnectionAsync(TestContext.Current.CancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT [UserId], [Route], [StatusCode], DATALENGTH([RequestHash]) FROM [IdempotencyRecords] WHERE [Key] = @key";
+        command.CommandText = "SELECT [UserId], [Route], [StatusCode], [RequestHash] FROM [IdempotencyRecords] WHERE [Key] = @key";
         var parameter = command.CreateParameter();
         parameter.ParameterName = "@key";
         parameter.Value = key;
@@ -526,13 +610,40 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
                 await reader.IsDBNullAsync(0, TestContext.Current.CancellationToken) ? null : reader.GetGuid(0),
                 reader.GetString(1),
                 reader.GetInt32(2),
-                reader.GetInt32(3)));
+                reader.GetFieldValue<byte[]>(3)));
         }
 
         return rows;
     }
 
-    private sealed record StoredRecord(Guid? UserId, string Route, int StatusCode, int RequestHashLength);
+    private async Task StoreAsync(IdempotencyRecord record)
+    {
+        await using var context = database.CreateContext();
+        context.Add(record);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    // The request as the middleware hashes it: the length-prefixed target, then the body.
+    private static byte[] RequestBytes(string target, string body)
+    {
+        var targetBytes = Encoding.UTF8.GetBytes(target);
+        return [.. BitConverter.GetBytes(targetBytes.Length), .. targetBytes, .. Encoding.UTF8.GetBytes(body)];
+    }
+
+    private static byte[] PlainHash(string target, string body) => SHA256.HashData(RequestBytes(target, body));
+
+    private static byte[] KeyedHash(string codeMacKey, string target, string body)
+    {
+        var hasher = new IdempotencyRequestHasher(Options.Create(new AuthSecretsOptions { CodeMacKey = codeMacKey }));
+        using var hash = hasher.Create();
+        hash.AppendData(RequestBytes(target, body));
+        return hash.GetHashAndReset();
+    }
+
+    private sealed record StoredRecord(Guid? UserId, string Route, int StatusCode, byte[] RequestHash)
+    {
+        public int RequestHashLength => RequestHash.Length;
+    }
 
     private sealed class ProbeHostHandle(CspsApiFactory root, WebApplicationFactory<Program> factory) : IAsyncDisposable
     {
