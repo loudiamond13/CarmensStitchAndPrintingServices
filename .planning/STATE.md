@@ -630,6 +630,7 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 | 261017-efe | Detailed GitHub Actions workflow reference in docs/operations/ci.md (every workflow, job and step, plus Hygiene and Dependabot) | 2026-10-17 | 0fd2f11 | [261017-efe-detailed-github-actions-workflow-referen](./quick/261017-efe-detailed-github-actions-workflow-referen/) |
 | 261017-j36 | Harden two load-sensitive tests (sign-in timing runs alone with warm-up; ESLint config test shares one instance with a 30 s budget) | 2026-10-17 | 8f232de | [261017-j36-harden-two-load-sensitive-tests-sign-in-](./quick/261017-j36-harden-two-load-sensitive-tests-sign-in-/) |
 | 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
+| 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
 
 ## Deferred Items
 
