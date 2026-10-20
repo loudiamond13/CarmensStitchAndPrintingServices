@@ -26,7 +26,7 @@
         "type": "object"
       },
       "ActorRef": {
-        "description": "A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename\r\nshows at once and no snapshot exists (D-08).",
+        "description": "A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename\nshows at once and no snapshot exists (D-08).",
         "properties": {
           "formerStaff": {
             "description": "True when the actor's account was deleted; the name is kept (D-11).",
@@ -219,7 +219,7 @@
         "type": "object"
       },
       "CreateUserRequest": {
-        "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\r\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
+        "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
           "access": {
             "description": "How they get access: `invitation` or `temporary-password`.",
@@ -762,7 +762,7 @@
         "type": "object"
       },
       "SetTemporaryPasswordRequest": {
-        "description": "The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account\r\nport and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).",
+        "description": "The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account\nport and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).",
         "properties": {
           "temporaryPassword": {
             "description": "The temporary password as typed.",
@@ -892,7 +892,7 @@
         "type": "object"
       },
       "UpdateUserRequest": {
-        "description": "The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was\r\nopened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).",
+        "description": "The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was\nopened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).",
         "properties": {
           "email": {
             "description": "The sign-in email the person should have; send the stored one to leave it alone.",
@@ -902,7 +902,7 @@
             ]
           },
           "emailChange": {
-            "description": "How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the\r\nemail changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an\r\ninvited person with no password yet always moves at once.",
+            "description": "How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the\nemail changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an\ninvited person with no password yet always moves at once.",
             "type": [
               "null",
               "string"
@@ -1320,7 +1320,7 @@
             "description": "Forbidden"
           }
         },
-        "summary": "Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date\r\nis a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the\r\nwhole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored\r\nfixed words only: field names and role values, never a name or an email address (D-40).",
+        "summary": "Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date\nis a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the\nwhole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored\nfixed words only: field names and role values, never a name or an email address (D-40).",
         "tags": [
           "AuditLog"
         ]
@@ -1364,7 +1364,7 @@
             "description": "Forbidden"
           }
         },
-        "summary": "Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,\r\nthen former staff by name. Names only, never an email address.",
+        "summary": "Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,\nthen former staff by name. Names only, never an email address.",
         "tags": [
           "AuditLog"
         ]
@@ -2413,7 +2413,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it\r\ntakes no row version and answers 204 when nothing is waiting.",
+        "summary": "Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it\ntakes no row version and answers 204 when nothing is waiting.",
         "tags": [
           "Profile"
         ]
@@ -2513,7 +2513,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the\r\nsign-in email changes only when the link is confirmed.",
+        "summary": "Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the\nsign-in email changes only when the link is confirmed.",
         "tags": [
           "Profile"
         ]
@@ -2595,7 +2595,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it\r\nspends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.",
+        "summary": "Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it\nspends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.",
         "tags": [
           "Profile"
         ]
@@ -2677,7 +2677,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The\r\ntoken travels in the body, never in a URL.",
+        "summary": "Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The\ntoken travels in the body, never in a URL.",
         "tags": [
           "Profile"
         ]
@@ -2734,7 +2734,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the\r\ncurrent address, and no address is written.",
+        "summary": "Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the\ncurrent address, and no address is written.",
         "tags": [
           "Profile"
         ]
@@ -3155,7 +3155,7 @@
             "description": "Forbidden"
           }
         },
-        "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\r\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
+        "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
         "tags": [
           "Users"
         ]
@@ -3234,7 +3234,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the\r\nroster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There\r\nis no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes\r\nnothing. A Manager cannot delete their own account (422 `users.own-account`) or the last active Manager (422\r\n`users.last-active-manager`).",
+        "summary": "Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the\nroster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There\nis no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes\nnothing. A Manager cannot delete their own account (422 `users.own-account`) or the last active Manager (422\n`users.last-active-manager`).",
         "tags": [
           "Users"
         ]
@@ -3427,7 +3427,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other\r\nanswers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422\r\n`users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends\r\nevery session of the person at once. Saving the values already stored is a 200 that changes and records nothing.\r\nWhen the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is\r\na 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,\r\nwith a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email\r\nin the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves\r\nat once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored\r\nwhen the email is unchanged.",
+        "summary": "Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other\nanswers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422\n`users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends\nevery session of the person at once. Saving the values already stored is a 200 that changes and records nothing.\nWhen the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is\na 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,\nwith a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email\nin the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves\nat once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored\nwhen the email is unchanged.",
         "tags": [
           "Users"
         ]
@@ -3565,7 +3565,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old\r\ntoken is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.",
+        "summary": "Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old\ntoken is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.",
         "tags": [
           "Users"
         ]
@@ -3644,7 +3644,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With\r\nnothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My\r\nProfile for their own account (422 `users.own-account`).",
+        "summary": "Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With\nnothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My\nProfile for their own account (422 `users.own-account`).",
         "tags": [
           "Users"
         ]
@@ -3713,7 +3713,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so\r\ntheir next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute\r\nfailed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest\r\nstate.",
+        "summary": "Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so\ntheir next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute\nfailed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest\nstate.",
         "tags": [
           "Users"
         ]
@@ -3792,7 +3792,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one\r\ngoes to the person by email only; the answer never holds it. A person who already has a password is a 422\r\n`users.already-set-up`, and a deactivated or locked one is a 422 `users.blocked`. It takes no version: it acts on the\r\nlatest state and does not change the account.",
+        "summary": "Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one\ngoes to the person by email only; the answer never holds it. A person who already has a password is a 422\n`users.already-set-up`, and a deactivated or locked one is a 422 `users.blocked`. It takes no version: it acts on the\nlatest state and does not change the account.",
         "tags": [
           "Users"
         ]
@@ -3881,7 +3881,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and\r\nreplaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password\r\n(429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a\r\npassword is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.",
+        "summary": "Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and\nreplaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password\n(429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a\npassword is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.",
         "tags": [
           "Users"
         ]
@@ -4011,7 +4011,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control\r\ncharacters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a\r\nfailed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed\r\ncode and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A\r\nManager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422\r\n`users.blocked`. It takes no version: it acts on the latest state.",
+        "summary": "Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control\ncharacters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a\nfailed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed\ncode and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A\nManager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422\n`users.blocked`. It takes no version: it acts on the latest state.",
         "tags": [
           "Users"
         ]
@@ -4080,7 +4080,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating\r\nit on a person who is not locked is a 204 that changes nothing. It takes no version.",
+        "summary": "Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating\nit on a person who is not locked is a 204 that changes nothing. It takes no version.",
         "tags": [
           "Users"
         ]

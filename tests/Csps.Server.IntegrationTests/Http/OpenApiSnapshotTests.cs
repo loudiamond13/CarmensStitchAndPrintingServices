@@ -82,6 +82,14 @@ public sealed partial class OpenApiSnapshotTests
         Difference("""{ "b": [1, 2], "a": { "y": "x", "x": null } }""", """{"a":{"x":null,"y":"x"},"b":[1,2]}""").ShouldBeNull();
     }
 
+    [Fact]
+    public void LineEndingsInsideTextAreNotDifferencesAndAreWrittenAsLf()
+    {
+        // Doc comments keep the source file's line endings, which are CRLF on a Windows checkout and LF on CI.
+        Difference("""{"description":"a\r\nb"}""", """{"description":"a\nb"}""").ShouldBeNull();
+        Canonicalize("""{"description":"a\r\nb"}""").ShouldBe("{\n  \"description\": \"a\\nb\"\n}\n");
+    }
+
     [Theory]
     [InlineData(
         """{"components":{"schemas":{"SiteSettingsDto":{"properties":{"locale":{"type":"string"}}}}}}""",
@@ -211,6 +219,9 @@ public sealed partial class OpenApiSnapshotTests
             .Select(property => KeyValuePair.Create(property.Key, Sorted(property.Value)))),
         JsonArray array => new JsonArray([.. array.Select(Sorted)]),
         null => null,
+
+        // Text is stored with LF so a Windows (CRLF) checkout and CI produce the same snapshot.
+        JsonValue value when value.TryGetValue(out string? text) => JsonValue.Create(text.Replace("\r\n", "\n", StringComparison.Ordinal)),
         _ => node.DeepClone(),
     };
 
