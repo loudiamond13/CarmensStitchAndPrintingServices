@@ -25,6 +25,323 @@
         ],
         "type": "object"
       },
+      "ActorRef": {
+        "description": "A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename\nshows at once and no snapshot exists (D-08).",
+        "properties": {
+          "formerStaff": {
+            "description": "True when the actor's account was deleted; the name is kept (D-11).",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The actor's account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The actor's name, first then last.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "formerStaff"
+        ],
+        "type": "object"
+      },
+      "AuditLogItem": {
+        "description": "One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40).",
+        "properties": {
+          "action": {
+            "description": "The action code, for example `user.deactivated`.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "The stored detail; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "device": {
+            "description": "The browser family; null when unknown.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "doneBy": {
+            "$ref": "#/components/schemas/DoneBy",
+            "description": "Who did it."
+          },
+          "doneTo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The person it was done to; null when there is none."
+              }
+            ]
+          },
+          "id": {
+            "description": "The entry id.",
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "ipPrefix": {
+            "description": "The client network, /24 or /48; null when unknown.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "occurredAt": {
+            "description": "When it happened, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "reference": {
+            "description": "The correlation id, to find the request's log lines.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "occurredAt",
+          "doneBy",
+          "action",
+          "doneTo",
+          "detail",
+          "ipPrefix",
+          "device",
+          "reference"
+        ],
+        "type": "object"
+      },
+      "AuditLogResponse": {
+        "description": "One page of the audit log, newest first (AUDIT-02).",
+        "properties": {
+          "items": {
+            "description": "The entries of this page.",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many entries match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
+      "AuditPerson": {
+        "description": "One person an audit filter can offer.",
+        "properties": {
+          "formerStaff": {
+            "description": "True when the account was deleted (D-47: shown as former staff).",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "First and last name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "formerStaff"
+        ],
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "description": "The My Profile password form: the current password and the new one (PROF-03).",
+        "properties": {
+          "currentPassword": {
+            "description": "The current password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "newPassword": {
+            "description": "The new password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object"
+      },
+      "CreateUserRequest": {
+        "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
+        "properties": {
+          "access": {
+            "description": "How they get access: `invitation` or `temporary-password`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "The role, `Admin` or `Manager`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "temporaryPassword": {
+            "description": "The one-time password, only for the `temporary-password` route.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "access",
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "CreateUserResponse": {
+        "description": "The answer to creating a person. It holds the id only: never a name, an email or a password (D-14).",
+        "properties": {
+          "id": {
+            "description": "The new account id.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "DoneBy": {
+        "description": "Who did it (D-27).",
+        "properties": {
+          "kind": {
+            "description": "One of DoneByKinds.",
+            "type": "string"
+          },
+          "person": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The person for kind `user`; null for the other kinds."
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "person"
+        ],
+        "type": "object"
+      },
+      "EmailChangeResponse": {
+        "description": "The answer to a confirmed email change.",
+        "properties": {
+          "newEmail": {
+            "description": "The sign-in email from now on, so the page can name it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "newEmail"
+        ],
+        "type": "object"
+      },
+      "EmailChangeTokenRequest": {
+        "description": "The body of an email-change confirmation: the token from the emailed link. It travels in the body, never in a URL.",
+        "properties": {
+          "token": {
+            "description": "The 43-character token.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "description": "The forgot-password form: the email the reset link goes to (D-16).",
         "properties": {
@@ -118,8 +435,86 @@
         },
         "type": "object"
       },
-      "ResendCodeResponse": {
-        "description": "What a resend answers: how long to wait before asking again.",
+      "ProfileResponse": {
+        "description": "The signed-in staff member's own profile (PROF-01).",
+        "properties": {
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "memberSince": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "pendingEmail": {
+            "description": "The new email awaiting confirmation; null when no change is pending.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The edit version to send back with the next save (SEC-07).",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "pendingEmail",
+          "memberSince",
+          "version"
+        ],
+        "type": "object"
+      },
+      "RequestEmailChangeRequest": {
+        "description": "The My Profile change-email form: the new sign-in email and the current password (PROF-02).",
+        "properties": {
+          "currentPassword": {
+            "description": "The current password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "newEmail": {
+            "description": "The new address as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "newEmail",
+          "currentPassword"
+        ],
+        "type": "object"
+      },
+      "ResendWaitResponse": {
+        "description": "What sign-in and a code resend both answer: how long to wait before asking for a new code.",
         "properties": {
           "resendAfterSeconds": {
             "description": "Whole seconds.",
@@ -366,6 +761,22 @@
         ],
         "type": "object"
       },
+      "SetTemporaryPasswordRequest": {
+        "description": "The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account\nport and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).",
+        "properties": {
+          "temporaryPassword": {
+            "description": "The temporary password as typed.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
         "properties": {
@@ -392,24 +803,6 @@
           "email",
           "password",
           "keepSignedIn"
-        ],
-        "type": "object"
-      },
-      "SignInResponse": {
-        "description": "What a successful sign-in step answers: how long to wait before asking for a new code.",
-        "properties": {
-          "resendAfterSeconds": {
-            "description": "Whole seconds.",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "resendAfterSeconds"
         ],
         "type": "object"
       },
@@ -463,6 +856,295 @@
           "addressLine",
           "facebookUrl",
           "rowVersion"
+        ],
+        "type": "object"
+      },
+      "UpdateProfileNameRequest": {
+        "description": "The profile name form: the names and the edit version the form was opened with (SEC-07).",
+        "properties": {
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version as a GUID in `D` form.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UpdateUserRequest": {
+        "description": "The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was\nopened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).",
+        "properties": {
+          "email": {
+            "description": "The sign-in email the person should have; send the stored one to leave it alone.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "emailChange": {
+            "description": "How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the\nemail changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an\ninvited person with no password yet always moves at once.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "role": {
+            "description": "`Admin` or `Manager`, in any letter case.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version as a GUID in `D` form.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "role",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UserDetailResponse": {
+        "description": "One person as a Manager sees them in the Edit panel (USER-01, SEC-08).",
+        "properties": {
+          "createdAt": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "hasPassword": {
+            "description": "True once a password is set.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "inviteState": {
+            "description": "`none`, `pending` or `expired` (see InviteStates).",
+            "type": "string"
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed the account; null when the system did or it was never changed."
+              }
+            ]
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "managerLocked": {
+            "description": "True while a Manager's lock is on, even when the status shows inactive.",
+            "type": "boolean"
+          },
+          "pendingEmail": {
+            "description": "The new email awaiting confirmation; null when no change is pending.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who created the account; null when the system did."
+              }
+            ]
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, `inactive` or `locked` (see UserStatuses).",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the account was last changed, in UTC; null if never.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The edit version a save must send back (SEC-07).",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "status",
+          "inviteState",
+          "createdAt",
+          "hasPassword",
+          "managerLocked",
+          "pendingEmail",
+          "updatedAt",
+          "version",
+          "recordedBy",
+          "lastChangedBy"
+        ],
+        "type": "object"
+      },
+      "UserListItem": {
+        "description": "One person in the roster (USER-01).",
+        "properties": {
+          "createdAt": {
+            "description": "When the account was created, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "description": "The sign-in email.",
+            "type": "string"
+          },
+          "firstName": {
+            "description": "Given name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "inviteState": {
+            "description": "`none`, `pending` or `expired` (see InviteStates).",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Family name.",
+            "type": "string"
+          },
+          "role": {
+            "description": "The single role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, `inactive` or `locked` (see UserStatuses).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "email",
+          "role",
+          "status",
+          "inviteState",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "UserListResponse": {
+        "description": "One page of the roster.",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/UserListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many people match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
         ],
         "type": "object"
       },
@@ -523,6 +1205,171 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/audit-log": {
+      "get": {
+        "operationId": "ListAuditLog",
+        "parameters": [
+          {
+            "description": "The first business day, `YYYY-MM-DD`; none means 6 days before today.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last business day, `YYYY-MM-DD`; none means today.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A user id, or `system`, to keep only what that person (or nobody) did.",
+            "in": "query",
+            "name": "actor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "An action code, for example `user.deactivated`.",
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A user id, to keep only entries about that person, including their session events.",
+            "in": "query",
+            "name": "target",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Entries per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date\nis a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the\nwhole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored\nfixed words only: field names and role values, never a name or an email address (D-40).",
+        "tags": [
+          "AuditLog"
+        ]
+      }
+    },
+    "/api/v1/audit-log/people": {
+      "get": {
+        "operationId": "ListAuditPeople",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditPerson"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,\nthen former staff by name. Names only, never an email address.",
+        "tags": [
+          "AuditLog"
+        ]
+      }
+    },
     "/api/v1/auth/invite/accept": {
       "post": {
         "operationId": "AcceptInvite",
@@ -1154,7 +2001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignInResponse"
+                  "$ref": "#/components/schemas/ResendWaitResponse"
                 }
               }
             },
@@ -1269,7 +2116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResendCodeResponse"
+                  "$ref": "#/components/schemas/ResendWaitResponse"
                 }
               }
             },
@@ -1414,6 +2261,583 @@
         ]
       }
     },
+    "/api/v1/profile": {
+      "get": {
+        "operationId": "GetProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the caller's profile, including the edit version the next save must send.",
+        "tags": [
+          "Profile"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateProfileName",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateProfileNameRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Changes the caller's first and last name. The version must be the one the form was opened with.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change": {
+      "delete": {
+        "operationId": "CancelEmailChange",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it\ntakes no row version and answers 204 when nothing is waiting.",
+        "tags": [
+          "Profile"
+        ]
+      },
+      "post": {
+        "operationId": "RequestEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestEmailChangeRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the\nsign-in email changes only when the link is confirmed.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change/check": {
+      "post": {
+        "operationId": "CheckEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it\nspends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change/confirm": {
+      "post": {
+        "operationId": "ConfirmEmailChange",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EmailChangeTokenRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The\ntoken travels in the body, never in a URL.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/email-change/resend": {
+      "post": {
+        "operationId": "ResendEmailChange",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the\ncurrent address, and no address is written.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/v1/profile/password": {
+      "post": {
+        "operationId": "ChangePassword",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangePasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in.",
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -1541,6 +2965,1126 @@
           "SiteSettings"
         ]
       }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "ListUsers",
+        "parameters": [
+          {
+            "description": "Search text for the name or email; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`admin` or `manager`; none means both.",
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`active`, `inactive` or `locked`; none means all.",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total.",
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "operationId": "CreateUser",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "delete": {
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the\nroster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There\nis no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes\nnothing. A Manager cannot delete their own account (422 `users.own-account`) or the last active Manager (422\n`users.last-active-manager`).",
+        "tags": [
+          "Users"
+        ]
+      },
+      "get": {
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one person with their edit version and who created and last changed them (SEC-08).",
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateUserRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other\nanswers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422\n`users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends\nevery session of the person at once. Saving the values already stored is a 200 that changes and records nothing.\nWhen the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is\na 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,\nwith a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email\nin the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves\nat once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored\nwhen the email is unchanged.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/activate": {
+      "post": {
+        "operationId": "ActivateUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Reactivates a person (USER-03). Repeating it on an active person is a 204 that changes nothing. It takes no version.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/deactivate": {
+      "post": {
+        "operationId": "DeactivateUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old\ntoken is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/email-change": {
+      "delete": {
+        "operationId": "CancelUserEmailChange",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With\nnothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My\nProfile for their own account (422 `users.own-account`).",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/lock": {
+      "post": {
+        "operationId": "LockUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so\ntheir next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute\nfailed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest\nstate.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/resend-invitation": {
+      "post": {
+        "operationId": "ResendUserInvitation",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one\ngoes to the person by email only; the answer never holds it. A person who already has a password is a 422\n`users.already-set-up`, and a deactivated or locked one is a 422 `users.blocked`. It takes no version: it acts on the\nlatest state and does not change the account.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/send-reset-link": {
+      "post": {
+        "operationId": "SendUserResetLink",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and\nreplaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password\n(429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a\npassword is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/temporary-password": {
+      "post": {
+        "operationId": "SetUserTemporaryPassword",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetTemporaryPasswordRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control\ncharacters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a\nfailed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed\ncode and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A\nManager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422\n`users.blocked`. It takes no version: it acts on the latest state.",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/unlock": {
+      "post": {
+        "operationId": "UnlockUser",
+        "parameters": [
+          {
+            "description": "The account id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating\nit on a person who is not locked is a 204 that changes nothing. It takes no version.",
+        "tags": [
+          "Users"
+        ]
+      }
     }
   },
   "servers": [
@@ -1549,6 +4093,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "AuditLog"
+    },
     {
       "name": "AuthSession"
     },
@@ -1559,6 +4106,9 @@
       "name": "Password"
     },
     {
+      "name": "Profile"
+    },
+    {
       "name": "Sessions"
     },
     {
@@ -1566,6 +4116,9 @@
     },
     {
       "name": "SiteSettings"
+    },
+    {
+      "name": "Users"
     }
   ]
 }

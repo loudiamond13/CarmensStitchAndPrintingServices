@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 5
-current_phase_name: Profile & User Management
-status: planning
-stopped_at: Phase 4 complete, ready to plan Phase 5
-last_updated: "2026-10-17T19:11:26.858Z"
-last_activity: 2026-10-17
-last_activity_desc: Phase 4 complete, transitioned to Phase 5
-state_head: 8f232dead8d0299b5e30df8c326b7bed9a8eafba
+current_phase: 6
+current_phase_name: Company Expenses
+status: "Phase 05 shipped: PR #10"
+stopped_at: Phase 5 complete, ready to plan Phase 6
+last_updated: "2026-10-20T00:26:24.456Z"
+last_activity: 2026-10-19
+last_activity_desc: Phase 5 shipped as PR #10, ready to plan Phase 6
+state_head: 2921e0320dbdf761ba8eac1048d97d077c376e58
 progress:
   total_phases: 17
-  completed_phases: 4
-  total_plans: 114
-  completed_plans: 114
-  percent: 24
+  completed_phases: 5
+  total_plans: 166
+  completed_plans: 166
+  percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-17T14:20:00-05:00"
+updated: "2026-10-19T19:45:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-17)
+See: .planning/PROJECT.md (updated 2026-10-19)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 5 — Profile & User Management
+**Current focus:** Phase 6 — Company Expenses
 
 ## Current Position
 
-Phase: 5 — Profile & User Management
+Phase: 6 — Company Expenses
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-17 - Completed quick task 261017-j36: Harden two load-sensitive tests
+Status: Phase 05 shipped: PR #10
+Last activity: 2026-10-19: Phase 5 shipped as PR #10
 
-Progress: [██░░░░░░░░] 24%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 114
+- Total plans completed: 166
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -51,6 +51,7 @@ Progress: [██░░░░░░░░] 24%
 | 2 | 43 | - | - |
 | 03 | 23 | - | - |
 | 4 | 35 | - | - |
+| 5 | 52 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -170,6 +171,58 @@ Progress: [██░░░░░░░░] 24%
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
 | Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
 | Phase 03 P22 | 10 min | 2 tasks | 2 files |
+| Phase 05 P01 | 39 min | 3 tasks | 11 files |
+| Phase 05 P02 | 29 min | 3 tasks | 16 files |
+| Phase 05 P03 | 22 min | 2 tasks | 9 files |
+| Phase 05 P04 | 25 min | 2 tasks | 4 files |
+| Phase 05 P05 | 21 min | 2 tasks | 17 files |
+| Phase 05 P06 | 10 min | 2 tasks | 12 files |
+| Phase 05 P07 | 13 min | 3 tasks | 17 files |
+| Phase 05 P08 | 58 min | 3 tasks | 15 files |
+| Phase 05 P09 | 22 min | 2 tasks | 20 files |
+| Phase 05 P10 | 16 min | 3 tasks | 16 files |
+| Phase 05 P11 | 15 min | 2 tasks | 11 files |
+| Phase 05 P13 | 82 min | 3 tasks | 29 files |
+| Phase 05 P38 | 10 min | 2 tasks | 9 files |
+| Phase 05 P12 | 26 min | 3 tasks | 25 files |
+| Phase 05 P14 | 22 min | 2 tasks | 27 files |
+| Phase 05 P39 | 22 min | 2 tasks | 19 files |
+| Phase 05 P15 | 18 min | 2 tasks | 18 files |
+| Phase 05 P16 | 23 min | 2 tasks | 12 files |
+| Phase 05 P17 | 20 min | 3 tasks | 22 files |
+| Phase 05 P18 | 45 min | 3 tasks | 17 files |
+| Phase 05 P19 | 24 min | 3 tasks | 26 files |
+| Phase 05 P20 | 60 min | 3 tasks | 19 files |
+| Phase 05 P36 | 30 min | 3 tasks | 13 files |
+| Phase 05 P21 | 24 min | 3 tasks | 26 files |
+| Phase 05 P22 | 44 min | 3 tasks | 22 files |
+| Phase 05 P23 | 30 min | 2 tasks | 17 files |
+| Phase 05 P40 | 30min | 2 tasks | 30 files |
+| Phase 05 P24 | 19 min | 2 tasks | 16 files |
+| Phase 05 P25 | 42 min | 3 tasks | 23 files |
+| Phase 05 P26 | 45 min | 3 tasks | 23 files |
+| Phase 05 P32 | 20 min | 3 tasks | 17 files |
+| Phase 05 P27 | 26 min | 3 tasks | 29 files |
+| Phase 05 P28 | 42 min | 3 tasks | 14 files |
+| Phase 05 P29 | 31 min | 2 tasks | 17 files |
+| Phase 05 P30 | 65 min | 3 tasks | 17 files |
+| Phase 05 P31 | 12 min | 2 tasks | 3 files |
+| Phase 05 P34 | 25 min | 2 tasks | 15 files |
+| Phase 05 P41 | 10 min | 2 tasks | 11 files |
+| Phase 05 P33 | 59 min | 3 tasks | 25 files |
+| Phase 05 P43 | 25 min | 2 tasks | 30 files |
+| Phase 05 P35 | 55 min | 2 tasks | 19 files |
+| Phase 05 P42 | 50 min | 2 tasks | 16 files |
+| Phase 05 P37 | 4h 25m | 3 tasks | 50 files |
+| Phase 05 P44 | 20 min | 2 tasks | 6 files |
+| Phase 05 P45 | 20 min | 3 tasks | 10 files |
+| Phase 05 P46 | 25 min | 2 tasks | 11 files |
+| Phase 05 P48 | 10 min | 2 tasks | 5 files |
+| Phase 05 P49 | 17 min | 2 tasks | 10 files |
+| Phase 05 P47 | 15 min | 2 tasks | 9 files |
+| Phase 05 P50 | 15 min | 2 tasks | 7 files |
+| Phase 05 P52 | 5 min | 2 tasks | 2 files |
+| Phase 05 P51 | 45 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -432,6 +485,102 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
 - [Phase 03]: 03-22: __Secure-csps_2fa stays Unverified (not observed by the owner; attributes pinned by auth integration tests) pending owner sign-off
 - [Phase 03]: 03-22: owner accepted CSPS live 2026-10-17; a rollback now means redeploying an earlier CSPS release (D-05)
+- [Phase 05]: 05-01: shell viewport rules hang off data-fill=viewport on the real layout roots (in-data variants); previews and parity frames stay unmarked
+- [Phase 05]: 05-01: sideways-scroll guard compares scrollWidth with clientWidth and requires html/body overflow-x visible; D-05 did not reproduce at this commit
+- [Phase 05]: 05-02: the presence node is the dialog panel and usePresence decides in a layout effect, so a no-animation dialog leaves before paint; the closing overlay is also inert
+- [Phase 05]: 05-03: a refresh that brings an unknown server role is refused as a 401 so ensureSession gives null and the session-ended path runs (IN-17) — One signed-out path for every refused refresh; the shell never guesses Manager
+- [Phase 05]: 05-04: shared sink wait (AuthClient.Patience) is 30 s, returning as soon as mail arrives; the resend-cap proof is unchanged
+- [Phase 05]: 05-05: deleted marker is nullable DeletedAtUtc and the Manager lock is ManagerLockedAtUtc, separate from LockoutEnd; one UserAccount.IsBlocked rule gates sign-in
+- [Phase 05]: 05-05: migration backfill SQL is wrapped in EXEC so the idempotent production script compiles it; tested both via IMigrator and via the script
+- [Phase 05]: D-13: invite links last 7 days via the single AuthSettings.InviteLinkLifetime; existing rows keep their 72-hour ExpiresAt
+- [Phase 05]: 05-07: ResendWaitResponse lives in Csps.Application.Auth so sign-in and resend share one contract schema (IN-12)
+- [Phase 05]: 05-07: outbox purge of closed rows deferred to Phase 9 JOB-01; retention rule (30 days after close) written in mail-setup.md (IN-08)
+- [Phase 05]: 05-08: closing drawer layer and user-menu popover are inert and pointer-events none, handlers ignore events while open is false (T-05-20)
+- [Phase 05]: 05-08: chevron parity difference recorded as P5 D-35 ruling on .csp-usermenu svg in rulings.css, no tolerance; no P5 D-34 group needed
+- [Phase 05]: 05-09: stored EditVersion is compared before the same-names shortcut, so an old version is always 409 and equal names with the current version is a 200 that does not rotate
+- [Phase 05]: 05-09: UpdateNameAsync reloads after a ConcurrencyFailure and retries when only Identity's stamp moved, so bookkeeping never causes a false 409
+- [Phase 05]: 05-10: a deleted account asking for a reset is answered like an unknown address; a Manager lock is checked before the deactivated notice
+- [Phase 05]: 05-11: Created* always overwritten on add; Updated* stamped only when EditVersion changed (or any Modified for non-versioned records); a null actor keeps a server-set UpdatedById
+- [Phase 05]: 05-11: AddCspsPersistence registers TimeProvider, NoCurrentActor and RecordStampInterceptor via TryAdd; the Server registers HttpCurrentActor first
+- [Phase 05]: 05-13: the name form sends the edit version it was opened with, changed only by its own save or Load Latest, never by a refetch (D-20)
+- [Phase 05]: 05-13: the profile dev preview route was removed from devRoutes because it shadowed the real page in the e2e bundle; users and audit-log previews need the same treatment in 05-20 and 05-33, and owner-review.mjs and design-side-by-side.mjs need a signed-in capture in 05-37
+- [Phase 05]: 05-13: the admin theme is one layout state (useThemeState) shared by the top bar and pages through the Outlet context; UrlStateLayout forwards the context
+- [Phase 05]: 05-38: profile.name-changed detail lists changed field names only (fields=first-name,last-name); the name save and its audit entry share one transaction and only a real change (Saved) writes an entry
+- [Phase 05]: 05-12: PasswordChanged is stored as 8 (6 and 7 were taken); the current password is verified and counted before the same-as-current check and the breach lookup (no guessing oracle)
+- [Phase 05]: 05-12: IdempotencyOutcome.KeepChanges lets an endpoint commit its change when the answer is not stored; the profile password 429 uses it so the lock-causing wrong password is not rolled back (SEC-06 key stays required)
+- [Phase 05]: 05-14: email-change confirm applies the pending address before it spends the link, so a Taken or NothingPending outcome writes nothing and answers the one invalid 404 (05-15 owns the taken answer)
+- [Phase 05]: 05-14: ApplyPendingEmailAsync records the account itself as last changer with a second unstamped save, because the stamp interceptor nulls an unchanged UpdatedById when nobody is signed in
+- [Phase 05]: Plan 05-39: the email change reuses CurrentPasswordCheck (shared with the password change); a taken address is revealed only after the current password is right, and a correct password clears the wrong-password count
+- [Phase 05]: Plan 05-39: the same-address rule reaches the shared validator through ValidationContext.RootContextData (key currentEmail), so one validator holds every rule the browser mirrors
+- [Phase 05]: 05-15: a taken-address confirm saves its writes (link spent, pending cleared, audit canceled/taken) and the controller marks the 409 KeepChanges because the idempotency gate rolls back unstored 4xx
+- [Phase 05]: 05-15: resend and cancel read the pending address through IUserDirectory inside the per-account link lock; cancel (DELETE) takes no row version and answers 204 with no audit when nothing is pending
+- [Phase 05]: [05-16] Only a 409 with code email-change.taken opens the can't-be-used state on the confirm-email page; any other 409 keeps Ready with the shared banner and a retry reuses the Idempotency-Key
+- [Phase 05]: [05-16] The email-change check's 409 carries no address, so a link whose address was taken before it was opened says 'this email' (bodyNoAddress); needs the D-48 owner wording review
+- [Phase 05]: 05-17: roster status is lowercase active|inactive|locked and inviteState none|pending|expired; both are computed by one shared function (UserStatuses.Of, InviteStates.Of) for the list and the detail
+- [Phase 05]: 05-17: roster page is capped at 100000 (400 above) so the row offset cannot overflow; the search is escaped LIKE with backslash as the escape character
+- [Phase 05]: 05-17: detail actors (recordedBy, lastChangedBy) are read from the actors' own rows; a soft-deleted actor keeps the name with formerStaff true, and a pre-Phase-5 account has null actors
+- [Phase 05]: 05-18: ChangeEmailDialog.onSent(newEmail, profile); the page writes the returned profile into the profile query (a pending email does not change the edit version, so the open name form stays current)
+- [Phase 05]: 05-18: Sign-in Email card hides Change Email while a change waits (UI-SPEC either/or); replacing a pending change means Cancel Change first. Owner may rule in the 05-37 review
+- [Phase 05]: 05-18: useSubmission with no data (Resend Link, Cancel Change) is reset after success, else the same-data rule makes the next press send nothing
+- [Phase 05]: 05-18: NewPasswordFields is generic over a form with at least the pair, so the profile form can add Current password; lock line is the server's own detail (profile.password-locked)
+- [Phase 05]: 05-19: a taken address is signalled by EmailInUseException from IUserAccounts.CreateAsync (Identity's duplicate check and the unique-index violation, which also detaches the failed row); CreateUserHandler turns it into the 400 on field email
+- [Phase 05]: 05-19: POST /api/v1/users accepts role and access in any letter case, an invitation ignores a temporaryPassword sent with it, and the temporary-password empty message is 'Enter a temporary password.'; CreateUserRequest.ToString hides the password
+- [Phase 05]: 05-20: The Users dev preview is removed from devRoutes (it shadowed the real roster in the e2e bundle, as profile did in 05-13); unsigned e2e page lists drop it — A signed-in e2e can only reach the guarded page if no preview sits at the same path
+- [Phase 05]: 05-20: Clear Filters clears the search, Role and Status but keeps Rows per page; the Add User button is left to 05-22 — reset() would also drop the page size; the Add User panel it opens is 05-22
+- [Phase 05]: 05-20: RowAction is a button/link union (to prop); UserCell text wraps anywhere for every list — The own-row pencil must be a router link in the icon-button look (D-19); long names must not widen the table
+- [Phase 05]: 05-36: safeReturnUrl validates the literal path (decoded once) and returns the validated text; query kept as given
+- [Phase 05]: 05-36: useSetPasswordForm is the single owner of set-password form focus and server field-error mapping
+- [Phase 05]: SessionRevocationReason.AccountChanged is stored as 9: the plan said 7 but 7 (Expired) and 8 (PasswordChanged) are already in use; nothing renumbered
+- [Phase 05]: Deactivate takes the csps-active-managers roster lock first and ManagerGuard decides own-account and last-active-Manager; Activate takes no lock but keeps the own-account rule
+- [Phase 05]: Session cache is evicted whenever a deactivate or activate changed the state; a no-op writes, revokes, audits and evicts nothing
+- [Phase 05]: 05-22: Add User fires onCreated at once for an invitation and, for a temporary password, when its shown-once step is closed; one Modal serves the form and the step so focus returns to Add User
+- [Phase 05]: 05-22: the temporary password lives in component state only; the form and submission forget it on success and the step state is dropped 350 ms after the panel closes (D-14)
+- [Phase 05]: 05-22: newTemporaryPassword draws Word-Word-NNNN from 40 sewing words with crypto.getRandomValues and rejection sampling; the word list awaits owner review (D-48)
+- [Phase 05]: 05-23: the roster lock is taken first for any requested role other than Manager, because the target's current role cannot be read safely before the lock is held (the request's tracked account row would be stale).
+- [Phase 05]: 05-23: ManagerGuard runs before the version check, so a stale form that would demote the last active Manager answers 422 rather than 409; a role change swaps the role link row after the guarded account UPDATE.
+- [Phase 05]: Plan 05-40: D-45 applied. PUT /users/{id} carries email (required) and emailChange (confirm | now); a changed email without a valid choice is 400 under emailChange; an invited person always moves at once with a fresh 7-day invitation; the 'now' path signs the person out and sends the new 'A Manager changed your CSPS sign-in email' notice to the old address (wording pending owner review, D-48)
+- [Phase 05]: Plan 05-40: AuditActions.UserInvitationResent (user.invitation-resent) is declared by 05-40; plan 05-27 must reuse it. The email preview tool has eight samples, so 05-31 expected counts rise by one
+- [Phase 05]: 05-24: Unlock takes no roster lock and runs no guard; lock runs the roster lock then ManagerGuard like deactivate (D-16, D-18, D-19)
+- [Phase 05]: 05-24: SetManagerLockAsync compares locked vs not locked only, so a repeat lock or unlock writes, audits and revokes nothing; no code reads the lock time as an expiry (D-16)
+- [Phase 05]: 05-25 D-45 in the Edit User form: a changed email (compared after trim, ignoring letter case) needs a choice; the RadioGroup Confirm by link (preselected) or Save at once shows only for a person with a password; emailChange is sent only when the email changed, and an invited person always sends confirm
+- [Phase 05]: 05-25 The Edit User detail query has no cache lifetime and the panel trusts data only when isFetchedAfterMount, so every open reads the person and the edit version fresh; Load Latest also resets the form so typed values are replaced even when the latest version holds the same values
+- [Phase 05]: 05-25 ActorName and RecordMeta live in components/data for every later detail view: a null actor reads System, a deleted actor keeps the name with a muted former-staff suffix, a record with no time shows EmptyValue
+- [Phase 05]: D-07 soft delete: scrambled deleted-{id:N}@deleted.invalid address per id, names kept, DeletedAtUtc set, every session and open link revoked, final (no restore) — 05-26: D-07..D-11; a second DELETE is 404 and records nothing
+- [Phase 05]: Delete also scrubs the outbox: rows for the old and any pending address are expired if unsent, readdressed and left without bodies; the outbox refuses .invalid recipients (IN-08 part) — 05-26: defense in depth for deleted addresses; waiting email-change address scrubbed too
+- [Phase 05]: 05-32: AdminFrame takes withAuditLog (default false); only the real AdminShell sets it so the dev parity scenarios stay equal to the frozen reference — The Manager DEV_USER scenarios render AdminFrame; an unconditional prop would add a sixth nav item there
+- [Phase 05]: 05-32: DateInput shows the caller's message through error; range and format rules stay in the caller's zod schema (OR-3) — One source of validation rules
+- [Phase 05]: 05-27: ManagerResetLinkEmail is (To, Token, ExpiresAt, RequestedAt, ManagerName), like PasswordResetEmail and InviteEmail, so the lifetime is worded from the dates; 05-31 previews must pass five arguments
+- [Phase 05]: 05-27: reset-link emails share one hourly cap of 3 per address in both directions (ResetEmailCap counts PasswordReset and ManagerResetLink kinds), used by forgot-password and the Manager's send
+- [Phase 05]: 05-27: a temporary password is a staff edit: IUserAccounts.MarkStaffEditAsync rotates EditVersion so SEC-08 stamps the Manager (Identity bookkeeping never does); resend and send-link leave the version alone
+- [Phase 05]: 05-27: a person invited but not yet set up can get a temporary password: the address counts as confirmed and the open invitation is revoked; Blocked is checked before every action-specific rule
+- [Phase 05]: 05-28: guard and deleted-meanwhile words ride an optional describeFailure prop on SignOutDialog and ConfirmDialog; ConfirmDialog gains pendingLabel (Deleting)
+- [Phase 05]: 05-28: useUserAction moves an identity generation after the roster refreshes so a repeated action on the same person sends a new request with a new Idempotency-Key
+- [Phase 05]: 05-28: focus after a delete skips the signed-in Manager's own row (no Edit button): next other row, else previous other row, else the h1
+- [Phase 05]: 05-29: ipPrefix is returned with its length (/24 or /48); the log stores the bare network address and UI-SPEC shows the length
+- [Phase 05]: 05-29: one done-by rule for the audit viewer rows and the actor filter (actor, else the person a self-service entry is about, else unknown account, else System); AuditActions.SelfService lists the 21 anonymous self-service codes
+- [Phase 05]: 05-29: audit-log from alone means up to today, to alone means from the start of the 8-month window; neither means the last 7 business days; actor accepts system or a dashed GUID only
+- [Phase 05]: 05-30 D-45: the Edit panel's Email note follows the Manager's live choice (invitation note for an invited person, confirmation-link note for Confirm by link, a new Save at once note), and the save toast says a link was sent or the email moved at once (onSaved reports plain, pending or moved)
+- [Phase 05]: 05-30: the Lock and Set Temporary Password dialogs are DOM siblings of the Edit slide-over; account actions are aria-disabled while the form is dirty (D-21), re-read the person after success, and tell the roster through onAccountChanged; the temporary password lives in the dialog's component state only and is dropped after close
+- [Phase 05]: 05-31: Owner approved the seven Phase 5 emails on 2026-10-18 with no copy or look changes; the optional wording suggestions were not taken
+- [Phase 05]: 05-34: the breach verdict is computed once before the transaction and reused by the conflict retry, so a retry never repeats the HTTP call
+- [Phase 05]: 05-34: AuthEmail.ToString is sealed and returns the type name; per-record overrides removed (IN-06)
+- [Phase 05]: 05-41: GET /api/v1/audit-log/people returns a bare AuditPerson array, current staff first then former staff, ordered in SQL; names and ids only
+- [Phase 05]: 05-33: the Audit Log toggle's aria-controls names the dl inside the detail cell (the shared table's detail row has no id); an unapplied custom range keeps the 7-day default; the business today is read once when the page opens
+- [Phase 05]: 05-33: describeAuditDetail maps stored detail words per action to fixed sentences and gives nothing for unknown words, so no name or email can reach the screen (D-40); the e2e guard ignores Firefox's unused-font-preload warning for the app's own Archivo woff2
+- [Phase 05]: 05-43: audit detail words are AuditActions.Detail* constants; one AccountLinkLookup replaces the invite and reset lookups; PasswordRules.NewPasswordRequired is the one empty-password message — IN-02 and IN-04 closed with no behaviour change
+- [Phase 05]: 05-35: the showcase ships at /admin/components as a lazy chunk; budget.ts allows src/dev/ and the showcase parts in production only in chunks the showcase page reaches (never in initial JS, never imported from outside), and the parity entry, visual/, AdminPreviewPage and previewCopy stay out
+- [Phase 05]: 05-35: PreviewBody picks AdminPreviewPage only where __DEV_ROUTES__ is true, and the budget plugin counts a module only when it ships code beyond CommonJS import bindings, so AdminPreviewPage never ships with the kit
+- [Phase 05]: 05-35: the showcase chunk scan allows exact made-up addresses (spec section 12) and reserved example domains only; the sample gmail.com and yahoo.com addresses are flagged for the owner (public static chunk)
+- [Phase 05]: 05-42: the showcase Add User demo is a local-state twin of AddUserPanel (the real panel posts to the users API); dialogs that take their request as a prop use the real components with closing handlers
+- [Phase 05]: 05-42 (owner ruling 2026-10-18): every sample email in the shipped showcase and preview data uses example.com; name@gmail.com stays as the product's own validation hint
+- [Phase 05]: 05-44: a no-data useSubmission on an always-mounted component calls reset() when its success settles (SignOutOthersDialog, VerifyCodePage resend); CR-01 closed
+- [Phase 05]: 05-45: ChangePasswordHandler takes the account lock first and revokes PasswordReset tokens in the same transaction; UpdateUserHandler revokes them only on the MoveNow path for a person with a password (confirm and invited leave them alone)
+- [Phase 05]: 05-46: temporary-password accounts are created with NewUserAccount.KeepEmailUnconfirmed (password set at create, address unconfirmed) instead of create-then-SetPasswordAsync, which deadlocked the same-email race test
+- [Phase 05]: 05-48: AnyActiveManagerAsync delegates to CountActiveManagersAsync(null), one D-18 active-Manager rule for the bootstrap gate; SoftDeleteAsync unchanged
+- [Phase 05]: 05-49: idempotency request hash is HMAC-SHA256 under an HKDF key from Auth:CodeMacKey (label csps/idempotency/request-hash/v1); an old or rotated-key record is a 422 mismatch and never runs again; each covered POST purges up to 100 expired rows (D-50)
+- [Phase 05]: 05-47: SendResetLinkHandler sends nothing, with the usual 204, for an unconfirmed person (checked before the cap); SetTemporaryPasswordHandler no longer confirms an invited person's address (D-49)
+- [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
+- [Phase 05]: D-51 (owner, 2026-10-19): row actions sit 8 px apart with a full 44 x 44 px tap area each; the top bar user menu gets a 44 px tall tap area; WR-20 tap areas are recorded in the look-equality rulings
 
 ### Pending Todos
 
@@ -480,6 +629,8 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 | 22 | Stack docs say the package is self-contained win-x64 | 2026-10-17 | 5c8644f | — |
 | 261017-efe | Detailed GitHub Actions workflow reference in docs/operations/ci.md (every workflow, job and step, plus Hygiene and Dependabot) | 2026-10-17 | 0fd2f11 | [261017-efe-detailed-github-actions-workflow-referen](./quick/261017-efe-detailed-github-actions-workflow-referen/) |
 | 261017-j36 | Harden two load-sensitive tests (sign-in timing runs alone with warm-up; ESLint config test shares one instance with a 30 s budget) | 2026-10-17 | 8f232de | [261017-j36-harden-two-load-sensitive-tests-sign-in-](./quick/261017-j36-harden-two-load-sensitive-tests-sign-in-/) |
+| 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
+| 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
 
 ## Deferred Items
 
@@ -491,6 +642,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T13:40:00-05:00
-Stopped at: Phase 4 complete, ready to plan Phase 5
+Last session: 2026-10-19T19:40:00-05:00
+Stopped at: Phase 5 complete, ready to plan Phase 6
 Resume file: None

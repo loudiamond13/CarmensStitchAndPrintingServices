@@ -1,6 +1,6 @@
 // Shared page list and helpers for the end-of-phase browser gates (plan 02-35): the responsive sweep (@responsive), the
 // owner's WCAG rulings (@a11y-rulings), the font proof (@fonts) and the keyboard journeys (@keyboard). Every page the
-// e2e bundle serves in Phase 2 is here: the public shell (Blush only, D-14), the five dev-only admin preview pages (each
+// e2e bundle serves in Phase 2 is here: the public shell (Blush only, D-14), the dev-only admin preview pages (each
 // an empty state, D-20) and the Component Showcase, the admin ones in both themes (D-13).
 import { AxeBuilder } from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -10,7 +10,7 @@ import { expect } from './fixtures.ts';
 export type Theme = 'light' | 'dark';
 
 export interface PageCase {
-  /** The name in test titles and failure lines, e.g. "/admin/users (dark)". */
+  /** The name in test titles and failure lines, e.g. "/admin/orders (dark)". */
   readonly name: string;
   readonly path: string;
   readonly theme: Theme;
@@ -24,8 +24,6 @@ const ADMIN_PAGES = [
   { path: '/admin', h1: 'Dashboard' },
   { path: '/admin/orders', h1: 'Orders' },
   { path: '/admin/expenses', h1: 'Company Expenses' },
-  { path: '/admin/users', h1: 'Users' },
-  { path: '/admin/profile', h1: 'My Profile' },
   { path: '/dev/components', h1: 'Component Showcase' },
 ] as const;
 

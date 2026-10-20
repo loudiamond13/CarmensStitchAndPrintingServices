@@ -145,3 +145,28 @@ describe('SignOutDeviceDialog', () => {
     await expectNoAxeViolations(view.container);
   });
 });
+
+// D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
+describe('SignOutDeviceDialog open prop (D-39)', () => {
+  it('is open when open is omitted and renders nothing when it is false', () => {
+    const { rerender } = render(<SignOutDeviceDialog device={DEVICE} onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    rerender(<SignOutDeviceDialog open={false} device={DEVICE} onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens again without the failure line', async () => {
+    const onConfirm = vi.fn(() => Promise.reject(new HttpError({ kind: 'http', status: 500, problem: undefined })));
+    const user = userEvent.setup();
+    const { rerender } = render(<SignOutDeviceDialog device={DEVICE} onConfirm={onConfirm} onCancel={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out Device' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    rerender(<SignOutDeviceDialog open={false} device={DEVICE} onConfirm={onConfirm} onCancel={vi.fn()} />);
+    rerender(<SignOutDeviceDialog open device={DEVICE} onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign Out Device' })).toBeEnabled();
+  });
+});

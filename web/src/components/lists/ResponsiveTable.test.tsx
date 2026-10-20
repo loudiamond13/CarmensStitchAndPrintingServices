@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
@@ -394,6 +395,72 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('RowAction as an expand toggle (D-27): aria-expanded and aria-controls, a chevron that turns 180 degrees when open', () => {
+    const { rerender } = render(
+      <RowAction
+        icon="chevron-down"
+        label="Show details"
+        expanded={false}
+        controls="detail-1"
+        onClick={() => undefined}
+      />,
+    );
+    const closed = screen.getByRole('button', { name: 'Show details' });
+    expect(closed).toHaveAttribute('aria-expanded', 'false');
+    expect(closed).toHaveAttribute('aria-controls', 'detail-1');
+    expect(tokens(closed.querySelector('svg')?.getAttribute('class'))).toEqual(
+      expect.arrayContaining(['transition-transform', 'duration-200', 'motion-reduce:transition-none']),
+    );
+    expect(tokens(closed.querySelector('svg')?.getAttribute('class'))).not.toContain('rotate-180');
+
+    rerender(
+      <RowAction icon="chevron-down" label="Hide details" expanded controls="detail-1" onClick={() => undefined} />,
+    );
+    const open = screen.getByRole('button', { name: 'Hide details' });
+    expect(open).toHaveAttribute('aria-expanded', 'true');
+    expect(tokens(open.querySelector('svg')?.getAttribute('class'))).toContain('rotate-180');
+  });
+
+  it('RowAction without `expanded` has no aria-expanded or aria-controls', () => {
+    render(<RowAction icon="pencil" label="Edit Paolo" onClick={() => undefined} />);
+    const button = screen.getByRole('button', { name: 'Edit Paolo' });
+    expect(button).not.toHaveAttribute('aria-expanded');
+    expect(button).not.toHaveAttribute('aria-controls');
+  });
+
+  it('RowAction with `to`: a router link in the same icon-button look, named for its row, with no button', () => {
+    render(
+      <MemoryRouter>
+        <RowActions>
+          <RowAction to="/admin/profile" icon="pencil" label="Edit your details in My Profile" />
+          <RowAction icon="trash-2" label="Delete Paolo Garcia" danger onClick={() => undefined} />
+        </RowActions>
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Edit your details in My Profile' });
+    expect(link).toHaveAttribute('href', '/admin/profile');
+    expect(tokens(link.className)).toEqual(expect.arrayContaining(['size-9', 'hover:bg-surface-2', 'hover:text-ink']));
+    expect(link.querySelector('svg')).not.toBeNull();
+    // The button form is unchanged beside it.
+    const remove = screen.getByRole('button', { name: 'Delete Paolo Garcia' });
+    expect(tokens(remove.className)).toEqual(expect.arrayContaining(['hover:bg-danger-soft', 'hover:text-danger']));
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('RowAction with `to`: carries the title and hands its anchor to a ref', () => {
+    const ref = createRef<HTMLAnchorElement>();
+    render(
+      <MemoryRouter>
+        <RowActions>
+          <RowAction to="/admin/profile" icon="pencil" label="Edit mine" title="Edit mine" ref={ref} />
+        </RowActions>
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Edit mine' });
+    expect(link).toHaveAttribute('title', 'Edit mine');
+    expect(ref.current).toBe(link);
+  });
+
   it('RowAction: hands its button element to a ref, so a screen can move focus to it', () => {
     const ref = createRef<HTMLButtonElement>();
     render(
@@ -536,5 +603,88 @@ describe('lists scenarios (the ResponsiveTable cases)', () => {
       await expectNoAxeViolations(view.container);
       view.unmount();
     }
+  });
+});
+
+describe('ResponsiveTable expandable rows (D-27, UI-SPEC "ResponsiveTable expandable rows")', () => {
+  const detail = (user: User): ReactNode => <p>Details of {user.name}</p>;
+
+  it('renders a detail row right after each row, one cell spanning every column, hidden while collapsed', () => {
+    render(table({ detail, expandedKeys: new Set<string>() }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const trs = [...grid.querySelectorAll('tbody tr')];
+    expect(trs).toHaveLength(USERS.length * 2);
+    const detailRow = trs[1];
+    expect(detailRow).toHaveAttribute('hidden');
+    const cells = detailRow?.querySelectorAll('td');
+    expect(cells).toHaveLength(1);
+    expect(cells?.[0]).toHaveAttribute('colspan', String(COLUMNS.length));
+    expect(cells?.[0]).toHaveAttribute('data-label', 'Details');
+  });
+
+  it('shows the detail of an expanded row only, with its content', () => {
+    render(table({ detail, expandedKeys: new Set(['u1']) }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const trs = [...grid.querySelectorAll('tbody tr')];
+    expect(trs[1]).not.toHaveAttribute('hidden');
+    expect(within(trs[1] as HTMLElement).getByText('Details of Carmen Reyes')).toBeInTheDocument();
+    expect(trs[3]).toHaveAttribute('hidden');
+  });
+
+  it('puts the detail on the surface-2 ground with 16px padding and no top divider, stacked inside the phone card', () => {
+    render(table({ detail, expandedKeys: new Set(['u1']) }));
+    const grid = screen.getByRole('table', { name: 'Users' });
+    const [row, detailRow] = [...grid.querySelectorAll('tbody tr')];
+    const cell = detailRow?.querySelector('td');
+    expect(tokens(cell?.className)).toEqual(expect.arrayContaining(['bg-surface-2', 'p-4']));
+    expect(tokens(cell?.className)).not.toContain('border-t');
+    expect(tokens(detailRow?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:border-t-0', 'pg-phone:rounded-b-md', 'pg-phone:block']),
+    );
+    expect(tokens(row?.className)).toEqual(expect.arrayContaining(['pg-phone:rounded-t-md', 'pg-phone:border-b-0']));
+    expect(tokens(row?.className)).not.toContain('pg-phone:mb-3');
+  });
+
+  it('keeps a collapsed row a plain card and leaves the toggle to the caller', () => {
+    const onToggleRow = vi.fn();
+    const columns: readonly ResponsiveTableColumn<User>[] = COLUMNS.map((column) =>
+      column.actions === true
+        ? {
+            ...column,
+            cell: (user: User) => (
+              <RowActions>
+                <RowAction
+                  icon="pencil"
+                  label={`Toggle ${user.name}`}
+                  onClick={() => {
+                    onToggleRow(user.id);
+                  }}
+                />
+              </RowActions>
+            ),
+          }
+        : column,
+    );
+    render(table({ columns, detail, expandedKeys: new Set<string>(), onToggleRow }));
+    const [row] = screen.getAllByRole('row', { hidden: false }).slice(1);
+    expect(tokens(row?.className)).toContain('pg-phone:mb-3');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle Jomar Santos' }));
+    expect(onToggleRow).toHaveBeenCalledWith('u5');
+  });
+
+  it('renders a table without detail exactly as before: one tr per row and no Details cell', () => {
+    render(table());
+    const grid = screen.getByRole('table', { name: 'Users' });
+    expect(grid.querySelectorAll('tbody tr')).toHaveLength(USERS.length);
+    expect(grid.querySelector('[data-label="Details"]')).toBeNull();
+    expect(grid.querySelector('[hidden]')).toBeNull();
+  });
+
+  it('has no axe violations collapsed or expanded', async () => {
+    const collapsed = render(table({ detail, expandedKeys: new Set<string>() }));
+    await expectNoAxeViolations(collapsed.container);
+    collapsed.unmount();
+    const expanded = render(table({ detail, expandedKeys: new Set(['u1', 'u5']) }));
+    await expectNoAxeViolations(expanded.container);
   });
 });

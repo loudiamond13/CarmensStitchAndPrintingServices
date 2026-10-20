@@ -8,7 +8,7 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios as navigationScenarios } from '@/dev/scenarios/groups/navigation';
 import type { Role } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { ADMIN_NAV, Sidebar, type AdminSection } from '@/components/navigation';
+import { ADMIN_NAV, AUDIT_NAV_ITEM, Sidebar, type AdminSection } from '@/components/navigation';
 import {
   navTagClasses,
   sidebarClasses,
@@ -205,6 +205,76 @@ describe('Sidebar current item (D-03, D-31 D-BL-02)', () => {
     render(inRouter(<Sidebar role={MANAGER} />));
     await userEvent.click(link('Orders'));
     expect(link('Orders')).toBeDefined();
+  });
+});
+
+describe('Sidebar Audit Log item (USER-08, OQ-2)', () => {
+  it('keeps App. D.3 ADMIN_NAV at five ids and defines the Audit Log item beside it', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).toEqual(['dashboard', 'orders', 'expenses', 'users', 'profile']);
+    expect(AUDIT_NAV_ITEM).toEqual({
+      id: 'audit',
+      label: 'Audit Log',
+      icon: 'history',
+      to: '/admin/audit-log',
+      manager: true,
+    });
+  });
+
+  it('shows a Manager the Audit Log after Users, with the Manager tag and the history icon', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog />));
+
+    expect(navLinks().map((item) => item.textContent)).toEqual([
+      'Dashboard',
+      'Orders',
+      'Company Expenses',
+      'UsersManager',
+      'Audit LogManager',
+      'My Profile',
+    ]);
+    expect(link('Audit Log').getAttribute('href')).toBe('/admin/audit-log');
+    expect(link('Audit Log').querySelector('svg.lucide-history')).not.toBeNull();
+    expect(within(link('Audit Log')).getByText('Manager')).toBeInTheDocument();
+  });
+
+  it('never shows an Admin the Audit Log, with or without the prop', () => {
+    const { rerender } = render(inRouter(<Sidebar role={ADMIN} withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Audit Log/ })).toBeNull();
+
+    rerender(inRouter(<Sidebar withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Audit Log/ })).toBeNull();
+  });
+
+  it('leaves the sidebar as it was without the prop', () => {
+    render(inRouter(<Sidebar role={MANAGER} />));
+    expect(screen.queryByRole('link', { name: /^Audit Log/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('marks the Audit Log current for active "audit" and hides its Manager tag on that row', () => {
+    const active: AdminSection = 'audit';
+    const { rerender } = render(inRouter(<Sidebar role={MANAGER} active={active} withAuditLog />));
+    const audit = link('Audit Log');
+
+    expect(audit.getAttribute('aria-current')).toBe('page');
+    expect(within(audit).getByText('Manager').classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([audit]);
+
+    rerender(inRouter(<Sidebar role={MANAGER} active="dashboard" withAuditLog />));
+    expect(link('Audit Log').getAttribute('aria-current')).toBeNull();
+  });
+
+  it('names the item on the collapsed rail by its title and its label', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog defaultCollapsed />));
+
+    const audit = link('Audit Log');
+    expect(audit.getAttribute('title')).toBe('Audit Log');
+    expect(audit).toHaveAccessibleName('Audit Log');
+    expect(screen.queryByText('Manager')).toBeNull();
+  });
+
+  it('has no axe violations with the item', async () => {
+    const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="audit" withAuditLog />));
+    await expectNoAxeViolations(container);
   });
 });
 

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Auth;
@@ -8,13 +7,17 @@ namespace Csps.Server.IntegrationTests.Auth;
 /// AUTH-01, CWE-204, D-39: with the real 500 ms floor, an unknown email, a wrong password, a deactivated account and a
 /// success take the same time, so the answer's speed does not say which one it was. It runs alone
 /// (<see cref="SignInTimingRunsAlone"/>) because, under a full parallel run, the success branch's extra writes can take
-/// its own work past the floor, which then no longer hides it.
+/// its own work past the floor. That is accepted (05 D-57): a success already answers differently from every failure, so only
+/// the failure branches must be indistinguishable.
 /// </summary>
 [Collection(SignInTimingRunsAlone.Name)]
 public sealed class SignInTimingTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int Rounds = 8;
     private static readonly TimeSpan Floor = TimeSpan.FromMilliseconds(500);
+
+    // Fixed branch order, so each per-round time is labeled with the branch it came from.
+    private static readonly string[] Branches = ["unknown", "wrong", "deactivated", "success"];
 
     [Fact]
     public async Task EveryBranchTakesAtLeastTheFloorAndTheMediansAgree()
@@ -39,13 +42,7 @@ public sealed class SignInTimingTests(CspsDatabase database) : IClassFixture<Csp
         (await AuthClient.SignInAsync(client, deactivated.Email, deactivated.Password)).Dispose();
         (await AuthClient.SignInAsync(client, success.Email, success.Password)).Dispose();
 
-        var samples = new Dictionary<string, List<double>>(StringComparer.Ordinal)
-        {
-            ["unknown"] = [],
-            ["wrong"] = [],
-            ["deactivated"] = [],
-            ["success"] = [],
-        };
+        var samples = Branches.ToDictionary(static branch => branch, static _ => new List<double>(), StringComparer.Ordinal);
         for (var round = 0; round < Rounds; round++)
         {
             samples["unknown"].Add(await TimeAsync(client, AuthClient.NewEmail(), "some-password"));
@@ -58,12 +55,12 @@ public sealed class SignInTimingTests(CspsDatabase database) : IClassFixture<Csp
         var overall = Median(all);
         var report = string.Join(
             "; ",
-            samples.Select(pair => FormattableString.Invariant($"{pair.Key} median {Median(pair.Value):F0} ms")));
+            Branches.Select(branch => FormattableString.Invariant($"{branch} median {Median(samples[branch]):F0} ms")));
         var perRound = string.Join(
             " | ",
             Enumerable.Range(0, Rounds).Select(round => string.Join(
-                ", ", samples.Values.Select(list => list[round].ToString("F0", CultureInfo.InvariantCulture)))));
-        var summary = FormattableString.Invariant($"{report}; overall median {overall:F0} ms; min {all.Min():F0} ms; max {all.Max():F0} ms; rounds (unknown, wrong, deactivated, success): {perRound}");
+                ", ", Branches.Select(branch => FormattableString.Invariant($"{samples[branch][round]:F0}")))));
+        var summary = FormattableString.Invariant($"{report}; overall median {overall:F0} ms; min {all.Min():F0} ms; max {all.Max():F0} ms; rounds ({string.Join(", ", Branches)}): {perRound}");
         TestContext.Current.SendDiagnosticMessage(summary);
         await File.WriteAllTextAsync(
             Path.Combine(AppContext.BaseDirectory, "sign-in-timing.txt"), summary, TestContext.Current.CancellationToken);

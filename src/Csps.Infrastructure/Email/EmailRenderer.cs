@@ -27,10 +27,13 @@ internal sealed record EmailButton(string Label, string Url);
 /// <param name="links">Builds the links.</param>
 internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLinksOptions> links)
 {
+    private const int MinutesPerDay = 24 * 60;
+
     // Invariant culture with a fixed pattern gives the en-PH look without depending on the host's ICU data.
     private const string TimeFormat = "MMM d, yyyy, h:mm tt";
 
     private const string SessionsEndedLine = "For your safety, every device signed in to your account was signed out.";
+    private const string OtherDevicesEndedLine = "For your safety, every other device signed in to your account was signed out.";
 
     /// <summary>Renders <paramref name="email"/>.</summary>
     /// <param name="email">The email to render.</param>
@@ -51,6 +54,10 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ManagerResetEmail manager => ManagerReset(manager, clock.Zone),
             DeactivatedNoticeEmail deactivated => Deactivated(deactivated),
             InviteEmail invite => Invite(invite),
+            EmailChangeConfirmEmail confirm => ConfirmEmailChange(confirm),
+            EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
+            ManagerEmailChangedEmail changed => ManagerEmailChanged(changed, clock.Zone),
+            ManagerResetLinkEmail link => ManagerResetLink(link),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -100,12 +107,25 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ],
             Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
 
+    private EmailContent ManagerResetLink(ManagerResetLinkEmail email) =>
+        new(
+            Subject: "Reset your CSPS password",
+            Preheader: $"This link works for {Span(email.RequestedAt, email.ExpiresAt)}.",
+            Heading: "Reset your password",
+            Blocks:
+            [
+                new ParagraphBlock($"{email.ManagerName} sent you this link to set a new password for {email.To}.", Strong: email.To),
+                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
+                new ParagraphBlock($"Didn't expect this? Ask {email.ManagerName} or another Manager."),
+            ],
+            Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
+
     private EmailContent Changed(PasswordChangedEmail email, TimeZoneInfo zone)
     {
         var blocks = new List<EmailBlock> { new ParagraphBlock($"The password for {email.To} was changed on {Format(email.ChangedAt, zone)}.", Strong: email.To) };
         if (email.SessionsEnded)
         {
-            blocks.Add(new ParagraphBlock(SessionsEndedLine));
+            blocks.Add(new ParagraphBlock(email.OtherDevicesOnly ? OtherDevicesEndedLine : SessionsEndedLine));
         }
 
         blocks.Add(new ParagraphBlock("If you did this, there's nothing else to do."));
@@ -143,18 +163,69 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ],
             Button: null);
 
-    private EmailContent Invite(InviteEmail email) =>
-        new(
+    private EmailContent Invite(InviteEmail email)
+    {
+        var blocks = new List<EmailBlock>();
+        if (!string.IsNullOrWhiteSpace(email.InvitedBy))
+        {
+            blocks.Add(new ParagraphBlock($"{email.InvitedBy} set up your account."));
+        }
+
+        blocks.Add(new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To));
+        blocks.Add(new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once. If it expires, ask a Manager to send a new invite."));
+        blocks.Add(new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."));
+        return new(
             Subject: "Set up your CSPS staff account",
             Preheader: "Choose your password to get started.",
             Heading: "You're invited",
+            Blocks: blocks,
+            Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+    }
+
+    private EmailContent ConfirmEmailChange(EmailChangeConfirmEmail email) =>
+        new(
+            Subject: "Confirm your new CSPS email",
+            Preheader: $"This link works for {Span(email.RequestedAt, email.ExpiresAt)}.",
+            Heading: "Confirm your new email",
             Blocks:
             [
-                new ParagraphBlock($"A staff account at {EmailHtmlLayout.FooterBusiness} was set up for {email.To}. Set your password to start using CSPS Admin.", Strong: email.To),
-                new ParagraphBlock($"This link works for {Span(email.RequestedAt, email.ExpiresAt)} and only once. If it expires, ask a Manager to send a new invite."),
-                new ParagraphBlock("Each time you sign in, we'll also email you a 6-digit code."),
+                string.IsNullOrWhiteSpace(email.ChangedBy)
+                    ? new ParagraphBlock($"You asked to change the sign-in email for your CSPS staff account from {email.OldEmail} to {email.To}.", Strong: email.To)
+                    : new ParagraphBlock($"{email.ChangedBy} changed the sign-in email for your CSPS staff account to {email.To}.", Strong: email.To),
+                new ParagraphBlock($"Open the link to confirm. It works for {Span(email.RequestedAt, email.ExpiresAt)} and only once."),
+                new ParagraphBlock("Didn't ask for this? Ignore this email. Nothing changes."),
             ],
-            Button: new EmailButton("Set Your Password", links.Value.AcceptInviteLink(email.Token)));
+            Button: new EmailButton("Confirm Email", links.Value.ConfirmEmailLink(email.Token)));
+
+    private EmailContent EmailChangeNotice(EmailChangeNoticeEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "Your CSPS email is being changed",
+            Preheader: "If this wasn't you, act now.",
+            Heading: "Email change requested",
+            Blocks:
+            [
+                new ParagraphBlock($"Someone asked to change the sign-in email for your CSPS staff account to {email.NewEmail}.", Strong: email.NewEmail),
+                new MetaBlock($"Requested {Format(email.RequestedAt, zone)} from {DeviceLine(email.Device)}."),
+                new ParagraphBlock($"The change happens only after the new address is confirmed. Until then, you still sign in with {email.To}."),
+                new ParagraphBlock("If this wasn't you, change your password now and tell a Manager."),
+            ],
+            Button: new EmailButton("Reset Password", links.Value.ForgotPasswordPage()));
+
+    // Wording is built from the owner's D-45 ruling and is not yet approved (D-48).
+    private static EmailContent ManagerEmailChanged(ManagerEmailChangedEmail email, TimeZoneInfo zone) =>
+        new(
+            Subject: "A Manager changed your CSPS sign-in email",
+            Preheader: "Sign in with your new email from now on.",
+            Heading: "Your sign-in email was changed",
+            Blocks:
+            [
+                new ParagraphBlock($"{email.ChangedBy} changed your sign-in email to {email.NewEmail}.", Strong: email.NewEmail),
+                new MetaBlock($"Changed {Format(email.ChangedAt, zone)}."),
+                new ParagraphBlock($"From now on, sign in with {email.NewEmail}. This address, {email.To}, no longer signs in to CSPS."),
+                new ParagraphBlock(SessionsEndedLine),
+                new ParagraphBlock("If you didn't expect this, tell a Manager."),
+            ],
+            Button: null);
 
     // The branded frame (D-30): the HTML part and the plain-text part are both built from the same blocks.
     private static RenderedEmail Brand(EmailContent content)
@@ -183,12 +254,17 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
     }
 
-    // A lifetime in the words of the email: whole hours as hours, anything else as minutes.
+    // A lifetime in the words of the email: whole days from two up as days, other whole hours as hours, else minutes.
     private static string Span(DateTimeOffset from, DateTimeOffset to) => Span(to - from);
 
     private static string Span(TimeSpan length)
     {
         var minutes = Math.Max(1, (int)Math.Round(length.TotalMinutes));
+        if (minutes >= 2 * MinutesPerDay && minutes % MinutesPerDay == 0)
+        {
+            return Plural(minutes / MinutesPerDay, "day");
+        }
+
         return minutes % 60 == 0
             ? Plural(minutes / 60, "hour")
             : Plural(minutes, "minute");

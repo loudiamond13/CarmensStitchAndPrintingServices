@@ -11,7 +11,9 @@
 // URL) and wires each control and each chip's clear to the list hook's setFilter, a replace that resets the page.
 // SPEC-DEVIATION: PERF-03 (UI-SPEC overflow row) the chips sit in their own wrapping group with the label in a
 // truncating span, so four chips at 320px wrap instead of scrolling; App. E.7 puts its one chip straight in the bar.
+import clsx from 'clsx';
 import { Children, type ReactNode } from 'react';
+import { targetAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { LISTS_COPY, nounFor } from './copy';
 import {
@@ -52,11 +54,13 @@ export interface ResultBarProps {
   things: string;
   /** "due date", read as " · sorted by due date". */
   sortLabel?: string | undefined;
+  /** A fixed order phrase, read as " · newest first" (the audit log, which cannot be sorted). */
+  orderNote?: string | undefined;
   /** One FilterChip per non-default filter. */
   children?: ReactNode;
 }
 
-export function ResultBar({ count, thing, things, sortLabel, children }: ResultBarProps) {
+export function ResultBar({ count, thing, things, sortLabel, orderNote, children }: ResultBarProps) {
   const chips = Children.toArray(children);
   if (count === 0 && chips.length === 0) {
     return null;
@@ -67,6 +71,7 @@ export function ResultBar({ count, thing, things, sortLabel, children }: ResultB
         <span>
           {LISTS_COPY.showing} <strong className={resultCountClasses}>{count}</strong> {nounFor(count, thing, things)}
           {sortLabel !== undefined && LISTS_COPY.sortedBy(sortLabel)}
+          {orderNote !== undefined && LISTS_COPY.orderNote(orderNote)}
         </span>
       )}
       {chips.length > 0 && <div className={chipGroupClasses}>{chips}</div>}
@@ -89,7 +94,7 @@ export function FilterChip({ label, value, onClear }: FilterChipProps) {
       <span className={filterChipLabelClasses}>{LISTS_COPY.chip(label, value)}</span>
       <button
         type="button"
-        className={filterChipClearClasses}
+        className={clsx(filterChipClearClasses, targetAreaClasses)}
         aria-label={LISTS_COPY.clearFilter(label)}
         onClick={onClear}
       >

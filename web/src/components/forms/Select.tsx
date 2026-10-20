@@ -18,7 +18,30 @@ import {
   selectOptionClasses,
 } from './field.recipe';
 
-export type SelectOption = string | { value: string; label: string };
+/** `group` puts the option under a native optgroup; consecutive options with the same group share one. */
+export type SelectOption = string | { value: string; label: string; group?: string };
+
+type OptionObject = Exclude<SelectOption, string>;
+
+interface OptionChunk {
+  group: string | undefined;
+  items: readonly OptionObject[];
+}
+
+/** Splits the options into runs of the same group (undefined for ungrouped), keeping their order. */
+function chunkOptions(options: readonly SelectOption[]): OptionChunk[] {
+  const chunks: { group: string | undefined; items: OptionObject[] }[] = [];
+  for (const option of options) {
+    const item = typeof option === 'string' ? { value: option, label: option } : option;
+    const last = chunks.at(-1);
+    if (last !== undefined && last.group === item.group) {
+      last.items.push(item);
+    } else {
+      chunks.push({ group: item.group, items: [item] });
+    }
+  }
+  return chunks;
+}
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: ReactNode;
@@ -54,12 +77,18 @@ export function Select({ label, options, placeholder, error, hint, className, id
               {placeholder}
             </option>
           )}
-          {options.map((option) => {
-            const optionValue = typeof option === 'string' ? option : option.value;
-            return (
-              <option key={optionValue} value={optionValue} className={selectOptionClasses}>
-                {typeof option === 'string' ? option : option.label}
+          {chunkOptions(options).map((chunk, index) => {
+            const items = chunk.items.map((item) => (
+              <option key={item.value} value={item.value} className={selectOptionClasses}>
+                {item.label}
               </option>
+            ));
+            return chunk.group === undefined ? (
+              items
+            ) : (
+              <optgroup key={`${chunk.group}-${String(index)}`} label={chunk.group} className={selectOptionClasses}>
+                {items}
+              </optgroup>
             );
           })}
         </select>

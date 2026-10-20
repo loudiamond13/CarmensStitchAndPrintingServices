@@ -27,18 +27,24 @@ import {
 } from './overlays.recipe';
 
 export interface ConfirmDialogProps {
+  /** False plays the close animation and then renders nothing; each new open starts clean (D-39). Default true. */
+  open?: boolean;
   title?: string;
   message?: ReactNode;
   counts?: CascadeCounts | undefined;
   /** Type-to-confirm text (e.g. the order number). */
   confirmText?: string | undefined;
   confirmLabel?: string;
+  /** The confirm button's words while the action runs ("Deleting"); the confirm label stays when it is not set. */
+  pendingLabel?: string;
   // SPEC-DEVIATION: WEB-06 / T-02-53. App. D.3 took `() => void`. The action may now return a promise: while it is
   // pending the dialog ignores further confirms, Esc, the scrim and Cancel, and a rejection, or a resolved
   // `{ ok: false, error }` (a useSubmission outcome, so `onConfirm={() => submission.submit()}` works), is a failure.
   /** The confirmed action. Return its promise so the dialog can track the attempt. */
   onConfirm?: () => unknown;
   onCancel?: () => void;
+  /** Words for a failure the caller recognises; undefined leaves the line to describeHttpError. */
+  describeFailure?: (error: unknown) => ErrorCopy | undefined;
   inline?: boolean;
   loading?: boolean;
 }
@@ -64,22 +70,36 @@ function failureText({ title, body }: ErrorCopy): string {
 }
 
 export function ConfirmDialog({
+  open = true,
   title = 'Delete this?',
   message,
   counts,
   confirmText,
   confirmLabel = 'Delete',
+  pendingLabel,
   onConfirm,
   onCancel,
+  describeFailure,
   inline = false,
   loading = false,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('');
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<ErrorCopy | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const inFlight = useRef(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // A new open starts clean: adjusted while rendering, no effect needed.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setTyped('');
+      setPending(false);
+      setFailure(null);
+    }
+  }
 
   const hasConfirmText = confirmText !== undefined && confirmText !== '';
   const ok = !hasConfirmText || typed.trim() === confirmText;
@@ -87,7 +107,7 @@ export function ConfirmDialog({
   const cascade = counts === undefined ? '' : cascadeSentence(counts);
 
   const fail = (error: unknown) => {
-    setFailure(describeHttpError(error));
+    setFailure(describeFailure?.(error) ?? describeHttpError(error));
     // The button leaves its pending state and takes focus back for a retry.
     confirmRef.current?.focus();
   };
@@ -136,7 +156,7 @@ export function ConfirmDialog({
 
   return (
     <Modal
-      open
+      open={open}
       title={title}
       onClose={onCancel}
       inline={inline}
@@ -150,7 +170,7 @@ export function ConfirmDialog({
             Cancel
           </Button>
           <Button variant="danger" icon="trash-2" disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
-            {confirmLabel}
+            {pending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
           </Button>
         </>
       }

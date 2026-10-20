@@ -7,6 +7,7 @@ using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.IntegrationTests.Identity;
@@ -44,6 +45,22 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         found.BreachRecheckPending.ShouldBeFalse();
         found.LockoutEnd.ShouldBeNull();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.Email.ShouldBe(email);
+    }
+
+    [Fact]
+    public async Task APasswordAccountKeptUnconfirmedHoldsTheHashButNotTheConfirmation()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+
+        var id = await accounts.CreateAsync(
+            new NewUserAccount(NewEmail(), "Tess", "Tan", Roles.Manager, Password, KeepEmailUnconfirmed: true), TestContext.Current.CancellationToken);
+
+        var found = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        found.HasPassword.ShouldBeTrue();
+        found.EmailConfirmed.ShouldBeFalse();
+        (await accounts.CheckPasswordAsync(id, Password, TestContext.Current.CancellationToken)).ShouldBe(PasswordCheck.Succeeded);
     }
 
     [Theory]
@@ -129,14 +146,14 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
             result.LockoutEnd.ShouldBeNull();
         }
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await IsLockedAsync(accounts, id)).ShouldBeFalse();
 
         var fifth = await accounts.RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken);
 
         fifth.LockedNow.ShouldBeTrue();
         fifth.LockoutEnd.ShouldNotBeNull();
         fifth.LockoutEnd.Value.ShouldBe(TimeProvider.System.GetUtcNow() + LockoutLength, TimeSpan.FromMinutes(1));
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBe(fifth.LockoutEnd);
 
         // A sixth failure on a locked account is not a new lockout, so the lockout email goes out once.
@@ -182,7 +199,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
 
         await accounts.ClearLockoutAsync(id, TestContext.Current.CancellationToken);
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await IsLockedAsync(accounts, id)).ShouldBeFalse();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBeNull();
 
         // The count restarted: four more failures do not lock again.
@@ -190,6 +207,30 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         {
             (await accounts.RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken)).LockedNow.ShouldBeFalse();
         }
+    }
+
+    [Fact]
+    public async Task ClearingTheLockoutNeverLiftsAManagerLockADeactivationOrADelete()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var id = await accounts.CreateAsync(NewAccount(Roles.Admin, Password), TestContext.Current.CancellationToken);
+        var user = (await users.FindByIdAsync(id.ToString("D", CultureInfo.InvariantCulture))).ShouldNotBeNull();
+        user.IsActive = false;
+        user.ManagerLockedAtUtc = DateTimeOffset.UnixEpoch.AddYears(56);
+        user.DeletedAtUtc = DateTimeOffset.UnixEpoch.AddYears(56);
+        (await users.UpdateAsync(user)).Succeeded.ShouldBeTrue();
+        await accounts.LockUntilAsync(id, TimeProvider.System.GetUtcNow().Add(LockoutLength), TestContext.Current.CancellationToken);
+
+        await accounts.ClearLockoutAsync(id, TestContext.Current.CancellationToken);
+
+        var after = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        after.LockoutEnd.ShouldBeNull();
+        after.IsActive.ShouldBeFalse();
+        after.IsManagerLocked.ShouldBeTrue();
+        after.IsDeleted.ShouldBeTrue();
     }
 
     [Fact]
@@ -223,7 +264,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
 
         await accounts.LockUntilAsync(id, until, TestContext.Current.CancellationToken);
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
         (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd.ShouldBe(until);
     }
 
@@ -359,6 +400,66 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
     }
 
     [Fact]
+    public async Task ManagerLockedManagerDoesNotCount()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.ManagerLockedAtUtc = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+    }
+
+    [Fact]
+    public async Task DeletedManagerDoesNotCount()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.DeletedAtUtc = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+    }
+
+    [Fact]
+    public async Task AFailedPasswordLockoutStillCounts()
+    {
+        var own = await CspsDatabase.CreateAsync();
+        await using (own)
+        {
+            await using var provider = BuildProvider(own.ConnectionString);
+            await using var scope = provider.CreateAsyncScope();
+            var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var id = await accounts.CreateAsync(NewAccount(Roles.Manager, Password), TestContext.Current.CancellationToken);
+            var manager = (await users.FindByIdAsync(id.ToString()))!;
+            manager.LockoutEnd = new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            (await users.UpdateAsync(manager)).Succeeded.ShouldBeTrue();
+
+            (await accounts.AnyActiveManagerAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
+            (await accounts.CountActiveManagersAsync(null, TestContext.Current.CancellationToken)).ShouldBe(1);
+        }
+    }
+
+    [Fact]
     public async Task CreatingADuplicateEmailFails()
     {
         await using var provider = BuildProvider(database.ConnectionString);
@@ -367,8 +468,55 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         var email = NewEmail();
         await accounts.CreateAsync(new NewUserAccount(email, "A", "B", Roles.Admin, Password), TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => accounts.CreateAsync(
+        await Should.ThrowAsync<EmailInUseException>(() => accounts.CreateAsync(
             new NewUserAccount(email.ToUpperInvariant(), "C", "D", Roles.Admin, Password), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task TheUniqueEmailIndexAloneRefusesADuplicateAndLeavesNoRowTracked()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var context = scope.ServiceProvider.GetRequiredService<CspsDbContext>();
+        var email = NewEmail();
+        await accounts.CreateAsync(new NewUserAccount(email, "A", "B", Roles.Admin, Password), TestContext.Current.CancellationToken);
+
+        // With Identity's own lookup out of the way, as when it ran before the other create committed, only the index is left to refuse.
+        users.UserValidators.Clear();
+        await Should.ThrowAsync<EmailInUseException>(() => accounts.CreateAsync(
+            new NewUserAccount(email.ToUpperInvariant(), "C", "D", Roles.Admin, Password), TestContext.Current.CancellationToken));
+
+        context.ChangeTracker.Entries<ApplicationUser>().Any(entry => entry.State == EntityState.Added).ShouldBeFalse();
+        (await context.SaveChangesAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TheManagerLockSetsAndClearsOnlyOnARealChangeAndLeavesTheFailedPasswordLockoutAlone()
+    {
+        await using var provider = BuildProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<IUserAccounts>();
+        var id = await accounts.CreateAsync(NewAccount(Roles.Admin, Password), TestContext.Current.CancellationToken);
+        await LockByFailuresAsync(accounts, id);
+        var lockedAt = new DateTimeOffset(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
+
+        (await accounts.SetManagerLockAsync(id, null, TestContext.Current.CancellationToken)).ShouldBeFalse();
+        (await accounts.SetManagerLockAsync(id, lockedAt, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await accounts.SetManagerLockAsync(id, lockedAt.AddDays(1), TestContext.Current.CancellationToken)).ShouldBeFalse();
+
+        var locked = (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!;
+        locked.IsManagerLocked.ShouldBeTrue();
+        locked.IsBlocked.ShouldBeTrue();
+        await using (var context = database.CreateContext())
+        {
+            (await context.Users.AsNoTracking().SingleAsync(user => user.Id == id, TestContext.Current.CancellationToken)).ManagerLockedAtUtc.ShouldBe(lockedAt);
+        }
+
+        (await accounts.SetManagerLockAsync(id, null, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.IsManagerLocked.ShouldBeFalse();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
     }
 
     [Fact]
@@ -394,7 +542,7 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
             await accounts.RecordFailedPasswordAsync(id, TestContext.Current.CancellationToken);
         }
 
-        (await accounts.IsLockedOutAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await IsLockedAsync(accounts, id)).ShouldBeTrue();
     }
 
     private static ServiceProvider BuildProvider(string connectionString)
@@ -405,4 +553,8 @@ public sealed class UserAccountsTests(CspsDatabase database) : IClassFixture<Csp
         services.AddCspsIdentity();
         return services.BuildServiceProvider(validateScopes: true);
     }
+
+    // A failed-password lockout is on while its end lies in the future.
+    private static async Task<bool> IsLockedAsync(IUserAccounts accounts, Guid id) =>
+        (await accounts.FindByIdAsync(id, TestContext.Current.CancellationToken))!.LockoutEnd is { } end && end > TimeProvider.System.GetUtcNow();
 }

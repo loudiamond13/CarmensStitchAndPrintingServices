@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -68,7 +67,7 @@ public sealed class VerifyCodeHandler(
         }
 
         var user = await accounts.FindByIdAsync(challenge.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null || !user.IsActive || (user.LockoutEnd is { } lockedUntil && lockedUntil > time.GetUtcNow()))
+        if (user is null || user.IsBlocked || (user.LockoutEnd is { } lockedUntil && lockedUntil > time.GetUtcNow()))
         {
             return Result.Failure<VerifyCodeOutcome>(AuthErrors.TicketExpired);
         }
@@ -90,23 +89,28 @@ public sealed class VerifyCodeHandler(
         };
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     // A correct code: either a session starts, or the account is handed to the set-new-password step (D-13).
+    // A correct code also proves the mailbox, so the first one confirms the address (D-49).
     private async Task<VerifyCodeOutcome> AcceptAsync(TwoFactorChallenge challenge, UserAccount user, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        if (!user.EmailConfirmed)
+        {
+            await accounts.ConfirmEmailAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        }
+
         if (user.MustChangePassword is { } reason)
         {
             challenge.RequirePasswordChange(reason);
-            audit.Record(AuditActions.TwoFactorVerified, UserTarget, Key(user.Id), null);
+            audit.Record(AuditActions.TwoFactorVerified, UserTarget, AuditKey.Of(user.Id), null);
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return new VerifyCodeOutcome(VerifyNext.SetNewPassword, reason, null);
         }
 
         challenge.Complete(now);
         var issued = await sessionIssuer.StartAsync(user, challenge.Persistent, cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.TwoFactorVerified, UserTarget, Key(user.Id), null);
-        audit.Record(AuditActions.SignedIn, SessionTarget, Key(issued.SessionId), null);
+        audit.Record(AuditActions.TwoFactorVerified, UserTarget, AuditKey.Of(user.Id), null);
+        audit.Record(AuditActions.SignedIn, SessionTarget, AuditKey.Of(issued.SessionId), null);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return new VerifyCodeOutcome(VerifyNext.SignedIn, null, issued);
     }
@@ -122,7 +126,7 @@ public sealed class VerifyCodeHandler(
             if (TwoFactorLimits.AccountCapReached(earlier + 1, twoFactor))
             {
                 await LockAsync(user, now, cancellationToken).ConfigureAwait(false);
-                await audit.RecordIndependentlyAsync(AuditActions.TwoFactorFailed, UserTarget, Key(user.Id), null, cancellationToken).ConfigureAwait(false);
+                await audit.RecordIndependentlyAsync(AuditActions.TwoFactorFailed, UserTarget, AuditKey.Of(user.Id), null, cancellationToken).ConfigureAwait(false);
                 return AuthErrors.CodeLockout;
             }
 
@@ -131,7 +135,7 @@ public sealed class VerifyCodeHandler(
 
         var exhausted = outcome == TwoFactorVerifyOutcome.Exhausted;
         await audit.RecordIndependentlyAsync(
-            exhausted ? AuditActions.TwoFactorExhausted : AuditActions.TwoFactorFailed, UserTarget, Key(user.Id), null, cancellationToken).ConfigureAwait(false);
+            exhausted ? AuditActions.TwoFactorExhausted : AuditActions.TwoFactorFailed, UserTarget, AuditKey.Of(user.Id), null, cancellationToken).ConfigureAwait(false);
         return exhausted ? AuthErrors.CodeUsedUp : AuthErrors.CodeWrong;
     }
 
@@ -144,7 +148,7 @@ public sealed class VerifyCodeHandler(
                 await challenges.InvalidateOpenAsync(user.Id, now, token).ConfigureAwait(false);
                 await accounts.LockUntilAsync(user.Id, until, token).ConfigureAwait(false);
                 await outbox.EnqueueAsync(new AccountLockedEmail(user.Email, until, LockoutCause.Code, settings.CodeLockoutDuration), token).ConfigureAwait(false);
-                audit.Record(AuditActions.Lockout, UserTarget, Key(user.Id), "code");
+                audit.Record(AuditActions.Lockout, UserTarget, AuditKey.Of(user.Id), AuditActions.DetailCode);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return true;
             },

@@ -1,0 +1,237 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { createUserSchema, temporaryPasswordSchema, updateUserSchema } from './usersSchemas';
+
+// The Add User form's zod mirror (OR-3) of CreateUserRequestValidator: names required after trim and at most 100, the email
+// required and shaped like one (at most 256), a role and a way to get access.
+
+const VALID = {
+  firstName: 'Ana',
+  lastName: 'Reyes',
+  email: 'ana@example.ph',
+  role: 'Admin',
+  access: 'invitation',
+  temporaryPassword: '',
+};
+
+function messages(overrides: Record<string, string> = {}): Record<string, string> {
+  const result = createUserSchema.safeParse({ ...VALID, ...overrides });
+  if (result.success) {
+    return {};
+  }
+  return Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+}
+
+describe('createUserSchema names', () => {
+  it('accepts an ordinary invitation and trims the names and the email', () => {
+    const result = createUserSchema.parse({
+      ...VALID,
+      firstName: '  Ana ',
+      lastName: ' Reyes ',
+      email: ' ana@example.ph ',
+    });
+
+    expect(result).toMatchObject({
+      firstName: 'Ana',
+      lastName: 'Reyes',
+      email: 'ana@example.ph',
+      access: 'invitation',
+    });
+  });
+
+  it.each(['', '   ', '\t \n'])('refuses a blank first name %j', (firstName) => {
+    expect(messages({ firstName })).toEqual({ firstName: 'Enter a first name.' });
+  });
+
+  it.each(['', '   '])('refuses a blank last name %j', (lastName) => {
+    expect(messages({ lastName })).toEqual({ lastName: 'Enter a last name.' });
+  });
+
+  it('reports both names at once, each under its own field', () => {
+    expect(messages({ firstName: '', lastName: ' ' })).toEqual({
+      firstName: 'Enter a first name.',
+      lastName: 'Enter a last name.',
+    });
+  });
+
+  it('accepts exactly 100 characters and refuses 101, for each name', () => {
+    expect(messages({ firstName: 'a'.repeat(100), lastName: 'b'.repeat(100) })).toEqual({});
+    expect(messages({ firstName: 'a'.repeat(101) })).toEqual({
+      firstName: 'First name must be 100 characters or fewer.',
+    });
+    expect(messages({ lastName: 'b'.repeat(101) })).toEqual({ lastName: 'Last name must be 100 characters or fewer.' });
+  });
+
+  it('counts the length after trimming', () => {
+    expect(messages({ firstName: ` ${'a'.repeat(100)} ` })).toEqual({});
+  });
+});
+
+describe('createUserSchema email', () => {
+  it.each(['', '   '])('refuses a blank email %j', (email) => {
+    expect(messages({ email })).toEqual({ email: 'Enter their email.' });
+  });
+
+  it.each(['ana', 'ana@', '@example.ph', 'ana@@example.ph', 'a@b@c'])(
+    'refuses %j as not shaped like an email',
+    (email) => {
+      expect(messages({ email })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+    },
+  );
+
+  it('accepts 256 characters and refuses 257', () => {
+    const at = (length: number) => `${'a'.repeat(length - '@e.ph'.length)}@e.ph`;
+    expect(messages({ email: at(256) })).toEqual({});
+    expect(messages({ email: at(257) })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+  });
+});
+
+describe('createUserSchema role and access', () => {
+  it.each(['Admin', 'Manager'])('accepts the role %s', (role) => {
+    expect(messages({ role })).toEqual({});
+  });
+
+  it.each(['', 'Owner', 'admin '])('refuses the role %j', (role) => {
+    expect(messages({ role })).toEqual({ role: 'Choose a role.' });
+  });
+
+  it.each(['invitation', 'temporary-password'])(
+    'accepts the access %s once a password is given for the temporary one',
+    (access) => {
+      expect(messages({ access, temporaryPassword: 'Tela-Sukat-7381' })).toEqual({});
+    },
+  );
+
+  it.each(['', 'email', 'Invitation'])('refuses the access %j', (access) => {
+    expect(messages({ access })).toEqual({ access: 'Choose how they get access.' });
+  });
+});
+
+describe('createUserSchema temporary password (04 D-21, the basic rule only)', () => {
+  const temporary = (temporaryPassword: string) => messages({ access: 'temporary-password', temporaryPassword });
+
+  it.each([
+    ['', 'Enter a temporary password.'],
+    ['Ab1!', 'Use at least 8 characters.'],
+    ['Ab1!'.repeat(17), 'Use 64 characters or fewer.'],
+    ['Abcd\tefg1!', 'Remove tabs and line breaks from your password.'],
+    ['Abcdefgh!', 'Add at least one number.'],
+    ['Abcdefgh1', 'Add at least one symbol, like ! or #.'],
+  ])('refuses %j with the matching message', (password, message) => {
+    expect(temporary(password)).toEqual({ temporaryPassword: message });
+  });
+
+  it('accepts 8 and 64 characters', () => {
+    expect(temporary('Abcdef1!')).toEqual({});
+    expect(temporary(`${'a'.repeat(61)}1!x`)).toEqual({});
+  });
+
+  it("accepts the person's own name and email part inside it: no name check", () => {
+    expect(temporary('Ana-Reyes-1234')).toEqual({});
+    expect(temporary('ana-example-1234')).toEqual({});
+  });
+
+  it('applies only on the temporary route: an invitation ignores what the field holds', () => {
+    expect(messages({ access: 'invitation', temporaryPassword: 'x' })).toEqual({});
+  });
+});
+
+// The Set Temporary Password dialog (U5; plan 05-30): the same basic rule as Add User, mirrored from SetTemporaryPasswordRequestValidator.
+describe('temporaryPasswordSchema (04 D-21, the basic rule only)', () => {
+  const check = (temporaryPassword: string): Record<string, string> => {
+    const result = temporaryPasswordSchema.safeParse({ temporaryPassword });
+    return result.success
+      ? {}
+      : Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+  };
+
+  it.each([
+    ['', 'Enter a temporary password.'],
+    ['Ab1!', 'Use at least 8 characters.'],
+    ['Ab1!'.repeat(17), 'Use 64 characters or fewer.'],
+    ['Abcd\tefg1!', 'Remove tabs and line breaks from your password.'],
+    ['Abcdefgh!', 'Add at least one number.'],
+    ['Abcdefgh1', 'Add at least one symbol, like ! or #.'],
+  ])('refuses %j with the matching message', (password, message) => {
+    expect(check(password)).toEqual({ temporaryPassword: message });
+  });
+
+  it('accepts 8 and 64 characters, and a name or email part inside it', () => {
+    expect(check('Abcdef1!')).toEqual({});
+    expect(check(`${'a'.repeat(61)}1!x`)).toEqual({});
+    expect(check('Ana-Reyes-1234')).toEqual({});
+  });
+});
+
+// The Edit User form's zod mirror (OR-3) of UpdateUserRequestValidator and the D-45 choice: names, email and role as in Add
+// User, and a changed email (compared after trim, ignoring letter case, as the server does) needs a choice.
+describe('updateUserSchema', () => {
+  const SAVED = {
+    firstName: 'Paolo',
+    lastName: 'Garcia',
+    email: 'paolo@example.ph',
+    role: 'Admin',
+    emailChange: 'confirm',
+    savedEmail: 'paolo@example.ph',
+  };
+
+  function editMessages(overrides: Record<string, string> = {}): Record<string, string> {
+    const result = updateUserSchema.safeParse({ ...SAVED, ...overrides });
+    if (result.success) {
+      return {};
+    }
+    return Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
+  }
+
+  it('accepts the saved values and trims the names and the email', () => {
+    const result = updateUserSchema.parse({
+      ...SAVED,
+      firstName: ' Paolo ',
+      lastName: ' Garcia ',
+      email: ' paolo@example.ph ',
+    });
+
+    expect(result).toMatchObject({ firstName: 'Paolo', lastName: 'Garcia', email: 'paolo@example.ph' });
+  });
+
+  it('refuses blank and over-long names with the Add User messages', () => {
+    expect(editMessages({ firstName: ' ', lastName: '' })).toEqual({
+      firstName: 'Enter a first name.',
+      lastName: 'Enter a last name.',
+    });
+    expect(editMessages({ firstName: 'a'.repeat(101) })).toEqual({
+      firstName: 'First name must be 100 characters or fewer.',
+    });
+    expect(editMessages({ firstName: 'a'.repeat(100), lastName: 'b'.repeat(100) })).toEqual({});
+  });
+
+  it('refuses a blank, misshapen or over-long email', () => {
+    expect(editMessages({ email: '  ', emailChange: '' })).toEqual({ email: 'Enter their email.' });
+    expect(editMessages({ email: 'paolo@' })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+    const at = (length: number) => `${'a'.repeat(length - '@e.ph'.length)}@e.ph`;
+    expect(editMessages({ email: at(256) })).toEqual({});
+    expect(editMessages({ email: at(257) })).toEqual({ email: 'Enter a valid email, like name@gmail.com' });
+  });
+
+  it.each(['', 'Owner', 'admin '])('refuses the role %j', (role) => {
+    expect(editMessages({ role })).toEqual({ role: 'Choose a role.' });
+  });
+
+  it('needs no choice while the email is unchanged, also when it differs only by letter case or spaces', () => {
+    expect(editMessages({ emailChange: '' })).toEqual({});
+    expect(editMessages({ email: ' PAOLO@Example.ph ', emailChange: '' })).toEqual({});
+  });
+
+  it('needs a choice once the email changes (D-45)', () => {
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange: '' })).toEqual({
+      emailChange: 'Choose how the email change applies.',
+    });
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange: 'maybe' })).toEqual({
+      emailChange: 'Choose how the email change applies.',
+    });
+  });
+
+  it.each(['confirm', 'now'])('accepts the choice %s for a changed email', (emailChange) => {
+    expect(editMessages({ email: 'paolo.g@example.ph', emailChange })).toEqual({});
+  });
+});

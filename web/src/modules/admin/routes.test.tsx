@@ -1,16 +1,20 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
-import { clearSession } from '@/modules/admin/services/session';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
+
+// The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
+// the 5 s default for every test: only this file, never the whole suite (plan 05-37).
+vi.setConfig({ testTimeout: 15_000 });
 
 interface RefreshProbe {
   count: number;
@@ -45,7 +49,8 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    // The first lazy route chunk of the file loads here; on a loaded machine that takes longer than 5 s.
+    await expect.poll(() => router.state.location.pathname, { timeout: 15_000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Forders');
     // One refresh for the guard, and one more when the sign-in page checks that no session is live.
@@ -114,6 +119,205 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
   });
 });
 
+const adminSession = () =>
+  sessionResponse({
+    user: {
+      id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+      email: 'lito@example.ph',
+      firstName: 'Lito',
+      lastName: 'Santos',
+      role: 'Admin',
+    },
+  });
+
+describe('Manager-only routes (USER-08)', () => {
+  /** The Signed-in devices list the index redirect lands on. */
+  function answerSessionsList(): void {
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+  }
+
+  it.each(['/admin/users', '/admin/audit-log'])(
+    'an Admin who opens %s lands on /admin and then Signed-in devices',
+    async (path) => {
+      answerRefresh(adminSession());
+      answerSessionsList();
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+
+      await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+      expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
+    },
+  );
+
+  it('a Manager who opens /admin/audit-log stays and sees the Audit Log (AUDIT-02)', async () => {
+    answerRefresh(sessionResponse());
+    server.use(
+      http.get('*/api/v1/audit-log/people', () => HttpResponse.json([])),
+      http.get('*/api/v1/audit-log', () => HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/audit-log'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Audit Log' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/audit-log');
+    // The shell around it: Audit Log is the one current sidebar item.
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Audit Log']);
+    await waitFor(() => {
+      expect(document.title).toBe('Audit Log · CSPS Admin');
+    });
+  });
+
+  it('a Manager who opens /admin/users stays and sees the Users roster (USER-01)', async () => {
+    answerRefresh(sessionResponse());
+    server.use(
+      http.get('*/api/v1/users', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+              firstName: 'Carmen',
+              lastName: 'Reyes',
+              email: 'carmen@example.ph',
+              role: 'Manager',
+              status: 'active',
+              inviteState: 'none',
+              createdAt: '2026-10-17T01:00:00Z',
+            },
+          ],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+        }),
+      ),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Users' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Users' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/users');
+    // The shell around it: Users is the one current sidebar item (its Manager tag hidden, D-BL-02) and no tab is current.
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = sidebar?.querySelectorAll('[aria-current="page"]') ?? [];
+    expect([...current].map((link) => link.textContent.replace('Manager', ''))).toEqual(['Users']);
+    const usersLink = [...(sidebar?.querySelectorAll('a') ?? [])].find((link) => link.textContent.startsWith('Users'));
+    const managerTag = [...(usersLink?.querySelectorAll('*') ?? [])].find(
+      (element) => element.childElementCount === 0 && element.textContent === 'Manager',
+    );
+    expect(managerTag?.className).toContain('group-aria-[current=page]/nav:hidden');
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Users · CSPS Admin');
+    });
+  });
+
+  it.each(['/admin/users', '/admin/audit-log'])(
+    'a visitor without a session opening %s goes to sign-in with the return path',
+    async (path) => {
+      answerRefresh();
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+      expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
+    },
+  );
+
+  it('a session with an unknown role is sent to sign-in, never shown the Manager pages', async () => {
+    answerRefresh(sessionResponse({ user: { ...sessionResponse().user, role: 'Owner' } }));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(screen.queryByRole('heading', { level: 1, name: 'Page not found' })).toBeNull();
+  });
+});
+
+describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
+  it('a Manager who opens /admin/components stays and sees the showcase marked as demo data, with no nav item current', async () => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(screen.getByText('Demo data')).toBeVisible();
+    expect(screen.getByText(/^Demo data\. Every order, name and amount on this page is made up/)).toBeVisible();
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    expect(sidebar).not.toBeNull();
+    expect(sidebar?.querySelector('[aria-current="page"]')).toBeNull();
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Component Showcase · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens /admin/components lands on /admin and then Signed-in devices, like /admin/users', async () => {
+    answerRefresh(adminSession());
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+
+    await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+    expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
+  }, 15_000);
+
+  it('a visitor without a session opening /admin/components goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/components')}`);
+  }, 15_000);
+});
+
+describe('the confirm-email link (PROF-02, C-17)', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  function openConfirmEmail(): ReturnType<typeof createMemoryRouter> {
+    window.history.replaceState(null, '', `/admin/confirm-email#token=${'z'.repeat(43)}`);
+    server.use(
+      http.post('*/api/v1/profile/email-change/check', () => HttpResponse.json({ newEmail: 'carmen.new@example.ph' })),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/confirm-email'] });
+    render(<RouterProvider router={router} />);
+    return router;
+  }
+
+  it('renders without a session and does not send the person to sign in', async () => {
+    const probe = answerRefresh();
+    const router = openConfirmEmail();
+
+    expect(await screen.findByRole('button', { name: 'Confirm New Email' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/confirm-email');
+    expect(probe.count).toBe(0);
+  });
+
+  it('renders with a session too, with no redirect to the admin', async () => {
+    acceptSession(sessionResponse());
+    const router = openConfirmEmail();
+
+    expect(await screen.findByRole('button', { name: 'Confirm New Email' }, { timeout: 5000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/confirm-email');
+  });
+});
+
 /** The route tree as a dev-route build has it: the unguarded previews in front of everything else. */
 function devTree(): RouteObject[] {
   const [root, ...rest] = routes;
@@ -134,7 +338,7 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
 
   it('the production /admin section routes are guarded and show the page-not-found screen inside the shell', async () => {
     answerRefresh(sessionResponse());
-    const router = createMemoryRouter(routes, { initialEntries: ['/admin/users'] });
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
@@ -146,8 +350,9 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     const showcase = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
     const first = render(<RouterProvider router={showcase} />);
     expect(
-      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 15_000 }),
     ).toBeVisible();
+    expect(screen.getByText('Demo data')).toBeVisible();
     first.unmount();
 
     const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });

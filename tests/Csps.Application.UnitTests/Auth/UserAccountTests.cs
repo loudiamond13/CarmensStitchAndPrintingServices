@@ -30,6 +30,45 @@ public sealed class UserAccountTests
     }
 
     [Fact]
+    public void UserAccountCarriesTheManagerLockAndDeletedMarks()
+    {
+        var plain = Account(isActive: true, managerLocked: false, deleted: false);
+        var marked = Account(isActive: true, managerLocked: true, deleted: true);
+
+        plain.IsManagerLocked.ShouldBeFalse();
+        plain.IsDeleted.ShouldBeFalse();
+        marked.IsManagerLocked.ShouldBeTrue();
+        marked.IsDeleted.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(false, false, false, true)]
+    [InlineData(true, true, false, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, true, true, true)]
+    [InlineData(true, false, false, false)]
+    public void AnAccountIsBlockedWhenDeactivatedManagerLockedOrDeleted(bool isActive, bool managerLocked, bool deleted, bool blocked) =>
+        Account(isActive, managerLocked, deleted).IsBlocked.ShouldBe(blocked);
+
+    [Fact]
+    public void AFailedPasswordLockoutIsNotABlock()
+    {
+        var farFuture = new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        Account(isActive: true, managerLocked: false, deleted: false, lockoutEnd: farFuture).IsBlocked.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AnAccountBuiltWithoutTheNewMarksIsNeitherLockedNorDeleted()
+    {
+        var account = new UserAccount(Guid.NewGuid(), "a@example.com", "A", "B", "Admin", true, true, true, null, false, null);
+
+        account.IsManagerLocked.ShouldBeFalse();
+        account.IsDeleted.ShouldBeFalse();
+        account.IsBlocked.ShouldBeFalse();
+    }
+
+    [Fact]
     public void NewUserAccountCarriesItsValuesAndComparesByValue()
     {
         var account = new NewUserAccount("a@example.com", "A", "B", "Admin", null);
@@ -56,4 +95,7 @@ public sealed class UserAccountTests
         open.LockoutEnd.ShouldBeNull();
         PasswordCheck.Failed.ShouldNotBe(PasswordCheck.Succeeded);
     }
+
+    private static UserAccount Account(bool isActive, bool managerLocked, bool deleted, DateTimeOffset? lockoutEnd = null) =>
+        new(Guid.NewGuid(), "paolo@example.com", "Paolo", "Garcia", "Manager", isActive, true, true, null, false, lockoutEnd, managerLocked, deleted);
 }

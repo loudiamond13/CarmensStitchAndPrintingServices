@@ -42,7 +42,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   // No CSP bypass anywhere: the tests run under the same strict CSP as production.
-  use: { baseURL: 'https://localhost:5199', ignoreHTTPSErrors: true, trace: 'retain-on-failure' },
+  use: { baseURL: origin, ignoreHTTPSErrors: true, trace: 'retain-on-failure' },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: scrollbarSpecs },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: [...chromiumOnly, ...scrollbarSpecs] },

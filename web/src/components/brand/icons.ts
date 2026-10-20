@@ -1,7 +1,8 @@
 // SPEC-DEVIATION: D-10 lucide-react wrapper (lucide-react 1.53.0, D-34); drawings approved D-32
 // App. D.5 shipped Lucide 0.460.0 node data for these icons; the design system draws them with lucide-react's own
 // components instead (per-icon named imports, so unused icons are tree-shaken). The keys are the 56 App. D.5 names (the
-// spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4). The 20 redrawn icons are owner-approved as the new
+// spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4), and the six Phase 5 icons (copy, lock-open, key-round, user-x,
+// user-check, history; UI-SPEC OQ-9). The 20 redrawn icons are owner-approved as the new
 // drawing (D-32). Two spec names are lucide aliases and keep their spec name here: `trash-2` draws lucide's Trash
 // and `filter` draws lucide's Funnel (D-32).
 import {
@@ -16,18 +17,22 @@ import {
   ClipboardList,
   Clock,
   CloudUpload,
+  Copy,
   Ellipsis,
   Eye,
   EyeOff,
   Funnel,
   GripVertical,
+  History,
   Image,
   Info,
+  KeyRound,
   LayoutDashboard,
   LayoutGrid,
   List,
   LoaderCircle,
   Lock,
+  LockOpen,
   LogOut,
   Mail,
   MapPin,
@@ -57,8 +62,10 @@ import {
   TrendingUp,
   TriangleAlert,
   Truck,
+  UserCheck,
   UserRound,
   Users,
+  UserX,
   Wallet,
   X,
   Zap,
@@ -124,6 +131,12 @@ export const ICONS = {
   ruler: Ruler,
   printer: Printer,
   minus: Minus,
+  copy: Copy,
+  'lock-open': LockOpen,
+  'key-round': KeyRound,
+  'user-x': UserX,
+  'user-check': UserCheck,
+  history: History,
 } as const satisfies Record<string, LucideIcon>;
 
 /** The icon names the design uses; `<Icon name="trahs-2" />` is a compile error. */

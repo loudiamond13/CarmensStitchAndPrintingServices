@@ -172,3 +172,22 @@ export const chartTipClasses = tw(
 
 /** `.csp-chart-net`: the net line in `--ink-muted`. */
 export const chartNetClasses = tw('text-ink-muted');
+
+/* ───────────── ActorName and RecordMeta (SEC-08) ───────────── */
+
+/** The deleted-actor suffix: muted, so the name stays the loud part (D-11, OQ-8). */
+export const actorFormerClasses = tw('text-ink-muted');
+
+/** RecordMeta `dl`: terms and values in two columns (max-content, then the rest), 8px by 16px apart; stacked on phones. */
+export const recordMetaClasses = tw('grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 pg-phone:grid-cols-1');
+
+/** One term and its value: they share the list's two columns; stacked on phones, 4px apart. */
+export const recordMetaRowClasses = tw(
+  'col-span-2 grid grid-cols-subgrid pg-phone:col-span-1 pg-phone:grid-cols-1 pg-phone:gap-y-1',
+);
+
+/** `dt`: the Label look (14px, 600) in `--ink-muted`. */
+export const recordMetaTermClasses = tw('text-[14px] leading-5 font-semibold text-ink-muted');
+
+/** `dd`: the Small look (14px, 400) in `--ink`; a long name wraps anywhere instead of widening the panel. */
+export const recordMetaValueClasses = tw('text-[14px] leading-5 wrap-anywhere text-ink');

@@ -23,8 +23,15 @@ import {
   OUTPUT_DIR,
   OUTPUT_NOT_IGNORED_MESSAGE,
   parseDifferencesTable,
+  PHASE5_EDGE_ASSUMPTIONS,
+  PHASE5_OPEN_ITEMS,
+  PHASE5_REVIEW_CASES,
+  PHASE5_RULED,
+  PHASE5_SEED_PEOPLE,
+  phase5Words,
   planAuthReviewShots,
   planBeforeAfterShots,
+  planPhase5ReviewShots,
   planReview,
   planShots,
   planSpecGapShots,
@@ -50,7 +57,7 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
     expect(Object.isFrozen(REVIEW_WIDTHS)).toBe(true);
   });
 
-  it('lists the public page, the five admin previews and the showcase, in that order', () => {
+  it('lists the public page, the three dev previews, the three real Phase 5 pages and the showcase, in that order', () => {
     expect(REVIEW_TARGETS.map((target) => target.path)).toEqual([
       '/',
       '/admin',
@@ -58,9 +65,16 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
       '/admin/expenses',
       '/admin/users',
       '/admin/profile',
+      '/admin/audit-log',
       '/dev/components',
     ]);
     expect(Object.isFrozen(REVIEW_TARGETS)).toBe(true);
+  });
+
+  it('photographs Users, My Profile and the Audit Log signed in as a Manager, and nothing else signed in (plan 05-37)', () => {
+    const signedIn = REVIEW_TARGETS.filter((target) => target.signedIn === true).map((target) => target.path);
+
+    expect(signedIn).toEqual(['/admin/users', '/admin/profile', '/admin/audit-log']);
   });
 
   it('shows the public page in Blush only and every admin page and the showcase in Blush and Espresso (D-13, D-14)', () => {
@@ -82,10 +96,10 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
 });
 
 describe('planShots', () => {
-  it('plans 39 screenshots: the public page 3, five admin previews 3 x 2 each, the showcase 3 x 2', () => {
+  it('plans 45 screenshots: the public page 3, three previews and three real pages 3 x 2 each, the showcase 3 x 2', () => {
     const shots = planShots();
 
-    expect(shots).toHaveLength(39);
+    expect(shots).toHaveLength(45);
     expect(shots.filter((shot) => shot.path === '/')).toHaveLength(3);
     expect(shots.filter((shot) => shot.path === '/dev/components')).toHaveLength(6);
   });
@@ -199,9 +213,20 @@ describe('planReview: the run', () => {
     expect(host.args).toEqual(expect.arrayContaining(['--no-launch-profile', '--urls', 'https://localhost:5199']));
     expect(host.args[host.args.indexOf('--webroot') + 1]).toBe(E2E_DIST);
     expect(host.args).toContain('--staticWebAssets');
+    // The Testing environment serves the staff fixture and the mail sink the signed-in pictures need (plan 05-37), as
+    // the Playwright E2E host does; nothing secret is passed and nothing is set at User or Machine level.
     expect(host.env).toEqual({
-      ASPNETCORE_ENVIRONMENT: 'Development',
+      ASPNETCORE_ENVIRONMENT: 'Testing',
+      Csps__Testing__LoadUserSecrets: 'true',
+      App__PublicBaseUrl: 'https://localhost:5199',
+      Email__Dispatcher__SweepInterval: '00:00:01',
       ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+      RateLimits__Auth__SignIn__PermitLimit: '100000',
+      RateLimits__Auth__Verify__PermitLimit: '100000',
+      RateLimits__Auth__Resend__PermitLimit: '100000',
+      RateLimits__Auth__Forgot__PermitLimit: '100000',
+      RateLimits__Auth__Reset__PermitLimit: '100000',
+      RateLimits__Auth__Refresh__PermitLimit: '100000',
     });
   });
 
@@ -218,6 +243,7 @@ describe('planReview: the run', () => {
       specGap: planSpecGapShots(),
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
+      phase5Review: planPhase5ReviewShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -1000,5 +1026,198 @@ describe('renderIndex: the Phase 4 sign-in screens and devices (plan 04-32)', ()
 
   it('is left out when no Phase 4 pictures were taken', () => {
     expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain('Sign-in screens and devices');
+  });
+});
+
+// --- Plan 05-37: the Phase 5 screens, signed in as a Manager ---
+
+describe('PHASE5_SEED_PEOPLE (the staff the pictures need)', () => {
+  it('makes a Manager to sign in as, and people in every state the roster shows, through the Testing staff fixture', () => {
+    const states = PHASE5_SEED_PEOPLE.map((person) => person.state);
+
+    expect(PHASE5_SEED_PEOPLE[0]).toMatchObject({ key: 'manager', role: 'Manager', state: 'active' });
+    expect(states).toEqual(expect.arrayContaining(['active', 'deactivated', 'manager-locked', 'invited']));
+    expect(new Set(PHASE5_SEED_PEOPLE.map((person) => person.key)).size).toBe(PHASE5_SEED_PEOPLE.length);
+  });
+
+  it('gives every person a real-looking name and no address of their own: the fixture makes one under csps.test', () => {
+    for (const person of PHASE5_SEED_PEOPLE) {
+      expect(person.firstName.trim(), person.key).not.toBe('');
+      expect(person.lastName.trim(), person.key).not.toBe('');
+      expect(Object.keys(person), person.key).not.toContain('email');
+    }
+  });
+});
+
+describe('PHASE5_REVIEW_CASES (the UI-SPEC Visual Review set)', () => {
+  const ids = PHASE5_REVIEW_CASES.map((entry) => entry.id);
+
+  it('covers U2 both routes and the shown-once step, U3 with its notes and meta, the four dialogs, P1 each tab, P2, P3, A1 and C1', () => {
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'add-invitation',
+        'add-temporary-password',
+        'add-shown-once',
+        'edit-record-meta',
+        'edit-email-change-note',
+        'edit-pending-email',
+        'edit-invited-email-note',
+        'edit-account-access',
+        'dialog-deactivate',
+        'dialog-delete',
+        'dialog-lock',
+        'dialog-temporary-password',
+        'profile-details-pending-email',
+        'profile-security',
+        'profile-appearance',
+        'profile-change-email-dialog',
+        'confirm-email-ready',
+        'confirm-email-done',
+        'confirm-email-invalid',
+        'audit-expanded-row',
+        'audit-no-matches',
+        'audit-empty',
+        'showcase-demo-banner',
+        'shell-short-screen',
+      ]),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words and groups it', () => {
+    for (const entry of PHASE5_REVIEW_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.group.trim(), entry.id).not.toBe('');
+    }
+  });
+
+  it('shows the confirm-email page (P3) in Blush only, because the sign-in-style pages are always Blush', () => {
+    for (const entry of PHASE5_REVIEW_CASES.filter((candidate) => candidate.id.startsWith('confirm-email-'))) {
+      expect(entry.themes, entry.id).toEqual(['light']);
+    }
+  });
+
+  it('plans each case at 390, 820 and 1440 px in its themes under phase5-review/, the short shell at 1280 px', () => {
+    const shots = planPhase5ReviewShots();
+    const files = shots.map((shot) => shot.file);
+
+    expect(new Set(files).size).toBe(files.length);
+    expect(files.every((file) => /^phase5-review\/[a-z0-9-]+-(light|dark)-\d+\.png$/.test(file))).toBe(true);
+    for (const entry of PHASE5_REVIEW_CASES.filter((candidate) => candidate.id !== 'shell-short-screen')) {
+      for (const theme of entry.themes) {
+        const widths = shots.filter((shot) => shot.id === entry.id && shot.theme === theme).map((shot) => shot.width);
+        expect(widths, `${entry.id} ${theme}`).toEqual([390, 820, 1440]);
+      }
+    }
+    const short = shots.filter((shot) => shot.id === 'shell-short-screen');
+    expect(short.map((shot) => [shot.theme, shot.width])).toEqual([
+      ['light', 1280],
+      ['dark', 1280],
+    ]);
+  });
+});
+
+describe('the Phase 5 rulings page content', () => {
+  it('lists OQ-1 to OQ-11 as already ruled, each with its ruling and where it was ruled', () => {
+    expect(PHASE5_RULED.map((entry) => entry.id)).toEqual(
+      Array.from({ length: 11 }, (_, index) => `OQ-${String(index + 1)}`),
+    );
+    for (const entry of PHASE5_RULED) {
+      expect(entry.topic.trim(), entry.id).not.toBe('');
+      expect(entry.ruling.trim(), entry.id).not.toBe('');
+      expect(entry.ruledIn.trim(), entry.id).not.toBe('');
+    }
+    expect(PHASE5_RULED.find((entry) => entry.id === 'OQ-4')?.ruling).toContain('chooses');
+  });
+
+  it('keeps only what is still open for the owner: the screen wording, four edge assumptions, the word list and three real-world checks', () => {
+    expect(PHASE5_OPEN_ITEMS.map((item) => item.id)).toEqual([
+      'screen-wording',
+      'edge-assumptions',
+      'temporary-password-words',
+      'phone-motion',
+      'email-inbox',
+      'cookie-after-deploy',
+    ]);
+    expect(PHASE5_EDGE_ASSUMPTIONS.map((entry) => entry.requirement)).toEqual([
+      'PROF-02',
+      'PROF-03',
+      'USER-05',
+      'USER-07',
+    ]);
+    for (const entry of PHASE5_EDGE_ASSUMPTIONS) {
+      expect(entry.assumed.trim(), entry.requirement).not.toBe('');
+    }
+  });
+
+  it('reads every new screen string out of the copy modules, with placeholders for what the app fills in', () => {
+    const words = phase5Words();
+    const texts = words.map((row) => row.text);
+
+    expect(texts).toContain('Choose how the email change applies.');
+    expect(texts).toContain('Waiting for confirmation at {email}. Until then, you sign in with {email}.');
+    expect(texts).toContain('No entries in the last 7 days');
+    expect(texts.some((text) => text.includes('former staff'))).toBe(true);
+    expect(words.every((row) => row.place.trim() !== '' && row.text.trim() !== '')).toBe(true);
+  });
+});
+
+describe('renderIndex: the Phase 5 screens and the rulings page (plan 05-37)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const html = renderIndex({
+    generatedAt: 'now',
+    shots: [],
+    problems: [],
+    specGap: planSpecGapShots(),
+    phase5Review: planPhase5ReviewShots(),
+  });
+
+  it('shows the Phase 5 section before the SPEC-GAP section, with every picture and plain label', () => {
+    const section = html.indexOf('Profile, users and audit log (Phase 5)');
+
+    expect(section).toBeGreaterThan(-1);
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    for (const shot of planPhase5ReviewShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of PHASE5_REVIEW_CASES) {
+      expect(html).toContain(escaped(entry.label));
+    }
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('puts what is still open before what is already ruled, and lists only the open items as questions', () => {
+    const open = html.indexOf('Still open for you');
+    const ruled = html.indexOf('Already ruled');
+
+    expect(open).toBeGreaterThan(-1);
+    expect(ruled).toBeGreaterThan(open);
+    for (const item of PHASE5_OPEN_ITEMS) {
+      expect(html).toContain(escaped(item.title));
+    }
+    for (const entry of PHASE5_RULED) {
+      expect(html.indexOf(`<td>${entry.id}</td>`), entry.id).toBeGreaterThan(ruled);
+    }
+  });
+
+  it('shows the four flagged edge assumptions, the 40 temporary-password words and the screen words', () => {
+    for (const entry of PHASE5_EDGE_ASSUMPTIONS) {
+      expect(html).toContain(escaped(entry.assumed));
+    }
+    expect(html).toContain('Tela');
+    expect(html).toContain('Zipper');
+    expect(html).toContain('Choose how the email change applies.');
+  });
+
+  it('is left out when no Phase 5 pictures were taken', () => {
+    expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain(
+      'Profile, users and audit log (Phase 5)',
+    );
   });
 });

@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.Identity;
 
 namespace Csps.Application.Auth;
 
@@ -23,7 +24,7 @@ public sealed class CheckResetLinkHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var link = await ResetLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        var link = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.PasswordReset, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
         if (link is null)
         {
             await audit.RecordIndependentlyAsync(AuditActions.PasswordResetLinkInvalid, null, null, null, cancellationToken).ConfigureAwait(false);

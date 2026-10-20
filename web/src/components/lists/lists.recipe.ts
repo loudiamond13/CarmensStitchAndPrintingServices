@@ -63,6 +63,32 @@ export const tableRowClasses = {
   inactive: clsx(tw('group/row pg-phone:bg-surface-2'), rowCard),
 } as const;
 
+/**
+ * D-27 expandable rows (opt-in, only on a table that passes `detail`). An open row's card gives up its bottom corners,
+ * bottom border and margin, so the detail row below it continues the same card on phones.
+ */
+export const openRowClasses = {
+  active: tw(
+    'group/row pg-phone:relative pg-phone:block pg-phone:w-full pg-phone:rounded-t-md pg-phone:border pg-phone:border-b-0 pg-phone:border-line pg-phone:bg-surface pg-phone:px-4 pg-phone:py-3 pg-phone:in-data-[refetching=true]:bg-surface-2',
+  ),
+  inactive: tw(
+    'group/row pg-phone:relative pg-phone:block pg-phone:w-full pg-phone:rounded-t-md pg-phone:border pg-phone:border-b-0 pg-phone:border-line pg-phone:bg-surface-2 pg-phone:px-4 pg-phone:py-3',
+  ),
+} as const;
+
+/** The detail row: on phones the lower half of the card (no top border), 12px clear of the next card. */
+export const detailRowClasses = tw(
+  'group/row pg-phone:mb-3 pg-phone:block pg-phone:w-full pg-phone:rounded-b-md pg-phone:border pg-phone:border-t-0 pg-phone:border-line pg-phone:bg-surface-2 pg-phone:px-4 pg-phone:pb-3',
+);
+
+/** The detail cell: one cell over every column, 16px padded on `--surface-2`, no top rule (the row above drops its own). */
+export const detailCellClasses = tw(
+  'border-b border-line bg-surface-2 p-4 text-left group-last/row:border-b-0 pg-phone:block pg-phone:w-full pg-phone:border-b-0 pg-phone:bg-transparent pg-phone:p-0',
+);
+
+/** A row that has a detail row below it drops its rule when open or last, so the detail row has no top divider. */
+export const detailParentCellClasses = tw('group-data-[edge=true]/row:border-b-0');
+
 /** `.s-rt tfoot tr` on phones: the totals card on `--surface-2`. */
 export const tableFootRowClasses = clsx(tw('pg-phone:bg-surface-2'), rowCard);
 
@@ -133,8 +159,11 @@ export const mutedCellClasses = tw('text-ink-muted');
 /** `.csp-cell-user`: the avatar and the name block, 12px apart. */
 export const cellUserClasses = tw('flex items-center gap-3');
 
-/** `.csp-cell-user span` on the name's wrapper span: 12px `--ink-muted` (it also reaches the name, rule 8). */
-export const cellUserTextClasses = tw('text-[12px] text-ink-muted');
+/**
+ * `.csp-cell-user span` on the name's wrapper span: 12px `--ink-muted` (it also reaches the name, rule 8). A long name or
+ * sub line wraps anywhere (it may shrink beside the avatar) instead of widening the table.
+ */
+export const cellUserTextClasses = tw('min-w-0 text-[12px] wrap-anywhere text-ink-muted');
 
 /** `.csp-cell-user strong`: the name on its own line, 600. */
 export const cellUserNameClasses = tw('block font-semibold');
@@ -148,8 +177,10 @@ export const whoTitleClasses = tw('block font-semibold');
 /** `.s-who span`: the customer (or "Walk-in customer") on its own line, 12px/16px `--ink-muted`. */
 export const whoSubClasses = tw('block text-[12px] leading-4 text-ink-muted');
 
-/** `.s-acts`: the row's icon buttons, 2px apart, end-aligned. */
-export const rowActionsClasses = tw('inline-flex justify-end gap-0.5');
+// SPEC-DEVIATION: D-51 (owner, WR-20) App. E `.s-acts` puts 2px between the icon buttons; 8px lets each button have a 44px
+// tap area without touching its neighbour's.
+/** `.s-acts`: the row's icon buttons, 8px apart, end-aligned. */
+export const rowActionsClasses = tw('inline-flex justify-end gap-2');
 
 const iconButtonBase = tw(
   'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink-muted',
@@ -159,6 +190,15 @@ const iconButtonBase = tw(
 export const rowActionClasses = {
   neutral: clsx(iconButtonBase, tw('hover:bg-surface-2 hover:text-ink')),
   danger: clsx(iconButtonBase, tw('hover:bg-danger-soft hover:text-danger')),
+} as const;
+
+/**
+ * D-27 an expand toggle's chevron: it turns 180 degrees over 0.2s when its row is open, and does not move under reduced
+ * motion. Only a RowAction with `expanded` carries it.
+ */
+export const rowActionChevronClasses = {
+  closed: tw('transition-transform duration-200 motion-reduce:transition-none'),
+  open: tw('rotate-180 transition-transform duration-200 motion-reduce:transition-none'),
 } as const;
 
 /* ───────────── FilterBar, SearchBox, ResultBar, FilterChip ───────────── */

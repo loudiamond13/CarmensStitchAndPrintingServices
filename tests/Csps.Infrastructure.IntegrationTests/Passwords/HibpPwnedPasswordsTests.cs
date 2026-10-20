@@ -5,6 +5,9 @@ using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Passwords;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -142,6 +145,43 @@ public sealed class HibpPwnedPasswordsTests
     }
 
     [Fact]
+    public void TheRegisteredClientCapsTheAnswerAtOneMegabyte()
+    {
+        using var provider = BuildProvider(new StubHandler(_ => Respond(OtherLine)));
+
+        var http = provider.GetRequiredService<IHttpClientFactory>().CreateClient(PasswordCheckRegistration.HttpClientName);
+
+        http.MaxResponseContentBufferSize.ShouldBe(1_048_576);
+    }
+
+    [Fact]
+    public async Task AnOversizedAnswerIsUnavailableAndLogsNoBody()
+    {
+        var line = OtherLine + "\r\n";
+        var oversized = string.Concat(Enumerable.Repeat(line, (1_048_576 / line.Length) + 2));
+        oversized.Length.ShouldBeGreaterThan(1_048_576);
+        var collector = FakeLogCollector.Create(new FakeLogCollectorOptions());
+        using var provider = BuildProvider(new StubHandler(_ => Respond(oversized)), collector);
+
+        var result = await provider.GetRequiredService<IPwnedPasswords>().CheckAsync(Password, TestContext.Current.CancellationToken);
+
+        result.ShouldBe(BreachCheckResult.Unavailable);
+        var text = string.Join('\n', collector.GetSnapshot().Select(record => record.Message + record.Exception));
+        text.ShouldNotContain(OtherLine[..20]);
+    }
+
+    [Fact]
+    public async Task ANormalAnswerStillFindsTheSuffixThroughTheRegisteredClient()
+    {
+        var (_, suffix) = Hash(Password);
+        using var provider = BuildProvider(new StubHandler(_ => Respond($"{OtherLine}\r\n{suffix}:12")));
+
+        var result = await provider.GetRequiredService<IPwnedPasswords>().CheckAsync(Password, TestContext.Current.CancellationToken);
+
+        result.ShouldBe(BreachCheckResult.Breached);
+    }
+
+    [Fact]
     public async Task NoLogRecordHoldsThePasswordOrAnyHashCharacters()
     {
         var (prefix, suffix) = Hash(Password);
@@ -203,12 +243,32 @@ public sealed class HibpPwnedPasswordsTests
         return (hex[..5], hex[5..]);
     }
 
+    private static ServiceProvider BuildProvider(StubHandler handler, FakeLogCollector? collector = null)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(new FakeLoggerProvider(collector ?? FakeLogCollector.Create(new FakeLogCollectorOptions()))));
+        services.AddCspsPasswordChecks(new ProductionEnvironment());
+        services.AddHttpClient(PasswordCheckRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
+        return services.BuildServiceProvider();
+    }
+
     private static HttpResponseMessage Respond(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body) };
 
     private static HibpPwnedPasswords Create(StubHandler handler, out FakeLogger<HibpPwnedPasswords> logger)
     {
         logger = new FakeLogger<HibpPwnedPasswords>();
         return new HibpPwnedPasswords(new HttpClient(handler), logger);
+    }
+
+    private sealed class ProductionEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Production;
+
+        public string ApplicationName { get; set; } = "Csps.Tests";
+
+        public string ContentRootPath { get; set; } = string.Empty;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

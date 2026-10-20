@@ -17,8 +17,12 @@
 //     earlier would unmount the link before React dispatches its click, and the browser would then load the page
 //     anew. Listeners go through refs and an effect (Pitfall 7: no JSX handlers on static elements).
 //   - Body scroll is locked with the class while it is open (useBodyScrollLock).
+// D-34: it animates. `open` going false keeps the layer and the panel mounted as `data-state="closed"` until the panel's
+// exit animation ends (usePresence, theme keyframes: the panel slides out and the scrim fades out); at once focus
+// returns to the menu button, the trap and the scroll lock are released, and Esc, the scrim and links do nothing.
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { isTopFocusTrap, useBodyScrollLock, useFocusTrap } from '@/components/overlays';
+import { usePresence } from '@/hooks/usePresence';
 import { drawerClasses, drawerPanelClasses } from './navigation.recipe';
 
 export interface MobileNavDrawerProps {
@@ -40,32 +44,49 @@ function controllerOf(id: string): HTMLElement | undefined {
 }
 
 /**
- * On close, focuses the drawer's controller. Its cleanup runs after the focus trap's (effects clean up in the order they
- * were declared), which has already returned focus to the element that had it on open; React removes the drawer and
- * the frame's `inert` in the same commit, before any cleanup, so the button can take focus.
+ * When `open` turns false, focuses the drawer's controller. It runs after the focus trap has ended (effects of one commit
+ * run in the order they were declared) and returned focus to the element that had it on open; React has already removed
+ * the frame's `inert` in the same commit, so the button can take focus.
  */
-function useFocusControllerOnClose(id: string): void {
-  useEffect(
-    () => () => {
+function useFocusControllerOnClose(id: string, open: boolean): void {
+  useEffect(() => {
+    if (!open) {
       controllerOf(id)?.focus();
-    },
-    [id],
-  );
+    }
+  }, [id, open]);
 }
 
 export function MobileNavDrawer({ open, ...props }: MobileNavDrawerProps) {
-  return open ? <OpenDrawer {...props} /> : null;
+  const presence = usePresence(open);
+  return presence.mounted ? <MountedDrawer {...props} open={open} presenceRef={presence.ref} /> : null;
 }
 
-function OpenDrawer({ onClose, id, children }: Omit<MobileNavDrawerProps, 'open'>) {
+interface MountedDrawerProps extends Omit<MobileNavDrawerProps, 'open'> {
+  /** False while the exit animation plays. */
+  open: boolean;
+  presenceRef: (node: HTMLElement | null) => void;
+}
+
+function MountedDrawer({ open, presenceRef, onClose, id, children }: MountedDrawerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(panelRef);
-  useFocusControllerOnClose(id);
-  useBodyScrollLock();
+  useFocusTrap(panelRef, { active: open });
+  useFocusControllerOnClose(id, open);
+  useBodyScrollLock(open);
 
-  const requestClose = useEffectEvent(onClose);
+  const setPanel = (node: HTMLDivElement | null) => {
+    panelRef.current = node;
+    presenceRef(node);
+  };
+  const state = open ? 'open' : 'closed';
+
+  // A closing drawer answers nothing.
+  const requestClose = useEffectEvent(() => {
+    if (open) {
+      onClose();
+    }
+  });
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -103,10 +124,11 @@ function OpenDrawer({ onClose, id, children }: Omit<MobileNavDrawerProps, 'open'
   }, []);
 
   return (
-    <div ref={layerRef} className={drawerClasses}>
+    <div ref={layerRef} className={drawerClasses} data-state={state} inert={open ? undefined : true}>
       <div
-        ref={panelRef}
+        ref={setPanel}
         id={id}
+        data-state={state}
         className={drawerPanelClasses}
         role="dialog"
         aria-modal="true"

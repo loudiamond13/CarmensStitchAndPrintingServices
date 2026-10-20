@@ -6,14 +6,21 @@ import { PasswordField } from '@/components/forms';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import type { NewPasswordValues } from '@/modules/admin/authSchemas';
 
-export interface NewPasswordFieldsProps {
-  control: Control<NewPasswordValues>;
+export interface NewPasswordFieldsProps<TValues extends NewPasswordValues> {
+  /** The form's control. The form may hold more fields than the pair (the profile form also has Current password). */
+  control: Control<TValues>;
   /** The account's email for the hidden username input, or null when it is not known (the input is left out). */
   email: string | null;
 }
 
-export function NewPasswordFields({ control, email }: NewPasswordFieldsProps) {
+export function NewPasswordFields<TValues extends NewPasswordValues>({
+  control: formControl,
+  email,
+}: NewPasswordFieldsProps<TValues>) {
   const copy = AUTH_COPY.newPassword;
+  // Safe: TValues has both fields of the pair. React Hook Form's Control is invariant in its values, so a form with
+  // extra fields would not be accepted as a Control of just the pair.
+  const control = formControl as unknown as Control<NewPasswordValues>;
   return (
     <>
       {email !== null && <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />}

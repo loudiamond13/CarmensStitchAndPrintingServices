@@ -109,10 +109,13 @@ public static class PasswordPolicy
         return null;
     }
 
+    /// <summary>Shown when the new password is empty.</summary>
+    public const string NewPasswordRequiredMessage = "Enter a new password.";
+
     /// <summary>The plain-English message shown for <paramref name="failure"/>.</summary>
     public static string MessageFor(PasswordRuleFailure failure) => failure switch
     {
-        PasswordRuleFailure.Empty => "Enter a new password.",
+        PasswordRuleFailure.Empty => NewPasswordRequiredMessage,
         PasswordRuleFailure.TooShort => "Use at least 8 characters.",
         PasswordRuleFailure.TooLong => "Use 64 characters or fewer.",
 

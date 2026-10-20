@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Csps.Infrastructure.IntegrationTests.Email;
 
-/// <summary>IN-06: email links come from App:PublicBaseUrl alone, which must be https (http only for localhost); tokens ride in the fragment.</summary>
+/// <summary>IN-06, IN-10: email links come from App:PublicBaseUrl alone, which must be a clean https origin (http only for localhost, no user info, no path); tokens ride in the fragment.</summary>
 public sealed class AppLinksOptionsTests
 {
     [Theory]
@@ -26,6 +26,10 @@ public sealed class AppLinksOptionsTests
     [InlineData("ftp://carmens.example.com")]
     [InlineData("https://carmens.example.com/?next=1")]
     [InlineData("https://carmens.example.com/#top")]
+    [InlineData("https://staff@evil.example")]
+    [InlineData("https://u:p@example.com")]
+    [InlineData("https://example.com/anything")]
+    [InlineData("https://example.com//")]
     public void UnsafeOrMalformedBaseUrlsFailWithoutEchoingTheValue(string baseUrl)
     {
         var result = Validate(baseUrl);
@@ -37,6 +41,13 @@ public sealed class AppLinksOptionsTests
         {
             result.FailureMessage.ShouldNotContain(baseUrl);
         }
+    }
+
+    [Fact]
+    public void TheFailureMessageNamesTheUserInfoAndPathRules()
+    {
+        AppLinksOptions.PublicBaseUrlInvalidMessage.ShouldContain("user info");
+        AppLinksOptions.PublicBaseUrlInvalidMessage.ShouldContain("path");
     }
 
     [Fact]

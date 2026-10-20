@@ -8,10 +8,12 @@
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
 //     come in Phases 5-9 show the page-not-found screen inside the shell.
-//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite` and `admin/login/new-password`) sit in a pathless
+//   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
-//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the D-22
-//     Component Showcase, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing there ships.
+//   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
+//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
+//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing
+//     there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import { redirect, type LoaderFunction, type RouteObject } from 'react-router';
@@ -61,8 +63,28 @@ const acceptInvitePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AcceptInvitePage')).AcceptInviteRoute,
 }));
 
+const confirmEmailPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ConfirmEmailPage')).ConfirmEmailRoute,
+}));
+
 const sessionsPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/SessionsPage')).SessionsRoute,
+}));
+
+const profilePage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ProfilePage')).ProfileRoute,
+}));
+
+const usersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/UsersPage')).UsersRoute,
+}));
+
+const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
+}));
+
+const showcasePage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ComponentShowcasePage')).ComponentShowcaseRoute,
 }));
 
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
@@ -72,6 +94,10 @@ const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
 /** requireSessionLoader, loaded with the admin chunks so the public entry never carries the session code (PERF-01). */
 const requireSession: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireSessionLoader(args);
+
+/** requireManagerLoader (USER-08), loaded with the admin chunks as above. */
+const requireManager: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args);
 
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
@@ -99,8 +125,11 @@ export const adminRoutes: RouteObject[] = [
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: notFoundPage },
-          { path: 'users', lazy: notFoundPage },
-          { path: 'profile', lazy: notFoundPage },
+          { path: 'users', loader: requireManager, lazy: usersPage },
+          { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
+          // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
+          { path: 'components', loader: requireManager, lazy: showcasePage },
+          { path: 'profile', lazy: profilePage },
         ],
       },
     ],
@@ -121,6 +150,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'admin/reset-password', lazy: resetPasswordPage },
           // No sign-in check: an invite link works signed in or not.
           { path: 'admin/accept-invite', lazy: acceptInvitePage },
+          // No sign-in check: an email change link works signed in or not.
+          { path: 'admin/confirm-email', lazy: confirmEmailPage },
         ],
       },
     ],
@@ -141,8 +172,6 @@ export const devRoutes: RouteObject[] = [
           { index: true, lazy: previewPage },
           { path: 'orders', lazy: previewPage },
           { path: 'expenses', lazy: previewPage },
-          { path: 'users', lazy: previewPage },
-          { path: 'profile', lazy: previewPage },
         ],
       },
     ],
@@ -156,9 +185,7 @@ export const devRoutes: RouteObject[] = [
       {
         path: 'components',
         ErrorBoundary: AdminRouteErrorBoundary,
-        lazy: /* @__PURE__ */ lazyRoute(async () => ({
-          Component: (await import('@/dev/ComponentShowcase')).default,
-        })),
+        lazy: showcasePage,
       },
     ],
   },

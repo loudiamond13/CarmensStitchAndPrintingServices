@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { MobileNavDrawer, Sidebar } from '@/components/navigation';
@@ -360,5 +360,113 @@ describe('MobileNavDrawer under a dialog (UI-WR-01, UI-WR-02)', () => {
 
     await user.keyboard('{Escape}');
     expect(onDrawerClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+// D-34: the drawer slides out and the scrim fades out, so it stays mounted as data-state="closed" until the panel's
+// animation ends. jsdom runs no animation, so the computed animation name of a closed element is mocked; focus, scroll
+// lock and the trap are released at once and the closing layer takes no input.
+describe('MobileNavDrawer closing animation (D-34, D-38)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-drawer-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  async function openAndEscape(onClose?: () => void) {
+    animateClosedElements();
+    const user = userEvent.setup();
+    renderHarness(onClose === undefined ? {} : { onClose });
+    await user.click(menuButton());
+    const panel = drawer();
+    const layer = panel.parentElement;
+    await user.keyboard('{Escape}');
+    return { user, panel, layer };
+  }
+
+  it('marks the layer and the panel open while open', async () => {
+    await openDrawer();
+
+    expect(drawer()).toHaveAttribute('data-state', 'open');
+    expect(drawer().parentElement).toHaveAttribute('data-state', 'open');
+  });
+
+  it('stays mounted as closed while it animates out, with the layer and the panel marked closed', async () => {
+    const { panel, layer } = await openAndEscape();
+
+    expect(panel.isConnected).toBe(true);
+    expect(panel.getAttribute('data-state')).toBe('closed');
+    expect(layer?.isConnected).toBe(true);
+    expect(layer?.getAttribute('data-state')).toBe('closed');
+  });
+
+  it('puts focus on the menu button and releases the scroll lock at once', async () => {
+    await openAndEscape();
+
+    expect(menuButton()).toHaveFocus();
+    expect(document.body.classList.contains(bodyScrollLockClass)).toBe(false);
+  });
+
+  it('leaves the DOM when the panel ends its own animation, and not for an animation that bubbles up from a child', async () => {
+    const { panel } = await openAndEscape();
+
+    act(() => {
+      within(panel)
+        .getByRole('link', { name: 'Orders' })
+        .dispatchEvent(new Event('animationend', { bubbles: true }));
+    });
+    expect(panel).toBeInTheDocument();
+
+    act(() => {
+      panel.dispatchEvent(new Event('animationend'));
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('ignores Esc and a scrim click while it closes', async () => {
+    const onClose = vi.fn();
+    const { layer } = await openAndEscape(onClose);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    if (layer === null) {
+      throw new Error('The drawer panel has no layer around it.');
+    }
+    fireEvent.click(layer);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a followed link while it closes', async () => {
+    const onClose = vi.fn();
+    const { panel } = await openAndEscape(onClose);
+
+    fireEvent.click(within(panel).getByRole('link', { name: 'Orders' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('cannot be focused or pressed while it closes (the layer is inert and takes no pointer input)', async () => {
+    const { layer } = await openAndEscape();
+
+    expect(layer).toHaveAttribute('inert');
+  });
+
+  it('opens again when reopened during the close', async () => {
+    const { user, panel } = await openAndEscape();
+
+    await user.click(menuButton());
+
+    expect(panel).toHaveAttribute('data-state', 'open');
+    expect(panel.parentElement).not.toHaveAttribute('inert');
+    expect(panel.contains(document.activeElement)).toBe(true);
+    expect(document.body.classList.contains(bodyScrollLockClass)).toBe(true);
   });
 });

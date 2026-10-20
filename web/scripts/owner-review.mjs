@@ -16,11 +16,15 @@
 //      Espresso, the public page in Blush only, D-13/D-14) and saves full-page screenshots.
 //   8. Photographs the SPEC-GAP cases on the showcase, and the wording changes the owner has still to confirm as a
 //      before (the approved wording, written back into the page) and after (what the app shows now) pair (D-41 R2-06).
-//   9. Stops the host it started (that child and its own children, nothing else) and writes
+//   9. Plan 05-37: signs a seeded Manager in through the Testing staff fixture and the mail sink (the Testing host the
+//      Playwright E2E run uses) and photographs the real Phase 5 screens: Users, My Profile, the Audit Log, the slide-overs,
+//      the dialogs and the confirm-email page, with a rulings page that lists only what is still open for the owner.
+//  10. Stops the host it started (that child and its own children, nothing else) and writes
 //      artifacts/owner-review/index.html, a plain-words page that shows every picture.
 // It writes nowhere but artifacts/owner-review/ (assertWritable), never into src/, web/src or the server's wwwroot.
 // Guide: docs/web/owner-review.md.
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,20 +43,26 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
 
 /**
  * @typedef {'light' | 'dark'} Theme
- * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly h1: string, readonly themes: readonly Theme[] }} ReviewTarget
+ * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly h1: string, readonly themes: readonly Theme[], readonly signedIn?: boolean }} ReviewTarget
  * @typedef {{ readonly path: string, readonly title: string, readonly h1: string, readonly theme: Theme, readonly width: number, readonly file: string }} Shot
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly kind: 'frame' | 'menu' | 'dialog' }} AuthReviewCase
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly kind: 'frame' | 'menu' | 'dialog', readonly theme: Theme, readonly width: number, readonly file: string }} AuthReviewShot
  * @typedef {{ readonly id: string, readonly question: string, readonly default: string }} AuthReviewRuling
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[] }} Phase5ReviewCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly theme: Theme, readonly width: number, readonly file: string }} Phase5ReviewShot
+ * @typedef {{ readonly key: string, readonly role: 'Admin' | 'Manager', readonly state: string, readonly firstName: string, readonly lastName: string }} Phase5SeedPerson
+ * @typedef {{ readonly id: string, readonly topic: string, readonly ruling: string, readonly ruledIn: string }} Phase5Ruled
+ * @typedef {{ readonly id: string, readonly title: string, readonly what: string, readonly how: string }} Phase5OpenItem
+ * @typedef {{ readonly requirement: string, readonly assumed: string, readonly evidence: string }} Phase5EdgeAssumption
  * @typedef {{ readonly before: string, readonly after: string }} WordingSwap
  * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterCase
  * @typedef {{ readonly id: string, readonly label: string, readonly decision: string, readonly side: 'before' | 'after', readonly theme: Theme, readonly width: number, readonly file: string, readonly swaps: readonly WordingSwap[] }} BeforeAfterShot
@@ -81,8 +91,10 @@ const BOTH = Object.freeze(/** @type {Theme[]} */ (['light', 'dark']));
 const BLUSH_ONLY = Object.freeze(/** @type {Theme[]} */ (['light']));
 
 /**
- * Every page the e2e bundle serves in Phase 2 (web/e2e/sweep.ts lists the same pages): the public shell in Blush only
- * (D-14), the five dev-only admin preview pages (D-20) and the Component Showcase, in Blush and Espresso (D-13).
+ * Every page the e2e bundle serves (web/e2e/sweep.ts lists the Phase 2 ones): the public shell in Blush only (D-14), the
+ * three dev-only admin preview pages (D-20), the Component Showcase, and, since plan 05-37, the three real guarded
+ * pages (Users, My Profile, the Audit Log), photographed signed in as a Manager. The admin pages and the showcase are
+ * shown in Blush and Espresso (D-13).
  * @type {readonly ReviewTarget[]}
  */
 export const REVIEW_TARGETS = Object.freeze([
@@ -102,8 +114,23 @@ export const REVIEW_TARGETS = Object.freeze([
     h1: 'Company Expenses',
     themes: BOTH,
   },
-  { path: '/admin/users', slug: 'admin-users', title: 'Admin: Users', h1: 'Users', themes: BOTH },
-  { path: '/admin/profile', slug: 'admin-profile', title: 'Admin: My Profile', h1: 'My Profile', themes: BOTH },
+  { path: '/admin/users', slug: 'admin-users', title: 'Admin: Users', h1: 'Users', themes: BOTH, signedIn: true },
+  {
+    path: '/admin/profile',
+    slug: 'admin-profile',
+    title: 'Admin: My Profile',
+    h1: 'My Profile',
+    themes: BOTH,
+    signedIn: true,
+  },
+  {
+    path: '/admin/audit-log',
+    slug: 'admin-audit-log',
+    title: 'Admin: Audit Log',
+    h1: 'Audit Log',
+    themes: BOTH,
+    signedIn: true,
+  },
   {
     path: '/dev/components',
     slug: 'showcase',
@@ -123,6 +150,27 @@ export const OUTPUT_NOT_IGNORED_MESSAGE =
   'stops; restore the `artifacts/` rule in .gitignore and run it again.';
 
 const SERVER_PROJECT = path.join(REPO_ROOT, 'src', 'Csps.Server');
+/** The per-address auth limit the host runs with: high enough that signing in many times never reaches it (playwright.config.ts). */
+const NO_THROTTLE = '100000';
+/**
+ * The host's variables, set on that one child only, never at User or Machine level. The Testing environment is the one the
+ * Playwright E2E host runs in: it serves the Testing-only staff fixture and keeps mail in the in-memory sink, which the
+ * signed-in pictures need (plan 05-37). Csps__Testing__LoadUserSecrets reads this developer's user-secrets for the JWT key
+ * and the Data Protection certificate; no secret is passed or written here.
+ */
+const HOST_ENV = Object.freeze({
+  ASPNETCORE_ENVIRONMENT: 'Testing',
+  Csps__Testing__LoadUserSecrets: 'true',
+  App__PublicBaseUrl: ORIGIN,
+  Email__Dispatcher__SweepInterval: '00:00:01',
+  ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+  RateLimits__Auth__SignIn__PermitLimit: NO_THROTTLE,
+  RateLimits__Auth__Verify__PermitLimit: NO_THROTTLE,
+  RateLimits__Auth__Resend__PermitLimit: NO_THROTTLE,
+  RateLimits__Auth__Forgot__PermitLimit: NO_THROTTLE,
+  RateLimits__Auth__Reset__PermitLimit: NO_THROTTLE,
+  RateLimits__Auth__Refresh__PermitLimit: NO_THROTTLE,
+});
 // The Development host also loads the build-time static web assets manifest, whose wwwroot files would win over
 // --webroot; a manifest path that never exists turns that loader off for this host only (playwright.config.ts).
 const NO_STATIC_WEB_ASSETS = path.join(E2E_DIST, 'no-static-web-assets.json');
@@ -222,12 +270,8 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
         NO_STATIC_WEB_ASSETS,
       ],
       cwd: SERVER_PROJECT,
-      // Set on this child only, never at User or Machine level. Development reads the JWT key and the Data Protection
-      // certificate from this developer's user-secrets; no secret is passed or written here.
-      env: {
-        ASPNETCORE_ENVIRONMENT: 'Development',
-        ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
-      },
+      // See HOST_ENV: the Testing environment of the E2E host, on this child only.
+      env: HOST_ENV,
       healthUrl: `${ORIGIN}/health`,
     },
     {
@@ -238,6 +282,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       specGap: planSpecGapShots(),
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
+      phase5Review: planPhase5ReviewShots(),
     },
     {
       kind: 'report',
@@ -567,7 +612,7 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
 export function renderIndex({
@@ -577,6 +622,7 @@ export function renderIndex({
   specGap = [],
   beforeAfter = [],
   authReview = [],
+  phase5Review = [],
   parity,
   otherReports = [],
 }) {
@@ -613,6 +659,7 @@ ${problemList}
 ${pageSections(shots)}
 ${beforeAfterSection(beforeAfter)}
 ${authReviewSection(authReview)}
+${phase5ReviewSection(phase5Review)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -1221,6 +1268,518 @@ export function assertSwapsApplied(id, swaps, counts) {
   }
 }
 
+// ───────────── Plan 05-37: the Phase 5 screens (Users, My Profile, the Audit Log), signed in as a Manager ─────────────
+
+/**
+ * The staff the pictures need, made once per run through the Testing-only staff fixture (QUAL-05, D-37): a Manager to
+ * sign in as (the "You" row), and one person in every state the roster shows. The fixture gives each an address under
+ * csps.test, so nothing real is used and nothing is sent. The first names sort before "E2E", the name every other test
+ * staff member carries, so they lead the roster. Carlos Tan adds a person and is then deleted, so that person's
+ * "Recorded by" reads "Carlos Tan (former staff)" (SEC-08, OQ-8).
+ * @type {readonly Phase5SeedPerson[]}
+ */
+export const PHASE5_SEED_PEOPLE = Object.freeze([
+  { key: 'manager', role: 'Manager', state: 'active', firstName: 'Bea', lastName: 'Navarro' },
+  { key: 'ana', role: 'Admin', state: 'active', firstName: 'Ana', lastName: 'Reyes' },
+  { key: 'carmen', role: 'Admin', state: 'active', firstName: 'Carmen', lastName: 'Villanueva' },
+  { key: 'dan', role: 'Admin', state: 'deactivated', firstName: 'Dan', lastName: 'Aquino' },
+  { key: 'beth', role: 'Manager', state: 'manager-locked', firstName: 'Beth', lastName: 'Santos' },
+  { key: 'alma', role: 'Admin', state: 'invited', firstName: 'Alma', lastName: 'Mercado' },
+  { key: 'carlos', role: 'Manager', state: 'active', firstName: 'Carlos', lastName: 'Tan' },
+]);
+
+/**
+ * The UI-SPEC "Visual Review" set for Phase 5, beyond the three pages in REVIEW_TARGETS (U1 Users, P1 My Profile, A1 Audit
+ * Log): the slide-overs, the dialogs and the states a page alone does not show. Each is a viewport picture of the real
+ * screen with the real server behind it. The confirm-email page is Blush only (the auth-style pages are always Blush, D-13).
+ * @type {readonly Phase5ReviewCase[]}
+ */
+export const PHASE5_REVIEW_CASES = Object.freeze([
+  {
+    id: 'add-invitation',
+    label: 'U2 Add User: by invitation (the default)',
+    group: 'U2 Add User',
+    themes: BOTH,
+  },
+  {
+    id: 'add-temporary-password',
+    label: 'U2 Add User: with a temporary password (the suggested password)',
+    group: 'U2 Add User',
+    themes: BOTH,
+  },
+  {
+    id: 'add-shown-once',
+    label: 'U2 Add User: the temporary password, shown once',
+    group: 'U2 Add User',
+    themes: BOTH,
+  },
+  {
+    id: 'edit-record-meta',
+    label: 'U3 Edit User: Recorded by a member of staff who has since left ("former staff")',
+    group: 'U3 Edit User',
+    themes: BOTH,
+  },
+  {
+    id: 'edit-email-change-note',
+    label: 'U3 Edit User: a changed email asks how it applies (confirm by link or save at once)',
+    group: 'U3 Edit User',
+    themes: BOTH,
+  },
+  {
+    id: 'edit-pending-email',
+    label: 'U3 Edit User: an email change waiting for confirmation',
+    group: 'U3 Edit User',
+    themes: BOTH,
+  },
+  {
+    id: 'edit-invited-email-note',
+    label: 'U3 Edit User: the email note for a person who has not set a password yet',
+    group: 'U3 Edit User',
+    themes: BOTH,
+  },
+  {
+    id: 'edit-account-access',
+    label: 'U3 Edit User: the Account access section',
+    group: 'U3 Edit User',
+    themes: BOTH,
+  },
+  {
+    id: 'dialog-deactivate',
+    label: 'U4 Dialog: Deactivate a user',
+    group: 'U4 Dialogs',
+    themes: BOTH,
+  },
+  {
+    id: 'dialog-delete',
+    label: 'U4 Dialog: Delete a user',
+    group: 'U4 Dialogs',
+    themes: BOTH,
+  },
+  {
+    id: 'dialog-lock',
+    label: 'U4 Dialog: Lock a user',
+    group: 'U4 Dialogs',
+    themes: BOTH,
+  },
+  {
+    id: 'dialog-temporary-password',
+    label: 'U5 Dialog: Set a temporary password',
+    group: 'U4 Dialogs',
+    themes: BOTH,
+  },
+  {
+    id: 'profile-change-email-dialog',
+    label: 'P2 My Profile: the Change Email dialog',
+    group: 'P1 and P2 My Profile',
+    themes: BOTH,
+  },
+  {
+    id: 'profile-details-pending-email',
+    label: 'P1 My Profile, Details tab, with an email change waiting',
+    group: 'P1 and P2 My Profile',
+    themes: BOTH,
+  },
+  {
+    id: 'profile-security',
+    label: 'P1 My Profile, Security tab',
+    group: 'P1 and P2 My Profile',
+    themes: BOTH,
+  },
+  {
+    id: 'profile-appearance',
+    label: 'P1 My Profile, Appearance tab',
+    group: 'P1 and P2 My Profile',
+    themes: BOTH,
+  },
+  {
+    id: 'confirm-email-ready',
+    label: 'P3 Confirm your email: the link is good, "Confirm New Email"',
+    group: 'P3 Confirm your email (Blush)',
+    themes: BLUSH_ONLY,
+  },
+  {
+    id: 'confirm-email-done',
+    label: 'P3 Confirm your email: "Your email is changed"',
+    group: 'P3 Confirm your email (Blush)',
+    themes: BLUSH_ONLY,
+  },
+  {
+    id: 'confirm-email-invalid',
+    label: 'P3 Confirm your email: the link is missing or has expired',
+    group: 'P3 Confirm your email (Blush)',
+    themes: BLUSH_ONLY,
+  },
+  {
+    id: 'audit-expanded-row',
+    label: 'A1 Audit Log: a row opened to show its detail',
+    group: 'A1 Audit Log',
+    themes: BOTH,
+  },
+  {
+    id: 'audit-no-matches',
+    label: 'A1 Audit Log: filters that match nothing',
+    group: 'A1 Audit Log',
+    themes: BOTH,
+  },
+  {
+    id: 'audit-empty',
+    label: 'A1 Audit Log: the empty state ("No entries in the last 7 days")',
+    group: 'A1 Audit Log',
+    themes: BOTH,
+  },
+  {
+    id: 'showcase-demo-banner',
+    label: 'C1 Component Showcase in production: the "Demo data" banner',
+    group: 'C1 Component Showcase',
+    themes: BOTH,
+  },
+  {
+    id: 'shell-short-screen',
+    label: 'The admin shell on a short screen (1280 x 600): the sidebar stays put and its menu scrolls on its own',
+    group: 'The shell',
+    themes: BOTH,
+  },
+]);
+
+/** The short-screen shell is photographed at the one size the UI-SPEC names; every other case at the review widths. */
+const SHORT_SCREEN_WIDTH = 1280;
+const SHORT_SCREEN_HEIGHT = 600;
+
+/**
+ * One picture per case, per theme the case lists, at 390, 820 and 1440 px (the short shell at 1280 x 600).
+ * @param {readonly Phase5ReviewCase[]} [cases]
+ * @returns {Phase5ReviewShot[]}
+ */
+export function planPhase5ReviewShots(cases = PHASE5_REVIEW_CASES) {
+  return cases.flatMap((entry) =>
+    entry.themes.flatMap((theme) =>
+      (entry.id === 'shell-short-screen' ? [SHORT_SCREEN_WIDTH] : REVIEW_WIDTHS).map((width) => ({
+        id: entry.id,
+        label: entry.label,
+        group: entry.group,
+        theme,
+        width,
+        file: `phase5-review/${entry.id}-${theme}-${String(width)}.png`,
+      })),
+    ),
+  );
+}
+
+/**
+ * The UI-SPEC "Owner Rulings Needed" items the owner has already ruled (05-CONTEXT D-42 to D-48, owner, 2026-10-17 and
+ * 2026-10-18). They are listed so the page is complete, but they are not questions any more.
+ * @type {readonly Phase5Ruled[]}
+ */
+export const PHASE5_RULED = Object.freeze([
+  {
+    id: 'OQ-1',
+    topic: 'Where the account actions go, and the deactivate icon',
+    ruling:
+      'Option A. Each row keeps Edit, the Deactivate/Activate toggle (new icons user-x and user-check) and Delete. Resend Invitation, Send Reset Link, Set Temporary Password and Lock/Unlock sit in the Edit panel, under "Account access".',
+    ruledIn: 'D-42 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-2',
+    topic: 'How Managers reach the Audit Log',
+    ruling:
+      'Option A. A sidebar item "Audit Log" with the Manager tag, after Users and in the phone drawer too; not in the phone tab bar.',
+    ruledIn: 'D-43 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-3',
+    topic: 'Deactivate from the row',
+    ruling: 'A confirm dialog with "Keep Active" focused first. Activate stays one tap.',
+    ruledIn: 'D-44 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-4',
+    topic: 'A Manager changes a colleague’s email',
+    ruling:
+      'Changed from the contract default. The Manager chooses, each time: "Confirm by link" (preselected: a link to the new address, a notice to the old one, the change applies on confirmation) or "Save at once" (the email changes now, the old address is told, the person is signed out everywhere). An invited person who has no password always moves at once, with a fresh 7-day invitation to the new address.',
+    ruledIn: 'D-45 (owner, 2026-10-17); built in plans 05-40, 05-25 and 05-30',
+  },
+  {
+    id: 'OQ-5',
+    topic: 'My Profile layout',
+    ruling: 'A header card, then the tabs Details, Security and Appearance.',
+    ruledIn: 'D-23 (earlier ruling, recorded again in the UI-SPEC)',
+  },
+  {
+    id: 'OQ-6',
+    topic: 'Wrong current password',
+    ruling: 'The words appear under the Current password field and the cursor moves there. No error toast.',
+    ruledIn: 'D-46 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-7',
+    topic: 'Amended wording of the Users and My Profile screens',
+    ruling:
+      'Built as written. The owner reviews every new or amended string before release: that review is the open item "Screen wording" above.',
+    ruledIn: 'D-48 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-8',
+    topic: 'A deleted person shown as an actor',
+    ruling: '"{name} (former staff)", with the suffix muted.',
+    ruledIn: 'D-47 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-9',
+    topic: 'Six new icons',
+    ruling: 'Added: copy, lock-open, key-round, user-x, user-check and history (from the installed icon set).',
+    ruledIn: 'Contract default; built in plan 05-03',
+  },
+  {
+    id: 'OQ-10',
+    topic: 'The access choice in Add User',
+    ruling: 'Two radio rows, each with a one-line description.',
+    ruledIn: 'D-47 (owner, 2026-10-17)',
+  },
+  {
+    id: 'OQ-11',
+    topic: 'Every wording gap in the UI-SPEC and the email additions',
+    ruling:
+      'Built as written. The emails were approved on 2026-10-18 (plan 05-31); the screen wording is the open item "Screen wording" above.',
+    ruledIn: 'D-48 (owner, 2026-10-17); emails approved 2026-10-18',
+  },
+]);
+
+/**
+ * The four edge assumptions the planner flagged and left for the owner and the verifier (PROF-02, PROF-03, USER-05,
+ * USER-07): what each plan assumed the requirement's edges were, and where the build tests them.
+ * @type {readonly Phase5EdgeAssumption[]}
+ */
+export const PHASE5_EDGE_ASSUMPTIONS = Object.freeze([
+  {
+    requirement: 'PROF-02',
+    assumed:
+      'The email-change edges are: the link works for 24 hours (alive 1 millisecond before, dead at the 24th hour), works once, and is replaced by a newer request; the new address is compared without regard to letter case and must not belong to anyone else; if someone else took the address while the link was waiting, the person sees "This email can’t be used".',
+    evidence: 'Plans 05-14 and 05-15; EmailChangeTests, EmailChangePendingTests; the E2E journey @profile-email.',
+  },
+  {
+    requirement: 'PROF-03',
+    assumed:
+      'The password-change edges are the sign-in password rule’s own cases (8 and 64 characters, text normalised before it is checked, no control characters, at least one number and one symbol), plus: a wrong current password counts toward the same five-try lock as the other profile changes.',
+    evidence: 'Plan 05-12; ChangePasswordTests and the Phase 4 password-rule golden cases.',
+  },
+  {
+    requirement: 'USER-05',
+    assumed:
+      'The sign-out edges are: the person’s very next request after the change is saved is refused with 401 (no grace period of our own), and a person with no sessions simply has nothing to end. Known gap, listed for the security review: the server remembers a session for up to 60 seconds, and the memory is cleared a few milliseconds before the save commits.',
+    evidence:
+      'Plan 05-21; UserLifecycleTests, LockUserTests, DeleteUserTests; the E2E journeys @users-actions and @users-access.',
+  },
+  {
+    requirement: 'USER-07',
+    assumed:
+      'The link edges are: an invitation lasts 7 days and a reset link 30 minutes; each person has one live link of each kind (a new one ends the old one); Send Reset Link shares the hourly reset-email limit with "Forgot password"; and both are refused for a locked or deactivated person, and for a person who has (or has not yet set) a password, as appropriate.',
+    evidence: 'Plan 05-27; ResendInvitationTests, ManagerResetLinkTests; the E2E journey @users-access.',
+  },
+]);
+
+/**
+ * Everything still open for the owner at the end of Phase 5, in the order the review pack asks it. OQ-1 to OQ-11 are not
+ * here: they are ruled (PHASE5_RULED). The inbox and cookie checks cannot be photographed; they need the owner's own
+ * phone, mailbox and the first live deploy.
+ * @type {readonly Phase5OpenItem[]}
+ */
+export const PHASE5_OPEN_ITEMS = Object.freeze([
+  {
+    id: 'screen-wording',
+    title: 'Screen wording (D-48)',
+    what: 'Every new or amended string on the Phase 5 screens: the UI-SPEC wording as written, and the sentences the build had to choose because the UI-SPEC had none (the Edit User email choice and notes, the refusals, the Audit Log "What changed" lines, "Unknown person"). They are all in the table "Words on the Phase 5 screens" below.',
+    how: 'Read the table next to the pictures. Say "approved", or name the string and the words you want. Wording you change becomes a follow-up for /gsd-verify-work 5. The seven emails were approved on 2026-10-18 and are not part of this.',
+  },
+  {
+    id: 'edge-assumptions',
+    title: 'Four flagged edge assumptions (PROF-02, PROF-03, USER-05, USER-07)',
+    what: 'What the planner assumed the edges of these four requirements are. They are listed in the table "The four flagged edge assumptions" below, with where they are tested.',
+    how: 'Confirm each one, or say what is different.',
+  },
+  {
+    id: 'temporary-password-words',
+    title: 'The 40 words in a suggested temporary password (plan 05-22)',
+    what: 'A suggestion looks like "Tela-Sukat-7381": two of these words, a hyphen and four digits. The words are short sewing words in Tagalog and English. They are listed below.',
+    how: 'Say "approved", or name any word to remove or add.',
+  },
+  {
+    id: 'phone-motion',
+    title: 'Motion on a real phone',
+    what: 'The navigation drawer, the user menu and a dialog slide and fade in and out. With "reduce motion" turned on in the phone’s settings, nothing should move. On a short page the tab bar sits at the bottom of the screen.',
+    how: 'Open and close each on your phone, with reduce motion off and then on, and tell me if anything feels wrong. The automatic tests prove the state and the reduced-motion rule, not how it feels.',
+  },
+  {
+    id: 'email-inbox',
+    title: 'The email-change mail in a real inbox',
+    what: 'Changing a sign-in email sends a confirmation link to the new address and a notice to the old one.',
+    how: 'On a development account with SMTP set up, change your own email and confirm that both emails arrive and look right.',
+  },
+  {
+    id: 'cookie-after-deploy',
+    title: 'The sign-in cookie after the next deploy (Phase 4 carry-over)',
+    what: 'The refresh cookie should carry an Expires date only when "Keep me signed in" is ticked.',
+    how: 'After the next deploy, sign in on the live site with and without the box ticked, and look at the cookie __Secure-csps_rt in the browser’s developer tools.',
+  },
+]);
+
+// The Phase 5 copy is plain data too, loaded by address (see AUTH_COPY above).
+/** @type {unknown} */
+const usersCopyModule = await import(new URL('../src/modules/admin/usersCopy.ts', import.meta.url).href);
+/** @type {unknown} */
+const profileCopyModule = await import(new URL('../src/modules/admin/profileCopy.ts', import.meta.url).href);
+/** @type {unknown} */
+const auditCopyModule = await import(new URL('../src/modules/admin/auditCopy.ts', import.meta.url).href);
+/** @type {unknown} */
+const recordMetaCopyModule = await import(new URL('../src/components/data/copy.ts', import.meta.url).href);
+/** @type {unknown} */
+const statesCopyModule = await import(new URL('../src/components/states/copy.ts', import.meta.url).href);
+/** @type {unknown} */
+const temporaryPasswordModule = await import(new URL('../src/utils/temporaryPassword.ts', import.meta.url).href);
+
+/**
+ * The 40 words a suggested temporary password is built from (plan 05-22).
+ * @returns {readonly string[]}
+ */
+export function temporaryPasswordWords() {
+  const words = /** @type {{ TEMPORARY_PASSWORD_WORDS?: readonly string[] }} */ (temporaryPasswordModule)
+    .TEMPORARY_PASSWORD_WORDS;
+  return words ?? [];
+}
+
+/**
+ * Every sentence of the Phase 5 screens (USERS_COPY, PROFILE_COPY, AUDIT_COPY, the record-meta and conflict-banner copy),
+ * one row per string, then the Audit Log action labels and the "What changed" sentences, for the owner's wording review
+ * (D-48). A sentence with an address in it shows `{email}` there; a function shows its placeholders as `{x}` and `{y}`.
+ * @returns {{ place: string, text: string }[]}
+ */
+export function phase5Words() {
+  /** @type {{ place: string, text: string }[]} */
+  const rows = [];
+  /** @param {unknown} value @param {readonly string[]} trail */
+  const walk = (value, trail) => {
+    const place = trail.join(' > ');
+    if (typeof value === 'string') {
+      rows.push({ place, text: value });
+    } else if (typeof value === 'function') {
+      try {
+        const words = /** @type {(...args: string[]) => unknown} */ (/** @type {unknown} */ (value));
+        /** @type {unknown} */
+        const text = words('{x}', '{y}', '{z}');
+        if (typeof text === 'string') {
+          rows.push({ place, text });
+        }
+      } catch {
+        // A function that needs real data has no fixed words to show.
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      const entries = Object.entries(value);
+      const sentence = /** @type {{ before?: unknown, middle?: unknown, after?: unknown }} */ (value);
+      if (typeof sentence.before === 'string' && typeof sentence.after === 'string') {
+        const middle = typeof sentence.middle === 'string' ? `${sentence.middle}{email}` : '';
+        rows.push({ place, text: `${sentence.before}{email}${middle}${sentence.after}` });
+        return;
+      }
+      for (const [key, child] of entries) {
+        if (key !== 'icon') {
+          walk(child, [...trail, key]);
+        }
+      }
+    }
+  };
+  /** @param {unknown} moduleValue @param {string} name @returns {unknown} */
+  const exported = (moduleValue, name) => /** @type {Record<string, unknown>} */ (moduleValue)[name];
+  walk(exported(usersCopyModule, 'USERS_COPY'), ['Users']);
+  walk(exported(profileCopyModule, 'PROFILE_COPY'), ['My Profile']);
+  walk(exported(auditCopyModule, 'AUDIT_COPY'), ['Audit Log']);
+  walk(exported(recordMetaCopyModule, 'RECORD_META_COPY'), ['Recorded by / Last changed by']);
+  walk(/** @type {{ conflict?: unknown }} */ (exported(statesCopyModule, 'STATES_COPY')).conflict, [
+    'Stale save banner',
+  ]);
+  const actions = /** @type {readonly { code: string, label: string }[]} */ (
+    exported(auditCopyModule, 'AUDIT_ACTIONS')
+  );
+  for (const action of actions) {
+    rows.push({ place: `Audit Log > action label > ${action.code}`, text: action.label });
+  }
+  const sentences = /** @type {readonly { action: string, word: string, sentence: string }[]} */ (
+    exported(auditCopyModule, 'AUDIT_DETAIL_SENTENCES')
+  );
+  for (const entry of sentences) {
+    rows.push({ place: `Audit Log > What changed > ${entry.action} > ${entry.word}`, text: entry.sentence });
+  }
+  return rows;
+}
+
+/**
+ * The Phase 5 section: the rulings page first (what is still open, then what is already ruled), then the words, then every
+ * picture grouped by screen.
+ * @param {readonly Phase5ReviewShot[]} phase5Review
+ * @returns {string}
+ */
+function phase5ReviewSection(phase5Review) {
+  if (phase5Review.length === 0) {
+    return '';
+  }
+  const open = PHASE5_OPEN_ITEMS.map(
+    (item, index) =>
+      `<tr><td class="n">${String(index + 1)}</td><td><strong>${escapeHtml(item.title)}</strong></td><td>${escapeHtml(item.what)}</td><td>${escapeHtml(item.how)}</td></tr>`,
+  ).join('');
+  const assumptions = PHASE5_EDGE_ASSUMPTIONS.map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.requirement)}</td><td>${escapeHtml(entry.assumed)}</td><td>${escapeHtml(entry.evidence)}</td></tr>`,
+  ).join('');
+  const ruled = PHASE5_RULED.map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.id)}</td><td>${escapeHtml(entry.topic)}</td><td>${escapeHtml(entry.ruling)}</td><td>${escapeHtml(entry.ruledIn)}</td></tr>`,
+  ).join('');
+  const words = phase5Words()
+    .map((row) => `<tr><td>${escapeHtml(row.place)}</td><td>${escapeHtml(row.text)}</td></tr>`)
+    .join('');
+  const wordList = temporaryPasswordWords().map(escapeHtml).join(', ');
+  const groups = [...new Set(phase5Review.map((shot) => shot.group))];
+  const sections = groups
+    .map((group) => {
+      const ids = [...new Set(phase5Review.filter((shot) => shot.group === group).map((shot) => shot.id))];
+      const cases = ids
+        .map((id) => {
+          const ofCase = phase5Review.filter((shot) => shot.id === id);
+          const label = ofCase[0]?.label ?? id;
+          const figures = ofCase
+            .map(
+              (shot) =>
+                `<figure class="gap"><figcaption>${escapeHtml(themeName(shot.theme))}, ${String(shot.width)} px</figcaption>` +
+                `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+                  `${label}, ${themeName(shot.theme)}, ${String(shot.width)} px`,
+                )}"></a></figure>`,
+            )
+            .join('');
+          return `<h4>${escapeHtml(label)}</h4><div class="row">${figures}</div>`;
+        })
+        .join('\n');
+      return `<h3>${escapeHtml(group)}</h3>\n${cases}`;
+    })
+    .join('\n');
+  return `<section><h2>Profile, users and audit log (Phase 5)</h2>
+<p class="note">These pictures show the real screens, signed in as a Manager, with people in every state. Users, My Profile and
+the Audit Log are in the page list near the top of this report (Admin: Users, Admin: My Profile, Admin: Audit Log); the
+slide-overs, dialogs and special states are below. Nothing here is approved until you say so.</p>
+<h3>Still open for you</h3>
+<p class="note">These are the only things left to decide or check. Say "approved" with any changes, or describe what to change.</p>
+<table><thead><tr><th>#</th><th>What</th><th>What it is</th><th>What you do</th></tr></thead><tbody>${open}</tbody></table>
+<h3>The four flagged edge assumptions</h3>
+<table><thead><tr><th>Requirement</th><th>What was assumed</th><th>Where it is tested</th></tr></thead><tbody>${assumptions}</tbody></table>
+<h3>The 40 temporary-password words</h3>
+<p class="note">${wordList}</p>
+<h3>Already ruled (nothing to do)</h3>
+<p class="note">The UI-SPEC rulings OQ-1 to OQ-11 are decided. They are listed so you can see what was built.</p>
+<table><thead><tr><th>#</th><th>What</th><th>The ruling</th><th>Ruled in</th></tr></thead><tbody>${ruled}</tbody></table>
+<h3>Words on the Phase 5 screens</h3>
+<p class="note">Every sentence the Phase 5 screens say. <strong>{email}</strong> stands for an address; <strong>{x}</strong>,
+<strong>{y}</strong> and <strong>{z}</strong> are values the app fills in (a name, a role, a time).</p>
+<table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
+${sections}</section>`;
+}
+
 /** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isRecord(value) {
   return typeof value === 'object' && value !== null;
@@ -1396,9 +1955,11 @@ const SETTLE = `new Promise((resolve) => requestAnimationFrame(() => requestAnim
  * @param {string} origin
  * @param {{ path: string, h1: string, theme: Theme, width: number }} target
  * @param {string[]} problems collects the page's console errors and warnings, in plain words.
+ * @param {{ request: import('@playwright/test').APIRequestContext, staff: MadeStaff } | undefined} [signedIn] signs this
+ *   person in through the real sign-in screens first (plan 05-37), for the pages only a Manager can open.
  * @returns {Promise<{ page: import('@playwright/test').Page, close(): Promise<void> }>}
  */
-export async function openReviewPage(browser, origin, target, problems) {
+export async function openReviewPage(browser, origin, target, problems, signedIn) {
   const height = /** @type {Record<number, number>} */ (VIEWPORT_HEIGHTS)[target.width] ?? 900;
   const context = await browser.newContext({
     viewport: { width: target.width, height },
@@ -1409,6 +1970,10 @@ export async function openReviewPage(browser, origin, target, problems) {
     await context.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
   }
   const page = await context.newPage();
+  if (signedIn !== undefined) {
+    // The sign-in page's own first refresh is a 401 by design, so the console is read only once the person is in.
+    await signIn(page, signedIn.request, origin, signedIn.staff);
+  }
   const where = `${target.path} (${themeName(target.theme)}, ${String(target.width)} px)`;
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -1639,6 +2204,591 @@ async function captureBeforeAfter(browser, origin, shots, problems) {
   }
 }
 
+// ───────────── Plan 05-37: capturing the Phase 5 screens signed in as a Manager ─────────────
+
+/** @typedef {import('@playwright/test').Page} Page */
+/** @typedef {import('@playwright/test').APIRequestContext} ApiRequest */
+/** @typedef {{ readonly key: string, readonly userId: string, readonly email: string, readonly password: string, readonly name: string }} MadeStaff */
+/** @typedef {{ readonly tag: string, readonly people: Readonly<Record<string, MadeStaff>>, readonly coraEmail: string }} Phase5Seed */
+
+/** The height of the review window at each width; the short shell is 600 px tall. */
+function windowHeight(/** @type {number} */ width) {
+  if (width === SHORT_SCREEN_WIDTH) {
+    return SHORT_SCREEN_HEIGHT;
+  }
+  const heights = /** @type {Record<number, number>} */ (VIEWPORT_HEIGHTS);
+  return heights[width] ?? 900;
+}
+
+/**
+ * Waits up to 30 seconds for a mail to an address (with a part of the subject, after a cursor id) in the Testing sink and
+ * returns the newest match. Nothing is ever sent: the Testing host keeps mail in memory (D-27).
+ * @param {ApiRequest} request
+ * @param {string} to
+ * @param {string} subjectPart
+ * @param {number} after
+ * @returns {Promise<{ id: number, subject: string, text: string }>}
+ */
+async function waitForMail(request, to, subjectPart, after) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const response = await request.get('/api/testing/emails', { params: { to, after } });
+    /** @type {unknown} */
+    const body = await response.json();
+    const mails = /** @type {{ id: number, subject: string, text: string }[]} */ (Array.isArray(body) ? body : []);
+    const found = mails.filter((mail) => mail.subject.includes(subjectPart)).at(-1);
+    if (found !== undefined) {
+      return found;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`No "${subjectPart}" mail to ${to} arrived in the Testing sink.`);
+}
+
+/**
+ * The id of the newest mail to an address, or 0: a mail with a bigger id is a new one.
+ * @param {ApiRequest} request
+ * @param {string} to
+ * @returns {Promise<number>}
+ */
+async function newestMailId(request, to) {
+  const response = await request.get('/api/testing/emails', { params: { to, after: 0 } });
+  /** @type {unknown} */
+  const body = await response.json();
+  const mails = /** @type {{ id: number }[]} */ (Array.isArray(body) ? body : []);
+  return mails.at(-1)?.id ?? 0;
+}
+
+/**
+ * Makes one staff member through the Testing-only staff fixture; the address is `review-<tag>-<key>@csps.test`.
+ * @param {ApiRequest} request
+ * @param {Phase5SeedPerson} person
+ * @param {string} tag
+ * @returns {Promise<MadeStaff>}
+ */
+async function makeStaff(request, person, tag) {
+  const response = await request.post('/api/testing/staff', {
+    data: {
+      role: person.role,
+      state: person.state,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: `review-${tag}-${person.key}@csps.test`,
+    },
+  });
+  if (response.status() !== 201) {
+    throw new Error(`The staff fixture answered ${String(response.status())} for ${person.key}, not 201.`);
+  }
+  /** @type {unknown} */
+  const body = await response.json();
+  const made = /** @type {{ userId?: string, email?: string, password?: string }} */ (body);
+  if (typeof made.userId !== 'string' || typeof made.email !== 'string') {
+    throw new Error(`The staff fixture returned an unexpected body for ${person.key}.`);
+  }
+  return {
+    key: person.key,
+    userId: made.userId,
+    email: made.email,
+    password: made.password ?? '',
+    name: `${person.firstName} ${person.lastName}`,
+  };
+}
+
+/**
+ * Signs a staff member in through the real screens, as web/e2e/auth.ts does: the email and password, the code from the
+ * Testing sink, Verify Code. Resolves with the access token of the new session.
+ * @param {Page} page
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {MadeStaff} staff
+ * @returns {Promise<string>}
+ */
+async function signIn(page, request, origin, staff) {
+  const after = await newestMailId(request, staff.email);
+  await page.goto(`${origin}/admin/login`);
+  await page.getByLabel('Email').fill(staff.email);
+  await page.getByLabel('Password', { exact: true }).fill(staff.password);
+  await page.getByRole('button', { name: 'Sign In' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Check your email' }).waitFor({ timeout: 30_000 });
+  const mail = await waitForMail(request, staff.email, 'is your CSPS sign-in code', after);
+  const code = /^(\d{6}) is your CSPS sign-in code$/.exec(mail.subject)?.[1];
+  if (code === undefined) {
+    throw new Error(`The sign-in mail to ${staff.email} has no six-digit code.`);
+  }
+  const verified = page.waitForResponse((response) => response.url().endsWith('/api/v1/auth/two-factor/verify'));
+  await page.getByLabel('Digit 1 of 6').click();
+  await page.keyboard.type(code);
+  await page.getByRole('button', { name: 'Verify Code' }).click();
+  /** @type {unknown} */
+  const body = await (await verified).json();
+  const token = /** @type {{ session?: { accessToken?: string } }} */ (body).session?.accessToken;
+  if (typeof token !== 'string') {
+    throw new Error(`The sign-in of ${staff.email} returned no access token.`);
+  }
+  await page.waitForURL(/\/admin(\/sessions)?$/, { timeout: 30_000 });
+  return token;
+}
+
+/**
+ * Signs a staff member in on a throwaway page and returns the access token, for the calls that set the pictures up.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {MadeStaff} staff
+ * @returns {Promise<string>}
+ */
+async function tokenFor(browser, request, origin, staff) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    return await signIn(await context.newPage(), request, origin, staff);
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * One call to the API as a signed-in person; a POST carries a fresh Idempotency-Key as the web app sends. Returns the JSON
+ * body, or null for an empty answer.
+ * @param {ApiRequest} request
+ * @param {string} token
+ * @param {'GET' | 'POST' | 'PUT' | 'DELETE'} method
+ * @param {string} url
+ * @param {unknown} [data]
+ * @returns {Promise<unknown>}
+ */
+async function callApi(request, token, method, url, data) {
+  /** @type {Record<string, string>} */
+  const headers = { Authorization: `Bearer ${token}` };
+  if (method === 'POST') {
+    headers['Idempotency-Key'] = randomUUID();
+  }
+  const response = await request.fetch(url, { method, headers, data });
+  if (!response.ok()) {
+    throw new Error(`${method} ${url} answered ${String(response.status())}.`);
+  }
+  if (response.status() === 204) {
+    return null;
+  }
+  /** @type {unknown} */
+  const body = await response.json();
+  return body;
+}
+
+/**
+ * Makes the people of PHASE5_SEED_PEOPLE and gives them a history: Carlos adds Cora and is then deleted by Bea, Bea locks and
+ * unlocks Ana (audit entries), and Carmen asks to change her email (a change waiting for confirmation).
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @returns {Promise<Phase5Seed>}
+ */
+async function seedPhase5(browser, request, origin) {
+  const tag = randomUUID().slice(0, 8);
+  /** @type {Record<string, MadeStaff>} */
+  const people = {};
+  for (const person of PHASE5_SEED_PEOPLE) {
+    people[person.key] = await makeStaff(request, person, tag);
+  }
+  const must = (/** @type {string} */ key) => {
+    const found = people[key];
+    if (found === undefined) {
+      throw new Error(`The seed has no person "${key}".`);
+    }
+    return found;
+  };
+  const coraEmail = `review-${tag}-cora@csps.test`;
+  const carlosToken = await tokenFor(browser, request, origin, must('carlos'));
+  await callApi(request, carlosToken, 'POST', '/api/v1/users', {
+    firstName: 'Cora',
+    lastName: 'Aquino',
+    email: coraEmail,
+    role: 'Admin',
+    access: 'invitation',
+  });
+  const carmenToken = await tokenFor(browser, request, origin, must('carmen'));
+  await callApi(request, carmenToken, 'POST', '/api/v1/profile/email-change', {
+    newEmail: `review-${tag}-carmen-new@csps.test`,
+    currentPassword: must('carmen').password,
+  });
+  const managerToken = await tokenFor(browser, request, origin, must('manager'));
+  await callApi(request, managerToken, 'POST', `/api/v1/users/${must('ana').userId}/lock`);
+  await callApi(request, managerToken, 'POST', `/api/v1/users/${must('ana').userId}/unlock`);
+  await callApi(request, managerToken, 'DELETE', `/api/v1/users/${must('carlos').userId}`);
+  return { tag, people, coraEmail };
+}
+
+/**
+ * A fresh browser context at a width and theme, signed in as the seeded Manager. Console errors and warnings are collected
+ * from the moment the sign-in is done (the sign-in page's own first refresh is a 401 by design).
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @param {{ theme: Theme, width: number }} view
+ * @param {string[]} problems
+ * @returns {Promise<{ page: Page, close(): Promise<void> }>}
+ */
+async function openSignedIn(browser, request, origin, seed, view, problems) {
+  const context = await browser.newContext({
+    viewport: { width: view.width, height: windowHeight(view.width) },
+    ignoreHTTPSErrors: true,
+    deviceScaleFactor: 1,
+  });
+  if (view.theme === 'dark') {
+    await context.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
+  }
+  const page = await context.newPage();
+  const manager = seed.people.manager;
+  if (manager === undefined) {
+    throw new Error('The seed has no Manager.');
+  }
+  await signIn(page, request, origin, manager);
+  const where = `(${themeName(view.theme)}, ${String(view.width)} px)`;
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      problems.push(`${where}: ${message.text()}`);
+    }
+  });
+  page.on('pageerror', (error) => {
+    problems.push(`${where}: ${error.message}`);
+  });
+  return { page, close: () => context.close() };
+}
+
+/** Waits for the page's h1, its fonts and its motion (SETTLE). */
+async function pageReady(/** @type {Page} */ page, /** @type {string} */ h1) {
+  await page.locator('h1', { hasText: h1 }).first().waitFor({ timeout: 30_000 });
+  await page.evaluate('document.fonts.ready.then(() => true)');
+  await page.evaluate(SETTLE);
+}
+
+/**
+ * Everything one case needs.
+ * @typedef {{ page: Page, request: ApiRequest, origin: string, seed: Phase5Seed, target: string, browser: import('@playwright/test').Browser }} CaseContext
+ */
+
+/** @param {CaseContext} c @param {string} [query] */
+async function openUsers(c, query = `?q=review-${c.seed.tag}`) {
+  await c.page.goto(`${c.origin}/admin/users${query}`);
+  await pageReady(c.page, 'Users');
+  await c.page.locator('tbody tr').first().waitFor({ timeout: 30_000 });
+}
+
+/** @param {CaseContext} c @param {string} email */
+async function openEdit(c, email) {
+  await openUsers(c, `?q=${encodeURIComponent(email)}`);
+  const row = c.page.locator('tbody tr').first();
+  await row.getByRole('button', { name: /^Edit / }).click();
+  const panel = c.page.getByRole('dialog', { name: 'Edit User' });
+  await panel.getByRole('textbox', { name: /^First name/ }).waitFor({ timeout: 30_000 });
+  await c.page.evaluate(SETTLE);
+  return { panel, row };
+}
+
+/** @param {CaseContext} c */
+async function shoot(c) {
+  await c.page.evaluate(SETTLE);
+  await c.page.screenshot({ path: c.target });
+}
+
+/** @param {CaseContext} c */
+async function shootFullPage(c) {
+  await c.page.evaluate(SETTLE);
+  await c.page.screenshot({ path: c.target, fullPage: true });
+}
+
+/** @param {CaseContext} c */
+async function openAddUser(c) {
+  await openUsers(c);
+  await c.page.getByRole('button', { name: 'Add User' }).click();
+  const panel = c.page.getByRole('dialog', { name: 'Add User' });
+  await panel.getByRole('textbox', { name: /^First name/ }).waitFor();
+  await c.page.evaluate(SETTLE);
+  return panel;
+}
+
+/** @param {import('@playwright/test').Locator} panel @param {string} email */
+async function fillNewPerson(panel, email) {
+  await panel.getByRole('textbox', { name: /^First name/ }).fill('Rosa');
+  await panel.getByRole('textbox', { name: /^Last name/ }).fill('Dela Cruz');
+  await panel.getByRole('textbox', { name: /^Email/ }).fill(email);
+}
+
+/**
+ * A person with a change of email waiting, made for the confirm-email pictures: the new address and the link from the mail.
+ * @param {CaseContext} c
+ * @returns {Promise<string>} the link, with its token in the fragment.
+ */
+async function pendingEmailLink(c) {
+  const made = await makeStaff(
+    c.request,
+    { key: `elena-${randomUUID().slice(0, 6)}`, role: 'Admin', state: 'active', firstName: 'Elena', lastName: 'Cruz' },
+    c.seed.tag,
+  );
+  const token = await tokenFor(c.browser, c.request, c.origin, made);
+  const newEmail = `review-${c.seed.tag}-${randomUUID().slice(0, 6)}@csps.test`;
+  await callApi(c.request, token, 'POST', '/api/v1/profile/email-change', {
+    newEmail,
+    currentPassword: made.password,
+  });
+  const mail = await waitForMail(c.request, newEmail, 'Confirm your new CSPS email', 0);
+  const link = /https?:\/\/[^\s"'<>]+#token=[^\s"'<>]+/.exec(mail.text)?.[0];
+  if (link === undefined) {
+    throw new Error('The email-change mail has no link with a token.');
+  }
+  return link;
+}
+
+/** @param {CaseContext} c */
+async function openChangeEmail(c) {
+  await c.page.goto(`${c.origin}/admin/profile`);
+  await pageReady(c.page, 'Bea Navarro');
+  const card = c.page.getByRole('region', { name: 'Sign-in Email' });
+  await card.getByRole('button', { name: 'Change Email' }).click();
+  const dialog = c.page.getByRole('dialog', { name: 'Change your email' });
+  await dialog.getByRole('textbox', { name: 'New email' }).fill(`review-${c.seed.tag}-bea-new@csps.test`);
+  await dialog.getByLabel('Current password').fill(c.seed.people.manager?.password ?? '');
+  await c.page.evaluate(SETTLE);
+  return { card, dialog };
+}
+
+/**
+ * How each case is photographed. Every function leaves the page where the next case can start from a page load: dialogs
+ * and panels are closed again, and the one case that changes data (the temporary-password user and the email change)
+ * cleans up after itself.
+ * @type {Readonly<Record<string, (c: CaseContext) => Promise<void>>>}
+ */
+const PHASE5_CAPTURES = Object.freeze({
+  'add-invitation': async (c) => {
+    const panel = await openAddUser(c);
+    await fillNewPerson(panel, `review-${c.seed.tag}-rosa@csps.test`);
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'add-temporary-password': async (c) => {
+    const panel = await openAddUser(c);
+    await fillNewPerson(panel, `review-${c.seed.tag}-rosa@csps.test`);
+    await panel.getByRole('radio', { name: 'Set a temporary password' }).check();
+    await panel.getByLabel('Temporary password', { exact: true }).waitFor();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'add-shown-once': async (c) => {
+    const panel = await openAddUser(c);
+    await fillNewPerson(panel, `review-${c.seed.tag}-new-${randomUUID().slice(0, 6)}@csps.test`);
+    await panel.getByRole('radio', { name: 'Set a temporary password' }).check();
+    await panel.getByRole('button', { name: 'Create User' }).click();
+    const shown = c.page.getByRole('dialog', { name: 'User created' });
+    await shown.waitFor({ timeout: 30_000 });
+    await shoot(c);
+    await shown.getByRole('button', { name: 'Done' }).click();
+  },
+  'edit-record-meta': async (c) => {
+    const { panel } = await openEdit(c, c.seed.coraEmail);
+    await panel.getByText('Recorded by', { exact: true }).scrollIntoViewIfNeeded();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'edit-email-change-note': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.ana?.email ?? '');
+    await panel.getByRole('textbox', { name: /^Email/ }).fill(`review-${c.seed.tag}-ana-new@csps.test`);
+    await panel.getByRole('group', { name: 'How this email change applies' }).scrollIntoViewIfNeeded();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'edit-pending-email': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.carmen?.email ?? '');
+    await panel.getByText('Waiting for confirmation at', { exact: false }).first().scrollIntoViewIfNeeded();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'edit-invited-email-note': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.alma?.email ?? '');
+    await panel.getByRole('textbox', { name: /^Email/ }).fill(`review-${c.seed.tag}-alma-new@csps.test`);
+    await panel.getByText('invitation to the new address', { exact: false }).first().scrollIntoViewIfNeeded();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'edit-account-access': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.ana?.email ?? '');
+    await panel.getByRole('heading', { level: 3, name: 'Account access' }).scrollIntoViewIfNeeded();
+    await shoot(c);
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'dialog-deactivate': async (c) => {
+    await openUsers(c, `?q=${encodeURIComponent(c.seed.people.ana?.email ?? '')}`);
+    const row = c.page.locator('tbody tr').first();
+    await row.getByRole('button', { name: /^Deactivate / }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Deactivate Ana Reyes?' });
+    await dialog.waitFor();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Keep Active' }).click();
+  },
+  'dialog-delete': async (c) => {
+    await openUsers(c, `?q=${encodeURIComponent(c.seed.people.ana?.email ?? '')}`);
+    const row = c.page.locator('tbody tr').first();
+    await row.getByRole('button', { name: /^Delete / }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Delete Ana Reyes?' });
+    await dialog.waitFor();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'dialog-lock': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.ana?.email ?? '');
+    await panel.getByRole('button', { name: 'Lock', exact: true }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Lock Ana Reyes?' });
+    await dialog.waitFor();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Keep Unlocked' }).click();
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'dialog-temporary-password': async (c) => {
+    const { panel } = await openEdit(c, c.seed.people.ana?.email ?? '');
+    await panel.getByRole('button', { name: 'Set Temporary Password' }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Set a temporary password' });
+    await dialog.waitFor();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'profile-change-email-dialog': async (c) => {
+    const { dialog } = await openChangeEmail(c);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'profile-details-pending-email': async (c) => {
+    const { card, dialog } = await openChangeEmail(c);
+    await dialog.getByRole('button', { name: 'Send Confirmation Link' }).click();
+    await card.getByRole('button', { name: 'Cancel Change' }).waitFor({ timeout: 30_000 });
+    await shootFullPage(c);
+    await card.getByRole('button', { name: 'Cancel Change' }).click();
+    await card.getByRole('button', { name: 'Change Email' }).waitFor({ timeout: 30_000 });
+  },
+  'profile-security': async (c) => {
+    await c.page.goto(`${c.origin}/admin/profile?tab=security`);
+    await pageReady(c.page, 'Bea Navarro');
+    await c.page.getByRole('heading', { level: 2, name: 'Signed-in Devices' }).waitFor();
+    await shootFullPage(c);
+  },
+  'profile-appearance': async (c) => {
+    await c.page.goto(`${c.origin}/admin/profile?tab=appearance`);
+    await pageReady(c.page, 'Bea Navarro');
+    await c.page.getByRole('heading', { level: 2, name: 'Theme' }).waitFor();
+    await shootFullPage(c);
+  },
+  'confirm-email-ready': async (c) => {
+    await c.page.goto(await pendingEmailLink(c));
+    await c.page.getByRole('button', { name: 'Confirm New Email' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+  },
+  'confirm-email-done': async (c) => {
+    await c.page.goto(await pendingEmailLink(c));
+    await c.page.getByRole('button', { name: 'Confirm New Email' }).click();
+    await c.page.getByRole('heading', { level: 1, name: 'Your email is changed' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+  },
+  'confirm-email-invalid': async (c) => {
+    await c.page.goto(`${c.origin}/admin/confirm-email`);
+    await c.page.getByRole('heading', { level: 1, name: 'This link has expired' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+  },
+  'audit-expanded-row': async (c) => {
+    await c.page.goto(`${c.origin}/admin/audit-log`);
+    await pageReady(c.page, 'Audit Log');
+    await c.page.locator('tbody tr').first().waitFor({ timeout: 30_000 });
+    await c.page
+      .getByRole('button', { name: /^Show details for / })
+      .first()
+      .click();
+    await shootFullPage(c);
+  },
+  'audit-no-matches': async (c) => {
+    await c.page.goto(`${c.origin}/admin/audit-log?range=all&target=${c.seed.people.alma?.userId.toLowerCase() ?? ''}`);
+    await pageReady(c.page, 'Audit Log');
+    await c.page.getByRole('heading', { name: 'No matches' }).waitFor({ timeout: 30_000 });
+    await shootFullPage(c);
+  },
+  'audit-empty': async (c) => {
+    // The log is never empty on a used database, so the one list call is answered with "nothing" for this picture.
+    await c.page.route(/\/api\/v1\/audit-log(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], total: 0, page: 1, pageSize: 20 }),
+      }),
+    );
+    await c.page.goto(`${c.origin}/admin/audit-log`);
+    await pageReady(c.page, 'Audit Log');
+    await c.page.getByRole('heading', { name: 'No entries in the last 7 days' }).waitFor({ timeout: 30_000 });
+    await shootFullPage(c);
+    await c.page.unroute(/\/api\/v1\/audit-log(\?|$)/);
+  },
+  'showcase-demo-banner': async (c) => {
+    await c.page.goto(`${c.origin}/admin/components`);
+    await pageReady(c.page, 'Component Showcase');
+    await shoot(c);
+  },
+  'shell-short-screen': async (c) => {
+    await openUsers(c);
+    await shoot(c);
+  },
+});
+
+/**
+ * Takes the Phase 5 pictures: one signed-in browser context per theme and width, and the cases in order inside it.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @param {readonly Phase5ReviewShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function capturePhase5Review(browser, request, origin, seed, shots, problems) {
+  const views = [...new Set(shots.map((shot) => `${shot.theme}|${String(shot.width)}`))];
+  for (const key of views) {
+    const [theme, width] = key.split('|');
+    const group = shots.filter((shot) => shot.theme === theme && String(shot.width) === width);
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const opened = await openSignedIn(
+      browser,
+      request,
+      origin,
+      seed,
+      { theme: first.theme, width: first.width },
+      problems,
+    );
+    try {
+      for (const shot of group) {
+        const capture = PHASE5_CAPTURES[shot.id];
+        if (capture === undefined) {
+          throw new Error(`No capture is written for the Phase 5 case "${shot.id}"; update PHASE5_CAPTURES.`);
+        }
+        try {
+          await capture({
+            page: opened.page,
+            request,
+            origin,
+            seed,
+            browser,
+            target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
+          });
+          process.stdout.write(`review: ${shot.file}\n`);
+        } catch (error) {
+          // One picture that cannot be taken is reported in the page's list of problems; the rest are still taken.
+          const reason = error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error);
+          problems.push(`${shot.file} could not be taken: ${reason}`);
+          process.stdout.write(`review: ${shot.file} FAILED: ${reason}\n`);
+        }
+      }
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
 /**
  * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases, then the wording
  * before/after pairs.
@@ -1646,17 +2796,29 @@ async function captureBeforeAfter(browser, origin, shots, problems) {
  * @returns {Promise<CaptureResult>}
  */
 async function captureShots(step) {
-  const { chromium } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review']) {
+  const { chromium, request: playwrightRequest } = await import('@playwright/test');
+  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review']) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
   /** @type {string[]} */
   const problems = [];
   const browser = await chromium.launch();
+  // The Testing-only routes (the staff fixture and the mail sink) are called from here, not from a page.
+  const request = await playwrightRequest.newContext({ baseURL: step.origin, ignoreHTTPSErrors: true });
   try {
+    const needsSignIn = step.phase5Review.length > 0 || REVIEW_TARGETS.some((target) => target.signedIn === true);
+    const seed = needsSignIn ? await seedPhase5(browser, request, step.origin) : null;
     for (const shot of step.shots) {
-      const opened = await openReviewPage(browser, step.origin, shot, problems);
+      const target = REVIEW_TARGETS.find((entry) => entry.path === shot.path);
+      const manager = seed?.people.manager;
+      const signedIn = target?.signedIn === true && manager !== undefined ? { request, staff: manager } : undefined;
+      // The roster is narrowed to this run's people, so they lead the list whatever earlier test runs left behind.
+      const pagePath =
+        signedIn !== undefined && shot.path === '/admin/users' ? `${shot.path}?q=review-${seed?.tag ?? ''}` : shot.path;
+      // My Profile's h1 is the person's name, not the words "My Profile".
+      const h1 = signedIn !== undefined && shot.path === '/admin/profile' ? signedIn.staff.name : shot.h1;
+      const opened = await openReviewPage(browser, step.origin, { ...shot, path: pagePath, h1 }, problems, signedIn);
       try {
         await opened.page.screenshot({ path: assertWritable(path.join(OUTPUT_DIR, shot.file)), fullPage: true });
         process.stdout.write(`review: ${shot.file}\n`);
@@ -1667,7 +2829,11 @@ async function captureShots(step) {
     await captureSpecGap(browser, step.origin, step.specGap, problems);
     await captureBeforeAfter(browser, step.origin, step.beforeAfter, problems);
     await captureAuthReview(browser, step.origin, step.authReview, problems);
+    if (seed !== null) {
+      await capturePhase5Review(browser, request, step.origin, seed, step.phase5Review, problems);
+    }
   } finally {
+    await request.dispose();
     await browser.close();
   }
   return {
@@ -1675,6 +2841,7 @@ async function captureShots(step) {
     specGap: step.specGap,
     beforeAfter: step.beforeAfter,
     authReview: step.authReview,
+    phase5Review: step.phase5Review,
     problems,
   };
 }
@@ -1717,6 +2884,7 @@ function writeReport(step, result) {
       specGap: result.specGap ?? [],
       beforeAfter: result.beforeAfter ?? [],
       authReview: result.authReview ?? [],
+      phase5Review: result.phase5Review ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),

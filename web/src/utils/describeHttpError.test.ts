@@ -2,7 +2,7 @@
 // Server text never reaches the screen; the only server value shown is the traceId reference (T-02-44, CWE-209).
 import { describe, expect, it } from 'vitest';
 import { HttpError, type HttpErrorKind } from '@/core/api/errors';
-import { describeHttpError } from './describeHttpError';
+import { describeHttpError, errorLine } from './describeHttpError';
 
 interface ProblemInit {
   readonly title?: string;
@@ -104,4 +104,17 @@ describe('describeHttpError', () => {
       expect(describeHttpError(value)).toEqual({ title: 'Something went wrong', body: 'Please try again.' });
     },
   );
+});
+
+describe('errorLine', () => {
+  it('makes the title a sentence and adds the body', () => {
+    expect(errorLine({ title: 'Something went wrong', body: 'Please try again.' })).toBe(
+      'Something went wrong. Please try again.',
+    );
+  });
+
+  it('keeps a title that already ends a sentence', () => {
+    expect(errorLine({ title: 'Check the highlighted fields.', body: '' })).toBe('Check the highlighted fields.');
+    expect(errorLine({ title: 'Really?', body: 'Yes.' })).toBe('Really? Yes.');
+  });
 });

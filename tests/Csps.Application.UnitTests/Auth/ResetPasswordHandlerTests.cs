@@ -101,6 +101,7 @@ public sealed class ResetPasswordHandlerTests
         await harness.Accounts.Received(1).ClearMustChangePasswordAsync(UserId, Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(UserId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
         await harness.Sessions.Received(1).RevokeAllAsync(UserId, null, SessionRevocationReason.PasswordReset, Start, Arg.Any<CancellationToken>());
+        await harness.Challenges.Received(1).InvalidateOpenAsync(UserId, Start, Arg.Any<CancellationToken>());
         await harness.SessionCache.Received(1).EvictUserAsync(UserId, Arg.Any<CancellationToken>());
 
         var mail = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<PasswordChangedEmail>();
@@ -156,7 +157,7 @@ public sealed class ResetPasswordHandlerTests
         var result = await harness.Handler.HandleAsync(new ResetPasswordRequest(Secret, string.Empty), TestContext.Current.CancellationToken);
 
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
-        result.Error.FieldErrors.ShouldNotBeNull()["newPassword"].ShouldBe([ResetPasswordRequestValidator.NewPasswordRequired]);
+        result.Error.FieldErrors.ShouldNotBeNull()["newPassword"].ShouldBe([PasswordRules.NewPasswordRequired]);
         await harness.Tokens.DidNotReceive().FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>());
     }
 
@@ -255,6 +256,65 @@ public sealed class ResetPasswordHandlerTests
                 && !e.Detail.Contains(Good, StringComparison.Ordinal)));
     }
 
+    [Fact]
+    public async Task TheBreachCheckRunsAfterTheLookupAndBeforeTheTransactionThenTheLinkIsReadAgainInside()
+    {
+        var harness = Harness.Create();
+        var events = new List<string>();
+        harness.Tokens.FindByHashAsync(Arg.Any<byte[]>(), AccountTokenPurpose.PasswordReset, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                events.Add(harness.Unit.InTransaction ? "lookup:inside" : "lookup:outside");
+                return Task.FromResult<AccountToken?>(harness.Token);
+            });
+        harness.Pwned.CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                events.Add(harness.Unit.InTransaction ? "breach:inside" : "breach:outside");
+                return Task.FromResult(BreachCheckResult.NotBreached);
+            });
+
+        var result = await harness.Handler.HandleAsync(new ResetPasswordRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        events.ShouldBe(["lookup:outside", "breach:outside", "lookup:inside"]);
+    }
+
+    [Fact]
+    public async Task ALinkSpentDuringTheBreachCheckIsTheInvalidAnswerAndChangesNothingMore()
+    {
+        var harness = Harness.Create();
+        harness.Pwned.CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                harness.Token.Use(Start);
+                return Task.FromResult(BreachCheckResult.NotBreached);
+            });
+
+        var result = await harness.Handler.HandleAsync(new ResetPasswordRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        AssertInvalidLink(result);
+        harness.Unit.Saves.ShouldBe(0);
+        await harness.Accounts.DidNotReceive().SetPasswordAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await harness.SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        harness.Audit.Entries.ShouldHaveSingleItem().Action.ShouldBe(AuditActions.PasswordResetLinkInvalid);
+    }
+
+    [Fact]
+    public async Task ARetryAfterALostRaceDoesNotCallTheBreachServiceAgain()
+    {
+        var harness = Harness.Create();
+        harness.Unit.FailFirstSaveWithConflict();
+        harness.Tokens.FindByHashAsync(Arg.Any<byte[]>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult<AccountToken?>(NewToken()));
+
+        var result = await harness.Handler.HandleAsync(new ResetPasswordRequest(Secret, Good), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Unit.Rollbacks.ShouldBe(1);
+        await harness.Pwned.Received(1).CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     private static AccountToken NewToken() =>
         AccountToken.Create(UserId, AccountTokenPurpose.PasswordReset, TokenHash.Compute(Secret), Start, TimeSpan.FromMinutes(30));
 
@@ -280,6 +340,7 @@ public sealed class ResetPasswordHandlerTests
             Accounts = Substitute.For<IUserAccounts>();
             Tokens = Substitute.For<IAccountTokens>();
             Sessions = Substitute.For<ISessions>();
+            Challenges = Substitute.For<ITwoFactorChallenges>();
             SessionCache = Substitute.For<ISessionCache>();
             Pwned = Substitute.For<IPwnedPasswords>();
             Pwned.CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(breach);
@@ -299,6 +360,7 @@ public sealed class ResetPasswordHandlerTests
                 Tokens,
                 Accounts,
                 Sessions,
+                Challenges,
                 SessionCache,
                 new PasswordRules(Pwned, common),
                 Outbox,
@@ -313,6 +375,8 @@ public sealed class ResetPasswordHandlerTests
         public IAccountTokens Tokens { get; }
 
         public ISessions Sessions { get; }
+
+        public ITwoFactorChallenges Challenges { get; }
 
         public ISessionCache SessionCache { get; }
 
@@ -397,6 +461,7 @@ public sealed class ResetPasswordHandlerTests
             await Accounts.DidNotReceive().MarkBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
             await Sessions.DidNotReceive().RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+            await Challenges.DidNotReceiveWithAnyArgs().InvalidateOpenAsync(default, default, default);
             await SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             Audit.Entries.ShouldNotContain(e => e.Action == AuditActions.PasswordResetCompleted || e.Action == AuditActions.SessionsRevoked);
         }

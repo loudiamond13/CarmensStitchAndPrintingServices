@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Profile;
 using Csps.Application.Users;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
@@ -38,6 +39,13 @@ public static class AuthRegistration
         services.AddSingleton<IValidator<SetNewPasswordRequest>, SetNewPasswordRequestValidator>();
         services.AddSingleton<IValidator<AcceptInviteRequest>, AcceptInviteRequestValidator>();
         services.AddSingleton<IValidator<BootstrapManagerCommand>, BootstrapManagerCommandValidator>();
+        services.AddSingleton<IValidator<UpdateProfileNameRequest>, UpdateProfileNameRequestValidator>();
+        services.AddSingleton<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
+        services.AddSingleton<IValidator<RequestEmailChangeRequest>, RequestEmailChangeRequestValidator>();
+        services.AddSingleton<IValidator<ListUsersRequest>, ListUsersRequestValidator>();
+        services.AddSingleton<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
+        services.AddSingleton<IValidator<UpdateUserRequest>, UpdateUserRequestValidator>();
+        services.AddSingleton<IValidator<SetTemporaryPasswordRequest>, SetTemporaryPasswordRequestValidator>();
         return services;
     }
 }

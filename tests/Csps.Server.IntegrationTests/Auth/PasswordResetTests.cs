@@ -248,6 +248,60 @@ public sealed class PasswordResetTests(CspsDatabase database) : IClassFixture<Cs
         device.UserId.ShouldBe(staff.Id);
     }
 
+    [Theory]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
+    public async Task ALinkIssuedBeforeAManagerLockOrDeleteReadsAsInvalidAndLiftsNothing(string block)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        var token = await AuthClient.RequestResetTokenAsync(client, staff.Email);
+        if (block == "manager-locked")
+        {
+            await AccountStateFixtures.ManagerLockAsync(factory, staff.Id);
+        }
+        else
+        {
+            await AccountStateFixtures.MarkDeletedAsync(factory, staff.Id);
+        }
+
+        using var check = await AuthClient.CheckResetLinkAsync(client, token);
+        using var reset = await AuthClient.ResetPasswordAsync(client, token, NewPassword);
+
+        await AssertInvalidLinkAsync(check);
+        await AssertInvalidLinkAsync(reset);
+        await using var context = database.CreateContext();
+        var user = await context.Users.AsNoTracking().SingleAsync(u => u.Id == staff.Id, TestContext.Current.CancellationToken);
+        (user.ManagerLockedAtUtc is not null).ShouldBe(block == "manager-locked");
+        (user.DeletedAtUtc is not null).ShouldBe(block == "deleted");
+        user.IsActive.ShouldBeTrue();
+        (await context.AccountTokens.AsNoTracking().SingleAsync(t => t.UserId == staff.Id, TestContext.Current.CancellationToken)).UsedAt.ShouldBeNull();
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, NewPassword);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordForAManagerLockedAccountIsTheNeutral202SendsNothingAndIsAudited()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        await AccountStateFixtures.ManagerLockAsync(factory, staff.Id);
+
+        using var response = await AuthClient.ForgotPasswordAsync(client, staff.Email);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        await using var context = database.CreateContext();
+        (await context.EmailOutbox.AsNoTracking().CountAsync(m => m.ToAddress == staff.Email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AccountTokens.AsNoTracking().CountAsync(t => t.UserId == staff.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        var audit = (await context.AuditLog.AsNoTracking()
+            .Where(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == staff.Id.ToString("D"))
+            .ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        audit.Detail.ShouldBe("manager-locked");
+    }
+
     [Fact]
     public async Task AResetClearsTheMustChangeFlag()
     {

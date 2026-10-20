@@ -44,6 +44,8 @@ function outputChunk(
     moduleIds?: string[];
     /** Rendered code length per module id (default 10); 0 means tree-shaken to nothing. */
     rendered?: Record<string, number>;
+    /** Rendered code per module id; a module without an entry has none recorded (the plugin then counts its length only). */
+    renderedCode?: Record<string, string>;
   },
 ): Rollup.OutputChunk {
   const moduleIds = extra.moduleIds ?? [];
@@ -57,7 +59,12 @@ function outputChunk(
     imports: extra.imports ?? [],
     dynamicImports: [],
     moduleIds,
-    modules: Object.fromEntries(moduleIds.map((id) => [id, { renderedLength: extra.rendered?.[id] ?? 10 }])),
+    modules: Object.fromEntries(
+      moduleIds.map((id) => [
+        id,
+        { renderedLength: extra.rendered?.[id] ?? 10, code: extra.renderedCode?.[id] ?? null },
+      ]),
+    ),
   } as unknown as Rollup.OutputChunk;
 }
 
@@ -85,13 +92,18 @@ function adminChunks(): Rollup.OutputChunk[] {
 }
 
 /** A production-shaped bundle with absolute (Windows-style) module ids under ROOT. */
-function bundle(entryCode: string, entryModules: Record<string, number> = {}): Rollup.OutputBundle {
+function bundle(
+  entryCode: string,
+  entryModules: Record<string, number> = {},
+  entryRenderedCode: Record<string, string> = {},
+): Rollup.OutputBundle {
   const items = [
     outputChunk('assets/index-A1.js', entryCode, {
       isEntry: true,
       facadeModuleId: `${ROOT}/index.html`,
       moduleIds: [`${ROOT}/index.html`, 'C:\\Work\\app\\web\\src\\main.tsx', ...Object.keys(entryModules)],
       rendered: entryModules,
+      renderedCode: entryRenderedCode,
     }),
     outputChunk('assets/HoldingPage-D4.js', 'export const b = 2;', {
       isDynamicEntry: true,
@@ -217,6 +229,33 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`]: 0 });
     await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+  });
+
+  // Rolldown keeps the CommonJS interop bindings of a tree-shaken module's imports (React is CommonJS), so such a module has a
+  // rendered length above 0 although none of its own code ships (plan 05-35: AdminPreviewPage behind the showcase's previews).
+  const PREVIEW_PAGE_ID = `${ROOT}/src/modules/admin/pages/AdminPreviewPage.tsx`;
+  const INTEROP_ONLY = [
+    '//#region src/modules/admin/pages/AdminPreviewPage.tsx',
+    'var import_compiler_runtime = require_compiler_runtime();',
+    'var import_react = /* @__PURE__ */ __toESM(require_react(), 1);',
+    'var import_jsx_runtime = require_jsx_runtime();',
+    '',
+    '//#endregion',
+  ].join('\n');
+
+  it('ignores a dev-only module the bundler reduced to the CommonJS bindings of its imports (no code of its own ships)', async () => {
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
+    const output = bundle('export const main = 1;', { [PREVIEW_PAGE_ID]: 238 }, { [PREVIEW_PAGE_ID]: INTEROP_ONLY });
+    await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+  });
+
+  it('fails a dev-only module that ships a function of its own beside those bindings', async () => {
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
+    const withCode = `${INTEROP_ONLY}\nfunction AdminPreviewPage() { return null; }`;
+    const output = bundle('export const main = 1;', { [PREVIEW_PAGE_ID]: 300 }, { [PREVIEW_PAGE_ID]: withCode });
+    await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
+      /index-A1\.js contains the dev-only module src\/modules\/admin\/pages\/AdminPreviewPage\.tsx/,
+    );
   });
 
   it('lets the guarded admin app ship code in the production build (D-20 reversed in Phase 4)', async () => {

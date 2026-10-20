@@ -8,7 +8,7 @@
 //   - Refreshes are single flight in a tab (one promise) and across tabs (Web Locks 'csps-refresh', where available).
 //     BroadcastChannel('csps-auth') carries only "refreshed" (with the new expiry) and "signed-out".
 import { configureSession } from '@/core/api/apiClient';
-import { isHttpError } from '@/core/api/errors';
+import { HttpError, isHttpError } from '@/core/api/errors';
 import { setCacheOwner } from '@/lib/query/cacheOwner';
 import type { Role } from '@/utils/csps';
 import { authService, type AuthService, type SessionResponse } from './authService';
@@ -81,14 +81,22 @@ function toMessage(data: unknown): ChannelMessage | null {
   return null;
 }
 
-function toUser(response: SessionResponse): SessionUser {
+/** The two server roles the shell knows, matched exactly. Anything else is not a role (IN-17). */
+function toRole(role: string | undefined): Role | null {
+  if (role === 'Admin') {
+    return 'admin';
+  }
+  return role === 'Manager' ? 'manager' : null;
+}
+
+/** The shell's user, or null when the server role is not exactly Admin or Manager. */
+function toUser(response: SessionResponse): SessionUser | null {
   const { user } = response;
-  return {
-    id: user.id,
-    email: user.email,
-    name: `${user.firstName} ${user.lastName}`.trim(),
-    role: user.role === 'Admin' ? 'admin' : 'manager',
-  };
+  const role = toRole(user.role);
+  if (role === null) {
+    return null;
+  }
+  return { id: user.id, email: user.email, name: `${user.firstName} ${user.lastName}`.trim(), role };
 }
 
 function browserLocks(): LockManagerLike | null {
@@ -126,7 +134,7 @@ export function createSession(deps: SessionDeps) {
   const listeners = new Set<() => void>();
   let boot: Promise<SessionUser | null> | undefined;
   let inflight: Promise<void> | undefined;
-  let navigator: ((to: string) => void) | undefined;
+  let routerNavigate: ((to: string) => void) | undefined;
   let notice: SignInNotice | null = null;
   let signedInToast: SignedInToast | null = null;
   let pendingEmail: string | null = null;
@@ -144,11 +152,17 @@ export function createSession(deps: SessionDeps) {
   }
 
   function acceptSession(response: SessionResponse): void {
+    const user = toUser(response);
+    if (user === null) {
+      // An unknown role is never guessed at: the response is refused and nothing of the session is kept.
+      clearSession();
+      return;
+    }
     token = response.accessToken;
     tokenExpiresAt = Date.parse(response.accessTokenExpiresAt);
     pendingEmail = null;
     publish({
-      user: toUser(response),
+      user,
       persistent: response.persistent,
       sessionExpiresAt: Date.parse(response.sessionExpiresAt),
     });
@@ -166,6 +180,9 @@ export function createSession(deps: SessionDeps) {
   function completeSignIn(response: SessionResponse): void {
     acceptSession(response);
     resendAvailableAt = null;
+    if (snapshot.user === null) {
+      return;
+    }
     channel?.postMessage({ type: 'refreshed', expiresAt: tokenExpiresAt } satisfies ChannelMessage);
   }
 
@@ -174,17 +191,20 @@ export function createSession(deps: SessionDeps) {
     clearSession();
     notice = reason;
     if (goToSignIn) {
-      navigator?.(LOGIN_PATH);
+      routerNavigate?.(LOGIN_PATH);
     }
   }
 
   /** One refresh request; a 409 (lost a save race, the cookie is kept) is tried once more. */
   async function requestSession(): Promise<void> {
-    refreshFailure = null;
     for (let attempt = 0; ; attempt++) {
       try {
         const response = await deps.auth.refresh();
         acceptSession(response);
+        if (snapshot.user === null) {
+          // A refused role ends the session the same way a refresh 401 does.
+          throw new HttpError({ kind: 'http', status: 401 });
+        }
         channel?.postMessage({ type: 'refreshed', expiresAt: tokenExpiresAt } satisfies ChannelMessage);
         return;
       } catch (error) {
@@ -209,6 +229,8 @@ export function createSession(deps: SessionDeps) {
 
   function refreshSession(): Promise<void> {
     inflight ??= (async () => {
+      // A failure from an earlier refresh must not outlive it, whichever path this refresh takes.
+      refreshFailure = null;
       const peersBefore = peerRefreshes;
       if (locks === null) {
         await refreshUnderLock(peersBefore);
@@ -302,7 +324,7 @@ export function createSession(deps: SessionDeps) {
     },
     /** The router's navigate function; session.ts never imports the router. */
     setNavigator: (next: (to: string) => void): void => {
-      navigator = next;
+      routerNavigate = next;
     },
     setSignInNotice: (next: SignInNotice): void => {
       notice = next;

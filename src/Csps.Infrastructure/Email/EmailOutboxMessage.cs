@@ -149,6 +149,27 @@ public sealed class EmailOutboxMessage
         Scrub();
     }
 
+    /// <summary>Gets whether the row was sent, given up on or expired, so it will not be sent.</summary>
+    public bool IsClosed => SentAt is not null || FailedAt is not null || ExpiredAt is not null;
+
+    /// <summary>
+    /// Replaces the recipient of a closed row, so a deleted person's address is not kept (IN-08). The content was already cleared when
+    /// the row closed.
+    /// </summary>
+    /// <param name="toAddress">The address the row keeps instead.</param>
+    /// <exception cref="InvalidOperationException">The row is still open, so changing its recipient could send the mail to someone else.</exception>
+    public void Readdress(string toAddress)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toAddress);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(toAddress.Length, ToAddressMaxLength);
+        if (!IsClosed)
+        {
+            throw new InvalidOperationException("An open outbox row cannot change its recipient.");
+        }
+
+        ToAddress = toAddress;
+    }
+
     private static string Truncate(string errorCode) =>
         errorCode.Length <= ErrorCodeMaxLength ? errorCode : errorCode[..ErrorCodeMaxLength];
 

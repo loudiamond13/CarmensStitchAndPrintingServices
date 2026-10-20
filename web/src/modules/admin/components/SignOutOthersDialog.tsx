@@ -10,13 +10,15 @@ import { SignOutDialog } from '@/modules/admin/components/SignOutDialog';
 import { authService } from '@/modules/admin/services/authService';
 
 export interface SignOutOthersDialogProps {
+  /** False plays the close animation and then renders nothing (D-39). Default true. */
+  open?: boolean;
   /** Closes the dialog: after the sign-out succeeded, and for "Keep Others Signed In", Esc and the scrim. */
   onClose: () => void;
   /** Runs once after the other devices were signed out (the S7 page refreshes its list). */
   onSignedOut?: (() => void) | undefined;
 }
 
-export function SignOutOthersDialog({ onClose, onSignedOut }: SignOutOthersDialogProps) {
+export function SignOutOthersDialog({ open = true, onClose, onSignedOut }: SignOutOthersDialogProps) {
   const copy = AUTH_COPY.signOutOthersDialog;
   const toast = useToast();
   const submission = useSubmission<undefined, undefined>(
@@ -26,6 +28,8 @@ export function SignOutOthersDialog({ onClose, onSignedOut }: SignOutOthersDialo
     },
     {
       onSuccess: () => {
+        // The dialog stays mounted, so a later press is a new request. Safe here: this also closes the dialog.
+        submission.reset();
         toast.show({ title: AUTH_COPY.toasts.signedOutOthers.title, message: AUTH_COPY.toasts.signedOutOthers.body });
         onSignedOut?.();
         onClose();
@@ -34,6 +38,7 @@ export function SignOutOthersDialog({ onClose, onSignedOut }: SignOutOthersDialo
   );
   return (
     <SignOutDialog
+      open={open}
       title={copy.title}
       message={copy.body}
       keepLabel={copy.keep}

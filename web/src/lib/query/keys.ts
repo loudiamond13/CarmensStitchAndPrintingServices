@@ -11,3 +11,6 @@ export function listKey<const R extends string, const P extends object>(
 
 /** The signed-in devices list (S7): one list per signed-in person, so no params. */
 export const sessionsListKey = listKey('sessions', {});
+
+/** The signed-in person's own profile (P1): one profile per signed-in person, so no params. */
+export const profileKey = ['profile'] as const;

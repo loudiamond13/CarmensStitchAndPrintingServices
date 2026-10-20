@@ -101,6 +101,51 @@ public static class AuthorizationMatrix
         // A random id is no session of the caller, so staff meet the same 404 whatever their role (CWE-639).
         new("DELETE", "/api/v1/sessions/{id:guid}", "/api/v1/sessions/6f1d3c52-8a0e-4b7d-9c41-2e5a7b9d0f13", Anonymous: 401, Admin: 404, Manager: 404),
 
+        // The caller's own profile (PROF-01): Staff only, no id in the route. A PUT with no body meets the same 400 field errors.
+        new("GET", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 200, Manager: 200),
+        new("PUT", "/api/v1/profile", "/api/v1/profile", Anonymous: 401, Admin: 400, Manager: 400),
+        // Changing the password (PROF-03): Staff only. With no body both roles meet the same 400 field errors; the idempotency gate runs after authorization.
+        new("POST", "/api/v1/profile/password", "/api/v1/profile/password", Anonymous: 401, Admin: 400, Manager: 400),
+        // Asking to change the sign-in email (PROF-02): Staff only. With no body both roles meet the same 400 field errors.
+        new("POST", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 400, Manager: 400),
+        // Confirming it is anonymous (the emailed link is the proof). With no body every caller meets the same invalid-link 404; the session is ignored.
+        new("POST", "/api/v1/profile/email-change/confirm", "/api/v1/profile/email-change/confirm", Anonymous: 404, Admin: 404, Manager: 404),
+        // The read-only link check is anonymous too, and answers the same invalid-link 404 for a missing token whoever asks.
+        new("POST", "/api/v1/profile/email-change/check", "/api/v1/profile/email-change/check", Anonymous: 404, Admin: 404, Manager: 404),
+        // Sending the link again (D-24): Staff only. A caller with nothing waiting meets the same 404 email-change.none.
+        new("POST", "/api/v1/profile/email-change/resend", "/api/v1/profile/email-change/resend", Anonymous: 401, Admin: 404, Manager: 404),
+        // Calling the change off is naturally idempotent: with nothing waiting both roles still get 204.
+        new("DELETE", "/api/v1/profile/email-change", "/api/v1/profile/email-change", Anonymous: 401, Admin: 204, Manager: 204),
+
+        // The staff roster (USER-01, USER-08): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 200),
+        // A random id is no one, so a Manager meets 404 users.not-found; an Admin never gets that far.
+        new("GET", "/api/v1/users/{id:guid}", "/api/v1/users/3d9b7a14-5c2e-4f08-a6d1-7e0b9c4f2a85", Anonymous: 401, Admin: 403, Manager: 404),
+        // Adding a person (USER-02): Managers only. With no body a Manager meets the 400 field errors; an Admin never gets that far.
+        new("POST", "/api/v1/users", "/api/v1/users", Anonymous: 401, Admin: 403, Manager: 400),
+        // Editing another person (USER-03): Managers only. A random id with no body meets the same 400 field errors.
+        new("PUT", "/api/v1/users/{id:guid}", "/api/v1/users/c2f6a8d3-91b4-47e5-8d0a-6b3e7f1c4a92", Anonymous: 401, Admin: 403, Manager: 400),
+        // Calling off a waiting email change (USER-03, C-9): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("DELETE", "/api/v1/users/{id:guid}/email-change", "/api/v1/users/e4b1d7a2-3c58-49f6-9a0e-5d2c8f1b6e37/email-change", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deactivating and reactivating (USER-03): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/deactivate", "/api/v1/users/5b8e2c71-4d90-4a3f-8c16-0f7d3a9e6b24/deactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/users/{id:guid}/activate", "/api/v1/users/9c4a1e58-7f2b-4d63-b0a9-3e8d5c2f1a76/activate", Anonymous: 401, Admin: 403, Manager: 404),
+        // Locking and unlocking (USER-03, D-16): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/lock", "/api/v1/users/a7d3f512-6e08-4b9c-95a1-2c4e8b0d7f36/lock", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/users/{id:guid}/unlock", "/api/v1/users/3e9c5a07-d184-4f2b-8a63-b1f0c7d2e945/unlock", Anonymous: 401, Admin: 403, Manager: 404),
+        // Sending an invitation again (USER-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/resend-invitation", "/api/v1/users/b2c8e471-0d95-4a36-8f1e-7a5d3c9b6e20/resend-invitation", Anonymous: 401, Admin: 403, Manager: 404),
+        // Emailing a reset link (USER-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("POST", "/api/v1/users/{id:guid}/send-reset-link", "/api/v1/users/d5a9c3e8-2b74-4f10-9e6d-8c1f0a7b3e45/send-reset-link", Anonymous: 401, Admin: 403, Manager: 404),
+        // Setting a temporary password (C-4): Managers only. With no body the password is missing, so a Manager meets 400 before the person is looked up.
+        new("POST", "/api/v1/users/{id:guid}/temporary-password", "/api/v1/users/f1b6d2a9-5e83-4c07-b4a1-9d0e7c3a8f52/temporary-password", Anonymous: 401, Admin: 403, Manager: 400),
+        // Deleting (USER-03, D-07): Managers only. A random id is no one, so a Manager meets 404 users.not-found.
+        new("DELETE", "/api/v1/users/{id:guid}", "/api/v1/users/6f1d9b34-82c7-4e05-a3b8-d4c20e7a5f19", Anonymous: 401, Admin: 403, Manager: 404),
+
+        // The audit log viewer (AUDIT-02, D-26): Managers only, so an Admin meets 403. Read only; there is no export (D-29).
+        new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
+        new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
@@ -130,6 +175,8 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/password/set-new/check",
             "POST /api/v1/auth/invite/check",
             "POST /api/v1/auth/invite/accept",
+            "POST /api/v1/profile/email-change/confirm",
+            "POST /api/v1/profile/email-change/check",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

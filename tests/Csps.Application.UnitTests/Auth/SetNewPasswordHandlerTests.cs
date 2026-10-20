@@ -80,7 +80,7 @@ public sealed class SetNewPasswordHandlerTests
 
         var result = await harness.RunAsync(string.Empty);
 
-        AssertFieldError(result, SetNewPasswordRequestValidator.NewPasswordRequired);
+        AssertFieldError(result, PasswordRules.NewPasswordRequired);
         await harness.AssertNothingChangedAsync();
         await harness.Pwned.DidNotReceive().CheckAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

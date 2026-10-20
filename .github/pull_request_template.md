@@ -1,4 +1,4 @@
-<!-- Created: 2026-10-15T22:39:00-05:00 · Updated: 2026-10-16T08:42:00-05:00 -->
+<!-- Created: 2026-10-15T22:39:00-05:00 · Updated: 2026-10-20T06:02:41-05:00 -->
 ## Summary
 
 What changed and why, in plain words.
@@ -17,7 +17,7 @@ Tick every item before merging. An item that does not apply is ticked with "N/A"
 - [ ] Tests were written first and pass (unit, integration and E2E for the slice), and the coverage gates are met.
 - [ ] Zero warnings in the compiler, analyzers, lint, types, tests, build and browser console.
 - [ ] Architecture tests pass, with no layer violations.
-- [ ] Matches CSPS-UI-SPEC.md at 320, 768 and 1280 px with screenshots attached; skeletons for every loading state; images lazy and optimized.
+- [ ] Matches docs/CSPS-UI-SPEC.md at 320, 768 and 1280 px with screenshots attached; skeletons for every loading state; images lazy and optimized.
 - [ ] Responsive at every breakpoint, portrait and landscape; performance budgets and Lighthouse scores met; no bundle-size regressions.
 - [ ] API calls go through the module services and the shared core/api client; no axios; shared components reused.
 - [ ] WCAG 2.2 AA: axe reports zero violations and the keyboard pass is done.

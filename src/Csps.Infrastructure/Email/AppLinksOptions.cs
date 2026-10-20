@@ -13,7 +13,7 @@ public sealed class AppLinksOptions
 
     /// <summary>The failure message for a missing or malformed base URL. It never contains the value.</summary>
     public const string PublicBaseUrlInvalidMessage =
-        "App:PublicBaseUrl must be an absolute https URL with no query or fragment (http is allowed only for localhost). "
+        "App:PublicBaseUrl must be an absolute https URL with no user info, no path, no query and no fragment (http is allowed only for localhost). "
         + "In Development it is set in appsettings.Development.json; in Production set it in the host settings.";
 
     /// <summary>Gets or sets the site's public address, for example <c>https://example.com</c>.</summary>
@@ -33,13 +33,22 @@ public sealed class AppLinksOptions
     /// <returns>The absolute URL.</returns>
     public string AcceptInviteLink(string token) => Build("/admin/accept-invite", token);
 
+    /// <summary>Returns the confirm-email page link with the token in the fragment.</summary>
+    /// <param name="token">The email-change token.</param>
+    /// <returns>The absolute URL.</returns>
+    public string ConfirmEmailLink(string token) => Build("/admin/confirm-email", token);
+
     /// <summary>Tells whether <paramref name="options"/> holds a usable base URL.</summary>
     /// <param name="options">The options to check.</param>
     /// <returns>True when the base URL is acceptable.</returns>
     internal static bool IsValid(AppLinksOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var url) || !string.IsNullOrEmpty(url.Query) || !string.IsNullOrEmpty(url.Fragment))
+        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var url)
+            || !string.IsNullOrEmpty(url.Query)
+            || !string.IsNullOrEmpty(url.Fragment)
+            || !string.IsNullOrEmpty(url.UserInfo)
+            || url.AbsolutePath != "/")
         {
             return false;
         }

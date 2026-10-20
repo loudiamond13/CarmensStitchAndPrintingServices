@@ -26,7 +26,7 @@ export function PublicLayout() {
   const { pathname } = useLocation();
   const loading = useNavigation().state === 'loading';
   return (
-    <div data-theme="light" className={pageRootClasses}>
+    <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
         <SiteHeader active={currentSiteLink(pathname)} />

@@ -25,6 +25,7 @@
 import clsx from 'clsx';
 import { useEffect, useRef } from 'react';
 import type { Role } from '@/utils/csps';
+import { targetAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { iconButtonClasses } from '@/components/feedback';
 import {
@@ -152,8 +153,8 @@ export function Topbar({
           passes (none when it passes none, as App. D.3). */}
       <button
         type="button"
-        className={topbarMenuClasses}
-        aria-label="Open navigation"
+        className={clsx(topbarMenuClasses, targetAreaClasses)}
+        aria-label={menuExpanded === true ? 'Close navigation' : 'Open navigation'}
         aria-expanded={menuExpanded}
         aria-controls={menuControls}
         onClick={onMenu}

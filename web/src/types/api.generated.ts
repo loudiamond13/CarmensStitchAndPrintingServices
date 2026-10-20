@@ -4,6 +4,48 @@
  */
 
 export interface paths {
+    "/api/v1/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists audit entries, newest first (by time, then by id). With no dates the range is today and the 6 business days before it; a date
+         *     is a business day (`YYYY-MM-DD`, Manila time) from the start of the kept window (8 months) to today, and the range includes the
+         *     whole of both days. An actor also matches a person's own sign-in, code, reset and invitation steps. The detail holds the stored
+         *     fixed words only: field names and role values, never a name or an email address (D-40).
+         */
+        get: operations["ListAuditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-log/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists everyone the Done by and Done to filters can offer: every person ever recorded as staff, active or inactive by name first,
+         *     then former staff by name. Names only, never an email address.
+         */
+        get: operations["ListAuditPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/invite/accept": {
         parameters: {
             query?: never;
@@ -225,6 +267,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads the caller's profile, including the edit version the next save must send. */
+        get: operations["GetProfile"];
+        /** Changes the caller's first and last name. The version must be the one the form was opened with. */
+        put: operations["UpdateProfileName"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asks to change the caller's sign-in email. A confirmation link goes to the new address and a notice to the current one; the
+         *     sign-in email changes only when the link is confirmed.
+         */
+        post: operations["RequestEmailChange"];
+        /**
+         * Calls off the waiting email change: its links stop working and the pending address is cleared. Naturally idempotent, so it
+         *     takes no row version and answers 204 when nothing is waiting.
+         */
+        delete: operations["CancelEmailChange"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email-change/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tells the confirm-email page whether its link still works and which address it would confirm. Anonymous and read-only: it
+         *     spends nothing and changes nothing, so a mail scanner opening the link confirms nothing. The token travels in the body.
+         */
+        post: operations["CheckEmailChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email-change/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirms an email change from the emailed link. Anonymous: the link is the proof, so the person need not be signed in. The
+         *     token travels in the body, never in a URL.
+         */
+        post: operations["ConfirmEmailChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email-change/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends a fresh 24-hour confirmation link to the waiting new address and kills the older one (D-24). Nothing goes to the
+         *     current address, and no address is written.
+         */
+        post: operations["ResendEmailChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in. */
+        post: operations["ChangePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -276,6 +437,231 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists staff, sorted by first name, then last name, then id. A page past the last returns no rows and the true total. */
+        get: operations["ListUsers"];
+        put?: never;
+        /**
+         * Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary
+         *     password the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.
+         */
+        post: operations["CreateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one person with their edit version and who created and last changed them (SEC-08). */
+        get: operations["GetUser"];
+        /**
+         * Edits another person's name, sign-in email and role (USER-03). The version must be the one the form was opened with: any other
+         *     answers 409 `edit.stale` and changes nothing (SEC-07). A Manager cannot edit their own account here (422
+         *     `users.own-account`), and cannot demote the last active Manager (422 `users.last-active-manager`). A role change ends
+         *     every session of the person at once. Saving the values already stored is a 200 that changes and records nothing.
+         *     When the email differs from the stored one, `emailChange` must say how it applies (D-45), and a missing or unknown value is
+         *     a 400 on that field: `confirm` keeps the sign-in email and sends the new address a confirmation link that names the Manager,
+         *     with a notice to the old address (C-9), and the answer shows the new address as `pendingEmail`; `now` changes the email
+         *     in the same save, signs the person out everywhere and notifies the old address. A person invited but not yet set up always moves
+         *     at once and gets a fresh invitation at the new address. A taken address is a 400 on `email`. `emailChange` is ignored
+         *     when the email is unchanged.
+         */
+        put: operations["UpdateUser"];
+        post?: never;
+        /**
+         * Deletes a person for good (USER-03, D-07..D-11): they cannot sign in, every session and link of theirs ends at once, they leave the
+         *     roster and their detail answers 404, and their address is free for a new invitation. Records they created keep their name. There
+         *     is no way back. It takes no version: it acts on the latest state, and deleting someone already deleted is a 404 that changes
+         *     nothing. A Manager cannot delete their own account (422 `users.own-account`) or the last active Manager (422
+         *     `users.last-active-manager`).
+         */
+        delete: operations["DeleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivates a person (USER-03). Repeating it on an active person is a 204 that changes nothing. It takes no version. */
+        post: operations["ActivateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivates a person (USER-03): they cannot sign in and every session of theirs ends at once, so their next request with an old
+         *     token is a 401. Repeating it on an inactive person is a 204 that changes nothing. It takes no version: it acts on the latest state.
+         */
+        post: operations["DeactivateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/email-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Calls off a person's waiting email change (USER-03, C-9): the open links stop working and the pending address is cleared. With
+         *     nothing waiting it is a 204 that changes nothing. It takes no version: it acts on the latest state (D-21). A Manager uses My
+         *     Profile for their own account (422 `users.own-account`).
+         */
+        delete: operations["CancelUserEmailChange"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Locks a person (USER-03, D-16): they cannot sign in, a password reset does not help, and every session of theirs ends at once, so
+         *     their next request with an old token is a 401. The lock has no timer; only a Manager lifts it. It is separate from the 15-minute
+         *     failed-password lockout. Repeating it on a locked person is a 204 that changes nothing. It takes no version: it acts on the latest
+         *     state.
+         */
+        post: operations["LockUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/resend-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends a person who has not set a password a fresh 7-day invitation (USER-07, D-13). The earlier link stops working and the new one
+         *     goes to the person by email only; the answer never holds it. A person who already has a password is a 422
+         *     `users.already-set-up`, and a deactivated or locked one is a 422 `users.blocked`. It takes no version: it acts on the
+         *     latest state and does not change the account.
+         */
+        post: operations["ResendUserInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/send-reset-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Emails a person a password reset link that they open themself (USER-07). The link names the Manager, works once for 30 minutes and
+         *     replaces any open reset link; the answer never holds it. It counts toward the same hourly cap of reset emails as forgot-password
+         *     (429 `users.reset-link-capped`). A deactivated or locked person is a 422 `users.blocked` and a person who never set a
+         *     password is a 422 `users.no-password`. It takes no version: it acts on the latest state and does not change the account.
+         */
+        post: operations["SendUserResetLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/temporary-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets a temporary password for a person (C-4, 04 D-21, 04 D-24). Only the basic rule applies (length 8 to 64, no control
+         *     characters, a number, a symbol); a broken rule is a 400 on `temporaryPassword`. Every session of the person ends at once, a
+         *     failed-password lockout ends, a notice that a Manager reset the password is emailed, and the next sign-in goes through the emailed
+         *     code and then asks for a new password. The answer is empty: the password is never returned, logged or stored in plain text. A
+         *     Manager cannot do this to their own account (422 `users.own-account`) and a deactivated or locked person is a 422
+         *     `users.blocked`. It takes no version: it acts on the latest state.
+         */
+        post: operations["SetUserTemporaryPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lifts a person's Manager lock (USER-03, D-16). The 15-minute failed-password lockout, if one is running, is left alone. Repeating
+         *     it on a person who is not locked is a 204 that changes nothing. It takes no version.
+         */
+        post: operations["UnlockUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -285,6 +671,128 @@ export interface components {
             /** @description The password as typed. */
             newPassword: null | string;
             /** @description The 43-character token from the link. */
+            token: null | string;
+        };
+        /**
+         * @description A person named in Recorded by or Last changed by (SEC-08). The name is read from that person's own row each time, so a rename
+         *     shows at once and no snapshot exists (D-08).
+         */
+        ActorRef: {
+            /** @description True when the actor's account was deleted; the name is kept (D-11). */
+            formerStaff: boolean;
+            /**
+             * Format: uuid
+             * @description The actor's account id.
+             */
+            id: string;
+            /** @description The actor's name, first then last. */
+            name: string;
+        };
+        /** @description One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40). */
+        AuditLogItem: {
+            /** @description The action code, for example `user.deactivated`. */
+            action: string;
+            /** @description The stored detail; null when none. */
+            detail: null | string;
+            /** @description The browser family; null when unknown. */
+            device: null | string;
+            /** @description Who did it. */
+            doneBy: components["schemas"]["DoneBy"];
+            doneTo: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: int64
+             * @description The entry id.
+             */
+            id: number | string;
+            /** @description The client network, /24 or /48; null when unknown. */
+            ipPrefix: null | string;
+            /**
+             * Format: date-time
+             * @description When it happened, in UTC.
+             */
+            occurredAt: string;
+            /** @description The correlation id, to find the request's log lines. */
+            reference: string;
+        };
+        /** @description One page of the audit log, newest first (AUDIT-02). */
+        AuditLogResponse: {
+            /** @description The entries of this page. */
+            items: components["schemas"]["AuditLogItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many entries match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One person an audit filter can offer. */
+        AuditPerson: {
+            /** @description True when the account was deleted (D-47: shown as former staff). */
+            formerStaff: boolean;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description First and last name. */
+            name: string;
+        };
+        /** @description The My Profile password form: the current password and the new one (PROF-03). */
+        ChangePasswordRequest: {
+            /** @description The current password as typed. */
+            currentPassword: null | string;
+            /** @description The new password as typed. */
+            newPassword: null | string;
+        };
+        /**
+         * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
+         *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
+         */
+        CreateUserRequest: {
+            /** @description How they get access: `invitation` or `temporary-password`. */
+            access: null | string;
+            /** @description The sign-in email. */
+            email: null | string;
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description The role, `Admin` or `Manager`. */
+            role: null | string;
+            /** @description The one-time password, only for the `temporary-password` route. */
+            temporaryPassword: null | string;
+        };
+        /** @description The answer to creating a person. It holds the id only: never a name, an email or a password (D-14). */
+        CreateUserResponse: {
+            /**
+             * Format: uuid
+             * @description The new account id.
+             */
+            id: string;
+        };
+        /** @description Who did it (D-27). */
+        DoneBy: {
+            /** @description One of DoneByKinds. */
+            kind: string;
+            person: null | components["schemas"]["ActorRef"];
+        };
+        /** @description The answer to a confirmed email change. */
+        EmailChangeResponse: {
+            /** @description The sign-in email from now on, so the page can name it. */
+            newEmail: string;
+        };
+        /** @description The body of an email-change confirmation: the token from the emailed link. It travels in the body, never in a URL. */
+        EmailChangeTokenRequest: {
+            /** @description The 43-character token. */
             token: null | string;
         };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
@@ -314,8 +822,43 @@ export interface components {
             title?: null | string;
             type?: null | string;
         };
-        /** @description What a resend answers: how long to wait before asking again. */
-        ResendCodeResponse: {
+        /** @description The signed-in staff member's own profile (PROF-01). */
+        ProfileResponse: {
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description Family name. */
+            lastName: string;
+            /**
+             * Format: date-time
+             * @description When the account was created, in UTC.
+             */
+            memberSince: string;
+            /** @description The new email awaiting confirmation; null when no change is pending. */
+            pendingEmail: null | string;
+            /** @description The single role, `Admin` or `Manager`. */
+            role: string;
+            /**
+             * Format: uuid
+             * @description The edit version to send back with the next save (SEC-07).
+             */
+            version: string;
+        };
+        /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
+        RequestEmailChangeRequest: {
+            /** @description The current password as typed. */
+            currentPassword: null | string;
+            /** @description The new address as typed. */
+            newEmail: null | string;
+        };
+        /** @description What sign-in and a code resend both answer: how long to wait before asking for a new code. */
+        ResendWaitResponse: {
             /**
              * Format: int32
              * @description Whole seconds.
@@ -423,6 +966,14 @@ export interface components {
             /** @description The new password as typed. */
             newPassword: null | string;
         };
+        /**
+         * @description The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account
+         *     port and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).
+         */
+        SetTemporaryPasswordRequest: {
+            /** @description The temporary password as typed. */
+            temporaryPassword: null | string;
+        };
         /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
         SignInRequest: {
             /** @description The email address. */
@@ -431,14 +982,6 @@ export interface components {
             keepSignedIn: boolean;
             /** @description The password, exactly as typed. */
             password: null | string;
-        };
-        /** @description What a successful sign-in step answers: how long to wait before asking for a new code. */
-        SignInResponse: {
-            /**
-             * Format: int32
-             * @description Whole seconds.
-             */
-            resendAfterSeconds: number | string;
         };
         /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
         SiteSettingsDto: {
@@ -460,6 +1003,125 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
+        UpdateProfileNameRequest: {
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit User form a Manager saves for another person: the names, the sign-in email, the role and the edit version the form was
+         *     opened with (SEC-07). When the email differs from the stored one, `emailChange` says how the change applies (D-45).
+         */
+        UpdateUserRequest: {
+            /** @description The sign-in email the person should have; send the stored one to leave it alone. */
+            email?: null | string;
+            /**
+             * @description How a changed email applies: `confirm` (a link to the new address, the change applies when it is followed) or `now` (the
+             *     email changes at once and the person is signed out). The server never infers it. It is ignored when the email is unchanged, and an
+             *     invited person with no password yet always moves at once.
+             */
+            emailChange?: null | string;
+            /** @description Given name. */
+            firstName: null | string;
+            /** @description Family name. */
+            lastName: null | string;
+            /** @description `Admin` or `Manager`, in any letter case. */
+            role: null | string;
+            /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
+        };
+        /** @description One person as a Manager sees them in the Edit panel (USER-01, SEC-08). */
+        UserDetailResponse: {
+            /**
+             * Format: date-time
+             * @description When the account was created, in UTC.
+             */
+            createdAt: string;
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /** @description True once a password is set. */
+            hasPassword: boolean;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description `none`, `pending` or `expired` (see InviteStates). */
+            inviteState: string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description Family name. */
+            lastName: string;
+            /** @description True while a Manager's lock is on, even when the status shows inactive. */
+            managerLocked: boolean;
+            /** @description The new email awaiting confirmation; null when no change is pending. */
+            pendingEmail: null | string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The single role, `Admin` or `Manager`. */
+            role: string;
+            /** @description `active`, `inactive` or `locked` (see UserStatuses). */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the account was last changed, in UTC; null if never.
+             */
+            updatedAt: null | string;
+            /**
+             * Format: uuid
+             * @description The edit version a save must send back (SEC-07).
+             */
+            version: string;
+        };
+        /** @description One person in the roster (USER-01). */
+        UserListItem: {
+            /**
+             * Format: date-time
+             * @description When the account was created, in UTC.
+             */
+            createdAt: string;
+            /** @description The sign-in email. */
+            email: string;
+            /** @description Given name. */
+            firstName: string;
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description `none`, `pending` or `expired` (see InviteStates). */
+            inviteState: string;
+            /** @description Family name. */
+            lastName: string;
+            /** @description The single role, `Admin` or `Manager`. */
+            role: string;
+            /** @description `active`, `inactive` or `locked` (see UserStatuses). */
+            status: string;
+        };
+        /** @description One page of the roster. */
+        UserListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["UserListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many people match, across all pages.
+             */
+            total: number | string;
         };
         /** @description The code step form: the six digits from the email (AUTH-02). */
         VerifyCodeRequest: {
@@ -483,6 +1145,106 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ListAuditLog: {
+        parameters: {
+            query?: {
+                /** @description The first business day, `YYYY-MM-DD`; none means 6 days before today. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; none means today. */
+                to?: string;
+                /** @description A user id, or `system`, to keep only what that person (or nobody) did. */
+                actor?: string;
+                /** @description An action code, for example `user.deactivated`. */
+                action?: string;
+                /** @description A user id, to keep only entries about that person, including their session events. */
+                target?: string;
+                /** @description The page number, from 1. */
+                page?: number | string;
+                /** @description Entries per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListAuditPeople: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPerson"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AcceptInvite: {
         parameters: {
             query?: never;
@@ -869,7 +1631,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignInResponse"];
+                    "application/json": components["schemas"]["ResendWaitResponse"];
                 };
             };
             /** @description Bad Request */
@@ -983,7 +1745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResendCodeResponse"];
+                    "application/json": components["schemas"]["ResendWaitResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -1060,6 +1822,399 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProfileName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateProfileNameRequest"];
+                "application/json": null | components["schemas"]["UpdateProfileNameRequest"];
+                "text/json": null | components["schemas"]["UpdateProfileNameRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RequestEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["RequestEmailChangeRequest"];
+                "application/json": null | components["schemas"]["RequestEmailChangeRequest"];
+                "text/json": null | components["schemas"]["RequestEmailChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CancelEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CheckEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "application/json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "text/json": null | components["schemas"]["EmailChangeTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ConfirmEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "application/json": null | components["schemas"]["EmailChangeTokenRequest"];
+                "text/json": null | components["schemas"]["EmailChangeTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResendEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ChangePasswordRequest"];
+                "application/json": null | components["schemas"]["ChangePasswordRequest"];
+                "text/json": null | components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1182,6 +2337,853 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+        };
+    };
+    ListUsers: {
+        parameters: {
+            query?: {
+                /** @description Search text for the name or email; blank means no search. */
+                q?: string;
+                /** @description `admin` or `manager`; none means both. */
+                role?: string;
+                /** @description `active`, `inactive` or `locked`; none means all. */
+                status?: string;
+                /** @description The page number, from 1. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateUserRequest"];
+                "application/json": null | components["schemas"]["CreateUserRequest"];
+                "text/json": null | components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUserResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateUserRequest"];
+                "application/json": null | components["schemas"]["UpdateUserRequest"];
+                "text/json": null | components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ActivateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeactivateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CancelUserEmailChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    LockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResendUserInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SendUserResetLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetUserTemporaryPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+                "application/json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+                "text/json": null | components["schemas"]["SetTemporaryPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnlockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The account id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

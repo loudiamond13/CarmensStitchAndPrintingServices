@@ -55,7 +55,7 @@ public sealed class ResendCodeHandler(
 
         var now = time.GetUtcNow();
         var user = await accounts.FindByIdAsync(challenge.UserId, cancellationToken).ConfigureAwait(false);
-        if (user is null || !user.IsActive || (user.LockoutEnd is { } lockedUntil && lockedUntil > now))
+        if (user is null || user.IsBlocked || (user.LockoutEnd is { } lockedUntil && lockedUntil > now))
         {
             return Result.Failure<ResendCodeOutcome>(AuthErrors.TicketExpired);
         }

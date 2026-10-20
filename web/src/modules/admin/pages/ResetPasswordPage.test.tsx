@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthLayout from '@/layouts/AuthLayout';
-import { ResetPasswordRoute, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
+import { ResetPasswordRoute } from '@/modules/admin/pages/ResetPasswordPage';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -13,6 +13,10 @@ import { sessionResponse } from '@/test/sessionFixtures';
 
 // S5 Set a new password from the email link, /admin/reset-password#token=... (AUTH-08, AUTH-09, AUTH-11, A11Y-03; plan
 // 04-28).
+
+// The first render of a lazy route is slow while many workers start at once (a cold start), so this file waits longer than
+// the 5 s default for every test: only this file, never the whole suite (plan 05-37).
+vi.setConfig({ testTimeout: 15_000 });
 
 const TOKEN = 'abcDEF0123456789abcDEF0123456789abcDEF01234';
 const EMAIL = 'paolo.garcia@gmail.com';
@@ -70,7 +74,7 @@ function renderReset(hash: string | null = `#token=${TOKEN}`) {
 }
 
 async function formReady(): Promise<void> {
-  await screen.findByLabelText('New password');
+  await screen.findByLabelText('New password', {}, { timeout: 10_000 });
 }
 
 async function fillAndSave(user: ReturnType<typeof userEvent.setup>, password = GOOD, confirm = password) {
@@ -88,21 +92,6 @@ beforeEach(() => {
 
 afterEach(() => {
   window.history.replaceState(null, '', '/');
-});
-
-describe('tokenFromHash', () => {
-  it.each([
-    ['#token=abc', 'abc'],
-    ['token=abc', 'abc'],
-    ['#token=a%2Bb', 'a+b'],
-    ['#other=1&token=abc', 'abc'],
-    ['', null],
-    ['#', null],
-    ['#token=', null],
-    ['#nottoken=abc', null],
-  ])('reads %j as %j', (hash, expected) => {
-    expect(tokenFromHash(hash)).toBe(expected);
-  });
 });
 
 describe('S5 token handling and the checking state', () => {

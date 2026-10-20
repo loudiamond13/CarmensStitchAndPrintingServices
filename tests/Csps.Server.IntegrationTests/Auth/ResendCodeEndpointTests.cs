@@ -1,9 +1,14 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Domain.Auditing;
+using Csps.Infrastructure.Email;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Csps.Server.IntegrationTests.Auth;
 
@@ -65,27 +70,25 @@ public sealed class ResendCodeEndpointTests(CspsDatabase database) : IClassFixtu
         var clock = new SteppedClock();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         await using var factory = AuthClient.WithClock(baseFactory, clock);
-        using var client = AuthClient.CreateClient(factory);
-        var staff = await AuthClient.CreateStaffAsync(factory);
-        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
 
-        // The sign-in sent the first code; four resends make five.
-        for (var sent = 2; sent <= 5; sent++)
+        await AssertSixthCodeIsRefusedAsync(factory, clock);
+    }
+
+    // The same proof when each email takes 1.3 s to leave (a loaded machine): five emails need over 6 s to reach the sink.
+    [Fact]
+    public async Task TheSixthCodeIsStillRefusedWhenMailLeavesSlowly()
+    {
+        var clock = new SteppedClock();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var slowMail = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            clock.Advance(TimeSpan.FromSeconds(61));
-            using var resend = await AuthClient.ResendAsync(client);
-            resend.StatusCode.ShouldBe(HttpStatusCode.OK);
-        }
+            services.RemoveAll<IEmailTransport>();
+            services.AddSingleton<IEmailTransport>(provider =>
+                new SlowTransport(provider.GetRequiredService<InMemoryEmailSink>(), TimeSpan.FromMilliseconds(1300)));
+        }));
+        await using var factory = AuthClient.WithClock(slowMail, clock);
 
-        clock.Advance(TimeSpan.FromSeconds(61));
-        using var capped = await AuthClient.ResendAsync(client);
-
-        capped.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
-        capped.Headers.Contains("Retry-After").ShouldBeFalse();
-        var problem = await ProblemJson.ReadAsync(capped, TestContext.Current.CancellationToken);
-        problem.GetProperty("code").GetString().ShouldBe("auth.resend-cap");
-        problem.GetProperty("detail").GetString().ShouldBe("You've asked for too many codes.");
-        (await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 5)).Count.ShouldBe(5);
+        await AssertSixthCodeIsRefusedAsync(factory, clock);
     }
 
     [Fact]
@@ -129,5 +132,39 @@ public sealed class ResendCodeEndpointTests(CspsDatabase database) : IClassFixtu
         using var response = await AuthClient.ResendAsync(client);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private static async Task AssertSixthCodeIsRefusedAsync(WebApplicationFactory<Program> factory, SteppedClock clock)
+    {
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        using var signIn = await AuthClient.SignInAsync(client, staff.Email, staff.Password);
+
+        // The sign-in sent the first code; four resends make five.
+        for (var sent = 2; sent <= 5; sent++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(61));
+            using var resend = await AuthClient.ResendAsync(client);
+            resend.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        clock.Advance(TimeSpan.FromSeconds(61));
+        using var capped = await AuthClient.ResendAsync(client);
+
+        capped.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        capped.Headers.Contains("Retry-After").ShouldBeFalse();
+        var problem = await ProblemJson.ReadAsync(capped, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("auth.resend-cap");
+        problem.GetProperty("detail").GetString().ShouldBe("You've asked for too many codes.");
+        (await AuthClient.WaitForEmailsAsync(client, staff.Email, count: 5)).Count.ShouldBe(5);
+    }
+
+    private sealed class SlowTransport(IEmailTransport inner, TimeSpan delay) : IEmailTransport
+    {
+        public async Task SendAsync(OutgoingEmail email, CancellationToken cancellationToken)
+        {
+            await Task.Delay(delay, cancellationToken);
+            await inner.SendAsync(email, cancellationToken);
+        }
     }
 }

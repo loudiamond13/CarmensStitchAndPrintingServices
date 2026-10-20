@@ -194,6 +194,111 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
         }
     }
 
+    [Theory]
+    [InlineData("someone@deleted.invalid")]
+    [InlineData("someone@DELETED.INVALID")]
+    [InlineData("someone@mail.example.invalid")]
+    [InlineData("someone@invalid")]
+    public async Task MailToAReservedInvalidDomainIsRefusedWithoutEchoingTheAddressAndQueuesNothing(string to)
+    {
+        var transport = new RecordingTransport();
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var outbox = scope.ServiceProvider.GetRequiredService<IEmailOutbox>();
+            var refused = await Should.ThrowAsync<ArgumentException>(async () => await outbox.EnqueueAsync(CodeEmail(to), TestContext.Current.CancellationToken));
+            refused.Message.ShouldNotContain("someone");
+            refused.Message.ShouldNotContain("invalid", Case.Insensitive);
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        (await FindRowsAsync(host, to)).ShouldBeEmpty();
+        transport.Messages(to).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task MailToAnAddressThatOnlyEndsLikeInvalidIsStillQueued()
+    {
+        var transport = new RecordingTransport();
+        var to = $"paolo.{Guid.NewGuid():N}@notinvalid.example.com";
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+
+        await QueueCodeAsync(host, to);
+
+        (await ReadRowAsync(host, to)).ToAddress.ShouldBe(to);
+    }
+
+    [Fact]
+    public async Task ScrubbingARecipientReaddressesClosedRowsAndExpiresWaitingOnesWithoutSendingThem()
+    {
+        var transport = new RecordingTransport();
+        var old = NewAddress();
+        var other = NewAddress();
+        var replacement = $"deleted-{Guid.NewGuid():N}@deleted.invalid";
+        var now = TimeProvider.System.GetUtcNow();
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+        var closedSent = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.SignInCode, old, "s", "t", "h", now, now.AddHours(1));
+        closedSent.MarkSent(now);
+        var closedFailed = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.SignInCode, old.ToUpperInvariant(), "s", "t", "h", now, now.AddHours(1));
+        closedFailed.MarkFailed(now, "smtp");
+        var waiting = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.SignInCode, old, "s", "t", "h", now.AddMinutes(30), now.AddHours(2));
+        var untouched = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.SignInCode, other, "s", "t", "h", now, now.AddHours(1));
+        var factory = host.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        await using (var seed = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
+        {
+            seed.EmailOutbox.AddRange(closedSent, closedFailed, waiting, untouched);
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var outbox = scope.ServiceProvider.GetRequiredService<IEmailOutbox>();
+            (await outbox.ScrubRecipientAsync(old, replacement, now, TestContext.Current.CancellationToken)).ShouldBe(3);
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        (await FindRowsAsync(host, old)).ShouldBeEmpty();
+        var scrubbed = await FindRowsAsync(host, replacement);
+        scrubbed.Count.ShouldBe(3);
+        scrubbed.ShouldAllBe(row => row.ProtectedSubject == null && row.ProtectedText == null && row.ProtectedHtml == null);
+        scrubbed.Single(row => row.Id == waiting.Id).ExpiredAt.ShouldNotBeNull();
+        scrubbed.Single(row => row.Id == waiting.Id).SentAt.ShouldBeNull();
+        scrubbed.Single(row => row.Id == closedSent.Id).SentAt.ShouldNotBeNull();
+        scrubbed.Single(row => row.Id == closedFailed.Id).FailedAt.ShouldNotBeNull();
+        (await ReadRowAsync(host, other)).ProtectedSubject.ShouldBe("s");
+        transport.Messages(old).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ScrubbingAnAddressNobodyWroteToChangesNothing()
+    {
+        var transport = new RecordingTransport();
+        using var host = await StartHostAsync(transport, dispatcherEnabled: false);
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var outbox = scope.ServiceProvider.GetRequiredService<IEmailOutbox>();
+            (await outbox.ScrubRecipientAsync(NewAddress(), "deleted-x@deleted.invalid", TimeProvider.System.GetUtcNow(), TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+    }
+
+    [Fact]
+    public void AnOpenRowCannotChangeItsRecipient()
+    {
+        var now = TimeProvider.System.GetUtcNow();
+        var open = EmailOutboxMessage.Queue(Guid.CreateVersion7(now), AuthEmailKind.SignInCode, NewAddress(), "s", "t", "h", now, now.AddHours(1));
+
+        Should.Throw<InvalidOperationException>(() => open.Readdress("deleted-x@deleted.invalid"));
+        open.IsClosed.ShouldBeFalse();
+        open.MarkExpired(now);
+        open.Readdress("deleted-x@deleted.invalid");
+        open.ToAddress.ShouldBe("deleted-x@deleted.invalid");
+    }
+
     private static string NewAddress() => $"paolo.{Guid.NewGuid():N}@example.com";
 
     private static SignInCodeEmail CodeEmail(string to)

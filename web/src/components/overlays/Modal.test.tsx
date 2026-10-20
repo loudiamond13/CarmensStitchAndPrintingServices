@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -965,5 +965,129 @@ describe('overlay scenarios (the overlays parity group)', () => {
       component: 'Modal',
       props: { variant: 'slideover' },
     });
+  });
+});
+
+// D-39: a closing dialog plays its exit animation, so it stays mounted as data-state="closed" until the animation ends.
+// jsdom runs no animation, so the computed animation name of a closed element is mocked; the focus, inert and scroll
+// lock rules must already be released and the closing layer must take no input.
+describe('Modal closing animation (D-38, D-39)', () => {
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function Opener({ onClose }: { readonly onClose?: () => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <div>
+        <main>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            Open
+          </button>
+        </main>
+        <AddPayment
+          open={open}
+          onClose={() => {
+            onClose?.();
+            setOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  it('stays mounted as closed while it animates out, with focus back on the trigger at once', async () => {
+    animateClosedElements();
+    const user = userEvent.setup();
+    render(<Opener />);
+    const trigger = screen.getByRole('button', { name: 'Open' });
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog');
+    const overlay = dialog.parentElement;
+    expect(dialog).toHaveAttribute('data-state', 'open');
+    expect(overlay).toHaveAttribute('data-state', 'open');
+
+    await user.keyboard('{Escape}');
+
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('data-state', 'closed');
+    expect(overlay).toHaveAttribute('data-state', 'closed');
+    expect(trigger).toHaveFocus();
+    expect(trigger.closest('main')).not.toHaveAttribute('inert');
+    expect(document.body.classList.contains(bodyScrollLockClass)).toBe(false);
+  });
+
+  it('leaves the DOM when the dialog ends its own animation', async () => {
+    animateClosedElements();
+    const user = userEvent.setup();
+    render(<Opener />);
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    const dialog = screen.getByRole('dialog');
+    await user.keyboard('{Escape}');
+    expect(dialog).toBeInTheDocument();
+
+    act(() => {
+      dialog.dispatchEvent(new Event('animationend'));
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('ignores Esc and a scrim click while it closes', async () => {
+    animateClosedElements();
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Opener onClose={onClose} />);
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    const overlay = screen.getByRole('dialog').parentElement;
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(overlay).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    if (overlay !== null) {
+      pressAndRelease(overlay);
+    }
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens again while it is closing, taking focus into the dialog', async () => {
+    animateClosedElements();
+    const user = userEvent.setup();
+    const { rerender } = render(<AddPayment onClose={vi.fn()} />);
+    rerender(<AddPayment open={false} onClose={vi.fn()} />);
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'closed');
+
+    rerender(<AddPayment onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'open');
+    expect(screen.getByRole('textbox', { name: 'Amount' })).toHaveFocus();
+    expect(document.body.classList.contains(bodyScrollLockClass)).toBe(true);
+    await user.keyboard('{Escape}');
+  });
+
+  it('leaves the DOM at once when nothing animates (reduced motion, jsdom)', async () => {
+    const user = userEvent.setup();
+    render(<Opener />);
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

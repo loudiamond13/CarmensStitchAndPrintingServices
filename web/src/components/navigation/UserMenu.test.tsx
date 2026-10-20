@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios } from '@/dev/scenarios';
@@ -416,6 +416,112 @@ describe('Topbar user menu (spec §6.6)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Logout' }));
 
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+});
+
+// D-35: the popover pops in from its top-right anchor and the chevron turns while the menu is open. A closing popover
+// stays mounted as data-state="closed" until its animation ends. jsdom runs no animation, so the computed animation name
+// of a closed element is mocked; focus returns to the button at once and the closing popover answers nothing.
+describe('UserMenu motion (D-35, D-38)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-pop-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  async function openThenEscape(onLogout = vi.fn()) {
+    animateClosedElements();
+    const view = renderMenu(onLogout);
+    await view.user.click(trigger());
+    const popover = menu();
+    await view.user.keyboard('{Escape}');
+    return { ...view, popover };
+  }
+
+  it('marks the open popover data-state open', async () => {
+    const { user } = renderMenu();
+
+    await user.click(trigger());
+
+    expect(menu().getAttribute('data-state')).toBe('open');
+  });
+
+  it('puts the chevron on the button group and turns it when the button is expanded', () => {
+    renderMenu();
+    const chevron = trigger().lastElementChild;
+
+    expect(trigger().classList.contains('group/um')).toBe(true);
+    expect(chevron?.classList.contains('transition-transform')).toBe(true);
+    expect(chevron?.classList.contains('group-aria-expanded/um:rotate-180')).toBe(true);
+  });
+
+  it('pops in from the top-right anchor', async () => {
+    const { user } = renderMenu();
+
+    await user.click(trigger());
+
+    for (const token of ['origin-top-right', 'animate-csp-pop-in', 'data-[state=closed]:animate-csp-pop-out']) {
+      expect(menu().classList.contains(token)).toBe(true);
+    }
+  });
+
+  it('stays mounted as closed while it animates out, with focus on the button at once', async () => {
+    const { popover } = await openThenEscape();
+
+    expect(popover.isConnected).toBe(true);
+    expect(popover.getAttribute('data-state')).toBe('closed');
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('leaves the DOM when the popover ends its own animation', async () => {
+    const { popover } = await openThenEscape();
+
+    act(() => {
+      popover.dispatchEvent(new Event('animationend'));
+    });
+
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('answers no click on an item while it closes', async () => {
+    const { popover, onLogout } = await openThenEscape();
+
+    fireEvent.click(within(popover).getByRole('menuitem', { name: 'Logout' }));
+
+    expect(onLogout).not.toHaveBeenCalled();
+  });
+
+  it('moves focus with no arrow key while it closes', async () => {
+    const { popover } = await openThenEscape();
+
+    fireEvent.keyDown(popover, { key: 'ArrowDown' });
+
+    expect(popover.contains(document.activeElement)).toBe(false);
+  });
+
+  it('is inert while it closes', async () => {
+    const { popover } = await openThenEscape();
+
+    expect(popover.hasAttribute('inert')).toBe(true);
+  });
+
+  it('opens again when the button is pressed during the close', async () => {
+    const { popover, user } = await openThenEscape();
+
+    await user.click(trigger());
+
+    expect(popover.getAttribute('data-state')).toBe('open');
+    expect(popover.hasAttribute('inert')).toBe(false);
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    expect(popover.contains(document.activeElement)).toBe(true);
   });
 });
 

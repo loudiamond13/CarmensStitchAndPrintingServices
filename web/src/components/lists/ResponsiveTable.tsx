@@ -15,7 +15,7 @@
 // Cell text is rendered as React text nodes only, and each `data-label` comes from the column definition, never from
 // row data (T-02-68). The looks are in lists.recipe.ts.
 import clsx from 'clsx';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Button } from '@/components/actions';
 import type { IconName } from '@/components/brand';
 import { EmptyState, type EmptyStateHeadingLevel } from '@/components/feedback';
@@ -28,10 +28,14 @@ import {
   bodyCellKindClasses,
   bodyCellToneClasses,
   cellSharedClasses,
+  detailCellClasses,
+  detailParentCellClasses,
+  detailRowClasses,
   footCellClasses,
   footCellKindClasses,
   moneyCellClasses,
   mutedCellClasses,
+  openRowClasses,
   tableClasses,
   tableFootRowClasses,
   tableHeadCellClasses,
@@ -84,6 +88,12 @@ export interface ResponsiveTableProps<T> {
   emptyLevel?: EmptyStateHeadingLevel | undefined;
   /** One totals row, by column key; a missing key leaves its cell empty. */
   footer?: Readonly<Record<string, ReactNode>> | undefined;
+  /** D-27: a row's expandable details. The toggle is the caller's RowAction; the table only renders the detail row. */
+  detail?: ((row: T) => ReactNode) | undefined;
+  /** The keys of the rows whose detail is open. */
+  expandedKeys?: ReadonlySet<string> | undefined;
+  /** Called by the caller's toggle with the row key; kept for the caller's wiring. */
+  onToggleRow?: ((key: string) => void) | undefined;
 }
 
 /** How long placeholder rows may show before they are marked as refreshing (UI-SPEC "refetch", owner probe). */
@@ -111,7 +121,7 @@ function toneOf(inactive: boolean): RowTone {
   return inactive ? 'inactive' : 'active';
 }
 
-function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone): string {
+function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone, hasDetail: boolean): string {
   return clsx(
     cellSharedClasses,
     bodyCellBorderClasses,
@@ -119,6 +129,7 @@ function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone): st
     bodyCellToneClasses[tone],
     column.money === true && moneyCellClasses,
     column.muted === true && mutedCellClasses,
+    hasDetail && detailParentCellClasses,
   );
 }
 
@@ -153,6 +164,8 @@ export function ResponsiveTable<T>({
   emptyAction,
   emptyLevel,
   footer,
+  detail,
+  expandedKeys,
 }: ResponsiveTableProps<T>) {
   const shown = rows ?? [];
   const hasRows = shown.length > 0;
@@ -213,19 +226,39 @@ export function ResponsiveTable<T>({
               <tr>{columns.map((column) => headCell(column))}</tr>
             </thead>
             <tbody className={tableSectionClasses}>
-              {shown.map((row) => {
+              {shown.map((row, index) => {
+                const key = rowKey(row);
                 const tone = toneOf(isInactive?.(row) ?? false);
+                const hasDetail = detail !== undefined;
+                const open = hasDetail && (expandedKeys?.has(key) ?? false);
+                const last = index === shown.length - 1;
                 return (
-                  <tr key={rowKey(row)} className={tableRowClasses[tone]}>
-                    {columns.map((column) => {
-                      const content = column.cell(row);
-                      return (
-                        <td key={column.key} data-label={labelOf(column)} className={bodyCellClasses(column, tone)}>
-                          {column.actions !== true && isMissing(content) ? <EmptyValue /> : content}
+                  <Fragment key={key}>
+                    <tr
+                      className={open ? openRowClasses[tone] : tableRowClasses[tone]}
+                      data-edge={hasDetail && (open || last) ? 'true' : undefined}
+                    >
+                      {columns.map((column) => {
+                        const content = column.cell(row);
+                        return (
+                          <td
+                            key={column.key}
+                            data-label={labelOf(column)}
+                            className={bodyCellClasses(column, tone, hasDetail)}
+                          >
+                            {column.actions !== true && isMissing(content) ? <EmptyValue /> : content}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {hasDetail && (
+                      <tr hidden={!open} className={detailRowClasses}>
+                        <td colSpan={columns.length} data-label="Details" className={detailCellClasses}>
+                          {detail(row)}
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

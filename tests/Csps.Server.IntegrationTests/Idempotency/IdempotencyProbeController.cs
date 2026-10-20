@@ -1,5 +1,6 @@
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Persistence;
+using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -49,6 +50,21 @@ public sealed class IdempotencyProbeController(IdempotencyProbe probe, CspsDbCon
         return code == StatusCodes.Status201Created
             ? Created("/api/test/idempotency/items/7", new { runs })
             : new ObjectResult(new { runs }) { StatusCode = code };
+    }
+
+    /// <summary>Like <see cref="Status"/>, but asks the gate to keep the business row although the answer is not stored.</summary>
+    /// <param name="code">The status to answer.</param>
+    /// <param name="write">The key of a row to add before answering.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The status with a small JSON body.</returns>
+    [HttpPost("keep/{code:int}")]
+    public async Task<IActionResult> Keep(int code, [FromQuery] Guid write, CancellationToken cancellationToken)
+    {
+        var runs = probe.Run();
+        context.Add(IdempotencyRecord.Create(write, null, "POST /probe/business-row", new byte[32], StatusCodes.Status200OK, null, null, null, TimeProvider.System.GetUtcNow()));
+        await context.SaveChangesAsync(cancellationToken);
+        IdempotencyOutcome.KeepChanges(HttpContext);
+        return new ObjectResult(new { runs }) { StatusCode = code };
     }
 
     /// <summary>Answers a text body over 1 MB.</summary>

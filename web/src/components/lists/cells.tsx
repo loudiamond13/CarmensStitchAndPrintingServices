@@ -6,9 +6,12 @@
 //   - CustomerCell: App. E.7's `.s-who` (the team over the customer, or the customer over "Walk-in customer"; the
 //     shared WALK_IN_CUSTOMER, owner ruling D-40, so the card and the table rows always match).
 //   - RowActions and RowAction: App. E.7/E.12's `.s-acts` group of 36px `.s-iconbtn` buttons (18px icons), each named
-//     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`.
+//     for its row ("Edit Carmen Reyes"); the danger one hovers in `--danger-soft` / `--danger`. With `to` the action is a
+//     router link in the same look (the signed-in Manager's pencil to My Profile, D-19).
 // The looks are in lists.recipe.ts.
+import clsx from 'clsx';
 import type { ReactNode, Ref } from 'react';
+import { targetAreaClasses, UiLink } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { WALK_IN_CUSTOMER } from '@/components/data';
 import { Avatar } from '@/components/status';
@@ -17,6 +20,7 @@ import {
   cellUserNameClasses,
   cellUserSubClasses,
   cellUserTextClasses,
+  rowActionChevronClasses,
   rowActionClasses,
   rowActionsClasses,
   whoSubClasses,
@@ -67,7 +71,7 @@ export function RowActions({ children }: RowActionsProps) {
   return <span className={rowActionsClasses}>{children}</span>;
 }
 
-export interface RowActionProps {
+interface RowActionCommon {
   icon: IconName;
   /** The accessible name, naming the row: "Edit Carmen Reyes". */
   label: string;
@@ -75,23 +79,70 @@ export interface RowActionProps {
   title?: string | undefined;
   /** The `.is-danger` hover (Delete). */
   danger?: boolean | undefined;
+  /** An in-app path: the action is a router link in the same look, not a button. */
+  to?: string | undefined;
+}
+
+export interface RowActionButtonProps extends RowActionCommon {
+  to?: undefined;
   onClick?: (() => void) | undefined;
+  /** D-27 an expand toggle: whether its row's detail is open. Sets aria-expanded and turns the icon when open. */
+  expanded?: boolean | undefined;
+  /** The id of the detail the toggle opens (aria-controls); used with `expanded`. */
+  controls?: string | undefined;
   /** The button element, for a screen that moves focus to it after a row changes. */
   ref?: Ref<HTMLButtonElement> | undefined;
 }
 
-export function RowAction({ icon, label, title, danger = false, onClick, ref }: RowActionProps) {
+export interface RowActionLinkProps extends RowActionCommon {
+  to: string;
+  onClick?: undefined;
+  expanded?: undefined;
+  controls?: undefined;
+  /** The anchor element. */
+  ref?: Ref<HTMLAnchorElement> | undefined;
+}
+
+export type RowActionProps = RowActionButtonProps | RowActionLinkProps;
+
+export function RowAction({
+  icon,
+  label,
+  title,
+  danger = false,
+  to,
+  onClick,
+  expanded,
+  controls,
+  ref,
+}: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
+  if (to !== undefined) {
+    return (
+      <UiLink
+        to={to}
+        aria-label={label}
+        title={title}
+        className={clsx(rowActionClasses[tone], targetAreaClasses)}
+        ref={ref}
+      >
+        <Icon name={icon} size={18} />
+      </UiLink>
+    );
+  }
+  const turn: keyof typeof rowActionChevronClasses = expanded === true ? 'open' : 'closed';
   return (
     <button
       type="button"
       aria-label={label}
       title={title}
-      className={rowActionClasses[tone]}
+      aria-expanded={expanded}
+      aria-controls={expanded === undefined ? undefined : controls}
+      className={clsx(rowActionClasses[tone], targetAreaClasses)}
       onClick={onClick}
       ref={ref}
     >
-      <Icon name={icon} size={18} />
+      <Icon name={icon} size={18} className={expanded === undefined ? '' : rowActionChevronClasses[turn]} />
     </button>
   );
 }

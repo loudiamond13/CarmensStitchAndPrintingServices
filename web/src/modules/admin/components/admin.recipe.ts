@@ -6,7 +6,7 @@
 import { tw } from '@/ui/tw';
 
 /** `.s-admin`: the sidebar column and the main column side by side. */
-export const adminClasses = tw('flex min-h-full bg-bg text-ink');
+export const adminClasses = tw('flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh');
 
 /** `.s-admin-side`: the sidebar column (`data-ui="s-admin-side"`), hidden on phones. */
 export const adminSideClasses = tw('relative flex-none pg-phone:hidden');
@@ -23,9 +23,10 @@ export const adminBodyClasses = tw(
 // App. C hides the bar everywhere and shows it as a grid only inside `@container pg (max-width: 767px)`, where all its
 // other rules sit too. A hidden bar shows nothing, so here only its display depends on the container.
 
-/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur. */
+/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur,
+ * with 12px of bottom padding plus the device's safe area (D-36). */
 export const tabBarClasses = tw(
-  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-3 [backdrop-filter:blur(12px)] pg-phone:grid',
+  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-[calc(12px+env(safe-area-inset-bottom))] [backdrop-filter:blur(12px)] pg-phone:grid',
 );
 
 /**

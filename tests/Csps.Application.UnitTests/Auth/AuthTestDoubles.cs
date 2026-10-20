@@ -37,6 +37,9 @@ internal sealed class RecordingOutbox : IEmailOutbox
         Counts.Add((kind, toAddress, since));
         return Task.FromResult(Recent.GetValueOrDefault(kind));
     }
+
+    public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
 }
 
 /// <summary>An audit trail that keeps what was recorded.</summary>
@@ -60,6 +63,9 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
     private int _failuresLeft;
 
     public int Saves { get; private set; }
+
+    /// <summary>True while a transaction's work is running.</summary>
+    public bool InTransaction { get; private set; }
 
     /// <summary>How many transactions ended by returning.</summary>
     public int Commits { get; private set; }
@@ -87,6 +93,7 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
 
     public async Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken)
     {
+        InTransaction = true;
         try
         {
             var result = await work(cancellationToken);
@@ -97,6 +104,10 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
         {
             Rollbacks++;
             throw;
+        }
+        finally
+        {
+            InTransaction = false;
         }
     }
 }

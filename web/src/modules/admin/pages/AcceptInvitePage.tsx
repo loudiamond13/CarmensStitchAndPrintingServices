@@ -5,10 +5,8 @@
 //     with only the back link (a Manager or the CLI re-sends an invite, so there is no self-service button).
 //   - A check that never got an answer (network, 429, 5xx) is not "expired": the screen says so and offers the check again.
 //   - Saving signs nobody in (D-29): S1 shows the "password is set" notice and the person signs in with the emailed code.
-import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, type FieldErrors } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -17,20 +15,19 @@ import { ErrorState, LoadingRegion } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
-import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
+import type { NewPasswordValues } from '@/modules/admin/authSchemas';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import { CheckingCard, InviteFormCard, InviteInvalidCard, type AuthBanner } from '@/modules/admin/components/AuthCards';
+import { CheckingCard, InviteFormCard, InviteInvalidCard } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { removeFragment, tokenFromHash } from '@/modules/admin/pages/ResetPasswordPage';
+import { useSetPasswordForm } from '@/modules/admin/hooks/useSetPasswordForm';
 import { inviteService, type InviteLinkResponse } from '@/modules/admin/services/inviteService';
 import { setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
+import { removeFragment, tokenFromHash } from '@/utils/urlFragment';
 
 const SIGN_IN_PATH = '/admin/login';
 /** The code of the 422 the server sends when the breach list cannot be reached: the invite is not accepted (D-14). */
 const BREACH_CHECK_UNAVAILABLE = 'auth.breach-check-unavailable';
-const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
-type FieldName = (typeof FIELD_ORDER)[number];
 
 interface InviteFormProps {
   token: string;
@@ -39,20 +36,10 @@ interface InviteFormProps {
   onInviteGone: () => void;
 }
 
-/** The form state: owns the form, the schema for this account and the save. */
+/** The form state: the shared set-password form for this account, and the save. */
 function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
   const navigate = useNavigate();
-  const formRef = useRef<HTMLFormElement>(null);
-  const [banner, setBanner] = useState<AuthBanner | null>(null);
-  // D-15: the checked invite names the account, so the password can be kept free of its email and names.
-  const schema = useMemo(
-    () => newPasswordSchema({ email: invite.email, firstName: invite.firstName, lastName: invite.lastName }),
-    [invite.email, invite.firstName, invite.lastName],
-  );
-  const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { newPassword: '', confirmPassword: '' },
-  });
+  const form = useSetPasswordForm(invite);
   const { submit, pending } = useSubmission<NewPasswordValues, undefined>(
     async (key, values) => {
       await inviteService.accept({ token, newPassword: values.newPassword }, { idempotencyKey: key });
@@ -66,17 +53,6 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
     },
   );
 
-  const focusField = (name: FieldName): void => {
-    const element = formRef.current?.elements.namedItem(name);
-    if (element instanceof HTMLElement) {
-      element.focus();
-    }
-  };
-
-  useEffect(() => {
-    focusField('newPassword');
-  }, []);
-
   const showFailure = (error: unknown): void => {
     if (isHttpError(error)) {
       if (error.status === 404) {
@@ -86,30 +62,17 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
       if (error.status === 422 && error.code === BREACH_CHECK_UNAVAILABLE) {
         // D-14: fail closed. Nothing was saved and the invite still works; the typed values stay and the next try is new.
         const down = AUTH_COPY.newPassword.errors.breachCheckDown;
-        setBanner({ title: down.title, message: down.body, error });
-        formRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+        form.setBanner({ title: down.title, message: down.body, error });
+        form.formRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
         return;
       }
-      if (error.status === 400) {
-        const entries = Object.entries(error.fieldErrors);
-        if (entries.some(([key]) => key.toLowerCase() === 'token')) {
-          onInviteGone();
-          return;
-        }
-        // The server's words win over the screen's own.
-        for (const name of FIELD_ORDER) {
-          const message = entries.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1][0];
-          if (message !== undefined) {
-            setError(name, { type: 'server', message });
-            focusField(name);
-            return;
-          }
-        }
+      if (error.status === 400 && Object.keys(error.fieldErrors).some((key) => key.toLowerCase() === 'token')) {
+        onInviteGone();
+        return;
       }
     }
-    const described = describeHttpError(error);
-    if (described !== null) {
-      setBanner({ title: described.title, message: described.body, error });
+    if (!form.applyFieldErrors(error)) {
+      form.showBanner(error);
     }
   };
 
@@ -120,24 +83,14 @@ function InviteForm({ token, invite, onInviteGone }: InviteFormProps) {
     }
   };
 
-  const onInvalid = (errors: FieldErrors<NewPasswordValues>): void => {
-    const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
-    if (first !== undefined) {
-      focusField(first);
-    }
-  };
-
   return (
     <InviteFormCard
-      formRef={formRef}
-      control={control}
+      formRef={form.formRef}
+      control={form.control}
       pending={pending}
       email={invite.email}
-      banner={banner}
-      onSubmit={(event) => {
-        setBanner(null);
-        void handleSubmit(onValid, onInvalid)(event);
-      }}
+      banner={form.banner}
+      onSubmit={form.submitHandler(onValid)}
     />
   );
 }

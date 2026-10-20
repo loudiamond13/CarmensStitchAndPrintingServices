@@ -25,6 +25,12 @@ internal sealed class OutboxEmailSender(CspsDbContext context, EmailRenderer ren
     {
         ArgumentNullException.ThrowIfNull(email);
 
+        // Defense in depth for a deleted person's scrambled address (IN-08). The message never repeats the address.
+        if (IsReservedDomain(email.To))
+        {
+            throw new ArgumentException("The recipient is in a domain reserved for names that cannot receive mail.", nameof(email));
+        }
+
         var rendered = await renderer.RenderAsync(email, cancellationToken).ConfigureAwait(false);
         var protector = protection.CreateProtector(ProtectionPurpose);
         var now = time.GetUtcNow();
@@ -48,5 +54,34 @@ internal sealed class OutboxEmailSender(CspsDbContext context, EmailRenderer ren
         var to = toAddress.Trim();
         return context.EmailOutbox.CountAsync(
             message => message.Kind == kind && message.ToAddress == to && message.CreatedAt >= since, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldAddress);
+        ArgumentException.ThrowIfNullOrWhiteSpace(replacement);
+
+        var address = oldAddress.Trim();
+        var rows = await context.EmailOutbox.Where(message => message.ToAddress == address).ToListAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var row in rows)
+        {
+            // A row not yet sent is closed first, so the dispatcher can never mail the old address after this.
+            if (!row.IsClosed)
+            {
+                row.MarkExpired(now);
+            }
+
+            row.Readdress(replacement);
+        }
+
+        return rows.Count;
+    }
+
+    // RFC 2606: the top-level domain "invalid" (alone, or after any labels) never receives mail.
+    private static bool IsReservedDomain(string address)
+    {
+        var domain = address[(address.LastIndexOf('@') + 1)..].Trim().TrimEnd('.');
+        return domain.Equals("invalid", StringComparison.OrdinalIgnoreCase) || domain.EndsWith(".invalid", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -4,5 +4,5 @@
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 
 export function ShellFallback() {
-  return <div data-theme="light" className={pageRootClasses} />;
+  return <div data-theme="light" data-fill="viewport" className={pageRootClasses} />;
 }

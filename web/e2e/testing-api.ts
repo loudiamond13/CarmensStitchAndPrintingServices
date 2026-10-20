@@ -5,7 +5,7 @@ import type { APIRequestContext } from '@playwright/test';
 import { expect } from './fixtures.ts';
 
 export type StaffRole = 'Admin' | 'Manager';
-export type StaffState = 'active' | 'deactivated' | 'must-change-temporary' | 'must-change-breach';
+export type StaffState = 'active' | 'deactivated' | 'manager-locked' | 'must-change-temporary' | 'must-change-breach';
 
 /** A staff user made for one test. The password is shown here once. */
 export interface TestStaff {
@@ -65,9 +65,21 @@ function isSinkEmail(value: unknown): value is SinkEmail {
   );
 }
 
+/** Optional identity for a made staff user: names up to 100 characters, an address under csps.test up to 256 (long-text specs). */
+export interface StaffIdentity {
+  readonly firstName?: string;
+  readonly lastName?: string;
+  readonly email?: string;
+}
+
 /** Creates a fresh staff user (random email under csps.test, random password) for one test. */
-export async function createStaff(request: APIRequestContext, role: StaffRole, state?: StaffState): Promise<TestStaff> {
-  const response = await request.post('/api/testing/staff', { data: { role, state } });
+export async function createStaff(
+  request: APIRequestContext,
+  role: StaffRole,
+  state?: StaffState,
+  identity: StaffIdentity = {},
+): Promise<TestStaff> {
+  const response = await request.post('/api/testing/staff', { data: { role, state, ...identity } });
   expect(response.status(), 'POST /api/testing/staff').toBe(201);
   const body: unknown = await response.json();
   if (!isTestStaff(body)) {

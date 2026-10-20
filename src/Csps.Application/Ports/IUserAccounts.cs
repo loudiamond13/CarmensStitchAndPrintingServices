@@ -31,7 +31,8 @@ public interface IUserAccounts
     /// <param name="account">The details.</param>
     /// <param name="cancellationToken">Cancels the create.</param>
     /// <returns>The new account id.</returns>
-    /// <exception cref="InvalidOperationException">The email is taken or the role does not exist.</exception>
+    /// <exception cref="EmailInUseException">Another account already holds the email, including when two creates raced for it.</exception>
+    /// <exception cref="InvalidOperationException">The role does not exist.</exception>
     Task<Guid> CreateAsync(NewUserAccount account, CancellationToken cancellationToken);
 
     /// <summary>Checks a password. An unknown id, or an account without a password, fails after the same hashing work.</summary>
@@ -56,12 +57,6 @@ public interface IUserAccounts
     /// <param name="cancellationToken">Cancels the update.</param>
     /// <returns>A task that completes when the count is saved.</returns>
     Task ResetFailedCountAsync(Guid id, CancellationToken cancellationToken);
-
-    /// <summary>Tells whether the account is locked right now.</summary>
-    /// <param name="id">The account id.</param>
-    /// <param name="cancellationToken">Cancels the lookup.</param>
-    /// <returns>True while locked.</returns>
-    Task<bool> IsLockedOutAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>Locks the account until a time.</summary>
     /// <param name="id">The account id.</param>
@@ -96,6 +91,16 @@ public interface IUserAccounts
     /// <returns>A task that completes when the flag is saved.</returns>
     Task SetMustChangePasswordAsync(Guid id, PasswordChangeReason reason, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Counts the changes saved so far on the account as one staff edit (SEC-08, D-21): the edit version moves on, so a form opened earlier
+    /// reads as out of date, and the signed-in Manager is recorded as the last to change the account. Identity bookkeeping such as a
+    /// password hash or a lockout never does this by itself.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>A task that completes when the new version is saved.</returns>
+    Task MarkStaffEditAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Removes the must-change flag and its reason.</summary>
     /// <param name="id">The account id.</param>
     /// <param name="cancellationToken">Cancels the update.</param>
@@ -114,10 +119,175 @@ public interface IUserAccounts
     /// <returns>A task that completes when the mark is saved.</returns>
     Task ClearBreachRecheckAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Tells whether any active Manager exists (the bootstrap command only runs when none does).</summary>
+    /// <summary>
+    /// Tells whether any active Manager exists, active as in D-18: not deactivated, Manager-locked or deleted. The bootstrap
+    /// command only runs when none does.
+    /// </summary>
     /// <param name="cancellationToken">Cancels the lookup.</param>
     /// <returns>True when at least one active Manager exists.</returns>
     Task<bool> AnyActiveManagerAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Counts active Managers (D-18): role Manager, active, not deleted and not Manager-locked. A failed-password lockout does not
+    /// count against a Manager. Call it under <see cref="IManagerRosterLock"/> so the answer cannot change before the caller acts.
+    /// </summary>
+    /// <param name="excluding">An account to leave out of the count, or null to count everyone.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The number of active Managers.</returns>
+    Task<int> CountActiveManagersAsync(Guid? excluding, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deactivates or reactivates the account on its latest state, with no version to send (D-21). A change rotates the edit
+    /// version, so a form opened earlier is stale, and counts as a staff edit for SEC-08.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="active">True to reactivate, false to deactivate.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the state changed; false when the account was already in that state, and nothing was written.</returns>
+    Task<bool> SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sets or clears the Manager lock on the latest state, with no version to send (D-16, D-21). The lock has no timer and is
+    /// separate from the failed-password lockout, which this never touches. A change rotates the edit version, so a form opened
+    /// earlier is stale, and counts as a staff edit for SEC-08.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="lockedAt">When the lock starts; null clears the lock.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the lock state changed; false when it already was that way, and nothing was written.</returns>
+    Task<bool> SetManagerLockAsync(Guid id, DateTimeOffset? lockedAt, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes the account for good on its latest state, with no version to send (D-07, D-21): the row is kept, <c>Email</c> and
+    /// <c>UserName</c> (and their normalized forms) become <see cref="Csps.Application.Users.DeletedAddress.For"/>, any pending email is
+    /// cleared, the deletion time is set, and the edit version and security stamp rotate. The names are left as they are (D-08), and the
+    /// change counts as a staff edit for SEC-08. Ending sessions and links is the caller's job.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="now">The deletion time.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>True when the account was deleted; false when it was already deleted, and nothing was written.</returns>
+    Task<bool> SoftDeleteAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Changes the first and last name when <paramref name="expectedVersion"/> is the stored edit version, and rotates
+    /// that version (SEC-07). Identity bookkeeping never rotates it. Names that already match change nothing.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="firstName">The new given name, already trimmed.</param>
+    /// <param name="lastName">The new family name, already trimmed.</param>
+    /// <param name="expectedVersion">The edit version the form was opened with.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>Whether it saved, changed nothing, lost to another edit, or found no account, and the version now stored.</returns>
+    Task<EditResult> UpdateNameAsync(Guid id, string firstName, string lastName, Guid expectedVersion, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Changes the details a Manager edits on another person (names, role and, when asked, the sign-in email) when
+    /// <paramref name="expectedVersion"/> is the stored edit version, and rotates that version (SEC-07). Identity bookkeeping
+    /// never rotates it. Values that already match change nothing. A role change swaps the person's one role in the same
+    /// unit of work; ending their sessions is the caller's job. A new email replaces <c>Email</c> and <c>UserName</c> with their
+    /// normalized forms and clears any pending address, in the same guarded update; another account holding it answers
+    /// <see cref="EditOutcome.EmailTaken"/> and changes nothing.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="change">The new values, already trimmed.</param>
+    /// <param name="expectedVersion">The edit version the form was opened with.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>What happened, the version now stored, and the fields that really changed (see <see cref="EditedFields"/>).</returns>
+    Task<DetailsEditResult> UpdateDetailsAsync(Guid id, UserDetailsChange change, Guid expectedVersion, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sets, replaces or clears the new email awaiting confirmation (D-24). The sign-in email and the edit version do not
+    /// change, so an open profile form stays current.
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="email">The new address, already trimmed; null clears it.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>A task that completes when the change is saved.</returns>
+    Task SetPendingEmailAsync(Guid id, string? email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Makes the pending email the sign-in email: <c>Email</c> and <c>UserName</c> with their normalized forms, clears the
+    /// pending address, rotates the edit version and records the account itself as the last changer (PROF-02).
+    /// </summary>
+    /// <param name="id">The account id.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>
+    /// Whether it applied, found nothing pending, or found the address already held by another account (checked first,
+    /// and again by the unique index). Nothing is written unless it applied.
+    /// </returns>
+    Task<EmailApplyOutcome> ApplyPendingEmailAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>What applying a pending email did.</summary>
+public enum EmailApplyOutcome
+{
+    /// <summary>The pending address is now the sign-in email.</summary>
+    Applied = 0,
+
+    /// <summary>Another account holds the address, so nothing changed.</summary>
+    Taken = 1,
+
+    /// <summary>No change was pending, so nothing changed.</summary>
+    NothingPending = 2,
+}
+
+/// <summary>What a versioned edit did.</summary>
+public enum EditOutcome
+{
+    /// <summary>The change was saved and the version rotated.</summary>
+    Saved = 0,
+
+    /// <summary>The values already matched, so nothing was written and the version stayed.</summary>
+    Unchanged = 1,
+
+    /// <summary>The version was not the stored one, so nothing was written.</summary>
+    Stale = 2,
+
+    /// <summary>No such account.</summary>
+    NotFound = 3,
+
+    /// <summary>Another account already holds the new email, so nothing was written.</summary>
+    EmailTaken = 4,
+}
+
+/// <summary>The result of a versioned edit.</summary>
+/// <param name="Outcome">What happened.</param>
+/// <param name="Version">The edit version now stored; empty when the account was not found.</param>
+public readonly record struct EditResult(EditOutcome Outcome, Guid Version);
+
+/// <summary>The new values of a Manager's edit of another person.</summary>
+/// <param name="FirstName">The new given name, already trimmed.</param>
+/// <param name="LastName">The new family name, already trimmed.</param>
+/// <param name="Role">The new role (<c>Admin</c> or <c>Manager</c>); null leaves the role alone.</param>
+/// <param name="Email">The new sign-in email, already trimmed; null leaves the email alone. The same address in another letter case is no change.</param>
+public sealed record UserDetailsChange(string FirstName, string LastName, string? Role = null, string? Email = null);
+
+/// <summary>The audit names of the fields a staff edit can change (field names only, D-40).</summary>
+public static class EditedFields
+{
+    /// <summary>The given name.</summary>
+    public const string FirstName = "first-name";
+
+    /// <summary>The family name.</summary>
+    public const string LastName = "last-name";
+
+    /// <summary>The sign-in email.</summary>
+    public const string Email = "email";
+
+    /// <summary>The role.</summary>
+    public const string Role = "role";
+}
+
+/// <summary>The result of <see cref="IUserAccounts.UpdateDetailsAsync"/>.</summary>
+/// <param name="Outcome">What happened.</param>
+/// <param name="Version">The edit version now stored; empty when the account was not found.</param>
+/// <param name="ChangedFields">The fields that really changed, as <see cref="EditedFields"/> names; empty unless it saved.</param>
+/// <param name="PreviousRole">The role the person held before, when the role changed; otherwise null.</param>
+public sealed record DetailsEditResult(EditOutcome Outcome, Guid Version, IReadOnlyList<string> ChangedFields, string? PreviousRole = null)
+{
+    /// <summary>Gets the outcome and version as the plain edit result.</summary>
+    public EditResult Edit => new(Outcome, Version);
 }
 
 /// <summary>The result of checking a password.</summary>

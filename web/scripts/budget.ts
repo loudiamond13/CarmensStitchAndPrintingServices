@@ -103,14 +103,36 @@ export const ADMIN_SIGN_IN_ROUTE: readonly string[] = Object.freeze([
 
 /**
  * Module path prefixes that must never reach a production build (D-20, CWE-489). Since Phase 4 the guarded admin app
- * ships; only the dev showcase, the dev-only preview page and its copy, and the visual parity code stay out.
+ * ships; since plan 05-35 so does the component showcase (D-33), with the modules it renders. What stays out is the
+ * look-equality parity entry, the visual parity code, and the dev-only preview page with its copy.
  */
 export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'src/modules/admin/pages/AdminPreviewPage',
   'src/modules/admin/previewCopy',
-  'src/dev/',
+  'src/dev/parity-main',
   'visual/',
 ]);
+
+/**
+ * Module path prefixes that may reach a production build only inside the showcase's lazy chunks (D-33, D-41 Q3): the
+ * showcase page and its parts, and `src/dev/` (the scenario demo data, the kit and the previews it renders). A chunk
+ * that holds one must not be loaded by the public or admin initial JS, and only the showcase page's own chunk may
+ * load it.
+ */
+export const SHOWCASE_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
+  'src/dev/',
+  'src/modules/admin/components/showcase/',
+  'src/modules/admin/pages/ComponentShowcasePage',
+]);
+
+/** The route module of the component showcase; its chunk is the one entry point of the showcase-only modules. */
+export const SHOWCASE_PAGE = 'src/modules/admin/pages/ComponentShowcasePage.tsx';
+
+const isDevOnly = (moduleId: string): boolean => DEV_ONLY_MODULE_PREFIXES.some((prefix) => moduleId.startsWith(prefix));
+const isShowcaseOnly = (moduleId: string): boolean =>
+  SHOWCASE_ONLY_MODULE_PREFIXES.some((prefix) => moduleId.startsWith(prefix));
+/** A showcase-only module the dev-only rule does not already name (`src/dev/parity-main` sits under `src/dev/`). */
+const isShowcaseHeld = (moduleId: string): boolean => isShowcaseOnly(moduleId) && !isDevOnly(moduleId);
 
 /**
  * Module ids the public initial JS must never contain (PERF-02): TanStack Query and the admin app load with the admin
@@ -231,6 +253,61 @@ function renderTable(measurements: readonly BudgetMeasurement[]): string {
   ].join('\n');
 }
 
+/**
+ * The showcase rule of the production build (D-33, D-41 Q3): every chunk that holds a showcase-only module is outside the
+ * public and admin initial JS, is loaded by the showcase page's chunk, and is imported by no chunk outside the showcase.
+ */
+function showcaseErrors(graph: BudgetGraph, initialFiles: ReadonlySet<string>): string[] {
+  const holders = graph.chunks.filter((c) => c.moduleIds.some(isShowcaseHeld));
+  if (holders.length === 0) {
+    return [];
+  }
+  const errors: string[] = [];
+  const page =
+    graph.chunks.find((c) => c.facadeModuleId === SHOWCASE_PAGE) ??
+    graph.chunks.find((c) => c.moduleIds.includes(SHOWCASE_PAGE));
+  let reach: ReadonlySet<string> | null = null;
+  if (page === undefined) {
+    errors.push(
+      `The production build holds showcase-only modules, but no chunk holds ${SHOWCASE_PAGE}, so they cannot be shown to load lazily (D-33).`,
+    );
+  } else {
+    try {
+      reach = new Set(routeInitialSize(graph.chunks, [page.fileName]).files);
+    } catch (error: unknown) {
+      errors.push(`showcase: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  const flagged = new Set<string>();
+  for (const c of holders) {
+    const id = c.moduleIds.find(isShowcaseHeld) ?? '';
+    if (initialFiles.has(c.fileName)) {
+      errors.push(
+        `The production chunk ${c.fileName} contains the showcase-only module ${id}, and the public or admin initial JS loads that chunk (D-33).`,
+      );
+      flagged.add(c.fileName);
+    } else if (reach !== null && !reach.has(c.fileName)) {
+      errors.push(
+        `The production chunk ${c.fileName} contains the showcase-only module ${id}, but the showcase page does not load it (D-33).`,
+      );
+      flagged.add(c.fileName);
+    }
+  }
+  if (reach !== null) {
+    const reached = reach;
+    for (const c of graph.chunks.filter((candidate) => !reached.has(candidate.fileName))) {
+      for (const imported of c.imports) {
+        if (holders.some((h) => h.fileName === imported) && !flagged.has(imported)) {
+          errors.push(
+            `The production chunk ${c.fileName} imports ${imported}, which holds showcase-only modules that only the showcase page may load (D-33).`,
+          );
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 /** Evaluates the PERF-01 budgets and the build-shape rules over one build's chunk graph. */
 export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): BudgetReport {
   const errors: string[] = [];
@@ -256,7 +333,7 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
 
   if (options.build === 'production') {
     for (const c of graph.chunks) {
-      for (const id of c.moduleIds.filter((m) => DEV_ONLY_MODULE_PREFIXES.some((prefix) => m.startsWith(prefix)))) {
+      for (const id of c.moduleIds.filter(isDevOnly)) {
         errors.push(`The production chunk ${c.fileName} contains the dev-only module ${id} (D-20).`);
       }
     }
@@ -296,6 +373,11 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     files: cssAssets.map((a) => a.fileName),
   });
 
+  if (options.build === 'production') {
+    const initialFiles = new Set([...(measurements[0]?.files ?? []), ...signedIn.files, ...signedOut.files]);
+    errors.push(...showcaseErrors(graph, initialFiles));
+  }
+
   for (const m of measurements) {
     if (m.bytes !== null && m.bytes > m.limit) {
       errors.push(`${m.label} is ${formatKb(m.bytes)}, over its ${formatKb(m.limit)} limit.`);
@@ -307,8 +389,8 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   const publicFiles = new Set(measurements[0]?.files ?? []);
   for (const c of graph.chunks.filter((candidate) => publicFiles.has(candidate.fileName))) {
     for (const id of c.moduleIds) {
-      const devOnly =
-        options.build === 'production' && DEV_ONLY_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix));
+      // The production rules above name these ids, so they are not named twice.
+      const devOnly = options.build === 'production' && (isDevOnly(id) || isShowcaseOnly(id));
       if (
         !devOnly &&
         !PUBLIC_ALLOWED_ADMIN_MODULES.includes(id) &&

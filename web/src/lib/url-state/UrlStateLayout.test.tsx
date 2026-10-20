@@ -1,6 +1,13 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createBrowserRouter, MemoryRouter, type RouteObject } from 'react-router';
+import {
+  createBrowserRouter,
+  createMemoryRouter,
+  MemoryRouter,
+  Outlet,
+  useOutletContext,
+  type RouteObject,
+} from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createListParams } from './createListParams';
@@ -202,5 +209,39 @@ describe('UrlStateLayout in a data router', () => {
       </MemoryRouter>,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('UrlStateLayout and the Outlet context of the layout above it', () => {
+  it('hands that context on to the page below it, as the admin layout does with the theme (PROF-04)', async () => {
+    function Parent() {
+      return <Outlet context={{ theme: 'dark' }} />;
+    }
+    function Page() {
+      const context = useOutletContext<{ theme: string }>();
+      return <p>Theme {context.theme}</p>;
+    }
+    const router = createMemoryRouter(
+      [{ Component: Parent, children: [{ Component: UrlStateLayout, children: [{ path: '/x', Component: Page }] }] }],
+      { initialEntries: ['/x'] },
+    );
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('Theme dark')).toBeInTheDocument();
+  });
+
+  it('gives a page under no layout context no context, as before', async () => {
+    function Page() {
+      const context: unknown = useOutletContext();
+      return <p>{context === undefined || context === null ? 'No context' : 'Some context'}</p>;
+    }
+    const router = createMemoryRouter([{ Component: UrlStateLayout, children: [{ path: '/x', Component: Page }] }], {
+      initialEntries: ['/x'],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('No context')).toBeInTheDocument();
   });
 });

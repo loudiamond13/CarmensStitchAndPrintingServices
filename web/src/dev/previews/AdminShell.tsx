@@ -7,7 +7,7 @@
 // (web/visual/reference/fragments/AdminShell.tsx).
 import clsx from 'clsx';
 import { AdminFrame } from '@/layouts/AdminLayout';
-import { AdminPreviewPage } from '@/modules/admin/pages/AdminPreviewPage';
+import { PreviewBody } from '@/dev/PreviewBody';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import type { AdminSection } from '@/components/navigation';
 import { DEV_USER } from '@/modules/admin/sections';
@@ -27,7 +27,7 @@ function noop(): undefined {
 export function AdminShell({ section = 'dashboard', theme = 'light', frameWidth }: AdminShellProps) {
   const frame = (
     <AdminFrame section={section} user={DEV_USER} theme={theme} onToggleTheme={noop} onLogout={noop}>
-      <AdminPreviewPage section={section} />
+      <PreviewBody section={section} />
     </AdminFrame>
   );
   if (frameWidth === undefined) {

@@ -96,6 +96,18 @@ describe('lists recipe (App. C toolbar and responsive table)', () => {
     expect(enclosingBlock('pg-phone:contain-none')).toBe('@container pg (max-width: 767px) ');
     expectInOrder('contain-paint', 'pg-phone:contain-none');
   });
+
+  it('drops a parent row rule when open or last through the row data-edge, and keeps the detail card continuous on phones (D-27)', () => {
+    expect(css).toContain(classSelector('group-data-[edge=true]/row:border-b-0'));
+    expect(recipeTokensOf('detailRowClasses')).toEqual(
+      expect.arrayContaining(['pg-phone:border-t-0', 'pg-phone:rounded-b-md', 'pg-phone:block']),
+    );
+    expect(recipeTokensOf('detailRowClasses')).not.toContain('pg-phone:border-t');
+    expect(recipeTokens.map((entry) => entry.token)).toEqual(
+      expect.arrayContaining(['pg-phone:rounded-t-md', 'pg-phone:border-b-0']),
+    );
+    expect(enclosingBlock('pg-phone:border-t-0')).toBe('@container pg (max-width: 767px) ');
+  });
 });
 
 describe('list SearchBox focus look (D-41 R2-03)', () => {

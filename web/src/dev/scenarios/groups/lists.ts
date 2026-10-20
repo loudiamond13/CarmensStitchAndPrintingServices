@@ -26,7 +26,7 @@ export const SEED_USERS: readonly ScenarioProps[] = [
   {
     first: 'Carmen',
     last: 'Reyes',
-    email: 'carmen.reyes.csp@gmail.com',
+    email: 'carmen.reyes.csp@example.com',
     role: 'Manager',
     active: true,
     created: '2026-01-12',
@@ -35,7 +35,7 @@ export const SEED_USERS: readonly ScenarioProps[] = [
   {
     first: 'Paolo',
     last: 'Garcia',
-    email: 'paolo.garcia@gmail.com',
+    email: 'paolo.garcia@example.com',
     role: 'Admin',
     active: true,
     created: '2026-02-03',
@@ -43,7 +43,7 @@ export const SEED_USERS: readonly ScenarioProps[] = [
   {
     first: 'Liza',
     last: 'Mercado',
-    email: 'lizamercado09@gmail.com',
+    email: 'lizamercado09@example.com',
     role: 'Admin',
     active: true,
     created: '2026-03-18',
@@ -51,7 +51,7 @@ export const SEED_USERS: readonly ScenarioProps[] = [
   {
     first: 'Rhea',
     last: 'Villanueva',
-    email: 'rhea.villanueva@gmail.com',
+    email: 'rhea.villanueva@example.com',
     role: 'Manager',
     active: true,
     created: '2026-06-21',
@@ -59,7 +59,7 @@ export const SEED_USERS: readonly ScenarioProps[] = [
   {
     first: 'Jomar',
     last: 'Santos',
-    email: 'jomar.santos@yahoo.com',
+    email: 'jomar.santos@example.com',
     role: 'Admin',
     active: false,
     created: '2026-04-02',
@@ -72,7 +72,7 @@ export const LONG_NAME_USERS: readonly ScenarioProps[] = [
   {
     first: 'Maria Concepcion',
     last: 'Villanueva-Dela Cruzada',
-    email: 'maria.villanueva.delacruzada@gmail.com',
+    email: 'maria.villanueva.delacruzada@example.com',
     role: 'Admin',
     active: true,
     created: '2026-09-30',

@@ -19,7 +19,7 @@ describe('LoginScreen preview (App. E.5)', () => {
     renderScreen();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Email')).toHaveValue('paolo.garcia@gmail.com');
+    expect(screen.getByLabelText('Email')).toHaveValue('paolo.garcia@example.com');
     expect(screen.getByLabelText('Password')).toHaveValue('');
     expect(screen.getByRole('checkbox', { name: 'Keep me signed in' })).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Sign In' })).toBeEnabled();

@@ -40,6 +40,30 @@ function relativeId(id: string, root: string): string {
   return posix.toLowerCase().startsWith(prefix.toLowerCase()) ? posix.slice(prefix.length) : posix;
 }
 
+/**
+ * The interop binding Rolldown keeps for a CommonJS import, such as `var import_react = __toESM(require_react(), 1);`
+ * (with a pure-call mark before `__toESM`). React is CommonJS, so a tree-shaken module that imported it still renders
+ * these lines although none of its own code ships.
+ */
+const INTEROP_BINDING =
+  /^var import_\w+ = (?:\/\* @__PURE__ \*\/ )?(?:__toESM\(require_[\w$]+\(\), 1\)|require_[\w$]+\(\));$/;
+
+/** True when a module ships code of its own: more than region comments and the CommonJS bindings of its imports. */
+function shipsOwnCode(
+  rendered: { readonly renderedLength?: number; readonly code?: string | null } | undefined,
+): boolean {
+  if ((rendered?.renderedLength ?? 1) <= 0) {
+    return false;
+  }
+  if (rendered?.code === undefined || rendered.code === null) {
+    return true;
+  }
+  return rendered.code
+    .split('\n')
+    .map((line) => line.trim())
+    .some((line) => line !== '' && !line.startsWith('//') && !INTEROP_BINDING.test(line));
+}
+
 /** The chunk graph of one build, as budget.ts measures it. */
 export function toBudgetGraph(bundle: Rollup.OutputBundle, root: string): BudgetGraph {
   const chunks: BudgetGraph['chunks'][number][] = [];
@@ -53,11 +77,10 @@ export function toBudgetGraph(bundle: Rollup.OutputBundle, root: string): Budget
         isDynamicEntry: output.isDynamicEntry,
         facadeModuleId: output.facadeModuleId === null ? null : relativeId(output.facadeModuleId, root),
         imports: output.imports,
-        // Only modules that ship code: Rolldown also lists modules tree-shaken to nothing (renderedLength 0), such as
-        // src/modules/admin/routes.tsx behind the production build's literal-false __DEV_ROUTES__.
-        moduleIds: output.moduleIds
-          .filter((id) => (output.modules[id]?.renderedLength ?? 1) > 0)
-          .map((id) => relativeId(id, root)),
+        // Only modules that ship code of their own: Rolldown also lists modules tree-shaken to nothing (renderedLength 0),
+        // such as src/modules/admin/routes.tsx behind the production build's literal-false __DEV_ROUTES__, and modules
+        // cut down to the CommonJS bindings of their imports, such as AdminPreviewPage behind the showcase previews.
+        moduleIds: output.moduleIds.filter((id) => shipsOwnCode(output.modules[id])).map((id) => relativeId(id, root)),
       });
     } else {
       assets.push({ fileName: output.fileName, gzipSize: gzipBytes(output.source) });

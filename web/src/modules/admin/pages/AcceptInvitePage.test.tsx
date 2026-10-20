@@ -171,7 +171,7 @@ describe('S6 invalid and failed invites', () => {
       expect(heading).toHaveFocus();
     });
     expect(
-      screen.getByText('Invite links work for 72 hours and only once. Ask a Manager to send you a new invite.'),
+      screen.getByText('Invite links work for 7 days and only once. Ask a Manager to send you a new invite.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute('href', '/admin/login');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

@@ -38,6 +38,9 @@ const SPEC_SR_ONLY = 'absolute h-px w-px overflow-hidden [clip:rect(0_0_0_0)] wh
 // App. C `.s-page`: `container: pg / inline-size; position: relative; min-height: 100%; background: var(--bg);
 // color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 24px`.
 const SPEC_PAGE_ROOT = '@container/pg relative min-h-full bg-bg text-ink font-sans text-[16px] leading-6';
+// D-01: the real layouts mark their page root `data-fill="viewport"`, and only then is it the dynamic viewport tall.
+// Previews and parity frames never carry the marker, so they keep App. C's `min-h-full`.
+const SPEC_PAGE_ROOT_FILL = 'data-[fill=viewport]:min-h-dvh';
 
 // App. C `.s-ph` (plan 02-31): `display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
 // gap: var(--space-4)`, and `align-items: flex-start` on phones.
@@ -123,15 +126,15 @@ describe('layout recipe (.s-page and .csp-sr looks)', () => {
     expect(tokensOf(srOnlyClasses)).toEqual(tokensOf(SPEC_SR_ONLY));
   });
 
-  it('pageRootClasses holds exactly the .s-page transcription', () => {
-    expect(tokensOf(pageRootClasses)).toEqual(tokensOf(SPEC_PAGE_ROOT));
+  it('pageRootClasses holds exactly the .s-page transcription plus the data-fill viewport variant (D-01)', () => {
+    expect(tokensOf(pageRootClasses)).toEqual(tokensOf(`${SPEC_PAGE_ROOT} ${SPEC_PAGE_ROOT_FILL}`));
   });
 
   it('passes the class gate: every recipe token compiles under the CSPS theme, with no finding', async () => {
     const tokens = collectClassTokens(recipeFile, recipeSource);
     expect(tokens.map((entry) => entry.token).sort()).toEqual(
       tokensOf(
-        `${SPEC_SR_ONLY} ${SPEC_PAGE_ROOT} ${SPEC_PAGE_HEAD} ${SPEC_PAGE_HEAD_TITLE} ${SPEC_PAGE_TITLE} ${SPEC_PAGE_SUBLINE} ${LOGIN_SPECS}`,
+        `${SPEC_SR_ONLY} ${SPEC_PAGE_ROOT} ${SPEC_PAGE_ROOT_FILL} ${SPEC_PAGE_HEAD} ${SPEC_PAGE_HEAD_TITLE} ${SPEC_PAGE_TITLE} ${SPEC_PAGE_SUBLINE} ${LOGIN_SPECS}`,
       ),
     );
     expect(await checkClassTokens(tokens, { file: recipeFile })).toEqual([]);
@@ -160,6 +163,12 @@ describe('layout recipe (.s-page and .csp-sr looks)', () => {
     ]) {
       expect(css).toContain(declaration);
     }
+  });
+
+  it('fills the dynamic viewport only under the data-fill marker, so unmarked frames keep min-height 100%', async () => {
+    const css = (await buildCss(tokensOf(pageRootClasses))).replace(/\s+/g, ' ');
+    expect(css).toMatch(/\[data-fill=["']?viewport["']?\][^{]*\{[^}]*min-height: 100dvh/);
+    expect(css).toContain('min-height: 100%');
   });
 
   it('holds exactly the .s-ph, .s-ph-title, h1 and subline transcriptions (plan 02-31)', () => {

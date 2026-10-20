@@ -1,3 +1,4 @@
+using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Seeding;
@@ -17,11 +18,18 @@ public sealed class BootstrapManagerTests
     private const string Password = "NotARealSecret1";
     private const string PublicBaseUrl = "https://csps.example.test";
 
+    // The protected name is kept but the host cannot resolve, so a guard regression fails to connect instead of reaching the shared instance.
+    private const string UnreachableBetsConnection = "Server=db.invalid.example;Database=BetsLLC_Dev;Integrated Security=true;Connect Timeout=1";
+
     [Theory]
     [InlineData("Server=db.example.net;Database=CspsLive;User ID=app;Password=NotARealSecret1;Encrypt=True", "CspsLive")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev;Integrated Security=true", "CSPS_Dev")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=csps_e2e;Integrated Security=true", "csps_e2e")]
     [InlineData("Server=127.0.0.1,32768;Database=CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e;User ID=sa;Password=NotARealSecret1", "CSPS_Test_0f8fad5b-d9cb-469f-a165-70867728950e")]
+    [InlineData("Server=tcp:db.example.com,1433;Database=Other_Db;User ID=app;Password=NotARealSecret1", "Other_Db")]
+    [InlineData(@"Server=np:\\db.example.com\pipe\sql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
+    [InlineData("Server=tcp:[::1],1433;Database=CSPS_Dev;User ID=sa;Password=NotARealSecret1", "CSPS_Dev")]
+    [InlineData(@"Server=np:\\.\pipe\LOCALDB#ABC123\tsql\query;Database=CSPS_E2E;Integrated Security=true", "CSPS_E2E")]
     public void GuardAllowsAConfirmedDatabase(string connectionString, string database)
     {
         var check = BootstrapTargetGuard.Check(connectionString, database);
@@ -49,6 +57,10 @@ public sealed class BootstrapManagerTests
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=SomethingElse;Integrated Security=true", "SomethingElse")]
     [InlineData(@"Server=(localdb)\MSSQLLocalDB;Database=CSPS_Dev2;Integrated Security=true", "CSPS_Dev2")]
     [InlineData("Server=localhost,1433;Database=Anything;User ID=sa;Password=NotARealSecret1", "Anything")]
+    [InlineData("Server=tcp:[::1],1433;Database=Other_Db;User ID=sa;Password=NotARealSecret1", "Other_Db")]
+    [InlineData("Server=[::1],1433;Database=Other_Db;User ID=sa;Password=NotARealSecret1", "Other_Db")]
+    [InlineData(@"Server=np:\\.\pipe\LOCALDB#ABC123\tsql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
+    [InlineData(@"Server=np:\\localhost\pipe\sql\query;Database=Other_Db;Integrated Security=true", "Other_Db")]
     public void GuardAllowsOnlyTheCspsDatabasesOnThisMachine(string connectionString, string database)
     {
         var check = BootstrapTargetGuard.Check(connectionString, database);
@@ -224,6 +236,39 @@ public sealed class BootstrapManagerTests
         (await after.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData("locked")]
+    [InlineData("deleted")]
+    [InlineData("deactivated")]
+    public async Task ARunCreatesANewManagerWhenTheOnlyManagerCannotAct(string state)
+    {
+        await using var database = await CspsDatabase.CreateAsync();
+        (await RunAsync(database, "carmen@csps.test")).ExitCode.ShouldBe(0);
+        var stamp = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+        await using (var context = database.CreateContext())
+        {
+            _ = state switch
+            {
+                "locked" => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.ManagerLockedAtUtc, stamp), TestContext.Current.CancellationToken),
+                "deleted" => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.DeletedAtUtc, stamp), TestContext.Current.CancellationToken),
+                _ => await context.Users.ExecuteUpdateAsync(set => set.SetProperty(user => user.IsActive, false), TestContext.Current.CancellationToken),
+            };
+        }
+
+        var recovery = await RunAsync(database, "other@csps.test");
+
+        recovery.ExitCode.ShouldBe(0, recovery.Error);
+        recovery.Output.ShouldContain("Invite queued for other@csps.test.");
+        await using var after = database.CreateContext();
+        (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+        var created = await after.Users.AsNoTracking().SingleAsync(user => user.Email == "other@csps.test", TestContext.Current.CancellationToken);
+        (await after.UserRoles.AsNoTracking().CountAsync(
+            link => link.UserId == created.Id && after.Roles.Any(role => role.Id == link.RoleId && role.Name == Roles.Manager),
+            TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.AccountTokens.AsNoTracking().CountAsync(token => token.UserId == created.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+    }
+
     [Fact]
     public async Task AReusedEmailIsRefusedInPlainWords()
     {
@@ -273,11 +318,9 @@ public sealed class BootstrapManagerTests
     [Fact]
     public async Task ABetsDatabaseIsRefusedWithoutOpeningAConnection()
     {
-        var connection = @"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true";
-
         var run = await RunCommandAsync(
             ["--email", "carmen@csps.test", "--first-name", "Carmen", "--last-name", "Reyes", "--confirm-database", "BetsLLC_Dev", "--public-base-url", PublicBaseUrl],
-            Environment(connection),
+            Environment(UnreachableBetsConnection),
             prompt: null);
 
         run.ExitCode.ShouldBe(2);
@@ -296,12 +339,10 @@ public sealed class BootstrapManagerTests
     [Fact]
     public async Task APromptedConnectionIsUsedWhenTheVariableIsNotSet()
     {
-        var connection = @"Server=(localdb)\MSSQLLocalDB;Database=BetsLLC_Dev;Integrated Security=true";
-
         var run = await RunCommandAsync(
             ["--email", "carmen@csps.test", "--first-name", "Carmen", "--last-name", "Reyes", "--confirm-database", "BetsLLC_Dev", "--public-base-url", PublicBaseUrl],
             static _ => null,
-            prompt: () => connection);
+            prompt: () => UnreachableBetsConnection);
 
         run.ExitCode.ShouldBe(2);
         run.Error.ShouldContain("BetsLLC_");

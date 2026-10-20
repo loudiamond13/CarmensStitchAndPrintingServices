@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,6 +7,7 @@ using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 
 namespace Csps.Infrastructure.Idempotency;
 
@@ -95,6 +97,20 @@ public sealed class IdempotencyLease : IAsyncDisposable
         _finished = true;
     }
 
+    /// <summary>Commits the business change without storing an answer, so the same key may run again.</summary>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>A task that completes when the transaction is committed.</returns>
+    public async Task CommitWithoutRecordAsync(CancellationToken cancellationToken)
+    {
+        if (State != IdempotencyLeaseState.Proceed || _finished)
+        {
+            throw new InvalidOperationException("Only an open lease for a new key can commit.");
+        }
+
+        await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        _finished = true;
+    }
+
     /// <summary>Rolls back the business change and releases the key, so the same key may run again.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes when the transaction is rolled back.</returns>
@@ -129,15 +145,19 @@ public sealed class IdempotencyLease : IAsyncDisposable
 /// goes in as a parameter and the resource name is a hash (CWE-89).
 /// </summary>
 /// <param name="context">The request's scoped context.</param>
-public sealed class IdempotencyGate(CspsDbContext context)
+/// <param name="logger">Receives a warning when the purge fails; it never carries request data.</param>
+public sealed partial class IdempotencyGate(CspsDbContext context, ILogger<IdempotencyGate> logger)
 {
+    /// <summary>The most expired rows one request deletes.</summary>
+    public const int PurgeBatchSize = 100;
+
     private const int ResourceMaxLength = 255;
 
     /// <summary>Opens the transaction, takes the key's lock and reads any stored answer.</summary>
     /// <param name="key">The client's request key.</param>
     /// <param name="route">The method and route pattern.</param>
     /// <param name="userId">The signed-in user, or null.</param>
-    /// <param name="requestHash">The SHA-256 of the request body.</param>
+    /// <param name="requestHash">The keyed HMAC-SHA256 of the request target and body.</param>
     /// <param name="now">The current UTC time.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The lease. The caller disposes it.</returns>
@@ -146,6 +166,8 @@ public sealed class IdempotencyGate(CspsDbContext context)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(route);
         ArgumentNullException.ThrowIfNull(requestHash);
+
+        await PurgeExpiredAsync(now, cancellationToken).ConfigureAwait(false);
 
         var transaction = await context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -159,6 +181,28 @@ public sealed class IdempotencyGate(CspsDbContext context)
             throw;
         }
     }
+
+    // One short statement before the request's transaction, so its row locks end at once and never wait on a handler.
+    // A failure is logged and ignored: the POST must not fail because old rows could not be removed.
+    private async Task PurgeExpiredAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.Set<IdempotencyRecord>()
+                .Where(record => record.ExpiresAt <= now)
+                .OrderBy(record => record.ExpiresAt)
+                .Take(PurgeBatchSize)
+                .ExecuteDeleteAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (DbException exception)
+        {
+            LogPurgeFailed(logger, exception);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Expired idempotency records could not be removed.")]
+    private static partial void LogPurgeFailed(ILogger logger, Exception exception);
 
     // The hash keeps the name short and free of the route text.
     private static string ResourceName(Guid key, string route, Guid? userId)

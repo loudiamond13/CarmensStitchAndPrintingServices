@@ -36,7 +36,7 @@ public sealed class IdempotencyRecord
     /// <summary>Gets the method and route pattern, for example <c>POST /api/v1/auth/password/forgot</c>.</summary>
     public string Route { get; private set; }
 
-    /// <summary>Gets the SHA-256 of the request body.</summary>
+    /// <summary>Gets the keyed HMAC-SHA256 of the request target and body (see <see cref="IdempotencyRequestHasher"/>).</summary>
     public byte[] RequestHash { get; private set; }
 
     /// <summary>Gets the stored HTTP status.</summary>
@@ -61,7 +61,7 @@ public sealed class IdempotencyRecord
     /// <param name="key">The request key.</param>
     /// <param name="userId">The signed-in user, or null.</param>
     /// <param name="route">The method and route pattern.</param>
-    /// <param name="requestHash">The SHA-256 of the request body.</param>
+    /// <param name="requestHash">The keyed HMAC-SHA256 of the request target and body.</param>
     /// <param name="statusCode">The HTTP status.</param>
     /// <param name="body">The response body, or null when empty.</param>
     /// <param name="contentType">The response Content-Type, or null.</param>

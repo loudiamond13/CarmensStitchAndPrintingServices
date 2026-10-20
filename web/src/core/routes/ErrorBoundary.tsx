@@ -70,7 +70,7 @@ export function AdminRouteErrorBoundary({ reload = reloadPage }: ErrorBoundaryPr
 /** The admin error screen in a minimal page root of its own (the admin layout itself failed). */
 export function AdminRootErrorBoundary({ reload = reloadPage }: ErrorBoundaryProps) {
   return (
-    <div data-theme="light" className={pageRootClasses}>
+    <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <main id="main" tabIndex={-1}>
         <ErrorScreen reload={reload} body={ERROR_BOUNDARY_COPY.adminBody} />
       </main>
@@ -81,7 +81,7 @@ export function AdminRootErrorBoundary({ reload = reloadPage }: ErrorBoundaryPro
 /** The error screen in a minimal page root of its own (the layout itself failed). */
 export function RootErrorBoundary({ reload = reloadPage }: ErrorBoundaryProps) {
   return (
-    <div data-theme="light" className={pageRootClasses}>
+    <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <main id="main" tabIndex={-1}>
         <ErrorScreen reload={reload} />
       </main>

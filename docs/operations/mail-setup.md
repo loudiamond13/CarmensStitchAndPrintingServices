@@ -1,6 +1,6 @@
 ---
 created: 2026-10-14T18:00:00-05:00
-updated: 2026-10-15T07:53:00-05:00
+updated: 2026-10-18T07:10:00-05:00
 ---
 
 # Mail setup: the app's sender mailbox and the .NET security update
@@ -86,7 +86,7 @@ This is the 2026-10-13 Microsoft security release. It is a free Microsoft downlo
 
 ## Preview the emails
 
-The seven emails staff receive (sign-in code, account locked, password reset, password changed, reset by a Manager, deactivated account, invite) are designed to match the site. Look at them before they go live. The preview uses made-up sample values (code 482913, Carmen Reyes, a token that does not work), so nothing real is in it. It runs only in Development and refuses anywhere else.
+The eight emails staff receive (sign-in code, account locked, password reset, password changed, reset by a Manager, deactivated account, invite, sign-in email changed by a Manager) are designed to match the site. Look at them before they go live. The preview uses made-up sample values (code 482913, Carmen Reyes, a token that does not work), so nothing real is in it. It runs only in Development and refuses anywhere else.
 
 Both commands run in a normal PowerShell window from the project folder, and the second line makes this terminal a Development one only for that window.
 
@@ -118,6 +118,17 @@ In Gmail on the web and in the Gmail app on your phone, open each one and check:
 - The `Microsoft.AspNetCore.App 10.0.13` line.
 
 Claude then records them in `.planning/HOSTING-RECORD.md` and the rest of Phase 4 can start.
+
+## Outbox retention
+
+Every email the app sends goes through a table of queued messages (the outbox). This is the written rule for how long its rows live (review note IN-08 of Phase 4).
+
+- **While a row is open** (waiting to send or being retried), it holds the encrypted subject and bodies, so the message can be sent.
+- **When a row is closed** (sent, or given up after the retries), the app clears the subject and bodies at once. What stays is the recipient address, the kind of email, the times and the result code, so staff can see that a sign-in code or reset link was sent and when.
+- **Closed rows are deleted 30 days after they close.** The recipient address is personal data, so it is not kept longer than that. The deleting is done by the maintenance job planned for Phase 9 (requirement JOB-01). Until that job exists, closed rows stay, which is why this is recorded as deferred in `.planning/phases/05-profile-user-management/deferred-items.md`.
+- **When a user is deleted,** the rows addressed to that user are scrubbed at delete time (plan 05-26 of Phase 5), without waiting for the 30 days.
+
+Nothing here needs action from you. It is written down so the rule is clear and the Phase 9 job has a definition to follow.
 
 ## If mail ever stops
 

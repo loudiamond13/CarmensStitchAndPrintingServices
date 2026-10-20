@@ -336,6 +336,42 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(await screen.findByText(/Reference: 00-retry/)).toBeVisible();
   });
 
+  it('words a failure the caller recognises through describeFailure and leaves the rest to the mapper', async () => {
+    const user = userEvent.setup();
+    const guard = new Error('guard');
+    const describeFailure = (error: unknown) =>
+      error === guard ? { title: "You can't do this.", body: 'Try something else.' } : undefined;
+    const onConfirm = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ ok: false, error: guard })
+      .mockResolvedValueOnce({ ok: false, error: serverError('00-other') });
+    render(<DeleteOrder onConfirm={onConfirm} describeFailure={describeFailure} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+    expect(await screen.findByText("You can't do this. Try something else.")).toBeVisible();
+    await user.click(deleteButton());
+
+    expect(await screen.findByText(/Reference: 00-other/)).toBeVisible();
+    expect(screen.queryByText("You can't do this. Try something else.")).toBeNull();
+  });
+
+  it('shows pendingLabel on the confirm button while the action runs, and the confirm label again after it', async () => {
+    const user = userEvent.setup();
+    const action = deferred();
+    render(<DeleteOrder onConfirm={() => action.promise} pendingLabel="Deleting" />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+
+    expect(screen.getByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+    await act(async () => {
+      action.resolve({ ok: false, error: serverError() });
+      await action.promise;
+    });
+    expect(deleteButton()).toBeEnabled();
+  });
+
   it('shows a title that already ends a sentence as it is, and a title alone when there is no body', async () => {
     const user = userEvent.setup();
     const badRequest = new HttpError({
@@ -460,5 +496,65 @@ describe('ConfirmDialog scenarios (the overlays parity group)', () => {
     expect(scenario?.parity).toBe(false);
     expect(scenario?.frame).toBe('viewport');
     expect(JSON.stringify(scenario?.node)).toContain('"component":"FailedConfirmDialog"');
+  });
+});
+
+// D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
+describe('ConfirmDialog open prop (D-39)', () => {
+  it('renders nothing while open is false', () => {
+    const { container } = render(<DeleteOrder open={false} onCancel={vi.fn()} />);
+
+    expect(container.childElementCount).toBe(0);
+  });
+
+  it('is open when open is omitted', () => {
+    render(<DeleteOrder onCancel={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toBeVisible();
+  });
+
+  it('opens again with an empty type-to-confirm field', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DeleteOrder onCancel={vi.fn()} />);
+    await user.type(confirmField(), ORDER);
+    expect(deleteButton()).toBeEnabled();
+
+    rerender(<DeleteOrder open={false} onCancel={vi.fn()} />);
+    rerender(<DeleteOrder onCancel={vi.fn()} />);
+
+    expect(confirmField()).toHaveValue('');
+    expect(deleteButton()).toBeDisabled();
+  });
+
+  it('opens again without the failure line and with an enabled Delete', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(() => Promise.reject(serverError()));
+    const { rerender } = render(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    await user.click(deleteButton());
+    await screen.findByText(/Reference:/);
+
+    rerender(<ConfirmDialog open={false} confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    rerender(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    expect(screen.queryByText(/Reference:/)).toBeNull();
+    expect(deleteButton()).toBeEnabled();
+  });
+
+  it('opens again without the pending state', async () => {
+    const user = userEvent.setup();
+    const action = deferred();
+    const onConfirm = vi.fn(() => action.promise);
+    const { rerender } = render(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    await user.click(deleteButton());
+    expect(deleteButton().getAttribute('aria-busy')).toBe('true');
+
+    rerender(<ConfirmDialog open={false} confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    rerender(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    expect(deleteButton().getAttribute('aria-busy')).toBeNull();
+    await act(async () => {
+      action.resolve({ ok: true, value: undefined });
+      await action.promise;
+    });
   });
 });

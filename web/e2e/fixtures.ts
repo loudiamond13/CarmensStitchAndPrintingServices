@@ -66,6 +66,12 @@ const NETWORK_FAILURE = /^Failed to load resource\b/;
 // matched exactly: our own /assets/*.js chunk and WebKit's wording, nothing else.
 const UNUSED_PRELOAD =
   /^The resource https?:\/\/[^\s/]+\/assets\/[\w.-]+\.js was preloaded using link preload but not used within a few seconds from the window's load event\. Please make sure it wasn't preloaded for nothing\.$/;
+// Firefox's warning for the page's one font <link rel="preload"> (the Archivo Variable woff2) when the page stays open for
+// more than a few seconds: it reports the preload as unused although the page renders with the font (the fonts spec proves
+// the font loads once, same origin). Any long Firefox journey on one document meets it (plans 05-08, 05-18, 05-28, 05-33).
+// It is matched exactly: our own /assets/archivo-latin-wght-normal-*.woff2 and Firefox's wording, nothing else.
+const UNUSED_FONT_PRELOAD =
+  /^\[JavaScript Warning: "The resource at “https?:\/\/[^\s/]+\/assets\/archivo-latin-wght-normal-[\w-]+\.woff2” preloaded with link preload was not used within a few seconds\. Make sure all attributes of the preload tag are set correctly\."/;
 // How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
 const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
@@ -135,7 +141,7 @@ export const test = base.extend<{ guard: Guard }>({
           if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
             return;
           }
-          if (type === 'warning' && UNUSED_PRELOAD.test(text)) {
+          if (type === 'warning' && (UNUSED_PRELOAD.test(text) || UNUSED_FONT_PRELOAD.test(text))) {
             return;
           }
           consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -19,6 +18,7 @@ public sealed class ResetPasswordHandler(
     IAccountTokens tokens,
     IUserAccounts accounts,
     ISessions sessions,
+    ITwoFactorChallenges challenges,
     ISessionCache sessionCache,
     PasswordRules passwordRules,
     IEmailOutbox outbox,
@@ -43,9 +43,7 @@ public sealed class ResetPasswordHandler(
             return Result.Failure(ValidationResults.ToError(validation, AuthErrors.ValidationCode, AuthErrors.ValidationMessage));
         }
 
-        // The second pass of a lost race reads the link again, so a link spent by the winner reads as invalid.
-        var outcome = await ConflictRetry.RunAsync(() => AttemptAsync(request, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
-            .ConfigureAwait(false);
+        var outcome = await ProcessAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (outcome.EvictUser is { } userId)
         {
@@ -60,34 +58,50 @@ public sealed class ResetPasswordHandler(
         return outcome.Result;
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
-    private Task<Outcome> AttemptAsync(ResetPasswordRequest request, CancellationToken cancellationToken) =>
+    // The link is looked up and the password checked (an HTTP call) before any transaction opens, so a slow breach service never holds a connection.
+    private async Task<Outcome> ProcessAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var link = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.PasswordReset, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        if (link is null)
+        {
+            return new Outcome(Result.Failure(AuthErrors.LinkInvalid), null);
+        }
+
+        var account = link.Account;
+        var verdict = await passwordRules
+            .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailOpenWithFloor, cancellationToken)
+            .ConfigureAwait(false);
+        if (verdict.Status != PasswordRulesStatus.Accepted)
+        {
+            return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
+        }
+
+        // The second pass of a lost race reads the link again, so a link spent by the winner reads as invalid; the breach answer is kept.
+        return await ConflictRetry.RunAsync(
+                () => AttemptAsync(request, verdict.BreachCheckSkipped, cancellationToken), new Outcome(Result.Failure(AuthErrors.SessionBusy), null))
+            .ConfigureAwait(false);
+    }
+
+    private Task<Outcome> AttemptAsync(ResetPasswordRequest request, bool breachCheckSkipped, CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
             async token =>
             {
                 var now = time.GetUtcNow();
-                var link = await ResetLinkLookup.FindAsync(request.Token, now, tokens, accounts, token).ConfigureAwait(false);
+                var link = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.PasswordReset, now, tokens, accounts, token).ConfigureAwait(false);
                 if (link is null)
                 {
                     return new Outcome(Result.Failure(AuthErrors.LinkInvalid), null);
                 }
 
                 var account = link.Account;
-                var verdict = await passwordRules
-                    .CheckAsync(request.NewPassword!, new PersonalInfo(account.Email, account.FirstName, account.LastName), BreachCheckMode.FailOpenWithFloor, token)
-                    .ConfigureAwait(false);
-                if (verdict.Status != PasswordRulesStatus.Accepted)
-                {
-                    return new Outcome(Result.Failure(AuthErrors.NewPasswordRejected(verdict.Message ?? PasswordRules.CheckUnavailableMessage)), null);
-                }
 
                 // Spend the link first and save at once: a second request racing on the same link loses here, before any other change.
                 link.Token.Use(now);
                 await tokens.RevokeOpenAsync(account.Id, AccountTokenPurpose.PasswordReset, now, token).ConfigureAwait(false);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
 
-                await ApplyAsync(account, request.NewPassword!, verdict.BreachCheckSkipped, now, token).ConfigureAwait(false);
+                await ApplyAsync(account, request.NewPassword!, breachCheckSkipped, now, token).ConfigureAwait(false);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return new Outcome(Result.Success(), account.Id);
             },
@@ -97,13 +111,14 @@ public sealed class ResetPasswordHandler(
     {
         var id = account.Id;
         await accounts.SetPasswordAsync(id, newPassword, cancellationToken).ConfigureAwait(false);
+        // D-17: this ends only the failed-password lockout, never a Manager lock, a deactivation or a delete.
         await accounts.ClearLockoutAsync(id, cancellationToken).ConfigureAwait(false);
         await accounts.ClearMustChangePasswordAsync(id, cancellationToken).ConfigureAwait(false);
 
         if (breachCheckSkipped)
         {
             await accounts.MarkBreachRecheckAsync(id, cancellationToken).ConfigureAwait(false);
-            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, Key(id), null);
+            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, AuditKey.Of(id), null);
         }
         else
         {
@@ -112,9 +127,12 @@ public sealed class ResetPasswordHandler(
 
         // Every session ends, the one that asked included; a reset signs nobody in (D-17).
         await sessions.RevokeAllAsync(id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
+
+        // A sign-in still waiting for its code was started with the old password.
+        await challenges.InvalidateOpenAsync(id, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, true), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordResetCompleted, UserTarget, Key(id), null);
-        audit.Record(AuditActions.SessionsRevoked, UserTarget, Key(id), "password-reset");
+        audit.Record(AuditActions.PasswordResetCompleted, UserTarget, AuditKey.Of(id), null);
+        audit.Record(AuditActions.SessionsRevoked, UserTarget, AuditKey.Of(id), AuditActions.DetailPasswordReset);
     }
 
     // EvictUser is set only for a committed reset.

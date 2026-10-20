@@ -1,11 +1,12 @@
 // The admin route guard and the return-path check (D-07, CWE-601, plan 04-25).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { redirectIfSignedInLoader, requireSessionLoader, safeReturnUrl } from './guard';
+import { redirectIfSignedInLoader, requireManagerLoader, requireSessionLoader, safeReturnUrl } from './guard';
 
 const ensureSession = vi.fn();
 vi.mock('./services/session', () => ({ ensureSession: (): unknown => ensureSession() }));
 
 const user = { id: 'u1', email: 'carmen@example.ph', name: 'Carmen Reyes', role: 'manager' } as const;
+const adminUser = { id: 'u2', email: 'lito@example.ph', name: 'Lito Santos', role: 'admin' } as const;
 
 function args(url: string) {
   return { request: new Request(`http://localhost${url}`), params: {}, context: undefined } as never;
@@ -25,7 +26,14 @@ beforeEach(() => {
 });
 
 describe('safeReturnUrl (D-07)', () => {
-  it.each(['/admin', '/admin/orders', '/admin/orders?page=2', '/admin/sessions'])('keeps %s', (value) => {
+  it.each([
+    '/admin',
+    '/admin/orders',
+    '/admin/orders?page=2',
+    '/admin/sessions',
+    '/admin/users?q=50%25',
+    '/admin/orders#top',
+  ])('keeps %s exactly as given', (value) => {
     expect(safeReturnUrl(value)).toBe(value);
   });
 
@@ -38,7 +46,10 @@ describe('safeReturnUrl (D-07)', () => {
     ['an absolute URL', 'https://evil.example/admin'],
     ['a protocol-relative URL', '//evil.example'],
     ['a backslash host', '/\\evil.example'],
-    ['an encoded double slash', '/%2F%2Fevil.example'],
+    ['an encoded slash at the start', '%2Fadmin%2Forders'],
+    ['an encoded protocol-relative start', '%2F%2Fevil.example'],
+    ['an encoded double slash after /admin is not a host', '/%2F%2Fevil.example'],
+    ['a double-encoded percent in the path', '/admin/50%2525'],
     ['an encoded dot-dot segment', '/admin/%2e%2e/x'],
     ['a dot-dot segment', '/admin/../x'],
     ['a javascript URL', 'javascript:alert(1)'],
@@ -121,5 +132,37 @@ describe('redirectIfSignedInLoader', () => {
     ensureSession.mockRejectedValue(new Error('network'));
 
     await expect(redirectIfSignedInLoader(args('/admin/login'))).resolves.toBeNull();
+  });
+});
+
+describe('requireManagerLoader (USER-08)', () => {
+  it('returns the user when the role is manager', async () => {
+    ensureSession.mockResolvedValue(user);
+
+    await expect(requireManagerLoader(args('/admin/users'))).resolves.toBe(user);
+  });
+
+  it('sends an Admin to /admin', async () => {
+    ensureSession.mockResolvedValue(adminUser);
+
+    const response = await thrown(() => requireManagerLoader(args('/admin/users')));
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get('Location')).toBe('/admin');
+  });
+
+  it('sends a visitor without a session to sign-in with the return path, not to /admin (session check first)', async () => {
+    ensureSession.mockResolvedValue(null);
+
+    const response = await thrown(() => requireManagerLoader(args('/admin/users?page=2')));
+
+    expect((response as Response).headers.get('Location')).toBe('/admin/login?returnUrl=%2Fadmin%2Fusers%3Fpage%3D2');
+  });
+
+  it('lets a failed session check reach the error screen', async () => {
+    ensureSession.mockRejectedValue(new Error('server is down'));
+
+    await expect(requireManagerLoader(args('/admin/users'))).rejects.toThrow('server is down');
   });
 });
