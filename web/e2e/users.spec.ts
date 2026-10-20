@@ -222,6 +222,15 @@ function newPersonEmail(): string {
   return `ana-${randomUUID().slice(0, 8)}@csps.test`;
 }
 
+/** True while the shown password is still in the page markup or in any input. */
+async function passwordOnPage(page: Page, password: string): Promise<boolean> {
+  if ((await page.content()).includes(password)) {
+    return true;
+  }
+  const values = await Promise.all((await page.locator('input').all()).map((input) => input.inputValue()));
+  return values.includes(password);
+}
+
 function addUserButton(page: Page) {
   return page.getByRole('button', { name: 'Add User' });
 }
@@ -361,12 +370,7 @@ test('@users-add a Manager adds a person with a temporary password, copies it on
   await shown.getByRole('button', { name: 'Done' }).click();
   await expect(shown).toBeHidden();
   await expect(addUserButton(page)).toBeFocused();
-  const value = JSON.stringify(password);
-  expect(
-    await page.evaluate(
-      `document.body.innerHTML.includes(${value}) || Array.from(document.querySelectorAll('input')).some((input) => input.value === ${value})`,
-    ),
-  ).toBe(false);
+  expect(await passwordOnPage(page, password)).toBe(false);
 
   // The roster shows the new Manager as Active, with no invitation badge, and no email was sent.
   await searchFor(page, email);
@@ -998,14 +1002,7 @@ test('@users-access a Manager sets a temporary password that is shown once and m
   await shown.getByRole('button', { name: 'Done' }).click();
   await expect(shown).toBeHidden();
   await expect(trigger).toBeFocused();
-  const value = JSON.stringify(password);
-  await expect
-    .poll(() =>
-      page.evaluate(
-        `document.body.innerHTML.includes(${value}) || Array.from(document.querySelectorAll('input')).some((input) => input.value === ${value})`,
-      ),
-    )
-    .toBe(false);
+  await expect.poll(() => passwordOnPage(page, password)).toBe(false);
 
   // The person signs in with the shown value in their own browser: the emailed code first, then a new password.
   const other = await otherBrowser(browser, baseURL);

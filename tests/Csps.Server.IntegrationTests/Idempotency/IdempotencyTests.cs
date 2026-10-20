@@ -1,8 +1,8 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Idempotency;
+using Csps.Infrastructure.Identity;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
