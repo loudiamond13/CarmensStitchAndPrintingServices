@@ -1,10 +1,10 @@
 # CSPS — Carmen's Stitch & Printing Services
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-14T10:25:00-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-20T06:02:41-05:00*
 
 ## Product Requirements & Engineering Contract (for GSD Core)
 
 > **How to use this file**
-> 1. Put this file at the repository root next to `CSPS-UI-SPEC.md`.
+> 1. Put this file at the repository root; the UI spec lives at `docs/CSPS-UI-SPEC.md`.
 > 2. Run: `/gsd-new-project --auto @CSPS-PRD.md`
 > 3. Set `tdd_mode: true` in `.planning/config.json`, plan every phase with `/gsd-plan-phase N --tdd`.
 > 4. For every phase with frontend work run `/gsd-ui-phase N` and treat `CSPS-UI-SPEC.md` as the design source of truth.
@@ -87,7 +87,7 @@ Domain  <--  Application  <--  Infrastructure  <--  Server
 
 ```
 /CSPS-PRD.md                     (this file)
-/CSPS-UI-SPEC.md                 (design source of truth)
+/docs/CSPS-UI-SPEC.md            (design source of truth)
 /Csps.slnx
 /global.json
 /Directory.Build.props           (shared strict build settings)

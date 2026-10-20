@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-17T12:30:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-20T06:02:41-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -12,7 +12,7 @@
 
 **Core Value:** staff record every order and always see correct, **server-computed** totals and balances, and migrated data has **zero loss**. If everything else slips, the order math, staff-account security and migrated-data integrity must still hold.
 
-Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, data) · `CSPS-UI-SPEC.md` (visuals, copy, markup) · `.planning/design/` (local-only Claude Design HTML the UI spec came from; git-ignored, never commit; a visual reference for look and feel and `// SPEC-GAP` items, and the UI spec wins where they disagree unless the owner rules otherwise).
+Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, data) · `docs/CSPS-UI-SPEC.md` (visuals, copy, markup) · `.planning/design/` (local-only Claude Design HTML the UI spec came from; git-ignored, never commit; a visual reference for look and feel and `// SPEC-GAP` items, and the UI spec wins where they disagree unless the owner rules otherwise).
 
 ### Constraints (binding)
 
