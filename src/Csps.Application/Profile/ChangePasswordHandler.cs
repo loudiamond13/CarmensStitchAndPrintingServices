@@ -19,6 +19,7 @@ namespace Csps.Application.Profile;
 public sealed class ChangePasswordHandler(
     IUserAccounts accounts,
     ISessions sessions,
+    ITwoFactorChallenges challenges,
     ISessionCache sessionCache,
     IAccountTokens tokens,
     PasswordRules passwordRules,
@@ -117,6 +118,9 @@ public sealed class ChangePasswordHandler(
         await tokens.RevokeOpenAsync(account.Id, AccountTokenPurpose.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var revoked = await sessions
             .RevokeAllAsync(account.Id, sessionId, SessionRevocationReason.PasswordChanged, now, cancellationToken).ConfigureAwait(false);
+
+        // A sign-in still waiting for its code was started with the old password.
+        await challenges.InvalidateOpenAsync(account.Id, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, SessionsEnded: true, OtherDevicesOnly: true), cancellationToken).ConfigureAwait(false);
         audit.Record(AuditActions.PasswordChanged, UserTarget, key, AuditActions.DetailProfile);
         if (revoked.Count > 0)

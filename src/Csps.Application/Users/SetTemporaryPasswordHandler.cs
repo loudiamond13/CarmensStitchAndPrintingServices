@@ -26,6 +26,7 @@ public sealed class SetTemporaryPasswordHandler(
     IUserAccounts accounts,
     IUserDirectory directory,
     ISessions sessions,
+    ITwoFactorChallenges challenges,
     ISessionCache sessionCache,
     IAccountTokens tokens,
     IEmailOutbox outbox,
@@ -112,6 +113,9 @@ public sealed class SetTemporaryPasswordHandler(
 
         await tokens.RevokeOpenAsync(id, AccountTokenPurpose.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var revoked = await sessions.RevokeAllAsync(id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
+
+        // A sign-in still waiting for its code was started with the old password.
+        await challenges.InvalidateOpenAsync(id, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new ManagerResetEmail(target.Email, managerName, now), cancellationToken).ConfigureAwait(false);
 
         var key = AuditKey.Of(id);

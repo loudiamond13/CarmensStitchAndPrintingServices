@@ -278,6 +278,7 @@ public sealed class AccountAccessHandlerTests
         await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await harness.Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), AccountTokenPurpose.Invitation, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Tokens.Received(1).RevokeOpenAsync(TargetId, AccountTokenPurpose.PasswordReset, Start, Arg.Any<CancellationToken>());
+        await harness.Challenges.Received(1).InvalidateOpenAsync(TargetId, Start, Arg.Any<CancellationToken>());
         harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBe(new ManagerResetEmail("person@csps.test", ManagerName, Start));
         harness.Audit.Entries.ShouldBe(
         [
@@ -468,6 +469,7 @@ public sealed class AccountAccessHandlerTests
             Sessions.RevokeAllAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<SessionRevocationReason>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult<IReadOnlyList<Guid>>([]));
             SessionCache = Substitute.For<ISessionCache>();
+            Challenges = Substitute.For<ITwoFactorChallenges>();
 
             var directory = Substitute.For<IUserDirectory>();
             directory.GetProfileAsync(CallerId, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<ProfileView?>(
@@ -483,7 +485,7 @@ public sealed class AccountAccessHandlerTests
             Resend = new ResendInvitationHandler(Accounts, directory, Tokens, random, Outbox, Audit, Unit, request, settings, time);
             SendLink = new SendResetLinkHandler(Accounts, directory, Tokens, random, Outbox, Audit, Unit, request, settings, time);
             SetPassword = new SetTemporaryPasswordHandler(
-                Accounts, directory, Sessions, SessionCache, Tokens, Outbox, Audit, Unit, request, new SetTemporaryPasswordRequestValidator(), time);
+                Accounts, directory, Sessions, Challenges, SessionCache, Tokens, Outbox, Audit, Unit, request, new SetTemporaryPasswordRequestValidator(), time);
         }
 
         public UserAccount? Target { get; set; }
@@ -497,6 +499,8 @@ public sealed class AccountAccessHandlerTests
         public ISessions Sessions { get; }
 
         public ISessionCache SessionCache { get; }
+
+        public ITwoFactorChallenges Challenges { get; }
 
         public RecordingOutbox Outbox { get; } = new();
 
@@ -516,6 +520,7 @@ public sealed class AccountAccessHandlerTests
             Outbox.Emails.ShouldBeEmpty();
             Audit.Entries.ShouldBeEmpty();
             Unit.Saves.ShouldBe(0);
+            Challenges.ReceivedCalls().ShouldBeEmpty();
         }
     }
 }

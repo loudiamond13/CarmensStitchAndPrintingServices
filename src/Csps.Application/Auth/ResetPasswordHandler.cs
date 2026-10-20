@@ -18,6 +18,7 @@ public sealed class ResetPasswordHandler(
     IAccountTokens tokens,
     IUserAccounts accounts,
     ISessions sessions,
+    ITwoFactorChallenges challenges,
     ISessionCache sessionCache,
     PasswordRules passwordRules,
     IEmailOutbox outbox,
@@ -126,6 +127,9 @@ public sealed class ResetPasswordHandler(
 
         // Every session ends, the one that asked included; a reset signs nobody in (D-17).
         await sessions.RevokeAllAsync(id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
+
+        // A sign-in still waiting for its code was started with the old password.
+        await challenges.InvalidateOpenAsync(id, now, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(account.Email, now, true), cancellationToken).ConfigureAwait(false);
         audit.Record(AuditActions.PasswordResetCompleted, UserTarget, AuditKey.Of(id), null);
         audit.Record(AuditActions.SessionsRevoked, UserTarget, AuditKey.Of(id), AuditActions.DetailPasswordReset);

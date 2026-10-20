@@ -50,6 +50,7 @@ public sealed class ChangePasswordHandlerTests
         await harness.Accounts.Received(1).ClearBreachRecheckAsync(UserId, Arg.Any<CancellationToken>());
         await harness.Accounts.DidNotReceive().MarkBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await harness.Sessions.Received(1).RevokeAllAsync(UserId, ThisSession, SessionRevocationReason.PasswordChanged, Start, Arg.Any<CancellationToken>());
+        await harness.Challenges.Received(1).InvalidateOpenAsync(UserId, Start, Arg.Any<CancellationToken>());
         var mail = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<PasswordChangedEmail>();
         mail.To.ShouldBe(Email);
         mail.ChangedAt.ShouldBe(Start);
@@ -435,6 +436,8 @@ public sealed class ChangePasswordHandlerTests
 
         public ISessionCache SessionCache { get; } = Substitute.For<ISessionCache>();
 
+        public ITwoFactorChallenges Challenges { get; } = Substitute.For<ITwoFactorChallenges>();
+
         public IAccountTokens Tokens { get; } = Substitute.For<IAccountTokens>();
 
         public RecordingOutbox Outbox { get; } = new();
@@ -465,6 +468,7 @@ public sealed class ChangePasswordHandlerTests
             await Accounts.DidNotReceive().MarkBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Accounts.DidNotReceive().ClearBreachRecheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Sessions.DidNotReceiveWithAnyArgs().RevokeAllAsync(default, default, default, default, default);
+            await Challenges.DidNotReceiveWithAnyArgs().InvalidateOpenAsync(default, default, default);
             await Tokens.DidNotReceive().LockAccountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await Tokens.DidNotReceive().RevokeOpenAsync(Arg.Any<Guid>(), Arg.Any<AccountTokenPurpose>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
             await SessionCache.DidNotReceive().EvictUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
@@ -482,6 +486,7 @@ public sealed class ChangePasswordHandlerTests
             return new ChangePasswordHandler(
                 Accounts,
                 Sessions,
+                Challenges,
                 SessionCache,
                 Tokens,
                 PasswordRules,
