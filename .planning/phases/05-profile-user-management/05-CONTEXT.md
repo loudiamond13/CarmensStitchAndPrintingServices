@@ -1,6 +1,6 @@
 # Phase 5: Profile & User Management - Context
 
-*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-19T05:10:04-05:00*
+*Created: 2026-10-17T12:30:00-05:00 · Updated: 2026-10-20T05:45:00-05:00*
 
 **Gathered:** 2026-10-17
 **Status:** Ready for planning
@@ -109,6 +109,12 @@ The owner added four items in this discussion: the full-bleed app shell, the sti
 - **D-54 IN-27 tell the Manager (owner, 2026-10-19):** when Send Reset Link does nothing because the person's address is unproved (D-49), the Manager sees a plain note that no link was sent and to set a temporary password instead, not "Reset link sent". This refines D-49's "same neutral response" for the Manager route only; forgot-password stays neutral. To implement next phase.
 - **D-55 IN-28 end old-address reset links (owner, 2026-10-19):** confirming one's own email change also revokes open reset links, the same rule as WR-01. To implement next phase.
 - **D-52 SEC-06 wording (owner, 2026-10-19): update.** With D-50, the SEC-06 text in REQUIREMENTS.md changes "a SHA-256 hash of the request body" to "a keyed HMAC-SHA256 of the request target and body (05 D-50)" and states that later POSTs remove expired keys in small batches before the Phase 9 JOB-01 purge.
+
+### PR #10 review outcomes (2026-10-20; the owner asked Claude to judge each comment)
+
+- **D-56 Open sign-in challenges end on a password change: accepted, fixed.** A password reset, a profile password change and a Manager temporary password now call `ITwoFactorChallenges.InvalidateOpenAsync` in the same transaction as the session revocation, so a pending sign-in started with the old password cannot be completed. Unit tests assert the call on success and its absence on every refusal.
+- **D-57 Sign-in timing test stays serialized: accepted as the standing rule, floor unchanged.** `SignInTimingTests` runs alone. A success under load can exceed the 500 ms floor, but a success already answers differently from every failure (it starts the code step), so its timing reveals nothing more. What the floor must hide is which failure it was (unknown email, wrong password, deactivated account), and those branches do the same small work. No headroom or off-path writes for now; revisit if a failure branch gains extra writes. The per-round diagnostic now labels times by explicit branch keys.
+- **CI fixes on the same push:** import order in two idempotency test files (dotnet format), and the users e2e password checks no longer build a code string (CodeQL js/bad-code-sanitization alerts 20 and 21). CodeQL alerts 1 and 2 (bad-tag-filter in `build-output.node.test.ts`) existed on `main` before this phase and only moved lines.
 
 ### Claude's Discretion
 - The exact deleted-marker shape (a nullable `DeletedAtUtc` vs a status enum value), as long as D-07..D-11 hold and the roster's status filter stays Active, Inactive, Locked.
