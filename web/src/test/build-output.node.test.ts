@@ -63,7 +63,9 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   it('has no inline script body, no style element and no style attribute (strict CSP)', () => {
     const html = indexHtml();
     expect(html).not.toBe('');
-    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)].map((m) => m[1]?.trim() ?? '');
+    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script[^>]*>/gi)].map(
+      (m) => m[1]?.trim() ?? '',
+    );
     expect(scriptBodies.filter((body) => body !== '')).toEqual([]);
     expect(html).not.toMatch(/<style\b/i);
     expect(html).not.toMatch(/\sstyle=/i);
