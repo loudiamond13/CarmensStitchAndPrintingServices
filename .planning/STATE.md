@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 05
-current_phase_name: Profile & User Management
-status: verifying
-stopped_at: Completed 05-51-PLAN.md
-last_updated: "2026-10-19T09:49:45.742Z"
-last_activity: 2026-10-18
-last_activity_desc: Phase 05 execution started
-state_head: 2c12d5ee4ea7955d47984883c2a97d423f1c6feb
+current_phase: 6
+current_phase_name: Company Expenses
+status: planning
+stopped_at: Phase 5 complete, ready to plan Phase 6
+last_updated: "2026-10-20T00:19:57.823Z"
+last_activity: 2026-10-19
+last_activity_desc: Phase 5 complete, transitioned to Phase 6
+state_head: f38d405bf3ef56e2255c92368952d320294798db
 progress:
   total_phases: 17
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 166
   completed_plans: 166
-  percent: 24
+  percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-18T20:52:38-05:00"
+updated: "2026-10-19T19:40:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-17)
+See: .planning/PROJECT.md (updated 2026-10-19)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 05 — Profile & User Management
+**Current focus:** Phase 6 — Company Expenses
 
 ## Current Position
 
-Phase: 05 (Profile & User Management) — READY TO EXECUTE
-Plan: 43 of 43
-Status: Phase complete — ready for verification
-Last activity: 2026-10-18 - Completed quick task 261018-st8: Raise the class-gate sweep test timeout so web verify passes under full coverage load
+Phase: 6 — Company Expenses
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-19 — Phase 5 complete, transitioned to Phase 6
 
-Progress: [██░░░░░░░░] 24%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 114
+- Total plans completed: 166
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -51,6 +51,7 @@ Progress: [██░░░░░░░░] 24%
 | 2 | 43 | - | - |
 | 03 | 23 | - | - |
 | 4 | 35 | - | - |
+| 5 | 52 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -599,7 +600,6 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
-- [Phase 5 gap planning, owner 2026-10-19]: Decision-coverage gate override. D-44..D-48 (UI-SPEC OQ rulings made during execution) are covered by executed plans under their OQ ids: OQ-3 (05-28), OQ-4 (05-30, 05-40), OQ-6 (05-18), OQ-7 (05-28), OQ-8 (05-25), OQ-10 (05-22), OQ-11 (05-37); 05-VERIFICATION confirmed them.
 
 ### Quick Tasks Completed
 
@@ -641,6 +641,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T09:49:45.047Z
-Stopped at: Completed 05-51-PLAN.md
+Last session: 2026-10-19T19:40:00-05:00
+Stopped at: Phase 5 complete, ready to plan Phase 6
 Resume file: None

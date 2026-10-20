@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-17T13:42:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-19T19:40:00-05:00*
 
 ## What This Is
 
@@ -43,12 +43,12 @@ All existing production data is migrated in without loss. The API is client-agno
 
 - ✓ **Authentication:** email + password, mandatory 6-digit email code, remember me, rotating refresh tokens with reuse detection, lockout, auth rate limits, forgot/reset password, sign out everywhere, password policy with breach check, bootstrap Manager CLI, auth emails over TLS SMTP through an outbox, idempotent POSTs, auth audit events (AUTH-01..13, QUAL-05, A11Y-03; Phase 4 share of SEC-03, SEC-06, AUDIT-01) — Phase 4 (2026-10-17: UAT 3/3 including the live cookie check, verification 6/6, threats_open 0)
 
+- ✓ **Profile and user management:** own name, email change with confirmation, password change, admin theme; Manager-only users list with URL filters, invite or temporary password, edit, role, lock, deactivate, delete with last-Manager guard, session revoke on role or status change, resend invite or reset link; audit log viewer; optimistic concurrency and server-set record attribution for users (PROF-01..04, USER-01..08, AUDIT-02; Phase 5 share of SEC-07, SEC-08) — Phase 5 (2026-10-19: 52 plans, UAT 4/4 on a real phone and inbox, verification 12/12, threats_open 0; owner rulings D-50 to D-55)
+
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Profile:** name, email change with confirmation, password change (PROF-01..03)
-- [ ] **User management (Manager only):** list, invite, edit, role, lock, deactivate, delete, with guard rules and audit (USER-01..06)
 - [ ] **Orders:** aggregate with items, payments, discount(s), order expenses; create, edit, delete; preview list with totals; search, filter, sort; concurrency (ORD-01..09)
 - [ ] **Order images:** Cloudinary signed server-side upload, a per-order limit, cover image, reorder, alt text, lazy responsive delivery, cleanup job (ORD-04, PRD §10)
 - [ ] **Company expenses:** CRUD with filters, search and period totals (CEXP-01..02)
@@ -233,4 +233,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-17T13:42:00-05:00 after Phase 4 verification and transition*
+*Last updated: 2026-10-19T19:40:00-05:00 after Phase 5 verification and transition*
