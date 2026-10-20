@@ -54,7 +54,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   });
 
   it('loads exactly one hashed module script under /assets', () => {
-    const scripts = indexHtml().match(/<script\b[^>]*>/g) ?? [];
+    const scripts = indexHtml().match(/<script\b[^>]*>/gi) ?? [];
     expect(scripts).toHaveLength(1);
     expect(scripts[0]).toMatch(/type="module"/);
     expect(scripts[0]).toMatch(/src="\/assets\/[\w.-]+-[\w-]{8,}\.js"/);
@@ -63,7 +63,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   it('has no inline script body, no style element and no style attribute (strict CSP)', () => {
     const html = indexHtml();
     expect(html).not.toBe('');
-    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]?.trim() ?? '');
+    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)].map((m) => m[1]?.trim() ?? '');
     expect(scriptBodies.filter((body) => body !== '')).toEqual([]);
     expect(html).not.toMatch(/<style\b/i);
     expect(html).not.toMatch(/\sstyle=/i);
