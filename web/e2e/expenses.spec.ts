@@ -33,6 +33,9 @@ function peso(amount: number): string {
 interface ListBody {
   readonly total: number;
   readonly periodTotal: number;
+  /** The business today the server used. */
+  readonly today: string;
+  readonly items: readonly { readonly date: string }[];
 }
 
 function isListBody(value: unknown): value is ListBody {
@@ -42,7 +45,14 @@ function isListBody(value: unknown): value is ListBody {
     'total' in value &&
     typeof value.total === 'number' &&
     'periodTotal' in value &&
-    typeof value.periodTotal === 'number'
+    typeof value.periodTotal === 'number' &&
+    'today' in value &&
+    typeof value.today === 'string' &&
+    'items' in value &&
+    Array.isArray(value.items) &&
+    value.items.every(
+      (item: unknown) => typeof item === 'object' && item !== null && 'date' in item && typeof item.date === 'string',
+    )
   );
 }
 
@@ -70,7 +80,6 @@ test('@expenses-list a Manager sees the window newest first with Upcoming, the s
   const manager = await createStaff(request, 'Manager');
   const token = randomUUID().slice(0, 8);
   const soon = `E2E upcoming ${token}`;
-  const past = `E2E past ${token}`;
   await createExpense(request, {
     paidByUserId: manager.userId,
     recordedByUserId: manager.userId,
@@ -79,15 +88,7 @@ test('@expenses-list a Manager sees the window newest first with Upcoming, the s
     description: soon,
     amount: 1250.5,
   });
-  await createExpense(request, {
-    paidByUserId: manager.userId,
-    recordedByUserId: manager.userId,
-    date: manilaDate(-3),
-    categoryId: SUPPLIES,
-    description: past,
-    amount: 640,
-  });
-  // Enough rows for a second page at 10 a page, whatever earlier runs left behind.
+  // Enough rows for a second page at 10 a page, whatever earlier runs left behind, and some dated before today.
   await Promise.all(
     Array.from({ length: 10 }, (_, index) =>
       createExpense(request, {
@@ -102,22 +103,26 @@ test('@expenses-list a Manager sees the window newest first with Upcoming, the s
   );
   await signInAs(page, request, manager);
 
-  // The page: title, table name, rows of the window newest first, Upcoming only on the future row.
-  const first = await openList(page, '/admin/expenses');
+  // The page: title, table name and the rows of the window newest first. The earlier runs keep their rows in the shared
+  // database, so the view is 100 a page and every row is judged against the response it was drawn from.
+  const first = await openList(page, '/admin/expenses?size=100');
   await expect(page.getByRole('heading', { level: 1, name: 'Company Expenses' })).toBeVisible();
   await expect(page).toHaveTitle('Company Expenses · CSPS Admin');
   await expect(page.getByRole('table', { name: 'Company expenses' })).toBeAttached();
   await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]')).toContainText('Company Expenses');
-  const soonRow = page.locator('tbody tr').filter({ hasText: soon });
-  const pastRow = page.locator('tbody tr').filter({ hasText: past });
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(first.items.length);
+  const soonRow = rows.filter({ hasText: soon });
   await expect(soonRow).toHaveCount(1);
-  await expect(pastRow).toHaveCount(1);
   await expect(soonRow).toContainText('Upcoming');
   await expect(soonRow).toContainText('Rent');
   await expect(soonRow).toContainText('₱1,250.50');
   await expect(soonRow).toContainText('E2E Staff');
-  await expect(pastRow).not.toContainText('Upcoming');
-  await expect(pastRow).toContainText('Supplies');
+
+  // D-23: a row is Upcoming exactly when its date is after the server's today, never by the device clock.
+  const flags = (await rows.allTextContents()).map((text) => text.includes('Upcoming'));
+  expect(flags).toEqual(first.items.map((item) => item.date > first.today));
+  expect(first.items.some((item) => item.date <= first.today)).toBe(true);
 
   // Core Value: the footer shows the server's figures for every page, not the rows on screen.
   const foot = page.locator('tfoot');
