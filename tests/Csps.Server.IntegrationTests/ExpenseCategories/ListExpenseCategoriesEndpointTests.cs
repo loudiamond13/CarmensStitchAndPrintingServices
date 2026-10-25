@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Expenses;
+using Csps.Server.IntegrationTests.CompanyExpenses;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 
@@ -11,7 +13,7 @@ public sealed class ListExpenseCategoriesEndpointTests(CspsDatabase database) : 
 {
     private const string Route = "/api/v1/expense-categories";
 
-    private static readonly string[] Keys = ["id", "isOthers", "name", "status", "tone"];
+    private static readonly string[] Keys = ["expenseCount", "id", "isOthers", "name", "status", "tone"];
 
     private static readonly string[] Order =
     [
@@ -23,6 +25,24 @@ public sealed class ListExpenseCategoriesEndpointTests(CspsDatabase database) : 
 
     [Fact]
     public Task AnAdminReadsTheTenCategories() => StaffReadsAsync(Roles.Admin);
+
+    [Fact]
+    public async Task EachItemCountsTheExpensesThatUseItSoftDeletedOnesIncluded()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var equipment = ExpenseCategorySeed.Rows.Single(row => row.Name == "Equipment").Id;
+        var day = new DateOnly(2026, 10, 20);
+        var recorded = new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero);
+        await ExpenseFixtures.SeedAsync(database, new ExpenseSeed(day, manager.UserId, manager.UserId, recorded, equipment, "Sewing machine", 9500.00m));
+        await ExpenseFixtures.SeedAsync(database, new ExpenseSeed(day, manager.UserId, manager.UserId, recorded, equipment, "Old iron", 800.00m, Deleted: true));
+
+        var items = await ExpenseCategoryFixtures.ReadListAsync(client, manager.AccessToken);
+
+        items.Single(item => item.GetProperty("name").GetString() == "Equipment").GetProperty("expenseCount").GetInt32().ShouldBe(2);
+        items.Single(item => item.GetProperty("name").GetString() == "Rent").GetProperty("expenseCount").GetInt32().ShouldBe(0);
+    }
 
     [Fact]
     public async Task AnAnonymousCallerGets401()

@@ -61,6 +61,7 @@ internal sealed class RecordingAudit : IAuditTrail
 internal sealed class FakeUnitOfWork : IUnitOfWork
 {
     private int _failuresLeft;
+    private Exception? _saveFailure;
 
     public int Saves { get; private set; }
 
@@ -79,9 +80,18 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
     /// <summary>Makes every save fail with that conflict.</summary>
     public void FailEverySaveWithConflict() => _failuresLeft = int.MaxValue;
 
+    /// <summary>Makes every save throw this error, such as the typed exception a constraint violation becomes.</summary>
+    /// <param name="failure">The error to throw.</param>
+    public void ThrowOnSave(Exception failure) => _saveFailure = failure;
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         Saves++;
+        if (_saveFailure is not null)
+        {
+            throw _saveFailure;
+        }
+
         if (_failuresLeft > 0)
         {
             _failuresLeft--;

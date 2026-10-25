@@ -149,6 +149,8 @@ public static class AuthorizationMatrix
 
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+        // Adding a category (CEXP-02, D-08, D-14): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.
+        new("POST", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 403, Manager: 400),
         // The staff who can be named as the payer (CEXP-05, D-32): Staff only, names and ids only.
         new("GET", "/api/v1/staff", "/api/v1/staff", Anonymous: 401, Admin: 200, Manager: 200),
 
