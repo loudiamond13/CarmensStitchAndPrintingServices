@@ -1303,3 +1303,83 @@ describe('Edit Expense (CEXP-02, D-26; plan 06-14)', () => {
     });
   });
 });
+
+describe('View Expense for an Admin (OQ-8, D-26; plan 06-14)', () => {
+  const FIRST_ID = '00000000-0000-4000-8000-000000000001';
+  const SECOND_ID = '00000000-0000-4000-8000-000000000002';
+  // Carmen (the Admin) may edit the first row; the second is Paolo's, so the server says canEdit false.
+  const ADMIN_ROWS = [
+    expenseItem(FIRST_ID, { description: 'Shop rent for October', date: '2026-10-06', canEdit: true }),
+    expenseItem(SECOND_ID, {
+      description: 'Thread and needles',
+      date: '2026-10-05',
+      amount: 640.5,
+      category: SUPPLIES,
+      paidBy: PAOLO,
+      recordedBy: PAOLO,
+      canEdit: false,
+    }),
+  ];
+
+  beforeEach(() => {
+    clearSession();
+    acceptSession(
+      sessionResponse({
+        user: {
+          id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          email: 'carmen@example.ph',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          role: 'Admin',
+        },
+      }),
+    );
+  });
+
+  it('gives an Admin Edit on the rows the server says they may edit and View on the others, never a delete', async () => {
+    expensesBackend(expenseList(ADMIN_ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    expect(screen.getByRole('button', { name: 'Edit Shop rent for October, Oct 6, 2026' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'View Shop rent for October, Oct 6, 2026' })).toBeNull();
+    const view = screen.getByRole('button', { name: 'View Thread and needles, Oct 5, 2026' });
+    expect(view).toHaveAttribute('title', 'View Thread and needles, Oct 5, 2026');
+    expect(view.querySelector('svg')).toHaveClass('lucide-eye');
+    expect(screen.queryByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
+  });
+
+  it('opens Expense details for a View with the notes, and Close returns focus to that View button', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ADMIN_ROWS));
+    const { ids } = expenseDetailBackend(
+      expenseDetail({ id: SECOND_ID, notes: 'Bought in bulk', paidBy: PAOLO, recordedBy: PAOLO, canEdit: false }),
+    );
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    const opener = screen.getByRole('button', { name: 'View Thread and needles, Oct 5, 2026' });
+    await user.click(opener);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Expense details' });
+    expect(await within(dialog).findByText('Bought in bulk')).toBeVisible();
+    expect(ids).toEqual([SECOND_ID]);
+    await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Expense details' })).toBeNull();
+    });
+    await waitFor(() => {
+      expect(opener).toHaveFocus();
+    });
+  });
+
+  it('has no axe violations with Edit and View buttons in the rows', async () => {
+    expensesBackend(expenseList(ADMIN_ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await expectNoAxeViolations(document.body);
+  });
+});

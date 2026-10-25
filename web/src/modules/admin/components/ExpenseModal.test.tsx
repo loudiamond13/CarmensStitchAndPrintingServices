@@ -13,6 +13,7 @@ import {
   expenseDetail,
   expenseDetailBackend,
   LIZA_ID,
+  LONG_DESCRIPTION,
   ME_ACTOR,
   ME_ID,
   problemResponse,
@@ -873,5 +874,123 @@ describe('E2 edit access note (D-26)', () => {
 
     await user.selectOptions(paidBy(), 'Paolo Garcia');
     expect(screen.queryByText(NOTE)).toBeNull();
+  });
+});
+
+// E2 Expense modal, view mode (OQ-8; plan 06-14): the read-only look an Admin gets for an expense they cannot edit.
+describe('E2 view mode', () => {
+  function renderView(onClose: () => void = vi.fn()) {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseModal mode="view" expenseId={EXPENSE_ID} onClose={onClose} />
+      </QueryClientProvider>,
+    );
+    return { onClose };
+  }
+
+  const dialogOf = () => screen.getByRole('dialog', { name: 'Expense details' });
+
+  it('says "Loading expense…" and then shows the saved values as read-only text with Notes', async () => {
+    expenseDetailBackend(
+      expenseDetail({
+        notes: 'Bought in bulk',
+        paidBy: { id: LIZA_ID, name: 'Liza Mercado', formerStaff: true },
+        recordedBy: ME_ACTOR,
+      }),
+    );
+    renderView();
+
+    expect(within(dialogOf()).getByText('Loading expense…')).toBeInTheDocument();
+    const dialog = dialogOf();
+    expect(await within(dialog).findByText('Bought in bulk')).toBeVisible();
+    expect(within(dialog).getByText('A general business cost, not tied to any order.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Expense loaded.')).toBeInTheDocument();
+    const terms = within(dialog)
+      .getAllByRole('term')
+      .map((term) => term.textContent);
+    expect(terms).toEqual([
+      'Date',
+      'Category',
+      'Description',
+      'Amount',
+      'Paid by',
+      'Notes',
+      'Recorded by',
+      'Last changed by',
+    ]);
+    expect(within(dialog).getByText('Oct 25, 2026')).toBeVisible();
+    expect(within(dialog).getByText('Supplies')).toBeVisible();
+    expect(within(dialog).getByText('Thread and needles')).toBeVisible();
+    expect(within(dialog).getByText('₱640.00')).toBeVisible();
+    expect(within(dialog).getByText('Liza Mercado', { exact: false }).textContent).toContain('(former staff)');
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(within(dialog).queryByRole('combobox')).toBeNull();
+  });
+
+  it('has only a Close button in its footer, with focus on it, and Close closes', async () => {
+    expenseDetailBackend();
+    const user = userEvent.setup();
+    const { onClose } = renderView();
+    const dialog = dialogOf();
+    await within(dialog).findByText('Thread and needles');
+
+    expect(within(dialog).queryByRole('button', { name: /Save|Cancel/ })).toBeNull();
+    const closers = within(dialog).getAllByRole('button', { name: 'Close' });
+    const footerClose = closers.at(-1);
+    expect(footerClose).toHaveFocus();
+    await user.click(footerClose ?? dialog);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Not set for empty Notes and for Last changed by', async () => {
+    expenseDetailBackend(expenseDetail({ notes: null, lastChangedBy: null, lastChangedAt: null }));
+    renderView();
+    const dialog = dialogOf();
+    await within(dialog).findByText('Thread and needles');
+
+    const notes = within(dialog).getByText('Notes', { exact: true }).closest('div');
+    expect(notes?.textContent).toContain('Not set');
+    const [, changed] = within(dialog).getAllByRole('definition').slice(-2);
+    expect(changed?.textContent).toBe('Not set');
+  });
+
+  it('wraps a very long description and keeps the original recorder under Recorded by', async () => {
+    expenseDetailBackend(expenseDetail({ description: LONG_DESCRIPTION, recordedBy: CARMEN }));
+    renderView();
+    const dialog = dialogOf();
+
+    const text = await within(dialog).findByText(LONG_DESCRIPTION);
+    expect(text.className).toContain('wrap-anywhere');
+    const recorded = within(dialog).getAllByRole('definition').slice(-2)[0];
+    expect(recorded?.textContent).toMatch(/^Carmen Reyes · /);
+  });
+
+  it('shows "This expense was deleted." for a 404 and "Couldn\'t load this expense." with Try Again for another failure', async () => {
+    expenseDetailBackend(() => problem(404, { code: 'company-expenses.not-found' }));
+    renderView();
+    expect(await screen.findByText('This expense was deleted.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Try Again' })).toBeNull();
+  });
+
+  it('offers Try Again after a failed read', async () => {
+    let calls = 0;
+    expenseDetailBackend(() => {
+      calls += 1;
+      return calls === 1 ? problem(500) : expenseDetail();
+    });
+    const user = userEvent.setup();
+    renderView();
+
+    expect(await screen.findByText("Couldn't load this expense.")).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(await screen.findByText('Thread and needles')).toBeVisible();
+  });
+
+  it('has no axe violations once loaded', async () => {
+    expenseDetailBackend(expenseDetail({ notes: 'Bought in bulk' }));
+    renderView();
+    await within(dialogOf()).findByText('Bought in bulk');
+
+    await expectNoAxeViolations(dialogOf());
   });
 });

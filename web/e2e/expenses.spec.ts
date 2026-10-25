@@ -6,9 +6,11 @@
 // (console, page errors, CSP, failed responses). @expenses-filters (plan 06-07) searches by a new payer, filters by category and a
 // custom range, reopens the same view with Back, and clears the filters. @expenses-kpis (plan 06-09) compares the three month cards with the KPI
 // response the page received. @expenses-add (plan 06-12) adds an expense as an Admin with the defaults, refuses an amount of 0 and 1,000,000.01 in the
-// browser with no request, fits the modal on a 320 px phone and finds the new row.
+// browser with no request, fits the modal on a 320 px phone and finds the new row. @expenses-edit (plan 06-14) edits an amount from
+// the row, meets the stale-save banner from a second page, shows an Admin View on a coworker's row and Edit on their own, and fits
+// the Edit modal on a 320 px phone.
 import { randomUUID } from 'node:crypto';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { createExpense, createStaff } from './testing-api.ts';
@@ -546,5 +548,245 @@ test('@expenses-add an Admin adds an expense with the defaults, bad amounts are 
   await expect(rows.first()).toContainText('₱640.00');
   await expect(rows.first().locator('td[data-label="Paid by"]')).toContainText(fullName);
   await expect(rows.first().locator('td[data-label="Recorded by"]')).toContainText(fullName);
+  await expectNoAxeViolations(page);
+});
+
+// --- @expenses-edit (plan 06-14) ---
+
+/** Finds one expense by its unique description with Search and returns its row. */
+async function findRow(page: Page, token: string) {
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(1);
+  return rows.first();
+}
+
+/** The value beside a RecordMeta term, like "Last changed by". */
+function recordMetaValue(dialog: Locator, term: string) {
+  return dialog.getByText(term, { exact: true }).locator('xpath=following-sibling::dd');
+}
+
+/** Finds one expense by its token and opens its Edit modal from the keyboard (Safari does not focus a button on click). */
+async function openEdit(page: Page, token: string) {
+  const row = await findRow(page, token);
+  const edit = row.getByRole('button', { name: new RegExp(`^Edit E2E edit ${token}, `) });
+  await edit.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Edit Expense' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel(/^Date/)).toBeFocused();
+  return { dialog, edit };
+}
+
+test('@expenses-edit a Manager edits an amount from the row: the toast and the new row show it, focus returns to Edit, and Last changed by names the Manager', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mira', lastName: `Edit${token}` });
+  const fullName = `Mira Edit${token}`;
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: SUPPLIES,
+    description: `E2E edit ${token}`,
+    amount: 640,
+    notes: 'Bought in bulk',
+  });
+  await signInAs(page, request, manager);
+  await openList(page, '/admin/expenses');
+
+  const { dialog, edit } = await openEdit(page, token);
+  await expect(dialog.getByRole('textbox', { name: /^Description/ })).toHaveValue(`E2E edit ${token}`);
+  await expect(dialog.getByRole('textbox', { name: /^Amount/ })).toHaveValue('640.00');
+  await expect(dialog.getByRole('textbox', { name: /^Notes/ })).toHaveValue('Bought in bulk');
+  await expect(dialog.getByRole('combobox', { name: /^Category/ }).locator('option:checked')).toHaveText('Supplies');
+  await expect(dialog.getByRole('combobox', { name: /^Paid by/ }).locator('option:checked')).toHaveText(
+    `${fullName} (you)`,
+  );
+  await expect(recordMetaValue(dialog, 'Recorded by')).toContainText(fullName);
+  await expect(recordMetaValue(dialog, 'Last changed by')).toHaveText('Not set');
+  await expectNoAxeViolations(page);
+
+  await dialog.getByRole('textbox', { name: /^Amount/ }).fill('700');
+  await dialog.getByRole('button', { name: 'Save Changes' }).click();
+
+  // The dialog closes, focus is back on that row's Edit button, the toast reports it and the list shows the new figure.
+  await expect(dialog).toBeHidden();
+  await expect(edit).toBeFocused();
+  await expect(page.getByText('Expense updated')).toBeVisible();
+  await expect(page.getByText('₱700.00 · Supplies', { exact: true })).toBeVisible();
+  const row = page.locator('tbody tr').first();
+  await expect(row).toContainText('₱700.00');
+  await expectNoAxeViolations(page);
+
+  // Read fresh on this open: Last changed by now names the Manager, Recorded by is still the recorder.
+  await edit.focus();
+  await page.keyboard.press('Enter');
+  const again = page.getByRole('dialog', { name: 'Edit Expense' });
+  await expect(again.getByRole('textbox', { name: /^Amount/ })).toHaveValue('700.00');
+  await expect(recordMetaValue(again, 'Last changed by')).toContainText(fullName);
+  await expectNoAxeViolations(page);
+});
+
+test('@expenses-edit two pages editing the same expense: the second save shows the conflict banner with the typed value kept, and Load Latest shows the first save', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The second page's stale save is refused with a 409 (05 D-20); that is the behavior under test.
+  guard.expectStatus('/api/v1/company-expenses/', 409);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager');
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: RENT,
+    description: `E2E edit ${token}`,
+    amount: 500,
+  });
+  await signInAs(page, request, manager);
+  await openList(page, '/admin/expenses');
+
+  // Both pages are the same Manager (one browser, two tabs) and open the same expense at the same version.
+  const second = await page.context().newPage();
+  await openList(second, '/admin/expenses');
+  const first = await openEdit(page, token);
+  const later = await openEdit(second, token);
+
+  await first.dialog.getByRole('textbox', { name: /^Amount/ }).fill('510');
+  await first.dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(first.dialog).toBeHidden();
+
+  // The second page is now stale: its save keeps the typed value and offers Load Latest, which takes focus.
+  const typed = later.dialog.getByRole('textbox', { name: /^Amount/ });
+  await typed.fill('520');
+  await later.dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(later.dialog.getByText('This was changed by someone else.')).toBeVisible();
+  await expect(later.dialog.getByRole('button', { name: 'Load Latest' })).toBeFocused();
+  await expect(typed).toHaveValue('520.00');
+  await expectNoAxeViolations(second);
+
+  // Load Latest brings the first save, drops the banner and puts the cursor on Date.
+  await later.dialog.getByRole('button', { name: 'Load Latest' }).click();
+  await expect(typed).toHaveValue('510.00');
+  await expect(later.dialog.getByText('This was changed by someone else.')).toBeHidden();
+  await expect(later.dialog.getByLabel(/^Date/)).toBeFocused();
+  await expect(later.dialog.getByText('Latest version loaded. Make your changes again.')).toBeAttached();
+
+  // Typing again and saving now goes through.
+  await typed.fill('530');
+  await later.dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(later.dialog).toBeHidden();
+  await expect(second.locator('tbody tr').first()).toContainText('₱530.00');
+});
+
+test("@expenses-edit an Admin sees View on a coworker's row and reads its notes, and Edit on their own row", async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mira', lastName: `Boss${token}` });
+  const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Ana', lastName: `Own${token}` });
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: RENT,
+    description: `E2E edit ${token} coworker`,
+    amount: 800,
+    notes: `Private note ${token}`,
+  });
+  await createExpense(request, {
+    paidByUserId: admin.userId,
+    recordedByUserId: admin.userId,
+    date: manilaDate(-2),
+    categoryId: SUPPLIES,
+    description: `E2E edit ${token} own`,
+    amount: 120,
+  });
+  await signInAs(page, request, admin);
+  await openList(page, '/admin/expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+
+  // The coworker's row: View (the eye), no Edit and no delete.
+  const coworker = rows.filter({ hasText: 'coworker' });
+  await expect(coworker.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  await expect(coworker.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+  const view = coworker.getByRole('button', { name: new RegExp(`^View E2E edit ${token} coworker, `) });
+  await view.focus();
+  await page.keyboard.press('Enter');
+  const details = page.getByRole('dialog', { name: 'Expense details' });
+  await expect(details).toBeVisible();
+  await expect(details.getByText(`Private note ${token}`)).toBeVisible();
+  await expect(details.getByText('₱800.00')).toBeVisible();
+  await expect(recordMetaValue(details, 'Recorded by')).toContainText(`Mira Boss${token}`);
+  await expect(details.getByRole('textbox')).toHaveCount(0);
+  const closers = details.getByRole('button', { name: 'Close' });
+  await expect(closers.last()).toBeFocused();
+  await expectNoAxeViolations(page);
+  await closers.last().click();
+  await expect(details).toBeHidden();
+  await expect(view).toBeFocused();
+
+  // Their own row: Edit, and the edit modal opens.
+  const own = rows.filter({ hasText: `E2E edit ${token} own` });
+  await expect(own.getByRole('button', { name: /^View / })).toHaveCount(0);
+  const edit = own.getByRole('button', { name: new RegExp(`^Edit E2E edit ${token} own, `) });
+  await edit.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Edit Expense' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /^Amount/ })).toHaveValue('120.00');
+  await expectNoAxeViolations(page);
+});
+
+test('@expenses-edit the Edit modal fits a 320 px phone: it scrolls inside, the footer stays reachable, Recorded by is visible and nothing scrolls sideways', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager');
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: SUPPLIES,
+    description: `E2E edit ${token}`,
+    amount: 75,
+  });
+  await signInAs(page, request, manager);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await openList(page, '/admin/expenses');
+
+  const { dialog } = await openEdit(page, token);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`,
+    ),
+  ).toBe(true);
+  await expect(dialog.getByRole('button', { name: 'Save Changes' })).toBeInViewport();
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport();
+
+  // Recorded by sits at the bottom of the body: scrolled into view, it is visible.
+  const term = dialog.getByText('Recorded by', { exact: true });
+  await term.scrollIntoViewIfNeeded();
+  await expect(term).toBeVisible();
+  await expect(recordMetaValue(dialog, 'Recorded by')).toBeVisible();
   await expectNoAxeViolations(page);
 });
