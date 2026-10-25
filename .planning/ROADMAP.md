@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-25T03:45:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-25T04:27:00-05:00*
 
 ## Overview
 
@@ -684,6 +684,8 @@ Plans:
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
   6. **Paid by.** Every expense names who paid it (CEXP-05): a required, server-validated reference to an active Admin or Manager on create and edit, chosen from a staff lookup that both roles can use, with a plain-English field error otherwise. The list shows it, the staff-name search matches it, and a change of payer is audited because it moves money between staff balances (MONEY-01).
 
+  *Notes (owner decisions, Phase 6 discuss 2026-10-25; the criteria text above is unchanged):* criterion 1's "last 30 days" default is superseded by D-23 (30 days before to 30 days after the business today, with an Upcoming badge), and criterion 5's "on staging" by D-28 (the p95 check runs locally and in CI on about 5 years of fake data, and the live request logs confirm it after release). See `phases/06-company-expenses/06-CONTEXT.md`.
+
 **Owner decisions to close at discuss step:**
 - **OD-5** hard vs soft delete for company expenses
 - **OD-8** fixed vs Manager-editable categories, for both the company and the order expense lists
@@ -712,7 +714,7 @@ Plans:
 - [ ] 06-05-PLAN.md — Month KPIs API in Manila time (CEXP-03, D-24)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 06-06-PLAN.md — Query-count guards, compiled detail query and the p95 timing test (PERF-04, D-28)
+- [ ] 06-06-PLAN.md — Query-count guards, compiled detail and KPI queries and the p95 timing test (PERF-04, D-28)
 - [ ] 06-07-PLAN.md — Search, category and date filters in the URL (CEXP-01, WEB-10)
 - [ ] 06-08-PLAN.md — Edit API with rowversion 409, the own-expense rule and payer audit (CEXP-02, SEC-07, D-26, D-27)
 
@@ -726,9 +728,9 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 06-14-PLAN.md — Edit and View modes with the conflict banner and the D-26 notice (CEXP-02, CEXP-04)
-- [ ] 06-15-PLAN.md — Audit Log shows expense and category changes (D-27)
 
 **Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 06-15-PLAN.md — Audit Log shows expense and category changes (D-27); after 06-14, because its e2e edits through the Edit modal
 - [ ] 06-16-PLAN.md — Delete dialogs and the Deleted Expenses page with restore (D-01 to D-07)
 
 **Wave 10** *(blocked on Wave 9 completion)*

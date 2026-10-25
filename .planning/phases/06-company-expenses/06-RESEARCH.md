@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Research
 
-*Created: 2026-10-25T03:05:00-05:00 · Updated: 2026-10-25T03:05:00-05:00*
+*Created: 2026-10-25T03:05:00-05:00 · Updated: 2026-10-25T04:27:00-05:00*
 
 **Researched:** 2026-10-25
 **Domain:** First business aggregate slice: EF Core 10 code-first aggregate with rowversion, soft delete, filtered list with period total, Manila-month KPIs, Manager-editable lookup table, audit events, React list/modal pages
@@ -580,30 +580,39 @@ var time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 31, 23, 0, 0, TimeS
 | A5 | Expected volume keeps `LIKE '%q%'` description search under p95 300 ms | Alternatives, Pattern 8 | Medium: the timing test proves or disproves it before release |
 | A6 | The CI SQL container's timing is stable enough for a 300 ms p95 gate | Pitfall 4 | Medium: may need a CI-only margin; any change needs the owner |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-Items that change behavior, wording, security or scope are the owner's call. Each has options with the recommendation first. Items marked *(planner)* are technical and may be settled in planning.
+Items that change behavior, wording, security or scope are the owner's call. Each has options with the recommendation first. Items marked *(planner)* are technical and may be settled in planning. Every question now has a disposition (the **Resolved** line under it): Q1, Q3, Q4 and Q6 were ruled by the owner as D-30 to D-33 in `06-CONTEXT.md`; Q2, Q5, Q7 and Q8 were settled in planning; Q9 is waiting on the owner, with the UI-SPEC defaults built and the item parked in the STATE.md Owner backlog.
 
 1. **"Ever used" after a permanent delete (D-10 wording).** If a category's only expenses are deleted permanently, its count drops to 0.
    - **A (recommended):** it becomes deletable again ("used" means "an expense row exists now, deleted ones included"). Simple, enforced by the FK, and audit entries keep reading because category events store names and expense events fall back to "a deleted category". One-line reason: no extra column and no rowversion churn on the category.
    - B: once used, never deletable ("sticky" flag). Needs a column set on first use, which bumps the category's row version and can cause a spurious 409 for a Manager editing that category at the same moment.
+   - **Resolved:** owner ruled option A as D-30 (2026-10-25); built in plan 06-13.
 2. **How the Audit Log shows expense values *(planner, with owner FYI)*.** D-27 wants old and new amounts, dates, category and payer; today the viewer never shows stored values (05 D-40).
    - **A (recommended):** the server turns these events' detail into typed change lines and resolves payer and category ids to current names; the web only formats. Keeps names out of storage and the "no raw value" rule for every other event.
    - B: the web parses the detail itself and calls the people endpoint for names. More client logic, two sources of truth.
    - Also: should the "Done to" **filter** match expense events by payer? Recommended yes, by a LIKE on the stored `payer=<id>` restricted to expense codes (LINQ, no schema change). Alternative: an additive `SubjectUserId` column on `AuditLog`, which touches the append-only table and its tests.
+   - **Resolved (planner):** option A and the payer LIKE match (no schema change) are built in plan 06-15; parked for the owner's FYI in the STATE.md Owner backlog.
 3. **Does a soft delete or restore update "Last changed by"?** (Pitfall 2.)
    - **A (recommended):** yes, the Manager becomes "Last changed by", like deactivate and lock in Phase 5 (SEC-08 counts such actions as staff edits).
    - B: no; only form edits change it (needs a small exception in the stamp interceptor).
+   - **Resolved:** owner ruled option A as D-31 (2026-10-25); built in plan 06-10.
 4. **Can an invited person who has not finished set-up be chosen as Paid by?** The existing active rule (D-18) counts them as active.
    - **A (recommended):** yes, keep one "active staff" rule everywhere.
    - B: no, only people who have signed in at least once (adds a "has password" condition to the lookup and the validator).
+   - **Resolved:** owner ruled option B as D-32 (2026-10-25); built as "has a password" in plans 06-01, 06-02 and 06-08. The remaining edge (a person with a temporary password who has not signed in yet) is assumption A-06-01, parked with three options in the STATE.md Owner backlog by plan 06-01.
 5. **Seeded 5-year timing data volume *(planner)*:** 20 per day (about 36,500 rows) unless the owner knows the shop's real rate. Recommended: 20 per day.
+   - **Resolved (planner):** 20 a day in plan 06-06; the owner can give the real rate through the STATE.md Owner backlog item.
 6. **Database check constraint for the ₱1,000,000.00 cap.**
    - **A (recommended):** the database checks only `Amount > 0`; the cap lives in validators. Legacy import (MIG phases) may hold larger amounts, and the cap may change.
    - B: also `Amount <= 1000000`; a later change needs a migration.
+   - **Resolved:** owner ruled option A as D-33 (2026-10-25); built in plan 06-02.
 7. **Pin the "no inline SQL" rule with a test *(planner)*:** recommended: an architecture test that fails on any `ExecuteSql*`, `FromSql*` or `SqlQuery*` call outside the three existing call sites and migrations. Cheap, and it protects Phase 7.
+   - **Resolved (planner):** `NoInlineSqlTests` in plan 06-11. The three existing sites stay allowed while the owner's approval by name is parked in the STATE.md Owner backlog (plan 06-11).
 8. **Dev seed users *(planner)*:** `DevSeedSteps.All` holds only the SiteSettings step today (`DevSeedSteps.cs:10`); expenses need real staff as payers. Recommended: the expense seed step uses existing active staff and prints a skip when there are none, rather than creating accounts.
+   - **Resolved (planner):** built that way in plan 06-11 (`CompanyExpensesSeedStep`).
 9. **UI-SPEC OQ-1 to OQ-15** still need owner rulings (away-mode: backlog, never auto-approved). The contract defaults are buildable now.
+   - **Resolved for planning:** owner ruling pending; the UI-SPEC defaults are built and the item is parked in the STATE.md Owner backlog (never auto-approved). Plan 06-19 lists it in the owner review pack.
 
 ## Environment Availability
 

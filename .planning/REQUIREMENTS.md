@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-19T03:30:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-25T04:27:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -114,6 +114,7 @@ Initial release: everything needed to replace the production system at cutover.
 ### Company Expenses (CEXP)
 
 - [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
+  - *Phase 6 note (owner decision D-23, 2026-10-25; the requirement text above is unchanged):* the "last 30 days" default is superseded by a window from 30 days before to 30 days after the business today, so early-recorded expenses still show. See `phases/06-company-expenses/06-CONTEXT.md` D-23.
 - [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
 - [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
 - [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
