@@ -30,6 +30,7 @@ public static class ExpensesApplicationRegistration
         services.AddScoped<DeleteCompanyExpenseHandler>();
         services.AddScoped<RestoreCompanyExpenseHandler>();
         services.AddScoped<ListDeletedExpensesHandler>();
+        services.AddScoped<PermanentlyDeleteCompanyExpenseHandler>();
         return services;
     }
 }

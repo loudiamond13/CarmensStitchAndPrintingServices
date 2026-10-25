@@ -168,6 +168,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/company-expenses/deleted", "/api/v1/company-expenses/deleted", Anonymous: 401, Admin: 403, Manager: 200),
         // Restoring (CEXP-02, D-03): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no expense and a Manager meets 404 company-expenses.not-found; a missing key is 400 after authorization (covered in CompanyExpenseDeletionTests).
         new("POST", "/api/v1/company-expenses/{id:guid}/restore", "/api/v1/company-expenses/c5e8f2b0-3a74-4d91-8b26-8f4d1e9c7a53/restore", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
+        new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

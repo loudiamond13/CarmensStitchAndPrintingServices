@@ -365,6 +365,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company-expenses/{id}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes one expense for good, Managers only, whether or not it was deleted before. The row is removed from the database and there
+         *     is no way back. The audit log keeps one entry with the date, category, amount and payer, and never the description or notes. It
+         *     takes no version, and removing an expense that is already gone is a 404 that changes nothing.
+         */
+        delete: operations["PermanentlyDeleteCompanyExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/company-expenses/{id}/restore": {
         parameters: {
             query?: never;
@@ -2601,6 +2622,65 @@ export interface operations {
         };
     };
     DeleteCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PermanentlyDeleteCompanyExpense: {
         parameters: {
             query?: never;
             header?: never;

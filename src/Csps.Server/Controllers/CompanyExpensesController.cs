@@ -18,12 +18,13 @@ namespace Csps.Server.Controllers;
 /// <param name="delete">The soft-delete handler (Managers only).</param>
 /// <param name="restore">The restore handler (Managers only).</param>
 /// <param name="listDeleted">The deleted-expense list handler (Managers only).</param>
+/// <param name="permanentlyDelete">The permanent-delete handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update, DeleteCompanyExpenseHandler delete, RestoreCompanyExpenseHandler restore, ListDeletedExpensesHandler listDeleted) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update, DeleteCompanyExpenseHandler delete, RestoreCompanyExpenseHandler restore, ListDeletedExpensesHandler listDeleted, PermanentlyDeleteCompanyExpenseHandler permanentlyDelete) : ControllerBase
 {
     /// <summary>
     /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
@@ -193,6 +194,28 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     public async Task<IResult> Restore(Guid id, CancellationToken cancellationToken)
     {
         var result = await restore.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Deletes one expense for good, Managers only, whether or not it was deleted before. The row is removed from the database and there
+    /// is no way back. The audit log keeps one entry with the date, category, amount and payer, and never the description or notes. It
+    /// takes no version, and removing an expense that is already gone is a 404 that changes nothing.
+    /// </summary>
+    /// <param name="id">The expense id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when no such expense exists, or 409 when two saves lost a race.</returns>
+    [HttpDelete("{id:guid}/permanent")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("PermanentlyDeleteCompanyExpense")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> PermanentlyDelete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await permanentlyDelete.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 

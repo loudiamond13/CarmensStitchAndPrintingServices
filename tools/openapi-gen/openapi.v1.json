@@ -3481,6 +3481,75 @@
         ]
       }
     },
+    "/api/v1/company-expenses/{id}/permanent": {
+      "delete": {
+        "operationId": "PermanentlyDeleteCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one expense for good, Managers only, whether or not it was deleted before. The row is removed from the database and there\nis no way back. The audit log keeps one entry with the date, category, amount and payer, and never the description or notes. It\ntakes no version, and removing an expense that is already gone is a 404 that changes nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
     "/api/v1/company-expenses/{id}/restore": {
       "post": {
         "operationId": "RestoreCompanyExpense",

@@ -16,6 +16,12 @@ internal sealed class CompanyExpenseStore(CspsDbContext context) : ICompanyExpen
         context.CompanyExpenses.Add(expense);
     }
 
+    public void Remove(CompanyExpense expense)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+        context.CompanyExpenses.Remove(expense);
+    }
+
     public async Task<CompanyExpense?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken)
     {
         var query = includeDeleted

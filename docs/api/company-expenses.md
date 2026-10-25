@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T10:42:00-05:00
+updated: 2026-10-25T11:53:00-05:00
 ---
 
 # The company expenses API
@@ -26,7 +26,8 @@ this page; the web app's types are generated from it (`web/src/types/api.generat
 | Staff who can pay | `/api/v1/staff` | Staff |
 | Company expenses | `/api/v1/company-expenses` | Staff |
 
-**Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. No
+**Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. The four deletion routes
+(delete, restore, permanent delete and the deleted list) are **Manager** only: an `Admin` gets `403`. No token is `401`. No
 answer is ever cached (`Cache-Control: no-store`).
 
 ## Expense categories (D-08, D-09, D-11, D-13, D-15)
@@ -169,6 +170,49 @@ the expense id as the target. A save with no change writes none.
   entry ends with the payer the expense has after the edit.
 - The payer change is its own entry and is never merged into the other one. An edit that changes the payer and the date writes
   both. A payer-only edit writes only `company-expense.payer-changed`.
+
+## Deleting, restoring and the deleted list (CEXP-02, D-01 to D-07, D-27, D-31)
+
+| Method and path | Body | Answers |
+|---|---|---|
+| `DELETE /company-expenses/{id}` | none | `204`, `401`, `403` for an Admin, `404` `company-expenses.not-found`. |
+| `POST /company-expenses/{id}/restore` | none; needs an `Idempotency-Key` | `204`, `400` without a key, `401`, `403`, `404`. |
+| `DELETE /company-expenses/{id}/permanent` | none | `204`, `401`, `403`, `404`. |
+| `GET /company-expenses/deleted` | query `q`, `category`, `page`, `pageSize` | `200` the page, `400`, `401`, `403`. |
+
+**Who may call:** Managers only. The Staff rule of the other routes does not apply here, and an Admin gets `403` even on an expense they
+recorded or paid. There is no row version on these single-click actions: each one acts on the latest state, inside a transaction, and
+a lost race is read again and decided again (a second pass that finds nothing answers `404`, never a double effect).
+
+- **Soft delete (D-01).** The row stays, with who deleted it and when. The expense leaves the list, its total, the month KPIs and the
+  detail (`404`), and an edit of it (`PUT`) is `404`. Last changed by and at become the Manager and the server time (D-31). A second
+  delete answers `404` and writes nothing. Two deletes sent together give one `204`, one `404` and one audit entry.
+- **Restore (D-03).** It clears the delete marker, so the expense counts again everywhere. Last changed by and at become the Manager who
+  restored it. Restoring an expense that is not deleted is a `204` that writes and audits nothing; an unknown id is `404`. The same
+  restore sent again with the same `Idempotency-Key` answers with the stored `204` (`Idempotent-Replayed: true`) and does not run twice.
+- **Permanent delete (D-04).** It removes the row from the database, whether or not it was soft-deleted first, and there is no way
+  back. A second call is `404`. Because the row is gone, an expense that used a category no longer counts as using it, so that
+  category can be deleted again under D-30 once no other expense or soft-deleted expense uses it.
+- **The deleted list (D-07).** It lists only soft-deleted expenses, most recently deleted first and then by id. Page 1 to 100000, page
+  size 1 to 100 (20 when not sent), `q` and `category` as in the main list (`q` looks at the description and the payer's or recorder's
+  name, never the notes). The answer is `{ items, total, page, pageSize }` with each item `{ id, deletedAt, deletedBy | null, date,
+  category { id, name, tone, retired }, description, amount, paidBy { id, name, formerStaff } }`. There is no period total and no notes.
+  `deletedBy` is `null` when no person is recorded (it reads as System).
+
+### The audit entries of a deletion (D-06, D-27)
+
+Each action writes one entry in the same transaction, with target type `CompanyExpense` and the expense id as the target.
+
+| Entry | Written when | Detail |
+|---|---|---|
+| `company-expense.deleted` | an expense is soft-deleted | `date=2026-10-05;category=<id>;amount=1200.00;payer=<id>` |
+| `company-expense.restored` | a deleted expense is restored | the same snapshot |
+| `company-expense.permanently-deleted` | an expense is removed for good | the same snapshot |
+
+- The snapshot holds the date, the category id, the amount and the payer id. **The description and the notes are never written**,
+  because they can hold personal details (D-06).
+- The permanent-delete entry is written before the row is removed, in the same transaction, so the entry stays when the row is gone.
+- A restore of an expense that is not deleted, and a delete of one that is gone, write nothing.
 
 ## Listing expenses (CEXP-01, CEXP-05, D-23, D-25, D-26)
 
