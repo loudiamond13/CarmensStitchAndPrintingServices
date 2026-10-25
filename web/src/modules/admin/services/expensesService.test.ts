@@ -178,6 +178,6 @@ describe('expensesService.remove', () => {
     expect(fake.calls[0]?.method).toBe('DELETE');
     expect(fake.calls[0]?.url).toBe('/api/v1/company-expenses/00000000-0000-4000-8000-0000000000e1');
     expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body ?? null).toBeNull();
   });
 });

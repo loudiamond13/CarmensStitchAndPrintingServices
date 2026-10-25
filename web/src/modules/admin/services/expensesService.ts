@@ -51,6 +51,11 @@ export interface ExpensesService {
    * when it was deleted. A form edit is never retried, so it carries no Idempotency-Key (SEC-07).
    */
   update(id: string, body: UpdateExpenseRequest, signal?: AbortSignal): Promise<ExpenseDetailResponse>;
+  /**
+   * `DELETE /api/v1/company-expenses/{id}`: a Manager's soft delete (D-01). It acts on the latest state, so it sends no row
+   * version, and a DELETE repeats safely, so it sends no Idempotency-Key. 404 when it is already deleted.
+   */
+  remove(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 const expensePath = (id: string): string => `/company-expenses/${encodeURIComponent(id)}`;
@@ -74,6 +79,7 @@ export function createExpensesService(client: HttpClient): ExpensesService {
       client.post<ExpenseDetailResponse>('/company-expenses', body, { idempotencyKey, signal }),
     get: (id, signal) => client.get<ExpenseDetailResponse>(expensePath(id), { signal }),
     update: (id, body, signal) => client.put<ExpenseDetailResponse>(expensePath(id), body, { signal }),
+    remove: (id, signal) => client.delete(expensePath(id), { signal }),
   };
 }
 

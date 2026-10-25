@@ -11,12 +11,15 @@
 //     reads the lists, the KPIs and the deleted list again and toasts, adding a note when the new row is outside the filters.
 //   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are), View (the
 //     eye, OQ-8) on the others; the E2 modal reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
-//     view, and the lists and KPIs read again. Delete and the other row actions arrive in later plans.
+//     view, and the lists and KPIs read again. A Manager also gets Delete (plan 06-16, D-01, D-02): a plain ConfirmDialog, then the row leaves, focus
+//     moves to the next row's first action (else the previous, else the h1), and the lists, KPIs and deleted list read again.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
 import { useToast } from '@/components/feedback';
+import { ConfirmDialog } from '@/components/overlays';
+import { isHttpError } from '@/core/api/errors';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -56,15 +59,18 @@ import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange'
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
+import { useExpenseAction } from '@/modules/admin/hooks/useExpenseAction';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
+import { useSession } from '@/modules/admin/hooks/useSession';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
 import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expensesDeletedKey, expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
-import type {
-  ActorRef,
-  ExpenseDetailResponse,
-  ExpenseListItem,
-  ExpenseListResponse,
+import {
+  expensesService,
+  type ActorRef,
+  type ExpenseDetailResponse,
+  type ExpenseListItem,
+  type ExpenseListResponse,
 } from '@/modules/admin/services/expensesService';
 import { formatCalendarDate } from '@/utils/format';
 
@@ -131,6 +137,9 @@ function isOutsideFilters(
 interface RowWiring {
   edit: (expense: ExpenseListItem) => void;
   view: (expense: ExpenseListItem) => void;
+  /** Opens the delete confirmation. Only a Manager gets the action (D-02). */
+  remove: (expense: ExpenseListItem) => void;
+  canDelete: boolean;
   /** Remembers each row's action button, so focus can return to it. */
   register: (id: string, button: HTMLButtonElement | null) => void;
 }
@@ -179,6 +188,7 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
         const label = editable
           ? COPY.rowActions.edit(item.description, date)
           : COPY.rowActions.view(item.description, date);
+        const deleteLabel = COPY.remove.rowDelete(item.description, date);
         return (
           <RowActions>
             <RowAction
@@ -196,6 +206,18 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
                 wiring.register(item.id, button);
               }}
             />
+            {/* SPEC-DEVIATION: D-01 / D-02 App. E.11 gave every row Delete; here only a Manager gets it, and it is a soft delete. */}
+            {wiring.canDelete && (
+              <RowAction
+                icon="trash-2"
+                label={deleteLabel}
+                title={deleteLabel}
+                danger
+                onClick={() => {
+                  wiring.remove(item);
+                }}
+              />
+            )}
           </RowActions>
         );
       },
@@ -216,6 +238,12 @@ export function ExpensesRoute() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState(false);
   const rowFocus = useRowFocus();
+  const { user: me } = useSession();
+  const isManager = me?.role === 'manager';
+  // The expense the Delete confirm is open for, or was last open for (kept while it animates out), and where focus goes once
+  // the deleted row has left the list.
+  const [deleting, setDeleting] = useState<{ expense: ExpenseListItem; open: boolean } | null>(null);
+  const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
   const query = useExpensesQuery({
@@ -335,6 +363,61 @@ export function ExpensesRoute() {
     });
   };
 
+  // Every expense change reads the lists, the month figures and the deleted list again (UI-SPEC Freshness).
+  const refreshAll = (): Promise<unknown> =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: expenseKpisKey }),
+      queryClient.invalidateQueries({ queryKey: expensesDeletedKey }),
+      queryClient.invalidateQueries({ queryKey: expensesKey }),
+    ]);
+
+  const closeDelete = (): void => {
+    setDeleting((current) => (current === null ? null : { ...current, open: false }));
+  };
+
+  // Focus lands on the first action of the next row, else the previous one, else the h1 (UI-SPEC Interaction Contract).
+  const chooseFocusAfter = (expense: ExpenseListItem): string | null => {
+    const items = data?.items ?? [];
+    const index = items.findIndex((item) => item.id === expense.id);
+    return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
+  };
+
+  const removal = useExpenseAction<ExpenseListItem>(
+    (_key, expense) => expensesService.remove(expense.id),
+    (expense) => {
+      afterRemoval.current = { removedId: expense.id, focusId: chooseFocusAfter(expense) };
+      closeDelete();
+      toast.show({ title: COPY.remove.toast.title, message: COPY.remove.toast.message(expense.description) });
+      return refreshAll();
+    },
+  );
+
+  // A failure stays in the dialog as the mapper line; a 404 means someone else got there first, so the dialog closes and the list
+  // is read again.
+  const confirmRemoval = async (expense: ExpenseListItem) => {
+    const outcome = await removal.submit(expense);
+    if (!outcome.ok && isHttpError(outcome.error) && outcome.error.status === 404) {
+      afterRemoval.current = { removedId: expense.id, focusId: chooseFocusAfter(expense) };
+      closeDelete();
+      toast.show({ tone: 'info', title: COPY.alreadyGone.title, message: COPY.alreadyGone.message });
+      void refreshAll();
+      return undefined;
+    }
+    return outcome;
+  };
+
+  // Once the list no longer holds the deleted row, move focus (the dialog's own return to the gone button has run).
+  useEffect(() => {
+    const wanted = afterRemoval.current;
+    if (wanted === null || data === undefined || data.items.some((item) => item.id === wanted.removedId)) {
+      return;
+    }
+    afterRemoval.current = null;
+    if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
+      headingRef.current?.focus();
+    }
+  });
+
   const wiring: RowWiring = {
     edit: (expense) => {
       if (today !== null) {
@@ -346,6 +429,10 @@ export function ExpensesRoute() {
       setViewingId(expense.id);
       setViewing(true);
     },
+    remove: (expense) => {
+      setDeleting({ expense, open: true });
+    },
+    canDelete: isManager,
     register: rowFocus.register,
   };
 
@@ -393,6 +480,17 @@ export function ExpensesRoute() {
           setViewing(false);
         }}
       />
+      {deleting !== null && (
+        <ConfirmDialog
+          open={deleting.open}
+          title={COPY.remove.title(deleting.expense.description, formatPeso(deleting.expense.amount))}
+          message={COPY.remove.message}
+          confirmLabel={COPY.remove.confirm}
+          pendingLabel={COPY.remove.pending}
+          onConfirm={() => confirmRemoval(deleting.expense)}
+          onCancel={closeDelete}
+        />
+      )}
       <ExpenseKpiRow />
       <FilterBar>
         <SearchBox

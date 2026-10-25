@@ -144,6 +144,24 @@ export const EXPENSES_COPY = {
   },
   // SPEC-GAP: OQ-8 the read-only modal for an expense the caller cannot edit.
   view: { title: 'Expense details', close: 'Close' },
+  /** Delete (E3, D-01, D-05; plan 06-16): the shared ConfirmDialog, Cancel focused, no type-to-confirm. The quotes are typographic. */
+  remove: {
+    rowDelete: (description: string, date: string): string => `Delete ${description}, ${date}`,
+    title: (description: string, amount: string): string => `Delete “${description}” (${amount})?`,
+    message:
+      "It won't count in the expense list, totals or the payer's balance. You can restore it later from Deleted Expenses.",
+    confirm: 'Delete Expense',
+    pending: 'Deleting',
+    toast: {
+      title: 'Expense deleted',
+      message: (description: string): string => `${description}. You can restore it from Deleted Expenses.`,
+    },
+  },
+  /** A delete that meets an expense someone else removed first (404): the dialog closes and the list is read again. */
+  alreadyGone: {
+    title: 'Already deleted',
+    message: 'Someone else deleted this expense. The list is up to date.',
+  },
   /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
   form: {
     date: { label: 'Date', hint: "Up to 30 days ahead is fine for a cost you'll pay soon." },
