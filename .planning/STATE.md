@@ -4,7 +4,7 @@ current_phase: 6
 current_phase_name: Company Expenses
 status: "Phase 05 shipped: PR #10"
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-10-25T07:47:53.443Z"
+last_updated: "2026-10-25T08:08:22.000Z"
 last_activity: "2026-10-19: Phase 5 shipped as PR #10"
 state_head: fe891f24c8b2d2ee883217ab8f6a5097b7638599
 progress:
@@ -581,12 +581,21 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-47: SendResetLinkHandler sends nothing, with the usual 204, for an unconfirmed person (checked before the cap); SetTemporaryPasswordHandler no longer confirms an invited person's address (D-49)
 - [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
 - [Phase 05]: D-51 (owner, 2026-10-19): row actions sit 8 px apart with a full 44 x 44 px tap area each; the top bar user menu gets a 44 px tall tap area; WR-20 tap areas are recorded in the look-equality rulings
+- [Phase 06]: D-30 to D-33 (owner, 2026-10-25, after research): a category is deletable again once its expenses are all permanently deleted; soft delete and restore update "Last changed by"; Paid by must be signed-in staff (invited people who have not finished set-up can't be chosen); the database checks only Amount > 0, the ₱1,000,000.00 cap lives in validators. Full text in 06-CONTEXT.md.
 
 ### Pending Todos
 
 Owner items (updated 2026-10-17):
 
 None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __Secure-csps_2fa checked by the owner (2026-10-17).
+
+Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and execution; nothing here was auto-approved):
+
+- [ ] **Phase 6 UI-SPEC OQ-1 to OQ-15:** the build uses the contract defaults in `06-UI-SPEC.md`. Rule each one, or confirm the defaults.
+- [ ] **Phase 6 audit viewer for expense events (06-RESEARCH open question 2):** planned with option A (the server turns the stored detail into change lines and names payer and category; "Done to" also matches expense payers). Confirm or change.
+- [ ] **Phase 6 timing data size (open question 5):** the speed test assumes about 20 expenses a day for 5 years (~36,500 rows). Tell us if the shop's real rate is higher.
+- [ ] **Phase 6 copy review (05 D-48):** read the new expense and Settings page wording before release.
+- [ ] Any checkpoints, manual checks or package approvals that Phase 6 execution parks are added below this line.
 
 ### Blockers/Concerns
 
