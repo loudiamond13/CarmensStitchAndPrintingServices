@@ -20,6 +20,13 @@ export const EXPENSE_WINDOW = { from: '2026-09-25', to: '2026-11-24' } as const;
 
 export const LONG_DESCRIPTION = `${'Meralco bill '.repeat(16)}end`.slice(0, 200);
 export const LONG_NAME = `Maria ${'Santos'.repeat(16)}`.slice(0, 100);
+/** A category name at the 40-character limit. */
+export const LONG_CATEGORY_NAME = 'Equipment, repairs and maintenance works';
+/** Notes at the 1,000-character limit, with spaces so they wrap at words. */
+export const LONG_NOTES = 'Paid cash at the counter, receipt kept in the folder. '.repeat(19).slice(0, 1000);
+/** The largest amount a single expense may have, and the largest period total the footer and the month card show. */
+export const MAX_AMOUNT = 1_000_000;
+export const HUGE_PERIOD_TOTAL = 999_999_999.99;
 
 export const RENT: CategoryFixture = {
   id: '6869715c-a01f-4053-87d8-8fd39feebebc',
