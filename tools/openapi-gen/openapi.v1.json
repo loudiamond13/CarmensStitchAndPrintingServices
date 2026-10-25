@@ -628,6 +628,115 @@
         ],
         "type": "object"
       },
+      "DeletedExpenseListItem": {
+        "description": "One deleted expense in the deleted list. It carries no notes (D-19).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "deletedAt": {
+            "description": "When it was deleted.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null reads as System."
+              }
+            ]
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          }
+        },
+        "required": [
+          "id",
+          "deletedAt",
+          "deletedBy",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "paidBy"
+        ],
+        "type": "object"
+      },
+      "DeletedExpenseListResponse": {
+        "description": "One page of the deleted list (D-07). There is no period total.",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/DeletedExpenseListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many deleted expenses match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "DoneBy": {
         "description": "Who did it (D-27).",
         "properties": {
@@ -3002,6 +3111,103 @@
         ]
       }
     },
+    "/api/v1/company-expenses/deleted": {
+      "get": {
+        "operationId": "ListDeletedCompanyExpenses",
+        "parameters": [
+          {
+            "description": "Search text for the description or the payer's or recorder's name; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A category id; none means all.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedExpenseListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the deleted expenses, Managers only, most recently deleted first and then by id. Each row says who deleted it and when.\nThe total covers every page of the filter. There is no period total, and notes are never listed or searched.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
     "/api/v1/company-expenses/kpis": {
       "get": {
         "operationId": "GetCompanyExpenseKpis",
@@ -3270,6 +3476,75 @@
           }
         },
         "summary": "Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A\nversion that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A Manager\nmay edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager\nwho has set a password, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it\nand when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/{id}/restore": {
+      "post": {
+        "operationId": "RestoreCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by\nis the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "CompanyExpenses"
         ]

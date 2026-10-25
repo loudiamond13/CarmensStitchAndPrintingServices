@@ -62,17 +62,25 @@ public sealed class ListDeletedExpensesEndpointTests(CspsDatabase database) : IC
     }
 
     [Fact]
-    public async Task TwoDeletedAtTheSameInstantAreOrderedByIdDescending()
+    public async Task ExpensesDeletedAtTheSameInstantKeepOneStableOrderAcrossPages()
     {
+        // SQL Server orders ids its own way, so the test checks the order is stable, not what the order is.
         await using var rig = await Rig.StartAsync(database);
         var same = Recorded.AddHours(2);
-        var a = await rig.SeedAsync("Tie A", deletedAt: same);
-        var b = await rig.SeedAsync("Tie B", deletedAt: same);
-        var c = await rig.SeedAsync("Tie C", deletedAt: same);
+        var ids = new[] { await rig.SeedAsync("Tie A", deletedAt: same), await rig.SeedAsync("Tie B", deletedAt: same), await rig.SeedAsync("Tie C", deletedAt: same) };
 
-        var page = await ExpenseFixtures.ReadDeletedPageAsync(rig.Client, rig.Manager.AccessToken);
+        var whole = await ExpenseFixtures.ReadDeletedPageAsync(rig.Client, rig.Manager.AccessToken);
+        var again = await ExpenseFixtures.ReadDeletedPageAsync(rig.Client, rig.Manager.AccessToken);
+        var pieces = new List<Guid>();
+        for (var page = 1; page <= 3; page++)
+        {
+            var single = await ExpenseFixtures.ReadDeletedPageAsync(rig.Client, rig.Manager.AccessToken, $"pageSize=1&page={page}");
+            pieces.Add(single.Items.ShouldHaveSingleItem().Id);
+        }
 
-        page.Items.Select(item => item.Id).ShouldBe(new[] { a, b, c }.OrderDescending().ToList());
+        whole.Items.Select(item => item.Id).Order().ShouldBe(ids.Order());
+        again.Items.Select(item => item.Id).ShouldBe(whole.Items.Select(item => item.Id));
+        pieces.ShouldBe(whole.Items.Select(item => item.Id));
     }
 
     [Fact]

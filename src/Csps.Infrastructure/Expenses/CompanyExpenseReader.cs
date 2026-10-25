@@ -12,6 +12,8 @@ namespace Csps.Infrastructure.Expenses;
 /// <summary><see cref="ICompanyExpenseReader"/> over EF: untracked reads, one statement per read.</summary>
 internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpenseReader
 {
+    private const string SoftDeleteFilter = "SoftDelete";
+
     // The detail and both KPI reads have a fixed shape and run on every page load, so they are compiled once (PERF-04). The list is
     // not: its optional filters change the shape, and EF caches the plan of each shape.
     //
@@ -194,6 +196,67 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
         return new CompanyExpenseListPage(items, totals?.Count ?? 0, totals?.Sum ?? 0m);
     }
 
+    public async Task<DeletedExpensePage> ListDeletedAsync(DeletedExpenseListQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // The named SoftDelete filter is lifted for this read only, and only deleted rows are kept.
+        var matches = Narrow(
+            context.CompanyExpenses.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking().Where(expense => expense.DeletedAtUtc != null),
+            query.CategoryId,
+            query.Search);
+
+        // Command 1: the count over every page. Command 2: the page, most recently deleted first, ending on the id so paging is stable.
+        var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await (
+            from expense in matches
+            join category in context.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
+            join payer in context.Users.AsNoTracking() on expense.PaidByUserId equals payer.Id
+            join deleterUser in context.Users.AsNoTracking() on expense.DeletedById equals (Guid?)deleterUser.Id into deleters
+            from deleter in deleters.DefaultIfEmpty()
+            orderby expense.DeletedAtUtc descending, expense.Id descending
+            select new
+            {
+                expense.Id,
+                DeletedAtUtc = expense.DeletedAtUtc!.Value,
+                expense.DeletedById,
+                expense.ExpenseDate,
+                expense.CategoryId,
+                expense.Description,
+                expense.Amount,
+                expense.PaidByUserId,
+                CategoryName = category.Name,
+                CategoryTone = category.Tone,
+                CategoryRetired = category.RetiredAtUtc != null,
+                PayerFirst = payer.FirstName,
+                PayerLast = payer.LastName,
+                PayerFormer = payer.DeletedAtUtc != null,
+                DeleterFirst = (string?)deleter.FirstName,
+                DeleterLast = (string?)deleter.LastName,
+                DeleterFormer = deleter.DeletedAtUtc != null,
+            })
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<DeletedExpenseRow> items =
+        [
+            .. rows.Select(row => new DeletedExpenseRow(
+                row.Id,
+                row.DeletedAtUtc,
+                row.DeletedById is { } deletedBy && row.DeleterFirst is not null
+                    ? new ActorRef(deletedBy, $"{row.DeleterFirst} {row.DeleterLast}", row.DeleterFormer)
+                    : null,
+                row.ExpenseDate,
+                new ExpenseCategoryRef(row.CategoryId, row.CategoryName, row.CategoryTone, row.CategoryRetired),
+                row.Description,
+                row.Amount,
+                new ActorRef(row.PaidByUserId, $"{row.PayerFirst} {row.PayerLast}", row.PayerFormer))),
+        ];
+        return new DeletedExpensePage(items, total);
+    }
+
     public async Task<ExpenseKpiTotals> GetKpisAsync(KpiMonths months, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(months);
@@ -216,14 +279,18 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
     // recorder, never at the notes (D-19). A typed wildcard stays literal (CWE-943).
     private IQueryable<CompanyExpense> Filter(IQueryable<CompanyExpense> expenses, CompanyExpenseListQuery query)
     {
-        expenses = expenses.Where(expense => expense.ExpenseDate >= query.From && expense.ExpenseDate <= query.To);
+        return Narrow(expenses.Where(expense => expense.ExpenseDate >= query.From && expense.ExpenseDate <= query.To), query.CategoryId, query.Search);
+    }
 
-        if (query.CategoryId is { } categoryId)
+    // The optional category and search, shared by the live list and the deleted list.
+    private IQueryable<CompanyExpense> Narrow(IQueryable<CompanyExpense> expenses, Guid? categoryFilter, string? searchText)
+    {
+        if (categoryFilter is { } categoryId)
         {
             expenses = expenses.Where(expense => expense.CategoryId == categoryId);
         }
 
-        if (query.Search is { } search)
+        if (searchText is { } search)
         {
             var pattern = LikePattern.Contains(search);
             expenses = expenses.Where(expense =>

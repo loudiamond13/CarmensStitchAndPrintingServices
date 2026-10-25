@@ -18,6 +18,7 @@ public static class ExpensesApplicationRegistration
         services.AddSingleton<IValidator<CreateCompanyExpenseRequest>, CreateCompanyExpenseRequestValidator>();
         services.AddSingleton<IValidator<UpdateCompanyExpenseRequest>, UpdateCompanyExpenseRequestValidator>();
         services.AddSingleton<IValidator<ListCompanyExpensesRequest>, ListCompanyExpensesRequestValidator>();
+        services.AddSingleton<IValidator<ListDeletedExpensesRequest>, ListDeletedExpensesRequestValidator>();
 
         services.AddScoped<ListExpenseCategoriesHandler>();
         services.AddScoped<ListStaffHandler>();
@@ -27,6 +28,8 @@ public static class ExpensesApplicationRegistration
         services.AddScoped<ListCompanyExpensesHandler>();
         services.AddScoped<GetCompanyExpenseKpisHandler>();
         services.AddScoped<DeleteCompanyExpenseHandler>();
+        services.AddScoped<RestoreCompanyExpenseHandler>();
+        services.AddScoped<ListDeletedExpensesHandler>();
         return services;
     }
 }

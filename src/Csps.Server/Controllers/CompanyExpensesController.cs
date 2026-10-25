@@ -16,12 +16,14 @@ namespace Csps.Server.Controllers;
 /// <param name="kpis">The month KPI handler.</param>
 /// <param name="update">The edit-an-expense handler.</param>
 /// <param name="delete">The soft-delete handler (Managers only).</param>
+/// <param name="restore">The restore handler (Managers only).</param>
+/// <param name="listDeleted">The deleted-expense list handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update, DeleteCompanyExpenseHandler delete) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update, DeleteCompanyExpenseHandler delete, RestoreCompanyExpenseHandler restore, ListDeletedExpensesHandler listDeleted) : ControllerBase
 {
     /// <summary>
     /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
@@ -141,6 +143,56 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     public async Task<IResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var result = await delete.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Lists the deleted expenses, Managers only, most recently deleted first and then by id. Each row says who deleted it and when.
+    /// The total covers every page of the filter. There is no period total, and notes are never listed or searched.
+    /// </summary>
+    /// <param name="q">Search text for the description or the payer's or recorder's name; blank means no search.</param>
+    /// <param name="category">A category id; none means all.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the page, 400 for a bad filter or page, 401 without a valid token, or 403 for an Admin.</returns>
+    [HttpGet("deleted")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("ListDeletedCompanyExpenses")]
+    [ProducesResponseType<DeletedExpenseListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> ListDeleted(
+        [FromQuery] string? q,
+        [FromQuery] string? category,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = ListCompanyExpensesRequest.DefaultPageSize)
+    {
+        var result = await listDeleted.HandleAsync(new ListDeletedExpensesRequest(q, category, page, pageSize), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static expenses => TypedResults.Ok(expenses));
+    }
+
+    /// <summary>
+    /// Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by
+    /// is the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no
+    /// version, and a retry with the same <c>Idempotency-Key</c> answers with the stored 204.
+    /// </summary>
+    /// <param name="id">The expense id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when no such expense exists, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/restore")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("RestoreCompanyExpense")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Restore(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await restore.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 

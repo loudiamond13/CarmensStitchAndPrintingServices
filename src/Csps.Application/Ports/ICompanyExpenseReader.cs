@@ -22,6 +22,15 @@ public interface ICompanyExpenseReader
     Task<CompanyExpenseListPage> ListAsync(CompanyExpenseListQuery query, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Reads one page of soft-deleted expenses, most recently deleted first and then by id, and the count over every page of the same
+    /// filter, in two SQL commands (D-07). Live expenses are never listed.
+    /// </summary>
+    /// <param name="query">The filters and page, already validated.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The rows of the page and the total count.</returns>
+    Task<DeletedExpensePage> ListDeletedAsync(DeletedExpenseListQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Reads the month figures for the KPI row in two SQL commands: this month and last month together, then this month by category.
     /// Expenses count by their date, upcoming ones included; soft-deleted expenses never count (D-01, D-24).
     /// </summary>
@@ -61,6 +70,37 @@ public sealed record ExpenseKpiTotals(
 /// <param name="Page">The page number, from 1.</param>
 /// <param name="PageSize">Rows per page, from 1 to 100.</param>
 public sealed record CompanyExpenseListQuery(DateOnly From, DateOnly To, Guid? CategoryId, string? Search, int Page, int PageSize);
+
+/// <summary>A checked query for the deleted-expense list.</summary>
+/// <param name="CategoryId">Only this category; null means all.</param>
+/// <param name="Search">Text to find in the description or the payer's or recorder's name; null means no search.</param>
+/// <param name="Page">The page number, from 1.</param>
+/// <param name="PageSize">Rows per page, from 1 to 100.</param>
+public sealed record DeletedExpenseListQuery(Guid? CategoryId, string? Search, int Page, int PageSize);
+
+/// <summary>One row of the deleted-expense list as the read port returns it. It carries no notes (D-19).</summary>
+/// <param name="Id">The expense id.</param>
+/// <param name="DeletedAtUtc">When it was deleted.</param>
+/// <param name="DeletedBy">Who deleted it; null reads as System.</param>
+/// <param name="Date">The day the money was spent.</param>
+/// <param name="Category">The category.</param>
+/// <param name="Description">What it was for.</param>
+/// <param name="Amount">The amount in pesos.</param>
+/// <param name="PaidBy">The payer, with the former-staff flag.</param>
+public sealed record DeletedExpenseRow(
+    Guid Id,
+    DateTimeOffset DeletedAtUtc,
+    ActorRef? DeletedBy,
+    DateOnly Date,
+    ExpenseCategoryRef Category,
+    string Description,
+    decimal Amount,
+    ActorRef PaidBy);
+
+/// <summary>One page of the deleted-expense list.</summary>
+/// <param name="Items">The rows of this page.</param>
+/// <param name="Total">How many deleted expenses match, across all pages.</param>
+public sealed record DeletedExpensePage(IReadOnlyList<DeletedExpenseRow> Items, int Total);
 
 /// <summary>One row of the expense list as the read port returns it. It carries no notes (D-19).</summary>
 /// <param name="Id">The expense id.</param>

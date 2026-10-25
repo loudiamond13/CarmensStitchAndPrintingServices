@@ -295,6 +295,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company-expenses/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the deleted expenses, Managers only, most recently deleted first and then by id. Each row says who deleted it and when.
+         *     The total covers every page of the filter. There is no period total, and notes are never listed or searched.
+         */
+        get: operations["ListDeletedCompanyExpenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/company-expenses/kpis": {
         parameters: {
             query?: never;
@@ -340,6 +360,27 @@ export interface paths {
          *     it acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.
          */
         delete: operations["DeleteCompanyExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by
+         *     is the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no
+         *     version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RestoreCompanyExpense"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1047,6 +1088,56 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
+        DeletedExpenseListItem: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+        };
+        /** @description One page of the deleted list (D-07). There is no period total. */
+        DeletedExpenseListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["DeletedExpenseListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many deleted expenses match, across all pages.
+             */
+            total: number | string;
         };
         /** @description Who did it (D-27). */
         DoneBy: {
@@ -2308,6 +2399,62 @@ export interface operations {
             };
         };
     };
+    ListDeletedCompanyExpenses: {
+        parameters: {
+            query?: {
+                /** @description Search text for the description or the payer's or recorder's name; blank means no search. */
+                q?: string;
+                /** @description A category id; none means all. */
+                category?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedExpenseListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetCompanyExpenseKpis: {
         parameters: {
             query?: never;
@@ -2454,6 +2601,65 @@ export interface operations {
         };
     };
     DeleteCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RestoreCompanyExpense: {
         parameters: {
             query?: never;
             header?: never;
