@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T11:53:00-05:00
+updated: 2026-10-25T13:30:00-05:00
 ---
 
 # The company expenses API
@@ -22,7 +22,7 @@ this page; the web app's types are generated from it (`web/src/types/api.generat
 
 | Area | Base path | Policy |
 |---|---|---|
-| Expense categories | `/api/v1/expense-categories` | Staff |
+| Expense categories | `/api/v1/expense-categories` | Staff to read the list; Manager for everything else |
 | Staff who can pay | `/api/v1/staff` | Staff |
 | Company expenses | `/api/v1/company-expenses` | Staff |
 
@@ -30,17 +30,94 @@ this page; the web app's types are generated from it (`web/src/types/api.generat
 (delete, restore, permanent delete and the deleted list) are **Manager** only: an `Admin` gets `403`. No token is `401`. No
 answer is ever cached (`Cache-Control: no-store`).
 
-## Expense categories (D-08, D-09, D-11, D-13, D-15)
+## Expense categories (D-08 to D-15, D-27, D-30, OQ-4, OQ-6, OQ-10)
 
-| Method and path | Body | Answers |
-|---|---|---|
-| `GET /expense-categories` | none | `200` an array of `{ id, name, tone, status, isOthers }`. |
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /expense-categories` | Staff | none | `200` an array of `{ id, name, tone, status, isOthers, expenseCount }`. |
+| `POST /expense-categories` | Manager | `{ name, tone }` and an `Idempotency-Key` | `201` the new category in the list shape, with a `Location` header; `400` field errors. |
+| `GET /expense-categories/{id}` | Manager | none | `200` the detail (below); `404`. |
+| `PUT /expense-categories/{id}` | Manager | `{ name, tone, version }` | `200` the detail; `400`; `404`; `409 edit.stale`. |
+| `POST /expense-categories/{id}/retire` | Manager | none, with an `Idempotency-Key` | `204`; `404`; `422 expense-categories.protected`. |
+| `POST /expense-categories/{id}/reactivate` | Manager | none, with an `Idempotency-Key` | `204`; `404`. |
+| `DELETE /expense-categories/{id}` | Manager | none | `204`; `404`; `422 expense-categories.in-use` or `expense-categories.protected`. |
 
-- `tone` is one of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. The database accepts no other value.
+Every write is **Manager** only: an `Admin` gets `403`, no token is `401`. Reading the list stays open to both roles.
+
+- `tone` is one of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. The database accepts no other value. There is no
+  free colour.
 - `status` is `active` or `retired`. Retired categories are still listed, so the list filter can find old expenses; the Add
   picker hides them.
-- The order is A to Z by name, then by id, with **Others always last**.
-- `isOthers` is true only for Others, the catch-all that can never be retired.
+- The order is A to Z by name, then by id, with **Others always last**, after every add and rename.
+- `isOthers` is true only for Others, the catch-all that can never be renamed, retired or deleted.
+- `expenseCount` is how many expenses use the category, soft-deleted ones included (D-10). A count of 0 means the category can be
+  deleted.
+
+### The detail
+
+`GET` and `PUT` answer `{ id, name, tone, status, isOthers, expenseCount, recordedBy, recordedAt, lastChangedBy, lastChangedAt,
+version }`. `recordedBy` is `null` for the ten starting categories, which read **System**. `lastChangedBy` and `lastChangedAt` are
+`null` until a change. `version` is the base64 of the eight-byte row version a save must send back.
+
+### The fields and their rules (OQ-10)
+
+| Field | Rule | Message |
+|---|---|---|
+| `name` | Required after trimming | `Enter a category name.` |
+| `name` | At most 40 characters after trimming | `Keep the name to 40 characters or fewer.` |
+| `name` | Unique among **all** categories, retired ones included, ignoring letter case | `Another category already has this name.` |
+| `name` | Others keeps its name | `The Others name can't change.` |
+| `tone` | One of the six | `Choose a badge color.` |
+| `version` | Base64 of exactly eight bytes (`PUT` only) | `Reload the form and try again.` |
+
+The name check is a look-up first and the unique index second, so two Managers saving one name at the same moment get one success
+and one `400` on `name`, never a `500`. Other members in the body, such as `createdById` or `updatedAt`, are ignored: who changed a
+category and when come from the token and the clock.
+
+### Renaming and recoloring (D-12, D-13, SEC-07)
+
+- A rename shows the new name on every expense, past ones included, because expenses point at the category by id.
+- A save with the stored `version` wins; a stale one is `409 edit.stale` and changes nothing. A form save is never retried. Two
+  saves sent together with one version give one `200` and one `409`.
+- A save that changes nothing is a `200` with the same `version`; it writes no audit entry.
+- Others can change colour but not name (`400` on `name`).
+
+### Retiring and bringing back (D-11, OQ-4, OQ-6)
+
+- Retiring keeps the category in the list as `retired`. Old expenses keep it, and editing one without changing its category still
+  works. A new expense in a retired category is refused, and so is changing an expense to it.
+- Retiring a retired category, or bringing back an active one, is a `204` that changes and records nothing.
+- Retire and bring back take no version. They act on the latest state and run again once when two saves collide. Others can never
+  be retired: `422 expense-categories.protected`, "The Others category can't be retired or deleted."
+
+### Deleting (D-10, D-30)
+
+- A category can be deleted only while **no expense row uses it, soft-deleted ones included**. Otherwise `422
+  expense-categories.in-use`, "This category is used by an expense, so it can't be deleted. Retire it instead."
+- Once every expense in the category has been deleted for good (`DELETE /company-expenses/{id}/permanent`), the category can be
+  deleted again. There is no "was used" marker.
+- The foreign key from the expenses to the category is the backstop when an expense is saved in the same moment. Either the delete
+  is refused with the same `422`, or the expense is refused with `400` on `categoryId`, "Choose a category." If the two collide in
+  the database and the delete loses, it reads again and ends with the `422`. No row is ever left pointing at a deleted category,
+  and no database trigger is involved.
+- Deleting Others is `422 expense-categories.protected`. Deleting a category that is gone is `404 expense-categories.not-found`,
+  "This category was deleted."
+
+### The audit entries (D-27)
+
+Every change writes its entries in the same save, with the Manager as the actor, target type `ExpenseCategory` and the category id
+as the target. Names are percent-encoded for `%`, `;`, `=` and `>`.
+
+| Action | Detail |
+|---|---|
+| `expense-category.added` | `name=<name>;tone=<tone>` |
+| `expense-category.renamed` | `name=<old>><new>` |
+| `expense-category.recolored` | `tone=<old>><new>` |
+| `expense-category.retired` | `name=<name>` |
+| `expense-category.reactivated` | `name=<name>` |
+| `expense-category.deleted` | `name=<name>` |
+
+A save that changes both name and tone writes both the renamed and the recolored entry. A no-op writes none.
 
 ## Staff who can pay (CEXP-05, D-32)
 

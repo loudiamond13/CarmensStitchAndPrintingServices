@@ -11,6 +11,8 @@ namespace Csps.Infrastructure.Expenses;
 internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCategories
 {
     private const string NameIndex = "IX_ExpenseCategories_NormalizedName";
+    private const string ExpenseForeignKey = "FK_CompanyExpenses_ExpenseCategories_CategoryId";
+    private const int ReferenceViolation = 547;
     private const int UniqueIndexViolation = 2601;
     private const int UniqueConstraintViolation = 2627;
 
@@ -97,6 +99,12 @@ internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCate
                 row.RowVersion);
     }
 
+    public async Task<int> CountExpensesAsync(Guid id, CancellationToken cancellationToken) =>
+        await context.CompanyExpenses
+            .IgnoreQueryFilters(SoftDeleteFilter)
+            .CountAsync(expense => expense.CategoryId == id, cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<bool> NameTakenAsync(string normalizedName, Guid? excluding, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(normalizedName);
@@ -112,9 +120,17 @@ internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCate
         context.ExpenseCategories.Add(category);
     }
 
+    public void Remove(ExpenseCategory category)
+    {
+        ArgumentNullException.ThrowIfNull(category);
+        context.ExpenseCategories.Remove(category);
+    }
+
     /// <summary>
     /// Turns a failed save into the typed exception the Application understands, or returns null when the failure is not one of
-    /// the category constraints: the unique normalized-name index raises <see cref="CategoryNameTakenException"/>.
+    /// the category constraints: the unique normalized-name index raises <see cref="CategoryNameTakenException"/>, the expenses foreign
+    /// key refusing a delete raises <see cref="CategoryInUseException"/>, and the same key refusing an expense insert or update whose
+    /// category was just deleted raises <see cref="CategoryDeletedException"/>.
     /// </summary>
     /// <param name="error">The failed save.</param>
     /// <returns>The typed exception, or null.</returns>
@@ -127,8 +143,24 @@ internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCate
             return null;
         }
 
-        return sql.Number is UniqueIndexViolation or UniqueConstraintViolation && sql.Message.Contains(NameIndex, StringComparison.Ordinal)
-            ? new CategoryNameTakenException()
+        if (sql.Number is UniqueIndexViolation or UniqueConstraintViolation && sql.Message.Contains(NameIndex, StringComparison.Ordinal))
+        {
+            return new CategoryNameTakenException();
+        }
+
+        if (sql.Number != ReferenceViolation || !sql.Message.Contains(ExpenseForeignKey, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        // The failing entries say which side of the foreign key was refused, whatever language the server speaks.
+        if (error.Entries.Any(static entry => entry is { Entity: ExpenseCategory, State: EntityState.Deleted }))
+        {
+            return new CategoryInUseException();
+        }
+
+        return error.Entries.Any(static entry => entry is { Entity: CompanyExpense, State: EntityState.Added or EntityState.Modified })
+            ? new CategoryDeletedException()
             : null;
     }
 }

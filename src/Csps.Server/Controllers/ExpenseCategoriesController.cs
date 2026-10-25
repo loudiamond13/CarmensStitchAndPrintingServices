@@ -14,12 +14,15 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The add-a-category handler (Managers only).</param>
 /// <param name="get">The single-category read handler (Managers only).</param>
 /// <param name="update">The rename-and-recolor handler (Managers only).</param>
+/// <param name="retire">The retire handler (Managers only).</param>
+/// <param name="reactivate">The bring-back handler (Managers only).</param>
+/// <param name="delete">The delete handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/expense-categories")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler list, CreateExpenseCategoryHandler create, GetExpenseCategoryHandler get, UpdateExpenseCategoryHandler update) : ControllerBase
+public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler list, CreateExpenseCategoryHandler create, GetExpenseCategoryHandler get, UpdateExpenseCategoryHandler update, RetireExpenseCategoryHandler retire, ReactivateExpenseCategoryHandler reactivate, DeleteExpenseCategoryHandler delete) : ControllerBase
 {
     /// <summary>
     /// Lists every category, retired ones included with status <c>retired</c>, A to Z with Others always last, then by id. Each item
@@ -105,5 +108,73 @@ public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler lis
     {
         var result = await update.HandleAsync(id, body ?? UpdateExpenseCategoryRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static saved => TypedResults.Ok(saved));
+    }
+
+    /// <summary>
+    /// Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,
+    /// marked <c>retired</c>, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that
+    /// changes and records nothing. It takes no version, and a retry with the same <c>Idempotency-Key</c> answers with the stored 204.
+    /// </summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the category does not exist, 422 for Others, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/retire")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("RetireExpenseCategory")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Retire(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await retire.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Brings a retired category back, Managers only: it can be chosen on a new expense again. Bringing back an active category is a
+    /// 204 that changes and records nothing. It takes no version, and a retry with the same <c>Idempotency-Key</c> answers with the
+    /// stored 204.
+    /// </summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the category does not exist, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/reactivate")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("ReactivateExpenseCategory")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Reactivate(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await reactivate.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Deletes a category, Managers only, while no expense uses it. An expense uses it when a row exists, soft-deleted ones included;
+    /// once every expense in it is deleted for good it can be deleted again. A used category answers 422
+    /// <c>expense-categories.in-use</c> and should be retired instead. Others can never be deleted. It takes no version.
+    /// </summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the category does not exist, 422 for Others or a used category, or 409 when two saves lost a race.</returns>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("DeleteExpenseCategory")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await delete.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

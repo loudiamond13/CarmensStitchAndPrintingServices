@@ -29,6 +29,12 @@ public interface IExpenseCategories
     /// <returns>The detail, or null when no such category exists.</returns>
     Task<ExpenseCategoryDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Counts the expenses that use a category, soft-deleted ones included (D-10, D-30).</summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>How many expense rows point at the category.</returns>
+    Task<int> CountExpensesAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Tells whether a category already holds a name, retired ones included (OQ-10).</summary>
     /// <param name="normalizedName">The name as <see cref="ExpenseCategory.Normalize"/> makes it.</param>
     /// <param name="excluding">A category to leave out, so a rename can keep its own name; none when null.</param>
@@ -42,6 +48,13 @@ public interface IExpenseCategories
     /// </summary>
     /// <param name="category">The new category.</param>
     void Add(ExpenseCategory category);
+
+    /// <summary>
+    /// Marks a tracked category for removal. The save that follows throws <see cref="CategoryInUseException"/> when an expense
+    /// started using the category after the caller counted (the foreign key is the backstop).
+    /// </summary>
+    /// <param name="category">The category to remove.</param>
+    void Remove(ExpenseCategory category);
 }
 
 /// <summary>One category's id, name and retired flag.</summary>

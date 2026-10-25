@@ -55,6 +55,35 @@ public sealed class ExpenseCategoryStoreTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task AnExpenseSavedInACategoryThatWasJustDeletedThrowsDeletedAndDetachesTheRow()
+    {
+        var payer = await NewUserAsync();
+        var category = await SaveCategoryAsync($"Gone {Guid.NewGuid():N}"[..20]);
+        await DeleteCategoryAsync(category.Id);
+        await using var context = database.CreateContext();
+        context.CompanyExpenses.Add(CompanyExpense.Create(Day, category.Id, "Detergent", 120.00m, payer, null, Day, Now).Value);
+
+        await Should.ThrowAsync<CategoryDeletedException>(() => new CspsUnitOfWork(context).SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        context.ChangeTracker.Entries().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnExpenseMovedToACategoryThatWasJustDeletedThrowsDeleted()
+    {
+        var payer = await NewUserAsync();
+        var home = await SaveCategoryAsync($"Home {Guid.NewGuid():N}"[..20]);
+        var target = await SaveCategoryAsync($"Away {Guid.NewGuid():N}"[..20]);
+        await AddExpenseAsync(home.Id, payer, deleted: false);
+        await using var context = database.CreateContext();
+        var expense = await context.CompanyExpenses.SingleAsync(row => row.CategoryId == home.Id, TestContext.Current.CancellationToken);
+        await DeleteCategoryAsync(target.Id);
+        expense.Update(Day, target.Id, expense.Description, expense.Amount, payer, null, Day).IsSuccess.ShouldBeTrue();
+
+        await Should.ThrowAsync<CategoryDeletedException>(() => new CspsUnitOfWork(context).SaveChangesAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task ACategoryNoExpenseUsesIsRemoved()
     {
         var category = await SaveCategoryAsync($"Free {Guid.NewGuid():N}"[..20]);
@@ -124,6 +153,13 @@ public sealed class ExpenseCategoryStoreTests(CspsDatabase database) : IClassFix
         context.ExpenseCategories.Add(category);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         return category;
+    }
+
+    private async Task DeleteCategoryAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        context.ExpenseCategories.Remove(await context.ExpenseCategories.SingleAsync(row => row.Id == id, TestContext.Current.CancellationToken));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task AddExpenseAsync(Guid categoryId, Guid payer, bool deleted)

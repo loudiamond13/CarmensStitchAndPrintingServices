@@ -77,6 +77,12 @@ public sealed class UpdateCompanyExpenseHandler(
         {
             return Result.Failure<CompanyExpenseDetailResponse>(EditErrors.Stale);
         }
+        catch (CategoryDeletedException)
+        {
+            // A Manager deleted the new category between the check and the save: answer it like an unknown category.
+            var gone = new ValidationResult([new ValidationFailure(nameof(UpdateCompanyExpenseRequest.CategoryId), ExpenseRules.CategoryRequired)]);
+            return Result.Failure<CompanyExpenseDetailResponse>(ValidationResults.ToError(gone, ExpenseErrors.ValidationCode, ExpenseErrors.ValidationMessage));
+        }
 
         var view = await reader.GetDetailAsync(id, cancellationToken).ConfigureAwait(false);
         return view is null

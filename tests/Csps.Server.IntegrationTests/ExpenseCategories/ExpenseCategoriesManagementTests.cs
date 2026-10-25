@@ -601,7 +601,8 @@ public sealed class ExpenseCategoriesManagementTests(CspsDatabase database) : IC
         }
 
         (await StatusOfAsync(client, manager.AccessToken, othersId)).ShouldBe("active");
-        (await ExpenseCategoryFixtures.AuditCountAsync(database, othersId)).ShouldBe(0);
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, othersId, "expense-category.retired")).ShouldBe(0);
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, othersId, "expense-category.deleted")).ShouldBe(0);
     }
 
     [Fact]
@@ -743,7 +744,7 @@ public sealed class ExpenseCategoriesManagementTests(CspsDatabase database) : IC
         var m2 = await TestSessions.StartAsync(factory, Roles.Manager);
         var today = await ExpenseFixtures.TodayAsync(factory);
 
-        for (var round = 1; round <= 5; round++)
+        for (var round = 1; round <= 8; round++)
         {
             var created = await ExpenseCategoryFixtures.CreateAsync(client, m1.AccessToken, ExpenseCategoryFixtures.UniqueName($"Orphan{round}"), "info");
             var id = created.GetProperty("id").GetGuid();
@@ -754,7 +755,8 @@ public sealed class ExpenseCategoriesManagementTests(CspsDatabase database) : IC
             using var deleteResponse = deleted;
             using var addResponse = added;
 
-            new[] { HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity }.ShouldContain(deleteResponse.StatusCode, $"round {round}");
+            new[] { HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity }.ShouldContain(deleteResponse.StatusCode, $"round {round}: expense {addResponse.StatusCode}");
+            new[] { HttpStatusCode.Created, HttpStatusCode.BadRequest }.ShouldContain(addResponse.StatusCode, $"round {round}: delete {deleteResponse.StatusCode}");
             (deleteResponse.StatusCode == HttpStatusCode.NoContent && addResponse.StatusCode == HttpStatusCode.Created)
                 .ShouldBeFalse($"round {round}: the delete and the expense both won");
             await using var context = database.CreateContext();

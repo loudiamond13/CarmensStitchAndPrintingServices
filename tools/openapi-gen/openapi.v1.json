@@ -3898,6 +3898,83 @@
       }
     },
     "/api/v1/expense-categories/{id}": {
+      "delete": {
+        "operationId": "DeleteExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a category, Managers only, while no expense uses it. An expense uses it when a row exists, soft-deleted ones included;\nonce every expense in it is deleted for good it can be deleted again. A used category answers 422\n`expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no version.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
       "get": {
         "operationId": "GetExpenseCategory",
         "parameters": [
@@ -4077,6 +4154,154 @@
           }
         },
         "summary": "Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every\nexpense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change\ncolour. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried.\nA form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such\nmember in the body is ignored.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}/reactivate": {
+      "post": {
+        "operationId": "ReactivateExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Brings a retired category back, Managers only: it can be chosen on a new expense again. Bringing back an active category is a\n204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the\nstored 204.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}/retire": {
+      "post": {
+        "operationId": "RetireExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,\nmarked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "ExpenseCategories"
         ]

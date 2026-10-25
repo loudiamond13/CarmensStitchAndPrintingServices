@@ -67,19 +67,28 @@ public sealed class CreateCompanyExpenseHandler(
         }
 
         var expense = created.Value;
-        await unitOfWork.InTransactionAsync(
-            async token =>
-            {
-                expenses.Add(expense);
-                audit.Record(
-                    AuditActions.CompanyExpenseAdded,
-                    ExpenseTarget,
-                    AuditKey.Of(expense.Id),
-                    ExpenseAuditDetail.Snapshot(expense.ExpenseDate, expense.CategoryId, expense.Amount, expense.PaidByUserId));
-                await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                return expense.Id;
-            },
-            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await unitOfWork.InTransactionAsync(
+                async token =>
+                {
+                    expenses.Add(expense);
+                    audit.Record(
+                        AuditActions.CompanyExpenseAdded,
+                        ExpenseTarget,
+                        AuditKey.Of(expense.Id),
+                        ExpenseAuditDetail.Snapshot(expense.ExpenseDate, expense.CategoryId, expense.Amount, expense.PaidByUserId));
+                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                    return expense.Id;
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (CategoryDeletedException)
+        {
+            // A Manager deleted the category between the check above and the save: answer it like an unknown category.
+            var gone = new ValidationResult([new ValidationFailure(nameof(CreateCompanyExpenseRequest.CategoryId), ExpenseRules.CategoryRequired)]);
+            return Result.Failure<CompanyExpenseDetailResponse>(ValidationResults.ToError(gone, ExpenseErrors.ValidationCode, ExpenseErrors.ValidationMessage));
+        }
 
         var view = await reader.GetDetailAsync(expense.Id, cancellationToken).ConfigureAwait(false);
         if (view is null)

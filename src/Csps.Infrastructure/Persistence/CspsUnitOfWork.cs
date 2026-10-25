@@ -1,6 +1,7 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Expenses;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -10,6 +11,8 @@ namespace Csps.Infrastructure.Persistence;
 /// <param name="context">The scoped database context.</param>
 internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
 {
+    private const int DeadlockVictim = 1205;
+
     private int _savepoints;
 
     /// <inheritdoc />
@@ -30,13 +33,20 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
             // A category constraint (unique name, or an expense still using the category) becomes a typed error the handler maps.
             // The failed row leaves the context, or the next save on this request would try it again.
             var translated = ExpenseCategoryStore.TranslateSaveFailure(exception);
-            if (translated is null)
+            if (translated is null && !IsDeadlockVictim(exception))
             {
                 throw;
             }
 
             context.ChangeTracker.Clear();
-            throw translated;
+            throw translated ?? new ConcurrencyConflictException(exception);
+        }
+        catch (InvalidOperationException exception) when (IsDeadlockVictim(exception))
+        {
+            // EF wraps a deadlock victim, which SQL Server calls transient, in an InvalidOperationException. It is a lost race: the
+            // server already rolled the transaction back, so the caller may read the rows again and decide afresh.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(exception);
         }
     }
 
@@ -79,5 +89,18 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
 
         await outer.ReleaseSavepointAsync(savepoint, cancellationToken).ConfigureAwait(false);
         return result;
+    }
+
+    private static bool IsDeadlockVictim(Exception error)
+    {
+        for (var current = error; current is not null; current = current.InnerException)
+        {
+            if (current is SqlException { Number: DeadlockVictim })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

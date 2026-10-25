@@ -27,6 +27,9 @@ public static class ExpensesApplicationRegistration
         services.AddScoped<CreateExpenseCategoryHandler>();
         services.AddScoped<GetExpenseCategoryHandler>();
         services.AddScoped<UpdateExpenseCategoryHandler>();
+        services.AddScoped<RetireExpenseCategoryHandler>();
+        services.AddScoped<ReactivateExpenseCategoryHandler>();
+        services.AddScoped<DeleteExpenseCategoryHandler>();
         services.AddScoped<ListStaffHandler>();
         services.AddScoped<CreateCompanyExpenseHandler>();
         services.AddScoped<UpdateCompanyExpenseHandler>();

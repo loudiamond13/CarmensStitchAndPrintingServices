@@ -66,6 +66,20 @@ public sealed class CreateCompanyExpenseHandlerTests
     }
 
     [Fact]
+    public async Task ACategoryDeletedBetweenTheCheckAndTheSaveIsRefusedLikeAnUnknownOne()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new CategoryDeletedException());
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        OnlyField(result, "categoryId", "Choose a category.");
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task AnUnknownPayerIsRefusedOnThePayerField()
     {
         var harness = new Harness();

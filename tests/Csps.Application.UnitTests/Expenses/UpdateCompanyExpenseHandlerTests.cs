@@ -217,6 +217,21 @@ public sealed class UpdateCompanyExpenseHandlerTests
     }
 
     [Fact]
+    public async Task ACategoryDeletedBetweenTheCheckAndTheSaveIsRefusedLikeAnUnknownOne()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new CategoryDeletedException());
+
+        var result = await harness.Handler.HandleAsync(harness.Expense.Id, Valid() with { Amount = 5m }, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["categoryId"]);
+        result.Error.FieldErrors["categoryId"].ShouldBe(["Choose a category."]);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task AnExpenseTheReaderCannotFindAfterTheSaveIsA404()
     {
         var harness = new Harness();
