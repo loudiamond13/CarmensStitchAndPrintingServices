@@ -1,6 +1,6 @@
 // The single `@/components` import surface (WEB-06, WEB-02, PRD §9.2; UI-SPEC "Component Inventory"). Feature code imports
 // every primitive from here and never re-implements one: the 37 App. D.3 components with their D.3 props API, the
-// App. D.3 constants and hook (STATUS_TONE, PAYMENT_TONE, EXPENSE_TONE, SITE_LINKS, ADMIN_NAV, useToast) and the
+// App. D.3 constants and hook (STATUS_TONE, PAYMENT_TONE, SITE_LINKS, ADMIN_NAV, useToast; the category tones replace the fixed expense tone table, D-13) and the
 // Phase 2 SPEC-GAP primitives. Each area barrel is re-exported whole, in alphabetical order; a name two areas both
 // exported would be a type error here. src/components/index.test.ts pins the list.
 export * from './actions';

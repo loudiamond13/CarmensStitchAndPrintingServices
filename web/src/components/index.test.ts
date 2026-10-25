@@ -102,8 +102,7 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     expect(exports.CATEGORY_TONES).toEqual(['neutral', 'accent', 'info', 'mockup', 'warning', 'success']);
     expect(exports.CATEGORY_TONE_LABEL).toBeTypeOf('object');
     expect(typeof exports.isCategoryTone).toBe('function');
-    expect(exports.EXPENSE_TONE).toBeUndefined();
-    expect(exports.EXPENSE_CATEGORIES).toBeUndefined();
+    expect(Object.keys(exports).filter((name) => name.startsWith('EXPENSE_'))).toEqual([]);
     // D-16: the order expense categories stay.
     expect(exports.ORDER_EXPENSE_CATEGORIES).toBeInstanceOf(Array);
   });

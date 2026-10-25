@@ -14,7 +14,6 @@ export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'compl
 export type ProductType =
   'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank Transfer';
-export type ExpenseCategory = 'Rent' | 'Utilities' | 'Salaries' | 'Supplies' | 'Equipment' | 'Maintenance' | 'Others';
 export type OrderExpenseCategory = 'Fabric' | 'Ink & paper' | 'Outsourcing' | 'Labor' | 'Delivery' | 'Others';
 export type DiscountType = 'fixed' | 'percentage';
 export type Role = 'admin' | 'manager';
@@ -77,14 +76,6 @@ export interface Order {
   discounts?: Discount[];
   expenses?: OrderExpense[];
 }
-export interface CompanyExpense {
-  id: string;
-  date: string;
-  category: ExpenseCategory;
-  description: string;
-  amount: number;
-  recordedBy: string;
-}
 export interface User {
   id: string;
   firstName: string;
@@ -126,15 +117,6 @@ export const PRODUCT_TYPES: ProductType[] = [
   'Custom Design',
 ];
 export const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Rent',
-  'Utilities',
-  'Salaries',
-  'Supplies',
-  'Equipment',
-  'Maintenance',
-  'Others',
-];
 export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = [
   'Fabric',
   'Ink & paper',

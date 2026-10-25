@@ -148,7 +148,6 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
   it.each([
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
-    ['/admin/expenses', 'Company Expenses'],
     ['/admin/orders/', 'Orders'],
   ])('%s shows the h1 "%s", makes it the only current sidebar item and titles the document', async (path, label) => {
     await renderAt(path);
@@ -460,11 +459,31 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
   it.each([
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
-    ['/admin/expenses', 'Expenses'],
   ])('on %s marks %s current, in bold (D-03), and only it', async (path, label) => {
     await renderAt(path);
     const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
     expect(current.map((link) => link.textContent)).toEqual([label]);
+    expect(current[0]?.className.split(' ')).toEqual(
+      expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
+    );
+  });
+
+  // Company Expenses is a real, guarded page since plan 06-04, so the frame is rendered on its own for that section.
+  it('marks Expenses current, in bold (D-03), and only it, on the expenses section (a real page since plan 06-04)', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="expenses" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
+    expect(current.map((link) => link.textContent)).toEqual(['Expenses']);
     expect(current[0]?.className.split(' ')).toEqual(
       expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
     );
@@ -497,9 +516,9 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
 
   it('takes the visitor to the section of a tab', async () => {
     const { router } = await renderAt('/admin');
-    await userEvent.click(within(tabBar()).getByRole('link', { name: 'Expenses' }));
-    await screen.findByRole('heading', { level: 1, name: 'Company Expenses' });
-    expect(router.state.location.pathname).toBe('/admin/expenses');
+    await userEvent.click(within(tabBar()).getByRole('link', { name: 'Orders' }));
+    await screen.findByRole('heading', { level: 1, name: 'Orders' });
+    expect(router.state.location.pathname).toBe('/admin/orders');
   });
 });
 
@@ -562,10 +581,10 @@ describe('AdminLayout re-render (React Compiler memo cache)', () => {
     });
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Orders');
     await act(async () => {
-      await router.navigate('/admin/expenses');
+      await router.navigate('/admin');
     });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
-    expect(sidebarLink('Company Expenses')).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(sidebarLink('Dashboard')).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -616,10 +635,10 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     await userEvent.click(openNavigation());
 
     await userEvent.click(
-      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('link', { name: 'Company Expenses' }),
+      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('link', { name: 'Orders' }),
     );
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
     expect(document.activeElement).toBe(openNavigation());

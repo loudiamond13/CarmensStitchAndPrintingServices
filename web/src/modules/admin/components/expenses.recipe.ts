@@ -21,3 +21,10 @@ export const expensesWrapClasses = tw('min-w-0 wrap-anywhere');
 
 /** `.s-cap`: the 12px muted caption under the table. */
 export const expensesCaptionClasses = tw('text-[12px] leading-4 text-ink-muted');
+
+/**
+ * A category name up to 40 characters long wraps inside the badge instead of widening its cell: the badge grows in height
+ * past its one-line 24px (UI-SPEC UI Considerations, long-text). The important marks beat the badge recipe's own height
+ * and no-wrap utilities, which cannot be told apart by order.
+ */
+export const categoryBadgeClasses = tw('h-auto! min-h-6 max-w-full py-0.5 text-left wrap-anywhere whitespace-normal!');

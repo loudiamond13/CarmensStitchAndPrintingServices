@@ -26,6 +26,7 @@ import {
   expensesDateClasses,
   expensesWrapClasses,
 } from '@/modules/admin/components/expenses.recipe';
+import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
@@ -76,7 +77,7 @@ function columnsFor(today: string): readonly ResponsiveTableColumn<ExpenseListIt
         </span>
       ),
     },
-    { key: 'category', header: COPY.columns.category, cell: (item) => item.category.name },
+    { key: 'category', header: COPY.columns.category, cell: (item) => <CategoryBadge category={item.category} /> },
     {
       key: 'description',
       header: COPY.columns.description,
@@ -153,6 +154,9 @@ export function ExpensesRoute() {
         }}
         // SPEC-DEVIATION: OQ-13 the footer's phone label reads "Total": the figure covers every page, not the rows shown.
         footer={footer}
+        emptyIcon="receipt"
+        emptyTitle={COPY.empty.title}
+        emptyMessage={from !== null && to !== null ? COPY.empty.message(from, to) : undefined}
         footerLayout={{ date: { span: 3 }, amount: { label: COPY.footer.totalLabel } }}
       />
       {hasRows && <p className={expensesCaptionClasses}>{COPY.caption}</p>}

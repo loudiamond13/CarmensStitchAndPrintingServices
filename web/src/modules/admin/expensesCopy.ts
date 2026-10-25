@@ -30,6 +30,12 @@ export const EXPENSES_COPY = {
     summary: (count: number, thing: string, things: string, from: string, to: string): string =>
       `${String(count)} ${count === 1 ? thing : things} · ${from} to ${to}`,
   },
+  // SPEC-DEVIATION: OQ-13 the first-use message names the window the server used. Its Add Expense action arrives with plan 06-12.
+  empty: {
+    title: 'No expenses recorded',
+    message: (from: string, to: string): string =>
+      `Nothing is recorded from ${from} to ${to}. Log rent, bills, payroll and supplies here to see monthly totals and where the money goes.`,
+  },
   // SPEC-GAP: the caption under the table.
   caption: 'The total covers every page of this list for the filters above. Deleted expenses never count.',
 } as const;
