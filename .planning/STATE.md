@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-10-25T11:42:01.445Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-10-25T12:04:32.412Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 8b4c51085e036508ed8043a0b102e3a5d5db597a
+state_head: fe7dcf52681aebda09c02d8d4fb76a175140f229
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 166
+  completed_plans: 167
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T06:55:00-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 1 of 19
-Status: Executing Phase 06
+Plan: 2 of 19
+Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -223,6 +223,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 05 P50 | 15 min | 2 tasks | 7 files |
 | Phase 05 P52 | 5 min | 2 tasks | 2 files |
 | Phase 05 P51 | 45 min | 3 tasks | 6 files |
+| Phase 06 P01 | 20 min | 3 tasks | 41 files |
 
 ## Accumulated Context
 
@@ -582,6 +583,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
 - [Phase 05]: D-51 (owner, 2026-10-19): row actions sit 8 px apart with a full 44 x 44 px tap area each; the top bar user menu gets a 44 px tall tap area; WR-20 tap areas are recorded in the look-equality rulings
 - [Phase 06]: D-30 to D-33 (owner, 2026-10-25, after research): a category is deletable again once its expenses are all permanently deleted; soft delete and restore update "Last changed by"; Paid by must be signed-in staff (invited people who have not finished set-up can't be chosen); the database checks only Amount > 0, the ₱1,000,000.00 cap lives in validators. Full text in 06-CONTEXT.md.
+- [Phase 06]: 06-01: A-06-01 built as option 2 (D-32 literally: has a password); the set-up check lives only in StaffDirectory.cs, pinned by StaffLookupEndpointTests; owner choice parked in the Owner backlog
 
 ### Pending Todos
 
@@ -652,6 +654,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T07:47:52.466Z
-Stopped at: Phase 6 UI-SPEC approved
-Resume file: .planning/phases/06-company-expenses/06-UI-SPEC.md
+Last session: 2026-10-25T12:04:22.770Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None
