@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T07:54:31-05:00
+updated: 2026-10-25T09:15:00-05:00
 ---
 
 # The company expenses API
@@ -162,6 +162,31 @@ Both roles get every expense (D-25). Nothing is cached.
 - `canEdit` follows the same rule as the detail and the save (D-26): true for a Manager on every row, true for an Admin only on
   rows they recorded or pay.
 - The server reads the list in exactly two SQL commands whatever the page size (PERF-04).
+
+## Month KPIs (CEXP-03, D-24, D-25)
+
+| Method and path | Body | Answers |
+|---|---|---|
+| `GET /company-expenses/kpis` | none; no query parameters | `200` the figures, `401` without a token. |
+
+Both roles get the same figures. Nothing is cached. The list filters (`q`, `category`, `from`, `to`) do not apply: the cards always
+show whole months.
+
+### The answer
+
+`{ today, thisMonth { month, total, count }, lastMonth { month, total, count }, topCategory { category { id, name, tone, retired }, total, sharePercent } | null }`
+
+- `month` is the first day of the month as `yyyy-MM-01`. `today` is the business today.
+- **Months follow the business zone (Asia/Manila by default), never the server's or the device's clock.** "This month" is the
+  month that holds the business today. At 07:00 in Manila on 1 November (23:00 UTC on 31 October) this month is already
+  November; at 23:59:59 in Manila on 31 October it is still October. Last month is the full month before it.
+- **Expenses count by their expense date (D-24).** An upcoming expense dated later this month counts in this month. One dated
+  next month counts nowhere. A deleted expense never counts (D-01).
+- `total` is the sum of the month's amounts, worked out in the database; it is `0.00` with `count` `0` for an empty month.
+- **Top category:** the category with the highest total this month. If two categories tie, the one whose name comes first A to Z
+  wins. `sharePercent` is its total divided by this month's total times 100, rounded to a whole percent with
+  half away from zero (12.5 becomes 13). With no expense this month `topCategory` is `null`.
+- The server reads the figures in two SQL commands: both months together, then this month by category.
 
 ## Testing builds only
 
