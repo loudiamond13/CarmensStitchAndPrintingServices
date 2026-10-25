@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-19T19:40:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-25T02:28:52-05:00*
 
 ## What This Is
 
@@ -170,10 +170,10 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-2 | Business time zone | Asia/Manila | Phase 1 |
 | OD-3 | Order statuses & allowed transitions | Pending → Mockup → In Production → Ready → Completed, plus Cancelled. Transitions aren't defined | Orders phase |
 | OD-4 | Overpayments allowed? | **Ruled by the owner, 2026-10-13: no.** The system never accepts an overpayment: the server refuses a payment above the remaining balance with a plain-English error, and the payment form warns while the amount is typed that it exceeds the balance. Default reading (confirm at the Orders discuss step, C-38): the same rule blocks any other change (removing an item, lowering a quantity, adding or raising a discount) that would leave the balance below zero. Open: how legacy orders that are already overpaid are imported and shown | Orders phase |
-| OD-5 | Delete semantics (hard vs soft) for orders and company expenses | The UI spec says "permanently deleted… can't be undone" with type-to-confirm. The PRD recommends soft delete with a Manager purge | Orders phase |
+| OD-5 | Delete semantics (hard vs soft) for orders and company expenses | The UI spec says "permanently deleted… can't be undone" with type-to-confirm. The PRD recommends soft delete with a Manager purge. **Company expenses ruled (owner, 2026-10-25; 06 D-01 to D-07):** soft delete, Managers only; Managers restore from a Manager-only Deleted view and may also delete permanently from the list or that view; both use a plain Yes/Cancel confirm; a permanent delete's audit entry keeps date, category, amount and payer. Orders are still open | Orders phase (orders) |
+| OD-8 | Expense categories: fixed or Manager-editable | Fixed lists in the UI spec. **Company expenses ruled (owner, 2026-10-25; 06 D-08 to D-15, also closes C-43):** a Manager-editable list on a Manager-only Settings page; it starts with Rent, Utilities, Salaries, Supplies, Equipment, Maintenance, Government contributions (SSS, PhilHealth, Pag-IBIG), Taxes and permits, Transport and fuel, Others; used categories are retired, never deleted. The order expense list is still open | Phase 7 (order expenses) |
 | OD-6 | Can Admins delete orders? | Yes (PRD and UI spec agree) | Orders phase |
 | OD-7 | Reusable `Customer` entity vs customer fields on each order | The UI spec puts the fields on the order. The PRD recommends a reusable entity. Decide before the Orders phase | Orders phase |
-| OD-8 | Expense categories: fixed or Manager-editable | Fixed lists in the UI spec | Company expenses phase |
 | OD-9 | Order image delivery: public or authenticated Cloudinary | PRD recommends authenticated | Order images phase |
 | OD-10 | Retention: orders and financial records, analytics (13 mo), audit log (2 yr) | — | Consent/analytics + hardening |
 | OD-11 | Legal jurisdiction and reviewer | The Philippines is likely, under the Data Privacy Act of 2012 (RA 10173) | Legal pages phase |
@@ -185,7 +185,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-17 | Can a money transfer be edited? | Not covered. Default: no edit; delete and re-create | Phase 10 |
 | OD-18 | Money-transfer delete: soft or hard | Not covered. Recommended: soft, so history stays and past balances stay explainable. A hard delete changes past balances, and its audit copy is purged after 8 months (D-32) | Phase 10 |
 | OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP) | Phase 8 |
-| OD-21 | Can an expense (company or order) be paid by the company, e.g. from the business bank or GCash account, instead of a staff member? | Not covered (owner addition, 2026-10-07). Default: no; Paid by must name an active Admin or Manager, matching the payment's Received by (ORD-22). A "yes" adds a company payer that holds no staff balance, and raises the same question for payments received into a company account | Phase 6 (company expenses), Phase 7 (order expenses) |
+| OD-21 | Can an expense (company or order) be paid by the company, e.g. from the business bank or GCash account, instead of a staff member? | Not covered (owner addition, 2026-10-07). Default: no; Paid by must name an active Admin or Manager, matching the payment's Received by (ORD-22). A "yes" adds a company payer that holds no staff balance, and raises the same question for payments received into a company account. **Ruled (owner, 2026-10-25; 06 D-17): no.** Paid by is always an active Admin or Manager; Phase 7 applies the same rule to order expenses | ✓ Owner decided (2026-10-25) |
 
 ## PRD ↔ UI-Spec Conflicts (found at initialization; the owner rules at the relevant phase)
 
