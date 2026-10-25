@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-13-PLAN.md
-last_updated: "2026-10-25T19:01:58.634Z"
+stopped_at: Completed 06-14-PLAN.md
+last_updated: "2026-10-25T19:50:58.585Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 6da9640bf4c07453cc64ea4acd4e25e36b129912
+state_head: 4bcfa67bf2a72f3204538b1d45ca4b2e06ad6fd4
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 179
+  completed_plans: 180
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 14 of 19 (06-01 to 06-13 are done; next is 06-14)
+Plan: 15 of 19 (06-01 to 06-14 are done; next is 06-15)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -236,6 +236,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P10 | 40 min | 3 tasks | 26 files |
 | Phase 06 P12 | 37 min | 3 tasks | 21 files |
 | Phase 06 P13 | 68 min | 3 tasks | 48 files |
+| Phase 06 P14 | 43 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -627,6 +628,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-12: a save invalidates expensesKey, expenseKpisKey and expensesDeletedKey; the toast adds the outside-filters note by comparing the saved row with the URL search, category and dates
 - [Phase 06]: 06-13: category race backstops (unique name, expense foreign key, deadlock victim) are translated in CspsUnitOfWork; the foreign key side is read from the failing EF entries
 - [Phase 06]: 06-13: an expense saved in a category deleted a moment earlier is a 400 on categoryId, Choose a category.
+- [Phase 06]: 06-14: the Edit and View modals read the expense on a query root of their own (company-expense, id) with no cache and no refetch on focus; the form keeps the row version of its first answer, so a refetch never changes what a save sends (SEC-07).
+- [Phase 06]: 06-14: row actions follow the server's canEdit alone (pencil Edit when true, eye View when false); View keeps the UI-SPEC footer Close beside the dialog's header Close icon, and its scrolling body is a named focusable region.
 
 ### Pending Todos
 
@@ -700,6 +703,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T19:01:57.747Z
-Stopped at: Completed 06-13-PLAN.md
+Last session: 2026-10-25T19:50:57.701Z
+Stopped at: Completed 06-14-PLAN.md
 Resume file: None
