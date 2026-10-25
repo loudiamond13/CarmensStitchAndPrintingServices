@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-16-PLAN.md
-last_updated: "2026-10-25T21:45:43.789Z"
+stopped_at: Completed 06-17-PLAN.md
+last_updated: "2026-10-25T22:32:09.537Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 5cf7c92bb9add41ab7b1b9154d8b2a69dee7acef
+state_head: 666f96bd39593d13092eb908730a6362e571aa4b
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 182
+  completed_plans: 183
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 17 of 19 (06-01 to 06-16 are done; next is 06-17)
+Plan: 18 of 19 (06-01 to 06-17 are done; next is 06-18)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -239,6 +239,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P14 | 43 min | 3 tasks | 16 files |
 | Phase 06 P15 | 50 min | 3 tasks | 20 files |
 | Phase 06 P16 | 61 min | 3 tasks | 27 files |
+| Phase 06 P17 | 41 min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -637,6 +638,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-16: Delete, Delete permanently and Restore act on the latest state (no row version); only Restore sends an Idempotency-Key, kept through a retry by useExpenseAction and replaced for the next action
 - [Phase 06]: 06-16: Admins get no Deleted Expenses link or delete action, the /admin/expenses/deleted loader redirects them to /admin/expenses (requireManagerLoader fallback path), and a 403 there shows the P2 access banner
 - [Phase 06]: 06-16: OQ-1, OQ-2, OQ-5 and OQ-12 were built with their contract defaults (eraser third icon, separate Deleted Expenses page, Restore with no confirm, five icons added); owner rulings still pending
+- [Phase 06]: 06-17: Retire and Use again flip the status in the cached list at once, then the lists read again; the flipped action keeps (or regains) focus
+- [Phase 06]: 06-17: Delete is offered for a non-Others category with expenseCount 0; a 422 expense-categories.in-use keeps the dialog open with the contract refusal and refetches, a 404 shows the shared mapper line (no new wording invented)
+- [Phase 06]: 06-17: every category change refreshes through useRefreshCategories (categories, expenses, KPIs, deleted list); the category detail is read fresh under its own query root so a refresh never replaces an open form's version
 
 ### Pending Todos
 
@@ -710,6 +714,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T21:45:42.906Z
-Stopped at: Completed 06-16-PLAN.md
+Last session: 2026-10-25T22:32:08.658Z
+Stopped at: Completed 06-17-PLAN.md
 Resume file: None
