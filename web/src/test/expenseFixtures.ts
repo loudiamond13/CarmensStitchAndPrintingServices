@@ -263,3 +263,59 @@ export function createExpenseBackend(
   );
   return calls;
 }
+
+/** What the fake API answers for one detail read: the expense, or a ready-made response. */
+export type DetailResponder = (
+  id: string,
+) => ExpenseDetailFixture | Response | Promise<ExpenseDetailFixture | Response>;
+
+/** Answers GET /api/v1/company-expenses/{id} and records each id read. A later call overrides an earlier one. */
+export function expenseDetailBackend(answer: ExpenseDetailFixture | DetailResponder = expenseDetail()): {
+  ids: string[];
+} {
+  const ids: string[] = [];
+  server.use(
+    http.get('*/api/v1/company-expenses/:id', async ({ params }) => {
+      const id = String(params['id']);
+      // The month figures share the prefix; let their own handler answer.
+      if (id === 'kpis') {
+        return undefined;
+      }
+      ids.push(id);
+      const body = typeof answer === 'function' ? await answer(id) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { ids };
+}
+
+/** What the fake API received for one edit. */
+export interface UpdateCalls {
+  ids: string[];
+  bodies: unknown[];
+  keys: (string | null)[];
+}
+
+/** Answers PUT /api/v1/company-expenses/{id} (default: 200 with `expenseDetail()`) and records each id, body and Idempotency-Key. */
+export function updateExpenseBackend(
+  reply: () => Response | Promise<Response> = () => HttpResponse.json(expenseDetail()),
+): UpdateCalls {
+  const calls: UpdateCalls = { ids: [], bodies: [], keys: [] };
+  server.use(
+    http.put('*/api/v1/company-expenses/:id', async ({ params, request }) => {
+      calls.ids.push(String(params['id']));
+      calls.bodies.push(await request.json());
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply();
+    }),
+  );
+  return calls;
+}
+
+/** A problem+json answer with a status and a machine code. */
+export function codedProblemResponse(status: number, code: string): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}

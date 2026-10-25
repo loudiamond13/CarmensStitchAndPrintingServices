@@ -7,13 +7,16 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   categoriesBackend,
+  CARMEN,
   createExpenseBackend,
   EXPENSE_TODAY,
   expenseDetail,
+  expenseDetailBackend,
   ME_ID,
   problemResponse,
   staffBackend,
   SUPPLIES,
+  updateExpenseBackend,
 } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -432,5 +435,161 @@ describe('E2 close, reopen and keys', () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+// E2 Expense modal, edit mode (CEXP-02, CEXP-04, SEC-07, 05 D-13, D-20; plan 06-14): the detail is read fresh on every open and
+// the form keeps the row version it opened with.
+describe('E2 edit mode', () => {
+  const EXPENSE_ID = expenseDetail().id;
+
+  function renderEdit(handlers: { onClose?: () => void; onSaved?: (expense: unknown) => void } = {}) {
+    const onClose = handlers.onClose ?? vi.fn();
+    const onSaved = handlers.onSaved ?? vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseModal mode="edit" expenseId={EXPENSE_ID} today={EXPENSE_TODAY} onClose={onClose} onSaved={onSaved} />
+      </QueryClientProvider>,
+    );
+    return { onClose, onSaved };
+  }
+
+  const saveChanges = () => screen.getByRole('button', { name: /^(Save Changes|Saving)$/ });
+
+  async function loaded() {
+    await screen.findByRole('textbox', { name: /^Description/ });
+    await waitFor(() => {
+      expect(category()).toBeEnabled();
+      expect(paidBy()).toBeEnabled();
+    });
+  }
+
+  it('says "Loading expense…" until the detail arrives, then "Expense loaded." and fills the saved values with focus on Date', async () => {
+    backends();
+    expenseDetailBackend(expenseDetail({ notes: 'Bought in bulk', amount: 640 }));
+    renderEdit();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Expense' });
+    expect(within(dialog).getByText('Loading expense…')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('textbox', { name: /^Description/ })).toBeNull();
+    await loaded();
+
+    expect(screen.getByText('Expense loaded.')).toBeInTheDocument();
+    expect(date()).toHaveValue(EXPENSE_TODAY);
+    expect(date()).toHaveFocus();
+    expect(category()).toHaveValue(SUPPLIES.id);
+    expect(description()).toHaveValue('Thread and needles');
+    expect(amount()).toHaveValue('640.00');
+    expect(paidBy()).toHaveValue(ME_ID);
+    expect(screen.getByRole('textbox', { name: /^Notes/ })).toHaveValue('Bought in bulk');
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+  });
+
+  it('shows Recorded by as the original recorder and Last changed by as Not set until the first change', async () => {
+    backends();
+    expenseDetailBackend(expenseDetail({ recordedBy: CARMEN, lastChangedBy: null, lastChangedAt: null }));
+    renderEdit();
+    await loaded();
+
+    const terms = screen.getAllByRole('term').map((term) => term.textContent);
+    expect(terms).toEqual(['Recorded by', 'Last changed by']);
+    const [recorded, changed] = screen.getAllByRole('definition');
+    expect(recorded?.textContent).toMatch(/^Carmen Reyes · /);
+    expect(changed?.textContent).toBe('Not set');
+  });
+
+  it('names the editor under Last changed by and keeps the recorder under Recorded by', async () => {
+    backends();
+    expenseDetailBackend(
+      expenseDetail({
+        recordedBy: { id: 'a-1', name: 'Liza Mercado', formerStaff: true },
+        lastChangedBy: CARMEN,
+        lastChangedAt: '2026-10-25T05:00:00Z',
+      }),
+    );
+    renderEdit();
+    await loaded();
+
+    const [recorded, changed] = screen.getAllByRole('definition');
+    expect(recorded?.textContent).toMatch(/^Liza Mercado \(former staff\) · /);
+    expect(changed?.textContent).toMatch(/^Carmen Reyes · /);
+  });
+
+  it('sends one PUT with the changed fields and the row version it opened with, no Idempotency-Key, then reports the saved expense', async () => {
+    backends();
+    expenseDetailBackend();
+    const sent = updateExpenseBackend(() => Response.json(expenseDetail({ amount: 700, version: 'AAAAAAAAB9I=' })));
+    const user = userEvent.setup();
+    const { onSaved, onClose } = renderEdit();
+    await loaded();
+
+    await user.clear(amount());
+    await user.type(amount(), '700');
+    await user.click(saveChanges());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(sent.ids).toEqual([EXPENSE_ID]);
+    expect(sent.keys).toEqual([null]);
+    expect(sent.bodies).toEqual([
+      {
+        date: EXPENSE_TODAY,
+        categoryId: SUPPLIES.id,
+        description: 'Thread and needles',
+        amount: 700,
+        paidByUserId: ME_ID,
+        notes: null,
+        version: 'AAAAAAAAB9E=',
+      },
+    ]);
+  });
+
+  it('reads the detail again on every open and never changes the version the form holds when it is refetched', async () => {
+    backends();
+    const { ids } = expenseDetailBackend();
+    const sent = updateExpenseBackend();
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    expect(ids).toEqual([EXPENSE_ID]);
+
+    expenseDetailBackend(expenseDetail({ version: 'AAAAAAAAB9M=' }));
+    await queryClient.refetchQueries();
+    await user.clear(amount());
+    await user.type(amount(), '701');
+    await user.click(saveChanges());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(1);
+    });
+    expect(sent.bodies[0]).toMatchObject({ version: 'AAAAAAAAB9E=' });
+  });
+
+  it('checks the rules in the browser before sending: an amount of 0 sends nothing', async () => {
+    backends();
+    expenseDetailBackend();
+    const sent = updateExpenseBackend();
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    await user.clear(amount());
+    await user.type(amount(), '0');
+    await user.click(saveChanges());
+
+    expect(await screen.findByText('Enter an amount greater than ₱0.00.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it('has no axe violations once loaded', async () => {
+    backends();
+    expenseDetailBackend();
+    renderEdit();
+    await loaded();
+
+    await expectNoAxeViolations(screen.getByRole('dialog', { name: 'Edit Expense' }));
   });
 });

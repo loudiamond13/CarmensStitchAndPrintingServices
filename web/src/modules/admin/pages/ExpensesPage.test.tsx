@@ -16,6 +16,8 @@ import {
   categoriesBackend,
   createExpenseBackend,
   expenseDetail,
+  expenseDetailBackend,
+  updateExpenseBackend,
   RENT,
   staffBackend,
   EXPENSE_CATEGORIES,
@@ -109,7 +111,7 @@ function cellOf(row: HTMLElement, label: string): HTMLElement {
 }
 
 describe('the page', () => {
-  it('shows the header, the result bar, the table name and the six column headers', async () => {
+  it('shows the header, the result bar, the table name and the seven column headers', async () => {
     expensesBackend(expenseList(ROWS));
     renderPage();
 
@@ -123,7 +125,7 @@ describe('the page', () => {
     const headers = within(table)
       .getAllByRole('columnheader')
       .map((header) => header.textContent);
-    expect(headers).toEqual(['Date', 'Category', 'Description', 'Amount', 'Paid by', 'Recorded by']);
+    expect(headers).toEqual(['Date', 'Category', 'Description', 'Amount', 'Paid by', 'Recorded by', 'Actions']);
     expect(screen.getByText(/^Showing/).textContent).toBe('Showing 2 expenses · newest first');
     expect(document.title).toBe('Company Expenses · CSPS Admin');
   });
@@ -1189,5 +1191,115 @@ describe('Add Expense from the empty list and the outside-filters note (CEXP-02,
   it('adds the note when the saved date is outside the default window the server used', async () => {
     await openAndSave('', expenseDetail({ date: '2026-12-31' }));
     expect(await screen.findByText(SAVED_NOTE)).toBeVisible();
+  });
+});
+
+describe('Edit Expense (CEXP-02, D-26; plan 06-14)', () => {
+  const SECOND_ID = '00000000-0000-4000-8000-000000000002';
+
+  it('gives a Manager an Edit button on every row, named with the description and date and with a matching title', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    const rent = screen.getByRole('button', { name: 'Edit Shop rent for October, Oct 6, 2026' });
+    const thread = screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' });
+    expect(rent).toHaveAttribute('title', 'Edit Shop rent for October, Oct 6, 2026');
+    expect(thread).toHaveAttribute('title', 'Edit Thread and needles, Oct 5, 2026');
+    expect(screen.queryByRole('button', { name: /^View / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
+  });
+
+  it('opens the Edit Expense dialog for that row and reads that expense', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    staffBackend();
+    const { ids } = expenseDetailBackend(expenseDetail({ id: SECOND_ID, description: 'Thread and needles' }));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Expense' });
+    expect(await within(dialog).findByRole('textbox', { name: /^Description/ })).toHaveValue('Thread and needles');
+    expect(ids).toEqual([SECOND_ID]);
+  });
+
+  it("after a save closes the dialog, returns focus to that row's Edit button, reads the lists and KPIs again and shows the toast", async () => {
+    const user = userEvent.setup();
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const { calls: kpiCalls } = kpisBackend();
+    staffBackend();
+    expenseDetailBackend(expenseDetail({ id: SECOND_ID }));
+    const sent = updateExpenseBackend(() =>
+      Response.json(expenseDetail({ id: SECOND_ID, amount: 700, category: SUPPLIES })),
+    );
+    const invalidated: unknown[] = [];
+    const original = queryClient.invalidateQueries.bind(queryClient);
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation((filters, options) => {
+      invalidated.push(filters?.queryKey);
+      return original(filters, options);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const listReads = calls.length;
+    const kpiReads = kpiCalls.length;
+
+    const opener = screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' });
+    await user.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Expense' });
+    const amount = await within(dialog).findByRole('textbox', { name: /^Amount/ });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('combobox', { name: /^Paid by/ })).toBeEnabled();
+    });
+    await user.clear(amount);
+    await user.type(amount, '700');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Expense' })).toBeNull();
+    });
+    await waitFor(() => {
+      expect(opener).toHaveFocus();
+    });
+    expect(sent.ids).toEqual([SECOND_ID]);
+    expect(await screen.findByText('Expense updated')).toBeVisible();
+    expect(screen.getByText('₱700.00 · Supplies')).toBeVisible();
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThan(listReads);
+      expect(kpiCalls.length).toBeGreaterThan(kpiReads);
+    });
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
+    );
+  });
+
+  it('moves focus to the table caption when the saved row is no longer on the page', async () => {
+    const user = userEvent.setup();
+    let phase: 'before' | 'after' = 'before';
+    expensesBackend(() => expenseList(phase === 'before' ? ROWS : [ROWS[0] ?? expenseItem('x')]));
+    staffBackend();
+    expenseDetailBackend(expenseDetail({ id: SECOND_ID }));
+    updateExpenseBackend(() => {
+      phase = 'after';
+      return Response.json(expenseDetail({ id: SECOND_ID, amount: 700 }));
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Expense' });
+    await within(dialog).findByRole('textbox', { name: /^Amount/ });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('combobox', { name: /^Paid by/ })).toBeEnabled();
+    });
+    await user.click(within(dialog).getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Thread and needles')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Company expenses', { selector: 'caption' })).toHaveFocus();
+    });
   });
 });

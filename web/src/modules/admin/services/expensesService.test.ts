@@ -129,3 +129,41 @@ describe('expensesService.create', () => {
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 });
+
+describe('expensesService.get', () => {
+  it('calls GET /api/v1/company-expenses/{id} and resolves the typed detail with its row version', async () => {
+    const detail = expenseDetail({ id: '00000000-0000-4000-8000-0000000000e7' });
+    const { fake, service } = serviceWith([{ body: detail }]);
+
+    await expect(service.get('00000000-0000-4000-8000-0000000000e7')).resolves.toEqual(detail);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/company-expenses/00000000-0000-4000-8000-0000000000e7');
+  });
+});
+
+describe('expensesService.update', () => {
+  const body = {
+    date: '2026-10-25',
+    categoryId: '447ad32e-1433-4b70-8786-72e3dc3f9937',
+    description: 'Thread and needles',
+    amount: 700,
+    paidByUserId: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+    notes: null,
+    version: 'AAAAAAAAB9E=',
+  };
+
+  it('calls PUT /api/v1/company-expenses/{id} with the body and its version, and sends no Idempotency-Key', async () => {
+    const saved = expenseDetail({ amount: 700, version: 'AAAAAAAAB9I=' });
+    const { fake, service } = serviceWith([{ body: saved }]);
+
+    await expect(service.update('00000000-0000-4000-8000-0000000000e1', body)).resolves.toEqual(saved);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('PUT');
+    expect(fake.calls[0]?.url).toBe('/api/v1/company-expenses/00000000-0000-4000-8000-0000000000e1');
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+});
