@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as statusScenarios } from '@/dev/scenarios/groups/status';
-import { ORDER_STATUSES, type ExpenseCategory, type OrderStatus, type PaymentMethod } from '@/utils/csps';
+import { ORDER_STATUSES, type OrderStatus, type PaymentMethod } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   Avatar,
   Badge,
-  EXPENSE_TONE,
+  CATEGORY_TONE_LABEL,
+  CATEGORY_TONES,
+  isCategoryTone,
   isOrderStatus,
   PAYMENT_TONE,
   STATUS_TONE,
@@ -32,6 +34,17 @@ const TONES = [
   'solid',
 ] as const satisfies readonly BadgeTone[];
 const STATUSES = Object.keys(ORDER_STATUSES) as OrderStatus[];
+
+/** The seeded categories and their stored tones (D-13; the migration seed). The scenario list is plain data, so this is its reference. */
+const SEEDED_CATEGORY_TONES: Readonly<Record<string, BadgeTone>> = {
+  Rent: 'accent',
+  Utilities: 'info',
+  Salaries: 'mockup',
+  Supplies: 'warning',
+  Equipment: 'success',
+  Maintenance: 'neutral',
+  Others: 'neutral',
+};
 
 function tokens(classes: string): string[] {
   return classes.split(/\s+/).filter(Boolean).sort();
@@ -279,16 +292,29 @@ describe('the §6.2 tone tables', () => {
     expect(PAYMENT_TONE).toEqual({ GCash: 'info', Maya: 'success', Cash: 'neutral', 'Bank Transfer': 'mockup' });
   });
 
-  it('gives each company expense category its spec tone', () => {
-    expect(EXPENSE_TONE).toEqual({
-      Rent: 'accent',
-      Utilities: 'info',
-      Salaries: 'mockup',
-      Supplies: 'warning',
-      Equipment: 'success',
-      Maintenance: 'neutral',
-      Others: 'neutral',
+  // SPEC-DEVIATION: D-08 / D-13 the fixed expense tone table is gone; a Manager picks one of six stored tones per category.
+  it('offers a Manager the six category tones, in picker order', () => {
+    expect(CATEGORY_TONES).toEqual(['neutral', 'accent', 'info', 'mockup', 'warning', 'success']);
+  });
+
+  it('names each category tone in words: Taupe, Orange, Blue, Plum, Amber, Green', () => {
+    expect(CATEGORY_TONE_LABEL).toEqual({
+      neutral: 'Taupe',
+      accent: 'Orange',
+      info: 'Blue',
+      mockup: 'Plum',
+      warning: 'Amber',
+      success: 'Green',
     });
+  });
+
+  it('accepts the six category tones and refuses danger, solid and anything else', () => {
+    for (const tone of CATEGORY_TONES) {
+      expect(isCategoryTone(tone), tone).toBe(true);
+    }
+    for (const value of ['danger', 'solid', 'bogus', '', 'ACCENT']) {
+      expect(isCategoryTone(value), value).toBe(false);
+    }
   });
 });
 
@@ -307,7 +333,7 @@ describe('status scenarios (the status parity group)', () => {
       'badge-accent-icon',
       ...STATUSES.map((status) => `status-badge-${status}`),
       ...Object.keys(PAYMENT_TONE).map((method) => `payment-badge-${slug(method)}`),
-      ...Object.keys(EXPENSE_TONE).map((category) => `expense-badge-${slug(category)}`),
+      ...Object.keys(SEEDED_CATEGORY_TONES).map((category) => `expense-badge-${slug(category)}`),
     ];
 
     expect(badgeScenarios.map((scenario) => scenario.id).sort()).toEqual(expected.sort());
@@ -336,7 +362,7 @@ describe('status scenarios (the status parity group)', () => {
     for (const [method, tone] of Object.entries(PAYMENT_TONE) as [PaymentMethod, BadgeTone][]) {
       expect(byId.get(`payment-badge-${slug(method)}`)?.node.props, method).toEqual({ tone, children: method });
     }
-    for (const [category, tone] of Object.entries(EXPENSE_TONE) as [ExpenseCategory, BadgeTone][]) {
+    for (const [category, tone] of Object.entries(SEEDED_CATEGORY_TONES)) {
       expect(byId.get(`expense-badge-${slug(category)}`)?.node.props, category).toEqual({ tone, children: category });
     }
   });
