@@ -20,6 +20,7 @@ import {
   kpiFootClasses,
   kpiHeadClasses,
   kpiIconClasses,
+  kpiTextValueClasses,
   kpiValueClasses,
   moneyClasses,
   overlineClasses,
@@ -571,6 +572,88 @@ describe('KpiCard (App. D.3)', () => {
     rerender(<KpiCard label="Collected · Oct" value={126450} delta={-3} loading />);
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(screen.queryByRole('img', { name: 'Down' })).toBeNull();
+  });
+});
+
+describe('KpiCard empty and text values (OR-4, D-39; plan 06-09)', () => {
+  it('shows EmptyValue in the dimmed zero look and ignores the value when empty', () => {
+    const { container } = render(
+      <KpiCard
+        label="Top category · Oct"
+        value="Supplies"
+        money={false}
+        icon="trending-up"
+        empty
+        hint="No expenses this month"
+      />,
+    );
+    const card = container.firstElementChild;
+    const [, value, foot] = [...(card?.children ?? [])];
+
+    expect(value?.textContent).toBe('Not set');
+    expect(value?.textContent).not.toContain('Supplies');
+    expect(classTokens(value)).toEqual([...tokens(kpiValueClasses), 'text-ink-subtle'].sort());
+    expect(value?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(value as HTMLElement).getByText('Not set')).toBeInTheDocument();
+    expect(foot?.textContent).toBe('No expenses this month');
+  });
+
+  it('ignores a numeric value too, and shows the skeleton while loading even when empty', () => {
+    const { container, rerender } = render(<KpiCard label="Top category" value={12345} empty />);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('Not set');
+
+    rerender(<KpiCard label="Top category" value={12345} empty loading />);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('');
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+  });
+
+  it('changes nothing when empty is false or left out', () => {
+    const { container, rerender } = render(<KpiCard label="Total receivables" value={1250} />);
+    const first = container.innerHTML;
+
+    rerender(<KpiCard label="Total receivables" value={1250} empty={false} />);
+    expect(container.innerHTML).toBe(first);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('₱1,250.00');
+  });
+
+  it('lets a text value wrap at word boundaries instead of running past the card', () => {
+    const { container } = render(<KpiCard label="Top category · Oct" value="Government contributions" money={false} />);
+    const value = container.firstElementChild?.children[1];
+
+    expect(classTokens(value)).toEqual(tokens(kpiTextValueClasses));
+    expect(classTokens(value)).toContain('wrap-break-word');
+    expect(classTokens(value)).not.toContain('whitespace-nowrap');
+  });
+
+  it('keeps the one-line look for numbers and counts', () => {
+    const { container } = render(<KpiCard label="Active orders" value={18} money={false} />);
+
+    expect(classTokens(container.firstElementChild?.children[1])).toEqual(tokens(kpiValueClasses));
+  });
+
+  it('has no axe violations when empty or with a long text value', async () => {
+    for (const element of [
+      <KpiCard
+        key="a"
+        label="Top category · Oct"
+        value=""
+        money={false}
+        icon="trending-up"
+        empty
+        hint="No expenses this month"
+      />,
+      <KpiCard
+        key="b"
+        label="Top category · Oct"
+        value="Government contributions"
+        money={false}
+        hint="₱1.00 · 100% of this month"
+      />,
+    ]) {
+      const { container, unmount } = render(element);
+      await expectNoAxeViolations(container);
+      unmount();
+    }
   });
 });
 

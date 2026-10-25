@@ -934,3 +934,85 @@ describe('month KPIs (CEXP-03, D-24)', () => {
     await expectNoAxeViolations(view.container);
   });
 });
+
+describe('month KPI states (OR-4, D-39, loading and error)', () => {
+  it('shows an empty Top category with "No expenses this month" when the month has no expenses', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 0, count: 0 }, topCategory: null }));
+    const view = renderPage();
+
+    await screen.findByText('Top category · Oct');
+    const top = kpiCard('Top category · Oct');
+    expect(top.textContent).toContain('Not set');
+    expect(top.textContent).toContain('No expenses this month');
+    expect(top.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(within(top).getByText('Not set')).toBeInTheDocument();
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('dims a ₱0.00 month total by colour', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 0, count: 0 }, topCategory: null }));
+    renderPage();
+
+    await screen.findByText('This month · Oct');
+    const value = kpiCard('This month · Oct').children[1];
+    expect(value?.textContent).toBe('₱0.00');
+    expect(value?.classList.contains('text-ink-subtle')).toBe(true);
+    expect(kpiCard('Last month · Sep').children[1]?.classList.contains('text-ink-subtle')).toBe(false);
+  });
+
+  it('shows each card as a busy skeleton while the KPIs load, and the list loads on its own', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(async () => {
+      await delay(300);
+      return expenseKpis();
+    });
+    renderPage();
+
+    for (const label of ['This month', 'Last month', 'Top category']) {
+      const card = kpiCard(label);
+      expect(card).toHaveAttribute('aria-busy', 'true');
+      expect(card.querySelector('[style*="--sk-h"]')).not.toBeNull();
+    }
+    await screen.findByText('Shop rent for October');
+    expect(kpiCard('This month')).toHaveAttribute('aria-busy', 'true');
+
+    await screen.findByText('This month · Oct');
+    expect(kpiCard('This month · Oct')).not.toHaveAttribute('aria-busy');
+  });
+
+  it('replaces the row with "Couldn\'t load this month\'s totals." on a failure, while the list still renders', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(() => problemResponse(500));
+    const view = renderPage();
+
+    expect(await screen.findByText("Couldn't load this month's totals.")).toBeVisible();
+    expect(screen.getByText('Check your internet connection. Your data is safe. Nothing was changed.')).toBeVisible();
+    expect(screen.queryByText(/^This month/)).toBeNull();
+    expect(await screen.findByText('Shop rent for October')).toBeVisible();
+    expect(screen.queryByText("Couldn't load expenses.")).toBeNull();
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('Try Again reads only the KPIs again', async () => {
+    const user = userEvent.setup();
+    const { calls: listCalls } = expensesBackend(expenseList(ROWS));
+    let kpiCalls = 0;
+    kpisBackend(() => {
+      kpiCalls += 1;
+      return kpiCalls === 1 ? problemResponse(500) : expenseKpis();
+    });
+    renderPage();
+    await screen.findByText("Couldn't load this month's totals.");
+    await screen.findByText('Shop rent for October');
+    expect(listCalls).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await screen.findByText('This month · Oct');
+    expect(screen.queryByText("Couldn't load this month's totals.")).toBeNull();
+    expect(kpiCalls).toBe(2);
+    expect(listCalls).toHaveLength(1);
+  });
+});
