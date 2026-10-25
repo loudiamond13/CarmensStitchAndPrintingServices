@@ -33,6 +33,11 @@ export const EXPENSES_COPY = {
     /** The chip's value: "Oct 1, 2026 to Oct 31, 2026". */
     range: (from: string, to: string): string => `${from} to ${to}`,
   },
+  /** What the no-matches message names after the search: "category Rent and dates Oct 1, 2026 to Oct 31, 2026". */
+  filterSummary: (category: string | null, dates: string | null): string =>
+    [category === null ? null : `category ${category}`, dates === null ? null : `dates ${dates}`]
+      .filter((part): part is string => part !== null)
+      .join(' and '),
   /** Under the From and To inputs (UI-SPEC Validation). */
   errors: {
     notReal: 'Enter a real date.',

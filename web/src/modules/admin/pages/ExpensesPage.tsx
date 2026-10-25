@@ -1,10 +1,13 @@
-// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-04, CEXP-05, D-23, D-25,
-// WEB-10; plan 06-04). Both roles see the same list: the `.s-ph` header, the result bar, a ResponsiveTable of the server's
-// rows with Paid by and Recorded by, Pagination with Rows per page and the caption.
-//   - The page and size live in the URL through useExpensesListParams and nowhere else; the query keys on the parsed
-//     values after useSettledListParams (WEB-08, WEB-10).
+// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-04, CEXP-05, D-11, D-23,
+// D-25, WEB-10; plans 06-04, 06-07). Both roles see the same list: the `.s-ph` header, the toolbar (search, category, From and
+// To), the result bar with one chip per non-default filter, a ResponsiveTable of the server's rows with Paid by and Recorded
+// by, Pagination with Rows per page and the caption.
+//   - The search, filters, page and size live in the URL through useExpensesListParams and nowhere else; the query keys on
+//     the parsed values after useSettledListParams (WEB-08, WEB-10).
 //   - The browser adds nothing: the count, the period total (every page of the filter), the window and the business today
-//     all come from the answer (Core Value, D-23). Filters, KPIs and the row actions arrive in later plans.
+//     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
+//     URL stays clean. KPIs and the row actions arrive in later plans.
+//   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useEffect, useRef } from 'react';
 import {
   pageHeadClasses,
@@ -159,6 +162,9 @@ export function ExpensesRoute() {
   const customFrom = values.from === null ? null : formatCalendarDate(values.from);
   const customTo = values.to === null ? null : formatCalendarDate(values.to);
 
+  const customDates = customFrom !== null && customTo !== null ? COPY.dates.range(customFrom, customTo) : null;
+  const filtered = values.category !== null || customDates !== null;
+
   const from = data === undefined ? null : formatCalendarDate(data.from);
   const to = data === undefined ? null : formatCalendarDate(data.to);
   const footer =
@@ -220,10 +226,10 @@ export function ExpensesRoute() {
             }}
           />
         )}
-        {customFrom !== null && customTo !== null && (
+        {customDates !== null && (
           <FilterChip
             label={COPY.dates.chip}
-            value={COPY.dates.range(customFrom, customTo)}
+            value={customDates}
             onClear={() => {
               set.setFilters({ from: null, to: null });
             }}
@@ -242,6 +248,13 @@ export function ExpensesRoute() {
         error={query.error}
         onRetry={() => {
           void query.refetch();
+        }}
+        filtered={filtered}
+        search={values.q}
+        filterSummary={COPY.filterSummary(categoryName, customDates)}
+        onClearFilters={() => {
+          set.setSearch('', { immediate: true });
+          set.setFilters({ category: null, from: null, to: null });
         }}
         // SPEC-DEVIATION: OQ-13 the footer's phone label reads "Total": the figure covers every page, not the rows shown.
         footer={footer}

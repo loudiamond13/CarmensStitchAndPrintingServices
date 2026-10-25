@@ -735,7 +735,9 @@ describe('no matches and Clear Filters (P2, P5 05-20 rule)', () => {
 
   function emptyWhenFiltered() {
     return expensesBackend((url) =>
-      url.searchParams.has('q') ? expenseList([], { from: '2026-10-01', to: '2026-10-31' }) : expenseList(ROWS),
+      url.searchParams.has('q')
+        ? expenseList([], { from: '2026-10-01', to: '2026-10-31' })
+        : expenseList(ROWS, { total: 120, pageSize: 50 }),
     );
   }
 
