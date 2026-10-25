@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Expenses;
 using FluentValidation;
@@ -12,7 +13,9 @@ namespace Csps.Application.Expenses;
 /// Use case: a staff member edits a company expense with the version the form was opened with (CEXP-02, SEC-07). The steps run in
 /// this order and stop at the first failure: the form is checked (400), the expense is found (404), the caller may edit it (403,
 /// D-26), the version is the stored one (409), then the changed category and payer are checked against the database (400). A form
-/// save never retries on a conflict: the person reloads and decides. A form with no change saves nothing and keeps the version.
+/// save never retries on a conflict: the person reloads and decides. A form with no change saves nothing, writes no audit entry and
+/// keeps the version. A change writes <c>company-expense.changed</c> (old and new amount, date and category, field names only) and,
+/// when the payer moved, a separate <c>company-expense.payer-changed</c>, both in the same save (D-27).
 /// Who changed it and when come from the token and the clock, never from the request (SEC-08).
 /// </summary>
 public sealed class UpdateCompanyExpenseHandler(
@@ -21,10 +24,13 @@ public sealed class UpdateCompanyExpenseHandler(
     IExpenseCategories categories,
     IStaffDirectory staff,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<UpdateCompanyExpenseRequest> validator)
 {
+    private const string ExpenseTarget = "CompanyExpense";
+
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The expense to edit.</param>
     /// <param name="request">The form.</param>
@@ -112,6 +118,18 @@ public sealed class UpdateCompanyExpenseHandler(
         if (!changes.Value.HasAny)
         {
             return Result.Success(false);
+        }
+
+        // A payer change is its own entry and is never merged into the field change (D-27).
+        var key = AuditKey.Of(expense.Id);
+        if (changes.Value.HasFieldChange)
+        {
+            audit.Record(AuditActions.CompanyExpenseChanged, ExpenseTarget, key, ExpenseAuditDetail.Changes(changes.Value, expense.PaidByUserId));
+        }
+
+        if (changes.Value.Payer is { } payer)
+        {
+            audit.Record(AuditActions.CompanyExpensePayerChanged, ExpenseTarget, key, ExpenseAuditDetail.PayerChange(payer.From, payer.To));
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

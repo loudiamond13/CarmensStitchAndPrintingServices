@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T10:35:00-05:00
+updated: 2026-10-25T10:42:00-05:00
 ---
 
 # The company expenses API
@@ -153,6 +153,22 @@ The body is the Add form plus the `version` the form was opened with (the `versi
   editor and the server time. A `createdById`, `createdAt`, `updatedById` or `updatedAt` in the body is ignored. Names are read
   from the people's own rows, so a deleted person keeps their name with `formerStaff` true.
 - A soft-deleted or unknown id answers `404` "This expense was deleted."
+
+### The audit entries of an edit (D-27)
+
+An edit that changes something writes up to two entries in the same transaction as the save, with target type `CompanyExpense` and
+the expense id as the target. A save with no change writes none.
+
+| Entry | Written when | Detail |
+|---|---|---|
+| `company-expense.changed` | the amount, date, category, description or notes changed | `amount=1200.00>1250.00;date=2026-10-01>2026-10-02;category=<old id>><new id>;fields=description,notes;payer=<id>` |
+| `company-expense.payer-changed` | the payer changed | `payer=<old id>><new id>` |
+
+- Only the parts that changed appear. `amount`, `date` and `category` carry the old and the new value (amounts as `0.00`, dates as
+  `yyyy-MM-dd`, ids dashed). The description and the notes are named in `fields=` and their text is never written (D-06). The
+  entry ends with the payer the expense has after the edit.
+- The payer change is its own entry and is never merged into the other one. An edit that changes the payer and the date writes
+  both. A payer-only edit writes only `company-expense.payer-changed`.
 
 ## Listing expenses (CEXP-01, CEXP-05, D-23, D-25, D-26)
 
