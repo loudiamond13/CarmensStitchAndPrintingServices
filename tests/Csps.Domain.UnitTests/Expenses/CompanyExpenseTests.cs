@@ -302,6 +302,58 @@ public sealed class CompanyExpenseTests
         Should.Throw<ArgumentNullException>(() => expense.Update(Today, CategoryId, null!, 1m, PayerId, null, Today));
     }
 
+    [Fact]
+    public void ASoftDeleteMarksTheTimeAndTheManagerAndReturnsTrue()
+    {
+        var expense = Create().Value;
+        var manager = Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43");
+        var when = Now.AddHours(2);
+
+        var deleted = expense.SoftDelete(manager, when);
+
+        deleted.ShouldBeTrue();
+        expense.IsDeleted.ShouldBeTrue();
+        expense.DeletedAtUtc.ShouldBe(when);
+        expense.DeletedById.ShouldBe(manager);
+    }
+
+    [Fact]
+    public void ASecondSoftDeleteChangesNothingAndReturnsFalse()
+    {
+        var expense = Create().Value;
+        var first = Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43");
+        expense.SoftDelete(first, Now.AddHours(2));
+
+        var again = expense.SoftDelete(Guid.NewGuid(), Now.AddHours(3));
+
+        again.ShouldBeFalse();
+        expense.DeletedAtUtc.ShouldBe(Now.AddHours(2));
+        expense.DeletedById.ShouldBe(first);
+    }
+
+    [Fact]
+    public void ARestoreClearsTheDeleteMarkerAndReturnsTrue()
+    {
+        var expense = Create().Value;
+        expense.SoftDelete(Guid.NewGuid(), Now.AddHours(2));
+
+        var restored = expense.Restore();
+
+        restored.ShouldBeTrue();
+        expense.IsDeleted.ShouldBeFalse();
+        expense.DeletedAtUtc.ShouldBeNull();
+        expense.DeletedById.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ARestoreOnALiveExpenseReturnsFalse()
+    {
+        var expense = Create().Value;
+
+        expense.Restore().ShouldBeFalse();
+        expense.IsDeleted.ShouldBeFalse();
+    }
+
     private static void ShouldFailChanges(Result<ExpenseChanges> result, string field, string message)
     {
         result.IsFailure.ShouldBeTrue();

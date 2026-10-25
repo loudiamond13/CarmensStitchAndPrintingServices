@@ -74,6 +74,18 @@ internal static class ExpenseFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Soft-deletes one expense.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The expense id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{id:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Builds the edit form an unchanged copy of an expense would send, so a test can override one member.</summary>
     /// <param name="detail">The expense as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
