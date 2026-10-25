@@ -1,6 +1,7 @@
 // Company expense list fixtures for component and service tests (plan 06-04): response builders typed from the generated
 // contract, and an MSW handler that records every request. Later expense plans reuse them. Long text for the wrap checks
-// is here too: a 200-character description and a 100-character staff name (UI-SPEC UI Considerations, long-text).
+// is here too: a 200-character description and a 100-character staff name (UI-SPEC UI Considerations, long-text). Plan 06-07
+// adds the category list the filter reads.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
 import type { components } from '@/types/api.generated';
@@ -11,6 +12,7 @@ export type ExpenseListItemFixture = Schemas['CompanyExpenseListItem'];
 export type ExpenseListResponseFixture = Schemas['CompanyExpenseListResponse'];
 export type ActorFixture = Schemas['ActorRef'];
 export type CategoryFixture = Schemas['ExpenseCategoryRef'];
+export type CategoryListItemFixture = Schemas['ExpenseCategoryListItem'];
 
 /** The business today the fixtures answer with. */
 export const EXPENSE_TODAY = '2026-10-25';
@@ -80,9 +82,11 @@ export type ExpenseResponder = (
   url: URL,
 ) => ExpenseListResponseFixture | Response | Promise<ExpenseListResponseFixture | Response>;
 
-/** Answers GET /api/v1/company-expenses and records every request URL. */
+/** Answers GET /api/v1/company-expenses (and, by default, the category list) and records every list request URL. */
 export function expensesBackend(answer: ExpenseListResponseFixture | ExpenseResponder): { calls: URL[] } {
   const calls: URL[] = [];
+  // The page reads the category list for its filter; a test that cares about it calls categoriesBackend after this.
+  categoriesBackend();
   server.use(
     http.get('*/api/v1/company-expenses', async ({ request }) => {
       const url = new URL(request.url);
@@ -100,4 +104,54 @@ export function problemResponse(status: number): Response {
     status,
     headers: { 'Content-Type': 'application/problem+json' },
   });
+}
+
+function categoryItem(
+  id: string,
+  name: string,
+  tone: string,
+  overrides: Partial<CategoryListItemFixture> = {},
+): CategoryListItemFixture {
+  return { id, name, tone, status: 'active', isOthers: false, ...overrides };
+}
+
+export const OTHERS_ID = 'f85e6b1c-b46f-4a00-8c4e-5148eb3b9704';
+export const RETIRED_CATEGORY_ID = '0b1d6f6e-3c3a-4d6e-9b7a-5c1f0e2a7d11';
+
+/** What GET /api/v1/expense-categories answers: the ten seeded categories A to Z with Others last, and one retired extra. */
+export const EXPENSE_CATEGORIES: readonly CategoryListItemFixture[] = [
+  categoryItem('b9c92751-7040-4edd-bd44-de110104cb01', 'Equipment', 'success'),
+  categoryItem('b27a1f8a-5262-48c8-bca4-41e04583e015', 'Government contributions', 'info'),
+  categoryItem('b74d786b-8092-4e67-a0ba-a419e9d1ba75', 'Maintenance', 'neutral'),
+  categoryItem(RETIRED_CATEGORY_ID, 'Old subscriptions', 'accent', { status: 'retired' }),
+  categoryItem(RENT.id, RENT.name, RENT.tone),
+  categoryItem('d2aa53b4-7ebd-445e-b318-94ce1d21cbf2', 'Salaries', 'mockup'),
+  categoryItem(SUPPLIES.id, SUPPLIES.name, SUPPLIES.tone),
+  categoryItem('c8392b0c-ee0e-4a71-ba47-b137fdd1d8c0', 'Taxes and permits', 'mockup'),
+  categoryItem('eb48e6a0-08a8-4509-9f5e-7b81167071de', 'Transport and fuel', 'warning'),
+  categoryItem('51702a8f-81e4-4a20-8e39-2d4b270793de', 'Utilities', 'info'),
+  categoryItem(OTHERS_ID, 'Others', 'neutral', { isOthers: true }),
+];
+
+/** What the fake API answers for the category list: the list, or a ready-made response. */
+export type CategoryResponder = (
+  url: URL,
+) => readonly CategoryListItemFixture[] | Response | Promise<readonly CategoryListItemFixture[] | Response>;
+
+/** Answers GET /api/v1/expense-categories and records every request URL. A later call overrides an earlier one. */
+export function categoriesBackend(
+  answer: readonly CategoryListItemFixture[] | CategoryResponder = EXPENSE_CATEGORIES,
+): {
+  calls: URL[];
+} {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/expense-categories', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { calls };
 }

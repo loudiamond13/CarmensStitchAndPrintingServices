@@ -11,6 +11,8 @@ import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOp
 import { ExpensesRoute } from '@/modules/admin/pages/ExpensesPage';
 import {
   CARMEN,
+  categoriesBackend,
+  EXPENSE_CATEGORIES,
   expenseItem,
   expenseList,
   expensesBackend,
@@ -18,6 +20,7 @@ import {
   LONG_NAME,
   PAOLO,
   problemResponse,
+  RETIRED_CATEGORY_ID,
   SUPPLIES,
   actor,
 } from '@/test/expenseFixtures';
@@ -501,5 +504,228 @@ describe('search (CEXP-01, WEB-10)', () => {
     await screen.findByText('Shop rent for October');
     expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
     expect(calls[0]?.searchParams.has('q')).toBe(false);
+  });
+});
+
+const UTILITIES_ID = '51702a8f-81e4-4a20-8e39-2d4b270793de';
+const UNKNOWN_ID = '11111111-2222-4333-8444-555555555555';
+
+async function categorySelect(): Promise<HTMLElement> {
+  const select = screen.getByRole('combobox', { name: 'Category' });
+  await waitFor(() => {
+    expect(select).toBeEnabled();
+  });
+  return select;
+}
+
+describe('category filter (D-11, D-15)', () => {
+  it('lists every category in the server order, retired ones marked, and sends the chosen id', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+
+    const select = await categorySelect();
+    const options = within(select)
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+    expect(options).toEqual([
+      'All categories',
+      ...EXPENSE_CATEGORIES.map((category) =>
+        category.status === 'retired' ? `${category.name} (retired)` : category.name,
+      ),
+    ]);
+    await userEvent.selectOptions(select, 'Utilities');
+
+    expect(await screen.findByText('Category: Utilities')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('category')).toBe(UTILITIES_ID);
+    });
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: `?category=${UTILITIES_ID}` }]);
+  });
+
+  it('clearing the Category chip removes the category from the URL and the next request', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage(`?category=${UTILITIES_ID}`, onUrlUpdate);
+    await screen.findByText('Category: Utilities');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear category filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Category: Utilities')).toBeNull();
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('category')).toBe(false);
+    });
+  });
+
+  it('keeps a retired category selectable and names its chip by the plain name', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage(`?category=${RETIRED_CATEGORY_ID}`);
+
+    expect(await screen.findByText('Category: Old subscriptions')).toBeInTheDocument();
+    const select = await categorySelect();
+    expect(select).toHaveValue(RETIRED_CATEGORY_ID);
+  });
+
+  it('falls back to All categories with one replace when the list does not hold the id in the URL', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage(`?category=${UNKNOWN_ID}`, onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    expect(screen.queryByText(/^Category:/)).toBeNull();
+    expect(await categorySelect()).toHaveValue('');
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('category')).toBe(false);
+    });
+  });
+
+  it('does not fall back while the categories are still loading', async () => {
+    expensesBackend(expenseList(ROWS));
+    categoriesBackend(async () => {
+      await delay(150);
+      return EXPENSE_CATEGORIES;
+    });
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage(`?category=${UTILITIES_ID}`, onUrlUpdate);
+
+    await screen.findByText('Shop rent for October');
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeDisabled();
+    expect(screen.getByText('Category: Loading categories…')).toBeInTheDocument();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    expect(await screen.findByText('Category: Utilities')).toBeInTheDocument();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('date range (D-23, OR-3)', () => {
+  it('shows the response window in From and To when no range is set, and writes nothing to the URL', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('From')).toHaveValue('2026-09-25');
+    });
+    expect(screen.getByLabelText('To')).toHaveValue('2026-11-24');
+    expect(screen.queryByText(/^Dates:/)).toBeNull();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(calls[0]?.searchParams.has('from')).toBe(false);
+    expect(calls[0]?.searchParams.has('to')).toBe(false);
+  });
+
+  it('a shared link with a pair fills the inputs, sends the pair and shows the Dates chip', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS, { from: '2026-10-01', to: '2026-10-31' }));
+    renderPage('?from=2026-10-01&to=2026-10-31');
+
+    expect(await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    expect(screen.getByLabelText('From')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-10-31');
+    await screen.findByText('Shop rent for October');
+    expect(calls.at(-1)?.searchParams.get('from')).toBe('2026-10-01');
+    expect(calls.at(-1)?.searchParams.get('to')).toBe('2026-10-31');
+  });
+
+  it('typing a valid pair writes both dates with a replace, asks the server and shows the Dates chip', async () => {
+    const { calls } = expensesBackend((url) =>
+      expenseList(ROWS, {
+        from: url.searchParams.get('from') ?? '2026-09-25',
+        to: url.searchParams.get('to') ?? '2026-11-24',
+      }),
+    );
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+    await waitFor(() => {
+      expect(screen.getByLabelText('To')).toHaveValue('2026-11-24');
+    });
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-31' } });
+
+    expect(await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?from=2026-10-01&to=2026-10-31' });
+    });
+    expect(updates(onUrlUpdate).every((update) => update.history === 'replace')).toBe(true);
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('from')).toBe('2026-10-01');
+    });
+    expect(calls.at(-1)?.searchParams.get('to')).toBe('2026-10-31');
+  });
+
+  it('does not apply a half-filled range: no request, no URL write, no chip, and the error stays under the empty date', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+    await waitFor(() => {
+      expect(screen.getByLabelText('To')).toHaveValue('2026-11-24');
+    });
+    const before = calls.length;
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+
+    expect(await screen.findByText('Enter a real date.')).toBeInTheDocument();
+    expect(calls).toHaveLength(before);
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(screen.queryByText(/^Dates:/)).toBeNull();
+  });
+
+  it('says the start date must be on or before the end date and keeps the last applied range', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS, { from: '2026-10-01', to: '2026-10-31' }));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?from=2026-10-01&to=2026-10-31', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+    const before = calls.length;
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-11-05' } });
+
+    expect(await screen.findByText('The start date must be on or before the end date.')).toBeInTheDocument();
+    expect(calls).toHaveLength(before);
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+  });
+
+  it('clearing the Dates chip returns to the default window', async () => {
+    const { calls } = expensesBackend((url) =>
+      url.searchParams.has('from') ? expenseList(ROWS, { from: '2026-10-01', to: '2026-10-31' }) : expenseList(ROWS),
+    );
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?from=2026-10-01&to=2026-10-31', onUrlUpdate);
+    await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear dates filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/^Dates:/)).toBeNull();
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('from')).toBe(false);
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText('From')).toHaveValue('2026-09-25');
+    });
+    expect(screen.getByLabelText('To')).toHaveValue('2026-11-24');
+  });
+
+  it('never reads the device clock for the window: a response far from the real date is shown as sent', async () => {
+    expensesBackend(expenseList(ROWS, { from: '2031-01-01', to: '2031-03-01', today: '2031-02-01' }));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('From')).toHaveValue('2031-01-01');
+    });
+    expect(screen.getByLabelText('To')).toHaveValue('2031-03-01');
   });
 });

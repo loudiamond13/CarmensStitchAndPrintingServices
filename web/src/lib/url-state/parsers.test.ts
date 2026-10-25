@@ -4,6 +4,7 @@ import {
   clampPage,
   dateRangeParsers,
   dateRangeValues,
+  guidParser,
   literalParser,
   normalizeSearch,
   PAGE_SIZES,
@@ -249,5 +250,29 @@ describe('businessToday', () => {
 
   it('uses the given zone', () => {
     expect(businessToday(new Date('2026-10-05T16:30:00Z'), 'UTC')).toBe('2026-10-05');
+  });
+});
+
+describe('guidParser', () => {
+  it('accepts a dashed GUID and lower-cases it', () => {
+    expect(guidParser.parse('6869715C-A01F-4053-87D8-8FD39FEEBEBC')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
+    expect(guidParser.parse('6869715c-a01f-4053-87d8-8fd39feebebc')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
+  });
+
+  it.each([
+    'abc',
+    '',
+    '6869715ca01f405387d88fd39feebebc',
+    'person@example.com',
+    '6869715c-a01f-4053-87d8-8fd39feebebc ',
+    '{6869715c-a01f-4053-87d8-8fd39feebebc}',
+    '6869715c-a01f-4053-87d8-8fd39feebebz',
+    '../../etc/passwd',
+  ])('refuses %j', (query) => {
+    expect(guidParser.parse(query)).toBeNull();
+  });
+
+  it('serializes the id unchanged', () => {
+    expect(guidParser.serialize('6869715c-a01f-4053-87d8-8fd39feebebc')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
   });
 });
