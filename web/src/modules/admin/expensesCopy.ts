@@ -125,7 +125,20 @@ export const EXPENSES_COPY = {
     cancel: 'Cancel',
     /** The loading region reads "Loading expense…" and then "Expense loaded.". */
     things: 'expense',
+    /** The load-failure banner reads "Couldn't load this expense." */
+    loadFailedThing: 'this expense',
     toast: { title: 'Expense updated' },
+    // The polite line after Load Latest (the banner itself is the shared ConflictBanner, 05 D-20).
+    latestLoaded: 'Latest version loaded. Make your changes again.',
+    // SPEC-GAP: the banners an Admin and a deleted expense meet while editing.
+    forbidden: {
+      title: "You can't edit this expense.",
+      body: 'Admins can edit only the expenses they recorded or paid. Ask a Manager to change it.',
+    },
+    deleted: { title: 'This expense was deleted.', body: 'Close this and refresh the list.' },
+    // SPEC-GAP: D-26 warns an Admin who would lose edit access by moving Paid by away from themselves.
+    accessNote:
+      "After you save, you can't edit this expense any more. Only the person who recorded it, the person who paid it, or a Manager can.",
   },
   /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
   form: {
@@ -147,6 +160,9 @@ export const EXPENSES_COPY = {
       loadFailed: "Couldn't load the staff list. Close this form and try again.",
       /** "Carmen Reyes (you)" */
       you: (name: string): string => `${name} (you)`,
+      /** A saved payer who can no longer be chosen stays selected in an edit (OQ-7). */
+      inactive: (name: string): string => `${name} (inactive)`,
+      formerStaff: (name: string): string => `${name} (former staff)`,
     },
     // SPEC-DEVIATION: D-19 the notes field is new to App. E.11.
     notes: { label: 'Notes', hint: "Optional. Shown only here. Search doesn't look in notes." },

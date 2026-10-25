@@ -7,17 +7,22 @@
 // that is mounted again on every open.
 //   - Edit reads the expense fresh on every open (SkeletonText in a LoadingRegion, then focus on Date). The form keeps the row
 //     version it opened with and sends it with Save Changes; a refetch never replaces it (05 D-13, D-20).
+//   - A 409 keeps every typed value and shows the ConflictBanner: Load Latest reads the expense again, replaces the values and the
+//     version, and moves the cursor to Date. A 403 (an Admin who may not edit it) and a 404 (deleted meanwhile) show their banner,
+//     keep the typed values and leave Save aria-disabled. A saved payer who is no longer active, and a saved retired category,
+//     stay selectable (OQ-7, D-11). An Admin who did not record the expense and moves Paid by away from themselves is warned (D-26).
 import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
-import { Controller, useForm, type FieldErrors } from 'react-hook-form';
+import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, labelClasses, messageClasses } from '@/components/forms';
 import { Modal } from '@/components/overlays';
-import { LoadingRegion, SkeletonText } from '@/components/states';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText } from '@/components/states';
 import { Avatar } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -25,6 +30,7 @@ import { useSubmission } from '@/lib/forms/useSubmission';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import { PaidBySelect } from '@/modules/admin/components/PaidBySelect';
 import {
+  expensesFieldStackClasses,
   expensesFormGridClasses,
   expensesFullRowClasses,
   expensesModalBodyClasses,
@@ -40,13 +46,17 @@ import {
   type CreateExpenseRequest,
   type ExpenseDetailResponse,
 } from '@/modules/admin/services/expensesService';
-import { errorLine, type ErrorCopy } from '@/utils/describeHttpError';
+import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = EXPENSES_COPY;
 const ADD = COPY.add;
 const EDIT = COPY.edit;
 const FORM = COPY.form;
+
+const EDIT_STALE = 'edit.stale';
+/** The 403 an Admin gets for an expense they neither recorded nor paid (D-26). */
+const NOT_YOURS = 'company-expenses.not-yours';
 
 const FIELD_ORDER = ['date', 'categoryId', 'description', 'amount', 'paidByUserId', 'notes'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
@@ -150,7 +160,15 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
   }
   // The one line above the fields for a failure that belongs to no field.
   const [failure, setFailure] = useState<string | null>(null);
-  const { control, handleSubmit, setError } = useForm<ExpenseFormInput, unknown, ExpenseFormValues>({
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  // The Admin lost the right to edit it (403), and the expense was deleted meanwhile (404).
+  const [forbidden, setForbidden] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  // The polite line read out after Load Latest.
+  const [status, setStatus] = useState('');
+  const { control, handleSubmit, setError, reset } = useForm<ExpenseFormInput, unknown, ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema(today)),
     mode: 'onBlur',
     defaultValues: {
@@ -164,8 +182,14 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
     ...(opened === null ? {} : { values: valuesOf(opened) }),
   });
 
+  const paidByUserId = useWatch({ control, name: 'paidByUserId' });
+
   const loaded = !isEdit || opened !== null;
   const loadFailed = isEdit && query.isError && opened === null;
+  const gone = deleted || (loadFailed && isHttpError(query.error) && query.error.status === 404);
+  // D-26: an Admin who did not record the expense loses edit access by moving Paid by away from themselves.
+  const losesAccess =
+    opened !== null && user?.role === 'admin' && opened.recordedBy?.id !== user.id && paidByUserId !== user.id;
 
   // The expense has arrived: the cursor goes to Date.
   useEffect(() => {
@@ -190,6 +214,19 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
   };
 
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
+    // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
+    if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+      setConflicts((count) => count + 1);
+      return;
+    }
+    if (isHttpError(error) && error.status === 403 && error.code === NOT_YOURS) {
+      setForbidden(true);
+      return;
+    }
+    if (isHttpError(error) && error.status === 404) {
+      setDeleted(true);
+      return;
+    }
     if (isHttpError(error) && error.status === 400) {
       let first: FieldName | null = null;
       for (const name of FIELD_ORDER) {
@@ -239,6 +276,42 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
     const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
     if (first !== undefined) {
       focusField(first);
+    }
+  };
+
+  /** Reads the expense again; the typed values are replaced only once the latest version has arrived. Null when it did not. */
+  const readLatest = async (): Promise<ExpenseDetailResponse | null> => {
+    const result = await query.refetch();
+    if (result.isError) {
+      if (isHttpError(result.error) && result.error.status === 404) {
+        setDeleted(true);
+        return null;
+      }
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        setFailure(errorLine(copy));
+      }
+      return null;
+    }
+    const latest = result.data;
+    if (latest === undefined) {
+      return null;
+    }
+    setOpened(latest);
+    reset(valuesOf(latest));
+    setConflicts(0);
+    setFailure(null);
+    return latest;
+  };
+
+  /** Load Latest: after a stale save, the banner's button. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const latest = await readLatest();
+    setLoadingLatest(false);
+    if (latest !== null) {
+      setStatus(EDIT.latestLoaded);
+      focusField('date');
     }
   };
 
@@ -293,6 +366,7 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
               mode="picker"
               value={field.value}
               onChange={field.onChange}
+              savedCategoryId={opened?.category.id}
               error={fieldState.error?.message}
             />
           )}
@@ -332,18 +406,26 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
             />
           )}
         />
-        <Controller
-          control={control}
-          name="paidByUserId"
-          render={({ field, fieldState }) => (
-            <PaidBySelect
-              value={field.value}
-              onChange={field.onChange}
-              currentUser={you}
-              error={fieldState.error?.message}
-            />
+        <div className={expensesFieldStackClasses}>
+          <Controller
+            control={control}
+            name="paidByUserId"
+            render={({ field, fieldState }) => (
+              <PaidBySelect
+                value={field.value}
+                onChange={field.onChange}
+                currentUser={you}
+                savedPayer={opened?.paidBy}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+          {losesAccess && (
+            <Note icon="info" live>
+              {EDIT.accessNote}
+            </Note>
           )}
-        />
+        </div>
         <div className={expensesFullRowClasses}>
           {/* SPEC-DEVIATION: D-19 Notes is new to App. E.11: optional, 1,000 characters, shown only here. */}
           <Controller
@@ -395,7 +477,42 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
     </form>
   );
 
-  const body = loaded ? form : <SkeletonText />;
+  let waiting = <SkeletonText />;
+  if (loadFailed) {
+    waiting = gone ? (
+      <></>
+    ) : (
+      <ErrorState
+        things={EDIT.loadFailedThing}
+        error={query.error}
+        align="start"
+        onRetry={() => {
+          void query.refetch();
+        }}
+      />
+    );
+  }
+
+  // The banners sit at the top of the body: the deleted notice, else the stale-save banner, then the not-yours notice.
+  const editBody = (
+    <div className={expensesModalBodyClasses}>
+      {gone && <ErrorState title={EDIT.deleted.title} message={EDIT.deleted.body} align="start" />}
+      {!gone && conflicts > 0 && (
+        <ConflictBanner
+          key={conflicts}
+          pending={loadingLatest}
+          onLoadLatest={() => {
+            void loadLatest();
+          }}
+        />
+      )}
+      {forbidden && !gone && <ErrorState title={EDIT.forbidden.title} message={EDIT.forbidden.body} align="start" />}
+      {loaded ? form : waiting}
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {status}
+      </div>
+    </div>
+  );
 
   return (
     <Modal
@@ -415,7 +532,7 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
             form={formId}
             icon="check"
             pending={pending}
-            aria-disabled={!loaded}
+            aria-disabled={!loaded || gone || forbidden}
             ref={saveRef}
           >
             {pending ? words.saving : words.save}
@@ -425,10 +542,10 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
     >
       {isEdit ? (
         <LoadingRegion loading={!loaded && !loadFailed} failed={loadFailed} things={EDIT.things}>
-          {body}
+          {editBody}
         </LoadingRegion>
       ) : (
-        body
+        form
       )}
     </Modal>
   );

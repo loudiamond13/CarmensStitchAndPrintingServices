@@ -50,3 +50,6 @@ export const expensesReadOnlyClasses = tw(
 
 /** The label and its read-only control in one column 6px apart, as Field stacks its label and box. */
 export const expensesReadOnlyFieldClasses = tw('flex min-w-0 flex-col gap-1.5');
+
+/** A field with a note under it: the two in one column 8px apart. */
+export const expensesFieldStackClasses = tw('flex min-w-0 flex-col gap-2');
