@@ -9,7 +9,9 @@
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
 //     URL stays clean. Add Expense (the header, and the first-use empty state) opens the E2 modal with the server's today; a save
 //     reads the lists, the KPIs and the deleted list again and toasts, adding a note when the new row is outside the filters.
-//     The row actions arrive in later plans.
+//   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are); the E2 modal
+//     reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
+//     view, and the lists and KPIs read again. Delete and the other row actions arrive in later plans.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -28,6 +30,8 @@ import {
   Pagination,
   ResponsiveTable,
   ResultBar,
+  RowAction,
+  RowActions,
   SearchBox,
   type ResponsiveTableColumn,
 } from '@/components/lists';
@@ -52,15 +56,23 @@ import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange'
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
+import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
 import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expensesDeletedKey, expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
-import type { ActorRef, ExpenseDetailResponse, ExpenseListItem } from '@/modules/admin/services/expensesService';
+import type {
+  ActorRef,
+  ExpenseDetailResponse,
+  ExpenseListItem,
+  ExpenseListResponse,
+} from '@/modules/admin/services/expensesService';
 import { formatCalendarDate } from '@/utils/format';
 
 const COPY = EXPENSES_COPY;
 /** The results heading Pagination moves focus to (it needs tabIndex -1). */
 const HEADING_ID = 'expenses-results';
+/** The table's visually hidden caption: where focus lands when a saved row has left the view. */
+const CAPTION_ID = 'expenses-table-caption';
 
 /** The generated type allows a number or text for a number; the server sends a number. */
 function toNumber(value: number | string): number {
@@ -115,8 +127,15 @@ function isOutsideFilters(
   return (from !== undefined && expense.date < from) || (to !== undefined && expense.date > to);
 }
 
+/** What the table needs to wire a row's buttons. */
+interface RowWiring {
+  edit: (expense: ExpenseListItem) => void;
+  /** Remembers each row's action button, so focus can return to it. */
+  register: (id: string, button: HTMLButtonElement | null) => void;
+}
+
 /** The columns. An expense dated after `today` (the server's business today, never the device clock, D-23) is Upcoming. */
-function columnsFor(today: string): readonly ResponsiveTableColumn<ExpenseListItem>[] {
+function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseListItem>[] {
   return [
     {
       key: 'date',
@@ -147,6 +166,33 @@ function columnsFor(today: string): readonly ResponsiveTableColumn<ExpenseListIt
     },
     { key: 'paidBy', header: COPY.columns.paidBy, cell: (item) => <ActorCell actor={item.paidBy} /> },
     { key: 'recordedBy', header: COPY.columns.recordedBy, cell: (item) => <ActorCell actor={item.recordedBy} /> },
+    {
+      key: 'actions',
+      header: COPY.columns.actions,
+      actions: true,
+      cell: (item) => {
+        // SPEC-DEVIATION: D-26 Edit only where the server says the caller may edit (a Manager always may).
+        if (!item.canEdit) {
+          return null;
+        }
+        const label = COPY.rowActions.edit(item.description, formatCalendarDate(item.date) ?? item.date);
+        return (
+          <RowActions>
+            <RowAction
+              icon="pencil"
+              label={label}
+              title={label}
+              onClick={() => {
+                wiring.edit(item);
+              }}
+              ref={(button) => {
+                wiring.register(item.id, button);
+              }}
+            />
+          </RowActions>
+        );
+      },
+    },
   ];
 }
 
@@ -156,6 +202,10 @@ export function ExpensesRoute() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
+  // The expense whose Edit modal is open or was last open (kept while it animates out), and each row's action button.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const rowFocus = useRowFocus();
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
   const query = useExpensesQuery({
@@ -255,6 +305,36 @@ export function ExpensesRoute() {
     });
   };
 
+  // The same reads as an add; then focus returns to the saved row's button, or to the caption when the row left the view.
+  const updated = (expense: ExpenseDetailResponse): void => {
+    toast.show({
+      tone: 'success',
+      title: COPY.edit.toast.title,
+      message: COPY.add.toast.message(formatPeso(expense.amount), expense.category.name),
+    });
+    void queryClient.invalidateQueries({ queryKey: expenseKpisKey });
+    void queryClient.invalidateQueries({ queryKey: expensesDeletedKey });
+    void queryClient.invalidateQueries({ queryKey: expensesKey }).then(() => {
+      // The answer is in the cache before the table redraws, so ask it (not the DOM) whether the row is still listed.
+      const listed = queryClient
+        .getQueriesData<ExpenseListResponse>({ queryKey: expensesKey, type: 'active' })
+        .some(([, answer]) => answer?.items.some((item) => item.id === expense.id) === true);
+      if (!listed || !rowFocus.focusRow(expense.id)) {
+        document.getElementById(CAPTION_ID)?.focus();
+      }
+    });
+  };
+
+  const wiring: RowWiring = {
+    edit: (expense) => {
+      if (today !== null) {
+        setEditingId(expense.id);
+        setEditing(true);
+      }
+    },
+    register: rowFocus.register,
+  };
+
   return (
     <>
       <div className={pageHeadClasses}>
@@ -277,6 +357,18 @@ export function ExpensesRoute() {
             setAdding(false);
           }}
           onSaved={saved}
+        />
+      )}
+      {today !== null && (
+        <ExpenseModal
+          mode="edit"
+          open={editing}
+          expenseId={editingId}
+          today={today}
+          onClose={() => {
+            setEditing(false);
+          }}
+          onSaved={updated}
         />
       )}
       <ExpenseKpiRow />
@@ -333,7 +425,8 @@ export function ExpensesRoute() {
       </ResultBar>
       <ResponsiveTable<ExpenseListItem>
         caption={COPY.tableCaption}
-        columns={columnsFor(data?.today ?? '')}
+        captionId={CAPTION_ID}
+        columns={columnsFor(data?.today ?? '', wiring)}
         rows={data?.items}
         rowKey={(item) => item.id}
         things={COPY.things}

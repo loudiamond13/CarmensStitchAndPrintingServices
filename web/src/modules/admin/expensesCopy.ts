@@ -64,6 +64,12 @@ export const EXPENSES_COPY = {
     amount: 'Amount',
     paidBy: 'Paid by',
     recordedBy: 'Recorded by',
+    /** The actions column's header is visually hidden. */
+    actions: 'Actions',
+  },
+  /** A row's actions are named with the description and date so each is unique on the page (OQ-11). */
+  rowActions: {
+    edit: (description: string, date: string): string => `Edit ${description}, ${date}`,
   },
   footer: {
     /** The phone label of the period total (OQ-13: it covers every page, so "Total shown" would mislead). */
@@ -110,6 +116,16 @@ export const EXPENSES_COPY = {
       // SPEC-GAP: said when the new expense does not match the current search, category or dates.
       outsideFilters: " It's outside the current filters, so it isn't listed.",
     },
+  },
+  /** The Edit Expense modal (E2, App. E.11; plan 06-14). */
+  edit: {
+    title: 'Edit Expense',
+    save: 'Save Changes',
+    saving: 'Saving',
+    cancel: 'Cancel',
+    /** The loading region reads "Loading expense…" and then "Expense loaded.". */
+    things: 'expense',
+    toast: { title: 'Expense updated' },
   },
   /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
   form: {

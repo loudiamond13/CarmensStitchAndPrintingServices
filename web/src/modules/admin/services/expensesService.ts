@@ -12,6 +12,7 @@ export type ActorRef = Schemas['ActorRef'];
 export type ExpenseKpisResponse = Schemas['CompanyExpenseKpisResponse'];
 export type ExpenseDetailResponse = Schemas['CompanyExpenseDetailResponse'];
 export type CreateExpenseRequest = Schemas['CreateCompanyExpenseRequest'];
+export type UpdateExpenseRequest = Schemas['UpdateCompanyExpenseRequest'];
 
 /** What `GET /api/v1/company-expenses` is asked for. Dates are `yyyy-MM-dd` and travel as a pair, or not at all. */
 export interface ExpensesListQuery {
@@ -39,7 +40,20 @@ export interface ExpensesService {
    * so a double press or a retry saves it once. 400 lists the field errors, 201 answers the saved expense with its version.
    */
   create(body: CreateExpenseRequest, idempotencyKey: string, signal?: AbortSignal): Promise<ExpenseDetailResponse>;
+  /**
+   * `GET /api/v1/company-expenses/{id}`: one expense with its notes, its recorder and last editor, whether the caller may
+   * edit it, and the row version a save must send back (CEXP-02, CEXP-04). 404 when it was deleted.
+   */
+  get(id: string, signal?: AbortSignal): Promise<ExpenseDetailResponse>;
+  /**
+   * `PUT /api/v1/company-expenses/{id}`: saves the form (CEXP-02). The body carries the row version the form was opened with:
+   * 409 `edit.stale` when it is not the stored one, 403 `company-expenses.not-yours` for an Admin who may not edit it, 404
+   * when it was deleted. A form edit is never retried, so it carries no Idempotency-Key (SEC-07).
+   */
+  update(id: string, body: UpdateExpenseRequest, signal?: AbortSignal): Promise<ExpenseDetailResponse>;
 }
+
+const expensePath = (id: string): string => `/company-expenses/${encodeURIComponent(id)}`;
 
 export function createExpensesService(client: HttpClient): ExpensesService {
   return {
@@ -58,6 +72,8 @@ export function createExpensesService(client: HttpClient): ExpensesService {
     kpis: (signal) => client.get<ExpenseKpisResponse>('/company-expenses/kpis', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<ExpenseDetailResponse>('/company-expenses', body, { idempotencyKey, signal }),
+    get: (id, signal) => client.get<ExpenseDetailResponse>(expensePath(id), { signal }),
+    update: (id, body, signal) => client.put<ExpenseDetailResponse>(expensePath(id), body, { signal }),
   };
 }
 

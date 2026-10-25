@@ -193,6 +193,8 @@ export type ExpenseDetailFixture = Schemas['CompanyExpenseDetailResponse'];
 
 /** The signed-in user of sessionResponse() in test/sessionFixtures.ts (Carmen Reyes). */
 export const ME_ID = '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f';
+/** The signed-in user as an actor: the payer and recorder of `expenseDetail()` unless a test says otherwise. */
+export const ME_ACTOR: ActorFixture = { id: ME_ID, name: 'Carmen Reyes', formerStaff: false };
 export const LIZA_ID = '00000000-0000-4000-8000-0000000000a2';
 export const PAOLO_ID = '00000000-0000-4000-8000-0000000000a3';
 
@@ -231,9 +233,9 @@ export function expenseDetail(overrides: Partial<ExpenseDetailFixture> = {}): Ex
     description: 'Thread and needles',
     amount: 640,
     notes: null,
-    paidBy: CARMEN,
+    paidBy: ME_ACTOR,
     paidByActive: true,
-    recordedBy: CARMEN,
+    recordedBy: ME_ACTOR,
     recordedAt: '2026-10-25T04:00:00Z',
     lastChangedBy: null,
     lastChangedAt: null,
@@ -276,7 +278,7 @@ export function expenseDetailBackend(answer: ExpenseDetailFixture | DetailRespon
   const ids: string[] = [];
   server.use(
     http.get('*/api/v1/company-expenses/:id', async ({ params }) => {
-      const id = String(params['id']);
+      const id = String(params.id);
       // The month figures share the prefix; let their own handler answer.
       if (id === 'kpis') {
         return undefined;
@@ -303,7 +305,7 @@ export function updateExpenseBackend(
   const calls: UpdateCalls = { ids: [], bodies: [], keys: [] };
   server.use(
     http.put('*/api/v1/company-expenses/:id', async ({ params, request }) => {
-      calls.ids.push(String(params['id']));
+      calls.ids.push(String(params.id));
       calls.bodies.push(await request.json());
       calls.keys.push(request.headers.get('Idempotency-Key'));
       return reply();
