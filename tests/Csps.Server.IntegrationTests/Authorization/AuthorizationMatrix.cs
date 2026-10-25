@@ -151,6 +151,11 @@ public static class AuthorizationMatrix
         // The staff who can be named as the payer (CEXP-05, D-32): Staff only, names and ids only.
         new("GET", "/api/v1/staff", "/api/v1/staff", Anonymous: 401, Admin: 200, Manager: 200),
 
+        // Recording a company expense (CEXP-02): Staff only. With no body both roles meet the same 400 field errors.
+        new("POST", "/api/v1/company-expenses", "/api/v1/company-expenses", Anonymous: 401, Admin: 400, Manager: 400),
+        // Reading one expense (CEXP-02, D-25): both roles read every expense. A random id is no expense, so both meet 404 company-expenses.not-found.
+        new("GET", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/9a3e6c15-4b72-4d08-b1f9-0c8d5e7a2f64", Anonymous: 401, Admin: 404, Manager: 404),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),

@@ -218,6 +218,174 @@
         ],
         "type": "object"
       },
+      "CompanyExpenseDetailResponse": {
+        "description": "One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "canEdit": {
+            "description": "True when the caller may edit it (D-26).",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "notes": {
+            "description": "The notes; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          },
+          "paidByActive": {
+            "description": "True while the payer can still be chosen (D-32).",
+            "type": "boolean"
+          },
+          "recordedAt": {
+            "description": "When it was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "notes",
+          "paidBy",
+          "paidByActive",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version",
+          "canEdit"
+        ],
+        "type": "object"
+      },
+      "CreateCompanyExpenseRequest": {
+        "description": "The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is\nignored: who recorded the expense and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "categoryId": {
+            "description": "The category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The day the money was spent, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Optional notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "categoryId",
+          "description",
+          "amount",
+          "paidByUserId",
+          "notes"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
@@ -373,6 +541,35 @@
           "tone",
           "status",
           "isOthers"
+        ],
+        "type": "object"
+      },
+      "ExpenseCategoryRef": {
+        "description": "The category an expense shows: its name and badge tone, and whether it is retired (D-11).",
+        "properties": {
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "retired": {
+            "description": "True once the category is retired.",
+            "type": "boolean"
+          },
+          "tone": {
+            "description": "One of the six colour tones.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "retired"
         ],
         "type": "object"
       },
@@ -2314,6 +2511,141 @@
         ]
       }
     },
+    "/api/v1/company-expenses": {
+      "post": {
+        "operationId": "CreateCompanyExpense",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above\n0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has set a\npassword. A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/{id}": {
+      "get": {
+        "operationId": "GetCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
     "/api/v1/expense-categories": {
       "get": {
         "operationId": "ListExpenseCategories",
@@ -4219,6 +4551,9 @@
     },
     {
       "name": "AuthSession"
+    },
+    {
+      "name": "CompanyExpenses"
     },
     {
       "name": "ExpenseCategories"

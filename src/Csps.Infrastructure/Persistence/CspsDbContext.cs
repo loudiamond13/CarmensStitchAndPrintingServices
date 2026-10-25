@@ -50,6 +50,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The company expense categories, ten of them seeded by the migration (D-08, D-09).</summary>
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
 
+    /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
+    public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
+
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

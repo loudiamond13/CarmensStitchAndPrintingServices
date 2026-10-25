@@ -180,6 +180,96 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("ExpenseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("PaidByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_CompanyExpenses_CreatedById");
+
+                    b.HasIndex("DeletedAtUtc")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CompanyExpenses_Deleted")
+                        .HasFilter("[DeletedAtUtc] IS NOT NULL");
+
+                    b.HasIndex("DeletedById")
+                        .HasDatabaseName("IX_CompanyExpenses_DeletedById");
+
+                    b.HasIndex("PaidByUserId")
+                        .HasDatabaseName("IX_CompanyExpenses_PaidByUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("PaidByUserId"), new[] { "Amount" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_CompanyExpenses_UpdatedById");
+
+                    b.HasIndex("CategoryId", "ExpenseDate")
+                        .HasDatabaseName("IX_CompanyExpenses_CategoryId_ExpenseDate");
+
+                    b.HasIndex("ExpenseDate", "CreatedAtUtc", "Id")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CompanyExpenses_List")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ExpenseDate", "CreatedAtUtc", "Id"), new[] { "Amount", "CategoryId", "PaidByUserId", "CreatedById" });
+
+                    b.ToTable("CompanyExpenses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CompanyExpenses_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -966,6 +1056,36 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
+                {
+                    b.HasOne("Csps.Domain.Expenses.ExpenseCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PaidByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>

@@ -25,4 +25,12 @@ internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCate
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public async Task<ExpenseCategoryState?> GetStateAsync(Guid id, CancellationToken cancellationToken) =>
+        await context.ExpenseCategories
+            .AsNoTracking()
+            .Where(category => category.Id == id)
+            .Select(category => new ExpenseCategoryState(category.Id, category.Name, category.RetiredAtUtc != null))
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
 }

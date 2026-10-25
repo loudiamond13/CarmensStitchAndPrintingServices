@@ -267,6 +267,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company-expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above
+         *     0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has set a
+         *     password. A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the
+         *     body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateCompanyExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it. */
+        get: operations["GetCompanyExpense"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -793,6 +832,77 @@ export interface components {
             /** @description The new password as typed. */
             newPassword: null | string;
         };
+        /** @description One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04). */
+        CompanyExpenseDetailResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description True when the caller may edit it (D-26). */
+            canEdit: boolean;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+            /** @description True while the payer can still be chosen (D-32). */
+            paidByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was recorded.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /**
+         * @description The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is
+         *     ignored: who recorded the expense and when come from the token and the clock (SEC-08).
+         */
+        CreateCompanyExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The category.
+             */
+            categoryId: null | string;
+            /** @description The day the money was spent, `yyyy-MM-dd`. */
+            date: null | string;
+            /** @description What it was for. */
+            description: null | string;
+            /** @description Optional notes. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+        };
         /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
          *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
@@ -849,6 +959,20 @@ export interface components {
             /** @description `active`, or `retired` so the Add picker can hide it while the list filter keeps it. */
             status: string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+        };
+        /** @description The category an expense shows: its name and badge tone, and whether it is retired (D-11). */
+        ExpenseCategoryRef: {
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description The display name. */
+            name: string;
+            /** @description True once the category is retired. */
+            retired: boolean;
+            /** @description One of the six colour tones. */
             tone: string;
         };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
@@ -1897,6 +2021,92 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+                "application/json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+                "text/json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
