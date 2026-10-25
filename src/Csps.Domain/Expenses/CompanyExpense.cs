@@ -87,6 +87,76 @@ public sealed class CompanyExpense : IAttributedRecord
         DateOnly today,
         DateTimeOffset now)
     {
+        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today);
+        if (checkedFields.IsFailure)
+        {
+            return Result.Failure<CompanyExpense>(checkedFields.Error);
+        }
+
+        return Result.Success(new CompanyExpense(
+            Guid.CreateVersion7(now),
+            date,
+            categoryId,
+            checkedFields.Value.Description,
+            amount,
+            paidByUserId,
+            checkedFields.Value.Notes));
+    }
+
+    /// <summary>
+    /// Applies an edit, checking every field rule again as <see cref="Create"/> does. Only values that differ are assigned, so an
+    /// identical form leaves the expense untouched. Nothing is assigned when a rule fails.
+    /// </summary>
+    /// <param name="date">The day the money was spent.</param>
+    /// <param name="categoryId">The category.</param>
+    /// <param name="description">What it was for.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="paidByUserId">The payer.</param>
+    /// <param name="notes">Optional notes; empty means none.</param>
+    /// <param name="today">The business today.</param>
+    /// <returns>What changed, with old and new values, or a validation error naming the first broken field.</returns>
+    public Result<ExpenseChanges> Update(
+        DateOnly date,
+        Guid categoryId,
+        string description,
+        decimal amount,
+        Guid paidByUserId,
+        string? notes,
+        DateOnly today)
+    {
+        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today);
+        if (checkedFields.IsFailure)
+        {
+            return Result.Failure<ExpenseChanges>(checkedFields.Error);
+        }
+
+        var (newDescription, newNotes) = checkedFields.Value;
+        var changes = new ExpenseChanges(
+            amount == Amount ? null : new ValueChange<decimal>(Amount, amount),
+            date == ExpenseDate ? null : new ValueChange<DateOnly>(ExpenseDate, date),
+            categoryId == CategoryId ? null : new ValueChange<Guid>(CategoryId, categoryId),
+            paidByUserId == PaidByUserId ? null : new ValueChange<Guid>(PaidByUserId, paidByUserId),
+            !string.Equals(newDescription, Description, StringComparison.Ordinal),
+            !string.Equals(newNotes, Notes, StringComparison.Ordinal));
+
+        Amount = amount;
+        ExpenseDate = date;
+        CategoryId = categoryId;
+        PaidByUserId = paidByUserId;
+        Description = newDescription;
+        Notes = newNotes;
+        return Result.Success(changes);
+    }
+
+    private static Result<CheckedFields> CheckFields(
+        DateOnly date,
+        Guid categoryId,
+        string description,
+        decimal amount,
+        Guid paidByUserId,
+        string? notes,
+        DateOnly today)
+    {
         ArgumentNullException.ThrowIfNull(description);
 
         if (date > ExpenseRules.Latest(today))
@@ -136,19 +206,14 @@ public sealed class CompanyExpense : IAttributedRecord
             return Reject(ExpenseRules.NotesField, ExpenseRules.NotesTooLong);
         }
 
-        return Result.Success(new CompanyExpense(
-            Guid.CreateVersion7(now),
-            date,
-            categoryId,
-            trimmedDescription,
-            amount,
-            paidByUserId,
-            string.IsNullOrEmpty(trimmedNotes) ? null : trimmedNotes));
+        return Result.Success(new CheckedFields(trimmedDescription, string.IsNullOrEmpty(trimmedNotes) ? null : trimmedNotes));
     }
 
-    private static Result<CompanyExpense> Reject(string field, string message) =>
-        Result.Failure<CompanyExpense>(Error.Validation(
+    private static Result<CheckedFields> Reject(string field, string message) =>
+        Result.Failure<CheckedFields>(Error.Validation(
             ExpenseRules.InvalidCode,
             ExpenseRules.InvalidMessage,
             new Dictionary<string, string[]> { [field] = [message] }));
+
+    private readonly record struct CheckedFields(string Description, string? Notes);
 }

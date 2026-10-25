@@ -11,6 +11,7 @@ namespace Csps.Application.Expenses;
 /// <param name="PaidByUserId">The staff member who paid.</param>
 /// <param name="Notes">Optional notes.</param>
 public sealed record CreateCompanyExpenseRequest(string? Date, Guid? CategoryId, string? Description, decimal? Amount, Guid? PaidByUserId, string? Notes)
+    : IExpenseFieldsRequest
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateCompanyExpenseRequest Empty { get; } = new(null, null, null, null, null, null);

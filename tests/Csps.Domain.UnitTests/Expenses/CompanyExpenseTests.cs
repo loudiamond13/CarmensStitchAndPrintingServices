@@ -245,6 +245,28 @@ public sealed class CompanyExpenseTests
         changes.Payer.ShouldBe(new ValueChange<Guid>(PayerId, otherPayer));
     }
 
+    [Theory]
+    [InlineData("amount")]
+    [InlineData("date")]
+    [InlineData("category")]
+    [InlineData("description")]
+    [InlineData("notes")]
+    public void AChangeToAnySingleFieldIsAFieldChange(string field)
+    {
+        var expense = Create().Value;
+        var date = field == "date" ? Today.AddDays(-1) : Today;
+        var category = field == "category" ? Guid.Parse("0f4b8d27-6a31-4c95-9e02-5d7a1c3b8e46") : CategoryId;
+        var description = field == "description" ? "Other" : "Thread and needles";
+        var amount = field == "amount" ? 1m : 640.00m;
+        var notes = field == "notes" ? "cash" : null;
+
+        var changes = expense.Update(date, category, description, amount, PayerId, notes, Today).Value;
+
+        changes.HasAny.ShouldBeTrue();
+        changes.HasFieldChange.ShouldBeTrue();
+        changes.Payer.ShouldBeNull();
+    }
+
     [Fact]
     public void WhitespaceOnlyNotesBecomeNoneAndCountAsAChangeOnlyWhenNotesWereStored()
     {

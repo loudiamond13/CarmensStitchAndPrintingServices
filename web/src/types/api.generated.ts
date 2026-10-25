@@ -325,7 +325,14 @@ export interface paths {
         };
         /** Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it. */
         get: operations["GetCompanyExpense"];
-        put?: never;
+        /**
+         * Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A
+         *     version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A Manager
+         *     may edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager
+         *     who has set a password, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it
+         *     and when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.
+         */
+        put: operations["UpdateCompanyExpense"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1334,6 +1341,36 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
+         *     forged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when
+         *     come from the token and the clock (SEC-08).
+         */
+        UpdateCompanyExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The category.
+             */
+            categoryId: null | string;
+            /** @description The day the money was spent, `yyyy-MM-dd`. */
+            date: null | string;
+            /** @description What it was for. */
+            description: null | string;
+            /** @description Optional notes. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
         UpdateProfileNameRequest: {
             /** @description Given name. */
@@ -2327,6 +2364,81 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+                "application/json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+                "text/json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

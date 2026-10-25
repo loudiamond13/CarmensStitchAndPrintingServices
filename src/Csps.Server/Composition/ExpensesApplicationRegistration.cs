@@ -16,11 +16,13 @@ public static class ExpensesApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IValidator<CreateCompanyExpenseRequest>, CreateCompanyExpenseRequestValidator>();
+        services.AddSingleton<IValidator<UpdateCompanyExpenseRequest>, UpdateCompanyExpenseRequestValidator>();
         services.AddSingleton<IValidator<ListCompanyExpensesRequest>, ListCompanyExpensesRequestValidator>();
 
         services.AddScoped<ListExpenseCategoriesHandler>();
         services.AddScoped<ListStaffHandler>();
         services.AddScoped<CreateCompanyExpenseHandler>();
+        services.AddScoped<UpdateCompanyExpenseHandler>();
         services.AddScoped<GetCompanyExpenseHandler>();
         services.AddScoped<ListCompanyExpensesHandler>();
         services.AddScoped<GetCompanyExpenseKpisHandler>();

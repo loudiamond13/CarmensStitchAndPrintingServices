@@ -14,12 +14,13 @@ namespace Csps.Server.Controllers;
 /// <param name="get">The single-expense read handler.</param>
 /// <param name="list">The expense list handler.</param>
 /// <param name="kpis">The month KPI handler.</param>
+/// <param name="update">The edit-an-expense handler.</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update) : ControllerBase
 {
     /// <summary>
     /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
@@ -90,6 +91,34 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     {
         var result = await kpis.HandleAsync(cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static figures => TypedResults.Ok(figures));
+    }
+
+    /// <summary>
+    /// Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A
+    /// version that is not the stored one answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried. A Manager
+    /// may edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager
+    /// who has set a password, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it
+    /// and when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.
+    /// </summary>
+    /// <param name="id">The expense id.</param>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the saved expense, 400 for field errors, 401 without a valid token, 403 for an Admin who neither recorded nor paid it, 404 when it does not exist or was deleted, or 409 for a stale version.</returns>
+    [HttpPut("{id:guid}")]
+    [EndpointName("UpdateCompanyExpense")]
+    [ProducesResponseType<CompanyExpenseDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Update(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateCompanyExpenseRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await update.HandleAsync(id, body ?? UpdateCompanyExpenseRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static saved => TypedResults.Ok(saved));
     }
 
     /// <summary>Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it.</summary>

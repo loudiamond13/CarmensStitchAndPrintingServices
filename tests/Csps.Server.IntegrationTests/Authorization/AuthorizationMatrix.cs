@@ -160,6 +160,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/company-expenses/kpis", "/api/v1/company-expenses/kpis", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading one expense (CEXP-02, D-25): both roles read every expense. A random id is no expense, so both meet 404 company-expenses.not-found.
         new("GET", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/9a3e6c15-4b72-4d08-b1f9-0c8d5e7a2f64", Anonymous: 401, Admin: 404, Manager: 404),
+        // Editing one expense (CEXP-02, SEC-07): a fresh random id and no body, so a caller who passes the policy meets 400 field errors before any lookup.
+        new("PUT", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/6e2f8a14-9c05-4b3d-a7e1-3d5b9f1c8a20", Anonymous: 401, Admin: 400, Manager: 400),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
