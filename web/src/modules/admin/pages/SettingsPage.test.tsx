@@ -1,15 +1,27 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
+import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
+import { expensesDeletedKey, expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
 import { SettingsRoute } from '@/modules/admin/pages/SettingsPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import { categoriesBackend, EXPENSE_CATEGORIES, problemResponse } from '@/test/expenseFixtures';
+import {
+  categoriesBackend,
+  categoryDetail,
+  categoryDetailBackend,
+  createCategoryBackend,
+  EXPENSE_CATEGORIES,
+  problemResponse,
+  RENT,
+  updateCategoryBackend,
+} from '@/test/expenseFixtures';
 import type { CategoryListItemFixture } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -209,5 +221,108 @@ describe('S1 the list states (UI Considerations)', () => {
 
     await screen.findByText('Utilities');
     expect(calls).toBe(2);
+  });
+});
+
+describe('S1 add, rename and recolor (D-08, D-12, D-13; plan 06-17)', () => {
+  function expectRefreshed(spy: ReturnType<typeof vi.spyOn>) {
+    const keys = spy.mock.calls.map((call) =>
+      JSON.stringify((call[0] as { queryKey?: unknown } | undefined)?.queryKey),
+    );
+    for (const key of [expenseCategoriesKey, expensesKey, expenseKpisKey, expensesDeletedKey]) {
+      expect(keys).toContain(JSON.stringify(key));
+    }
+  }
+
+  it('gives every row an Edit button named for its category, with a matching title (Others included)', async () => {
+    await openPage();
+
+    for (const category of EXPENSE_CATEGORIES) {
+      const button = within(rowOf(category.name)).getByRole('button', { name: `Edit ${category.name}` });
+      expect(button).toHaveAttribute('title', `Edit ${category.name}`);
+    }
+  });
+
+  it('opens the Add Category dialog from the card button; a save toasts, refreshes every list and returns focus to the button', async () => {
+    const sent = createCategoryBackend();
+    const user = userEvent.setup();
+    await openPage();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const add = screen.getByRole('button', { name: 'Add Category' });
+
+    await user.click(add);
+    const dialog = screen.getByRole('dialog', { name: 'Add Category' });
+    await user.type(within(dialog).getByRole('textbox', { name: /^Name/ }), 'Packaging');
+    await user.click(within(dialog).getByRole('radio', { name: 'Blue' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save Category' }));
+
+    expect(await screen.findByText('Category added')).toBeVisible();
+    expect(screen.getByText('Packaging is ready to use.')).toBeVisible();
+    expect(sent.bodies).toEqual([{ name: 'Packaging', tone: 'info' }]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(add).toHaveFocus();
+    expectRefreshed(invalidate);
+  });
+
+  it('opens Edit {name} for a row; a save toasts the new name, refreshes every list and returns focus to the row Edit button', async () => {
+    categoryDetailBackend(categoryDetail());
+    updateCategoryBackend(() => Response.json(categoryDetail({ name: 'Rent and bills' })));
+    const user = userEvent.setup();
+    await openPage();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const edit = within(rowOf(RENT.name)).getByRole('button', { name: 'Edit Rent' });
+
+    await user.click(edit);
+    const dialog = screen.getByRole('dialog', { name: 'Edit Category' });
+    const name = await within(dialog).findByDisplayValue('Rent');
+    await user.clear(name);
+    await user.type(name, 'Rent and bills');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Category updated')).toBeVisible();
+    expect(screen.getByText('Rent and bills')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(edit).toHaveFocus();
+    expectRefreshed(invalidate);
+  });
+
+  it('reads the category list again after a save, so a rename shows in the table', async () => {
+    const renamed = CATEGORIES.map((category) =>
+      category.id === RENT.id ? { ...category, name: 'Rent and bills' } : category,
+    );
+    let saved = false;
+    categoriesBackend(() => (saved ? renamed : CATEGORIES));
+    categoryDetailBackend(categoryDetail());
+    updateCategoryBackend(() => {
+      saved = true;
+      return Response.json(categoryDetail({ name: 'Rent and bills' }));
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('table', { name: 'Expense categories' });
+
+    await user.click(screen.getByRole('button', { name: 'Edit Rent' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit Category' });
+    const name = await within(dialog).findByDisplayValue('Rent');
+    await user.clear(name);
+    await user.type(name, 'Rent and bills');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Rent and bills', { selector: 'span' })).toBeVisible();
+  });
+
+  it('has no axe violations with the Add Category dialog open', async () => {
+    const user = userEvent.setup();
+    const view = await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Add Category' }));
+    await screen.findByRole('dialog', { name: 'Add Category' });
+
+    await expectNoAxeViolations(view.container);
+    await expectNoAxeViolations(screen.getByRole('dialog', { name: 'Add Category' }));
   });
 });

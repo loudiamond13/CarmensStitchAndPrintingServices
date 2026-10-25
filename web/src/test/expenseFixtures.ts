@@ -419,3 +419,83 @@ export function purgeExpenseBackend(reply: (id: string) => Response | Promise<Re
   );
   return calls;
 }
+
+export type CategoryDetailFixture = Schemas['ExpenseCategoryDetailResponse'];
+
+/** One category as GET /api/v1/expense-categories/{id} answers it (Rent, seeded by the system, so nobody recorded it). */
+export function categoryDetail(overrides: Partial<CategoryDetailFixture> = {}): CategoryDetailFixture {
+  return {
+    id: RENT.id,
+    name: RENT.name,
+    tone: RENT.tone,
+    status: 'active',
+    isOthers: false,
+    expenseCount: 12,
+    recordedBy: null,
+    recordedAt: '2026-10-07T02:00:00Z',
+    lastChangedBy: null,
+    lastChangedAt: null,
+    version: 'AAAAAAAAB9E=',
+    ...overrides,
+  };
+}
+
+/** What the fake API received for one category write: the ids, bodies and Idempotency-Keys, in order. */
+export interface CategoryWriteCalls {
+  ids: string[];
+  bodies: unknown[];
+  keys: (string | null)[];
+}
+
+/** Answers POST /api/v1/expense-categories (default: 201 with a new Blue category) and records each body and Idempotency-Key. */
+export function createCategoryBackend(
+  reply: () => Response | Promise<Response> = () =>
+    HttpResponse.json(categoryItem('8f1a0c6e-1d54-4c0e-9d77-3a5b7c9d1e21', 'Packaging', 'info'), { status: 201 }),
+): CategoryWriteCalls {
+  const calls: CategoryWriteCalls = { ids: [], bodies: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/expense-categories', async ({ request }) => {
+      calls.bodies.push(await request.json());
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply();
+    }),
+  );
+  return calls;
+}
+
+/** What the fake API answers for one category detail read: the detail, or a ready-made response. */
+export type CategoryDetailResponder = (
+  id: string,
+) => CategoryDetailFixture | Response | Promise<CategoryDetailFixture | Response>;
+
+/** Answers GET /api/v1/expense-categories/{id} and records each id read. A later call overrides an earlier one. */
+export function categoryDetailBackend(answer: CategoryDetailFixture | CategoryDetailResponder = categoryDetail()): {
+  ids: string[];
+} {
+  const ids: string[] = [];
+  server.use(
+    http.get('*/api/v1/expense-categories/:id', async ({ params }) => {
+      const id = String(params.id);
+      ids.push(id);
+      const body = typeof answer === 'function' ? await answer(id) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { ids };
+}
+
+/** Answers PUT /api/v1/expense-categories/{id} (default: 200 with `categoryDetail()`) and records each id, body and Idempotency-Key. */
+export function updateCategoryBackend(
+  reply: () => Response | Promise<Response> = () => HttpResponse.json(categoryDetail()),
+): CategoryWriteCalls {
+  const calls: CategoryWriteCalls = { ids: [], bodies: [], keys: [] };
+  server.use(
+    http.put('*/api/v1/expense-categories/:id', async ({ params, request }) => {
+      calls.ids.push(String(params.id));
+      calls.bodies.push(await request.json());
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply();
+    }),
+  );
+  return calls;
+}
