@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-19T02:05:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-25T03:45:00-05:00*
 
 ## Overview
 
@@ -695,7 +695,51 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: TBD
+**Plans**: 19 plans in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [ ] 06-01-PLAN.md — Expense categories table with the ten seeded categories, the staff lookup for Paid by, and the D-27 audit catalog (D-08, D-09, D-13, D-15, D-27, D-32)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 06-02-PLAN.md — Record an expense: schema with soft delete and index set, POST and GET, every field rule, audited and attributed (CEXP-02, CEXP-04, CEXP-05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 06-03-PLAN.md — Expense list API: default window, filters, search, period total, canEdit, e2e seeding endpoint (CEXP-01, D-23, D-26)
+- [ ] 06-11-PLAN.md — Dev seed for demo expenses and the no-inline-SQL architecture guard
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 06-04-PLAN.md — Company Expenses page lists rows with the server total; stored category tones (CEXP-01, D-13, D-23)
+- [ ] 06-05-PLAN.md — Month KPIs API in Manila time (CEXP-03, D-24)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 06-06-PLAN.md — Query-count guards, compiled detail query and the p95 timing test (PERF-04, D-28)
+- [ ] 06-07-PLAN.md — Search, category and date filters in the URL (CEXP-01, WEB-10)
+- [ ] 06-08-PLAN.md — Edit API with rowversion 409, the own-expense rule and payer audit (CEXP-02, SEC-07, D-26, D-27)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 06-09-PLAN.md — KPI row on the page (CEXP-03)
+- [ ] 06-10-PLAN.md — Soft delete, restore, permanent delete and the deleted list API, Manager only (D-01 to D-07)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 06-12-PLAN.md — Add Expense modal with Paid by and browser checks (CEXP-02, CEXP-05, D-18)
+- [ ] 06-13-PLAN.md — Category management API: add, rename, recolor, retire, use again, delete never-used (D-10 to D-15, D-30)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 06-14-PLAN.md — Edit and View modes with the conflict banner and the D-26 notice (CEXP-02, CEXP-04)
+- [ ] 06-15-PLAN.md — Audit Log shows expense and category changes (D-27)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 06-16-PLAN.md — Delete dialogs and the Deleted Expenses page with restore (D-01 to D-07)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 06-17-PLAN.md — Settings page with the expense category list (D-08, D-10 to D-15)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 06-18-PLAN.md — Responsive and long-text sweeps, Phase 6 showcase cases
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 06-19-PLAN.md — Owner review pack and the slice pattern record for Phase 7 (D-29)
+
 **UI hint**: yes
 
 ### Phase 7: Order Domain & API
