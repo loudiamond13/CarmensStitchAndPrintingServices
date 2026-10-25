@@ -1,5 +1,6 @@
 using Csps.Application.Ports;
 using Csps.Application.Users;
+using Csps.Infrastructure.Common;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -9,9 +10,6 @@ namespace Csps.Infrastructure.Identity;
 /// <summary><see cref="IUserDirectory"/> over the Identity tables: untracked reads, so nothing is saved by accident.</summary>
 internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
 {
-    // The escape character of the LIKE pattern: it keeps a typed '%', '_', '[' or backslash literal.
-    private const string LikeEscape = "\\";
-
     public async Task<ProfileView?> GetProfileAsync(Guid userId, CancellationToken cancellationToken)
     {
         var row = await context.Users
@@ -184,21 +182,15 @@ internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
 
         if (query.Search is { } search)
         {
-            var pattern = "%" + EscapeLike(search) + "%";
+            var pattern = LikePattern.Contains(search);
             users = users.Where(user =>
-                EF.Functions.Like(user.FirstName, pattern, LikeEscape)
-                || EF.Functions.Like(user.LastName, pattern, LikeEscape)
-                || EF.Functions.Like(user.FirstName + " " + user.LastName, pattern, LikeEscape)
-                || EF.Functions.Like(user.Email!, pattern, LikeEscape));
+                EF.Functions.Like(user.FirstName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(user.LastName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(user.FirstName + " " + user.LastName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(user.Email!, pattern, LikePattern.EscapeCharacter));
         }
 
         return users;
     }
 
-    // Puts the escape character before itself and before the three characters LIKE treats as wildcards.
-    private static string EscapeLike(string text) =>
-        text.Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("%", "\\%", StringComparison.Ordinal)
-            .Replace("_", "\\_", StringComparison.Ordinal)
-            .Replace("[", "\\[", StringComparison.Ordinal);
 }

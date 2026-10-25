@@ -3,6 +3,7 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Users;
 using Csps.Domain.Expenses;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -153,6 +154,29 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
         return new CompanyExpenseListPage(items, totals?.Count ?? 0, totals?.Sum ?? 0m);
     }
 
-    private static IQueryable<CompanyExpense> Filter(IQueryable<CompanyExpense> expenses, CompanyExpenseListQuery query) =>
-        expenses.Where(expense => expense.ExpenseDate >= query.From && expense.ExpenseDate <= query.To);
+    // The window, then the optional category and search. The search looks at the description and at the names of the payer and the
+    // recorder, never at the notes (D-19). A typed wildcard stays literal (CWE-943).
+    private IQueryable<CompanyExpense> Filter(IQueryable<CompanyExpense> expenses, CompanyExpenseListQuery query)
+    {
+        expenses = expenses.Where(expense => expense.ExpenseDate >= query.From && expense.ExpenseDate <= query.To);
+
+        if (query.CategoryId is { } categoryId)
+        {
+            expenses = expenses.Where(expense => expense.CategoryId == categoryId);
+        }
+
+        if (query.Search is { } search)
+        {
+            var pattern = LikePattern.Contains(search);
+            expenses = expenses.Where(expense =>
+                EF.Functions.Like(expense.Description, pattern, LikePattern.EscapeCharacter)
+                || context.Users.Any(person =>
+                    (person.Id == expense.PaidByUserId || person.Id == expense.CreatedById)
+                    && (EF.Functions.Like(person.FirstName, pattern, LikePattern.EscapeCharacter)
+                        || EF.Functions.Like(person.LastName, pattern, LikePattern.EscapeCharacter)
+                        || EF.Functions.Like(person.FirstName + " " + person.LastName, pattern, LikePattern.EscapeCharacter))));
+        }
+
+        return expenses;
+    }
 }
