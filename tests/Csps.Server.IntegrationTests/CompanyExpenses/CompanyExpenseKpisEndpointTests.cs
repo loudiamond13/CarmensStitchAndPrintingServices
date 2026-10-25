@@ -54,6 +54,35 @@ public sealed class CompanyExpenseKpisEndpointTests(CspsDatabase database) : ICl
     }
 
     [Fact]
+    public async Task TwoCategoriesWithEqualTotalsGoToTheNameFirstAToZ()
+    {
+        await using var rig = await Rig.StartAsync(database, AfterManilaMidnight);
+        await rig.SeedAsync(database, new DateOnly(2026, 11, 3), RentId, 300.00m);
+        await rig.SeedAsync(database, new DateOnly(2026, 11, 4), EquipmentId, 300.00m);
+
+        var kpis = await ExpenseFixtures.ReadKpisAsync(rig.Client, rig.Manager.AccessToken);
+
+        var top = kpis.TopCategory.ShouldNotBeNull();
+        top.Category.Name.ShouldBe("Equipment");
+        top.Total.ShouldBe(300.00m);
+        top.SharePercent.ShouldBe(50);
+        kpis.ThisMonth.ShouldBe(new ListedMonthKpi(new DateOnly(2026, 11, 1), 600.00m, 2));
+    }
+
+    [Fact]
+    public async Task AMonthWithNoExpensesShowsZeroAndNoTopCategory()
+    {
+        await using var rig = await Rig.StartAsync(database, AfterManilaMidnight);
+        await rig.SeedAsync(database, new DateOnly(2026, 9, 10), RentId, 80.00m);
+
+        var kpis = await ExpenseFixtures.ReadKpisAsync(rig.Client, rig.Admin.AccessToken);
+
+        kpis.ThisMonth.ShouldBe(new ListedMonthKpi(new DateOnly(2026, 11, 1), 0.00m, 0));
+        kpis.LastMonth.ShouldBe(new ListedMonthKpi(new DateOnly(2026, 10, 1), 0.00m, 0));
+        kpis.TopCategory.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerGets401()
     {
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -110,14 +139,14 @@ public sealed class CompanyExpenseKpisEndpointTests(CspsDatabase database) : ICl
         // Nov 1 Supplies 500, Oct 31 Rent 300, Nov 20 Rent 200 (upcoming), Dec 2 Rent 999 (next month), and a deleted Nov 5 Equipment 1,000.
         public async Task SeedMixedMonthsAsync(CspsDatabase db)
         {
-            await Seed(db, new DateOnly(2026, 11, 1), ExpenseFixtures.SuppliesId, 500.00m, deleted: false);
-            await Seed(db, new DateOnly(2026, 10, 31), RentId, 300.00m, deleted: false);
-            await Seed(db, new DateOnly(2026, 11, 20), RentId, 200.00m, deleted: false);
-            await Seed(db, new DateOnly(2026, 12, 2), RentId, 999.00m, deleted: false);
-            await Seed(db, new DateOnly(2026, 11, 5), EquipmentId, 1000.00m, deleted: true);
+            await SeedAsync(db, new DateOnly(2026, 11, 1), ExpenseFixtures.SuppliesId, 500.00m, deleted: false);
+            await SeedAsync(db, new DateOnly(2026, 10, 31), RentId, 300.00m, deleted: false);
+            await SeedAsync(db, new DateOnly(2026, 11, 20), RentId, 200.00m, deleted: false);
+            await SeedAsync(db, new DateOnly(2026, 12, 2), RentId, 999.00m, deleted: false);
+            await SeedAsync(db, new DateOnly(2026, 11, 5), EquipmentId, 1000.00m, deleted: true);
         }
 
-        private Task<Guid> Seed(CspsDatabase db, DateOnly date, Guid categoryId, decimal amount, bool deleted) =>
+        public Task<Guid> SeedAsync(CspsDatabase db, DateOnly date, Guid categoryId, decimal amount, bool deleted = false) =>
             ExpenseFixtures.SeedAsync(
                 db,
                 new ExpenseSeed(date, Admin.UserId, Manager.UserId, _now.AddDays(-2), categoryId, $"Row {date:MM-dd}", amount, Deleted: deleted));
