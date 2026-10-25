@@ -70,6 +70,8 @@ export const EXPENSES_COPY = {
   /** A row's actions are named with the description and date so each is unique on the page (OQ-11). */
   rowActions: {
     edit: (description: string, date: string): string => `Edit ${description}, ${date}`,
+    // SPEC-GAP: OQ-8 an Admin opens the expenses they cannot edit read-only.
+    view: (description: string, date: string): string => `View ${description}, ${date}`,
   },
   footer: {
     /** The phone label of the period total (OQ-13: it covers every page, so "Total shown" would mislead). */
@@ -140,6 +142,8 @@ export const EXPENSES_COPY = {
     accessNote:
       "After you save, you can't edit this expense any more. Only the person who recorded it, the person who paid it, or a Manager can.",
   },
+  // SPEC-GAP: OQ-8 the read-only modal for an expense the caller cannot edit.
+  view: { title: 'Expense details', close: 'Close' },
   /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
   form: {
     date: { label: 'Date', hint: "Up to 30 days ahead is fine for a cost you'll pay soon." },

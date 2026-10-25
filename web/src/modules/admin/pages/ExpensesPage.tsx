@@ -9,8 +9,8 @@
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
 //     URL stays clean. Add Expense (the header, and the first-use empty state) opens the E2 modal with the server's today; a save
 //     reads the lists, the KPIs and the deleted list again and toasts, adding a note when the new row is outside the filters.
-//   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are); the E2 modal
-//     reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
+//   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are), View (the
+//     eye, OQ-8) on the others; the E2 modal reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
 //     view, and the lists and KPIs read again. Delete and the other row actions arrive in later plans.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useQueryClient } from '@tanstack/react-query';
@@ -130,6 +130,7 @@ function isOutsideFilters(
 /** What the table needs to wire a row's buttons. */
 interface RowWiring {
   edit: (expense: ExpenseListItem) => void;
+  view: (expense: ExpenseListItem) => void;
   /** Remembers each row's action button, so focus can return to it. */
   register: (id: string, button: HTMLButtonElement | null) => void;
 }
@@ -171,19 +172,25 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
       header: COPY.columns.actions,
       actions: true,
       cell: (item) => {
-        // SPEC-DEVIATION: D-26 Edit only where the server says the caller may edit (a Manager always may).
-        if (!item.canEdit) {
-          return null;
-        }
-        const label = COPY.rowActions.edit(item.description, formatCalendarDate(item.date) ?? item.date);
+        const date = formatCalendarDate(item.date) ?? item.date;
+        // SPEC-DEVIATION: D-26 Edit only where the server says the caller may edit (a Manager always may); the others get View.
+        // SPEC-GAP: OQ-8 View opens the expense read-only.
+        const editable = item.canEdit;
+        const label = editable
+          ? COPY.rowActions.edit(item.description, date)
+          : COPY.rowActions.view(item.description, date);
         return (
           <RowActions>
             <RowAction
-              icon="pencil"
+              icon={editable ? 'pencil' : 'eye'}
               label={label}
               title={label}
               onClick={() => {
-                wiring.edit(item);
+                if (editable) {
+                  wiring.edit(item);
+                } else {
+                  wiring.view(item);
+                }
               }}
               ref={(button) => {
                 wiring.register(item.id, button);
@@ -205,6 +212,9 @@ export function ExpensesRoute() {
   // The expense whose Edit modal is open or was last open (kept while it animates out), and each row's action button.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // The same for the read-only View of an expense the caller cannot edit.
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
   const rowFocus = useRowFocus();
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
@@ -332,6 +342,10 @@ export function ExpensesRoute() {
         setEditing(true);
       }
     },
+    view: (expense) => {
+      setViewingId(expense.id);
+      setViewing(true);
+    },
     register: rowFocus.register,
   };
 
@@ -371,6 +385,14 @@ export function ExpensesRoute() {
           onSaved={updated}
         />
       )}
+      <ExpenseModal
+        mode="view"
+        open={viewing}
+        expenseId={viewingId}
+        onClose={() => {
+          setViewing(false);
+        }}
+      />
       <ExpenseKpiRow />
       <FilterBar>
         <SearchBox

@@ -53,3 +53,9 @@ export const expensesReadOnlyFieldClasses = tw('flex min-w-0 flex-col gap-1.5');
 
 /** A field with a note under it: the two in one column 8px apart. */
 export const expensesFieldStackClasses = tw('flex min-w-0 flex-col gap-2');
+
+/** View mode: a value in the 14px body text, wrapping anywhere so a long description never widens the dialog. */
+export const expensesViewValueClasses = tw('min-w-0 text-[14px] leading-5 wrap-anywhere text-ink');
+
+/** View mode: notes keep the line breaks the person typed. */
+export const expensesViewNotesClasses = tw('whitespace-pre-line');

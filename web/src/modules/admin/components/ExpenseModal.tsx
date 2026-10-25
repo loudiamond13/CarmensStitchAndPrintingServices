@@ -1,4 +1,4 @@
-// E2 Expense modal, add and edit modes (UI-SPEC "E2 Expense modal"; App. E.11; CEXP-02, CEXP-04, D-17..D-21, D-32, OQ-9, OR-3;
+// E2 Expense modal, add, edit and view modes (UI-SPEC "E2 Expense modal"; App. E.11; CEXP-02, CEXP-04, D-17..D-21, D-32, OQ-9, OR-3;
 // plans 06-12, 06-14). Date (the server's business today), Category, Description, Amount, Paid by (the signed-in user to start),
 // Notes and the read-only Recorded by, then Save Expense. Every rule is checked in the browser first (expenseFormSchema); a rule
 // only the server can check (an inactive payer, a retired category) comes back under its field. A failure that belongs to no
@@ -11,31 +11,40 @@
 //     version, and moves the cursor to Date. A 403 (an Admin who may not edit it) and a 404 (deleted meanwhile) show their banner,
 //     keep the typed values and leave Save aria-disabled. A saved payer who is no longer active, and a saved retired category,
 //     stay selectable (OQ-7, D-11). An Admin who did not record the expense and moves Paid by away from themselves is warned (D-26).
+//   - View is the read-only look an Admin gets for an expense they cannot edit (OQ-8): the saved values as text, Notes (or Not set),
+//     Recorded by and Last changed by, and a Close button only.
 import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
-import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, labelClasses, messageClasses } from '@/components/forms';
+import { Money } from '@/components/money';
 import { Modal } from '@/components/overlays';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText } from '@/components/states';
+import { ConflictBanner, EmptyValue, ErrorState, LoadingRegion, Note, SkeletonText } from '@/components/states';
+import { ActorName, RecordMeta } from '@/components/data';
 import { Avatar } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
+import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import { PaidBySelect } from '@/modules/admin/components/PaidBySelect';
 import {
+  expensesActorClasses,
+  expensesAvatarClasses,
   expensesFieldStackClasses,
   expensesFormGridClasses,
   expensesFullRowClasses,
   expensesModalBodyClasses,
   expensesReadOnlyClasses,
   expensesReadOnlyFieldClasses,
+  expensesViewNotesClasses,
+  expensesViewValueClasses,
+  expensesWrapClasses,
 } from '@/modules/admin/components/expenses.recipe';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { expenseFormSchema, type ExpenseFormInput, type ExpenseFormValues } from '@/modules/admin/expensesSchemas';
@@ -47,11 +56,12 @@ import {
   type ExpenseDetailResponse,
 } from '@/modules/admin/services/expensesService';
 import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
-import { centavosToMoneyText } from '@/utils/format';
+import { centavosToMoneyText, formatCalendarDate } from '@/utils/format';
 
 const COPY = EXPENSES_COPY;
 const ADD = COPY.add;
 const EDIT = COPY.edit;
+const VIEW = COPY.view;
 const FORM = COPY.form;
 
 const EDIT_STALE = 'edit.stale';
@@ -82,7 +92,16 @@ export interface EditExpenseModalProps extends ExpenseModalCommon {
   expenseId: string | null;
 }
 
-export type ExpenseModalProps = AddExpenseModalProps | EditExpenseModalProps;
+/** The read-only look: no date to count from and nothing to save. */
+export interface ViewExpenseModalProps {
+  mode: 'view';
+  open?: boolean;
+  /** Which expense to show. Null renders nothing (the modal was never opened). */
+  expenseId: string | null;
+  onClose: () => void;
+}
+
+export type ExpenseModalProps = AddExpenseModalProps | EditExpenseModalProps | ViewExpenseModalProps;
 
 export function ExpenseModal({ open = true, ...props }: ExpenseModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
@@ -93,6 +112,11 @@ export function ExpenseModal({ open = true, ...props }: ExpenseModalProps) {
     if (open) {
       setOpens(opens + 1);
     }
+  }
+  if (props.mode === 'view') {
+    return props.expenseId === null ? null : (
+      <ExpenseView key={`view-${String(opens)}`} expenseId={props.expenseId} open={open} onClose={props.onClose} />
+    );
   }
   const expenseId = props.mode === 'edit' ? props.expenseId : null;
   if (props.mode === 'edit' && expenseId === null) {
@@ -547,6 +571,111 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
       ) : (
         form
       )}
+    </Modal>
+  );
+}
+
+/** One label and its read-only value in the view grid. */
+function ViewRow({ label, full = false, children }: { label: string; full?: boolean; children: ReactNode }) {
+  return (
+    <div className={clsx(expensesReadOnlyFieldClasses, full && expensesFullRowClasses)}>
+      <dt className={labelClasses}>{label}</dt>
+      <dd className={expensesViewValueClasses}>{children}</dd>
+    </div>
+  );
+}
+
+// SPEC-GAP: OQ-8 View is the read-only E2 an Admin opens for an expense they cannot edit (D-25 lets every Admin read every
+// expense, D-26 limits editing). It reads the expense fresh like Edit, shows the same fields as text, and has Close only;
+// focus starts on Close.
+function ExpenseView({ expenseId, open, onClose }: { expenseId: string; open: boolean; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const query = useExpenseQuery(expenseId, open);
+  const expense = query.isSuccess && query.isFetchedAfterMount ? query.data : null;
+  const loadFailed = query.isError && expense === null;
+  const gone = loadFailed && isHttpError(query.error) && query.error.status === 404;
+
+  let body: ReactNode = <SkeletonText />;
+  if (expense !== null) {
+    body = (
+      <>
+        <dl className={expensesFormGridClasses}>
+          <ViewRow label={FORM.date.label}>{formatCalendarDate(expense.date) ?? <EmptyValue />}</ViewRow>
+          <ViewRow label={COPY.category.label}>
+            <CategoryBadge category={expense.category} />
+          </ViewRow>
+          <ViewRow label={FORM.description.label} full>
+            {expense.description}
+          </ViewRow>
+          <ViewRow label={FORM.amount.label}>
+            <Money amount={Number(expense.amount)} />
+          </ViewRow>
+          <ViewRow label={FORM.paidBy.label}>
+            <span className={expensesActorClasses}>
+              <span aria-hidden="true" className={expensesAvatarClasses}>
+                <Avatar name={expense.paidBy.name} size={24} />
+              </span>
+              <span className={expensesWrapClasses}>
+                <ActorName actor={expense.paidBy} />
+              </span>
+            </span>
+          </ViewRow>
+          <ViewRow label={FORM.notes.label} full>
+            {expense.notes === null || expense.notes === '' ? (
+              <EmptyValue />
+            ) : (
+              <span className={expensesViewNotesClasses}>{expense.notes}</span>
+            )}
+          </ViewRow>
+        </dl>
+        <RecordMeta
+          recordedBy={expense.recordedBy}
+          recordedAt={expense.recordedAt}
+          lastChangedBy={expense.lastChangedBy}
+          lastChangedAt={expense.lastChangedAt}
+        />
+      </>
+    );
+  } else if (gone) {
+    body = <ErrorState title={EDIT.deleted.title} message={EDIT.deleted.body} align="start" />;
+  } else if (loadFailed) {
+    body = (
+      <ErrorState
+        things={EDIT.loadFailedThing}
+        error={query.error}
+        align="start"
+        onRetry={() => {
+          void query.refetch();
+        }}
+      />
+    );
+  }
+
+  return (
+    <Modal
+      open={open}
+      title={VIEW.title}
+      description={ADD.description}
+      onClose={onClose}
+      initialFocus={closeRef}
+      footer={
+        <Button variant="secondary" onClick={onClose} ref={closeRef}>
+          {VIEW.close}
+        </Button>
+      }
+    >
+      <LoadingRegion loading={expense === null && !loadFailed} failed={loadFailed} things={EDIT.things}>
+        {/* The body scrolls on a small screen and holds nothing to press, so it is a named region a keyboard can focus (WCAG 2.1.1). */}
+        <div
+          className={expensesModalBodyClasses}
+          role="region"
+          aria-label={VIEW.title}
+          // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a scrolling read-only body must take keyboard focus (WCAG 2.1.1)
+          tabIndex={0}
+        >
+          {body}
+        </div>
+      </LoadingRegion>
     </Modal>
   );
 }

@@ -986,6 +986,14 @@ describe('E2 view mode', () => {
     expect(await screen.findByText('Thread and needles')).toBeVisible();
   });
 
+  it('makes the body a named region the keyboard can focus, because it scrolls on a phone and holds nothing to press', async () => {
+    expenseDetailBackend();
+    renderView();
+    const region = await within(dialogOf()).findByRole('region', { name: 'Expense details' });
+
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
   it('has no axe violations once loaded', async () => {
     expenseDetailBackend(expenseDetail({ notes: 'Bought in bulk' }));
     renderView();
