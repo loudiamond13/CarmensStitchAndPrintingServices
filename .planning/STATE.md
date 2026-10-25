@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-06-PLAN.md
-last_updated: "2026-10-25T14:43:01.227Z"
+stopped_at: Completed 06-07-PLAN.md
+last_updated: "2026-10-25T15:16:29.149Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 81d5c54438dd6db9aa1d79b0c9667216f3c66599
+state_head: 057fe5435ca260ee4afabbc724b2da16bee92bba
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 173
+  completed_plans: 174
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 8 of 19 (06-01 to 06-06 and 06-11 are done; next is 06-07)
+Plan: 9 of 19 (06-01 to 06-07 and 06-11 are done; next is 06-08)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -230,6 +230,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P04 | 41 min | 2 tasks | 29 files |
 | Phase 06 P05 | 13 min | 2 tasks | 15 files |
 | Phase 06 P06 | 26 min | 2 tasks | 9 files |
+| Phase 06 P07 | 28 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -603,6 +604,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-05: the KPI share is rounded in the handler (half away from zero) and the reader returns raw decimals; KPI tests with a distant fixed clock start sessions on the clock host and mint tokens for the real now (TestSessions takes any host)
 - [Phase 06]: 06-06: the expense detail and both KPI commands are compiled (EF.CompileAsyncQuery with a CancellationToken parameter), the list stays plain LINQ; the reader runs list 2, KPIs 2, detail 1 commands, guarded by CommandCounter (reader exact, endpoint by equality)
 - [Phase 06]: 06-06: System.Random is banned, so the five-year timing data uses a small xorshift sequence; p95 on this machine: default window 106.6 ms, category 3.7 ms, search 79.6 ms, five-year last page 197.8 ms, KPIs 8.5 ms (limit 300 ms)
+- [Phase 06]: 06-07: the date pair rule is a wrapper around createListParams (not a change to the shared factory); a broken pair reads as no dates at once and is removed with one replace
+- [Phase 06]: 06-07: with the default window shown, a valid date typed into only From or only To is a valid pair and applies as a custom range; a half-filled range arises only when a date is cleared or invalid, and an empty date reads 'Enter a real date.'
+- [Phase 06]: 06-07: ExpenseCategorySelect types mode as 'filter' only; plan 06-12 widens it with the picker props. expensesBackend in the fixtures also answers the category list
 
 ### Pending Todos
 
@@ -676,6 +680,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T14:43:00.369Z
-Stopped at: Completed 06-06-PLAN.md
+Last session: 2026-10-25T15:16:28.252Z
+Stopped at: Completed 06-07-PLAN.md
 Resume file: None
