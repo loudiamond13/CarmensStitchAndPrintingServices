@@ -86,6 +86,50 @@ internal static class ExpenseFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Restores one soft-deleted expense with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The expense id.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null, none at all when <paramref name="withKey"/> is false.</param>
+    /// <param name="withKey">False to send no key.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> RestoreAsync(HttpClient client, string? accessToken, Guid id, Guid? idempotencyKey = null, bool withKey = true)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/restore", accessToken);
+        if (withKey)
+        {
+            request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Lists soft-deleted expenses with a raw query string.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="query">The query string without the question mark.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ListDeletedAsync(HttpClient client, string? accessToken, string query = "")
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(query.Length == 0 ? $"{Route}/deleted" : $"{Route}/deleted?{query}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Lists soft-deleted expenses and reads a 200 answer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="query">The query string without the question mark.</param>
+    /// <returns>The page.</returns>
+    public static async Task<DeletedListPage> ReadDeletedPageAsync(HttpClient client, string accessToken, string query = "")
+    {
+        using var response = await ListDeletedAsync(client, accessToken, query);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        return JsonSerializer.Deserialize<DeletedListPage>(text, Web).ShouldNotBeNull();
+    }
+
     /// <summary>Builds the edit form an unchanged copy of an expense would send, so a test can override one member.</summary>
     /// <param name="detail">The expense as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
@@ -198,8 +242,8 @@ internal static class ExpenseFixtures
         entry.Property(row => row.CreatedAtUtc).CurrentValue = seed.RecordedAtUtc;
         if (seed.Deleted)
         {
-            entry.Property(row => row.DeletedAtUtc).CurrentValue = seed.RecordedAtUtc.AddMinutes(1);
-            entry.Property(row => row.DeletedById).CurrentValue = seed.RecordedById;
+            entry.Property(row => row.DeletedAtUtc).CurrentValue = seed.DeletedAtUtc ?? seed.RecordedAtUtc.AddMinutes(1);
+            entry.Property(row => row.DeletedById).CurrentValue = seed.DeletedById ?? seed.RecordedById;
         }
 
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -265,6 +309,8 @@ internal static class ExpenseFixtures
 /// <param name="Amount">The amount.</param>
 /// <param name="Notes">The notes.</param>
 /// <param name="Deleted">True to write it soft-deleted.</param>
+/// <param name="DeletedById">Who deleted it; the recorder when null.</param>
+/// <param name="DeletedAtUtc">When it was deleted; a minute after it was recorded when null.</param>
 internal sealed record ExpenseSeed(
     DateOnly Date,
     Guid PaidById,
@@ -274,7 +320,9 @@ internal sealed record ExpenseSeed(
     string Description,
     decimal Amount,
     string? Notes = null,
-    bool Deleted = false);
+    bool Deleted = false,
+    Guid? DeletedById = null,
+    DateTimeOffset? DeletedAtUtc = null);
 
 /// <summary>The category of a listed expense.</summary>
 /// <param name="Id">The category id.</param>
@@ -307,6 +355,32 @@ internal sealed record ListedExpense(
     ListedActor PaidBy,
     ListedActor? RecordedBy,
     bool CanEdit);
+
+/// <summary>One row of the deleted-expense list as the API returns it.</summary>
+/// <param name="Id">The expense id.</param>
+/// <param name="DeletedAt">When it was deleted.</param>
+/// <param name="DeletedBy">Who deleted it; null reads as System.</param>
+/// <param name="Date">The expense date.</param>
+/// <param name="Category">The category.</param>
+/// <param name="Description">What it was for.</param>
+/// <param name="Amount">The amount.</param>
+/// <param name="PaidBy">The payer.</param>
+internal sealed record DeletedListItem(
+    Guid Id,
+    DateTimeOffset DeletedAt,
+    ListedActor? DeletedBy,
+    DateOnly Date,
+    ListedCategory Category,
+    string Description,
+    decimal Amount,
+    ListedActor PaidBy);
+
+/// <summary>One page of the deleted-expense list as the API returns it.</summary>
+/// <param name="Items">The rows.</param>
+/// <param name="Total">All deleted expenses that match.</param>
+/// <param name="Page">The page number.</param>
+/// <param name="PageSize">The page size.</param>
+internal sealed record DeletedListPage(IReadOnlyList<DeletedListItem> Items, int Total, int Page, int PageSize);
 
 /// <summary>One page of the expense list as the API returns it.</summary>
 /// <param name="Items">The rows.</param>
