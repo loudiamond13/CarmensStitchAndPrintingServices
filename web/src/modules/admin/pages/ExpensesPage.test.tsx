@@ -1,10 +1,10 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
-import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
@@ -431,5 +431,75 @@ describe('the list states', () => {
     await expectNoAxeViolations(view.container);
     await screen.findByText('Upcoming');
     await expectNoAxeViolations(view.container);
+  });
+});
+
+/** The URL writes nuqs made, as history mode and query string. */
+function updates(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { history: string; query: string }[] {
+  return spy.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
+}
+
+describe('search (CEXP-01, WEB-10)', () => {
+  it('shows Search "Description or staff name" capped at 100 in a search landmark', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+
+    await screen.findByText('Shop rent for October');
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    expect(search).toHaveAttribute('placeholder', 'Description or staff name');
+    expect(search).toHaveAttribute('maxlength', '100');
+    expect(screen.getByRole('search')).toContainElement(search);
+  });
+
+  it('writes a typed search after 300 ms with a replace, asks the server once for the settled text and shows its chip', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await screen.findByText('Shop rent for October');
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    for (const text of ['M', 'Me', 'Mer', 'Meralco']) {
+      fireEvent.change(search, { target: { value: text } });
+    }
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=Meralco' }]);
+    });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('q')).toBe('Meralco');
+    });
+    expect(calls.filter((url) => url.searchParams.has('q'))).toHaveLength(1);
+    expect(await screen.findByText('Search: Meralco')).toBeInTheDocument();
+    expect(screen.getByText(/^Showing/).textContent).toBe('Showing 2 expenses · newest first');
+  });
+
+  it('clearing the Search chip removes q from the URL and from the next request', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?q=Meralco', onUrlUpdate);
+    await screen.findByText('Search: Meralco');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Search: Meralco')).toBeNull();
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('q')).toBe(false);
+    });
+  });
+
+  it('shows no chip and sends no q when nothing is searched', async () => {
+    const { calls } = expensesBackend(expenseList(ROWS));
+    renderPage();
+
+    await screen.findByText('Shop rent for October');
+    expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
+    expect(calls[0]?.searchParams.has('q')).toBe(false);
   });
 });
