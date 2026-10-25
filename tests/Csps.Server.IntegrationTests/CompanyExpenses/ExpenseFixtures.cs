@@ -174,6 +174,29 @@ internal static class ExpenseFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Reads the month KPIs.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> KpisResponseAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get($"{Route}/kpis", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the month KPIs and expects a 200 answer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <returns>The KPIs.</returns>
+    public static async Task<ExpenseKpis> ReadKpisAsync(HttpClient client, string accessToken)
+    {
+        using var response = await KpisResponseAsync(client, accessToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        return JsonSerializer.Deserialize<ExpenseKpis>(text, Web).ShouldNotBeNull();
+    }
+
     /// <summary>Lists expenses and reads a 200 answer.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>
@@ -259,3 +282,22 @@ internal sealed record ExpensePage(
     DateOnly From,
     DateOnly To,
     DateOnly Today);
+
+/// <summary>One month of the KPI answer.</summary>
+/// <param name="Month">The first day of the month.</param>
+/// <param name="Total">The sum of the month's expenses.</param>
+/// <param name="Count">How many expenses.</param>
+internal sealed record ListedMonthKpi(DateOnly Month, decimal Total, int Count);
+
+/// <summary>The top category of the KPI answer.</summary>
+/// <param name="Category">The category.</param>
+/// <param name="Total">Its total this month.</param>
+/// <param name="SharePercent">Its share of this month's total, in whole percent.</param>
+internal sealed record ListedTopCategory(ListedCategory Category, decimal Total, int SharePercent);
+
+/// <summary>The KPI answer as the API returns it.</summary>
+/// <param name="Today">The business today.</param>
+/// <param name="ThisMonth">This month.</param>
+/// <param name="LastMonth">Last month.</param>
+/// <param name="TopCategory">The top category this month; null when there is none.</param>
+internal sealed record ExpenseKpis(DateOnly Today, ListedMonthKpi ThisMonth, ListedMonthKpi LastMonth, ListedTopCategory? TopCategory);
