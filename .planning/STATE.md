@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-15-PLAN.md
-last_updated: "2026-10-25T20:45:43.058Z"
+stopped_at: Completed 06-16-PLAN.md
+last_updated: "2026-10-25T21:45:43.789Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 93fb3e903fb5ec5d28b64b2797540b60620d2fbb
+state_head: 5cf7c92bb9add41ab7b1b9154d8b2a69dee7acef
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 181
+  completed_plans: 182
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 16 of 19 (06-01 to 06-15 are done; next is 06-16)
+Plan: 17 of 19 (06-01 to 06-16 are done; next is 06-17)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -238,6 +238,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P13 | 68 min | 3 tasks | 48 files |
 | Phase 06 P14 | 43 min | 3 tasks | 16 files |
 | Phase 06 P15 | 50 min | 3 tasks | 20 files |
+| Phase 06 P16 | 61 min | 3 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -633,6 +634,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-14: row actions follow the server's canEdit alone (pencil Edit when true, eye View when false); View keeps the UI-SPEC footer Close beside the dialog's header Close icon, and its scrolling body is a named focusable region.
 - [Phase 06]: 06-15: the server parses expense and category audit details into typed lines and a snapshot (AuditChangeLines) and resolves payers and category names; Done to is the payer and the Done to filter also matches an expense by its current, old or new payer
 - [Phase 06]: 06-15: category added, retired, back in use and deleted entries show 'Name: {name}' (and 'Color: {color}' when added) and payer names carry '(former staff)'; both are new copy for the 05 D-48 review
+- [Phase 06]: 06-16: Delete, Delete permanently and Restore act on the latest state (no row version); only Restore sends an Idempotency-Key, kept through a retry by useExpenseAction and replaced for the next action
+- [Phase 06]: 06-16: Admins get no Deleted Expenses link or delete action, the /admin/expenses/deleted loader redirects them to /admin/expenses (requireManagerLoader fallback path), and a 403 there shows the P2 access banner
+- [Phase 06]: 06-16: OQ-1, OQ-2, OQ-5 and OQ-12 were built with their contract defaults (eraser third icon, separate Deleted Expenses page, Restore with no confirm, five icons added); owner rulings still pending
 
 ### Pending Todos
 
@@ -706,6 +710,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T20:45:42.129Z
-Stopped at: Completed 06-15-PLAN.md
+Last session: 2026-10-25T21:45:42.906Z
+Stopped at: Completed 06-16-PLAN.md
 Resume file: None

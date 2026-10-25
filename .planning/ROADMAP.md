@@ -697,7 +697,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 15/19 plans executed in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 16/19 plans executed in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 06-01-PLAN.md — Expense categories table with the ten seeded categories, the staff lookup for Paid by, and the D-27 audit catalog (D-08, D-09, D-13, D-15, D-27, D-32)
@@ -731,7 +731,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [x] 06-15-PLAN.md — Audit Log shows expense and category changes (D-27); after 06-14, because its e2e edits through the Edit modal
-- [ ] 06-16-PLAN.md — Delete dialogs and the Deleted Expenses page with restore (D-01 to D-07)
+- [x] 06-16-PLAN.md — Delete dialogs and the Deleted Expenses page with restore (D-01 to D-07)
 
 **Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 06-17-PLAN.md — Settings page with the expense category list (D-08, D-10 to D-15)
@@ -1209,7 +1209,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
-| 6. Company Expenses | 15/19 | In Progress | - |
+| 6. Company Expenses | 16/19 | In Progress | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
