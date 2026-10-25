@@ -267,6 +267,102 @@ public sealed class CreateCompanyExpenseEndpointTests(CspsDatabase database) : I
         created.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
     }
 
+    [Fact]
+    public async Task TheSameKeyAndBodyTwiceGivesTwoIdenticalAnswersOneRowAndOneAuditEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var marker = $"Idempotent {Guid.NewGuid():N}";
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today);
+        body["description"] = marker;
+        var key = Guid.NewGuid();
+
+        using var first = await ExpenseFixtures.PostAsync(client, admin.AccessToken, body, key);
+        using var second = await ExpenseFixtures.PostAsync(client, admin.AccessToken, body, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+        var firstText = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        (await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBe(firstText);
+        var id = JsonDocument.Parse(firstText).RootElement.GetProperty("id").GetGuid();
+        await using var context = database.CreateContext();
+        (await context.CompanyExpenses.CountAsync(expense => expense.Description == marker, TestContext.Current.CancellationToken)).ShouldBe(1);
+        var key64 = id.ToString("D");
+        (await context.AuditLog.CountAsync(entry => entry.TargetId == key64 && entry.Action == "company-expense.added", TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheSameKeyWithADifferentBodyIs422AndRecordsNothingMore()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var marker = $"Reused key {Guid.NewGuid():N}";
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today);
+        body["description"] = marker;
+        var other = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today);
+        other["description"] = marker;
+        other["amount"] = 641.00m;
+        var key = Guid.NewGuid();
+
+        using var first = await ExpenseFixtures.PostAsync(client, admin.AccessToken, body, key);
+        using var second = await ExpenseFixtures.PostAsync(client, admin.AccessToken, other, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        await using var context = database.CreateContext();
+        (await context.CompanyExpenses.CountAsync(expense => expense.Description == marker, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheAuditEntryHoldsTheSnapshotAndNeitherTheDescriptionNorTheNotesText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today);
+        body["description"] = "Zebra stripe fabric for the Cruz order";
+        body["notes"] = "Paid cash to Aling Nena, receipt in the blue folder";
+
+        var created = await ExpenseFixtures.CreateAsync(client, admin.AccessToken, body);
+
+        var id = created.GetProperty("id").GetGuid();
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.TargetId == key && row.Action == "company-expense.added", TestContext.Current.CancellationToken);
+        entry.TargetType.ShouldBe("CompanyExpense");
+        entry.ActorUserId.ShouldBe(admin.UserId);
+        var detail = entry.Detail.ShouldNotBeNull();
+        detail.ShouldBe($"date={Iso(today)};category={ExpenseFixtures.SuppliesId:D};amount=640.00;payer={admin.UserId:D}");
+        detail.ShouldNotContain("Zebra", Case.Insensitive);
+        detail.ShouldNotContain("Nena", Case.Insensitive);
+        detail.ShouldNotContain("receipt", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ARefusedFormLeavesNoAuditEntryBehind()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today);
+        body["amount"] = 0m;
+        await using var context = database.CreateContext();
+        var before = await context.AuditLog.CountAsync(entry => entry.Action == "company-expense.added" && entry.ActorUserId == admin.UserId, TestContext.Current.CancellationToken);
+
+        using var response = await ExpenseFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await context.AuditLog.CountAsync(entry => entry.Action == "company-expense.added" && entry.ActorUserId == admin.UserId, TestContext.Current.CancellationToken)).ShouldBe(before);
+    }
+
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     private static Dictionary<string, object?> WithAmount(StartedSession caller, DateOnly today, decimal amount)

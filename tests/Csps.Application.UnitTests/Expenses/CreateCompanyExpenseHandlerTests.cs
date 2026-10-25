@@ -6,6 +6,7 @@ using Csps.Application.Security;
 using Csps.Application.Staff;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Expenses;
 using Csps.Domain.Time;
@@ -182,6 +183,50 @@ public sealed class CreateCompanyExpenseHandlerTests
         result.Error.ShouldBe(ExpenseErrors.NotFound);
     }
 
+    [Fact]
+    public async Task ASuccessRecordsOneAddedEntryWithTheSnapshotBeforeTheSave()
+    {
+        var harness = new Harness();
+        CompanyExpense? added = null;
+        harness.Expenses.When(store => store.Add(Arg.Any<CompanyExpense>())).Do(call => added = call.Arg<CompanyExpense>());
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Description = "Private supplier detail", Notes = "Private note" },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(
+            AuditActions.CompanyExpenseAdded,
+            "CompanyExpense",
+            added.ShouldNotBeNull().Id.ToString("D"),
+            $"date=2026-10-25;category={CategoryId:D};amount=640.00;payer={PayerId:D}",
+            Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        harness.Unit.Saves.ShouldBe(1);
+        entry.Call.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ARefusedFormRecordsNothing()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Amount = 0m }, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheSnapshotNamesDateCategoryAmountAndPayerInThatOrderAndStaysUnderTheLimit()
+    {
+        var detail = ExpenseAuditDetail.Snapshot(new DateOnly(2026, 10, 25), CategoryId, 1_000_000.00m, PayerId);
+
+        detail.ShouldBe($"date=2026-10-25;category={CategoryId:D};amount=1000000.00;payer={PayerId:D}");
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
     private static CreateCompanyExpenseRequest Valid() => new("2026-10-25", CategoryId, "Thread and needles", 640.00m, PayerId, null);
 
     private static void OnlyField(Result<CompanyExpenseDetailResponse> result, string field, string message)
@@ -203,6 +248,7 @@ public sealed class CreateCompanyExpenseHandlerTests
 
         public Harness(bool noCaller = false, string callerRole = Roles.Admin)
         {
+            Audit = new SaveAwareAudit(Unit);
             Expenses = Substitute.For<ICompanyExpenses>();
             Reader = Substitute.For<ICompanyExpenseReader>();
             Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<CompanyExpenseDetailView?>(Detail()));
@@ -216,7 +262,7 @@ public sealed class CreateCompanyExpenseHandlerTests
                 .Returns(Task.FromResult<StaffState?>(new StaffState(CallerId, "Paolo Reyes", callerRole, true, false, false, true)));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new CreateCompanyExpenseHandler(Expenses, Reader, Categories, Staff, new FixedCalendar(), Unit, request, new CreateCompanyExpenseRequestValidator());
+            Handler = new CreateCompanyExpenseHandler(Expenses, Reader, Categories, Staff, new FixedCalendar(), Audit, Unit, request, new CreateCompanyExpenseRequestValidator());
         }
 
         public ICompanyExpenses Expenses { get; }
@@ -228,6 +274,8 @@ public sealed class CreateCompanyExpenseHandlerTests
         public IStaffDirectory Staff { get; }
 
         public FakeUnitOfWork Unit { get; } = new();
+
+        public SaveAwareAudit Audit { get; }
 
         public CreateCompanyExpenseHandler Handler { get; }
 
@@ -247,6 +295,18 @@ public sealed class CreateCompanyExpenseHandlerTests
             Version,
             Guid.NewGuid(),
             PayerId);
+    }
+
+    // Remembers how many saves had happened when each entry was recorded, so a test can prove the entry joins the change's save.
+    private sealed class SaveAwareAudit(FakeUnitOfWork unit) : IAuditTrail
+    {
+        public List<(AuditCall Call, int SavesSoFar)> Entries { get; } = [];
+
+        public void Record(string action, string? targetType, string? targetId, string? detail) =>
+            Entries.Add((new AuditCall(action, targetType, targetId, detail, Independent: false), unit.Saves));
+
+        public ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The expense audit entry must join the change's own save.");
     }
 
     private sealed class FixedCalendar : IBusinessCalendar
