@@ -5,7 +5,13 @@ import { delay } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { expectNoAxeViolations } from '@/test/axe';
-import { categoriesBackend, EXPENSE_CATEGORIES, problemResponse, RENT } from '@/test/expenseFixtures';
+import {
+  categoriesBackend,
+  EXPENSE_CATEGORIES,
+  problemResponse,
+  RENT,
+  RETIRED_CATEGORY_ID,
+} from '@/test/expenseFixtures';
 import { ExpenseCategorySelect } from './ExpenseCategorySelect';
 
 // The category Select in filter mode (D-11, D-15; plan 06-07): every category in the server's order, retired ones marked.
@@ -124,6 +130,100 @@ describe('ExpenseCategorySelect filter mode', () => {
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled();
     });
+    await expectNoAxeViolations(view.container);
+  });
+});
+
+describe('ExpenseCategorySelect picker mode', () => {
+  function renderPicker(
+    props: { value?: string; onChange?: (id: string) => void; savedCategoryId?: string | null; error?: string } = {},
+  ) {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ExpenseCategorySelect
+          mode="picker"
+          value={props.value ?? ''}
+          onChange={props.onChange ?? (() => undefined)}
+          savedCategoryId={props.savedCategoryId ?? null}
+          error={props.error}
+        />
+      </QueryClientProvider>,
+    );
+  }
+
+  it('lists only active categories under "Choose a category" with nothing selected', async () => {
+    categoriesBackend();
+    renderPicker();
+
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toEqual([
+      'Choose a category',
+      'Equipment',
+      'Government contributions',
+      'Maintenance',
+      'Rent',
+      'Salaries',
+      'Supplies',
+      'Taxes and permits',
+      'Transport and fuel',
+      'Utilities',
+      'Others',
+    ]);
+    expect(select).toHaveValue('');
+  });
+
+  it('is disabled and reads "Loading categories…" while the list loads', async () => {
+    categoriesBackend(async () => {
+      await delay(120);
+      return EXPENSE_CATEGORIES;
+    });
+    renderPicker();
+
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    expect(select).toBeDisabled();
+    expect(optionTexts(select)).toEqual(['Loading categories…']);
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+  });
+
+  it('reports the chosen category id and shows a given error', async () => {
+    categoriesBackend();
+    const onChange = vi.fn<(id: string) => void>();
+    renderPicker({ onChange, error: 'Choose a category.' });
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+
+    await userEvent.selectOptions(select, 'Rent');
+
+    expect(onChange).toHaveBeenLastCalledWith(RENT.id);
+    expect(screen.getByText('Choose a category.')).toBeInTheDocument();
+  });
+
+  it('keeps a saved retired category as "{name} (retired)" so an edit can leave it alone', async () => {
+    categoriesBackend();
+    renderPicker({ value: RETIRED_CATEGORY_ID, savedCategoryId: RETIRED_CATEGORY_ID });
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+
+    expect(optionTexts(select)).toContain('Old subscriptions (retired)');
+    expect(select).toHaveValue(RETIRED_CATEGORY_ID);
+  });
+
+  it('has no axe violations', async () => {
+    categoriesBackend();
+    const view = renderPicker();
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled();
+    });
+
     await expectNoAxeViolations(view.container);
   });
 });

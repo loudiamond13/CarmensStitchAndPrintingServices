@@ -5,13 +5,17 @@ import { delay } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { ExpensesRoute } from '@/modules/admin/pages/ExpensesPage';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   CARMEN,
   categoriesBackend,
+  createExpenseBackend,
+  staffBackend,
   EXPENSE_CATEGORIES,
   expenseItem,
   expenseKpis,
@@ -27,6 +31,7 @@ import {
   actor,
 } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
+import { sessionResponse } from '@/test/sessionFixtures';
 
 // E1 Company Expenses, /admin/expenses (CEXP-01, CEXP-04, CEXP-05, D-23, D-25; plan 06-04): the server's rows, paged, with
 // the server's period total in the footer.
@@ -34,11 +39,14 @@ import { expectNoAxeViolations } from '@/test/axe';
 let queryClient: QueryClient;
 
 beforeEach(() => {
+  clearSession();
+  acceptSession(sessionResponse());
   queryClient = createQueryClient();
 });
 
 afterEach(() => {
   queryClient.clear();
+  clearSession();
 });
 
 function Harness({ search, onUrlUpdate }: { search: string; onUrlUpdate: OnUrlUpdateFunction }) {
@@ -52,7 +60,9 @@ function Harness({ search, onUrlUpdate }: { search: string; onUrlUpdate: OnUrlUp
         hasMemory
       >
         <MemoryRouter>
-          <ExpensesRoute />
+          <ToastProvider>
+            <ExpensesRoute />
+          </ToastProvider>
         </MemoryRouter>
       </NuqsTestingAdapter>
     </QueryClientProvider>
@@ -412,8 +422,8 @@ describe('the list states', () => {
         'Nothing is recorded from Sep 25, 2026 to Nov 24, 2026. Log rent, bills, payroll and supplies here to see monthly totals and where the money goes.',
       ),
     ).toBeVisible();
-    // The Add Expense action arrives with plan 06-12.
-    expect(screen.queryByRole('button', { name: 'Add Expense' })).toBeNull();
+    // Only the header action so far; the first-use action arrives with the empty-state task of plan 06-12.
+    expect(screen.getAllByRole('button', { name: 'Add Expense' })).toHaveLength(1);
     expect(screen.queryByRole('table')).toBeNull();
     expect(screen.queryByText(/^Showing/)).toBeNull();
     await expectNoAxeViolations(view.container);
@@ -1014,5 +1024,76 @@ describe('month KPI states (OR-4, D-39, loading and error)', () => {
     expect(screen.queryByText("Couldn't load this month's totals.")).toBeNull();
     expect(kpiCalls).toBe(2);
     expect(listCalls).toHaveLength(1);
+  });
+});
+
+describe('Add Expense (CEXP-02; plan 06-12)', () => {
+  it('shows the primary Add Expense button with the plus icon in the header', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    const button = screen.getByRole('button', { name: 'Add Expense' });
+    expect(button.querySelector('svg')).not.toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the Add Expense dialog with today from the list response', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS, { today: '2026-11-14' }));
+    staffBackend();
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: 'Add Expense' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Expense' });
+    expect(within(dialog).getByLabelText(/^Date/)).toHaveValue('2026-11-14');
+  });
+
+  it('after a save closes the dialog, returns focus to Add Expense, reads the lists and KPIs again and shows the toast', async () => {
+    const user = userEvent.setup();
+    const { calls } = expensesBackend(expenseList(ROWS));
+    const { calls: kpiCalls } = kpisBackend();
+    staffBackend();
+    createExpenseBackend();
+    const invalidated: unknown[] = [];
+    const original = queryClient.invalidateQueries.bind(queryClient);
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation((filters, options) => {
+      invalidated.push(filters?.queryKey);
+      return original(filters, options);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const listReads = calls.length;
+    const kpiReads = kpiCalls.length;
+
+    const opener = screen.getByRole('button', { name: 'Add Expense' });
+    await user.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Add Expense' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('combobox', { name: /^Paid by/ })).toBeEnabled();
+      expect(within(dialog).getByRole('combobox', { name: /^Category/ })).toBeEnabled();
+    });
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: /^Category/ }), 'Supplies');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Description/ }), 'Thread and needles');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Amount/ }), '640');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Expense' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Add Expense' })).toBeNull();
+    });
+    await waitFor(() => {
+      expect(opener).toHaveFocus();
+    });
+    expect(await screen.findByText('Expense added')).toBeVisible();
+    expect(screen.getByText(/^₱640\.00 · Supplies/)).toBeVisible();
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThan(listReads);
+      expect(kpiCalls.length).toBeGreaterThan(kpiReads);
+    });
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
+    );
   });
 });

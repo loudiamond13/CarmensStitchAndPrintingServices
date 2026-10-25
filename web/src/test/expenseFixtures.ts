@@ -187,3 +187,79 @@ export function categoriesBackend(
   );
   return { calls };
 }
+
+export type StaffMemberFixture = Schemas['StaffMember'];
+export type ExpenseDetailFixture = Schemas['CompanyExpenseDetailResponse'];
+
+/** The signed-in user of sessionResponse() in test/sessionFixtures.ts (Carmen Reyes). */
+export const ME_ID = '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f';
+export const LIZA_ID = '00000000-0000-4000-8000-0000000000a2';
+export const PAOLO_ID = '00000000-0000-4000-8000-0000000000a3';
+
+/** What GET /api/v1/staff answers: the people who can pay, by first name. */
+export const STAFF: readonly StaffMemberFixture[] = [
+  { id: ME_ID, name: 'Carmen Reyes' },
+  { id: LIZA_ID, name: 'Liza Mercado' },
+  { id: PAOLO_ID, name: 'Paolo Garcia' },
+];
+
+/** What the fake API answers for the staff lookup: the people, or a ready-made response. */
+export type StaffResponder = (
+  url: URL,
+) => readonly StaffMemberFixture[] | Response | Promise<readonly StaffMemberFixture[] | Response>;
+
+/** Answers GET /api/v1/staff and records every request URL. A later call overrides an earlier one. */
+export function staffBackend(answer: readonly StaffMemberFixture[] | StaffResponder = STAFF): { calls: URL[] } {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/staff', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { calls };
+}
+
+/** One saved expense as POST /api/v1/company-expenses answers it (Carmen recorded and paid it). */
+export function expenseDetail(overrides: Partial<ExpenseDetailFixture> = {}): ExpenseDetailFixture {
+  return {
+    id: '00000000-0000-4000-8000-0000000000e1',
+    date: EXPENSE_TODAY,
+    category: SUPPLIES,
+    description: 'Thread and needles',
+    amount: 640,
+    notes: null,
+    paidBy: CARMEN,
+    paidByActive: true,
+    recordedBy: CARMEN,
+    recordedAt: '2026-10-25T04:00:00Z',
+    lastChangedBy: null,
+    lastChangedAt: null,
+    canEdit: true,
+    version: 'AAAAAAAAB9E=',
+    ...overrides,
+  };
+}
+
+/** What the fake API received for one create. */
+export interface CreateCalls {
+  bodies: unknown[];
+  keys: (string | null)[];
+}
+
+/** Answers POST /api/v1/company-expenses (default: 201 with `expenseDetail()`) and records each body and Idempotency-Key. */
+export function createExpenseBackend(
+  reply: () => Response | Promise<Response> = () => HttpResponse.json(expenseDetail(), { status: 201 }),
+): CreateCalls {
+  const calls: CreateCalls = { bodies: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/company-expenses', async ({ request }) => {
+      calls.bodies.push(await request.json());
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply();
+    }),
+  );
+  return calls;
+}

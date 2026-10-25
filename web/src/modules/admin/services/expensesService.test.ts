@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { createFakeFetch } from '@/test/fakeFetch';
-import { expenseItem, expenseKpis, expenseList } from '@/test/expenseFixtures';
+import { expenseDetail, expenseItem, expenseKpis, expenseList } from '@/test/expenseFixtures';
 import { createExpensesService } from './expensesService';
 
 // The company expense calls (CEXP-01, D-25): typed, over the one HTTP client.
@@ -103,5 +103,29 @@ describe('expensesService.kpis', () => {
     controller.abort();
 
     expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('expensesService.create', () => {
+  const body = {
+    date: '2026-10-25',
+    categoryId: '447ad32e-1433-4b70-8786-72e3dc3f9937',
+    description: 'Thread and needles',
+    amount: 640,
+    paidByUserId: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+    notes: null,
+  };
+
+  it('calls POST /api/v1/company-expenses with the body and the Idempotency-Key and resolves the saved expense', async () => {
+    const saved = expenseDetail();
+    const { fake, service } = serviceWith([{ status: 201, body: saved }]);
+
+    await expect(service.create(body, 'key-1')).resolves.toEqual(saved);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/company-expenses');
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 });
