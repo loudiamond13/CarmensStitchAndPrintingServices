@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 6
 current_phase_name: Company Expenses
 status: "Phase 05 shipped: PR #10"
-stopped_at: Phase 6 context gathered
-last_updated: "2026-10-25T07:30:41.285Z"
+stopped_at: Phase 6 UI-SPEC approved
+last_updated: "2026-10-25T07:47:53.443Z"
 last_activity: "2026-10-19: Phase 5 shipped as PR #10"
-state_head: 63f5992dd9fc6990fd8628a8240deff1aa346519
+state_head: fe891f24c8b2d2ee883217ab8f6a5097b7638599
 progress:
   total_phases: 17
   completed_phases: 5
@@ -642,6 +642,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T07:30:40.105Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-company-expenses/06-CONTEXT.md
+Last session: 2026-10-25T07:47:52.466Z
+Stopped at: Phase 6 UI-SPEC approved
+Resume file: .planning/phases/06-company-expenses/06-UI-SPEC.md
