@@ -223,6 +223,29 @@ public sealed class ListAuditLogHandlerTests
     }
 
     [Theory]
+    [InlineData(AuditActions.CompanyExpenseAdded)]
+    [InlineData(AuditActions.CompanyExpenseChanged)]
+    [InlineData(AuditActions.CompanyExpensePayerChanged)]
+    [InlineData(AuditActions.CompanyExpenseDeleted)]
+    [InlineData(AuditActions.CompanyExpenseRestored)]
+    [InlineData(AuditActions.CompanyExpensePermanentlyDeleted)]
+    [InlineData(AuditActions.ExpenseCategoryAdded)]
+    [InlineData(AuditActions.ExpenseCategoryRenamed)]
+    [InlineData(AuditActions.ExpenseCategoryRecolored)]
+    [InlineData(AuditActions.ExpenseCategoryRetired)]
+    [InlineData(AuditActions.ExpenseCategoryReactivated)]
+    [InlineData(AuditActions.ExpenseCategoryDeleted)]
+    public async Task EveryPhaseSixCodeIsAcceptedByTheActionFilterAndPassedOn(string action)
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(new ListAuditLogRequest(Action: action), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue(action);
+        await harness.Reader.Received(1).ListAsync(Arg.Is<AuditLogQuery>(query => query.Action == action), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
     [InlineData(0, 20, "page", ListAuditLogRequestValidator.PageInvalid)]
     [InlineData(-3, 20, "page", ListAuditLogRequestValidator.PageInvalid)]
     [InlineData(100_001, 20, "page", ListAuditLogRequestValidator.PageInvalid)]
