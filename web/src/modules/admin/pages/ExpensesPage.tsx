@@ -13,7 +13,15 @@ import {
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
 import { Money } from '@/components/money';
-import { Pagination, ResponsiveTable, ResultBar, type ResponsiveTableColumn } from '@/components/lists';
+import {
+  FilterBar,
+  FilterChip,
+  Pagination,
+  ResponsiveTable,
+  ResultBar,
+  SearchBox,
+  type ResponsiveTableColumn,
+} from '@/components/lists';
 import { EmptyValue } from '@/components/states';
 import { Avatar, Badge } from '@/components/status';
 import { ActorName } from '@/components/data';
@@ -98,7 +106,7 @@ export function ExpensesRoute() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
-  const query = useExpensesQuery({ page: settled.page, pageSize: settled.size });
+  const query = useExpensesQuery({ q: settled.q, page: settled.page, pageSize: settled.size });
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -138,7 +146,25 @@ export function ExpensesRoute() {
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
       </div>
-      <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote} />
+      <FilterBar>
+        <SearchBox
+          value={values.q}
+          label={COPY.search.label}
+          placeholder={COPY.search.placeholder}
+          onSearch={set.setSearch}
+        />
+      </FilterBar>
+      <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
+        {values.q !== null && (
+          <FilterChip
+            label={COPY.search.label}
+            value={values.q}
+            onClear={() => {
+              set.setSearch('', { immediate: true });
+            }}
+          />
+        )}
+      </ResultBar>
       <ResponsiveTable<ExpenseListItem>
         caption={COPY.tableCaption}
         columns={columnsFor(data?.today ?? '')}

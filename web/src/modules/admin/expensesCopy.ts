@@ -15,6 +15,8 @@ export const EXPENSES_COPY = {
   orderNote: 'newest first',
   // SPEC-GAP: the badge under the date of an expense that is still ahead (D-23).
   upcoming: 'Upcoming',
+  /** The toolbar's search (App. E.11): it matches the description and the Recorded by and Paid by names. */
+  search: { label: 'Search', placeholder: 'Description or staff name' },
   columns: {
     date: 'Date',
     category: 'Category',
