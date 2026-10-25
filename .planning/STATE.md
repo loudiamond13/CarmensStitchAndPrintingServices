@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-05-PLAN.md
-last_updated: "2026-10-25T14:16:45.267Z"
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-10-25T14:43:01.227Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: a89a31870ef9ac467d4ad140edb649552c1a0818
+state_head: 81d5c54438dd6db9aa1d79b0c9667216f3c66599
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 172
+  completed_plans: 173
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-25T06:55:00-05:00"
+updated: "2026-10-25T09:48:00-05:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 7 of 19 (06-01 to 06-05 and 06-11 are done; next is 06-06)
+Plan: 8 of 19 (06-01 to 06-06 and 06-11 are done; next is 06-07)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -229,6 +229,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P11 | 8 min | 2 tasks | 7 files |
 | Phase 06 P04 | 41 min | 2 tasks | 29 files |
 | Phase 06 P05 | 13 min | 2 tasks | 15 files |
+| Phase 06 P06 | 26 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -600,6 +601,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-04: e2e specs on the shared CSPS_E2E database judge every row against the response it was drawn from (100 a page) and never rely on a row's page position, because earlier runs keep their rows
 - [Phase 06]: 06-04: CategoryBadge lets a long name wrap through important utilities (h-auto!, whitespace-normal!) passed as Badge className; no avatar is drawn for a System recorder
 - [Phase 06]: 06-05: the KPI share is rounded in the handler (half away from zero) and the reader returns raw decimals; KPI tests with a distant fixed clock start sessions on the clock host and mint tokens for the real now (TestSessions takes any host)
+- [Phase 06]: 06-06: the expense detail and both KPI commands are compiled (EF.CompileAsyncQuery with a CancellationToken parameter), the list stays plain LINQ; the reader runs list 2, KPIs 2, detail 1 commands, guarded by CommandCounter (reader exact, endpoint by equality)
+- [Phase 06]: 06-06: System.Random is banned, so the five-year timing data uses a small xorshift sequence; p95 on this machine: default window 106.6 ms, category 3.7 ms, search 79.6 ms, five-year last page 197.8 ms, KPIs 8.5 ms (limit 300 ms)
 
 ### Pending Todos
 
@@ -617,6 +620,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [ ] **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2.
 - [ ] **Phase 6 inline SQL in three existing files (06-11, your rule on inline SQL):** your rule allows hand-written SQL only where you approve it by name. Three files from Phases 4 and 5 each run one short SQL line that takes a database lock, so two requests at the same moment cannot collide: `IdempotencyGate.cs` (stops a double-submitted form from saving twice), `AccountTokenStore.cs` (one sign-in link per person at a time) and `ManagerRosterLock.cs` (keeps at least one active Manager). EF has no built-in way to take this kind of lock. The new guard test allows exactly these three and fails on any other. Pick one. (1) Recommended: approve the three by name; nothing changes. (2) Rework them without hand-written SQL: each lock is rebuilt with EF's own tools (for example a lock row updated inside the same transaction), which is more code and may need a small new table. Until you answer, the three stay allowed and no new one can be added.
 - [ ] **Phase 6 month KPI edge cases (A-06-02, CEXP-03):** the KPI cards are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses. We assumed no other case needs its own rule, for example a business time zone other than Asia/Manila in Site settings. Pick one. (1) Recommended: confirm; the cards follow the business time zone in Site settings, which is Asia/Manila today. (2) Name another case you want tested before release.
+- [ ] **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 
 ### Blockers/Concerns
 
@@ -672,6 +676,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T14:16:44.395Z
-Stopped at: Completed 06-05-PLAN.md
+Last session: 2026-10-25T14:43:00.369Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None
