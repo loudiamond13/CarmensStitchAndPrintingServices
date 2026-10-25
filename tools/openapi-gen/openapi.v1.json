@@ -3034,6 +3034,73 @@
       }
     },
     "/api/v1/company-expenses/{id}": {
+      "delete": {
+        "operationId": "DeleteCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one expense, Managers only. The expense stays in the database but leaves the list, its total, the month KPIs and the\ndetail, and an edit of it answers 404. Who deleted it and when are recorded, and Last changed by follows. It takes no version:\nit acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      },
       "get": {
         "operationId": "GetCompanyExpense",
         "parameters": [

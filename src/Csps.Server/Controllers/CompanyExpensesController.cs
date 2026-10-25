@@ -15,12 +15,13 @@ namespace Csps.Server.Controllers;
 /// <param name="list">The expense list handler.</param>
 /// <param name="kpis">The month KPI handler.</param>
 /// <param name="update">The edit-an-expense handler.</param>
+/// <param name="delete">The soft-delete handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis, UpdateCompanyExpenseHandler update, DeleteCompanyExpenseHandler delete) : ControllerBase
 {
     /// <summary>
     /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
@@ -119,6 +120,28 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     {
         var result = await update.HandleAsync(id, body ?? UpdateCompanyExpenseRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static saved => TypedResults.Ok(saved));
+    }
+
+    /// <summary>
+    /// Deletes one expense, Managers only. The expense stays in the database but leaves the list, its total, the month KPIs and the
+    /// detail, and an edit of it answers 404. Who deleted it and when are recorded, and Last changed by follows. It takes no version:
+    /// it acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.
+    /// </summary>
+    /// <param name="id">The expense id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when the expense does not exist or is already deleted, or 409 when two saves lost a race.</returns>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("DeleteCompanyExpense")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await delete.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 
     /// <summary>Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it.</summary>

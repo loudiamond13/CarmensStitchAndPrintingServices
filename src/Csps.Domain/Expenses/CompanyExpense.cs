@@ -148,6 +148,36 @@ public sealed class CompanyExpense : IAttributedRecord
         return Result.Success(changes);
     }
 
+    /// <summary>Soft-deletes the expense so it stops counting anywhere (D-01). A second call changes nothing.</summary>
+    /// <param name="by">The Manager who deleted it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>True when it was deleted now; false when it was already deleted.</returns>
+    public bool SoftDelete(Guid by, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return false;
+        }
+
+        DeletedAtUtc = now;
+        DeletedById = by;
+        return true;
+    }
+
+    /// <summary>Clears the delete marker so the expense counts again (D-03).</summary>
+    /// <returns>True when it was restored now; false when it was not deleted.</returns>
+    public bool Restore()
+    {
+        if (!IsDeleted)
+        {
+            return false;
+        }
+
+        DeletedAtUtc = null;
+        DeletedById = null;
+        return true;
+    }
+
     private static Result<CheckedFields> CheckFields(
         DateOnly date,
         Guid categoryId,

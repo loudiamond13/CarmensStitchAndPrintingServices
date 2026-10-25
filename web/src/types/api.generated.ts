@@ -334,7 +334,12 @@ export interface paths {
          */
         put: operations["UpdateCompanyExpense"];
         post?: never;
-        delete?: never;
+        /**
+         * Deletes one expense, Managers only. The expense stays in the database but leaves the list, its total, the month KPIs and the
+         *     detail, and an edit of it answers 404. Who deleted it and when are recorded, and Last changed by follows. It takes no version:
+         *     it acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.
+         */
+        delete: operations["DeleteCompanyExpense"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2408,6 +2413,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Unauthorized */
