@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -225,10 +225,8 @@ describe('S1 the list states (UI Considerations)', () => {
 });
 
 describe('S1 add, rename and recolor (D-08, D-12, D-13; plan 06-17)', () => {
-  function expectRefreshed(spy: ReturnType<typeof vi.spyOn>) {
-    const keys = spy.mock.calls.map((call) =>
-      JSON.stringify((call[0] as { queryKey?: unknown } | undefined)?.queryKey),
-    );
+  function expectRefreshed(spy: MockInstance<QueryClient['invalidateQueries']>) {
+    const keys = spy.mock.calls.map((call) => JSON.stringify(call[0]?.queryKey));
     for (const key of [expenseCategoriesKey, expensesKey, expenseKpisKey, expensesDeletedKey]) {
       expect(keys).toContain(JSON.stringify(key));
     }
@@ -312,7 +310,9 @@ describe('S1 add, rename and recolor (D-08, D-12, D-13; plan 06-17)', () => {
     await user.type(name, 'Rent and bills');
     await user.click(within(dialog).getByRole('button', { name: 'Save Changes' }));
 
-    expect(await screen.findByText('Rent and bills', { selector: 'span' })).toBeVisible();
+    expect(
+      await within(screen.getByRole('table', { name: 'Expense categories' })).findByText('Rent and bills'),
+    ).toBeVisible();
   });
 
   it('has no axe violations with the Add Category dialog open', async () => {

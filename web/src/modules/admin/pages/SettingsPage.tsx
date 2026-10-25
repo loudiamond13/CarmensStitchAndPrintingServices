@@ -1,20 +1,23 @@
 // SPEC-GAP: S1 SettingsPage. S1 Settings, /admin/settings (UI-SPEC "S1 Settings"; D-08..D-15, D-30, OQ-3..OQ-6; plan 06-17). The Manager-only
 // page for lists the whole team uses; today one card, Expense Categories (Phase 11 may add more below it, D-14): the `.s-ph` header with
 // the "Manager only" badge, then the card with a ResponsiveTable of every category in the server's order (A to Z, Others last, retired
-// rows in place with the inactive look).
+// rows in place with the inactive look). Add Category and each row's Edit open the Category modal; a save toasts, reads every list that
+// shows a category again (D-12) and leaves focus on the button that opened it (Add Category, or that row's Edit).
 //   - The route's loader (requireManager) sends an Admin to /admin; the API answers 403 for a role lost mid-session.
 //   - The list is never empty (the seed ships ten categories and Others cannot be deleted), so it has no first-use state.
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
+import { useToast } from '@/components/feedback';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
-import { ResponsiveTable, RowActions, type ResponsiveTableColumn } from '@/components/lists';
+import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
 import { Badge } from '@/components/status';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
+import { CategoryModal, type SavedCategory } from '@/modules/admin/components/CategoryModal';
 import { expensesCaptionClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import {
   profileCardBodyClasses,
@@ -32,6 +35,8 @@ import {
 } from '@/modules/admin/components/settings.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
+import { useRefreshCategories } from '@/modules/admin/hooks/useRefreshCategories';
+import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import type { ExpenseCategoryListItem } from '@/modules/admin/services/expenseCategoriesService';
 import { SETTINGS_COPY } from '@/modules/admin/settingsCopy';
 
@@ -44,7 +49,14 @@ function toNumber(value: number | string): number {
 
 const isRetired = (category: ExpenseCategoryListItem): boolean => category.status === 'retired';
 
-function columns(): readonly ResponsiveTableColumn<ExpenseCategoryListItem>[] {
+/** What the table needs to wire a row's buttons. */
+interface RowWiring {
+  edit: (category: ExpenseCategoryListItem) => void;
+  /** Remembers each row's Edit button, so focus can return to it. */
+  register: (id: string, button: HTMLButtonElement | null) => void;
+}
+
+function columns(wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseCategoryListItem>[] {
   return [
     {
       key: 'category',
@@ -81,18 +93,69 @@ function columns(): readonly ResponsiveTableColumn<ExpenseCategoryListItem>[] {
       key: 'actions',
       header: COPY.columns.actions,
       actions: true,
-      cell: () => <RowActions />,
+      cell: (item) => {
+        const editLabel = COPY.rowActions.edit(item.name);
+        return (
+          <RowActions>
+            <RowAction
+              icon="pencil"
+              label={editLabel}
+              title={editLabel}
+              onClick={() => {
+                wiring.edit(item);
+              }}
+              ref={(button) => {
+                wiring.register(item.id, button);
+              }}
+            />
+          </RowActions>
+        );
+      },
     },
   ];
 }
 
 export function SettingsRoute() {
   const cardHeadingRef = useRef<HTMLHeadingElement>(null);
+  const toast = useToast();
   const categories = useExpenseCategoriesQuery();
+  const refresh = useRefreshCategories();
+  const rowFocus = useRowFocus();
+  const [adding, setAdding] = useState(false);
+  // The category the Edit modal is open for, or was last open for (kept while it animates out).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
+
+  // The trigger takes focus back when the modal closes; the lists then read again (a rename shows everywhere, D-12).
+  const added = (category: SavedCategory): void => {
+    toast.show({
+      tone: 'success',
+      title: COPY.modal.add.toast.title,
+      message: COPY.modal.add.toast.message(category.name),
+    });
+    void refresh();
+  };
+
+  const updated = (category: SavedCategory): void => {
+    toast.show({
+      tone: 'success',
+      title: COPY.modal.edit.toast.title,
+      message: COPY.modal.edit.toast.message(category.name),
+    });
+    void refresh();
+  };
+
+  const wiring: RowWiring = {
+    edit: (category) => {
+      setEditingId(category.id);
+      setEditing(true);
+    },
+    register: rowFocus.register,
+  };
 
   return (
     <div className={profilePageClasses}>
@@ -115,14 +178,21 @@ export function SettingsRoute() {
             </h2>
             <p className={profileCardHintClasses}>{COPY.card.hint}</p>
           </div>
-          <Button variant="primary" icon="plus" className={settingsAddButtonClasses}>
+          <Button
+            variant="primary"
+            icon="plus"
+            className={settingsAddButtonClasses}
+            onClick={() => {
+              setAdding(true);
+            }}
+          >
             {COPY.card.add}
           </Button>
         </div>
         <div className={profileCardBodyClasses}>
           <ResponsiveTable<ExpenseCategoryListItem>
             caption={COPY.tableCaption}
-            columns={columns()}
+            columns={columns(wiring)}
             rows={categories.data}
             rowKey={(item) => item.id}
             isInactive={isRetired}
@@ -137,6 +207,23 @@ export function SettingsRoute() {
           <p className={expensesCaptionClasses}>{COPY.caption}</p>
         </div>
       </section>
+      <CategoryModal
+        mode="add"
+        open={adding}
+        onClose={() => {
+          setAdding(false);
+        }}
+        onSaved={added}
+      />
+      <CategoryModal
+        mode="edit"
+        open={editing}
+        categoryId={editingId}
+        onClose={() => {
+          setEditing(false);
+        }}
+        onSaved={updated}
+      />
     </div>
   );
 }

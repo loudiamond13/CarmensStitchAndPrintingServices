@@ -44,7 +44,10 @@ const nameInput = () => screen.getByRole<HTMLInputElement>('textbox', { name: /^
 const radio = (color: (typeof COLORS)[number]) => screen.getByRole<HTMLInputElement>('radio', { name: color });
 const saveButton = () => screen.getByRole('button', { name: /^(Save Category|Save Changes|Saving)$/ });
 
-type Handlers = { onClose?: () => void; onSaved?: (category: unknown) => void };
+interface Handlers {
+  onClose?: () => void;
+  onSaved?: (category: unknown) => void;
+}
 
 function renderAdd(handlers: Handlers = {}) {
   const onClose = handlers.onClose ?? vi.fn();
@@ -269,7 +272,7 @@ describe('S2 edit mode', () => {
     expect(nameInput()).toHaveValue('Rent');
     expect(radio('Orange')).toBeChecked();
     expect(within(dialog).getByText('Recorded by')).toBeVisible();
-    expect(within(dialog).getAllByText('System').length).toBeGreaterThan(0);
+    expect(within(dialog).getByText(/^System ·/)).toBeVisible();
     await waitFor(() => {
       expect(nameInput()).toHaveFocus();
     });
