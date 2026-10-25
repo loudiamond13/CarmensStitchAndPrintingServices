@@ -2,6 +2,7 @@ using Csps.Application.Expenses;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Users;
+using Csps.Domain.Expenses;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -87,4 +88,71 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
             row.CreatedById,
             row.PaidByUserId);
     }
+
+    public async Task<CompanyExpenseListPage> ListAsync(CompanyExpenseListQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var matches = Filter(context.CompanyExpenses.AsNoTracking(), query);
+
+        // Command 1: the count and the sum over every page of the filter. No row at all means no group, so 0 and 0.00.
+        var totals = await matches
+            .GroupBy(static _ => 1)
+            .Select(static group => new { Count = group.Count(), Sum = group.Sum(expense => expense.Amount) })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Command 2: the page, with the category, payer and recorder read in the same statement. The order ends on the id so
+        // paging is stable. A deleted person keeps their name (D-08, D-11).
+        var rows = await (
+            from expense in matches
+            join category in context.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
+            join payer in context.Users.AsNoTracking() on expense.PaidByUserId equals payer.Id
+            join recorderUser in context.Users.AsNoTracking() on expense.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            orderby expense.ExpenseDate descending, expense.CreatedAtUtc descending, expense.Id descending
+            select new
+            {
+                expense.Id,
+                expense.ExpenseDate,
+                expense.CategoryId,
+                expense.Description,
+                expense.Amount,
+                expense.PaidByUserId,
+                expense.CreatedById,
+                CategoryName = category.Name,
+                CategoryTone = category.Tone,
+                CategoryRetired = category.RetiredAtUtc != null,
+                PayerFirst = payer.FirstName,
+                PayerLast = payer.LastName,
+                PayerFormer = payer.DeletedAtUtc != null,
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+            })
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<CompanyExpenseListRow> items =
+        [
+            .. rows.Select(row => new CompanyExpenseListRow(
+                row.Id,
+                row.ExpenseDate,
+                new ExpenseCategoryRef(row.CategoryId, row.CategoryName, row.CategoryTone, row.CategoryRetired),
+                row.Description,
+                row.Amount,
+                new ActorRef(row.PaidByUserId, $"{row.PayerFirst} {row.PayerLast}", row.PayerFormer),
+                row.CreatedById is { } creator && row.RecorderFirst is not null
+                    ? new ActorRef(creator, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                    : null,
+                row.CreatedById,
+                row.PaidByUserId)),
+        ];
+        return new CompanyExpenseListPage(items, totals?.Count ?? 0, totals?.Sum ?? 0m);
+    }
+
+    private static IQueryable<CompanyExpense> Filter(IQueryable<CompanyExpense> expenses, CompanyExpenseListQuery query) =>
+        expenses.Where(expense => expense.ExpenseDate >= query.From && expense.ExpenseDate <= query.To);
 }

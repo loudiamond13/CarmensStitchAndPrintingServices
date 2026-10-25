@@ -325,6 +325,142 @@
         ],
         "type": "object"
       },
+      "CompanyExpenseListItem": {
+        "description": "One expense in the list. It carries no notes (D-19).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "canEdit": {
+            "description": "True when the caller may edit it (D-26).",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "paidBy",
+          "recordedBy",
+          "canEdit"
+        ],
+        "type": "object"
+      },
+      "CompanyExpenseListResponse": {
+        "description": "One page of the expense list with the figures over every page and the window the server applied.",
+        "properties": {
+          "from": {
+            "description": "The first day of the window used.",
+            "format": "date",
+            "type": "string"
+          },
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/CompanyExpenseListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "periodTotal": {
+            "description": "The sum of the matching amounts across all pages; 0.00 when none match.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "to": {
+            "description": "The last day of the window used.",
+            "format": "date",
+            "type": "string"
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "description": "How many expenses match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "periodTotal",
+          "from",
+          "to",
+          "today"
+        ],
+        "type": "object"
+      },
       "CreateCompanyExpenseRequest": {
         "description": "The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is\nignored: who recorded the expense and when come from the token and the clock (SEC-08).",
         "properties": {
@@ -2512,6 +2648,107 @@
       }
     },
     "/api/v1/company-expenses": {
+      "get": {
+        "operationId": "ListCompanyExpenses",
+        "parameters": [
+          {
+            "description": "Search text for the description or the payer's or recorder's name; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A category id; none means all.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first expense date as `yyyy-MM-dd`; send it with `to` or not at all.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last expense date as `yyyy-MM-dd`; send it with `from` or not at all.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs\nfrom 30 days before to 30 days after today in the business zone, and the answer says which dates and which today it used.\nThe total and the period total cover every page of the filter. Both roles see every expense; `canEdit` says whether the\ncaller may edit a row. Notes are never listed or searched.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      },
       "post": {
         "operationId": "CreateCompanyExpense",
         "requestBody": {

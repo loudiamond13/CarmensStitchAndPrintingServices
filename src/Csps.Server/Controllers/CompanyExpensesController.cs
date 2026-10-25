@@ -12,13 +12,46 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="create">The record-an-expense handler.</param>
 /// <param name="get">The single-expense read handler.</param>
+/// <param name="list">The expense list handler.</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list) : ControllerBase
 {
+    /// <summary>
+    /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
+    /// from 30 days before to 30 days after today in the business zone, and the answer says which dates and which today it used.
+    /// The total and the period total cover every page of the filter. Both roles see every expense; <c>canEdit</c> says whether the
+    /// caller may edit a row. Notes are never listed or searched.
+    /// </summary>
+    /// <param name="q">Search text for the description or the payer's or recorder's name; blank means no search.</param>
+    /// <param name="category">A category id; none means all.</param>
+    /// <param name="from">The first expense date as <c>yyyy-MM-dd</c>; send it with <c>to</c> or not at all.</param>
+    /// <param name="to">The last expense date as <c>yyyy-MM-dd</c>; send it with <c>from</c> or not at all.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the page, 400 for a bad filter or page, or 401 without a valid token.</returns>
+    [HttpGet]
+    [EndpointName("ListCompanyExpenses")]
+    [ProducesResponseType<CompanyExpenseListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IResult> List(
+        [FromQuery] string? q,
+        [FromQuery] string? category,
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = ListCompanyExpensesRequest.DefaultPageSize)
+    {
+        var result = await list.HandleAsync(new ListCompanyExpensesRequest(q, category, from, to, page, pageSize), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static expenses => TypedResults.Ok(expenses));
+    }
+
     /// <summary>
     /// Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above
     /// 0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has set a

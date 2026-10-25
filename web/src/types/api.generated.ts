@@ -274,7 +274,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
+         *     from 30 days before to 30 days after today in the business zone, and the answer says which dates and which today it used.
+         *     The total and the period total cover every page of the filter. Both roles see every expense; `canEdit` says whether the
+         *     caller may edit a row. Notes are never listed or searched.
+         */
+        get: operations["ListCompanyExpenses"];
         put?: never;
         /**
          * Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above
@@ -875,6 +881,73 @@ export interface components {
             recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The base64 of the eight-byte row version a save must send back. */
             version: string;
+        };
+        /** @description One expense in the list. It carries no notes (D-19). */
+        CompanyExpenseListItem: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description True when the caller may edit it (D-26). */
+            canEdit: boolean;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+            recordedBy: null | components["schemas"]["ActorRef"];
+        };
+        /** @description One page of the expense list with the figures over every page and the window the server applied. */
+        CompanyExpenseListResponse: {
+            /**
+             * Format: date
+             * @description The first day of the window used.
+             */
+            from: string;
+            /** @description The rows of this page. */
+            items: components["schemas"]["CompanyExpenseListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: double
+             * @description The sum of the matching amounts across all pages; 0.00 when none match.
+             */
+            periodTotal: number | string;
+            /**
+             * Format: date
+             * @description The last day of the window used.
+             */
+            to: string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
+            /**
+             * Format: int32
+             * @description How many expenses match, across all pages.
+             */
+            total: number | string;
         };
         /**
          * @description The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is
@@ -2021,6 +2094,57 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListCompanyExpenses: {
+        parameters: {
+            query?: {
+                /** @description Search text for the description or the payer's or recorder's name; blank means no search. */
+                q?: string;
+                /** @description A category id; none means all. */
+                category?: string;
+                /** @description The first expense date as `yyyy-MM-dd`; send it with `to` or not at all. */
+                from?: string;
+                /** @description The last expense date as `yyyy-MM-dd`; send it with `from` or not at all. */
+                to?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
