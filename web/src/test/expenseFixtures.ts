@@ -499,3 +499,47 @@ export function updateCategoryBackend(
   );
   return calls;
 }
+
+/** Answers POST /api/v1/expense-categories/{id}/retire (default: 204) and records each id and Idempotency-Key. */
+export function retireCategoryBackend(reply: (id: string) => Response | Promise<Response> = noContent): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/expense-categories/:id/retire', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}
+
+/** Answers POST /api/v1/expense-categories/{id}/reactivate (default: 204) and records each id and Idempotency-Key. */
+export function reactivateCategoryBackend(
+  reply: (id: string) => Response | Promise<Response> = noContent,
+): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/expense-categories/:id/reactivate', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}
+
+/** Answers DELETE /api/v1/expense-categories/{id} (default: 204) and records each id and Idempotency-Key. */
+export function deleteCategoryBackend(reply: (id: string) => Response | Promise<Response> = noContent): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.delete('*/api/v1/expense-categories/:id', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}

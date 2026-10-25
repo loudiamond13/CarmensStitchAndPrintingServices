@@ -90,3 +90,37 @@ describe('expenseCategoriesService.update', () => {
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 });
+
+describe('expenseCategoriesService.retire and reactivate', () => {
+  it.each([
+    ['retire', 'retire'],
+    ['reactivate', 'reactivate'],
+  ] as const)(
+    '%s calls POST /api/v1/expense-categories/{id}/%s with the Idempotency-Key and no body',
+    async (method, path) => {
+      const { fake, service } = serviceWith([{ status: 204 }]);
+      const id = '6869715c-a01f-4053-87d8-8fd39feebebc';
+
+      await expect(service[method](id, 'key-1')).resolves.toBeUndefined();
+
+      expect(fake.calls[0]?.method).toBe('POST');
+      expect(fake.calls[0]?.url).toBe(`/api/v1/expense-categories/${id}/${path}`);
+      expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+      expect(fake.calls[0]?.body ?? null).toBeNull();
+    },
+  );
+});
+
+describe('expenseCategoriesService.remove', () => {
+  it('calls DELETE /api/v1/expense-categories/{id} with no body, no Idempotency-Key and no version', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+    const id = '6869715c-a01f-4053-87d8-8fd39feebebc';
+
+    await expect(service.remove(id)).resolves.toBeUndefined();
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/expense-categories/${id}`);
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+    expect(fake.calls[0]?.body ?? null).toBeNull();
+  });
+});

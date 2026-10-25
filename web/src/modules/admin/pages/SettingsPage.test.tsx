@@ -16,10 +16,16 @@ import {
   categoriesBackend,
   categoryDetail,
   categoryDetailBackend,
+  categoryItem,
+  codedProblemResponse,
   createCategoryBackend,
+  deleteCategoryBackend,
   EXPENSE_CATEGORIES,
   problemResponse,
+  reactivateCategoryBackend,
   RENT,
+  RETIRED_CATEGORY_ID,
+  retireCategoryBackend,
   updateCategoryBackend,
 } from '@/test/expenseFixtures';
 import type { CategoryListItemFixture } from '@/test/expenseFixtures';
@@ -324,5 +330,346 @@ describe('S1 add, rename and recolor (D-08, D-12, D-13; plan 06-17)', () => {
 
     await expectNoAxeViolations(view.container);
     await expectNoAxeViolations(screen.getByRole('dialog', { name: 'Add Category' }));
+  });
+});
+
+describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06-17)', () => {
+  const EQUIPMENT_ID = EXPENSE_CATEGORIES.find((category) => category.name === 'Equipment')?.id ?? '';
+  const OLD_ID = RETIRED_CATEGORY_ID;
+  const DELETE_TITLE = 'Delete the Equipment category?';
+  const DELETE_MESSAGE = "No expense has ever used it, so it can be deleted. This can't be undone.";
+
+  /** A category list the fake server edits as the calls arrive. */
+  function liveList(initial: readonly CategoryListItemFixture[] = CATEGORIES) {
+    const state = new Map(initial.map((category) => [category.id, { ...category }]));
+    const calls = categoriesBackend(() => [...state.values()]);
+    return { state, calls };
+  }
+
+  function titlesIn(row: HTMLElement): (string | null)[] {
+    return within(row)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('title'));
+  }
+
+  async function openLive(list = liveList()) {
+    const view = renderPage();
+    await screen.findByRole('table', { name: 'Expense categories' });
+    return { view, ...list };
+  }
+
+  describe('the row actions', () => {
+    it('gives an active category that is in use Edit and Retire only', async () => {
+      await openLive();
+
+      expect(titlesIn(rowOf('Rent'))).toEqual(['Edit Rent', 'Retire Rent']);
+    });
+
+    it('gives an active category that was never used Edit, Retire and Delete', async () => {
+      await openLive();
+
+      expect(titlesIn(rowOf('Equipment'))).toEqual(['Edit Equipment', 'Retire Equipment', 'Delete Equipment']);
+    });
+
+    it('gives a retired category Use again, and no Retire', async () => {
+      await openLive();
+
+      expect(titlesIn(rowOf('Old subscriptions'))).toEqual(['Edit Old subscriptions', 'Use Old subscriptions again']);
+    });
+
+    it('gives a retired category that was never used Use again and Delete', async () => {
+      const retiredUnused = CATEGORIES.map((category) =>
+        category.id === OLD_ID ? { ...category, expenseCount: 0 } : category,
+      );
+      await openLive(liveList(retiredUnused));
+
+      expect(titlesIn(rowOf('Old subscriptions'))).toEqual([
+        'Edit Old subscriptions',
+        'Use Old subscriptions again',
+        'Delete Old subscriptions',
+      ]);
+    });
+
+    it('gives Others Edit only, even though nothing uses it', async () => {
+      await openLive();
+
+      expect(titlesIn(rowOf('Others'))).toEqual(['Edit Others']);
+    });
+
+    it('names each action for its category and marks Delete as the danger action', async () => {
+      await openLive();
+
+      const remove = within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' });
+      expect(remove).toHaveAttribute('title', 'Delete Equipment');
+      expect(tokens(remove.className).some((token) => token.includes('danger'))).toBe(true);
+    });
+  });
+
+  describe('Retire and Use again act at once, with no confirmation (OQ-4, OQ-5)', () => {
+    it('Retire flips the status and the action, keeps focus on the flipped action and toasts what it did', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      const sent = retireCategoryBackend((id) => {
+        const category = state.get(id);
+        if (category !== undefined) {
+          category.status = 'retired';
+        }
+        return new Response(null, { status: 204 });
+      });
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const retire = within(rowOf('Equipment')).getByRole('button', { name: 'Retire Equipment' });
+      await user.click(retire);
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await waitFor(() => {
+        expect(within(cellOf(rowOf('Equipment'), 'Status')).getByText('Retired')).toBeVisible();
+      });
+      expect(sent.ids).toEqual([EQUIPMENT_ID]);
+      expect(sent.keys[0]).toMatch(/\S+/);
+      const again = within(rowOf('Equipment')).getByRole('button', { name: 'Use Equipment again' });
+      expect(again).toHaveAttribute('title', 'Use Equipment again');
+      expect(again).toHaveFocus();
+      expect(await screen.findByText('Category retired')).toBeVisible();
+      expect(
+        screen.getByText('Equipment no longer shows in the Add Expense form. Past expenses keep it.'),
+      ).toBeVisible();
+      expect(tokens(cellOf(rowOf('Equipment'), 'Status').className)).toContain('bg-surface-2');
+      const keys = invalidate.mock.calls.map((call) => JSON.stringify(call[0]?.queryKey));
+      expect(keys).toEqual(
+        expect.arrayContaining([
+          JSON.stringify(expenseCategoriesKey),
+          JSON.stringify(expensesKey),
+          JSON.stringify(expenseKpisKey),
+          JSON.stringify(expensesDeletedKey),
+        ]),
+      );
+    });
+
+    it('Use again flips a retired category back, keeps focus on the flipped action and toasts what it did', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      const sent = reactivateCategoryBackend((id) => {
+        const category = state.get(id);
+        if (category !== undefined) {
+          category.status = 'active';
+        }
+        return new Response(null, { status: 204 });
+      });
+
+      await user.click(within(rowOf('Old subscriptions')).getByRole('button', { name: 'Use Old subscriptions again' }));
+
+      await waitFor(() => {
+        expect(within(cellOf(rowOf('Old subscriptions'), 'Status')).getByText('Active')).toBeVisible();
+      });
+      expect(sent.ids).toEqual([OLD_ID]);
+      expect(sent.keys[0]).toMatch(/\S+/);
+      expect(
+        within(rowOf('Old subscriptions')).getByRole('button', { name: 'Retire Old subscriptions' }),
+      ).toHaveFocus();
+      expect(await screen.findByText('Category back in use')).toBeVisible();
+      expect(screen.getByText('Old subscriptions shows in the Add Expense form again.')).toBeVisible();
+    });
+
+    it('shows a persistent danger toast with the mapper line when Retire fails, keeps the status, and a retry reuses the key', async () => {
+      const user = userEvent.setup();
+      await openLive();
+      const sent = retireCategoryBackend(() => problemResponse(500));
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Retire Equipment' }));
+
+      expect(await screen.findByText("Couldn't retire Equipment")).toBeVisible();
+      expect(screen.getByText(/Something went wrong/)).toBeVisible();
+      expect(within(cellOf(rowOf('Equipment'), 'Status')).getByText('Active')).toBeVisible();
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Retire Equipment' }));
+
+      await waitFor(() => {
+        expect(sent.keys).toHaveLength(2);
+      });
+      expect(sent.keys[1]).toBe(sent.keys[0]);
+      expect(screen.getByText("Couldn't retire Equipment")).toBeVisible();
+    });
+
+    it("says Couldn't bring back {name} when Use again fails", async () => {
+      const user = userEvent.setup();
+      await openLive();
+      reactivateCategoryBackend(() => problemResponse(500));
+
+      await user.click(within(rowOf('Old subscriptions')).getByRole('button', { name: 'Use Old subscriptions again' }));
+
+      expect(await screen.findByText("Couldn't bring back Old subscriptions")).toBeVisible();
+      expect(within(cellOf(rowOf('Old subscriptions'), 'Status')).getByText('Retired')).toBeVisible();
+    });
+  });
+
+  describe('Delete a never-used category (D-10, D-30)', () => {
+    it('opens the confirmation with its title and message, Cancel focused, and sends nothing yet', async () => {
+      const user = userEvent.setup();
+      await openLive();
+      const sent = deleteCategoryBackend();
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+
+      const dialog = await screen.findByRole('dialog', { name: DELETE_TITLE });
+      expect(within(dialog).getByText(DELETE_MESSAGE)).toBeVisible();
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+      expect(within(dialog).getByRole('button', { name: 'Delete Category' })).toBeVisible();
+      expect(within(dialog).queryByRole('textbox')).toBeNull();
+      expect(sent.ids).toEqual([]);
+    });
+
+    it('confirming sends the DELETE, drops the row, moves focus to the next row Edit, reads the lists again and toasts', async () => {
+      const user = userEvent.setup();
+      const { state, calls } = await openLive();
+      const sent = deleteCategoryBackend((id) => {
+        state.delete(id);
+        return new Response(null, { status: 204 });
+      });
+      const reads = calls.calls.length;
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      await user.click(
+        within(await screen.findByRole('dialog', { name: DELETE_TITLE })).getByRole('button', {
+          name: 'Delete Category',
+        }),
+      );
+
+      await waitFor(() => {
+        expect(within(screen.getByRole('table')).queryByText('Equipment')).toBeNull();
+      });
+      expect(sent.ids).toEqual([EQUIPMENT_ID]);
+      expect(sent.keys).toEqual([null]);
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Edit Government contributions' })).toHaveFocus();
+      });
+      expect(await screen.findByText('Category deleted')).toBeVisible();
+      await waitFor(() => {
+        expect(calls.calls.length).toBeGreaterThan(reads);
+      });
+      const keys = invalidate.mock.calls.map((call) => JSON.stringify(call[0]?.queryKey));
+      expect(keys).toEqual(expect.arrayContaining([JSON.stringify(expenseCategoriesKey), JSON.stringify(expensesKey)]));
+    });
+
+    it('shows the category name alone in the toast message', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      deleteCategoryBackend((id) => {
+        state.delete(id);
+        return new Response(null, { status: 204 });
+      });
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Category' }));
+
+      const title = await screen.findByText('Category deleted');
+      expect(title.parentElement?.textContent).toBe('Category deletedEquipment');
+    });
+
+    it('moves focus to the previous row Edit when the last row was deleted', async () => {
+      const user = userEvent.setup();
+      const pair = [
+        categoryItem('11111111-1111-4111-8111-111111111111', 'Alpha', 'info'),
+        categoryItem('22222222-2222-4222-8222-222222222222', 'Beta', 'success'),
+      ];
+      const { state } = await openLive(liveList(pair));
+      deleteCategoryBackend((id) => {
+        state.delete(id);
+        return new Response(null, { status: 204 });
+      });
+
+      await user.click(within(rowOf('Beta')).getByRole('button', { name: 'Delete Beta' }));
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Category' }));
+
+      await waitFor(() => {
+        expect(within(screen.getByRole('table')).queryByText('Beta')).toBeNull();
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Edit Alpha' })).toHaveFocus();
+      });
+    });
+
+    it('moves focus to the card heading when the only row was deleted', async () => {
+      const user = userEvent.setup();
+      const only = [categoryItem('11111111-1111-4111-8111-111111111111', 'Alpha', 'info')];
+      const { state } = await openLive(liveList(only));
+      deleteCategoryBackend((id) => {
+        state.delete(id);
+        return new Response(null, { status: 204 });
+      });
+
+      await user.click(within(rowOf('Alpha')).getByRole('button', { name: 'Delete Alpha' }));
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Category' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 2, name: 'Expense Categories' })).toHaveFocus();
+      });
+    });
+
+    it('keeps the dialog open on a server failure, with the mapper line as an alert and focus on the confirm button', async () => {
+      const user = userEvent.setup();
+      await openLive();
+      deleteCategoryBackend(() => problemResponse(500));
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      const dialog = await screen.findByRole('dialog', { name: DELETE_TITLE });
+      await user.click(within(dialog).getByRole('button', { name: 'Delete Category' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Something went wrong/);
+      expect(within(dialog).getByRole('button', { name: 'Delete Category' })).toHaveFocus();
+      expect(within(rowOf('Equipment')).getByText('Equipment')).toBeVisible();
+    });
+
+    it('keeps the dialog open on 422 in-use with the refusal, reads the list again and drops the Delete action', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      deleteCategoryBackend(() => {
+        const category = state.get(EQUIPMENT_ID);
+        if (category !== undefined) {
+          category.expenseCount = 1;
+        }
+        return codedProblemResponse(422, 'expense-categories.in-use');
+      });
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      const dialog = await screen.findByRole('dialog', { name: DELETE_TITLE });
+      await user.click(within(dialog).getByRole('button', { name: 'Delete Category' }));
+
+      const alert = await within(dialog).findByRole('alert');
+      expect(alert).toHaveTextContent(
+        "Equipment is now used by an expense, so it can't be deleted. Retire it instead to hide it from the Add Expense form.",
+      );
+      expect(dialog).toBeVisible();
+      await waitFor(() => {
+        expect(within(rowOf('Equipment')).queryByRole('button', { name: 'Delete Equipment' })).toBeNull();
+      });
+      expect(cellOf(rowOf('Equipment'), 'Expenses')).toHaveTextContent('1');
+    });
+
+    it('closes with Cancel and sends nothing', async () => {
+      const user = userEvent.setup();
+      await openLive();
+      const sent = deleteCategoryBackend();
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(sent.ids).toEqual([]);
+    });
+
+    it('has no axe violations with the dialog open', async () => {
+      const user = userEvent.setup();
+      const { view } = await openLive();
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Delete Equipment' }));
+      await screen.findByRole('dialog', { name: DELETE_TITLE });
+
+      await expectNoAxeViolations(view.container);
+      await expectNoAxeViolations(screen.getByRole('dialog', { name: DELETE_TITLE }));
+    });
   });
 });
