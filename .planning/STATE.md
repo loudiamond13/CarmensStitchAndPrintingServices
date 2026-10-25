@@ -1,12 +1,13 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 06
-current_phase_name: company-expenses
-status: "Phase 05 shipped: PR #10"
+current_phase_name: Company Expenses
+status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-10-25T09:35:49.518Z"
-last_activity: "2026-10-19: Phase 5 shipped as PR #10"
-state_head: 650896179ac305e6486a68d85521d08cb6f7d239
+last_updated: "2026-10-25T11:42:01.445Z"
+last_activity: 2026-10-25
+last_activity_desc: Phase 06 execution started
+state_head: 8b4c51085e036508ed8043a0b102e3a5d5db597a
 progress:
   total_phases: 17
   completed_phases: 5
@@ -15,7 +16,6 @@ progress:
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-19T19:45:00-05:00"
-last_activity_desc: Phase 5 shipped as PR
 ---
 
 # Project State
@@ -25,14 +25,14 @@ last_activity_desc: Phase 5 shipped as PR
 See: .planning/PROJECT.md (updated 2026-10-19)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 6 — Company Expenses
+**Current focus:** Phase 06 — Company Expenses
 
 ## Current Position
 
-Phase: 06 (company-expenses) — READY TO EXECUTE
-Plan: Not started
-Status: Phase 05 shipped: PR #10
-Last activity: 2026-10-19: Phase 5 shipped as PR #10
+Phase: 06 (Company Expenses) — EXECUTING
+Plan: 1 of 19
+Status: Executing Phase 06
+Last activity: 2026-10-25 — Phase 06 execution started
 
 Progress: [███░░░░░░░] 29%
 
