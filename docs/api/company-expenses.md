@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T07:30:00-05:00
+updated: 2026-10-25T07:54:31-05:00
 ---
 
 # The company expenses API
@@ -122,3 +122,52 @@ notes never reach the audit log, because they can hold personal details (D-06).
 
 An expense counts against its payer's money on hand **from the moment it is saved, not from its date**. A future-dated expense
 therefore lowers the payer's balance at once. Soft-deleted expenses never count (MONEY-01), and a restored one counts again.
+
+## Listing expenses (CEXP-01, CEXP-05, D-23, D-25, D-26)
+
+| Method and path | Body | Answers |
+|---|---|---|
+| `GET /company-expenses` | none; query `q`, `category`, `from`, `to`, `page`, `pageSize` | `200` a page, `400` for a bad filter, `401` without a token. |
+
+Both roles get every expense (D-25). Nothing is cached.
+
+### The query
+
+| Part | Rule | Message when broken |
+|---|---|---|
+| `q` | Optional; at most 100 characters; blank means no search | Use 100 characters or fewer. |
+| `category` | Optional; a dashed category id | Choose a category from the list. |
+| `from`, `to` | Optional, but sent as a pair; real `yyyy-MM-dd` days | Enter a real date. / Enter both dates, or neither. (on the one that is missing) |
+| | `from` on or before `to` | The start date must be on or before the end date. (on `from`) |
+| `page` | 1 to 100000; 1 when not sent | Use a page from 1 to 100000. |
+| `pageSize` | 1 to 100; 20 when not sent | Use a page size from 1 to 100. |
+
+- **The window is the server's (D-23).** With neither `from` nor `to`, the window runs from 30 days before to 30 days after
+  today in the business zone (Asia/Manila by default), both days included. The answer carries the `from`, `to` and `today` it used,
+  so the browser never reads the device clock for any of them.
+- **Search** matches the description, the payer's name and the recorder's name (first name, last name, or "first last"),
+  ignoring case. `%`, `_`, `[` and `\` are taken literally. Notes are never searched or returned (D-19).
+- Soft-deleted expenses are never listed or counted (D-01).
+
+### The answer
+
+`{ items, total, page, pageSize, periodTotal, from, to, today }`
+
+- Each item is `{ id, date, category { id, name, tone, retired }, description, amount, paidBy { id, name, formerStaff },
+  recordedBy { id, name, formerStaff } | null, canEdit }`. `recordedBy` is `null` for System.
+- **Order:** newest expense date first, then newest recorded time, then id, so paging is stable and no row shows on two pages.
+- **Totals cover every page.** `total` is the count of all matching expenses and `periodTotal` is the sum of their amounts, both
+  worked out in the database, never from the rows on the page. `periodTotal` is `0.00` when nothing matches. A page past the last
+  returns no items with the true `total` and `periodTotal`.
+- `canEdit` follows the same rule as the detail and the save (D-26): true for a Manager on every row, true for an Admin only on
+  rows they recorded or pay.
+- The server reads the list in exactly two SQL commands whatever the page size (PERF-04).
+
+## Testing builds only
+
+`POST /api/testing/expenses` exists only in the Testing environment of a Debug build. A Release build has no such route. It needs
+no token and no `Idempotency-Key`, and it lets the web e2e specs fill the list with chosen data.
+
+Body: `{ paidByUserId, recordedByUserId?, date, categoryId, description, amount, notes?, deleted? }`. It answers `201 { id }` or a
+`400` listing the fields that failed. The stored recorder is `recordedByUserId` (none reads as System), and `deleted: true` stores the
+expense already soft-deleted with that person as the one who deleted it. The helper is `createExpense` in `web/e2e/testing-api.ts`.

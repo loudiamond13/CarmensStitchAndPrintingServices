@@ -18,6 +18,9 @@ public static class ExpensesRegistration
         services.AddScoped<ICompanyExpenses, CompanyExpenseStore>();
         services.AddScoped<ICompanyExpenseReader, CompanyExpenseReader>();
         services.AddScoped<IStaffDirectory, StaffDirectory>();
+#if CSPS_TESTING
+        services.AddScoped<TestingExpenseSeeder>();
+#endif
         return services;
     }
 }
