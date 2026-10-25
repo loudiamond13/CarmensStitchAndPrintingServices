@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-25T07:00:00-05:00
+updated: 2026-10-25T15:11:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -178,6 +178,23 @@ API never change an entry (the log is append-only, see above).
   Names come from the user's own row, so a deleted person stays named and is marked as former staff (D-08, D-47).
 - **Details hold field names and role values only** (for example `fields=email` or `role=admin>manager`), never a
   person's name or email address (D-40). Entries are kept for 8 months and cannot be scrubbed.
+- **Expense and category entries (Phase 6, D-27).** For the twelve `company-expense.*` and `expense-category.*` codes the
+  server reads the stored detail with `AuditDetailFormat.Parse` and sends two extra fields on each entry: `changes`
+  (typed lines `{ field, from, to, fromPerson, toPerson }`; an empty list for every other code) and `snapshot`
+  (`{ date, category, amount, payer }` for added, deleted, restored and permanently deleted expenses; null otherwise).
+  Only the known keys are read and each value must have the shape the writer gives it; anything else is left out.
+  - A category id is shown as the category's current name, or as "a deleted category" when the category is gone. A payer id
+    is shown as the person, marked as former staff when the account was deleted.
+  - The screen shows fixed sentences built from those lines: "Amount: ₱1,200.00 to ₱1,250.00", "Date: Oct 5, 2026 to
+    Oct 6, 2026", "Category: Supplies to Equipment", "Paid by: {name} to {name}", "Name: {old} to {new}" and
+    "Color: Blue to Green", and for a snapshot "Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by {name}". A category that
+    was added, retired, brought back or deleted shows its name (and, when added, its color) the same way.
+  - **Description and notes text never appears.** A change to them reads only "Description changed" or "Notes changed",
+    because the log never stores their text (D-06, 05 D-40). The raw stored detail of these codes is not shown either.
+  - **Done to is the payer** for an expense entry (for a payer change, the new payer) and empty for a category entry.
+    The Done to filter also finds an expense entry whose detail names that person as the payer, current, old or new, so a
+    Manager can list everything that touched one person's money. The match is a LIKE on the stored detail with the shared
+    escaping, limited to codes that start with `company-expense.`.
 - **No export.** There is no download or CSV route (D-29). The log is read on screen only.
 
 ## Residual risk
