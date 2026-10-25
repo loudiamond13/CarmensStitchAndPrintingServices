@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Application.Users;
 using Csps.Domain.Expenses;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -41,6 +42,60 @@ internal sealed class ExpenseCategoryStore(CspsDbContext context) : IExpenseCate
             .Select(category => new ExpenseCategoryState(category.Id, category.Name, category.RetiredAtUtc != null))
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
+
+    public async Task<ExpenseCategory?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        await context.ExpenseCategories.SingleOrDefaultAsync(category => category.Id == id, cancellationToken).ConfigureAwait(false);
+
+    public async Task<ExpenseCategoryDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var othersId = ExpenseCategory.OthersId;
+
+        // The recorder and the last changer come from their own user rows, so a rename shows at once and a deleted person keeps their name.
+        var row = await (
+            from category in context.ExpenseCategories.AsNoTracking()
+            where category.Id == id
+            join recorderUser in context.Users on category.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join changerUser in context.Users on category.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            select new
+            {
+                category.Id,
+                category.Name,
+                category.Tone,
+                Retired = category.RetiredAtUtc != null,
+                IsOthers = category.Id == othersId,
+                ExpenseCount = context.CompanyExpenses.IgnoreQueryFilters(SoftDeleteFilter).Count(expense => expense.CategoryId == category.Id),
+                category.CreatedById,
+                category.CreatedAtUtc,
+                category.UpdatedAtUtc,
+                category.RowVersion,
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return row is null
+            ? null
+            : new ExpenseCategoryDetailView(
+                row.Id,
+                row.Name,
+                row.Tone,
+                row.Retired,
+                row.IsOthers,
+                row.ExpenseCount,
+                row.CreatedById is { } creator && row.RecorderFirst is not null ? new ActorRef(creator, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer) : null,
+                row.CreatedAtUtc,
+                row.ChangerId is { } changed && row.ChangerFirst is not null ? new ActorRef(changed, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer) : null,
+                row.UpdatedAtUtc,
+                row.RowVersion);
+    }
 
     public async Task<bool> NameTakenAsync(string normalizedName, Guid? excluding, CancellationToken cancellationToken)
     {

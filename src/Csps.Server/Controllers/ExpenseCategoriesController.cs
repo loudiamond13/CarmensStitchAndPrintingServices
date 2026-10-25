@@ -12,12 +12,14 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="list">The list handler.</param>
 /// <param name="create">The add-a-category handler (Managers only).</param>
+/// <param name="get">The single-category read handler (Managers only).</param>
+/// <param name="update">The rename-and-recolor handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/expense-categories")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler list, CreateExpenseCategoryHandler create) : ControllerBase
+public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler list, CreateExpenseCategoryHandler create, GetExpenseCategoryHandler get, UpdateExpenseCategoryHandler update) : ControllerBase
 {
     /// <summary>
     /// Lists every category, retired ones included with status <c>retired</c>, A to Z with Others always last, then by id. Each item
@@ -57,5 +59,51 @@ public sealed class ExpenseCategoriesController(ListExpenseCategoriesHandler lis
     {
         var result = await create.HandleAsync(body ?? CreateExpenseCategoryRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static created => TypedResults.Created($"/api/v1/expense-categories/{created.Id:D}", created));
+    }
+
+    /// <summary>Reads one category with how many expenses use it, who recorded and last changed it, and the version a save must send back. Managers only.</summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the category, 401 without a valid token, 403 for an Admin, or 404 when the category does not exist.</returns>
+    [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("GetExpenseCategory")]
+    [ProducesResponseType<ExpenseCategoryDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> Get(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await get.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static category => TypedResults.Ok(category));
+    }
+
+    /// <summary>
+    /// Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every
+    /// expense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change
+    /// colour. A version that is not the stored one answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried.
+    /// A form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such
+    /// member in the body is ignored.
+    /// </summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the saved category, 400 for field errors, 401 without a valid token, 403 for an Admin, 404 when the category does not exist, or 409 for a stale version.</returns>
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("UpdateExpenseCategory")]
+    [ProducesResponseType<ExpenseCategoryDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Update(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateExpenseCategoryRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await update.HandleAsync(id, body ?? UpdateExpenseCategoryRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static saved => TypedResults.Ok(saved));
     }
 }

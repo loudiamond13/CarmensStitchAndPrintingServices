@@ -433,6 +433,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one category with how many expenses use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetExpenseCategory"];
+        /**
+         * Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every
+         *     expense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change
+         *     colour. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried.
+         *     A form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such
+         *     member in the body is ignored.
+         */
+        put: operations["UpdateExpenseCategory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -1192,6 +1216,41 @@ export interface components {
             /** @description The 43-character token. */
             token: null | string;
         };
+        /** @description One category with its usage count, who recorded and last changed it, and the version a save must send back (CEXP-02, SEC-07, D-10). */
+        ExpenseCategoryDetailResponse: {
+            /**
+             * Format: int32
+             * @description How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).
+             */
+            expenseCount: number | string;
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description True only for the catch-all Others category. */
+            isOthers: boolean;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until a change.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The display name. */
+            name: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description `active` or `retired`. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
         /** @description One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15). */
         ExpenseCategoryListItem: {
             /**
@@ -1506,6 +1565,18 @@ export interface components {
              * @description The staff member who paid.
              */
             paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Category form (D-12, D-13, SEC-07). It carries the version the form was opened with. Any other member in the body, such as
+         *     a forged `createdById` or `updatedAt`, is ignored: who changed the category and when come from the token and the clock (SEC-08).
+         */
+        UpdateExpenseCategoryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique among all categories. Others keeps its name. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
             version: null | string;
         };
@@ -2893,6 +2964,131 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+                "application/json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+                "text/json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

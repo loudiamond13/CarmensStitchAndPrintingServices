@@ -21,9 +21,12 @@ public static class ExpensesApplicationRegistration
         services.AddSingleton<IValidator<ListDeletedExpensesRequest>, ListDeletedExpensesRequestValidator>();
 
         services.AddSingleton<IValidator<CreateExpenseCategoryRequest>, CreateExpenseCategoryRequestValidator>();
+        services.AddSingleton<IValidator<UpdateExpenseCategoryRequest>, UpdateExpenseCategoryRequestValidator>();
 
         services.AddScoped<ListExpenseCategoriesHandler>();
         services.AddScoped<CreateExpenseCategoryHandler>();
+        services.AddScoped<GetExpenseCategoryHandler>();
+        services.AddScoped<UpdateExpenseCategoryHandler>();
         services.AddScoped<ListStaffHandler>();
         services.AddScoped<CreateCompanyExpenseHandler>();
         services.AddScoped<UpdateCompanyExpenseHandler>();

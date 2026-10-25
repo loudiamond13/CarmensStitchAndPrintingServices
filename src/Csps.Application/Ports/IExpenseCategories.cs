@@ -1,3 +1,4 @@
+using Csps.Application.Users;
 using Csps.Domain.Expenses;
 
 namespace Csps.Application.Ports;
@@ -15,6 +16,18 @@ public interface IExpenseCategories
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The state, or null when no such category exists.</returns>
     Task<ExpenseCategoryState?> GetStateAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Loads one category as a tracked row, so a change to it is saved by the unit of work with its row version checked.</summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The category, or null when no such category exists.</returns>
+    Task<ExpenseCategory?> FindAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Reads one category with how many expenses use it and who recorded and last changed it. A deleted person keeps their name.</summary>
+    /// <param name="id">The category id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The detail, or null when no such category exists.</returns>
+    Task<ExpenseCategoryDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>Tells whether a category already holds a name, retired ones included (OQ-10).</summary>
     /// <param name="normalizedName">The name as <see cref="ExpenseCategory.Normalize"/> makes it.</param>
@@ -45,3 +58,28 @@ public sealed record ExpenseCategoryState(Guid Id, string Name, bool Retired);
 /// <param name="IsOthers">True for the catch-all Others category.</param>
 /// <param name="ExpenseCount">How many expenses use the category, soft-deleted ones included (D-10).</param>
 public sealed record ExpenseCategoryView(Guid Id, string Name, string Tone, bool Retired, bool IsOthers, int ExpenseCount);
+
+/// <summary>One category as the detail read returns it, with its row version.</summary>
+/// <param name="Id">The category id.</param>
+/// <param name="Name">The display name.</param>
+/// <param name="Tone">One of the six colour tones.</param>
+/// <param name="Retired">True once the category is retired (D-11).</param>
+/// <param name="IsOthers">True for the catch-all Others category.</param>
+/// <param name="ExpenseCount">How many expenses use the category, soft-deleted ones included (D-10).</param>
+/// <param name="RecordedBy">Who added it; null reads as System (the seeded categories).</param>
+/// <param name="CreatedAtUtc">When it was added.</param>
+/// <param name="LastChangedBy">Who last changed it; null until a change.</param>
+/// <param name="UpdatedAtUtc">When it was last changed; null until a change.</param>
+/// <param name="RowVersion">The eight-byte row version a save must send back.</param>
+public sealed record ExpenseCategoryDetailView(
+    Guid Id,
+    string Name,
+    string Tone,
+    bool Retired,
+    bool IsOthers,
+    int ExpenseCount,
+    ActorRef? RecordedBy,
+    DateTimeOffset CreatedAtUtc,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? UpdatedAtUtc,
+    byte[] RowVersion);

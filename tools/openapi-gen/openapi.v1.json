@@ -815,6 +815,94 @@
         ],
         "type": "object"
       },
+      "ExpenseCategoryDetailResponse": {
+        "description": "One category with its usage count, who recorded and last changed it, and the version a save must send back (CEXP-02, SEC-07, D-10).",
+        "properties": {
+          "expenseCount": {
+            "description": "How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the catch-all Others category.",
+            "type": "boolean"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until a change."
+              }
+            ]
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System (the seeded categories)."
+              }
+            ]
+          },
+          "status": {
+            "description": "`active` or `retired`.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers",
+          "expenseCount",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version"
+        ],
+        "type": "object"
+      },
       "ExpenseCategoryListItem": {
         "description": "One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15).",
         "properties": {
@@ -1556,6 +1644,38 @@
           "amount",
           "paidByUserId",
           "notes",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UpdateExpenseCategoryRequest": {
+        "description": "The Edit Category form (D-12, D-13, SEC-07). It carries the version the form was opened with. Any other member in the body, such as\na forged `createdById` or `updatedAt`, is ignored: who changed the category and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "name": {
+            "description": "The name; required after trimming, at most 40 characters, unique among all categories. Others keeps its name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "tone",
           "version"
         ],
         "type": "object"
@@ -3772,6 +3892,191 @@
           }
         },
         "summary": "Adds a category, Managers only. The name is required, at most 40 characters and unique among all categories, retired ones\nincluded, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Who added it and when come from the token and the clock; any such member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds nothing more.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}": {
+      "get": {
+        "operationId": "GetExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one category with how many expenses use it, who recorded and last changed it, and the version a save must send back. Managers only.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every\nexpense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change\ncolour. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried.\nA form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such\nmember in the body is ignored.",
         "tags": [
           "ExpenseCategories"
         ]
