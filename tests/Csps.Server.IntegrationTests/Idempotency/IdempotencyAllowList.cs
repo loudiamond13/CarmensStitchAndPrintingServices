@@ -49,9 +49,13 @@ public static class IdempotencyAllowList
         new("POST /api/v1/auth/password/set-new", "The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.", Decision),
     ];
 
-    // The Testing-only staff fixture exists in Debug builds in the Testing environment only (QUAL-05).
+    // The Testing-only staff and expense fixtures exist in Debug builds in the Testing environment only (QUAL-05).
     private static IdempotencyExemption[] TestingEntries => BuildFlavor.HasTestingFeatures
-        ? [new("POST /api/testing/staff", "Testing-only test data, compiled out of Release.", Decision)]
+        ?
+        [
+            new("POST /api/testing/staff", "Testing-only test data, compiled out of Release.", Decision),
+            new("POST /api/testing/expenses", "Testing-only test data, compiled out of Release.", Decision),
+        ]
         : [];
 }
 
