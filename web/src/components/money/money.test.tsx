@@ -20,6 +20,7 @@ import {
   kpiFootClasses,
   kpiHeadClasses,
   kpiIconClasses,
+  kpiLongValueClasses,
   kpiTextValueClasses,
   kpiValueClasses,
   moneyClasses,
@@ -622,6 +623,20 @@ describe('KpiCard empty and text values (OR-4, D-39; plan 06-09)', () => {
     expect(classTokens(value)).toEqual(tokens(kpiTextValueClasses));
     expect(classTokens(value)).toContain('wrap-break-word');
     expect(classTokens(value)).not.toContain('whitespace-nowrap');
+  });
+
+  it('shrinks a money figure of 15 characters or more so ₱999,999,999.99 fits the card, and leaves shorter figures alone (plan 06-18)', () => {
+    const shorter = render(<KpiCard label="This month" value={99_999_999.99} />);
+    expect(shorter.container.firstElementChild?.children[1]?.textContent).toBe('₱99,999,999.99');
+    expect(classTokens(shorter.container.firstElementChild?.children[1])).toEqual(tokens(kpiValueClasses));
+    shorter.unmount();
+
+    const { container } = render(<KpiCard label="This month" value={999_999_999.99} />);
+    const value = container.firstElementChild?.children[1];
+
+    expect(value?.textContent).toBe('₱999,999,999.99');
+    expect(classTokens(value)).toEqual(tokens(kpiLongValueClasses));
+    expect(classTokens(value)).toContain('whitespace-nowrap');
   });
 
   it('keeps the one-line look for numbers and counts', () => {
