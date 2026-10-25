@@ -192,7 +192,7 @@ for (const { name, path, h1 } of PAGES) {
 /** Scrolls each footer button into view inside the sheet and checks it is in the window. */
 async function expectFooterReachable(dialog: Locator, names: readonly string[]): Promise<void> {
   for (const name of names) {
-    const button = dialog.getByRole('button', { name, exact: true });
+    const button = dialog.locator('footer').getByRole('button', { name, exact: true });
     await button.scrollIntoViewIfNeeded();
     await expect(button).toBeInViewport();
   }
@@ -268,10 +268,46 @@ test('@expenses-sweep the Add Expense, Edit Expense and Add Category dialogs scr
 
 // --- The Phase 6 cases of the Component Showcase (worst-case demo data) ---
 
-/** Every box in the Phase 6 cases whose text runs past its own edge: wrapped text, wrapped names and badges, and figures that fit their cell. */
-const READ_OVERFLOWING = `(() => [...document.querySelectorAll('[data-case^="expenses-"] *, [data-case^="settings-"] *')]
-  .filter((element) => getComputedStyle(element).overflowX === 'visible' && element.scrollWidth > element.clientWidth + 1)
-  .map((element) => element.tagName.toLowerCase() + ': ' + (element.textContent ?? '').slice(0, 40)))()`;
+/**
+ * Every line of text in the Phase 6 cases that is drawn past the right edge of the box it sits in: wrapped descriptions, names,
+ * badges, notes and the largest figures. It compares each text node's painted extent with its nearest box (an inline element has
+ * no box of its own), so padding kept free for the row actions is not counted, a button's invisible 44 px touch area is not
+ * drawn, and the visually hidden text (a 1 px box) is left out. Text inside a frame that is scrolling sideways right now is also
+ * left out: the wide tables are meant to scroll inside their own frame.
+ */
+const READ_OVERFLOWING = `(() => {
+  const scrolls = (element) => {
+    for (let node = element; node !== null; node = node.parentElement) {
+      const overflow = getComputedStyle(node).overflowX;
+      if ((overflow === 'auto' || overflow === 'scroll') && node.scrollWidth > node.clientWidth + 1) return true;
+    }
+    return false;
+  };
+  const boxOf = (text) => {
+    let node = text.parentElement;
+    while (node !== null && getComputedStyle(node).display === 'inline') node = node.parentElement;
+    return node;
+  };
+  const found = [];
+  for (const root of document.querySelectorAll('[data-case^="expenses-"], [data-case^="settings-"]')) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+      if ((text.textContent ?? '').trim() === '') continue;
+      const holder = text.parentElement;
+      const box = boxOf(text);
+      if (holder === null || box === null || scrolls(box)) continue;
+      if (holder.getBoundingClientRect().width <= 2) continue;
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const ink = range.getBoundingClientRect();
+      const edge = box.getBoundingClientRect();
+      if (ink.width > 0 && ink.right > edge.right + 1) {
+        found.push(box.tagName.toLowerCase() + '.' + String(box.className).slice(0, 50) + ' ' + Math.round(ink.right) + '>' + Math.round(edge.right) + ': ' + (text.textContent ?? '').slice(0, 40));
+      }
+    }
+  }
+  return found;
+})()`;
 
 /** The month cards' boxes: their top edge and height, in the order drawn. */
 const READ_KPI_BOXES = `(() => {
@@ -314,49 +350,47 @@ async function axeWithin(page: Page, selectors: string[]): Promise<string[]> {
   );
 }
 
-test('@expenses-sweep the Phase 6 showcase cases fit at 320, 390 and 1440 px in Blush and Espresso: long text wraps, the month cards stay level, the largest amounts fit, and every dialog opens clean', async ({
-  page,
-  request,
-  guard,
-}) => {
-  test.setTimeout(300_000);
-  guard.expectStatus('/api/v1/auth/refresh', 401);
-  await signInAs(page, request, await createStaff(request, 'Manager'));
-  const failures: string[] = [];
-
-  for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate(`localStorage.setItem('csps-theme', '${theme}')`);
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('/admin/components');
-    await expect(page.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeVisible();
-    await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
-    const section = page.getByRole('region', { name: 'Company expenses' });
-    await section.scrollIntoViewIfNeeded();
-    await expect(section.locator('[data-case="expenses-table"]')).toBeVisible();
-    await page.evaluate('document.fonts.ready.then(() => true)');
-
-    for (const { width, height } of SHOWCASE_WIDTHS) {
+for (const theme of ['light', 'dark'] as const) {
+  for (const { width, height } of SHOWCASE_WIDTHS) {
+    const themeName = theme === 'light' ? 'Blush' : 'Espresso';
+    test(`@expenses-sweep the Phase 6 showcase cases fit at ${String(width)} px in ${themeName}: long text wraps, the month cards stay level, the largest amounts fit, and every dialog opens clean`, async ({
+      page,
+      request,
+      guard,
+    }) => {
+      test.setTimeout(240_000);
+      guard.expectStatus('/api/v1/auth/refresh', 401);
+      await signInAs(page, request, await createStaff(request, 'Manager'));
+      const failures: string[] = [];
+      await page.evaluate(`localStorage.setItem('csps-theme', '${theme}')`);
       await page.setViewportSize({ width, height });
+      await page.goto('/admin/components');
+      await expect(page.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeVisible();
+      await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+      const section = page.getByRole('region', { name: 'Expenses and settings' });
+      await section.scrollIntoViewIfNeeded();
+      await expect(section.locator('[data-case="expenses-table"]')).toBeVisible();
+      await page.evaluate('document.fonts.ready.then(() => true)');
       await settle(page);
-      const label = `${theme} ${String(width)}x${String(height)}`;
+
       if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
-        failures.push(`${label}: the page scrolls sideways`);
+        failures.push('the page scrolls sideways');
       }
       for (const line of await page.evaluate<string[]>(READ_OVERFLOWING)) {
-        failures.push(`${label}: overflows its box: ${line}`);
+        failures.push(`overflows its box: ${line}`);
       }
       // The three month cards: wherever they share a row they are the same height (the Top category wraps at words).
       const boxes = await page.evaluate<KpiBox[]>(READ_KPI_BOXES);
-      expect(boxes, `${label}: three month cards`).toHaveLength(3);
+      expect(boxes, 'three month cards').toHaveLength(3);
       for (const box of boxes) {
         const level = boxes.filter((other) => other.top === box.top);
         if (level.some((other) => Math.abs(other.height - box.height) > 1)) {
-          failures.push(`${label}: the month cards in one row differ in height`);
+          failures.push('the month cards in one row differ in height');
           break;
         }
       }
       for (const finding of await axeWithin(page, ['[data-case^="expenses-"]', '[data-case^="settings-"]'])) {
-        failures.push(`${label}: axe ${finding}`);
+        failures.push(`axe ${finding}`);
       }
 
       for (const { trigger, title, buttons } of SHOWCASE_DIALOGS) {
@@ -365,19 +399,19 @@ test('@expenses-sweep the Phase 6 showcase cases fit at 320, 390 and 1440 px in 
         await expect(dialog).toBeVisible();
         await settle(page);
         if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
-          failures.push(`${label}: ${trigger}: the page scrolls sideways`);
+          failures.push(`${trigger}: the page scrolls sideways`);
         }
         if (!(await page.evaluate<boolean>(PANEL_FITS))) {
-          failures.push(`${label}: ${trigger}: the sheet scrolls sideways`);
+          failures.push(`${trigger}: the sheet scrolls sideways`);
         }
         await expectFooterReachable(dialog, buttons);
         for (const finding of await axeWithin(page, ['[role="dialog"]'])) {
-          failures.push(`${label}: ${trigger}: axe ${finding}`);
+          failures.push(`${trigger}: axe ${finding}`);
         }
         await page.keyboard.press('Escape');
         await expect(dialog).toBeHidden();
       }
-    }
+      expect(failures).toEqual([]);
+    });
   }
-  expect(failures).toEqual([]);
-});
+}

@@ -192,7 +192,7 @@ describe('Phase6Demos: the expense modal and the delete dialogs are live', () =>
     const dialog = await screen.findByRole('dialog', { name: 'Expense details' });
     expect(LONG_NOTES).toHaveLength(1000);
     expect(within(dialog).getByText(LONG_NOTES).className).toContain('whitespace-pre-line');
-    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0);
     expect(within(dialog).queryByRole('button', { name: /^Save/ })).toBeNull();
   });
 

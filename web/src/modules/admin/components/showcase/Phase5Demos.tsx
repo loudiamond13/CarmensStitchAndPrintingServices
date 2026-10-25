@@ -55,7 +55,7 @@ import { formatBusinessDate, formatBusinessDateTime } from '@/utils/format';
 
 const COPY = SHOWCASE_COPY.staff;
 
-interface DemoCaseProps {
+export interface DemoCaseProps {
   /** The case id: its overline label and its `data-case`. */
   id: string;
   /** A live demo that opens a fixed layer: its frame is no page root, so the layer covers the page. */
@@ -64,7 +64,7 @@ interface DemoCaseProps {
 }
 
 /** One case under its overline label, in the same two frames the page gives every other case. */
-function DemoCase({ id, live = false, children }: DemoCaseProps) {
+export function DemoCase({ id, live = false, children }: DemoCaseProps) {
   const labelId = useId();
   return (
     <div className={caseClasses}>

@@ -63,6 +63,16 @@ export const SHOWCASE_COPY = {
       appearance: 'The theme choice goes here.',
     },
   },
+  /** SPEC-GAP dev wording: the Company expenses demos (plan 06-18). Made-up people and values only. */
+  expenses: {
+    openAdd: 'Open Add Expense',
+    openEdit: 'Open Edit Expense',
+    openView: 'Open Expense details',
+    openDelete: 'Open Delete Expense',
+    openPurge: 'Open Delete Permanently',
+    openAddCategory: 'Open Add Category',
+    openEditCategory: 'Open Edit Category',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */
