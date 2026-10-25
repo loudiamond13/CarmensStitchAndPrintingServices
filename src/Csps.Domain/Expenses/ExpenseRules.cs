@@ -16,7 +16,7 @@ public static class ExpenseRules
     public const int NotesMaxLength = 1000;
 
     /// <summary>The largest amount (D-21). The database checks only that an amount is positive (D-33).</summary>
-    public const decimal AmountMax = 1_000_000.00m;
+    public static readonly decimal AmountMax = 1_000_000.00m;
 
     /// <summary>The most decimal places an amount may have.</summary>
     public const int AmountScale = 2;

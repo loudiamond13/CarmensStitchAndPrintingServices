@@ -48,7 +48,7 @@ public sealed class CreateCompanyExpenseHandlerTests
 
         var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["categoryId"] = ["This category was retired. Choose another one."] });
+        OnlyField(result, "categoryId", "This category was retired. Choose another one.");
         harness.Expenses.DidNotReceiveWithAnyArgs().Add(default!);
         harness.Unit.Saves.ShouldBe(0);
     }
@@ -61,7 +61,7 @@ public sealed class CreateCompanyExpenseHandlerTests
 
         var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["categoryId"] = ["Choose a category."] });
+        OnlyField(result, "categoryId", "Choose a category.");
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class CreateCompanyExpenseHandlerTests
 
         var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["paidByUserId"] = [ExpenseRules.PaidByInactive] });
+        OnlyField(result, "paidByUserId", ExpenseRules.PaidByInactive);
     }
 
     [Theory]
@@ -89,7 +89,7 @@ public sealed class CreateCompanyExpenseHandlerTests
 
         var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["paidByUserId"] = [ExpenseRules.PaidByInactive] });
+        OnlyField(result, "paidByUserId", ExpenseRules.PaidByInactive);
         harness.Expenses.DidNotReceiveWithAnyArgs().Add(default!);
     }
 
@@ -183,6 +183,13 @@ public sealed class CreateCompanyExpenseHandlerTests
     }
 
     private static CreateCompanyExpenseRequest Valid() => new("2026-10-25", CategoryId, "Thread and needles", 640.00m, PayerId, null);
+
+    private static void OnlyField(Result<CompanyExpenseDetailResponse> result, string field, string message)
+    {
+        var fields = Fields(result);
+        fields.Keys.ShouldBe([field]);
+        fields[field].ShouldBe([message]);
+    }
 
     private static IReadOnlyDictionary<string, string[]> Fields(Result<CompanyExpenseDetailResponse> result)
     {

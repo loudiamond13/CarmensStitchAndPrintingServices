@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
 
@@ -55,7 +56,7 @@ public sealed record CompanyExpenseDetailResponse(
             view.CreatedAtUtc,
             view.LastChangedBy,
             view.UpdatedAtUtc,
-            Convert.ToBase64String(view.RowVersion),
+            RowVersions.ToText(view.RowVersion),
             ExpenseAccess.CanEdit(view.CreatedById, view.PaidByUserId, callerId, callerIsManager));
     }
 }
