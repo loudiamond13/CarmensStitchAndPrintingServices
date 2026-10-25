@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-10-25T13:01:37.984Z"
+stopped_at: Completed 06-11-PLAN.md
+last_updated: "2026-10-25T13:12:36.718Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 929cc032b13f9c1e118c7326e791a77aa516c323
+state_head: 53a7b3af06f992ae2ea0ccb8df753cef12b1bc09
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 169
+  completed_plans: 170
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T06:55:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 4 of 19
+Plan: 5 of 19
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -226,6 +226,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P01 | 20 min | 3 tasks | 41 files |
 | Phase 06 P02 | 27 min | 3 tasks | 39 files |
 | Phase 06 P03 | 23 min | 3 tasks | 25 files |
+| Phase 06 P11 | 8 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -592,6 +593,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-03: a lone from or to puts 'Enter both dates, or neither.' on the missing field
 - [Phase 06]: 06-03: the list page command reads category, payer and recorder with joins; the reader runs exactly two SQL commands (measured)
 - [Phase 06]: 06-03: the Testing seeder saves first, then stamps recorder and delete marker with ExecuteUpdateAsync (the stamp interceptor overwrites CreatedById on add)
+- [Phase 06]: 06-11: the dev seed derives its 64 demo expenses from the row number (no Random), and NoInlineSqlTests allows exactly IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs until the owner rules (Owner backlog)
 
 ### Pending Todos
 
@@ -663,6 +665,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T13:01:37.120Z
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-10-25T13:12:35.850Z
+Stopped at: Completed 06-11-PLAN.md
 Resume file: None
