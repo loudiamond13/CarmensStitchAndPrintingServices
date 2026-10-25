@@ -729,3 +729,98 @@ describe('date range (D-23, OR-3)', () => {
     expect(screen.getByLabelText('To')).toHaveValue('2031-03-01');
   });
 });
+
+describe('no matches and Clear Filters (P2, P5 05-20 rule)', () => {
+  const FILTERED = `?size=50&q=zzz&category=${UTILITIES_ID}&from=2026-10-01&to=2026-10-31`;
+
+  function emptyWhenFiltered() {
+    return expensesBackend((url) =>
+      url.searchParams.has('q') ? expenseList([], { from: '2026-10-01', to: '2026-10-31' }) : expenseList(ROWS),
+    );
+  }
+
+  it('shows "No matches" naming the search and the filters, not the first-use empty state', async () => {
+    emptyWhenFiltered();
+    renderPage(FILTERED);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'No expenses match “zzz” with category Utilities and dates Oct 1, 2026 to Oct 31, 2026. Try another search or clear the filters.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'No expenses recorded' })).toBeNull();
+    expect(screen.getByText('Search: zzz')).toBeInTheDocument();
+    expect(screen.getByText('Category: Utilities')).toBeInTheDocument();
+    expect(screen.getByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+  });
+
+  it('shows "No matches" for a category or a date range alone as well', async () => {
+    expensesBackend(expenseList([], { from: '2026-10-01', to: '2026-10-31' }));
+    renderPage('?from=2026-10-01&to=2026-10-31');
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(
+      screen.getByText('No expenses with dates Oct 1, 2026 to Oct 31, 2026. Try another search or clear the filters.'),
+    ).toBeInTheDocument();
+  });
+
+  it('Clear Filters clears Search, Category and Dates in one replace and keeps Rows per page', async () => {
+    const { calls } = emptyWhenFiltered();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage(FILTERED, onUrlUpdate);
+    await screen.findByRole('heading', { name: 'No matches' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    expect(await screen.findByText('Shop rent for October')).toBeInTheDocument();
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?size=50' });
+    expect(screen.queryByText(/^(Search|Category|Dates):/)).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('50');
+    const last = calls.at(-1);
+    expect(Object.fromEntries(last?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
+    expect(screen.getByLabelText('From')).toHaveValue('2026-09-25');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-11-24');
+  });
+
+  it('keeps the rows and dims them by colour after 200 ms while a filter loads', async () => {
+    expensesBackend(async (url) => {
+      if (url.searchParams.has('category')) {
+        await delay(600);
+      }
+      return expenseList(ROWS);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const region = screen.getByRole('region', { name: 'Company expenses' });
+    expect(region).not.toHaveAttribute('data-refetching');
+
+    await userEvent.selectOptions(await categorySelect(), 'Utilities');
+
+    expect(screen.getByText('Shop rent for October')).toBeInTheDocument();
+    expect(region).not.toHaveAttribute('data-refetching');
+    await waitFor(() => {
+      expect(region).toHaveAttribute('data-refetching', 'true');
+    });
+    expect(screen.getByText('Shop rent for October')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(region).not.toHaveAttribute('data-refetching');
+    });
+  });
+
+  it('has no axe violations with the toolbar, three chips and rows, and in the no-matches state', async () => {
+    expensesBackend((url) =>
+      url.searchParams.has('q') ? expenseList([], { from: '2026-10-01', to: '2026-10-31' }) : expenseList(ROWS),
+    );
+    const view = renderPage(`?category=${UTILITIES_ID}&from=2026-10-01&to=2026-10-31&q=rent`);
+
+    await screen.findByRole('heading', { name: 'No matches' });
+    await expectNoAxeViolations(view.container);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search filter' }));
+    await screen.findByText('Shop rent for October');
+    expect(screen.getByText('Category: Utilities')).toBeInTheDocument();
+    expect(screen.getByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    await expectNoAxeViolations(view.container);
+  });
+});
