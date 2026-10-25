@@ -1139,7 +1139,11 @@ describe('Add Expense from the empty list and the outside-filters note (CEXP-02,
 
     const buttons = screen.getAllByRole('button', { name: 'Add Expense' });
     expect(buttons).toHaveLength(2);
-    await user.click(buttons[1] as HTMLElement);
+    const emptyAction = buttons.at(-1);
+    if (emptyAction === undefined) {
+      throw new Error('No Add Expense button.');
+    }
+    await user.click(emptyAction);
 
     expect(await screen.findByRole('dialog', { name: 'Add Expense' })).toBeVisible();
   });

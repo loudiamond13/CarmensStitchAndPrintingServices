@@ -1,5 +1,5 @@
-// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-03, CEXP-04, CEXP-05, D-11, D-23,
-// D-24, D-25, WEB-10; plans 06-04, 06-07, 06-09). Both roles see the same list: the `.s-ph` header, the KPI row (the
+// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-02, CEXP-03, CEXP-04, CEXP-05, D-11, D-23,
+// D-24, D-25, WEB-10; plans 06-04, 06-07, 06-09, 06-12). Both roles see the same list: the `.s-ph` header, the KPI row (the
 // server's month figures, which ignore the filters), the toolbar (search, category, From and To), the result bar with one
 // chip per non-default filter, a ResponsiveTable of the server's rows with Paid by and Recorded by, Pagination with Rows
 // per page and the caption.
@@ -7,7 +7,9 @@
 //     the parsed values after useSettledListParams (WEB-08, WEB-10).
 //   - The browser adds nothing: the count, the period total (every page of the filter), the window and the business today
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
-//     URL stays clean. The row actions arrive in later plans.
+//     URL stays clean. Add Expense (the header, and the first-use empty state) opens the E2 modal with the server's today; a save
+//     reads the lists, the KPIs and the deleted list again and toasts, adding a note when the new row is outside the filters.
+//     The row actions arrive in later plans.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -79,6 +81,38 @@ function ActorCell({ actor }: { actor: ActorRef | null }) {
       </span>
     </span>
   );
+}
+
+interface ActiveFilters {
+  q: string | null;
+  category: string | null;
+  from: string | null;
+  to: string | null;
+}
+
+/**
+ * True when a new expense would not be listed under the current search, category and dates: the search looks in the
+ * description and the payer's and recorder's names, the category must be the chosen one, and the date must sit in the range in
+ * the URL, else in the window the server used (D-23). The browser only decides what to say; the server's list is the truth.
+ */
+function isOutsideFilters(
+  expense: ExpenseDetailResponse,
+  filters: ActiveFilters,
+  window: { from: string; to: string } | null,
+): boolean {
+  const search = filters.q?.trim().toLowerCase() ?? '';
+  if (search !== '') {
+    const places = [expense.description, expense.paidBy.name, expense.recordedBy?.name ?? ''];
+    if (!places.some((text) => text.toLowerCase().includes(search))) {
+      return true;
+    }
+  }
+  if (filters.category !== null && expense.category.id.toLowerCase() !== filters.category) {
+    return true;
+  }
+  const from = filters.from ?? window?.from;
+  const to = filters.to ?? window?.to;
+  return (from !== undefined && expense.date < from) || (to !== undefined && expense.date > to);
 }
 
 /** The columns. An expense dated after `today` (the server's business today, never the device clock, D-23) is Upcoming. */
@@ -192,11 +226,24 @@ export function ExpensesRoute() {
   const today = data?.today ?? kpis.data?.today ?? null;
 
   // The lists and the month figures read again so the new expense counts at once (UI-SPEC Freshness).
+  const openAdd = (): void => {
+    if (today !== null) {
+      setAdding(true);
+    }
+  };
+
   const saved = (expense: ExpenseDetailResponse): void => {
+    const outside = isOutsideFilters(
+      expense,
+      { q: values.q, category: values.category, from: values.from, to: values.to },
+      data === undefined ? null : { from: data.from, to: data.to },
+    );
     toast.show({
       tone: 'success',
       title: COPY.add.toast.title,
-      message: COPY.add.toast.message(formatPeso(expense.amount), expense.category.name),
+      message:
+        COPY.add.toast.message(formatPeso(expense.amount), expense.category.name) +
+        (outside ? COPY.add.toast.outsideFilters : ''),
     });
     void queryClient.invalidateQueries({ queryKey: expenseKpisKey });
     void queryClient.invalidateQueries({ queryKey: expensesDeletedKey });
@@ -217,17 +264,7 @@ export function ExpensesRoute() {
           </h1>
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
-        <Button
-          variant="primary"
-          icon="plus"
-          ref={addRef}
-          aria-disabled={today === null}
-          onClick={() => {
-            if (today !== null) {
-              setAdding(true);
-            }
-          }}
-        >
+        <Button variant="primary" icon="plus" ref={addRef} aria-disabled={today === null} onClick={openAdd}>
           {COPY.add.open}
         </Button>
       </div>
@@ -319,6 +356,11 @@ export function ExpensesRoute() {
         emptyIcon="receipt"
         emptyTitle={COPY.empty.title}
         emptyMessage={from !== null && to !== null ? COPY.empty.message(from, to) : undefined}
+        emptyAction={
+          <Button variant="primary" icon="plus" onClick={openAdd}>
+            {COPY.add.open}
+          </Button>
+        }
         footerLayout={{ date: { span: 3 }, amount: { label: COPY.footer.totalLabel } }}
       />
       {hasRows && <p className={expensesCaptionClasses}>{COPY.caption}</p>}

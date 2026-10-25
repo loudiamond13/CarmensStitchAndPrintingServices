@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-25T11:05:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-25T12:35:00-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -131,6 +131,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@expenses-list` | Company Expenses (`/admin/expenses`) in all five projects: a signed-in Manager sees seeded expenses of the server window newest first with `Upcoming` on a future one, the footer total equals the `periodTotal` of the list response it just read (and again on page 2 by URL with `?size=10&page=2`), the caption says the total covers every page, no sideways scroll at 320 px, page-level axe; a signed-in Admin reaches the page too | plan 06-04 |
 | `@expenses-filters` | Company Expenses filters in all five projects: a new payer (a unique first name) with twelve seeded expenses in two categories; the Manager searches the payer name, opens page 2 and goes Back, picks a category and types a custom From and To range; the chips and the rows match each list answer and the footer total equals its `periodTotal`; the view is left for My Profile and Back reopens the same search, category, dates and rows; a search with no result shows `No matches` and Clear Filters returns to the default window and keeps Rows per page; page-level axe at each step | plan 06-07 |
 | `@expenses-kpis` | Company Expenses month KPIs in all five projects: a signed-in Manager with one expense dated today opens the page; the three cards (This month, Last month, Top category) match the KPI response the page received (month names from the server's month fields, totals, entry count, top category, share), the row sits above the toolbar, no sideways scroll at 320 px, page-level axe | plan 06-09 |
+| `@expenses-add` | Add Expense in all five projects: an Admin opens the modal from the keyboard (focus on Date, Date holds the server's today, Paid by starts as the Admin shown as `{First Last} (you)`, Recorded by reads the same as text, no category chosen), a blank form and an amount of `0` and of `1,000,000.01` are refused in the browser with the exact messages and no POST is sent, the modal fits a 320 px phone (no sideways scroll, Save Expense and Cancel in view), Enter in Description saves, the modal closes, focus returns to Add Expense, the toast reads `Expense added` / `₱640.00 · Supplies`, and the new row shows the Admin as Paid by and Recorded by; page-level axe at each step | plan 06-12 |
 
 Every gate, its command and its pass rule, and the order to run them before verification: [release-gates.md](release-gates.md).
 
