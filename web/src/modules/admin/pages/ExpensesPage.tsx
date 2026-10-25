@@ -1,12 +1,13 @@
-// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-04, CEXP-05, D-11, D-23,
-// D-25, WEB-10; plans 06-04, 06-07). Both roles see the same list: the `.s-ph` header, the toolbar (search, category, From and
-// To), the result bar with one chip per non-default filter, a ResponsiveTable of the server's rows with Paid by and Recorded
-// by, Pagination with Rows per page and the caption.
+// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-03, CEXP-04, CEXP-05, D-11, D-23,
+// D-24, D-25, WEB-10; plans 06-04, 06-07, 06-09). Both roles see the same list: the `.s-ph` header, the KPI row (the
+// server's month figures, which ignore the filters), the toolbar (search, category, From and To), the result bar with one
+// chip per non-default filter, a ResponsiveTable of the server's rows with Paid by and Recorded by, Pagination with Rows
+// per page and the caption.
 //   - The search, filters, page and size live in the URL through useExpensesListParams and nowhere else; the query keys on
 //     the parsed values after useSettledListParams (WEB-08, WEB-10).
 //   - The browser adds nothing: the count, the period total (every page of the filter), the window and the business today
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
-//     URL stays clean. KPIs and the row actions arrive in later plans.
+//     URL stays clean. The row actions arrive in later plans.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useEffect, useRef } from 'react';
 import {
@@ -39,6 +40,7 @@ import {
 } from '@/modules/admin/components/expenses.recipe';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
+import { ExpenseKpiRow } from '@/modules/admin/components/ExpenseKpiRow';
 import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
@@ -185,6 +187,7 @@ export function ExpensesRoute() {
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
       </div>
+      <ExpenseKpiRow />
       <FilterBar>
         <SearchBox
           value={values.q}

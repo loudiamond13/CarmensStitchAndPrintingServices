@@ -64,6 +64,17 @@ export const EXPENSES_COPY = {
     message: (from: string, to: string): string =>
       `Nothing is recorded from ${from} to ${to}. Log rent, bills, payroll and supplies here to see monthly totals and where the money goes.`,
   },
+  /** The month KPI cards (App. E.11); the feet for one and for no entries are SPEC-GAP wording. The month is the server's. */
+  kpis: {
+    thisMonth: (month: string | null): string => (month === null ? 'This month' : `This month · ${month}`),
+    lastMonth: (month: string | null): string => (month === null ? 'Last month' : `Last month · ${month}`),
+    topCategory: (month: string | null): string => (month === null ? 'Top category' : `Top category · ${month}`),
+    entries: (count: number): string =>
+      count === 0 ? 'No entries yet' : count === 1 ? '1 entry so far' : `${String(count)} entries so far`,
+    fullMonth: 'Full month',
+    /** "₱18,000.00 · 47% of this month" */
+    topFoot: (amount: string, percent: number): string => `${amount} · ${String(percent)}% of this month`,
+  },
   // SPEC-GAP: the caption under the table.
   caption: 'The total covers every page of this list for the filters above. Deleted expenses never count.',
 } as const;

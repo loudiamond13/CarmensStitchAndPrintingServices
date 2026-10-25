@@ -104,6 +104,16 @@ export function formatCalendarDate(ymd: string): string | null {
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+const monthShortFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short' });
+
+/** "Nov": the short month name of a calendar date from the API ("2026-11-01"), with no zone shift. Any other text gives null. */
+export function formatMonthShort(ymd: string): string | null {
+  const parts = calendarParts(CALENDAR_DATE.exec(ymd));
+  if (parts === null) return null;
+  const [year, month, day] = parts;
+  return monthShortFormatter.format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 // Money entry (ORD-09, UI-SPEC MoneyInput row). An amount stays text while it is typed and becomes whole centavos
 // only here, by integer arithmetic on its digit strings, never through a binary float (D-09). The server re-validates
 // every amount (T-02-21); these rules only keep the field honest.

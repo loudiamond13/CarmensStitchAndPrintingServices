@@ -2,6 +2,11 @@
 // plan 06-04) as complete Tailwind tokens (D-33). Every string here is a class list (the class gate compiles each one).
 import { tw } from '@/ui/tw';
 
+/** `.s-g3`: the KPI row, three columns with a 24px gap; two on tablets and one on phones (App. C, UI-SPEC E1). */
+export const expensesKpiRowClasses = tw(
+  'grid grid-cols-[repeat(3,minmax(0,1fr))] gap-6 pg-phone:grid-cols-[minmax(0,1fr)] pg-tablet:grid-cols-[repeat(2,minmax(0,1fr))]',
+);
+
 /** The lead cell: the bold date with "Upcoming" 4px under it; beside it on phones (UI-SPEC E1). */
 export const expensesDateCellClasses = tw(
   'flex flex-col items-start gap-1 pg-phone:flex-row pg-phone:flex-wrap pg-phone:items-center pg-phone:gap-2',

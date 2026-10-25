@@ -9,6 +9,7 @@ export type ExpenseListItem = Schemas['CompanyExpenseListItem'];
 export type ExpenseListResponse = Schemas['CompanyExpenseListResponse'];
 export type ExpenseCategoryRef = Schemas['ExpenseCategoryRef'];
 export type ActorRef = Schemas['ActorRef'];
+export type ExpenseKpisResponse = Schemas['CompanyExpenseKpisResponse'];
 
 /** What `GET /api/v1/company-expenses` is asked for. Dates are `yyyy-MM-dd` and travel as a pair, or not at all. */
 export interface ExpensesListQuery {
@@ -26,6 +27,11 @@ export interface ExpensesService {
    * and the window and business today the server used. With no dates the server applies its default window (D-23).
    */
   list(query: ExpensesListQuery, signal?: AbortSignal): Promise<ExpenseListResponse>;
+  /**
+   * `GET /api/v1/company-expenses/kpis`: this month, last month and the top category for the business month (CEXP-03, D-24).
+   * It takes no filters: the figures never follow the list.
+   */
+  kpis(signal?: AbortSignal): Promise<ExpenseKpisResponse>;
 }
 
 export function createExpensesService(client: HttpClient): ExpensesService {
@@ -42,6 +48,7 @@ export function createExpensesService(client: HttpClient): ExpensesService {
         },
         signal,
       }),
+    kpis: (signal) => client.get<ExpenseKpisResponse>('/company-expenses/kpis', { signal }),
   };
 }
 

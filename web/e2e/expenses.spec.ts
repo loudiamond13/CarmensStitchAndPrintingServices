@@ -4,7 +4,8 @@
 // CSPS_E2E database keeps the expenses earlier runs made, so each check finds its own rows by a unique description and
 // compares the footer with the response it just read, never with a fixed number. Every test runs under the shared guard
 // (console, page errors, CSP, failed responses). @expenses-filters (plan 06-07) searches by a new payer, filters by category and a
-// custom range, reopens the same view with Back, and clears the filters.
+// custom range, reopens the same view with Back, and clears the filters. @expenses-kpis (plan 06-09) compares the three month cards with the KPI
+// response the page received.
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
