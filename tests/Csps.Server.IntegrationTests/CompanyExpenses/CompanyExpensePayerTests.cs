@@ -142,6 +142,88 @@ public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixt
         stored.GetProperty("category").GetProperty("retired").GetBoolean().ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task ARealEditWritesAChangedRowAndASeparatePayerChangedRowWithTheDocumentedDetails()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var newPayer = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var body = ExpenseFixtures.BodyFrom(created);
+        body["amount"] = 999.5m;
+        body["description"] = "Zebra stripe fabric";
+        body["notes"] = "Paid cash to Aling Nena";
+        body["paidByUserId"] = newPayer.UserId;
+
+        using var response = await ExpenseFixtures.PutAsync(client, manager.AccessToken, id, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && row.Action != "company-expense.added")
+            .OrderBy(row => row.Action)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).ShouldBe(["company-expense.changed", "company-expense.payer-changed"]);
+        rows.ShouldAllBe(row => row.TargetType == "CompanyExpense" && row.ActorUserId == manager.UserId);
+        rows[0].Detail.ShouldBe($"amount=640.00>999.50;fields=description,notes;payer={newPayer.UserId:D}");
+        rows[1].Detail.ShouldBe($"payer={manager.UserId:D}>{newPayer.UserId:D}");
+        rows.ShouldAllBe(row => !row.Detail!.Contains("Zebra", StringComparison.OrdinalIgnoreCase) && !row.Detail.Contains("Nena", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SavingTheSamePayerAgainAddsNoPayerChangedRowAndAnUnchangedFormAddsNoRowAtAll()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var edit = ExpenseFixtures.BodyFrom(created);
+        edit["amount"] = 700m;
+        using var first = await ExpenseFixtures.PutAsync(client, manager.AccessToken, id, edit);
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var saved = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+
+        using var identical = await ExpenseFixtures.PutAsync(client, manager.AccessToken, id, ExpenseFixtures.BodyFrom(saved));
+
+        identical.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.payer-changed", TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.changed", TestContext.Current.CancellationToken)).ShouldBe(1);
+        var after = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        after.GetProperty("version").GetString().ShouldBe(saved.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task APayerOnlyEditWritesOnlyAPayerChangedRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var newPayer = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var body = ExpenseFixtures.BodyFrom(created);
+        body["paidByUserId"] = newPayer.UserId;
+
+        using var response = await ExpenseFixtures.PutAsync(client, manager.AccessToken, id, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.changed", TestContext.Current.CancellationToken)).ShouldBe(0);
+        var payerRow = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.TargetId == key && row.Action == "company-expense.payer-changed", TestContext.Current.CancellationToken);
+        payerRow.Detail.ShouldBe($"payer={manager.UserId:D}>{newPayer.UserId:D}");
+    }
+
     private static async Task PutInStateAsync(CspsApiFactory factory, Guid id, string state)
     {
         switch (state)
