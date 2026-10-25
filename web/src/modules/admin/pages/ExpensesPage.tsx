@@ -35,8 +35,11 @@ import {
   expensesWrapClasses,
 } from '@/modules/admin/components/expenses.recipe';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
+import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
+import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
+import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
 import { useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
 import type { ActorRef, ExpenseListItem } from '@/modules/admin/services/expensesService';
@@ -106,7 +109,15 @@ export function ExpensesRoute() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
-  const query = useExpensesQuery({ q: settled.q, page: settled.page, pageSize: settled.size });
+  const query = useExpensesQuery({
+    q: settled.q,
+    category: settled.category,
+    from: settled.from,
+    to: settled.to,
+    page: settled.page,
+    pageSize: settled.size,
+  });
+  const categories = useExpenseCategoriesQuery();
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -125,6 +136,28 @@ export function ExpensesRoute() {
       clampPage(pageCount);
     }
   }, [fresh, pageCount, clampPage]);
+
+  // A category id the list does not hold (a stale or shared link) becomes All categories, once the list has loaded (D-11).
+  const { setFilter } = set;
+  const knownCategories = categories.data;
+  const unknownCategory =
+    knownCategories !== undefined &&
+    values.category !== null &&
+    !knownCategories.some((category) => category.id.toLowerCase() === values.category);
+  useEffect(() => {
+    if (unknownCategory) {
+      setFilter('category', null);
+    }
+  }, [unknownCategory, setFilter]);
+
+  const categoryName =
+    values.category === null
+      ? null
+      : (knownCategories?.find((category) => category.id.toLowerCase() === values.category)?.name ??
+        (categories.isPending ? COPY.category.loading : COPY.category.unknown));
+  // The chip and the inputs show the pair in the URL, else the window the server used (never the device clock, D-23).
+  const customFrom = values.from === null ? null : formatCalendarDate(values.from);
+  const customTo = values.to === null ? null : formatCalendarDate(values.to);
 
   const from = data === undefined ? null : formatCalendarDate(data.from);
   const to = data === undefined ? null : formatCalendarDate(data.to);
@@ -153,6 +186,20 @@ export function ExpensesRoute() {
           placeholder={COPY.search.placeholder}
           onSearch={set.setSearch}
         />
+        <ExpenseCategorySelect
+          mode="filter"
+          value={values.category}
+          onChange={(id) => {
+            set.setFilter('category', id);
+          }}
+        />
+        <ExpensesDateRange
+          from={values.from ?? data?.from ?? ''}
+          to={values.to ?? data?.to ?? ''}
+          onApply={(start, end) => {
+            set.setFilters({ from: start, to: end });
+          }}
+        />
       </FilterBar>
       <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
         {values.q !== null && (
@@ -161,6 +208,24 @@ export function ExpensesRoute() {
             value={values.q}
             onClear={() => {
               set.setSearch('', { immediate: true });
+            }}
+          />
+        )}
+        {categoryName !== null && (
+          <FilterChip
+            label={COPY.category.label}
+            value={categoryName}
+            onClear={() => {
+              set.setFilter('category', null);
+            }}
+          />
+        )}
+        {customFrom !== null && customTo !== null && (
+          <FilterChip
+            label={COPY.dates.chip}
+            value={COPY.dates.range(customFrom, customTo)}
+            onClear={() => {
+              set.setFilters({ from: null, to: null });
             }}
           />
         )}

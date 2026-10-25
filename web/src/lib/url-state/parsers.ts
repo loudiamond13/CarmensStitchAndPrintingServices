@@ -239,3 +239,15 @@ export function businessToday(now: Date, zone: string = BUSINESS_ZONE): string {
     now,
   );
 }
+
+/** A GUID in the dashed form the server accepts. */
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * An id filter (a category, a person) as a dashed GUID, lower-cased (CWE-20). Anything else, an email or a name
+ * included, is no filter. The list that reads it still checks the id against the list it came from.
+ */
+export const guidParser = createParser<string>({
+  parse: (value) => (GUID.test(value) ? value.toLowerCase() : null),
+  serialize: (id) => id,
+});

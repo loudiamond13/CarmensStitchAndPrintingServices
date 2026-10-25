@@ -277,7 +277,7 @@ describe('useExpensesListParams dates (D-23: read only as a pair)', () => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
     await settle();
-    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: `?category=${RENT_ID}&q=rent` }]);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: `?q=rent&category=${RENT_ID}` }]);
   });
 
   it('writes a pair with one replace and resets the page', async () => {

@@ -17,6 +17,27 @@ export const EXPENSES_COPY = {
   upcoming: 'Upcoming',
   /** The toolbar's search (App. E.11): it matches the description and the Recorded by and Paid by names. */
   search: { label: 'Search', placeholder: 'Description or staff name' },
+  category: {
+    label: 'Category',
+    all: 'All categories',
+    loading: 'Loading categories…',
+    /** A retired category stays in the filter, marked (D-11). */
+    retired: (name: string): string => `${name} (retired)`,
+    // SPEC-GAP: the chip's value for an id the list could not name (the categories failed to load).
+    unknown: 'Unknown category',
+  },
+  dates: {
+    from: 'From',
+    to: 'To',
+    chip: 'Dates',
+    /** The chip's value: "Oct 1, 2026 to Oct 31, 2026". */
+    range: (from: string, to: string): string => `${from} to ${to}`,
+  },
+  /** Under the From and To inputs (UI-SPEC Validation). */
+  errors: {
+    notReal: 'Enter a real date.',
+    rangeOrder: 'The start date must be on or before the end date.',
+  },
   columns: {
     date: 'Date',
     category: 'Category',
