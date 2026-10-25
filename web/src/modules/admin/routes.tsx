@@ -7,7 +7,7 @@
 //     later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen inside the
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
-//     come in Phases 5-9 show the page-not-found screen inside the shell.
+//     come in Phases 7-9 show the page-not-found screen inside the shell.
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
@@ -79,6 +79,10 @@ const usersPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/UsersPage')).UsersRoute,
 }));
 
+const expensesPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ExpensesPage')).ExpensesRoute,
+}));
+
 const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
@@ -124,7 +128,7 @@ export const adminRoutes: RouteObject[] = [
           },
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
-          { path: 'expenses', lazy: notFoundPage },
+          { path: 'expenses', lazy: expensesPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
@@ -171,7 +175,6 @@ export const devRoutes: RouteObject[] = [
         children: [
           { index: true, lazy: previewPage },
           { path: 'orders', lazy: previewPage },
-          { path: 'expenses', lazy: previewPage },
         ],
       },
     ],

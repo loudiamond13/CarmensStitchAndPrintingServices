@@ -227,6 +227,30 @@ describe('ResponsiveTable tracer (WEB-06, spec §8.4, App. E.12)', () => {
     expect(tokens(cells[4]?.className)).toEqual(expect.arrayContaining(['font-bold', 'border-t-2', 'text-right']));
   });
 
+  it('lets a footer cell span several columns and carry its own phone label (plan 06-04)', () => {
+    render(
+      table({
+        footer: { user: '2 users · Sep 25 to Nov 24', paid: '₱2,000.00' },
+        footerLayout: { user: { span: 3 }, paid: { label: 'Total' } },
+      }),
+    );
+    const foot = screen.getByRole('table', { name: 'Users' }).querySelector('tfoot');
+    const cells = [...(foot?.querySelectorAll('td') ?? [])];
+    // The user cell covers user, email and status, so those two later cells are not drawn.
+    expect(cells.map((cell) => cell.textContent)).toEqual(['2 users · Sep 25 to Nov 24', '', '₱2,000.00', '']);
+    expect(cells.map((cell) => cell.getAttribute('colspan'))).toEqual(['3', null, null, null]);
+    expect(cells.map((cell) => cell.dataset.label)).toEqual(['User', 'Created', 'Total', 'Actions']);
+    // The body keeps the column's own label.
+    expect(bodyRows()[0]?.querySelector('td[data-label="Paid so far"]')).not.toBeNull();
+  });
+
+  it('shows a first-use title of its own when emptyTitle is given', () => {
+    render(table({ rows: [], emptyTitle: 'No users recorded' }));
+
+    expect(screen.getByRole('heading', { name: 'No users recorded' })).toBeVisible();
+    expect(screen.queryByText('No users yet')).toBeNull();
+  });
+
   it('makes the caption a focus target when it has an id (Pagination moves focus there)', () => {
     render(table({ captionId: 'users-caption' }));
     const caption = document.getElementById('users-caption');

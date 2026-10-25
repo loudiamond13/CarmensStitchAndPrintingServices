@@ -88,12 +88,44 @@ export interface ResponsiveTableProps<T> {
   emptyLevel?: EmptyStateHeadingLevel | undefined;
   /** One totals row, by column key; a missing key leaves its cell empty. */
   footer?: Readonly<Record<string, ReactNode>> | undefined;
+  /**
+   * How a footer cell differs from its column, by column key: `span` makes it cover that many columns (the cells it
+   * covers are not drawn), `label` is its phone label when it differs from the column's ("Amount" → "Total").
+   */
+  footerLayout?: Readonly<Record<string, FooterCellLayout>> | undefined;
+  /** The first-use title when it should not read "No {things} yet" (a list whose rows are records, like "No expenses recorded"). */
+  emptyTitle?: string | undefined;
   /** D-27: a row's expandable details. The toggle is the caller's RowAction; the table only renders the detail row. */
   detail?: ((row: T) => ReactNode) | undefined;
   /** The keys of the rows whose detail is open. */
   expandedKeys?: ReadonlySet<string> | undefined;
   /** Called by the caller's toggle with the row key; kept for the caller's wiring. */
   onToggleRow?: ((key: string) => void) | undefined;
+}
+
+export interface FooterCellLayout {
+  span?: number | undefined;
+  label?: string | undefined;
+}
+
+/** The footer cells to draw: each column's, minus the ones an earlier cell's span covers. */
+function footerCells<T>(
+  columns: readonly ResponsiveTableColumn<T>[],
+  layout: Readonly<Record<string, FooterCellLayout>> | undefined,
+): { column: ResponsiveTableColumn<T>; span: number; label: string }[] {
+  const cells: { column: ResponsiveTableColumn<T>; span: number; label: string }[] = [];
+  let covered = 0;
+  for (const column of columns) {
+    if (covered > 0) {
+      covered -= 1;
+      continue;
+    }
+    const cellLayout = layout?.[column.key];
+    const span = Math.max(1, cellLayout?.span ?? 1);
+    covered = span - 1;
+    cells.push({ column, span, label: cellLayout?.label ?? labelOf(column) });
+  }
+  return cells;
 }
 
 /** How long placeholder rows may show before they are marked as refreshing (UI-SPEC "refetch", owner probe). */
@@ -164,6 +196,8 @@ export function ResponsiveTable<T>({
   emptyAction,
   emptyLevel,
   footer,
+  footerLayout,
+  emptyTitle,
   detail,
   expandedKeys,
 }: ResponsiveTableProps<T>) {
@@ -199,7 +233,7 @@ export function ResponsiveTable<T>({
       <EmptyState
         icon={emptyIcon}
         level={emptyLevel}
-        title={LISTS_COPY.emptyTitle(things)}
+        title={emptyTitle ?? LISTS_COPY.emptyTitle(things)}
         message={emptyMessage}
         action={emptyAction}
       />
@@ -265,8 +299,13 @@ export function ResponsiveTable<T>({
             {footer !== undefined && (
               <tfoot className={tableSectionClasses}>
                 <tr className={tableFootRowClasses}>
-                  {columns.map((column) => (
-                    <td key={column.key} data-label={labelOf(column)} className={footCellClassList(column)}>
+                  {footerCells(columns, footerLayout).map(({ column, span, label }) => (
+                    <td
+                      key={column.key}
+                      data-label={label}
+                      colSpan={span > 1 ? span : undefined}
+                      className={footCellClassList(column)}
+                    >
                       {footer[column.key]}
                     </td>
                   ))}

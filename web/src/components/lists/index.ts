@@ -4,7 +4,7 @@ export { CustomerCell, RowAction, RowActions, UserCell } from './cells';
 export type { CustomerCellProps, RowActionProps, RowActionsProps, UserCellProps } from './cells';
 export { LISTS_COPY, nounFor } from './copy';
 export { ResponsiveTable } from './ResponsiveTable';
-export type { ResponsiveTableColumn, ResponsiveTableProps } from './ResponsiveTable';
+export type { FooterCellLayout, ResponsiveTableColumn, ResponsiveTableProps } from './ResponsiveTable';
 export { SkeletonTable } from './SkeletonTable';
 export type { SkeletonTableColumn, SkeletonTableProps } from './SkeletonTable';
 export { FilterBar, FilterChip, ResultBar } from './FilterBar';

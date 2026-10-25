@@ -20,10 +20,10 @@ export interface PageCase {
   readonly admin: boolean;
 }
 
+// /admin/expenses is a signed-in page since plan 06-04 (no dev preview); its sweep joins the signed-in sweep in plan 06-18.
 const ADMIN_PAGES = [
   { path: '/admin', h1: 'Dashboard' },
   { path: '/admin/orders', h1: 'Orders' },
-  { path: '/admin/expenses', h1: 'Company Expenses' },
   { path: '/dev/components', h1: 'Component Showcase' },
 ] as const;
 
