@@ -33,3 +33,20 @@ export const expensesCaptionClasses = tw('text-[12px] leading-4 text-ink-muted')
  * and no-wrap utilities, which cannot be told apart by order.
  */
 export const categoryBadgeClasses = tw('h-auto! min-h-6 max-w-full py-0.5 text-left wrap-anywhere whitespace-normal!');
+
+/** E2 `.csp-form-grid`: two columns, 16px by 20px apart; one column on phones. */
+export const expensesFormGridClasses = tw('grid grid-cols-2 gap-x-4 gap-y-5 pg-phone:grid-cols-1');
+
+/** A field that takes the whole row of the form grid. */
+export const expensesFullRowClasses = tw('col-span-2 pg-phone:col-span-1');
+
+/** The modal body: a column of blocks 20px apart. */
+export const expensesModalBodyClasses = tw('flex flex-col gap-5');
+
+/** App. E.11 read-only control: a dashed `--line-strong` box on `--surface-2` with the avatar and the muted name. */
+export const expensesReadOnlyClasses = tw(
+  'flex min-h-11 items-center gap-2 rounded-md border-2 border-dashed border-line-strong bg-surface-2 px-3 text-ink-muted',
+);
+
+/** The label and its read-only control in one column 6px apart, as Field stacks its label and box. */
+export const expensesReadOnlyFieldClasses = tw('flex min-w-0 flex-col gap-1.5');

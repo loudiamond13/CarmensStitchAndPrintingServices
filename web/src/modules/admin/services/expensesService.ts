@@ -10,6 +10,8 @@ export type ExpenseListResponse = Schemas['CompanyExpenseListResponse'];
 export type ExpenseCategoryRef = Schemas['ExpenseCategoryRef'];
 export type ActorRef = Schemas['ActorRef'];
 export type ExpenseKpisResponse = Schemas['CompanyExpenseKpisResponse'];
+export type ExpenseDetailResponse = Schemas['CompanyExpenseDetailResponse'];
+export type CreateExpenseRequest = Schemas['CreateCompanyExpenseRequest'];
 
 /** What `GET /api/v1/company-expenses` is asked for. Dates are `yyyy-MM-dd` and travel as a pair, or not at all. */
 export interface ExpensesListQuery {
@@ -32,6 +34,11 @@ export interface ExpensesService {
    * It takes no filters: the figures never follow the list.
    */
   kpis(signal?: AbortSignal): Promise<ExpenseKpisResponse>;
+  /**
+   * `POST /api/v1/company-expenses`: records one expense (CEXP-02). The caller supplies one Idempotency-Key per submission,
+   * so a double press or a retry saves it once. 400 lists the field errors, 201 answers the saved expense with its version.
+   */
+  create(body: CreateExpenseRequest, idempotencyKey: string, signal?: AbortSignal): Promise<ExpenseDetailResponse>;
 }
 
 export function createExpensesService(client: HttpClient): ExpensesService {
@@ -49,6 +56,8 @@ export function createExpensesService(client: HttpClient): ExpensesService {
         signal,
       }),
     kpis: (signal) => client.get<ExpenseKpisResponse>('/company-expenses/kpis', { signal }),
+    create: (body, idempotencyKey, signal) =>
+      client.post<ExpenseDetailResponse>('/company-expenses', body, { idempotencyKey, signal }),
   };
 }
 

@@ -9,7 +9,10 @@
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
 //     URL stays clean. The row actions arrive in later plans.
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
-import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/actions';
+import { useToast } from '@/components/feedback';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -29,6 +32,7 @@ import {
 import { EmptyValue } from '@/components/states';
 import { Avatar, Badge } from '@/components/status';
 import { ActorName } from '@/components/data';
+import { formatPeso } from '@/utils/csps';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import {
   expensesActorClasses,
@@ -41,13 +45,15 @@ import {
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import { ExpenseKpiRow } from '@/modules/admin/components/ExpenseKpiRow';
+import { ExpenseModal } from '@/modules/admin/components/ExpenseModal';
 import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
-import { useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
-import type { ActorRef, ExpenseListItem } from '@/modules/admin/services/expensesService';
+import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
+import { expensesDeletedKey, expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
+import type { ActorRef, ExpenseDetailResponse, ExpenseListItem } from '@/modules/admin/services/expensesService';
 import { formatCalendarDate } from '@/utils/format';
 
 const COPY = EXPENSES_COPY;
@@ -112,6 +118,10 @@ function columnsFor(today: string): readonly ResponsiveTableColumn<ExpenseListIt
 
 export function ExpensesRoute() {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [adding, setAdding] = useState(false);
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
   const query = useExpensesQuery({
@@ -123,6 +133,7 @@ export function ExpensesRoute() {
     pageSize: settled.size,
   });
   const categories = useExpenseCategoriesQuery();
+  const kpis = useExpenseKpisQuery();
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -177,6 +188,26 @@ export function ExpensesRoute() {
           amount: <Money amount={toNumber(data.periodTotal)} />,
         };
 
+  // The server's business today, never the device clock (D-23): from the list, else from the month figures.
+  const today = data?.today ?? kpis.data?.today ?? null;
+
+  // The lists and the month figures read again so the new expense counts at once (UI-SPEC Freshness).
+  const saved = (expense: ExpenseDetailResponse): void => {
+    toast.show({
+      tone: 'success',
+      title: COPY.add.toast.title,
+      message: COPY.add.toast.message(formatPeso(expense.amount), expense.category.name),
+    });
+    void queryClient.invalidateQueries({ queryKey: expenseKpisKey });
+    void queryClient.invalidateQueries({ queryKey: expensesDeletedKey });
+    void queryClient.invalidateQueries({ queryKey: expensesKey }).then(() => {
+      // A trigger that left the page with the list (the first-use action) cannot take focus back: the header button does.
+      if (document.activeElement === null || document.activeElement === document.body) {
+        addRef.current?.focus();
+      }
+    });
+  };
+
   return (
     <>
       <div className={pageHeadClasses}>
@@ -186,7 +217,31 @@ export function ExpensesRoute() {
           </h1>
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
+        <Button
+          variant="primary"
+          icon="plus"
+          ref={addRef}
+          aria-disabled={today === null}
+          onClick={() => {
+            if (today !== null) {
+              setAdding(true);
+            }
+          }}
+        >
+          {COPY.add.open}
+        </Button>
       </div>
+      {today !== null && (
+        <ExpenseModal
+          mode="add"
+          open={adding}
+          today={today}
+          onClose={() => {
+            setAdding(false);
+          }}
+          onSaved={saved}
+        />
+      )}
       <ExpenseKpiRow />
       <FilterBar>
         <SearchBox

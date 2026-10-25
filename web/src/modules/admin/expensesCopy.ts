@@ -38,10 +38,18 @@ export const EXPENSES_COPY = {
     [category === null ? null : `category ${category}`, dates === null ? null : `dates ${dates}`]
       .filter((part): part is string => part !== null)
       .join(' and '),
-  /** Under the From and To inputs (UI-SPEC Validation). */
+  /**
+   * Inline errors (UI-SPEC Validation): under the From and To inputs, and under the form's fields, where the words are the
+   * server's own (ExpenseRules.cs).
+   */
   errors: {
     notReal: 'Enter a real date.',
     rangeOrder: 'The start date must be on or before the end date.',
+    dateRequired: 'Enter the date.',
+    categoryRequired: 'Choose a category.',
+    descriptionRequired: 'Add a short description so others know what this was for.',
+    amountTooSmall: 'Enter an amount greater than ₱0.00.',
+    paidByRequired: 'Choose who paid.',
   },
   columns: {
     date: 'Date',
@@ -81,4 +89,46 @@ export const EXPENSES_COPY = {
   },
   // SPEC-GAP: the caption under the table.
   caption: 'The total covers every page of this list for the filters above. Deleted expenses never count.',
+  /** The Add Expense button and modal (E2, App. E.11; plan 06-12). */
+  add: {
+    open: 'Add Expense',
+    title: 'Add Expense',
+    description: 'A general business cost, not tied to any order.',
+    save: 'Save Expense',
+    saving: 'Saving',
+    cancel: 'Cancel',
+    toast: {
+      title: 'Expense added',
+      /** "₱640.00 · Supplies" */
+      message: (amount: string, category: string): string => `${amount} · ${category}`,
+      // SPEC-GAP: said when the new expense does not match the current search, category or dates.
+      outsideFilters: " It's outside the current filters, so it isn't listed.",
+    },
+  },
+  /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
+  form: {
+    date: { label: 'Date', hint: "Up to 30 days ahead is fine for a cost you'll pay soon." },
+    category: {
+      label: 'Category',
+      // SPEC-GAP: the picker's placeholder; nothing is preselected (OQ-9).
+      placeholder: 'Choose a category',
+      // SPEC-GAP: the picker could not read the category list.
+      loadFailed: "Couldn't load the categories. Close this form and try again.",
+    },
+    description: { label: 'Description', placeholder: 'e.g. Meralco bill for October' },
+    amount: { label: 'Amount' },
+    // SPEC-GAP: Paid by is the staff picker Phase 7 reuses (CEXP-05, D-18, D-32).
+    paidBy: {
+      label: 'Paid by',
+      hint: 'The staff member whose money paid for this.',
+      loading: 'Loading staff…',
+      loadFailed: "Couldn't load the staff list. Close this form and try again.",
+      /** "Carmen Reyes (you)" */
+      you: (name: string): string => `${name} (you)`,
+    },
+    // SPEC-DEVIATION: D-19 the notes field is new to App. E.11.
+    notes: { label: 'Notes', hint: "Optional. Shown only here. Search doesn't look in notes." },
+    // SPEC-GAP: Recorded by in Add comes from App. E.11, a read-only dashed control that shows the signed-in user.
+    recordedBy: { label: 'Recorded by' },
+  },
 } as const;

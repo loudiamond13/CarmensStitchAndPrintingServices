@@ -13,3 +13,6 @@ export function useExpensesQuery(params: ExpensesListQuery) {
     fetcher: (query, signal) => expensesService.list(query, signal),
   });
 }
+
+/** The root of the Manager's deleted-expenses list (plan 06-15): an add, delete or restore reads it again. */
+export const expensesDeletedKey = ['company-expenses-deleted'] as const;

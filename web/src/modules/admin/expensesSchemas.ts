@@ -1,6 +1,7 @@
 // The Company Expenses zod schemas (OR-3): the browser checks every rule the server's validator has before a request is sent.
-// This file holds the list's date range; the Add and Edit form schema joins it in a later plan.
+// This file holds the list's date range and the Add Expense form (plan 06-12); the Edit form joins it in plan 06-14.
 import { z } from 'zod';
+import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 import { EXPENSES_COPY } from './expensesCopy';
 
@@ -40,3 +41,19 @@ export function expenseRangeErrors(draft: { from: string; to: string }): Expense
   }
   return errors;
 }
+
+// The Add Expense form (CEXP-02, D-19..D-21; plan 06-12). Task 1 holds the required-field checks; every other rule the server
+// validates joins them in the next task.
+export const expenseFormSchema = z.object({
+  date: z.string().min(1, COPY.dateRequired),
+  categoryId: z.string().min(1, COPY.categoryRequired),
+  description: z.string().trim().min(1, COPY.descriptionRequired),
+  amount: z.string().refine((amount) => moneyInputError(amount, { required: true }) === null, COPY.amountTooSmall),
+  paidByUserId: z.string().min(1, COPY.paidByRequired),
+  notes: z.string(),
+});
+
+export type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
+
+/** What the form holds while it is edited: every control is text. */
+export type ExpenseFormInput = z.input<typeof expenseFormSchema>;
