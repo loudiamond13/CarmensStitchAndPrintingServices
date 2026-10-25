@@ -78,7 +78,7 @@ function toRequest(values: ExpenseFormValues): CreateExpenseRequest {
     description: values.description,
     amount: Number(values.amount),
     paidByUserId: values.paidByUserId,
-    notes: values.notes === '' ? null : values.notes,
+    notes: values.notes,
   };
 }
 
@@ -90,7 +90,7 @@ function ExpenseForm({ open, today, onClose, onSaved }: ExpenseModalProps & { op
   // The one line above the fields for a failure that belongs to no field.
   const [failure, setFailure] = useState<string | null>(null);
   const { control, handleSubmit, setError } = useForm<ExpenseFormInput, unknown, ExpenseFormValues>({
-    resolver: zodResolver(expenseFormSchema),
+    resolver: zodResolver(expenseFormSchema(today)),
     mode: 'onBlur',
     defaultValues: {
       date: today,

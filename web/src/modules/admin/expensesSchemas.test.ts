@@ -91,9 +91,9 @@ describe('expenseFormSchema', () => {
     });
 
     it('counts the limit across a month and a year end from the server today', () => {
-      const result = expenseFormSchema('2026-12-15').safeParse({ ...VALID, date: '2027-01-15' });
+      const result = expenseFormSchema('2026-12-15').safeParse({ ...VALID, date: '2027-01-14' });
       expect(result.success).toBe(true);
-      const late = expenseFormSchema('2026-12-15').safeParse({ ...VALID, date: '2027-01-16' });
+      const late = expenseFormSchema('2026-12-15').safeParse({ ...VALID, date: '2027-01-15' });
       expect(late.error?.issues[0]?.message).toBe(
         'Choose a date up to 30 days from today, Jan 14, 2027 at the latest.',
       );

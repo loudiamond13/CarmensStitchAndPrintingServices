@@ -46,10 +46,16 @@ export const EXPENSES_COPY = {
     notReal: 'Enter a real date.',
     rangeOrder: 'The start date must be on or before the end date.',
     dateRequired: 'Enter the date.',
+    /** "Choose a date up to 30 days from today, Nov 24, 2026 at the latest." */
+    dateTooFar: (latest: string): string => `Choose a date up to 30 days from today, ${latest} at the latest.`,
     categoryRequired: 'Choose a category.',
     descriptionRequired: 'Add a short description so others know what this was for.',
+    descriptionTooLong: 'Keep the description to 200 characters or fewer.',
     amountTooSmall: 'Enter an amount greater than ₱0.00.',
+    amountTooLarge: 'Enter an amount of ₱1,000,000.00 or less.',
+    amountDecimals: 'Use at most 2 decimal places.',
     paidByRequired: 'Choose who paid.',
+    notesTooLong: 'Keep notes to 1,000 characters or fewer.',
   },
   columns: {
     date: 'Date',
