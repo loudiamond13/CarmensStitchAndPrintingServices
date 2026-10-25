@@ -185,6 +185,111 @@ public sealed class CompanyExpenseTests
         ExpenseRules.DateTooFar(new DateOnly(2026, 11, 24)).ShouldBe("Choose a date up to 30 days from today, Nov 24, 2026 at the latest.");
     }
 
+    [Fact]
+    public void AnEditNamesEachChangedFieldWithItsOldAndNewValue()
+    {
+        var expense = Create().Value;
+        var otherCategory = Guid.Parse("0f4b8d27-6a31-4c95-9e02-5d7a1c3b8e46");
+        var otherPayer = Guid.Parse("a1c3e5f7-2b4d-4968-8a0c-1e3f5a7b9d02");
+
+        var result = expense.Update(Today.AddDays(-2), otherCategory, "Thread, needles and chalk", 1250.10m, otherPayer, "paid in cash", Today);
+
+        result.IsSuccess.ShouldBeTrue();
+        var changes = result.Value;
+        changes.HasAny.ShouldBeTrue();
+        changes.HasFieldChange.ShouldBeTrue();
+        changes.Amount.ShouldBe(new ValueChange<decimal>(640.00m, 1250.10m));
+        changes.Date.ShouldBe(new ValueChange<DateOnly>(Today, Today.AddDays(-2)));
+        changes.Category.ShouldBe(new ValueChange<Guid>(CategoryId, otherCategory));
+        changes.Payer.ShouldBe(new ValueChange<Guid>(PayerId, otherPayer));
+        changes.DescriptionChanged.ShouldBeTrue();
+        changes.NotesChanged.ShouldBeTrue();
+        expense.Amount.ShouldBe(1250.10m);
+        expense.ExpenseDate.ShouldBe(Today.AddDays(-2));
+        expense.CategoryId.ShouldBe(otherCategory);
+        expense.PaidByUserId.ShouldBe(otherPayer);
+        expense.Description.ShouldBe("Thread, needles and chalk");
+        expense.Notes.ShouldBe("paid in cash");
+    }
+
+    [Fact]
+    public void SavingIdenticalValuesChangesNothingAndLeavesTheExpenseUntouched()
+    {
+        var expense = Create(notes: "cash").Value;
+
+        var result = expense.Update(Today, CategoryId, "  Thread and needles  ", 640.00m, PayerId, " cash ", Today);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.HasAny.ShouldBeFalse();
+        result.Value.HasFieldChange.ShouldBeFalse();
+        result.Value.Amount.ShouldBeNull();
+        result.Value.Date.ShouldBeNull();
+        result.Value.Category.ShouldBeNull();
+        result.Value.Payer.ShouldBeNull();
+        result.Value.DescriptionChanged.ShouldBeFalse();
+        result.Value.NotesChanged.ShouldBeFalse();
+        expense.Description.ShouldBe("Thread and needles");
+        expense.Notes.ShouldBe("cash");
+    }
+
+    [Fact]
+    public void OnlyAPayerChangeIsNotAFieldChange()
+    {
+        var expense = Create().Value;
+        var otherPayer = Guid.Parse("a1c3e5f7-2b4d-4968-8a0c-1e3f5a7b9d02");
+
+        var changes = expense.Update(Today, CategoryId, "Thread and needles", 640.00m, otherPayer, null, Today).Value;
+
+        changes.HasAny.ShouldBeTrue();
+        changes.HasFieldChange.ShouldBeFalse();
+        changes.Payer.ShouldBe(new ValueChange<Guid>(PayerId, otherPayer));
+    }
+
+    [Fact]
+    public void WhitespaceOnlyNotesBecomeNoneAndCountAsAChangeOnlyWhenNotesWereStored()
+    {
+        var withoutNotes = Create().Value;
+        var withNotes = Create(notes: "cash").Value;
+
+        var first = withoutNotes.Update(Today, CategoryId, "Thread and needles", 640.00m, PayerId, "   ", Today).Value;
+        var second = withNotes.Update(Today, CategoryId, "Thread and needles", 640.00m, PayerId, "   ", Today).Value;
+
+        first.NotesChanged.ShouldBeFalse();
+        first.HasAny.ShouldBeFalse();
+        withoutNotes.Notes.ShouldBeNull();
+        second.NotesChanged.ShouldBeTrue();
+        withNotes.Notes.ShouldBeNull();
+    }
+
+    [Fact]
+    public void AnEditAppliesEveryFieldRuleAsCreateDoesAndKeepsTheStoredValuesOnFailure()
+    {
+        var expense = Create().Value;
+
+        ShouldFailChanges(expense.Update(Today.AddDays(31), CategoryId, "x", 1m, PayerId, null, Today), ExpenseRules.DateField, ExpenseRules.DateTooFar(Today.AddDays(30)));
+        ShouldFailChanges(expense.Update(Today, Guid.Empty, "x", 1m, PayerId, null, Today), ExpenseRules.CategoryField, ExpenseRules.CategoryRequired);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "  ", 1m, PayerId, null, Today), ExpenseRules.DescriptionField, ExpenseRules.DescriptionRequired);
+        ShouldFailChanges(expense.Update(Today, CategoryId, new string('d', 201), 1m, PayerId, null, Today), ExpenseRules.DescriptionField, ExpenseRules.DescriptionTooLong);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "x", 0m, PayerId, null, Today), ExpenseRules.AmountField, ExpenseRules.AmountTooSmall);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "x", 1000000.01m, PayerId, null, Today), ExpenseRules.AmountField, ExpenseRules.AmountTooLarge);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "x", 1.234m, PayerId, null, Today), ExpenseRules.AmountField, ExpenseRules.AmountDecimals);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "x", 1m, Guid.Empty, null, Today), ExpenseRules.PaidByField, ExpenseRules.PaidByRequired);
+        ShouldFailChanges(expense.Update(Today, CategoryId, "x", 1m, PayerId, new string('n', 1001), Today), ExpenseRules.NotesField, ExpenseRules.NotesTooLong);
+        expense.Description.ShouldBe("Thread and needles");
+        expense.Amount.ShouldBe(640.00m);
+        Should.Throw<ArgumentNullException>(() => expense.Update(Today, CategoryId, null!, 1m, PayerId, null, Today));
+    }
+
+    private static void ShouldFailChanges(Result<ExpenseChanges> result, string field, string message)
+    {
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.Code.ShouldBe(ExpenseRules.InvalidCode);
+        var fields = result.Error.FieldErrors.ShouldNotBeNull();
+        fields.Keys.ShouldBe([field]);
+        fields[field].ShouldBe([message]);
+    }
+
     private static Result<CompanyExpense> Create(
         DateOnly? date = null,
         Guid? categoryId = null,

@@ -56,6 +56,38 @@ internal static class ExpenseFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Puts an edit of one expense.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The expense id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutAsync(HttpClient client, string? accessToken, Guid id, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{id:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Builds the edit form an unchanged copy of an expense would send, so a test can override one member.</summary>
+    /// <param name="detail">The expense as the API returned it.</param>
+    /// <returns>The body members, with the version the detail carried.</returns>
+    public static Dictionary<string, object?> BodyFrom(JsonElement detail) => new()
+    {
+        ["date"] = detail.GetProperty("date").GetString(),
+        ["categoryId"] = detail.GetProperty("category").GetProperty("id").GetGuid(),
+        ["description"] = detail.GetProperty("description").GetString(),
+        ["amount"] = detail.GetProperty("amount").GetDecimal(),
+        ["paidByUserId"] = detail.GetProperty("paidBy").GetProperty("id").GetGuid(),
+        ["notes"] = IsNull(detail, "notes") ? null : detail.GetProperty("notes").GetString(),
+        ["version"] = detail.GetProperty("version").GetString(),
+    };
+
     /// <summary>Reads one expense.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
