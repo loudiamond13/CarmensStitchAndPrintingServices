@@ -20,12 +20,16 @@ import {
   kpiFootClasses,
   kpiHeadClasses,
   kpiIconClasses,
+  kpiLongValueClasses,
   kpiTextValueClasses,
   kpiValueClasses,
   kpiZeroValueClasses,
   overlineClasses,
   type DeltaDirection,
 } from './money.recipe';
+
+/** A money figure this long (₱100,000,000.00 and up) takes the smaller clamp so it stays inside the card. */
+const LONG_FIGURE = 15;
 
 export interface KpiCardProps {
   label: string;
@@ -60,6 +64,13 @@ export function KpiCard({
   const footText = deltaLabel !== undefined && deltaLabel !== '' ? deltaLabel : hint;
   const hasFoot = delta !== undefined || (hint !== undefined && hint !== '');
   const zero = typeof value === 'number' && (money ? round2(value) === 0 : value === 0);
+  const figure = money && typeof value === 'number' ? formatPeso(value) : value;
+  const valueClasses =
+    typeof value === 'string' && !empty
+      ? kpiTextValueClasses
+      : !empty && money && typeof figure === 'string' && figure.length >= LONG_FIGURE
+        ? kpiLongValueClasses
+        : kpiValueClasses;
   return (
     <div className={kpiClasses} aria-busy={loading || undefined}>
       <div className={kpiHeadClasses}>
@@ -73,13 +84,8 @@ export function KpiCard({
       {loading ? (
         <Skeleton width="70%" height={36} />
       ) : (
-        <div
-          className={clsx(
-            typeof value === 'string' && !empty ? kpiTextValueClasses : kpiValueClasses,
-            (zero || empty) && kpiZeroValueClasses,
-          )}
-        >
-          {empty ? <EmptyValue /> : money && typeof value === 'number' ? formatPeso(value) : value}
+        <div className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}>
+          {empty ? <EmptyValue /> : figure}
         </div>
       )}
       {hasFoot && !loading && (

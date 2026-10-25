@@ -56,6 +56,15 @@ export const kpiValueClasses = tw(
 );
 
 /**
+ * The same figure when the formatted money has 15 characters or more (₱100,000,000.00 and up): a smaller clamp keeps
+ * ₱999,999,999.99 inside the card at 320 px, where the usual clamp ran 4 px past the value box (plan 06-18). Shorter figures
+ * keep the usual clamp above, so the approved look does not change.
+ */
+export const kpiLongValueClasses = tw(
+  'font-display text-[length:clamp(22px,13.5cqi,40px)] leading-[1] font-bold tracking-[-.005em] whitespace-nowrap tabular-nums',
+);
+
+/**
  * The same figure when the value is text (a category name, UI-SPEC "Long KPI value"): it wraps at word boundaries and
  * never truncates, so a 40-character name stays inside the card. Numbers and counts keep the one-line look above.
  */
