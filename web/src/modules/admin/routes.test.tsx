@@ -9,6 +9,7 @@ import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { expenseItem, expenseList, expensesBackend } from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -240,6 +241,45 @@ describe('Manager-only routes (USER-08)', () => {
   });
 });
 
+describe('Company Expenses for both roles (CEXP-01, D-25, T-06-18)', () => {
+  it.each([
+    ['Manager', () => sessionResponse()],
+    ['Admin', adminSession],
+  ])(
+    'when a %s opens /admin/expenses they see the real page, not a preview',
+    async (_role, session) => {
+      answerRefresh(session());
+      expensesBackend(expenseList([expenseItem('00000000-0000-4000-8000-000000000001')]));
+      const router = createMemoryRouter(routes, { initialEntries: ['/admin/expenses'] });
+      render(<RouterProvider router={router} />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Company Expenses' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(await screen.findByRole('table', { name: 'Company expenses' })).toBeVisible();
+      expect(router.state.location.pathname).toBe('/admin/expenses');
+      expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+      const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+      const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+      expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Company Expenses']);
+      await waitFor(() => {
+        expect(document.title).toBe('Company Expenses · CSPS Admin');
+      });
+    },
+    30_000,
+  );
+
+  it('a visitor without a session opening /admin/expenses goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/expenses'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses')}`);
+  }, 15_000);
+});
+
 describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
   it('a Manager who opens /admin/components stays and sees the showcase marked as demo data, with no nav item current', async () => {
     answerRefresh(sessionResponse());
@@ -344,6 +384,16 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
     expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
   });
+
+  it('with the dev routes added, /admin/expenses is still the guarded real page: no preview shadows it (T-06-18)', async () => {
+    answerRefresh(sessionResponse());
+    expensesBackend(expenseList([expenseItem('00000000-0000-4000-8000-000000000001')]));
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin/expenses'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('table', { name: 'Company expenses' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
 
   it('with the dev routes added, /dev/components and the section previews render without a session or a refresh', async () => {
     const probe = answerRefresh();
