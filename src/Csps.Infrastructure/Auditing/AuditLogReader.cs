@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,7 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
 {
     private const string UserTarget = "User";
     private const string SessionTarget = "UserSession";
+    private const string ExpenseActionPrefix = "company-expense.";
 
     public async Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {
@@ -158,9 +160,15 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
         {
             var targetKey = AuditKey.Of(target);
             var targetSessions = await SessionKeysAsync(target, cancellationToken).ConfigureAwait(false);
+
+            // An expense event is about its payer: the detail names the payer's id, as the current payer or as the old or new one.
+            var payerPattern = LikePattern.Contains(targetKey);
             matches = matches.Where(entry =>
                 (entry.TargetType == UserTarget && entry.TargetId == targetKey)
-                || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId)));
+                || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId))
+                || (entry.Action.StartsWith(ExpenseActionPrefix)
+                    && entry.Detail != null
+                    && EF.Functions.Like(entry.Detail, payerPattern, LikePattern.EscapeCharacter)));
         }
 
         if (query.Actor is { UserId: { } actorId })

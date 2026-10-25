@@ -315,7 +315,7 @@ export const AUDIT_COPY = {
   title: 'Audit Log',
   badge: 'Manager only',
   subline:
-    'Every sign-in, security and staff account change, newest first. Times are Manila time. Entries are kept for 8 months.',
+    'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
   columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', actions: 'Actions' },
   /** Done by for a failed sign-in with no matching account. */
   unknownAccount: 'Unknown account',
