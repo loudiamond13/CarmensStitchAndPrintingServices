@@ -372,4 +372,135 @@ public sealed class CompanyExpenseDeletionTests(CspsDatabase database) : IClassF
         using var stillDeleted = await ExpenseFixtures.GetAsync(client, manager.AccessToken, id);
         stillDeleted.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task APermanentDeleteRemovesALiveOrASoftDeletedRowForGoodAndASecondCallIs404(bool softDeletedFirst)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var label = $"Permanent {Guid.NewGuid():N}";
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today);
+        body["description"] = label;
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, body);
+        var id = created.GetProperty("id").GetGuid();
+        if (softDeletedFirst)
+        {
+            (await ExpenseFixtures.DeleteAsync(client, manager.AccessToken, id)).Dispose();
+        }
+
+        using var response = await ExpenseFixtures.PermanentDeleteAsync(client, manager.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using (var context = database.CreateContext())
+        {
+            (await context.CompanyExpenses.IgnoreQueryFilters(["SoftDelete"]).CountAsync(expense => expense.Id == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+
+        (await ExpenseFixtures.ReadPageAsync(client, manager.AccessToken, $"q={label}")).Total.ShouldBe(0);
+        (await ExpenseFixtures.ReadDeletedPageAsync(client, manager.AccessToken, $"q={label}")).Total.ShouldBe(0);
+        using var second = await ExpenseFixtures.PermanentDeleteAsync(client, manager.AccessToken, id);
+        second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        var problem = await ProblemJson.ReadAsync(second, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("company-expenses.not-found");
+        var key = id.ToString("D");
+        await using var after = database.CreateContext();
+        (await after.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.permanently-deleted", TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ThePermanentDeleteAuditEntrySurvivesTheRowWithTheSnapshotAndNoText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today);
+        body["description"] = "Zebra stripe fabric";
+        body["notes"] = "Paid cash to Aling Nena";
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, body);
+        var id = created.GetProperty("id").GetGuid();
+
+        using var response = await ExpenseFixtures.PermanentDeleteAsync(client, manager.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.TargetId == key && row.Action == "company-expense.permanently-deleted", TestContext.Current.CancellationToken);
+        entry.TargetType.ShouldBe("CompanyExpense");
+        entry.ActorUserId.ShouldBe(manager.UserId);
+        entry.Detail.ShouldBe(
+            $"date={today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)};category={ExpenseFixtures.SuppliesId:D};amount=640.00;payer={manager.UserId:D}");
+        entry.Detail.ShouldNotBeNull().ShouldNotContain("Zebra", Case.Insensitive);
+        entry.Detail.ShouldNotContain("Nena", Case.Insensitive);
+        (await context.CompanyExpenses.IgnoreQueryFilters(["SoftDelete"]).CountAsync(expense => expense.Id == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task APermanentDeleteOfAnUnknownIdIs404()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        using var response = await ExpenseFixtures.PermanentDeleteAsync(client, manager.AccessToken, Guid.NewGuid());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AnAdminCannotPermanentlyDeleteEvenWhatTheyRecordedAndNothingChanges()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseFixtures.CreateAsync(client, admin.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, admin.UserId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        using var asAdmin = await ExpenseFixtures.PermanentDeleteAsync(client, admin.AccessToken, id);
+        using var anonymous = await ExpenseFixtures.PermanentDeleteAsync(client, null, id);
+
+        asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        var stored = await ExpenseFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("id").GetGuid().ShouldBe(id);
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.permanently-deleted", TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TwoPermanentDeletesSentTogetherGiveOneNoContentOneNotFoundAndOneAuditEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= 5; round++)
+        {
+            var created = await ExpenseFixtures.CreateAsync(client, m1.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, m1.UserId, today));
+            var id = created.GetProperty("id").GetGuid();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => ExpenseFixtures.PermanentDeleteAsync(client, m1.AccessToken, id),
+                () => ExpenseFixtures.PermanentDeleteAsync(client, m2.AccessToken, id));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.NoContent).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.NotFound).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var key = id.ToString("D");
+            await using var context = database.CreateContext();
+            (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action == "company-expense.permanently-deleted", TestContext.Current.CancellationToken))
+                .ShouldBe(1, $"round {round}");
+        }
+    }
 }

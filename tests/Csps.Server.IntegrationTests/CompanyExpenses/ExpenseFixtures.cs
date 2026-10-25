@@ -86,6 +86,18 @@ internal static class ExpenseFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Permanently deletes one expense, live or soft-deleted.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The expense id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PermanentDeleteAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{id:D}/permanent", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Restores one soft-deleted expense with an idempotency key.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
