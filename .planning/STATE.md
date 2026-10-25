@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-14-PLAN.md
-last_updated: "2026-10-25T19:50:58.585Z"
+stopped_at: Completed 06-15-PLAN.md
+last_updated: "2026-10-25T20:45:43.058Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 4bcfa67bf2a72f3204538b1d45ca4b2e06ad6fd4
+state_head: 93fb3e903fb5ec5d28b64b2797540b60620d2fbb
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 180
+  completed_plans: 181
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 15 of 19 (06-01 to 06-14 are done; next is 06-15)
+Plan: 16 of 19 (06-01 to 06-15 are done; next is 06-16)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -237,6 +237,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P12 | 37 min | 3 tasks | 21 files |
 | Phase 06 P13 | 68 min | 3 tasks | 48 files |
 | Phase 06 P14 | 43 min | 3 tasks | 16 files |
+| Phase 06 P15 | 50 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -630,6 +631,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-13: an expense saved in a category deleted a moment earlier is a 400 on categoryId, Choose a category.
 - [Phase 06]: 06-14: the Edit and View modals read the expense on a query root of their own (company-expense, id) with no cache and no refetch on focus; the form keeps the row version of its first answer, so a refetch never changes what a save sends (SEC-07).
 - [Phase 06]: 06-14: row actions follow the server's canEdit alone (pencil Edit when true, eye View when false); View keeps the UI-SPEC footer Close beside the dialog's header Close icon, and its scrolling body is a named focusable region.
+- [Phase 06]: 06-15: the server parses expense and category audit details into typed lines and a snapshot (AuditChangeLines) and resolves payers and category names; Done to is the payer and the Done to filter also matches an expense by its current, old or new payer
+- [Phase 06]: 06-15: category added, retired, back in use and deleted entries show 'Name: {name}' (and 'Color: {color}' when added) and payer names carry '(former staff)'; both are new copy for the 05 D-48 review
 
 ### Pending Todos
 
@@ -703,6 +706,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T19:50:57.701Z
-Stopped at: Completed 06-14-PLAN.md
+Last session: 2026-10-25T20:45:42.129Z
+Stopped at: Completed 06-15-PLAN.md
 Resume file: None
