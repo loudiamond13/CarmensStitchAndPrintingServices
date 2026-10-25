@@ -2,6 +2,7 @@ using Csps.Domain.Expenses;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Respawn;
 using Respawn.Graph;
 using Xunit;
@@ -168,8 +169,14 @@ public sealed class CspsDatabase : IAsyncLifetime
 
     /// <summary>Creates a new context on this database. The caller disposes it.</summary>
     /// <returns>A context built through <see cref="CspsDbContextOptions.Configure"/>.</returns>
-    public CspsDbContext CreateContext()
+    public CspsDbContext CreateContext() => CreateContext([]);
+
+    /// <summary>Creates a new context on this database with extra interceptors, such as a <see cref="CommandCounter"/>. The caller disposes it.</summary>
+    /// <param name="extra">Interceptors added after the ones <see cref="CspsDbContextOptions.Configure"/> adds.</param>
+    /// <returns>A context built through <see cref="CspsDbContextOptions.Configure"/>.</returns>
+    public CspsDbContext CreateContext(params IInterceptor[] extra)
     {
+        ArgumentNullException.ThrowIfNull(extra);
         if (string.IsNullOrEmpty(ConnectionString))
         {
             throw new InvalidOperationException("The test database is not initialized yet.");
@@ -177,6 +184,11 @@ public sealed class CspsDatabase : IAsyncLifetime
 
         var builder = new DbContextOptionsBuilder<CspsDbContext>();
         CspsDbContextOptions.Configure(builder, ConnectionString);
+        if (extra.Length > 0)
+        {
+            builder.AddInterceptors(extra);
+        }
+
         return new CspsDbContext(builder.Options);
     }
 

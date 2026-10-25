@@ -103,7 +103,7 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
 
         public async Task SeedRowsAsync(CspsDatabase db, int count)
         {
-            var recorded = DateTimeOffset.UtcNow.AddHours(-2);
+            var recorded = TimeProvider.System.GetUtcNow().AddHours(-2);
             await using var context = db.CreateContext();
             for (var index = 0; index < count; index++)
             {

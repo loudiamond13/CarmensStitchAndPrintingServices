@@ -12,56 +12,96 @@ namespace Csps.Infrastructure.Expenses;
 /// <summary><see cref="ICompanyExpenseReader"/> over EF: untracked reads, one statement per read.</summary>
 internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpenseReader
 {
+    // The detail and both KPI reads have a fixed shape and run on every page load, so they are compiled once (PERF-04). The list is
+    // not: its optional filters change the shape, and EF caches the plan of each shape.
+    //
+    // The named SoftDelete filter hides a deleted expense. The payer, recorder and last changer come from their own user rows, so a
+    // rename shows at once and a deleted person keeps their name (D-08, D-11).
+    private static readonly Func<CspsDbContext, Guid, CancellationToken, Task<DetailRow?>> DetailQuery = EF.CompileAsyncQuery(
+        (CspsDbContext db, Guid id, CancellationToken _) =>
+            (from expense in db.CompanyExpenses.AsNoTracking()
+             where expense.Id == id
+             join category in db.ExpenseCategories on expense.CategoryId equals category.Id
+             join payer in db.Users on expense.PaidByUserId equals payer.Id
+             join recorderUser in db.Users on expense.CreatedById equals (Guid?)recorderUser.Id into recorders
+             from recorder in recorders.DefaultIfEmpty()
+             join changerUser in db.Users on expense.UpdatedById equals (Guid?)changerUser.Id into changers
+             from changer in changers.DefaultIfEmpty()
+             select new DetailRow
+             {
+                 Id = expense.Id,
+                 ExpenseDate = expense.ExpenseDate,
+                 CategoryId = expense.CategoryId,
+                 Description = expense.Description,
+                 Amount = expense.Amount,
+                 Notes = expense.Notes,
+                 PaidByUserId = expense.PaidByUserId,
+                 CreatedById = expense.CreatedById,
+                 CreatedAtUtc = expense.CreatedAtUtc,
+                 UpdatedAtUtc = expense.UpdatedAtUtc,
+                 RowVersion = expense.RowVersion,
+                 CategoryName = category.Name,
+                 CategoryTone = category.Tone,
+                 CategoryRetired = category.RetiredAtUtc != null,
+                 PayerFirst = payer.FirstName,
+                 PayerLast = payer.LastName,
+                 PayerFormer = payer.DeletedAtUtc != null,
+
+                 // D-32, the same set as StaffState.CanPay, evaluated in SQL.
+                 PayerActive = payer.IsActive
+                     && payer.ManagerLockedAtUtc == null
+                     && payer.DeletedAtUtc == null
+                     && payer.PasswordHash != null
+                     && db.UserRoles.Any(link => link.UserId == payer.Id && db.Roles.Any(role =>
+                         role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))),
+                 RecorderFirst = (string?)recorder.FirstName,
+                 RecorderLast = (string?)recorder.LastName,
+                 RecorderFormer = recorder.DeletedAtUtc != null,
+                 ChangerId = (Guid?)changer.Id,
+                 ChangerFirst = (string?)changer.FirstName,
+                 ChangerLast = (string?)changer.LastName,
+                 ChangerFormer = changer.DeletedAtUtc != null,
+             })
+            .SingleOrDefault());
+
+    // Both months in one grouped read with conditional sums and counts. No row at all means no group, so no result.
+    private static readonly Func<CspsDbContext, DateOnly, DateOnly, DateOnly, DateOnly, CancellationToken, Task<KpiFigures?>> KpiFiguresQuery =
+        EF.CompileAsyncQuery(
+            (CspsDbContext db, DateOnly lastFirst, DateOnly lastLast, DateOnly thisFirst, DateOnly thisLast, CancellationToken _) =>
+                db.CompanyExpenses.AsNoTracking()
+                    .Where(expense => expense.ExpenseDate >= lastFirst && expense.ExpenseDate <= thisLast)
+                    .GroupBy(static _ => 1)
+                    .Select(group => new KpiFigures
+                    {
+                        ThisTotal = group.Sum(expense => expense.ExpenseDate >= thisFirst ? expense.Amount : 0m),
+                        ThisCount = group.Count(expense => expense.ExpenseDate >= thisFirst),
+                        LastTotal = group.Sum(expense => expense.ExpenseDate <= lastLast ? expense.Amount : 0m),
+                        LastCount = group.Count(expense => expense.ExpenseDate <= lastLast),
+                    })
+                    .SingleOrDefault());
+
+    // This month by category, highest total first, ties to the name first A to Z.
+    private static readonly Func<CspsDbContext, DateOnly, DateOnly, CancellationToken, Task<TopCategoryRow?>> TopCategoryQuery =
+        EF.CompileAsyncQuery(
+            (CspsDbContext db, DateOnly thisFirst, DateOnly thisLast, CancellationToken _) =>
+                (from expense in db.CompanyExpenses.AsNoTracking()
+                 where expense.ExpenseDate >= thisFirst && expense.ExpenseDate <= thisLast
+                 join category in db.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
+                 group expense by new { category.Id, category.Name, category.Tone, Retired = category.RetiredAtUtc != null } into byCategory
+                 orderby byCategory.Sum(expense => expense.Amount) descending, byCategory.Key.Name
+                 select new TopCategoryRow
+                 {
+                     Id = byCategory.Key.Id,
+                     Name = byCategory.Key.Name,
+                     Tone = byCategory.Key.Tone,
+                     Retired = byCategory.Key.Retired,
+                     Total = byCategory.Sum(expense => expense.Amount),
+                 })
+                .FirstOrDefault());
+
     public async Task<CompanyExpenseDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The named SoftDelete filter hides a deleted expense. The payer, recorder and last changer come from their own
-        // user rows, so a rename shows at once and a deleted person keeps their name (D-08, D-11).
-        var row = await (
-            from expense in context.CompanyExpenses.AsNoTracking()
-            where expense.Id == id
-            join category in context.ExpenseCategories on expense.CategoryId equals category.Id
-            join payer in context.Users on expense.PaidByUserId equals payer.Id
-            join recorderUser in context.Users on expense.CreatedById equals (Guid?)recorderUser.Id into recorders
-            from recorder in recorders.DefaultIfEmpty()
-            join changerUser in context.Users on expense.UpdatedById equals (Guid?)changerUser.Id into changers
-            from changer in changers.DefaultIfEmpty()
-            select new
-            {
-                expense.Id,
-                expense.ExpenseDate,
-                expense.CategoryId,
-                expense.Description,
-                expense.Amount,
-                expense.Notes,
-                expense.PaidByUserId,
-                expense.CreatedById,
-                expense.CreatedAtUtc,
-                expense.UpdatedAtUtc,
-                expense.RowVersion,
-                CategoryName = category.Name,
-                CategoryTone = category.Tone,
-                CategoryRetired = category.RetiredAtUtc != null,
-                PayerFirst = payer.FirstName,
-                PayerLast = payer.LastName,
-                PayerFormer = payer.DeletedAtUtc != null,
-
-                // D-32, the same set as StaffState.CanPay, evaluated in SQL.
-                PayerActive = payer.IsActive
-                    && payer.ManagerLockedAtUtc == null
-                    && payer.DeletedAtUtc == null
-                    && payer.PasswordHash != null
-                    && context.UserRoles.Any(link => link.UserId == payer.Id && context.Roles.Any(role =>
-                        role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))),
-                RecorderFirst = (string?)recorder.FirstName,
-                RecorderLast = (string?)recorder.LastName,
-                RecorderFormer = recorder.DeletedAtUtc != null,
-                ChangerId = (Guid?)changer.Id,
-                ChangerFirst = (string?)changer.FirstName,
-                ChangerLast = (string?)changer.LastName,
-                ChangerFormer = changer.DeletedAtUtc != null,
-            })
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var row = await DetailQuery(context, id, cancellationToken).ConfigureAwait(false);
 
         if (row is null)
         {
@@ -158,37 +198,10 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
     {
         ArgumentNullException.ThrowIfNull(months);
 
-        // Command 1: both months in one grouped read with conditional sums and counts. No row at all means no group, so zeros.
-        var figures = await context.CompanyExpenses.AsNoTracking()
-            .Where(expense => expense.ExpenseDate >= months.LastFirst && expense.ExpenseDate <= months.ThisLast)
-            .GroupBy(static _ => 1)
-            .Select(group => new
-            {
-                ThisTotal = group.Sum(expense => expense.ExpenseDate >= months.ThisFirst ? expense.Amount : 0m),
-                ThisCount = group.Count(expense => expense.ExpenseDate >= months.ThisFirst),
-                LastTotal = group.Sum(expense => expense.ExpenseDate <= months.LastLast ? expense.Amount : 0m),
-                LastCount = group.Count(expense => expense.ExpenseDate <= months.LastLast),
-            })
-            .SingleOrDefaultAsync(cancellationToken)
+        // Command 1: both months. Command 2: this month by category.
+        var figures = await KpiFiguresQuery(context, months.LastFirst, months.LastLast, months.ThisFirst, months.ThisLast, cancellationToken)
             .ConfigureAwait(false);
-
-        // Command 2: this month by category, highest total first, ties to the name first A to Z.
-        var top = await (
-            from expense in context.CompanyExpenses.AsNoTracking()
-            where expense.ExpenseDate >= months.ThisFirst && expense.ExpenseDate <= months.ThisLast
-            join category in context.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
-            group expense by new { category.Id, category.Name, category.Tone, Retired = category.RetiredAtUtc != null } into byCategory
-            orderby byCategory.Sum(expense => expense.Amount) descending, byCategory.Key.Name
-            select new
-            {
-                byCategory.Key.Id,
-                byCategory.Key.Name,
-                byCategory.Key.Tone,
-                byCategory.Key.Retired,
-                Total = byCategory.Sum(expense => expense.Amount),
-            })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var top = await TopCategoryQuery(context, months.ThisFirst, months.ThisLast, cancellationToken).ConfigureAwait(false);
 
         return new ExpenseKpiTotals(
             figures?.ThisTotal ?? 0m,
@@ -223,5 +236,82 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
         }
 
         return expenses;
+    }
+
+    private sealed class DetailRow
+    {
+        public Guid Id { get; init; }
+
+        public DateOnly ExpenseDate { get; init; }
+
+        public Guid CategoryId { get; init; }
+
+        public string Description { get; init; } = string.Empty;
+
+        public decimal Amount { get; init; }
+
+        public string? Notes { get; init; }
+
+        public Guid PaidByUserId { get; init; }
+
+        public Guid? CreatedById { get; init; }
+
+        public DateTimeOffset CreatedAtUtc { get; init; }
+
+        public DateTimeOffset? UpdatedAtUtc { get; init; }
+
+        public byte[] RowVersion { get; init; } = [];
+
+        public string CategoryName { get; init; } = string.Empty;
+
+        public string CategoryTone { get; init; } = string.Empty;
+
+        public bool CategoryRetired { get; init; }
+
+        public string PayerFirst { get; init; } = string.Empty;
+
+        public string PayerLast { get; init; } = string.Empty;
+
+        public bool PayerFormer { get; init; }
+
+        public bool PayerActive { get; init; }
+
+        public string? RecorderFirst { get; init; }
+
+        public string? RecorderLast { get; init; }
+
+        public bool RecorderFormer { get; init; }
+
+        public Guid? ChangerId { get; init; }
+
+        public string? ChangerFirst { get; init; }
+
+        public string? ChangerLast { get; init; }
+
+        public bool ChangerFormer { get; init; }
+    }
+
+    private sealed class KpiFigures
+    {
+        public decimal ThisTotal { get; init; }
+
+        public int ThisCount { get; init; }
+
+        public decimal LastTotal { get; init; }
+
+        public int LastCount { get; init; }
+    }
+
+    private sealed class TopCategoryRow
+    {
+        public Guid Id { get; init; }
+
+        public string Name { get; init; } = string.Empty;
+
+        public string Tone { get; init; } = string.Empty;
+
+        public bool Retired { get; init; }
+
+        public decimal Total { get; init; }
     }
 }
