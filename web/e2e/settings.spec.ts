@@ -95,7 +95,8 @@ test('@settings a Manager opens Settings from the sidebar, adds a category in Bl
   // The sidebar leads to Settings, which is the current item; the seeded list is there, with Others last and its sub line.
   await openSettings(page);
   await expect(page).toHaveTitle('Settings · CSPS Admin');
-  await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]')).toContainText('Settings');
+  // On a phone the drawer's own sidebar is still closing, so the first match is enough.
+  await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]').first()).toContainText('Settings');
   await expect(page.getByRole('heading', { level: 2, name: 'Expense Categories' })).toBeVisible();
   await expect(rowFor(page, 'Others')).toContainText('Always listed last');
   await expect(page.locator('tbody tr').last()).toContainText('Others');
@@ -126,6 +127,7 @@ test('@settings a Manager opens Settings from the sidebar, adds a category in Bl
   await expectNoAxeViolations(page);
 
   // A second category with the same name is refused under Name, with what was typed kept.
+  guard.expectStatus('/api/v1/expense-categories', 400);
   await press(page, add);
   const duplicate = page.getByRole('dialog', { name: 'Add Category' });
   await duplicate.getByRole('textbox', { name: /^Name/ }).fill(name.toUpperCase());

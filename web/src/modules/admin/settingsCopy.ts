@@ -26,6 +26,37 @@ export const SETTINGS_COPY = {
   /** A row's actions are named for their category, with a matching title. */
   rowActions: {
     edit: (name: string): string => `Edit ${name}`,
+    retire: (name: string): string => `Retire ${name}`,
+    useAgain: (name: string): string => `Use ${name} again`,
+    remove: (name: string): string => `Delete ${name}`,
+  },
+  /** Retire and Use again act at once (OQ-4, OQ-5): the toast states the effect, a failure is a danger toast that stays. */
+  retire: {
+    toast: {
+      title: 'Category retired',
+      message: (name: string): string => `${name} no longer shows in the Add Expense form. Past expenses keep it.`,
+    },
+    failed: (name: string): string => `Couldn't retire ${name}`,
+  },
+  reactivate: {
+    toast: {
+      title: 'Category back in use',
+      message: (name: string): string => `${name} shows in the Add Expense form again.`,
+    },
+    failed: (name: string): string => `Couldn't bring back ${name}`,
+  },
+  /** Delete a never-used category (D-10, D-30): the plain ConfirmDialog, Cancel focused. */
+  remove: {
+    title: (name: string): string => `Delete the ${name} category?`,
+    message: "No expense has ever used it, so it can be deleted. This can't be undone.",
+    confirm: 'Delete Category',
+    pending: 'Deleting',
+    toast: { title: 'Category deleted', message: (name: string): string => name },
+    /** The server refuses when an expense started using the category meanwhile; the dialog stays open with this line. */
+    inUse: {
+      title: (name: string): string => `${name} is now used by an expense, so it can't be deleted.`,
+      body: 'Retire it instead to hide it from the Add Expense form.',
+    },
   },
   /** Inline errors (UI-SPEC Validation), with the server's own words. */
   errors: {

@@ -30,6 +30,19 @@ export interface ExpenseCategoriesService {
    * 409 `edit.stale` when it is not the stored one. A form edit is never retried, so it carries no Idempotency-Key (SEC-07).
    */
   update(id: string, body: UpdateExpenseCategoryRequest, signal?: AbortSignal): Promise<ExpenseCategoryDetailResponse>;
+  /**
+   * `POST /api/v1/expense-categories/{id}/retire`: hides the category from the Add Expense form (D-10, D-11). It acts on the latest
+   * state, so it sends no row version; the caller supplies one Idempotency-Key per attempt. Others cannot be retired.
+   */
+  retire(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /** `POST /api/v1/expense-categories/{id}/reactivate`: brings a retired category back (OQ-4), with one Idempotency-Key per attempt. */
+  reactivate(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `DELETE /api/v1/expense-categories/{id}`: removes a category no expense has ever used, deleted expenses included (D-10, D-30). It
+   * acts on the latest state and a DELETE repeats safely, so it sends no row version and no Idempotency-Key. 422
+   * `expense-categories.in-use` when an expense uses it, `expense-categories.protected` for Others.
+   */
+  remove(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 const categoryPath = (id: string): string => `/expense-categories/${encodeURIComponent(id)}`;
@@ -41,6 +54,11 @@ export function createExpenseCategoriesService(client: HttpClient): ExpenseCateg
       client.post<ExpenseCategoryListItem>('/expense-categories', body, { idempotencyKey, signal }),
     get: (id, signal) => client.get<ExpenseCategoryDetailResponse>(categoryPath(id), { signal }),
     update: (id, body, signal) => client.put<ExpenseCategoryDetailResponse>(categoryPath(id), body, { signal }),
+    retire: (id, idempotencyKey, signal) =>
+      client.post(`${categoryPath(id)}/retire`, undefined, { idempotencyKey, signal }),
+    reactivate: (id, idempotencyKey, signal) =>
+      client.post(`${categoryPath(id)}/reactivate`, undefined, { idempotencyKey, signal }),
+    remove: (id, signal) => client.delete(categoryPath(id), { signal }),
   };
 }
 

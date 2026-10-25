@@ -488,7 +488,8 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
         expect(sent.keys).toHaveLength(2);
       });
       expect(sent.keys[1]).toBe(sent.keys[0]);
-      expect(screen.getByText("Couldn't retire Equipment")).toBeVisible();
+      // The first toast is still there (a danger toast stays until it is closed), and the second failure adds its own.
+      expect(await screen.findAllByText("Couldn't retire Equipment")).toHaveLength(2);
     });
 
     it("says Couldn't bring back {name} when Use again fails", async () => {
