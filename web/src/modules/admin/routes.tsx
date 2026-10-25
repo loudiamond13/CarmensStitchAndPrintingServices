@@ -83,6 +83,10 @@ const expensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ExpensesPage')).ExpensesRoute,
 }));
 
+const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
+}));
+
 const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
@@ -102,6 +106,10 @@ const requireSession: LoaderFunction = async (args) =>
 /** requireManagerLoader (USER-08), loaded with the admin chunks as above. */
 const requireManager: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireManagerLoader(args);
+
+/** requireManagerLoader for Deleted Expenses: an Admin goes back to the expenses list, not to /admin (D-07). */
+const requireManagerOrExpenses: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/expenses');
 
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
@@ -129,6 +137,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
           { path: 'expenses', lazy: expensesPage },
+          // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
+          { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).

@@ -16,7 +16,7 @@
 //   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/actions';
+import { Button, ButtonLink } from '@/components/actions';
 import { useToast } from '@/components/feedback';
 import { ConfirmDialog } from '@/components/overlays';
 import { isHttpError } from '@/core/api/errors';
@@ -39,19 +39,18 @@ import {
   type ResponsiveTableColumn,
 } from '@/components/lists';
 import { EmptyValue } from '@/components/states';
-import { Avatar, Badge } from '@/components/status';
-import { ActorName } from '@/components/data';
+import { Badge } from '@/components/status';
 import { formatPeso } from '@/utils/csps';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import {
-  expensesActorClasses,
-  expensesAvatarClasses,
   expensesCaptionClasses,
   expensesDateCellClasses,
   expensesDateClasses,
+  expensesHeadActionsClasses,
   expensesWrapClasses,
 } from '@/modules/admin/components/expenses.recipe';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
+import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import { ExpenseKpiRow } from '@/modules/admin/components/ExpenseKpiRow';
 import { ExpenseModal } from '@/modules/admin/components/ExpenseModal';
@@ -60,6 +59,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { useExpenseAction } from '@/modules/admin/hooks/useExpenseAction';
+import { useRefreshExpenses } from '@/modules/admin/hooks/useRefreshExpenses';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
@@ -67,7 +67,6 @@ import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useEx
 import { expensesDeletedKey, expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
 import {
   expensesService,
-  type ActorRef,
   type ExpenseDetailResponse,
   type ExpenseListItem,
   type ExpenseListResponse,
@@ -83,22 +82,6 @@ const CAPTION_ID = 'expenses-table-caption';
 /** The generated type allows a number or text for a number; the server sends a number. */
 function toNumber(value: number | string): number {
   return Number(value);
-}
-
-/** Avatar 24 (decorative: the name is the text) and the name; no avatar for System. */
-function ActorCell({ actor }: { actor: ActorRef | null }) {
-  return (
-    <span className={expensesActorClasses}>
-      {actor !== null && (
-        <span aria-hidden="true" className={expensesAvatarClasses}>
-          <Avatar name={actor.name} size={24} />
-        </span>
-      )}
-      <span className={expensesWrapClasses}>
-        <ActorName actor={actor} />
-      </span>
-    </span>
-  );
 }
 
 interface ActiveFilters {
@@ -174,8 +157,12 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
       money: true,
       cell: (item) => <Money amount={toNumber(item.amount)} />,
     },
-    { key: 'paidBy', header: COPY.columns.paidBy, cell: (item) => <ActorCell actor={item.paidBy} /> },
-    { key: 'recordedBy', header: COPY.columns.recordedBy, cell: (item) => <ActorCell actor={item.recordedBy} /> },
+    { key: 'paidBy', header: COPY.columns.paidBy, cell: (item) => <ExpenseActorCell actor={item.paidBy} /> },
+    {
+      key: 'recordedBy',
+      header: COPY.columns.recordedBy,
+      cell: (item) => <ExpenseActorCell actor={item.recordedBy} />,
+    },
     {
       key: 'actions',
       header: COPY.columns.actions,
@@ -238,6 +225,8 @@ export function ExpensesRoute() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState(false);
   const rowFocus = useRowFocus();
+  // Every expense change reads the lists, the month figures and the deleted list again (UI-SPEC Freshness).
+  const refreshAll = useRefreshExpenses();
   const { user: me } = useSession();
   const isManager = me?.role === 'manager';
   // The expense the Delete confirm is open for, or was last open for (kept while it animates out), and where focus goes once
@@ -363,14 +352,6 @@ export function ExpensesRoute() {
     });
   };
 
-  // Every expense change reads the lists, the month figures and the deleted list again (UI-SPEC Freshness).
-  const refreshAll = (): Promise<unknown> =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: expenseKpisKey }),
-      queryClient.invalidateQueries({ queryKey: expensesDeletedKey }),
-      queryClient.invalidateQueries({ queryKey: expensesKey }),
-    ]);
-
   const closeDelete = (): void => {
     setDeleting((current) => (current === null ? null : { ...current, open: false }));
   };
@@ -445,9 +426,17 @@ export function ExpensesRoute() {
           </h1>
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
-        <Button variant="primary" icon="plus" ref={addRef} aria-disabled={today === null} onClick={openAdd}>
-          {COPY.add.open}
-        </Button>
+        <div className={expensesHeadActionsClasses}>
+          {/* SPEC-GAP: OQ-2 the Manager's way to the deleted expenses, before the one primary action. */}
+          {isManager && (
+            <ButtonLink variant="secondary" to="/admin/expenses/deleted">
+              {COPY.deletedLink}
+            </ButtonLink>
+          )}
+          <Button variant="primary" icon="plus" ref={addRef} aria-disabled={today === null} onClick={openAdd}>
+            {COPY.add.open}
+          </Button>
+        </div>
       </div>
       {today !== null && (
         <ExpenseModal

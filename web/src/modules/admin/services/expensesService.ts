@@ -13,6 +13,8 @@ export type ExpenseKpisResponse = Schemas['CompanyExpenseKpisResponse'];
 export type ExpenseDetailResponse = Schemas['CompanyExpenseDetailResponse'];
 export type CreateExpenseRequest = Schemas['CreateCompanyExpenseRequest'];
 export type UpdateExpenseRequest = Schemas['UpdateCompanyExpenseRequest'];
+export type DeletedExpenseListItem = Schemas['DeletedExpenseListItem'];
+export type DeletedExpenseListResponse = Schemas['DeletedExpenseListResponse'];
 
 /** What `GET /api/v1/company-expenses` is asked for. Dates are `yyyy-MM-dd` and travel as a pair, or not at all. */
 export interface ExpensesListQuery {
@@ -20,6 +22,14 @@ export interface ExpensesListQuery {
   category?: string | null | undefined;
   from?: string | null | undefined;
   to?: string | null | undefined;
+  page: number;
+  pageSize: number;
+}
+
+/** What `GET /api/v1/company-expenses/deleted` is asked for: no dates, because a deleted expense is found by what it was, not when. */
+export interface DeletedExpensesListQuery {
+  q?: string | null | undefined;
+  category?: string | null | undefined;
   page: number;
   pageSize: number;
 }
@@ -56,6 +66,16 @@ export interface ExpensesService {
    * version, and a DELETE repeats safely, so it sends no Idempotency-Key. 404 when it is already deleted.
    */
   remove(id: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `GET /api/v1/company-expenses/deleted`: one page of the Manager's deleted expenses, most recently deleted first, with who
+   * deleted each (D-03, D-07). There is no period total. 403 for an Admin.
+   */
+  listDeleted(query: DeletedExpensesListQuery, signal?: AbortSignal): Promise<DeletedExpenseListResponse>;
+  /**
+   * `POST /api/v1/company-expenses/{id}/restore`: brings a deleted expense back (D-03). The caller supplies one Idempotency-Key
+   * per attempt; a restore of a live expense changes nothing.
+   */
+  restore(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
 }
 
 const expensePath = (id: string): string => `/company-expenses/${encodeURIComponent(id)}`;
@@ -80,6 +100,13 @@ export function createExpensesService(client: HttpClient): ExpensesService {
     get: (id, signal) => client.get<ExpenseDetailResponse>(expensePath(id), { signal }),
     update: (id, body, signal) => client.put<ExpenseDetailResponse>(expensePath(id), body, { signal }),
     remove: (id, signal) => client.delete(expensePath(id), { signal }),
+    listDeleted: (query, signal) =>
+      client.get<DeletedExpenseListResponse>('/company-expenses/deleted', {
+        params: { q: query.q, category: query.category, page: query.page, pageSize: query.pageSize },
+        signal,
+      }),
+    restore: (id, idempotencyKey, signal) =>
+      client.post(`${expensePath(id)}/restore`, undefined, { idempotencyKey, signal }),
   };
 }
 

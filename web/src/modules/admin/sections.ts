@@ -3,10 +3,14 @@
 import type { Role } from '@/utils/csps';
 import { ADMIN_NAV, AUDIT_NAV_ITEM, type AdminNavItem } from '@/components/navigation';
 
+/** A page that lives under a section's item: it marks that item current (Deleted Expenses sits under Company Expenses). */
+const SECTION_CHILDREN: Readonly<Record<string, string>> = { '/admin/expenses/deleted': '/admin/expenses' };
+
 /** The nav item whose path is `pathname` (one trailing slash or more allowed), or undefined for any other path. */
 export function adminNavItemForPath(pathname: string): AdminNavItem | undefined {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  return [...ADMIN_NAV, AUDIT_NAV_ITEM].find((item) => item.to === path);
+  const section = SECTION_CHILDREN[path] ?? path;
+  return [...ADMIN_NAV, AUDIT_NAV_ITEM].find((item) => item.to === section);
 }
 
 /** Who the shell shows: a name and a role. The guarded routes give the session user, the dev routes give DEV_USER. */

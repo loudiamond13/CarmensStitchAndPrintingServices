@@ -106,7 +106,7 @@ describe('the page', () => {
         "Deleted expenses don't count in lists, totals or balances. Restore one to count it again, or delete it permanently.",
       ),
     ).toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Search' })).toBeVisible();
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toBeVisible();
     expect(await screen.findByRole('combobox', { name: 'Category' })).toBeVisible();
     expect(screen.queryByLabelText('From')).toBeNull();
     expect(screen.queryByLabelText('To')).toBeNull();
@@ -150,8 +150,8 @@ describe('the page', () => {
     expect(rent.querySelector('td[data-label="Date"]')?.textContent).toBe('Oct 6, 2026');
     expect(within(rent).getByText('Rent')).toBeVisible();
     expect(rent.querySelector('td[data-label="Amount"]')?.textContent).toBe('₱12,450.00');
-    expect(rent.querySelector('td[data-label="Paid by"]')?.textContent).toBe('Carmen Reyes');
-    expect(rent.querySelector('td[data-label="Deleted by"]')?.textContent).toBe('Carmen Reyes');
+    expect(rent.querySelector('td[data-label="Paid by"]')?.textContent).toContain('Carmen Reyes');
+    expect(rent.querySelector('td[data-label="Deleted by"]')?.textContent).toContain('Carmen Reyes');
 
     const thread = screen.getAllByRole('row').find((row) => within(row).queryByText('Thread and needles') !== null);
     expect(thread?.querySelector('td[data-label="Deleted by"]')?.textContent).toContain('Lito Cruz');
@@ -411,7 +411,7 @@ describe('accessibility', () => {
       await delay(100);
       return deletedExpenseList([
         ...ROWS,
-        deletedExpenseItem('00000000-0000-4000-8000-000000000004', { paidBy: CARMEN }),
+        deletedExpenseItem('00000000-0000-4000-8000-000000000004', { paidBy: CARMEN, description: 'Printer ink' }),
       ]);
     });
     const view = renderPage();

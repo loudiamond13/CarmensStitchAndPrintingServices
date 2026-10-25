@@ -157,6 +157,44 @@ export const EXPENSES_COPY = {
       message: (description: string): string => `${description}. You can restore it from Deleted Expenses.`,
     },
   },
+  // SPEC-GAP: OQ-2 a Manager reaches the deleted expenses by this secondary link in the E1 header.
+  deletedLink: 'Deleted Expenses',
+  // SPEC-GAP: E4 DeletedExpensesPage (D-03, D-07, OQ-2, OQ-5; plan 06-16). Every string here is wording the owner reviews.
+  deleted: {
+    documentTitle: 'Deleted Expenses',
+    title: 'Deleted Expenses',
+    badge: 'Manager only',
+    back: 'Back to Company Expenses',
+    subline:
+      "Deleted expenses don't count in lists, totals or balances. Restore one to count it again, or delete it permanently.",
+    tableCaption: 'Deleted expenses',
+    thing: 'deleted expense',
+    things: 'deleted expenses',
+    orderNote: 'most recently deleted first',
+    columns: {
+      deleted: 'Deleted',
+      date: 'Date',
+      category: 'Category',
+      description: 'Description',
+      amount: 'Amount',
+      paidBy: 'Paid by',
+      deletedBy: 'Deleted by',
+      actions: 'Actions',
+    },
+    empty: {
+      title: 'No deleted expenses',
+      message: "When a Manager deletes an expense, it shows here until it's restored or deleted permanently.",
+    },
+    /** Restore acts at once (OQ-5): no confirmation, and the toast states the effect. */
+    restore: {
+      label: (description: string, date: string): string => `Restore ${description}, ${date}`,
+      toast: {
+        title: 'Expense restored',
+        message: (description: string): string => `${description} counts in totals again.`,
+      },
+      failed: (description: string): string => `Couldn't restore ${description}`,
+    },
+  },
   /** A delete that meets an expense someone else removed first (404): the dialog closes and the list is read again. */
   alreadyGone: {
     title: 'Already deleted',

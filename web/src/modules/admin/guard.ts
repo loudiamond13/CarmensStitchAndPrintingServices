@@ -66,13 +66,17 @@ export async function requireSessionLoader({ request }: Pick<LoaderFunctionArgs,
 
 /**
  * The loader of the Manager-only routes (Users, Audit Log): the session check first, so a visitor without a session goes
- * to sign-in with the return path, then only the manager role passes. An Admin goes to /admin (USER-08).
+ * to sign-in with the return path, then only the manager role passes. An Admin goes to /admin (USER-08), or to `fallbackPath` when
+ * the route names one (Deleted Expenses sends an Admin back to the expenses list, D-07).
  */
-export async function requireManagerLoader(args: Pick<LoaderFunctionArgs, 'request'>): Promise<SessionUser> {
+export async function requireManagerLoader(
+  args: Pick<LoaderFunctionArgs, 'request'>,
+  fallbackPath: string = ADMIN_HOME,
+): Promise<SessionUser> {
   const user = await requireSessionLoader(args);
   if (user.role !== 'manager') {
     // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
-    throw redirect(ADMIN_HOME);
+    throw redirect(fallbackPath);
   }
   return user;
 }

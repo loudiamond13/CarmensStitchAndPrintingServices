@@ -59,3 +59,12 @@ export const expensesViewValueClasses = tw('min-w-0 text-[14px] leading-5 wrap-a
 
 /** View mode: notes keep the line breaks the person typed. */
 export const expensesViewNotesClasses = tw('whitespace-pre-line');
+
+/** The h1 and its "Manager only" badge in one wrapping row, 10px apart (as the Users header). */
+export const expensesTitleRowClasses = tw('flex flex-wrap items-center gap-2.5');
+
+/** `.s-ph-actions`: the header buttons in a row 8px apart; on phones they take the full width, each growing equally (App. C). */
+export const expensesHeadActionsClasses = tw('flex flex-wrap items-center gap-2 pg-phone:w-full pg-phone:*:flex-1');
+
+/** The back link above the Deleted Expenses header, 16px clear of it. */
+export const expensesBackRowClasses = tw('mb-4 flex');
