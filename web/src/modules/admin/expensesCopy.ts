@@ -74,6 +74,10 @@ export const EXPENSES_COPY = {
     fullMonth: 'Full month',
     /** "₱18,000.00 · 47% of this month" */
     topFoot: (amount: string, percent: number): string => `${amount} · ${String(percent)}% of this month`,
+    /** The foot of the Top category card when the month has no expenses. */
+    noExpenses: 'No expenses this month',
+    /** The failure banner reads "Couldn't load this month's totals." over the shared reassurance line. */
+    errorThings: "this month's totals",
   },
   // SPEC-GAP: the caption under the table.
   caption: 'The total covers every page of this list for the filters above. Deleted expenses never count.',

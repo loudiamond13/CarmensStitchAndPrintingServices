@@ -527,9 +527,8 @@ describe('KpiCard (App. D.3)', () => {
     const value = container.firstElementChild?.children[1];
 
     expect(classTokens(value).includes('text-ink-subtle')).toBe(dimmed);
-    expect(classTokens(value)).toEqual(
-      dimmed ? [...tokens(kpiValueClasses), 'text-ink-subtle'].sort() : tokens(kpiValueClasses),
-    );
+    const base = typeof props.value === 'string' ? kpiTextValueClasses : kpiValueClasses;
+    expect(classTokens(value)).toEqual(dimmed ? [...tokens(base), 'text-ink-subtle'].sort() : tokens(base));
   });
 
   it('re-renders a zero figure from the memo cache, and drops or takes the dim when the figure changes (D-39)', () => {

@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { formatPeso, round2 } from '@/utils/csps';
 import { Icon, type IconName } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
+import { EmptyValue } from '@/components/states';
 import {
   deltaClasses,
   deltaToneClasses,
@@ -19,6 +20,7 @@ import {
   kpiFootClasses,
   kpiHeadClasses,
   kpiIconClasses,
+  kpiTextValueClasses,
   kpiValueClasses,
   kpiZeroValueClasses,
   overlineClasses,
@@ -36,9 +38,22 @@ export interface KpiCardProps {
   deltaLabel?: string | undefined;
   hint?: string | undefined;
   loading?: boolean | undefined;
+  // SPEC-GAP: KpiCard empty. No figure to show (OR-4 replaces the mockup's long dash): the value slot is EmptyValue in the
+  // dimmed zero look and `value` is ignored.
+  empty?: boolean | undefined;
 }
 
-export function KpiCard({ label, value, money = true, icon, delta, deltaLabel, hint, loading = false }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  money = true,
+  icon,
+  delta,
+  deltaLabel,
+  hint,
+  loading = false,
+  empty = false,
+}: KpiCardProps) {
   const up = delta !== undefined && delta >= 0;
   const direction: DeltaDirection = up ? 'up' : 'down';
   // As App. D.3's `deltaLabel || hint`: an empty delta label falls back to the hint.
@@ -58,8 +73,13 @@ export function KpiCard({ label, value, money = true, icon, delta, deltaLabel, h
       {loading ? (
         <Skeleton width="70%" height={36} />
       ) : (
-        <div className={clsx(kpiValueClasses, zero && kpiZeroValueClasses)}>
-          {money && typeof value === 'number' ? formatPeso(value) : value}
+        <div
+          className={clsx(
+            typeof value === 'string' && !empty ? kpiTextValueClasses : kpiValueClasses,
+            (zero || empty) && kpiZeroValueClasses,
+          )}
+        >
+          {empty ? <EmptyValue /> : money && typeof value === 'number' ? formatPeso(value) : value}
         </div>
       )}
       {hasFoot && !loading && (

@@ -56,6 +56,14 @@ export const kpiValueClasses = tw(
 );
 
 /**
+ * The same figure when the value is text (a category name, UI-SPEC "Long KPI value"): it wraps at word boundaries and
+ * never truncates, so a 40-character name stays inside the card. Numbers and counts keep the one-line look above.
+ */
+export const kpiTextValueClasses = tw(
+  'font-display text-[length:clamp(26px,15cqi,40px)] leading-[1] font-bold tracking-[-.005em] wrap-break-word tabular-nums',
+);
+
+/**
  * D-39 (owner, 2026-10-08): a zero figure is dimmed by colour only, in `--ink-subtle` (the D-02 `.is-zero` treatment;
  * 5.78:1 light / 6.19:1 dark on the card's `--surface`). No opacity. App. B/D.3 have no KpiCard zero state; the
  * reference side gets the same colour from the rulings layer (`.csp-kpi-value[data-zero]`).
