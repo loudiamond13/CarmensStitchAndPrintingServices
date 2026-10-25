@@ -76,6 +76,11 @@ export interface ExpensesService {
    * per attempt; a restore of a live expense changes nothing.
    */
   restore(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `DELETE /api/v1/company-expenses/{id}/permanent`: removes an expense for good, live or already soft-deleted (D-04). It acts on the
+   * latest state and a DELETE repeats safely, so it sends no row version and no Idempotency-Key. 404 when it is already gone.
+   */
+  purge(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 const expensePath = (id: string): string => `/company-expenses/${encodeURIComponent(id)}`;
@@ -107,6 +112,7 @@ export function createExpensesService(client: HttpClient): ExpensesService {
       }),
     restore: (id, idempotencyKey, signal) =>
       client.post(`${expensePath(id)}/restore`, undefined, { idempotencyKey, signal }),
+    purge: (id, signal) => client.delete(`${expensePath(id)}/permanent`, { signal }),
   };
 }
 

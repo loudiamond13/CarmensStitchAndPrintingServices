@@ -893,6 +893,8 @@ test('@expenses-delete a Manager deletes, restores and permanently deletes expen
   // Back on the list the restored expense counts again.
   await page.getByRole('link', { name: 'Back to Company Expenses' }).click();
   await expect(page).toHaveURL(/\/admin\/expenses$/);
+  // The address changes before the page does, and both pages have the same search box: wait for the list's own heading.
+  await expect(page.getByRole('heading', { level: 1, name: 'Company Expenses' })).toBeVisible();
   await page.getByPlaceholder('Description or staff name').fill(token);
   await expect(rows).toHaveCount(3);
   await expect(footer(page)).toContainText(peso(600));
@@ -924,6 +926,7 @@ test('@expenses-delete a Manager deletes, restores and permanently deletes expen
   await expect(rows).toHaveCount(1);
   await expect(footer(page)).toContainText(peso(100));
   await page.getByRole('link', { name: 'Deleted Expenses' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeVisible();
   await page.getByPlaceholder('Description or staff name').fill(token);
   await expect(deletedRows).toHaveCount(1);
   await expect(deletedRows.first()).toContainText(names.c);
@@ -936,7 +939,8 @@ test('@expenses-delete a Manager deletes, restores and permanently deletes expen
   await lastWarning.getByRole('button', { name: 'Delete Permanently' }).click();
   await expect(lastWarning).toBeHidden();
   await expect(deletedRows).toHaveCount(0);
-  await expect(page.getByText('Expense permanently deleted', { exact: true })).toBeVisible();
+  // The earlier permanent delete's toast may still show: the newest one is the last.
+  await expect(page.getByText('Expense permanently deleted', { exact: true }).last()).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeFocused();
   await expectNoAxeViolations(page);
 });

@@ -157,6 +157,16 @@ export const EXPENSES_COPY = {
       message: (description: string): string => `${description}. You can restore it from Deleted Expenses.`,
     },
   },
+  /** Delete permanently (E3, D-04, D-05, D-06, OQ-1; plan 06-16): the same plain dialog, with the can't-be-undone warning. */
+  purge: {
+    rowLabel: (description: string, date: string): string => `Delete ${description}, ${date} permanently`,
+    title: (description: string, amount: string): string => `Delete “${description}” (${amount}) permanently?`,
+    message:
+      "This removes the expense for good. It can't be restored, and this can't be undone. The audit log keeps its date, category, amount and payer.",
+    confirm: 'Delete Permanently',
+    pending: 'Deleting',
+    toast: { title: 'Expense permanently deleted', message: (description: string): string => description },
+  },
   // SPEC-GAP: OQ-2 a Manager reaches the deleted expenses by this secondary link in the E1 header.
   deletedLink: 'Deleted Expenses',
   // SPEC-GAP: E4 DeletedExpensesPage (D-03, D-07, OQ-2, OQ-5; plan 06-16). Every string here is wording the owner reviews.

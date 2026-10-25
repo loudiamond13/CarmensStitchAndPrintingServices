@@ -494,7 +494,7 @@ describe('Delete permanently from the deleted list (D-04, D-05; plan 06-16)', ()
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('Shop rent for October')).toBeNull();
+      expect(within(screen.getByRole('table')).queryByText('Shop rent for October')).toBeNull();
     });
     expect(sent.ids).toEqual([FIRST_ID]);
     await waitFor(() => {
@@ -524,7 +524,7 @@ describe('Delete permanently from the deleted list (D-04, D-05; plan 06-16)', ()
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Permanently' }));
 
     await waitFor(() => {
-      expect(screen.queryByText('Meralco bill')).toBeNull();
+      expect(within(screen.getByRole('table')).queryByText('Meralco bill')).toBeNull();
     });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: RESTORE_SECOND })).toHaveFocus();

@@ -1711,7 +1711,7 @@ describe('Delete permanently from the list (D-04, D-05, OQ-1; plan 06-16)', () =
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('Shop rent for October')).toBeNull();
+      expect(within(screen.getByRole('table')).queryByText('Shop rent for October')).toBeNull();
     });
     expect(sent.ids).toEqual([FIRST_ID]);
     expect(sent.keys).toEqual([null]);
@@ -1760,7 +1760,7 @@ describe('Delete permanently from the list (D-04, D-05, OQ-1; plan 06-16)', () =
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Permanently' }));
 
     await waitFor(() => {
-      expect(screen.queryByText('Thread and needles')).toBeNull();
+      expect(within(screen.getByRole('table')).queryByText('Thread and needles')).toBeNull();
     });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Edit Shop rent for October, Oct 6, 2026' })).toHaveFocus();
@@ -1802,7 +1802,7 @@ describe('Delete permanently from the list (D-04, D-05, OQ-1; plan 06-16)', () =
     });
     expect(await screen.findByText('Already deleted')).toBeVisible();
     await waitFor(() => {
-      expect(screen.queryByText('Shop rent for October')).toBeNull();
+      expect(within(screen.getByRole('table')).queryByText('Shop rent for October')).toBeNull();
     });
   });
 

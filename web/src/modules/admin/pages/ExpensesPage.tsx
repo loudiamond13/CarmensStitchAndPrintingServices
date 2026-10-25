@@ -54,6 +54,7 @@ import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import { ExpenseKpiRow } from '@/modules/admin/components/ExpenseKpiRow';
 import { ExpenseModal } from '@/modules/admin/components/ExpenseModal';
+import { PurgeExpenseDialog } from '@/modules/admin/components/PurgeExpenseDialog';
 import { ExpensesDateRange } from '@/modules/admin/components/ExpensesDateRange';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
@@ -122,6 +123,8 @@ interface RowWiring {
   view: (expense: ExpenseListItem) => void;
   /** Opens the delete confirmation. Only a Manager gets the action (D-02). */
   remove: (expense: ExpenseListItem) => void;
+  /** Opens the permanent-delete warning (OQ-1). */
+  purge: (expense: ExpenseListItem) => void;
   canDelete: boolean;
   /** Remembers each row's action button, so focus can return to it. */
   register: (id: string, button: HTMLButtonElement | null) => void;
@@ -176,6 +179,7 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
           ? COPY.rowActions.edit(item.description, date)
           : COPY.rowActions.view(item.description, date);
         const deleteLabel = COPY.remove.rowDelete(item.description, date);
+        const purgeLabel = COPY.purge.rowLabel(item.description, date);
         return (
           <RowActions>
             <RowAction
@@ -202,6 +206,18 @@ function columnsFor(today: string, wiring: RowWiring): readonly ResponsiveTableC
                 danger
                 onClick={() => {
                   wiring.remove(item);
+                }}
+              />
+            )}
+            {/* SPEC-DEVIATION: OQ-1 App. E.11 has two row icons; a Manager gets a third, the eraser, for Delete permanently (D-04). */}
+            {wiring.canDelete && (
+              <RowAction
+                icon="eraser"
+                label={purgeLabel}
+                title={purgeLabel}
+                danger
+                onClick={() => {
+                  wiring.purge(item);
                 }}
               />
             )}
@@ -233,6 +249,8 @@ export function ExpensesRoute() {
   // the deleted row has left the list.
   const [deleting, setDeleting] = useState<{ expense: ExpenseListItem; open: boolean } | null>(null);
   const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
+  // The same for the Delete permanently warning.
+  const [purging, setPurging] = useState<{ expense: ExpenseListItem; open: boolean } | null>(null);
   const [values, set] = useExpensesListParams();
   const settled = useSettledListParams(values, 300);
   const query = useExpensesQuery({
@@ -357,7 +375,7 @@ export function ExpensesRoute() {
   };
 
   // Focus lands on the first action of the next row, else the previous one, else the h1 (UI-SPEC Interaction Contract).
-  const chooseFocusAfter = (expense: ExpenseListItem): string | null => {
+  const chooseFocusAfter = (expense: { id: string }): string | null => {
     const items = data?.items ?? [];
     const index = items.findIndex((item) => item.id === expense.id);
     return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
@@ -399,6 +417,10 @@ export function ExpensesRoute() {
     }
   });
 
+  const closePurge = (): void => {
+    setPurging((current) => (current === null ? null : { ...current, open: false }));
+  };
+
   const wiring: RowWiring = {
     edit: (expense) => {
       if (today !== null) {
@@ -412,6 +434,9 @@ export function ExpensesRoute() {
     },
     remove: (expense) => {
       setDeleting({ expense, open: true });
+    },
+    purge: (expense) => {
+      setPurging({ expense, open: true });
     },
     canDelete: isManager,
     register: rowFocus.register,
@@ -478,6 +503,16 @@ export function ExpensesRoute() {
           pendingLabel={COPY.remove.pending}
           onConfirm={() => confirmRemoval(deleting.expense)}
           onCancel={closeDelete}
+        />
+      )}
+      {purging !== null && (
+        <PurgeExpenseDialog
+          expense={purging.expense}
+          open={purging.open}
+          onClose={closePurge}
+          onRemoved={(expense) => {
+            afterRemoval.current = { removedId: expense.id, focusId: chooseFocusAfter(expense) };
+          }}
         />
       )}
       <ExpenseKpiRow />

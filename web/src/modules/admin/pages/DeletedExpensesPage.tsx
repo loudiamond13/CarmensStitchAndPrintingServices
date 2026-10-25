@@ -10,7 +10,7 @@
 //     else the h1), and the lists, month figures and this list read again. A failure is a danger toast that stays until closed.
 //     The POST keeps its Idempotency-Key through a retry and gets a new one for the next action (useExpenseAction).
 import clsx from 'clsx';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { useToast } from '@/components/feedback';
@@ -39,6 +39,7 @@ import { isHttpError } from '@/core/api/errors';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
+import { PurgeExpenseDialog } from '@/modules/admin/components/PurgeExpenseDialog';
 import { ExpenseCategorySelect } from '@/modules/admin/components/ExpenseCategorySelect';
 import {
   expensesBackRowClasses,
@@ -69,6 +70,8 @@ function toNumber(value: number | string): number {
 /** What the table needs to wire a row's buttons. */
 interface RowWiring {
   restore: (expense: DeletedExpenseListItem) => void;
+  /** Opens the permanent-delete warning (D-04). */
+  purge: (expense: DeletedExpenseListItem) => void;
   /** Remembers each row's Restore button, so focus can move to a neighbour. */
   register: (id: string, button: HTMLButtonElement | null) => void;
 }
@@ -106,6 +109,7 @@ function columnsFor(wiring: RowWiring): readonly ResponsiveTableColumn<DeletedEx
       cell: (item) => {
         const date = formatCalendarDate(item.date) ?? item.date;
         const restoreLabel = COPY.restore.label(item.description, date);
+        const purgeLabel = EXPENSES_COPY.purge.rowLabel(item.description, date);
         return (
           <RowActions>
             <RowAction
@@ -117,6 +121,15 @@ function columnsFor(wiring: RowWiring): readonly ResponsiveTableColumn<DeletedEx
               }}
               ref={(button) => {
                 wiring.register(item.id, button);
+              }}
+            />
+            <RowAction
+              icon="eraser"
+              label={purgeLabel}
+              title={purgeLabel}
+              danger
+              onClick={() => {
+                wiring.purge(item);
               }}
             />
           </RowActions>
@@ -133,6 +146,8 @@ export function DeletedExpensesRoute() {
   const rowFocus = useRowFocus();
   // Where focus goes once the restored row has left the list.
   const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
+  // The expense the Delete permanently warning is open for, or was last open for (kept while it animates out).
+  const [purging, setPurging] = useState<{ expense: DeletedExpenseListItem; open: boolean } | null>(null);
   const [values, set] = useDeletedExpensesListParams();
   const settled = useSettledListParams(values, 300);
   const query = useDeletedExpensesQuery({
@@ -180,7 +195,7 @@ export function DeletedExpensesRoute() {
         (categories.isPending ? EXPENSES_COPY.category.loading : EXPENSES_COPY.category.unknown));
 
   // Focus lands on the Restore button of the next row, else the previous one, else the h1.
-  const chooseFocusAfter = (expense: DeletedExpenseListItem): string | null => {
+  const chooseFocusAfter = (expense: { id: string }): string | null => {
     const items = data?.items ?? [];
     const index = items.findIndex((item) => item.id === expense.id);
     return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
@@ -224,6 +239,9 @@ export function DeletedExpensesRoute() {
   const wiring: RowWiring = {
     restore: (expense) => {
       void restore(expense);
+    },
+    purge: (expense) => {
+      setPurging({ expense, open: true });
     },
     register: rowFocus.register,
   };
@@ -325,6 +343,18 @@ export function DeletedExpensesRoute() {
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />
+      )}
+      {purging !== null && (
+        <PurgeExpenseDialog
+          expense={purging.expense}
+          open={purging.open}
+          onClose={() => {
+            setPurging((current) => (current === null ? null : { ...current, open: false }));
+          }}
+          onRemoved={(expense) => {
+            afterRemoval.current = { removedId: expense.id, focusId: chooseFocusAfter(expense) };
+          }}
+        />
       )}
     </>
   );
