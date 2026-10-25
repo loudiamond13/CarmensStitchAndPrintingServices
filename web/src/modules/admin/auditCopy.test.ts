@@ -174,7 +174,9 @@ describe('describeAuditChange (D-27)', () => {
   });
 
   it('reads a changed description as the fixed sentence, never as text', () => {
-    expect(describeAuditChange({ field: 'description', from: null, to: null, ...NO_PEOPLE })).toBe('Description changed');
+    expect(describeAuditChange({ field: 'description', from: null, to: null, ...NO_PEOPLE })).toBe(
+      'Description changed',
+    );
   });
 });
 

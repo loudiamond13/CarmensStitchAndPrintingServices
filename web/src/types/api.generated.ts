@@ -945,10 +945,39 @@ export interface components {
             /** @description The actor's name, first then last. */
             name: string;
         };
+        /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
+        AuditChangeLine: {
+            /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
+            field: string;
+            /** @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none. */
+            from: null | string;
+            fromPerson: null | components["schemas"]["ActorRef"];
+            /** @description The new value; null when there is none or the field is a text field. */
+            to: null | string;
+            toPerson: null | components["schemas"]["ActorRef"];
+        };
+        /** @description The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted. */
+        AuditExpenseSnapshot: {
+            /**
+             * Format: double
+             * @description The amount.
+             */
+            amount: number | string;
+            /** @description The category's current name; null when the category is gone. */
+            category: null | string;
+            /**
+             * Format: date
+             * @description The expense date.
+             */
+            date: string;
+            payer: null | components["schemas"]["ActorRef"];
+        };
         /** @description One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40). */
         AuditLogItem: {
             /** @description The action code, for example `user.deactivated`. */
             action: string;
+            /** @description The typed "What changed" lines of an expense or category entry; empty for every other entry (D-27). */
+            changes: components["schemas"]["AuditChangeLine"][];
             /** @description The stored detail; null when none. */
             detail: null | string;
             /** @description The browser family; null when unknown. */
@@ -970,6 +999,7 @@ export interface components {
             occurredAt: string;
             /** @description The correlation id, to find the request's log lines. */
             reference: string;
+            snapshot: null | components["schemas"]["AuditExpenseSnapshot"];
         };
         /** @description One page of the audit log, newest first (AUDIT-02). */
         AuditLogResponse: {

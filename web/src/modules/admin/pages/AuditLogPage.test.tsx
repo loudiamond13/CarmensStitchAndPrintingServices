@@ -33,6 +33,8 @@ function entry(id: number, overrides: Partial<AuditLogItem> = {}): AuditLogItem 
     ipPrefix: '203.0.113.0/24',
     device: 'Chrome on Android',
     reference: `ref-${String(id)}`,
+    changes: [],
+    snapshot: null,
     ...overrides,
   };
 }

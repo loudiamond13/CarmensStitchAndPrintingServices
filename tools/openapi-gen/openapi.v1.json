@@ -49,12 +49,116 @@
         ],
         "type": "object"
       },
+      "AuditChangeLine": {
+        "description": "One \"What changed\" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed.",
+        "properties": {
+          "field": {
+            "description": "One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`.",
+            "type": "string"
+          },
+          "from": {
+            "description": "The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fromPerson": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "For `payer`: the old payer."
+              }
+            ]
+          },
+          "to": {
+            "description": "The new value; null when there is none or the field is a text field.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toPerson": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "For `payer`: the new payer."
+              }
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to",
+          "fromPerson",
+          "toPerson"
+        ],
+        "type": "object"
+      },
+      "AuditExpenseSnapshot": {
+        "description": "The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted.",
+        "properties": {
+          "amount": {
+            "description": "The amount.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "description": "The category's current name; null when the category is gone.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The expense date.",
+            "format": "date",
+            "type": "string"
+          },
+          "payer": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The payer."
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "category",
+          "amount",
+          "payer"
+        ],
+        "type": "object"
+      },
       "AuditLogItem": {
         "description": "One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40).",
         "properties": {
           "action": {
             "description": "The action code, for example `user.deactivated`.",
             "type": "string"
+          },
+          "changes": {
+            "description": "The typed \"What changed\" lines of an expense or category entry; empty for every other entry (D-27).",
+            "items": {
+              "$ref": "#/components/schemas/AuditChangeLine"
+            },
+            "type": "array"
           },
           "detail": {
             "description": "The stored detail; null when none.",
@@ -109,6 +213,17 @@
           "reference": {
             "description": "The correlation id, to find the request's log lines.",
             "type": "string"
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditExpenseSnapshot",
+                "description": "The facts of an added, deleted, restored or permanently deleted expense; null otherwise (D-27)."
+              }
+            ]
           }
         },
         "required": [
@@ -120,7 +235,9 @@
           "detail",
           "ipPrefix",
           "device",
-          "reference"
+          "reference",
+          "changes",
+          "snapshot"
         ],
         "type": "object"
       },

@@ -118,10 +118,11 @@ describe('AuditDetail', () => {
     );
 
     const value = valueOf(container, 'What changed');
-    expect(within(value).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Amount: ₱1,200.00 to ₱1,250.00',
-      'Description changed',
-    ]);
+    expect(
+      within(value)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Amount: ₱1,200.00 to ₱1,250.00', 'Description changed']);
     expect(container).not.toHaveTextContent('1200.00>1250.00');
     expect(container).not.toHaveTextContent('payer=');
   });

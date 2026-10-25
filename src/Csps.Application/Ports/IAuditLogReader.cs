@@ -1,3 +1,4 @@
+using Csps.Application.Audit;
 using Csps.Application.Users;
 
 namespace Csps.Application.Ports;
@@ -55,6 +56,8 @@ public sealed record AuditLogQuery(
 /// <param name="IpPrefix">The stored /24 or /48 prefix; null when unknown.</param>
 /// <param name="Device">The stored browser family; null when unknown.</param>
 /// <param name="Reference">The correlation id of the request.</param>
+/// <param name="Changes">The typed lines read from the detail of an expense or category entry; empty for every other entry.</param>
+/// <param name="Snapshot">The expense facts read from the detail of an added, deleted, restored or permanently deleted expense; null otherwise.</param>
 public sealed record AuditLogEntryView(
     long Id,
     DateTimeOffset OccurredAt,
@@ -65,7 +68,9 @@ public sealed record AuditLogEntryView(
     string? Detail,
     string? IpPrefix,
     string? Device,
-    string Reference);
+    string Reference,
+    IReadOnlyList<AuditChangeLine> Changes,
+    AuditExpenseSnapshot? Snapshot);
 
 /// <summary>One page of audit entries and the number in the range.</summary>
 /// <param name="Items">The entries of the page.</param>

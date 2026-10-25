@@ -379,7 +379,22 @@ public sealed class ListAuditLogHandlerTests
         var item = (await harness.Handler.HandleAsync(new ListAuditLogRequest(), TestContext.Current.CancellationToken)).Value.Items.Single();
 
         item.ShouldBe(new AuditLogItem(
-            entry.Id, entry.OccurredAt, new DoneBy(DoneByKinds.User, Ana), AuditActions.UserRoleChanged, Bea, "role=admin>manager", "198.51.100.0/24", "Chrome", entry.Reference));
+            entry.Id, entry.OccurredAt, new DoneBy(DoneByKinds.User, Ana), AuditActions.UserRoleChanged, Bea, "role=admin>manager", "198.51.100.0/24", "Chrome", entry.Reference, entry.Changes, null));
+    }
+
+    [Fact]
+    public async Task TheChangeLinesAndTheSnapshotOfAnExpenseEntryPassThroughUnchanged()
+    {
+        AuditChangeLine[] lines = [new("amount", "1200.00", "1250.00", null, null)];
+        var snapshot = new AuditExpenseSnapshot(new DateOnly(2026, 10, 5), "Supplies", 1200m, Ana);
+        var entry = Entry(AuditActions.CompanyExpenseAdded, actor: Bea, targetType: "CompanyExpense", target: Ana) with { Changes = lines, Snapshot = snapshot };
+        var harness = new Harness(new AuditLogPage([entry], 1));
+
+        var item = (await harness.Handler.HandleAsync(new ListAuditLogRequest(), TestContext.Current.CancellationToken)).Value.Items.Single();
+
+        item.Changes.ShouldBe(lines);
+        item.Snapshot.ShouldBe(snapshot);
+        item.DoneTo.ShouldBe(Ana);
     }
 
     [Fact]
@@ -405,7 +420,7 @@ public sealed class ListAuditLogHandlerTests
         string? detail = null,
         string? ip = null,
         string? device = null) =>
-        new(7, Now.AddMinutes(-3), actor, action, targetType, target, detail, ip, device, new string('a', AuditEntry.CorrelationIdLength));
+        new(7, Now.AddMinutes(-3), actor, action, targetType, target, detail, ip, device, new string('a', AuditEntry.CorrelationIdLength), [], null);
 
     private sealed class Harness
     {

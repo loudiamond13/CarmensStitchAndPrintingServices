@@ -1,4 +1,7 @@
+using System.Globalization;
+using Csps.Application.Common;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 
 namespace Csps.Application.Audit;
 
@@ -38,16 +41,103 @@ public sealed record ParsedAuditChanges(IReadOnlyList<ParsedAuditChange> Lines, 
 {
     /// <summary>An entry with nothing to show.</summary>
     public static ParsedAuditChanges None { get; } = new([], null, null);
+
+    /// <summary>The category ids the lines and the snapshot name.</summary>
+    /// <returns>The ids, possibly repeated.</returns>
+    public IEnumerable<Guid> CategoryIds()
+    {
+        foreach (var line in Lines.Where(line => line.Field == AuditChangeLines.CategoryField))
+        {
+            foreach (var value in new[] { line.From, line.To })
+            {
+                if (AuditChangeLines.TryReadId(value, out var id))
+                {
+                    yield return id;
+                }
+            }
+        }
+
+        if (Snapshot?.CategoryId is { } snapshotCategory)
+        {
+            yield return snapshotCategory;
+        }
+    }
+
+    /// <summary>The people ids the lines, the snapshot and Done to name.</summary>
+    /// <returns>The ids, possibly repeated.</returns>
+    public IEnumerable<Guid> PersonIds()
+    {
+        foreach (var line in Lines.Where(line => line.Field == AuditChangeLines.PayerField))
+        {
+            foreach (var value in new[] { line.From, line.To })
+            {
+                if (AuditChangeLines.TryReadId(value, out var id))
+                {
+                    yield return id;
+                }
+            }
+        }
+
+        if (Snapshot?.PayerId is { } snapshotPayer)
+        {
+            yield return snapshotPayer;
+        }
+
+        if (PayerId is { } payer)
+        {
+            yield return payer;
+        }
+    }
 }
 
-/// <summary>Reads the stored detail of expense and category entries into typed lines (D-27, 05 D-40).</summary>
+/// <summary>
+/// Reads the stored detail of expense and category entries into typed lines (D-27, 05 D-40). Only known keys are read and each value
+/// must have the shape the writer gives it, so no free text of an expense and no raw detail can pass through. The only free text read
+/// is a category name, which is not personal data (D-12).
+/// </summary>
 public static class AuditChangeLines
 {
+    internal const string CategoryField = "category";
+    internal const string PayerField = "payer";
+
+    private const string AmountField = "amount";
+    private const string DateField = "date";
+    private const string NameField = "name";
+    private const string ToneField = "tone";
+    private const string FieldsKey = "fields";
+    private const string DateFormat = "yyyy-MM-dd";
+    private static readonly string[] TextFields = ["description", "notes"];
+
     /// <summary>Parses the detail of an entry.</summary>
     /// <param name="action">The action code.</param>
     /// <param name="detail">The stored detail.</param>
     /// <returns>The lines, snapshot and payer; nothing for any other action.</returns>
-    public static ParsedAuditChanges For(string action, string? detail) => ParsedAuditChanges.None;
+    public static ParsedAuditChanges For(string action, string? detail)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (string.IsNullOrEmpty(detail))
+        {
+            return ParsedAuditChanges.None;
+        }
+
+        return action switch
+        {
+            AuditActions.CompanyExpenseAdded
+                or AuditActions.CompanyExpenseDeleted
+                or AuditActions.CompanyExpenseRestored
+                or AuditActions.CompanyExpensePermanentlyDeleted => ReadSnapshot(detail),
+            AuditActions.CompanyExpenseChanged => ReadEdit(detail),
+            AuditActions.CompanyExpensePayerChanged => ReadPayerChange(detail),
+            AuditActions.ExpenseCategoryAdded
+                or AuditActions.ExpenseCategoryRenamed
+                or AuditActions.ExpenseCategoryRecolored
+                or AuditActions.ExpenseCategoryRetired
+                or AuditActions.ExpenseCategoryReactivated
+                or AuditActions.ExpenseCategoryDeleted => ReadCategory(detail),
+            _ => ParsedAuditChanges.None,
+        };
+    }
 
     /// <summary>Resolves the ids of parsed changes to names and people.</summary>
     /// <param name="parsed">The parsed detail.</param>
@@ -55,5 +145,135 @@ public static class AuditChangeLines
     /// <param name="person">Looks a person up by id.</param>
     /// <returns>The lines and the snapshot.</returns>
     public static (IReadOnlyList<AuditChangeLine> Lines, AuditExpenseSnapshot? Snapshot) Resolve(
-        ParsedAuditChanges parsed, IReadOnlyDictionary<Guid, string> categories, Func<Guid?, ActorRef?> person) => ([], null);
+        ParsedAuditChanges parsed, IReadOnlyDictionary<Guid, string> categories, Func<Guid?, ActorRef?> person)
+    {
+        ArgumentNullException.ThrowIfNull(parsed);
+        ArgumentNullException.ThrowIfNull(categories);
+        ArgumentNullException.ThrowIfNull(person);
+
+        string? CategoryName(string? id) =>
+            TryReadId(id, out var key) && categories.TryGetValue(key, out var name) ? name : null;
+
+        Guid? IdOf(string? id) => TryReadId(id, out var key) ? key : null;
+
+        IReadOnlyList<AuditChangeLine> lines =
+        [
+            .. parsed.Lines.Select(line => line.Field switch
+            {
+                CategoryField => new AuditChangeLine(line.Field, CategoryName(line.From), CategoryName(line.To), null, null),
+                PayerField => new AuditChangeLine(line.Field, null, null, person(IdOf(line.From)), person(IdOf(line.To))),
+                _ => new AuditChangeLine(line.Field, line.From, line.To, null, null),
+            }),
+        ];
+
+        var snapshot = parsed.Snapshot is { } facts
+            ? new AuditExpenseSnapshot(
+                facts.Date,
+                facts.CategoryId is { } categoryId && categories.TryGetValue(categoryId, out var name) ? name : null,
+                facts.Amount,
+                person(facts.PayerId))
+            : null;
+        return (lines, snapshot);
+    }
+
+    internal static bool TryReadId(string? text, out Guid id) => Guid.TryParseExact(text, "D", out id);
+
+    // date=…;category=<id>;amount=…;payer=<id>
+    private static ParsedAuditChanges ReadSnapshot(string detail)
+    {
+        string? date = null;
+        string? category = null;
+        string? amount = null;
+        string? payer = null;
+        foreach (var part in AuditDetailFormat.Parse(detail).Where(part => part.From is null))
+        {
+            switch (part.Key)
+            {
+                case DateField:
+                    date = part.To;
+                    break;
+                case CategoryField:
+                    category = part.To;
+                    break;
+                case AmountField:
+                    amount = part.To;
+                    break;
+                case PayerField:
+                    payer = part.To;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        Guid? payerId = TryReadId(payer, out var payerKey) ? payerKey : null;
+        ParsedAuditSnapshot? snapshot = TryReadDate(date, out var day) && TryReadAmount(amount, out var money)
+            ? new ParsedAuditSnapshot(day, TryReadId(category, out var categoryKey) ? categoryKey : null, money, payerId)
+            : null;
+        return Build([], snapshot, payerId);
+    }
+
+    // amount, date and category as old>new, fields=description,notes, then payer=<current payer>
+    private static ParsedAuditChanges ReadEdit(string detail)
+    {
+        List<ParsedAuditChange> lines = [];
+        Guid? payerId = null;
+        foreach (var part in AuditDetailFormat.Parse(detail))
+        {
+            switch (part.Key)
+            {
+                case AmountField when part.From is not null && TryReadAmount(part.From, out _) && TryReadAmount(part.To, out _):
+                case DateField when part.From is not null && TryReadDate(part.From, out _) && TryReadDate(part.To, out _):
+                    lines.Add(new ParsedAuditChange(part.Key, part.From, part.To));
+                    break;
+                case CategoryField when part.From is not null && TryReadId(part.From, out var from) && TryReadId(part.To, out var to):
+                    lines.Add(new ParsedAuditChange(part.Key, from.ToString("D"), to.ToString("D")));
+                    break;
+                case FieldsKey when part.From is null:
+                    foreach (var field in part.To.Split(',').Where(field => TextFields.Contains(field)).Distinct())
+                    {
+                        lines.Add(new ParsedAuditChange(field, null, null));
+                    }
+
+                    break;
+                case PayerField when part.From is null && TryReadId(part.To, out var current):
+                    payerId = current;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return Build(lines, null, payerId);
+    }
+
+    // payer=<old id>><new id>
+    private static ParsedAuditChanges ReadPayerChange(string detail)
+    {
+        var part = AuditDetailFormat.Parse(detail).FirstOrDefault(part => part.Key == PayerField && part.From is not null);
+        return part is not null && TryReadId(part.From, out var from) && TryReadId(part.To, out var to)
+            ? Build([new ParsedAuditChange(PayerField, from.ToString("D"), to.ToString("D"))], null, to)
+            : ParsedAuditChanges.None;
+    }
+
+    // name=<name>, name=<old>><new>, tone=<tone> or tone=<old>><new>
+    private static ParsedAuditChanges ReadCategory(string detail)
+    {
+        List<ParsedAuditChange> lines =
+        [
+            .. AuditDetailFormat.Parse(detail)
+                .Where(part => part.Key is NameField or ToneField)
+                .Select(part => new ParsedAuditChange(part.Key, part.From, part.To)),
+        ];
+        return Build(lines, null, null);
+    }
+
+    private static ParsedAuditChanges Build(List<ParsedAuditChange> lines, ParsedAuditSnapshot? snapshot, Guid? payerId) =>
+        lines.Count == 0 && snapshot is null && payerId is null ? ParsedAuditChanges.None : new ParsedAuditChanges(lines, snapshot, payerId);
+
+    private static bool TryReadDate(string? text, out DateOnly date) =>
+        DateOnly.TryParseExact(text, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+
+    private static bool TryReadAmount(string? text, out decimal amount) =>
+        decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out amount);
 }

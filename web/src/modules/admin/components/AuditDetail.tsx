@@ -1,11 +1,13 @@
 // SPEC-GAP: AuditDetail (UI-SPEC A1 "Detail"; AUDIT-02, D-27, D-40; plan 05-33). The expandable row's description list in the
 // RecordMeta look: What changed (left out when the entry has nothing to say), IP address (the empty-value icon when there is
 // none), Device ("Unknown browser" when there is none) and Reference (wraps anywhere). Every value is a text node, never HTML
-// (CWE-79), and What changed comes only from describeAuditDetail's fixed words, so no name or email can appear.
+// (CWE-79), and What changed comes only from fixed words: describeAuditDetail for the older events, and the typed lines and
+// snapshot of expense and category events (D-27), which never carry description or notes text (05 D-40).
 import type { ReactNode } from 'react';
 import { EmptyValue } from '@/components/states';
-import { AUDIT_COPY, describeAuditDetail } from '@/modules/admin/auditCopy';
+import { AUDIT_COPY, describeAuditChange, describeAuditDetail, describeAuditSnapshot } from '@/modules/admin/auditCopy';
 import {
+  auditChangeListClasses,
   auditDetailClasses,
   auditDetailRowClasses,
   auditDetailTermClasses,
@@ -36,13 +38,32 @@ export interface AuditDetailProps {
   id?: string | undefined;
 }
 
+/** The typed lines of an expense or category entry, as fixed sentences: the snapshot first, then each change that can be read. */
+function changeSentences(item: AuditLogItem): string[] {
+  return [
+    ...(item.snapshot === null ? [] : [describeAuditSnapshot(item.snapshot)]),
+    ...item.changes.map(describeAuditChange).filter((sentence): sentence is string => sentence !== null),
+  ];
+}
+
 export function AuditDetail({ item, id }: AuditDetailProps) {
   const changed = describeAuditDetail(item.action, item.detail);
+  const sentences = changeSentences(item);
   const hasIp = item.ipPrefix !== null && item.ipPrefix !== '';
   const hasDevice = item.device !== null && item.device !== '' && item.device !== STORED_UNKNOWN_DEVICE;
   return (
     <dl id={id} className={auditDetailClasses}>
-      {changed !== null && <DetailRow term={AUDIT_COPY.detail.whatChanged}>{changed}</DetailRow>}
+      {sentences.length > 0 ? (
+        <DetailRow term={AUDIT_COPY.detail.whatChanged}>
+          <ul className={auditChangeListClasses}>
+            {sentences.map((sentence) => (
+              <li key={sentence}>{sentence}</li>
+            ))}
+          </ul>
+        </DetailRow>
+      ) : (
+        changed !== null && <DetailRow term={AUDIT_COPY.detail.whatChanged}>{changed}</DetailRow>
+      )}
       <DetailRow term={AUDIT_COPY.detail.ipAddress}>{hasIp ? item.ipPrefix : <EmptyValue />}</DetailRow>
       <DetailRow term={AUDIT_COPY.detail.device}>
         {hasDevice ? item.device : AUDIT_COPY.detail.unknownBrowser}
