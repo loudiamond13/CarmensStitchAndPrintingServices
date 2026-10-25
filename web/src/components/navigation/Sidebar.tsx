@@ -41,8 +41,9 @@ import {
   navLabelRailClasses,
 } from './navItem.recipe';
 
-// SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08).
-export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'audit' | 'profile';
+// SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08); OQ-3 'settings' joins
+// them for the Manager-only Settings item (D-14).
+export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'audit' | 'settings' | 'profile';
 
 /** One admin section: its id, label, 20px icon, path, and whether only a manager sees it. */
 export interface AdminNavItem {
@@ -74,6 +75,18 @@ export const AUDIT_NAV_ITEM: AdminNavItem = {
   manager: true,
 };
 
+/**
+ * SPEC-DEVIATION: OQ-3 (contract default A) the Settings item (D-14): Manager only, after the Audit Log, in the sidebar and the phone
+ * drawer and not in the tab bar. Like the Audit Log it is not in ADMIN_NAV; the Sidebar adds it with `withAuditLog`.
+ */
+export const SETTINGS_NAV_ITEM: AdminNavItem = {
+  id: 'settings',
+  label: 'Settings',
+  icon: 'settings',
+  to: '/admin/settings',
+  manager: true,
+};
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
@@ -90,7 +103,7 @@ export interface SidebarProps {
   onLogout?: (() => void) | undefined;
   /** Shows the user chip (avatar, name, role) above Logout. */
   user?: { name: string } | undefined;
-  /** Adds the Audit Log item after Users (a manager still needs the role to see it). The real admin shell sets it. */
+  /** Adds the Audit Log and Settings items after Users (a manager still needs the role to see them). The real admin shell sets it. */
   withAuditLog?: boolean | undefined;
 }
 
@@ -110,7 +123,7 @@ export function Sidebar({
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
   const items = withAuditLog
-    ? ADMIN_NAV.flatMap((item) => (item.id === 'users' ? [item, AUDIT_NAV_ITEM] : [item]))
+    ? ADMIN_NAV.flatMap((item) => (item.id === 'users' ? [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM] : [item]))
     : ADMIN_NAV;
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>

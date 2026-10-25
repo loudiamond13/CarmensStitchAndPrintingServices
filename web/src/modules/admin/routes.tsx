@@ -87,6 +87,10 @@ const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
 }));
 
+const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
+}));
+
 const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
@@ -141,6 +145,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
+          // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.
+          { path: 'settings', loader: requireManager, lazy: settingsPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
