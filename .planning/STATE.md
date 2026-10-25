@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-12-PLAN.md
-last_updated: "2026-10-25T17:49:38.374Z"
+stopped_at: Completed 06-13-PLAN.md
+last_updated: "2026-10-25T19:01:58.634Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 0d4230622e8cf502086a797205eab913bfac7061
+state_head: 6da9640bf4c07453cc64ea4acd4e25e36b129912
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 178
+  completed_plans: 179
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 13 of 19 (06-01 to 06-12 are done; next is 06-13)
+Plan: 14 of 19 (06-01 to 06-13 are done; next is 06-14)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -235,6 +235,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P09 | 28 min | 2 tasks | 16 files |
 | Phase 06 P10 | 40 min | 3 tasks | 26 files |
 | Phase 06 P12 | 37 min | 3 tasks | 21 files |
+| Phase 06 P13 | 68 min | 3 tasks | 48 files |
 
 ## Accumulated Context
 
@@ -624,6 +625,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-12: Paid by lists only the staff lookup (signed-in user first as '(you)'); a failed lookup disables the field but does not block the save, the server's CanPay check is the authority
 - [Phase 06]: 06-12: expenseFormSchema(today) counts the 30-day limit from the server today string; the amount stays text until the 2-decimal and cap checks pass and becomes a number only in the request builder
 - [Phase 06]: 06-12: a save invalidates expensesKey, expenseKpisKey and expensesDeletedKey; the toast adds the outside-filters note by comparing the saved row with the URL search, category and dates
+- [Phase 06]: 06-13: category race backstops (unique name, expense foreign key, deadlock victim) are translated in CspsUnitOfWork; the foreign key side is read from the failing EF entries
+- [Phase 06]: 06-13: an expense saved in a category deleted a moment earlier is a 400 on categoryId, Choose a category.
 
 ### Pending Todos
 
@@ -697,6 +700,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T17:49:37.437Z
-Stopped at: Completed 06-12-PLAN.md
+Last session: 2026-10-25T19:01:57.747Z
+Stopped at: Completed 06-13-PLAN.md
 Resume file: None
