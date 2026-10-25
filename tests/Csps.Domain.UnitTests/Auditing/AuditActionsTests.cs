@@ -9,9 +9,9 @@ public sealed class AuditActionsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void CatalogHoldsTheTwentyOneAuthCodesAndTheProfileAndUserCodes()
+    public void CatalogHoldsTheAuthProfileUserAndPhaseSixCodes()
     {
-        AuditActions.All.Count.ShouldBe(37);
+        AuditActions.All.Count.ShouldBe(49);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -95,6 +95,48 @@ public sealed class AuditActionsTests
         AuditActions.All.ShouldContain(AuditActions.ProfileEmailChangeRequested);
         AuditActions.All.ShouldContain(AuditActions.ProfileEmailChanged);
         AuditActions.All.ShouldContain(AuditActions.ProfileEmailChangeCanceled);
+    }
+
+    [Theory]
+    [InlineData(nameof(AuditActions.CompanyExpenseAdded), "company-expense.added")]
+    [InlineData(nameof(AuditActions.CompanyExpenseChanged), "company-expense.changed")]
+    [InlineData(nameof(AuditActions.CompanyExpensePayerChanged), "company-expense.payer-changed")]
+    [InlineData(nameof(AuditActions.CompanyExpenseDeleted), "company-expense.deleted")]
+    [InlineData(nameof(AuditActions.CompanyExpenseRestored), "company-expense.restored")]
+    [InlineData(nameof(AuditActions.CompanyExpensePermanentlyDeleted), "company-expense.permanently-deleted")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryAdded), "expense-category.added")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryRenamed), "expense-category.renamed")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryRecolored), "expense-category.recolored")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryRetired), "expense-category.retired")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryReactivated), "expense-category.reactivated")]
+    [InlineData(nameof(AuditActions.ExpenseCategoryDeleted), "expense-category.deleted")]
+    public void ThePhaseSixCodesAreInTheCatalogAndAcceptedByAuditEntry(string constantName, string code)
+    {
+        var constant = (string)typeof(AuditActions).GetField(constantName)!.GetRawConstantValue()!;
+
+        constant.ShouldBe(code);
+        AuditActions.All.ShouldContain(code);
+        AuditEntry.Create(Now, null, code, null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe(code);
+    }
+
+    [Fact]
+    public void ThePhaseSixCodesComeAfterThePhaseFiveCodes()
+    {
+        AuditActions.All.Skip(37).ShouldBe(
+        [
+            "company-expense.added",
+            "company-expense.changed",
+            "company-expense.payer-changed",
+            "company-expense.deleted",
+            "company-expense.restored",
+            "company-expense.permanently-deleted",
+            "expense-category.added",
+            "expense-category.renamed",
+            "expense-category.recolored",
+            "expense-category.retired",
+            "expense-category.reactivated",
+            "expense-category.deleted",
+        ]);
     }
 
     [Fact]
