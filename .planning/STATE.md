@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-08-PLAN.md
-last_updated: "2026-10-25T15:50:42.593Z"
+stopped_at: Completed 06-09-PLAN.md
+last_updated: "2026-10-25T16:22:20.432Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: b3d12fbc6eb4640c613196760f0031f4b3727871
+state_head: 3ceeb9306b0ecb156153f339ab594f179036940b
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 175
+  completed_plans: 176
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 10 of 19 (06-01 to 06-08 and 06-11 are done; next is 06-09)
+Plan: 10 of 19 (06-01 to 06-09 and 06-11 are done; next is 06-10)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -232,6 +232,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P06 | 26 min | 2 tasks | 9 files |
 | Phase 06 P07 | 28 min | 3 tasks | 18 files |
 | Phase 06 P08 | 28 min | 3 tasks | 26 files |
+| Phase 06 P09 | 28 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -611,6 +612,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-08: A form edit never retries on a conflict; the version byte compare and a lost race at save both answer edit.stale
 - [Phase 06]: 06-08: Add and Edit Expense share ExpenseFieldsValidator (Include over IExpenseFieldsRequest); only a changed category or payer is re-checked, so a saved retired category or deactivated payer may stay
 - [Phase 06]: 06-08: An edit writes company-expense.changed (old>new amount, date, category; fields= names only; ends with the payer) and a separate company-expense.payer-changed; no change writes nothing
+- [Phase 06]: 06-09: text KPI values wrap at word boundaries (kpiTextValueClasses); numbers and counts keep the one-line look
+- [Phase 06]: 06-09: every expense mutation must invalidate expenseKpisKey ('company-expense-kpis') as well as expensesKey; the KPI query key holds no list params
+- [Phase 06]: 06-09: the e2e list helpers match the list route by pathname, because the KPI route shares the /api/v1/company-expenses prefix
 
 ### Pending Todos
 
@@ -684,6 +688,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T15:50:41.705Z
-Stopped at: Completed 06-08-PLAN.md
+Last session: 2026-10-25T16:22:19.534Z
+Stopped at: Completed 06-09-PLAN.md
 Resume file: None
