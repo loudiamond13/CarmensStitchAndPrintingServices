@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-10-PLAN.md
-last_updated: "2026-10-25T17:07:13.121Z"
+stopped_at: Completed 06-12-PLAN.md
+last_updated: "2026-10-25T17:49:38.374Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: f00be4cf5edb607650c8347230f576dff9abe118
+state_head: 0d4230622e8cf502086a797205eab913bfac7061
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 177
+  completed_plans: 178
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 12 of 19 (06-01 to 06-11 are done; next is 06-12)
+Plan: 13 of 19 (06-01 to 06-12 are done; next is 06-13)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -234,6 +234,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P08 | 28 min | 3 tasks | 26 files |
 | Phase 06 P09 | 28 min | 2 tasks | 16 files |
 | Phase 06 P10 | 40 min | 3 tasks | 26 files |
+| Phase 06 P12 | 37 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -619,6 +620,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-10: Soft delete, restore and permanent delete take no row version and run inside ConflictRetry plus InTransactionAsync; a lost race is read again and a vanished row answers 404
 - [Phase 06]: 06-10: The permanent delete is a tracked Remove with the audit entry recorded first in the same save, so the entry outlives the row; never ExecuteDelete
 - [Phase 06]: 06-10: The authorization matrix harness always sends an Idempotency-Key, so the restore row expects Manager 404; the missing-key 400 has its own test
+- [Phase 06]: 06-12: Add Expense stays aria-disabled until the page knows the server's business today (list, else the month figures), so the modal never starts from the device clock
+- [Phase 06]: 06-12: Paid by lists only the staff lookup (signed-in user first as '(you)'); a failed lookup disables the field but does not block the save, the server's CanPay check is the authority
+- [Phase 06]: 06-12: expenseFormSchema(today) counts the 30-day limit from the server today string; the amount stays text until the 2-decimal and cap checks pass and becomes a number only in the request builder
+- [Phase 06]: 06-12: a save invalidates expensesKey, expenseKpisKey and expensesDeletedKey; the toast adds the outside-filters note by comparing the saved row with the URL search, category and dates
 
 ### Pending Todos
 
@@ -692,6 +697,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T17:07:12.215Z
-Stopped at: Completed 06-10-PLAN.md
+Last session: 2026-10-25T17:49:37.437Z
+Stopped at: Completed 06-12-PLAN.md
 Resume file: None
