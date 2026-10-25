@@ -31,7 +31,7 @@
     {
       "number": "6",
       "name": "Company Expenses",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "7",
@@ -94,5 +94,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 06 of 17 · 29% · executing"
   },
-  "updated_at": "2026-10-25T12:04:18.290Z"
+  "updated_at": "2026-10-25T12:34:29.834Z"
 }
