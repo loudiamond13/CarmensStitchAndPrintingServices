@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Expenses;
 using FluentValidation;
@@ -11,7 +12,8 @@ namespace Csps.Application.Expenses;
 /// <summary>
 /// Use case: a staff member records a company expense (CEXP-02). The form is checked against the field rules and, in the same
 /// 400, against the database: the category must exist and be active (D-11) and the payer must pass the payer rule (D-17, D-32).
-/// Who recorded it and when come from the token and the clock, never from the request (SEC-08).
+/// Who recorded it and when come from the token and the clock, never from the request (SEC-08). One audit entry joins the
+/// save, holding the date, category, amount and payer but never the description or notes (D-27).
 /// </summary>
 public sealed class CreateCompanyExpenseHandler(
     ICompanyExpenses expenses,
@@ -19,10 +21,13 @@ public sealed class CreateCompanyExpenseHandler(
     IExpenseCategories categories,
     IStaffDirectory staff,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<CreateCompanyExpenseRequest> validator)
 {
+    private const string ExpenseTarget = "CompanyExpense";
+
     /// <summary>Records the expense.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -66,6 +71,11 @@ public sealed class CreateCompanyExpenseHandler(
             async token =>
             {
                 expenses.Add(expense);
+                audit.Record(
+                    AuditActions.CompanyExpenseAdded,
+                    ExpenseTarget,
+                    AuditKey.Of(expense.Id),
+                    ExpenseAuditDetail.Snapshot(expense.ExpenseDate, expense.CategoryId, expense.Amount, expense.PaidByUserId));
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return expense.Id;
             },
