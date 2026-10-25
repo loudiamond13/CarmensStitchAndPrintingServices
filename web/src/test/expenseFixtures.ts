@@ -144,7 +144,7 @@ function categoryItem(
   tone: string,
   overrides: Partial<CategoryListItemFixture> = {},
 ): CategoryListItemFixture {
-  return { id, name, tone, status: 'active', isOthers: false, ...overrides };
+  return { id, name, tone, status: 'active', isOthers: false, expenseCount: 0, ...overrides };
 }
 
 export const OTHERS_ID = 'f85e6b1c-b46f-4a00-8c4e-5148eb3b9704';

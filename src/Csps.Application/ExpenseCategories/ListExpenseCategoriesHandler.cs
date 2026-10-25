@@ -19,7 +19,8 @@ public sealed class ListExpenseCategoriesHandler(IExpenseCategories categories)
                 view.Name,
                 view.Tone,
                 view.Retired ? ExpenseCategoryListItem.RetiredStatus : ExpenseCategoryListItem.ActiveStatus,
-                view.IsOthers)),
+                view.IsOthers,
+                view.ExpenseCount)),
         ];
         return Result.Success(items);
     }

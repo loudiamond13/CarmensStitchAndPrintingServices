@@ -55,11 +55,7 @@ public sealed class CreateExpenseCategoryHandlerTests
 
         var result = await harness.Handler.HandleAsync(CreateExpenseCategoryRequest.Empty, TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]>
-        {
-            ["name"] = ["Enter a category name."],
-            ["tone"] = ["Choose a badge color."],
-        });
+        Fields(result).ShouldBe(["name: Enter a category name.", "tone: Choose a badge color."]);
         result.Error.Code.ShouldBe("expense-categories.invalid-request");
         harness.Unit.Saves.ShouldBe(0);
         harness.Added.ShouldBeEmpty();
@@ -74,7 +70,7 @@ public sealed class CreateExpenseCategoryHandlerTests
 
         var result = await harness.Handler.HandleAsync(new CreateExpenseCategoryRequest(new string('a', 41), "info"), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["name"] = ["Keep the name to 40 characters or fewer."] });
+        Fields(result).ShouldBe(["name: Keep the name to 40 characters or fewer."]);
     }
 
     [Fact]
@@ -84,11 +80,7 @@ public sealed class CreateExpenseCategoryHandlerTests
 
         var result = await harness.Handler.HandleAsync(new CreateExpenseCategoryRequest("Rent", "danger"), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]>
-        {
-            ["name"] = ["Another category already has this name."],
-            ["tone"] = ["Choose a badge color."],
-        });
+        Fields(result).ShouldBe(["name: Another category already has this name.", "tone: Choose a badge color."]);
         harness.Unit.Saves.ShouldBe(0);
         harness.Added.ShouldBeEmpty();
     }
@@ -101,16 +93,16 @@ public sealed class CreateExpenseCategoryHandlerTests
 
         var result = await harness.Handler.HandleAsync(new CreateExpenseCategoryRequest("Laundry", "info"), TestContext.Current.CancellationToken);
 
-        Fields(result).ShouldBe(new Dictionary<string, string[]> { ["name"] = ["Another category already has this name."] });
+        Fields(result).ShouldBe(["name: Another category already has this name."]);
         harness.Unit.Rollbacks.ShouldBe(1);
         harness.Unit.Commits.ShouldBe(0);
     }
 
-    private static Dictionary<string, string[]> Fields(Result result)
+    private static List<string> Fields(Result result)
     {
         result.IsFailure.ShouldBeTrue();
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
-        return new Dictionary<string, string[]>(result.Error.FieldErrors.ShouldNotBeNull());
+        return [.. result.Error.FieldErrors.ShouldNotBeNull().SelectMany(pair => pair.Value.Select(message => $"{pair.Key}: {message}")).Order(StringComparer.Ordinal)];
     }
 
     private sealed class Harness

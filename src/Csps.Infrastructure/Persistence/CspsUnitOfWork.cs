@@ -1,5 +1,6 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Infrastructure.Expenses;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -23,6 +24,19 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
             // Application cannot see EF. The stale entities go, so the caller can load the rows again.
             context.ChangeTracker.Clear();
             throw new ConcurrencyConflictException(exception);
+        }
+        catch (DbUpdateException exception)
+        {
+            // A category constraint (unique name, or an expense still using the category) becomes a typed error the handler maps.
+            // The failed row leaves the context, or the next save on this request would try it again.
+            var translated = ExpenseCategoryStore.TranslateSaveFailure(exception);
+            if (translated is null)
+            {
+                throw;
+            }
+
+            context.ChangeTracker.Clear();
+            throw translated;
         }
     }
 

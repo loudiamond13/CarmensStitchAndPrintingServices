@@ -1,9 +1,11 @@
+using Csps.Domain.Expenses;
+
 namespace Csps.Application.Ports;
 
-/// <summary>Read access to the company expense categories (D-08). Application never sees EF: the implementation maps to these records.</summary>
+/// <summary>Access to the company expense categories (D-08). Application never sees EF: reads map to these records, writes go through tracked rows saved by the unit of work.</summary>
 public interface IExpenseCategories
 {
-    /// <summary>Lists every category, retired ones included, A to Z with Others last, then by id (D-15).</summary>
+    /// <summary>Lists every category, retired ones included, A to Z with Others last, then by id (D-15), each with how many expenses use it, soft-deleted ones included (D-10).</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The categories in display order.</returns>
     Task<IReadOnlyList<ExpenseCategoryView>> ListAsync(CancellationToken cancellationToken);
@@ -13,6 +15,20 @@ public interface IExpenseCategories
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The state, or null when no such category exists.</returns>
     Task<ExpenseCategoryState?> GetStateAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Tells whether a category already holds a name, retired ones included (OQ-10).</summary>
+    /// <param name="normalizedName">The name as <see cref="ExpenseCategory.Normalize"/> makes it.</param>
+    /// <param name="excluding">A category to leave out, so a rename can keep its own name; none when null.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>True when another category holds the name.</returns>
+    Task<bool> NameTakenAsync(string normalizedName, Guid? excluding, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Starts tracking a new category. The save that follows throws <see cref="CategoryNameTakenException"/> when another
+    /// category took the name first.
+    /// </summary>
+    /// <param name="category">The new category.</param>
+    void Add(ExpenseCategory category);
 }
 
 /// <summary>One category's id, name and retired flag.</summary>
@@ -27,4 +43,5 @@ public sealed record ExpenseCategoryState(Guid Id, string Name, bool Retired);
 /// <param name="Tone">One of the six colour tones.</param>
 /// <param name="Retired">True once the category is retired (D-11).</param>
 /// <param name="IsOthers">True for the catch-all Others category.</param>
-public sealed record ExpenseCategoryView(Guid Id, string Name, string Tone, bool Retired, bool IsOthers);
+/// <param name="ExpenseCount">How many expenses use the category, soft-deleted ones included (D-10).</param>
+public sealed record ExpenseCategoryView(Guid Id, string Name, string Tone, bool Retired, bool IsOthers, int ExpenseCount);

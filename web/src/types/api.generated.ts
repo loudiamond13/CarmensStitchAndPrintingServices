@@ -415,12 +415,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id.
-         *     The Add picker hides retired ones; the list filter keeps them.
+         * Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id. Each item
+         *     says how many expenses use the category, soft-deleted ones included. The Add picker hides retired ones; the list filter keeps them.
          */
         get: operations["ListExpenseCategories"];
         put?: never;
-        post?: never;
+        /**
+         * Adds a category, Managers only. The name is required, at most 40 characters and unique among all categories, retired ones
+         *     included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Who added it and when come from the token and the clock; any such member in the body is
+         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds nothing more.
+         */
+        post: operations["CreateExpenseCategory"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1085,6 +1091,16 @@ export interface components {
             paidByUserId: null | string;
         };
         /**
+         * @description The Add Category form (D-08, D-13). Any other member in the body is ignored: who added the category and when come from the
+         *     token and the clock (SEC-08).
+         */
+        CreateExpenseCategoryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique among all categories. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
+        };
+        /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
          *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
          */
@@ -1176,8 +1192,13 @@ export interface components {
             /** @description The 43-character token. */
             token: null | string;
         };
-        /** @description One category in the list the Add picker and the list filter read (D-11, D-15). */
+        /** @description One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15). */
         ExpenseCategoryListItem: {
+            /**
+             * Format: int32
+             * @description How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).
+             */
+            expenseCount: number | string;
             /**
              * Format: uuid
              * @description The category id.
@@ -2818,6 +2839,60 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+                "application/json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+                "text/json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryListItem"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

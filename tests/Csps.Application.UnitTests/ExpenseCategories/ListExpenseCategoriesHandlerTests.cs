@@ -10,9 +10,9 @@ public sealed class ListExpenseCategoriesHandlerTests
     [Fact]
     public async Task EachCategoryKeepsItsFieldsAndGetsAnActiveOrRetiredStatus()
     {
-        var rent = new ExpenseCategoryView(Guid.NewGuid(), "Rent", "accent", Retired: false, IsOthers: false);
-        var old = new ExpenseCategoryView(Guid.NewGuid(), "Old", "neutral", Retired: true, IsOthers: false);
-        var others = new ExpenseCategoryView(Guid.NewGuid(), "Others", "neutral", Retired: false, IsOthers: true);
+        var rent = new ExpenseCategoryView(Guid.NewGuid(), "Rent", "accent", Retired: false, IsOthers: false, ExpenseCount: 3);
+        var old = new ExpenseCategoryView(Guid.NewGuid(), "Old", "neutral", Retired: true, IsOthers: false, ExpenseCount: 0);
+        var others = new ExpenseCategoryView(Guid.NewGuid(), "Others", "neutral", Retired: false, IsOthers: true, ExpenseCount: 12);
         var store = Substitute.For<IExpenseCategories>();
         store.ListAsync(TestContext.Current.CancellationToken).Returns([rent, old, others]);
 
@@ -21,9 +21,9 @@ public sealed class ListExpenseCategoriesHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(
         [
-            new ExpenseCategoryListItem(rent.Id, "Rent", "accent", "active", false),
-            new ExpenseCategoryListItem(old.Id, "Old", "neutral", "retired", false),
-            new ExpenseCategoryListItem(others.Id, "Others", "neutral", "active", true),
+            new ExpenseCategoryListItem(rent.Id, "Rent", "accent", "active", false, 3),
+            new ExpenseCategoryListItem(old.Id, "Old", "neutral", "retired", false, 0),
+            new ExpenseCategoryListItem(others.Id, "Others", "neutral", "active", true, 12),
         ]);
     }
 

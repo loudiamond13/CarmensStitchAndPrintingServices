@@ -558,6 +558,30 @@
         ],
         "type": "object"
       },
+      "CreateExpenseCategoryRequest": {
+        "description": "The Add Category form (D-08, D-13). Any other member in the body is ignored: who added the category and when come from the\ntoken and the clock (SEC-08).",
+        "properties": {
+          "name": {
+            "description": "The name; required after trimming, at most 40 characters, unique among all categories.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "tone"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
@@ -792,8 +816,17 @@
         "type": "object"
       },
       "ExpenseCategoryListItem": {
-        "description": "One category in the list the Add picker and the list filter read (D-11, D-15).",
+        "description": "One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15).",
         "properties": {
+          "expenseCount": {
+            "description": "How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "id": {
             "description": "The category id.",
             "format": "uuid",
@@ -821,7 +854,8 @@
           "name",
           "tone",
           "status",
-          "isOthers"
+          "isOthers",
+          "expenseCount"
         ],
         "type": "object"
       },
@@ -3647,7 +3681,97 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id.\nThe Add picker hides retired ones; the list filter keeps them.",
+        "summary": "Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id. Each item\nsays how many expenses use the category, soft-deleted ones included. The Add picker hides retired ones; the list filter keeps them.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
+      "post": {
+        "operationId": "CreateExpenseCategory",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryListItem"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a category, Managers only. The name is required, at most 40 characters and unique among all categories, retired ones\nincluded, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Who added it and when come from the token and the clock; any such member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds nothing more.",
         "tags": [
           "ExpenseCategories"
         ]
