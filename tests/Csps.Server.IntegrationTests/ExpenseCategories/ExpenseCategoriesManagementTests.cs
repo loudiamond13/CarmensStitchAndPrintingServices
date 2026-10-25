@@ -492,4 +492,287 @@ public sealed class ExpenseCategoriesManagementTests(CspsDatabase database) : IC
         unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ProblemJson.ReadAsync(unknown, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("expense-categories.not-found");
     }
+
+    [Fact]
+    public async Task RetiringKeepsTheCategoryListedAsRetiredRefusesNewExpensesAndKeepsOldOnesEditable()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, ExpenseCategoryFixtures.UniqueName("Retiring"), "info");
+        var id = created.GetProperty("id").GetGuid();
+        var old = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(id, manager.UserId, today));
+
+        using (var retire = await ExpenseCategoryFixtures.RetireAsync(client, manager.AccessToken, id))
+        {
+            retire.StatusCode.ShouldBe(HttpStatusCode.NoContent, await retire.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        (await StatusOfAsync(client, manager.AccessToken, id)).ShouldBe("retired");
+        using (var refused = await ExpenseFixtures.PostAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(id, manager.UserId, today)))
+        {
+            refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            var problem = await ProblemJson.ReadAsync(refused, TestContext.Current.CancellationToken);
+            ExpenseFixtures.FieldErrors(problem, "categoryId").ShouldBe(["This category was retired. Choose another one."]);
+        }
+
+        var edit = ExpenseFixtures.BodyFrom(old);
+        edit["amount"] = 700m;
+        using (var edited = await ExpenseFixtures.PutAsync(client, manager.AccessToken, old.GetProperty("id").GetGuid(), edit))
+        {
+            edited.StatusCode.ShouldBe(HttpStatusCode.OK, await edited.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using (var again = await ExpenseCategoryFixtures.RetireAsync(client, manager.AccessToken, id))
+        {
+            again.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, id, "expense-category.retired")).ShouldBe(1);
+
+        using (var bringBack = await ExpenseCategoryFixtures.ReactivateAsync(client, manager.AccessToken, id))
+        {
+            bringBack.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await StatusOfAsync(client, manager.AccessToken, id)).ShouldBe("active");
+        await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(id, manager.UserId, today));
+        using (var again = await ExpenseCategoryFixtures.ReactivateAsync(client, manager.AccessToken, id))
+        {
+            again.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, id, "expense-category.reactivated")).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RetireAndReactivateWriteTheirAuditRowsWithTheName()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var name = ExpenseCategoryFixtures.UniqueName("Cafe; snacks");
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, name, "info");
+        var id = created.GetProperty("id").GetGuid();
+
+        using (var retire = await ExpenseCategoryFixtures.RetireAsync(client, manager.AccessToken, id))
+        {
+            retire.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using (var bringBack = await ExpenseCategoryFixtures.ReactivateAsync(client, manager.AccessToken, id))
+        {
+            bringBack.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        var audits = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && row.Action != "expense-category.added")
+            .OrderBy(row => row.Id)
+            .Select(row => new { row.Action, row.Detail, row.ActorUserId, row.TargetType })
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var encoded = name.Replace(";", "%3B", StringComparison.Ordinal);
+        audits.Select(row => (row.Action, row.Detail, row.ActorUserId, row.TargetType)).ShouldBe(
+        [
+            ("expense-category.retired", (string?)$"name={encoded}", (Guid?)manager.UserId, (string?)"ExpenseCategory"),
+            ("expense-category.reactivated", (string?)$"name={encoded}", (Guid?)manager.UserId, (string?)"ExpenseCategory"),
+        ]);
+    }
+
+    [Fact]
+    public async Task OthersCanNeitherBeRetiredNorDeleted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var othersId = ExpenseCategorySeed.OthersId;
+
+        using var retire = await ExpenseCategoryFixtures.RetireAsync(client, manager.AccessToken, othersId);
+        using var delete = await ExpenseCategoryFixtures.DeleteAsync(client, manager.AccessToken, othersId);
+
+        foreach (var response in new[] { retire, delete })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("expense-categories.protected");
+            problem.GetProperty("detail").GetString().ShouldBe("The Others category can't be retired or deleted.");
+        }
+
+        (await StatusOfAsync(client, manager.AccessToken, othersId)).ShouldBe("active");
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, othersId)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ACategoryNoExpenseUsesIsDeletedAndGoneAndASecondDeleteIs404()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var name = ExpenseCategoryFixtures.UniqueName("Gone; soon");
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, name, "info");
+        var id = created.GetProperty("id").GetGuid();
+
+        using (var delete = await ExpenseCategoryFixtures.DeleteAsync(client, manager.AccessToken, id))
+        {
+            delete.StatusCode.ShouldBe(HttpStatusCode.NoContent, await delete.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        (await ExpenseCategoryFixtures.ReadListAsync(client, manager.AccessToken)).ShouldNotContain(item => item.GetProperty("id").GetGuid() == id);
+        using (var read = await ExpenseCategoryFixtures.GetAsync(client, manager.AccessToken, id))
+        {
+            read.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+
+        using (var second = await ExpenseCategoryFixtures.DeleteAsync(client, manager.AccessToken, id))
+        {
+            second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            (await ProblemJson.ReadAsync(second, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("expense-categories.not-found");
+        }
+
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.TargetId == key && row.Action == "expense-category.deleted", TestContext.Current.CancellationToken);
+        entry.ActorUserId.ShouldBe(manager.UserId);
+        entry.TargetType.ShouldBe("ExpenseCategory");
+        entry.Detail.ShouldBe($"name={name.Replace(";", "%3B", StringComparison.Ordinal)}");
+    }
+
+    [Fact]
+    public async Task AUsedCategoryCannotBeDeletedEvenForASoftDeletedExpenseUntilThatExpenseIsDeletedForGood()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, ExpenseCategoryFixtures.UniqueName("Used"), "info");
+        var id = created.GetProperty("id").GetGuid();
+        var expense = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(id, manager.UserId, today));
+        var expenseId = expense.GetProperty("id").GetGuid();
+
+        await AssertInUseAsync(client, manager.AccessToken, id);
+
+        using (var soft = await ExpenseFixtures.DeleteAsync(client, manager.AccessToken, expenseId))
+        {
+            soft.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        await AssertInUseAsync(client, manager.AccessToken, id);
+        (await ExpenseCategoryFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("expenseCount").GetInt32().ShouldBe(1);
+
+        using (var permanent = await ExpenseFixtures.PermanentDeleteAsync(client, manager.AccessToken, expenseId))
+        {
+            permanent.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var delete = await ExpenseCategoryFixtures.DeleteAsync(client, manager.AccessToken, id);
+        delete.StatusCode.ShouldBe(HttpStatusCode.NoContent, await delete.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, id, "expense-category.deleted")).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnAdminCannotRetireReactivateOrDeleteAndNothingChanges()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, ExpenseCategoryFixtures.UniqueName("Guarded"), "info");
+        var id = created.GetProperty("id").GetGuid();
+
+        using var retire = await ExpenseCategoryFixtures.RetireAsync(client, admin.AccessToken, id);
+        using var reactivate = await ExpenseCategoryFixtures.ReactivateAsync(client, admin.AccessToken, id);
+        using var delete = await ExpenseCategoryFixtures.DeleteAsync(client, admin.AccessToken, id);
+
+        new[] { retire.StatusCode, reactivate.StatusCode, delete.StatusCode }.ShouldAllBe(status => status == HttpStatusCode.Forbidden);
+        (await StatusOfAsync(client, manager.AccessToken, id)).ShouldBe("active");
+        (await ExpenseCategoryFixtures.AuditCountAsync(database, id)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ARetireOrReactivateWithoutAnIdempotencyKeyIs400ForAManager()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await ExpenseCategoryFixtures.CreateAsync(client, manager.AccessToken, ExpenseCategoryFixtures.UniqueName("Keyless"), "info");
+        var id = created.GetProperty("id").GetGuid();
+
+        using var retire = await ExpenseCategoryFixtures.RetireAsync(client, manager.AccessToken, id, withKey: false);
+        using var reactivate = await ExpenseCategoryFixtures.ReactivateAsync(client, manager.AccessToken, id, withKey: false);
+
+        retire.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        reactivate.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(retire, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.key-missing");
+        (await StatusOfAsync(client, manager.AccessToken, id)).ShouldBe("active");
+    }
+
+    [Fact]
+    public async Task TwoRetiresSentTogetherBothSucceedAndWriteOneAuditRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        for (var round = 1; round <= 5; round++)
+        {
+            var created = await ExpenseCategoryFixtures.CreateAsync(client, m1.AccessToken, ExpenseCategoryFixtures.UniqueName($"Twice{round}"), "info");
+            var id = created.GetProperty("id").GetGuid();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => ExpenseCategoryFixtures.RetireAsync(client, m1.AccessToken, id),
+                () => ExpenseCategoryFixtures.RetireAsync(client, m2.AccessToken, id));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.ShouldAllBe(status => status == HttpStatusCode.NoContent, $"round {round}: {string.Join(", ", statuses)}");
+            (await ExpenseCategoryFixtures.AuditCountAsync(database, id, "expense-category.retired")).ShouldBe(1, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task ADeleteRacingANewExpenseNeverLeavesAnOrphan()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= 5; round++)
+        {
+            var created = await ExpenseCategoryFixtures.CreateAsync(client, m1.AccessToken, ExpenseCategoryFixtures.UniqueName($"Orphan{round}"), "info");
+            var id = created.GetProperty("id").GetGuid();
+
+            var (deleted, added) = await ConcurrentRequests.SendTogetherAsync(
+                () => ExpenseCategoryFixtures.DeleteAsync(client, m1.AccessToken, id),
+                () => ExpenseFixtures.PostAsync(client, m2.AccessToken, ExpenseFixtures.ValidBody(id, m2.UserId, today)));
+            using var deleteResponse = deleted;
+            using var addResponse = added;
+
+            new[] { HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity }.ShouldContain(deleteResponse.StatusCode, $"round {round}");
+            (deleteResponse.StatusCode == HttpStatusCode.NoContent && addResponse.StatusCode == HttpStatusCode.Created)
+                .ShouldBeFalse($"round {round}: the delete and the expense both won");
+            await using var context = database.CreateContext();
+            var categoryRows = await context.ExpenseCategories.CountAsync(category => category.Id == id, TestContext.Current.CancellationToken);
+            var expenseRows = await context.CompanyExpenses.IgnoreQueryFilters(["SoftDelete"]).CountAsync(expense => expense.CategoryId == id, TestContext.Current.CancellationToken);
+            (categoryRows == 1 || expenseRows == 0).ShouldBeTrue($"round {round}: {expenseRows} expense(s) point at a deleted category");
+        }
+    }
+
+    private static async Task<string?> StatusOfAsync(HttpClient client, string accessToken, Guid id) =>
+        (await ExpenseCategoryFixtures.ReadListAsync(client, accessToken)).Single(item => item.GetProperty("id").GetGuid() == id).GetProperty("status").GetString();
+
+    private static async Task AssertInUseAsync(HttpClient client, string accessToken, Guid id)
+    {
+        using var response = await ExpenseCategoryFixtures.DeleteAsync(client, accessToken, id);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("expense-categories.in-use");
+        problem.GetProperty("detail").GetString().ShouldBe("This category is used by an expense, so it can't be deleted. Retire it instead.");
+    }
 }

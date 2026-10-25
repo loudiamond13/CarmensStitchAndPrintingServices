@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.ExpenseCategories;
 
@@ -68,6 +70,36 @@ internal static class ExpenseCategoryFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Retires one category with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The category id.</param>
+    /// <param name="withKey">False to send no key.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> RetireAsync(HttpClient client, string? accessToken, Guid id, bool withKey = true) =>
+        PostActionAsync(client, accessToken, id, "retire", withKey);
+
+    /// <summary>Brings one retired category back with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The category id.</param>
+    /// <param name="withKey">False to send no key.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> ReactivateAsync(HttpClient client, string? accessToken, Guid id, bool withKey = true) =>
+        PostActionAsync(client, accessToken, id, "reactivate", withKey);
+
+    /// <summary>Deletes one category.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The category id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{id:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads one category.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
@@ -119,6 +151,21 @@ internal static class ExpenseCategoryFixtures
         return [.. document.RootElement.EnumerateArray().Select(static item => item.Clone())];
     }
 
+    /// <summary>Counts the audit rows of one category, optionally of one action.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="id">The category id.</param>
+    /// <param name="action">The action code; every action when null.</param>
+    /// <returns>The number of rows.</returns>
+    public static async Task<int> AuditCountAsync(CspsDatabase database, Guid id, string? action = null)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        var key = id.ToString("D");
+        await using var context = database.CreateContext();
+        return await context.AuditLog.CountAsync(
+            row => row.TargetId == key && (action == null || row.Action == action),
+            TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Returns the messages of one field of a 400 answer.</summary>
     /// <param name="problem">The ProblemDetails body.</param>
     /// <param name="field">The field name.</param>
@@ -127,4 +174,16 @@ internal static class ExpenseCategoryFixtures
         problem.TryGetProperty("errors", out var errors) && errors.TryGetProperty(field, out var messages)
             ? [.. messages.EnumerateArray().Select(static message => message.GetString() ?? string.Empty)]
             : [];
+
+    private static async Task<HttpResponseMessage> PostActionAsync(HttpClient client, string? accessToken, Guid id, string action, bool withKey)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/{action}", accessToken);
+        if (withKey)
+        {
+            request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
 }

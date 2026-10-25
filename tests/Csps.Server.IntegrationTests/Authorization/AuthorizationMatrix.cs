@@ -155,6 +155,11 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/3b7d1e94-6c25-4a80-9f13-8e0a5c2d7b61", Anonymous: 401, Admin: 403, Manager: 404),
         // Renaming or recoloring a category (CEXP-02, D-12, D-13): Managers only. With no body a Manager meets the 400 field errors.
         new("PUT", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/8e4a2c07-1d59-4b36-a6f8-5c9e3b1d7a42", Anonymous: 401, Admin: 403, Manager: 400),
+        // Retiring and bringing back a category (CEXP-02, D-11, OQ-4): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no category and a Manager meets 404 expense-categories.not-found; a missing key is 400 after authorization (covered in ExpenseCategoriesManagementTests).
+        new("POST", "/api/v1/expense-categories/{id:guid}/retire", "/api/v1/expense-categories/5a9c3e71-2b84-4d06-8f1a-7c0e6d4b9a23/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/expense-categories/{id:guid}/reactivate", "/api/v1/expense-categories/e1b6d4a8-7f32-4c59-9a0d-3b8f5e2c6d17/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting a never-used category (CEXP-02, D-10, D-30): Managers only. A fresh random id is no category, so a Manager meets 404 expense-categories.not-found.
+        new("DELETE", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/c9f2a5d3-8e14-4b67-a0c1-6d3b7e9f2a58", Anonymous: 401, Admin: 403, Manager: 404),
         // The staff who can be named as the payer (CEXP-05, D-32): Staff only, names and ids only.
         new("GET", "/api/v1/staff", "/api/v1/staff", Anonymous: 401, Admin: 200, Manager: 200),
 
