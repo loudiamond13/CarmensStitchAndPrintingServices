@@ -1,5 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { Copy, Funnel, History, KeyRound, LockOpen, Minus, Trash, UserCheck, UserX } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  Copy,
+  Eraser,
+  Funnel,
+  History,
+  KeyRound,
+  LockOpen,
+  Minus,
+  RotateCcw,
+  Settings,
+  Trash,
+  UserCheck,
+  UserX,
+} from 'lucide-react';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { Icon, type IconName } from '@/components/brand';
@@ -66,8 +81,22 @@ const SPEC_ICON_NAMES = [
   'zap',
 ] as const;
 
-// Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14), then the six Phase 5 icons (UI-SPEC OQ-9).
-const OWNER_ICON_NAMES = ['minus', 'copy', 'lock-open', 'key-round', 'user-x', 'user-check', 'history'] as const;
+// Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14), the six Phase 5 icons (UI-SPEC OQ-9), then the five Phase 6
+// icons (UI-SPEC OQ-12).
+const OWNER_ICON_NAMES = [
+  'minus',
+  'copy',
+  'lock-open',
+  'key-round',
+  'user-x',
+  'user-check',
+  'history',
+  'settings',
+  'rotate-ccw',
+  'archive',
+  'archive-restore',
+  'eraser',
+] as const;
 
 /** The one svg an Icon renders. */
 function onlySvg(container: HTMLElement): SVGSVGElement {
@@ -181,6 +210,16 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
     ['user-check', UserCheck],
     ['history', History],
   ] as const)('draws %s with the lucide component of the same name (Phase 5)', (name, component) => {
+    expect(ICONS[name]).toBe(component);
+  });
+
+  it.each([
+    ['settings', Settings],
+    ['rotate-ccw', RotateCcw],
+    ['archive', Archive],
+    ['archive-restore', ArchiveRestore],
+    ['eraser', Eraser],
+  ] as const)('draws %s with the lucide component of the same name (Phase 6, OQ-12)', (name, component) => {
     expect(ICONS[name]).toBe(component);
   });
 

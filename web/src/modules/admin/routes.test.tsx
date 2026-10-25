@@ -9,7 +9,14 @@ import { queryBranch, routes } from '@/core/routes/router';
 import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import { expenseItem, expenseList, expensesBackend } from '@/test/expenseFixtures';
+import {
+  deletedExpenseItem,
+  deletedExpenseList,
+  deletedExpensesBackend,
+  expenseItem,
+  expenseList,
+  expensesBackend,
+} from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -277,6 +284,55 @@ describe('Company Expenses for both roles (CEXP-01, D-25, T-06-18)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses')}`);
+  }, 15_000);
+});
+
+describe('Deleted Expenses for Managers (D-03, D-07, OQ-2; plan 06-16)', () => {
+  it('a Manager who opens /admin/expenses/deleted stays and sees the page, with Company Expenses the current item', async () => {
+    answerRefresh(sessionResponse());
+    deletedExpensesBackend(deletedExpenseList([deletedExpenseItem('00000000-0000-4000-8000-000000000001')]));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/expenses/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Deleted Expenses' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Deleted expenses' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/expenses/deleted');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Company Expenses']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect([...(tabBar?.querySelectorAll('[aria-current="page"]') ?? [])].map((link) => link.textContent)).toEqual([
+      'Expenses',
+    ]);
+    await waitFor(() => {
+      expect(document.title).toBe('Deleted Expenses · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens /admin/expenses/deleted is redirected to /admin/expenses by the route loader', async () => {
+    answerRefresh(adminSession());
+    expensesBackend(expenseList([expenseItem('00000000-0000-4000-8000-000000000001')]));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/expenses/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Company Expenses' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/expenses');
+    expect(screen.queryByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Deleted Expenses' })).toBeNull();
+  }, 30_000);
+
+  it('a visitor without a session opening /admin/expenses/deleted goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/expenses/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses/deleted')}`);
   }, 15_000);
 });
 

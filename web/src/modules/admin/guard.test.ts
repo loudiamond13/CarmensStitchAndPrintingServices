@@ -152,6 +152,26 @@ describe('requireManagerLoader (USER-08)', () => {
     expect((response as Response).headers.get('Location')).toBe('/admin');
   });
 
+  it('sends an Admin to the fallback path when the route names one (D-07: Deleted Expenses goes back to the list)', async () => {
+    ensureSession.mockResolvedValue(adminUser);
+
+    const response = await thrown(() => requireManagerLoader(args('/admin/expenses/deleted'), '/admin/expenses'));
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get('Location')).toBe('/admin/expenses');
+  });
+
+  it('still returns the Manager and still sends a visitor without a session to sign-in when a fallback is named', async () => {
+    ensureSession.mockResolvedValue(user);
+    await expect(requireManagerLoader(args('/admin/expenses/deleted'), '/admin/expenses')).resolves.toBe(user);
+
+    ensureSession.mockResolvedValue(null);
+    const response = await thrown(() => requireManagerLoader(args('/admin/expenses/deleted'), '/admin/expenses'));
+
+    expect((response as Response).headers.get('Location')).toBe('/admin/login?returnUrl=%2Fadmin%2Fexpenses%2Fdeleted');
+  });
+
   it('sends a visitor without a session to sign-in with the return path, not to /admin (session check first)', async () => {
     ensureSession.mockResolvedValue(null);
 

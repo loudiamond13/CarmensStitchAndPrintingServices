@@ -1375,6 +1375,17 @@ describe('View Expense for an Admin (OQ-8, D-26; plan 06-14)', () => {
     });
   });
 
+  it('shows an Admin no Deleted Expenses link and no delete action of either kind', async () => {
+    expensesBackend(expenseList(ADMIN_ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    expect(screen.queryByRole('link', { name: 'Deleted Expenses' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /permanently$/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add Expense' })).toBeVisible();
+  });
+
   it('has no axe violations with Edit and View buttons in the rows', async () => {
     expensesBackend(expenseList(ADMIN_ROWS));
     renderPage();
@@ -1624,5 +1635,19 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
     await user.click(screen.getByRole('button', { name: RENT_DELETE }));
     await screen.findByRole('dialog', { name: RENT_TITLE });
     await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('the Deleted Expenses link (D-03, D-07, OQ-2; plan 06-16)', () => {
+  it('gives a Manager a Deleted Expenses link to the deleted page, before Add Expense', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    const link = screen.getByRole('link', { name: 'Deleted Expenses' });
+    expect(link).toHaveAttribute('href', '/admin/expenses/deleted');
+    const add = screen.getByRole('button', { name: 'Add Expense' });
+    expect(link.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link.parentElement).toBe(add.parentElement);
   });
 });

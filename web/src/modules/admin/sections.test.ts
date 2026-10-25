@@ -17,6 +17,13 @@ describe('adminNavItemForPath', () => {
     expect(adminNavItemForPath('/admin/audit-log/')?.id).toBe('audit');
   });
 
+  it('finds the Company Expenses item for /admin/expenses/deleted, so the sidebar and tab bar keep it current (UI-SPEC routes)', () => {
+    expect(adminNavItemForPath('/admin/expenses')?.id).toBe('expenses');
+    expect(adminNavItemForPath('/admin/expenses/deleted')?.id).toBe('expenses');
+    expect(adminNavItemForPath('/admin/expenses/deleted/')?.id).toBe('expenses');
+    expect(adminNavItemForPath('/admin/expenses/other')).toBeUndefined();
+  });
+
   it('returns undefined for a path that is no section', () => {
     expect(adminNavItemForPath('/admin/nowhere')).toBeUndefined();
     expect(adminNavItemForPath('/dev/components')).toBeUndefined();

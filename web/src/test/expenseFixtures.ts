@@ -279,8 +279,8 @@ export function expenseDetailBackend(answer: ExpenseDetailFixture | DetailRespon
   server.use(
     http.get('*/api/v1/company-expenses/:id', async ({ params }) => {
       const id = String(params.id);
-      // The month figures share the prefix; let their own handler answer.
-      if (id === 'kpis') {
+      // The month figures and the deleted list share the prefix; let their own handlers answer.
+      if (id === 'kpis' || id === 'deleted') {
         return undefined;
       }
       ids.push(id);
@@ -335,6 +335,68 @@ export function deleteExpenseBackend(reply: (id: string) => Response | Promise<R
   const calls: ActionCalls = { ids: [], keys: [] };
   server.use(
     http.delete('*/api/v1/company-expenses/:id', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}
+
+export type DeletedExpenseItemFixture = Schemas['DeletedExpenseListItem'];
+export type DeletedExpenseListFixture = Schemas['DeletedExpenseListResponse'];
+
+/** One row of the deleted list: deleted by Carmen at 3:42 PM Manila time on Oct 12, 2026 unless a test says otherwise. */
+export function deletedExpenseItem(
+  id: string,
+  overrides: Partial<DeletedExpenseItemFixture> = {},
+): DeletedExpenseItemFixture {
+  return {
+    id,
+    deletedAt: '2026-10-12T07:42:00Z',
+    deletedBy: CARMEN,
+    date: '2026-10-06',
+    category: RENT,
+    description: 'Shop rent for October',
+    amount: 12450,
+    paidBy: CARMEN,
+    ...overrides,
+  };
+}
+
+export function deletedExpenseList(
+  items: readonly DeletedExpenseItemFixture[],
+  overrides: Partial<DeletedExpenseListFixture> = {},
+): DeletedExpenseListFixture {
+  return { items: [...items], total: items.length, page: 1, pageSize: 20, ...overrides };
+}
+
+/** What the fake API answers for one deleted-list request: a page, or a ready-made response. */
+export type DeletedResponder = (
+  url: URL,
+) => DeletedExpenseListFixture | Response | Promise<DeletedExpenseListFixture | Response>;
+
+/** Answers GET /api/v1/company-expenses/deleted (and the category list) and records every request URL. */
+export function deletedExpensesBackend(answer: DeletedExpenseListFixture | DeletedResponder): { calls: URL[] } {
+  const calls: URL[] = [];
+  categoriesBackend();
+  server.use(
+    http.get('*/api/v1/company-expenses/deleted', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { calls };
+}
+
+/** Answers POST /api/v1/company-expenses/{id}/restore (default: 204) and records each id and Idempotency-Key. */
+export function restoreExpenseBackend(reply: (id: string) => Response | Promise<Response> = noContent): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/company-expenses/:id/restore', ({ params, request }) => {
       const id = String(params.id);
       calls.ids.push(id);
       calls.keys.push(request.headers.get('Idempotency-Key'));
