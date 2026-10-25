@@ -117,6 +117,42 @@ public static class AuditActions
     /// <summary>A waiting email change was called off; the detail is none, or <c>taken</c> when the address was taken first (D-40).</summary>
     public const string ProfileEmailChangeCanceled = "profile.email-change-canceled";
 
+    /// <summary>A company expense was added (D-27).</summary>
+    public const string CompanyExpenseAdded = "company-expense.added";
+
+    /// <summary>A company expense's amount, date, category, description or notes changed (D-27).</summary>
+    public const string CompanyExpenseChanged = "company-expense.changed";
+
+    /// <summary>A company expense's payer changed (D-27).</summary>
+    public const string CompanyExpensePayerChanged = "company-expense.payer-changed";
+
+    /// <summary>A company expense was deleted into the bin (D-27).</summary>
+    public const string CompanyExpenseDeleted = "company-expense.deleted";
+
+    /// <summary>A deleted company expense was restored (D-27).</summary>
+    public const string CompanyExpenseRestored = "company-expense.restored";
+
+    /// <summary>A deleted company expense was removed for good (D-27).</summary>
+    public const string CompanyExpensePermanentlyDeleted = "company-expense.permanently-deleted";
+
+    /// <summary>An expense category was added (D-27).</summary>
+    public const string ExpenseCategoryAdded = "expense-category.added";
+
+    /// <summary>An expense category was renamed (D-27).</summary>
+    public const string ExpenseCategoryRenamed = "expense-category.renamed";
+
+    /// <summary>An expense category's tone changed (D-27).</summary>
+    public const string ExpenseCategoryRecolored = "expense-category.recolored";
+
+    /// <summary>An expense category was retired (D-27).</summary>
+    public const string ExpenseCategoryRetired = "expense-category.retired";
+
+    /// <summary>A retired expense category was reactivated (D-27).</summary>
+    public const string ExpenseCategoryReactivated = "expense-category.reactivated";
+
+    /// <summary>An unused expense category was deleted (D-27).</summary>
+    public const string ExpenseCategoryDeleted = "expense-category.deleted";
+
     /// <summary>Sign-in failure detail: no account has that email.</summary>
     public const string DetailUnknownAccount = "unknown-account";
 
@@ -270,5 +306,17 @@ public static class AuditActions
         ProfileEmailChangeRequested,
         ProfileEmailChanged,
         ProfileEmailChangeCanceled,
+        CompanyExpenseAdded,
+        CompanyExpenseChanged,
+        CompanyExpensePayerChanged,
+        CompanyExpenseDeleted,
+        CompanyExpenseRestored,
+        CompanyExpensePermanentlyDeleted,
+        ExpenseCategoryAdded,
+        ExpenseCategoryRenamed,
+        ExpenseCategoryRecolored,
+        ExpenseCategoryRetired,
+        ExpenseCategoryReactivated,
+        ExpenseCategoryDeleted,
     ];
 }

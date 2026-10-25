@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-19T03:40:00-05:00
+updated: 2026-10-25T07:00:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -123,6 +123,31 @@ Handlers build the target id with `AuditKey.Of(id)` (lower-case `D` format).
 | `profile.email-change-requested` | A signed-in user asks to change their sign-in email (`POST /api/v1/profile/email-change`) with the right current password, or asks for the link again while the change waits (`POST /api/v1/profile/email-change/resend`). A wrong password, a refused address, a locked account and a resend with nothing waiting write no such entry (a wrong password that locks the account writes `auth.lockout` instead) | `User` id (the caller's own) | None for the first request; `resent` for a resend. Never either address | `Record`, in the same transaction as the pending address, the 24-hour link and the two emails; a new request replaces the older link in that transaction |
 | `profile.email-change-canceled` | A waiting email change ends without applying. Either the caller calls it off (`DELETE /api/v1/profile/email-change`), a Manager calls it off for the person (`DELETE /api/v1/users/{id}/email-change`; the actor is the Manager), or the link is used after another account took the new address (`POST /api/v1/profile/email-change/confirm` answers 409 `email-change.taken`). A cancel with nothing waiting, and the read-only `check`, write nothing | `User` id (the account whose change ended) | None for a cancel by the caller or a Manager; `taken` when the address was taken first. Never either address | `Record`, in the same transaction as the cleared pending address and the revoked or spent links |
 | `profile.email-changed` | The new address is confirmed from the emailed link (`POST /api/v1/profile/email-change/confirm`) and becomes the sign-in email. The read-only `check` writes nothing | `User` id (the account that changed) | None. Never either address | `Record`, in the same transaction as the email move and the spent link |
+
+## Phase 6 expense and category events (AUDIT-01, D-27)
+
+Same rules as the tables above: the target is the thing acted on, by id, and the code is a constant in
+`Csps.Domain.Auditing.AuditActions`. The detail follows one format, written and read by `Csps.Application.Common.AuditDetailFormat`:
+`key=value` and `key=old>new` pairs joined by `;`. Amounts are written as `0.00` with a dot, dates as `yyyy-MM-dd` and ids as
+dashed lower-case GUIDs. The only free text is a category name, and `%`, `;`, `=` and `>` in it are percent-encoded (`%25`, `%3B`,
+`%3D`, `%3E`) so a name can never break the format; `Parse` reverses it exactly. **An expense description or notes text never
+appears in a detail.** A change to them is written as the field names in a `fields=` pair only. The worst case of every detail stays
+under the 400 character limit, which a unit test checks. Each write is `Record`, in the same transaction as the change.
+
+| Code | Written when | Target | Detail | Write path |
+|------|--------------|--------|--------|------------|
+| `company-expense.added` | A company expense is added | `CompanyExpense` id | The snapshot `date=2026-10-05;category=<id>;amount=1200.00;payer=<id>` | `Record`, with the new expense |
+| `company-expense.changed` | An expense is saved with a different amount, date, category, description or notes. A save of the same values writes nothing | `CompanyExpense` id | Only the changed pairs among `amount`, `date` and `category`, each as `old>new`; then `fields=description,notes` naming the text fields that changed (never their text); then `payer=<id>`, the current payer, which the Done to column reads | `Record`, with the save |
+| `company-expense.payer-changed` | An expense is saved with a different payer | `CompanyExpense` id | `payer=<old id>><new id>` | `Record`, with the save; a save that changes both the payer and other fields writes both entries |
+| `company-expense.deleted` | An expense is deleted into the bin | `CompanyExpense` id | The snapshot `date=2026-10-05;category=<id>;amount=1200.00;payer=<id>` | `Record`, with the delete |
+| `company-expense.restored` | A deleted expense is restored from the bin | `CompanyExpense` id | The same snapshot | `Record`, with the restore |
+| `company-expense.permanently-deleted` | A deleted expense is removed for good | `CompanyExpense` id | The same snapshot | `Record`, with the removal |
+| `expense-category.added` | A category is added | `ExpenseCategory` id | `name=<encoded name>;tone=<tone>` | `Record`, with the new category |
+| `expense-category.renamed` | A category is renamed | `ExpenseCategory` id | `name=<old encoded>><new encoded>` | `Record`, with the rename |
+| `expense-category.recolored` | A category's tone changes | `ExpenseCategory` id | `tone=<old>><new>` | `Record`, with the change |
+| `expense-category.retired` | A category is retired, so the Add picker no longer offers it | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
+| `expense-category.reactivated` | A retired category is made available again | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
+| `expense-category.deleted` | An unused category is deleted | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the delete |
 
 ## Viewing the log
 
