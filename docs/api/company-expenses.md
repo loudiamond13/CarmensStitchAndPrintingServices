@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T09:15:00-05:00
+updated: 2026-10-25T10:35:00-05:00
 ---
 
 # The company expenses API
@@ -122,6 +122,37 @@ notes never reach the audit log, because they can hold personal details (D-06).
 
 An expense counts against its payer's money on hand **from the moment it is saved, not from its date**. A future-dated expense
 therefore lowers the payer's balance at once. Soft-deleted expenses never count (MONEY-01), and a restored one counts again.
+
+## Editing an expense (CEXP-02, CEXP-04, CEXP-05, SEC-07, D-11, D-26)
+
+| Method and path | Body | Answers |
+|---|---|---|
+| `PUT /company-expenses/{id}` | `{ date, categoryId, description, amount, paidByUserId, notes, version }` | `200` the saved expense, `400` with field errors, `401`, `403` `company-expenses.not-yours`, `404` `company-expenses.not-found`, `409` `edit.stale`. |
+
+The body is the Add form plus the `version` the form was opened with (the `version` of the `GET` answer). There is no
+`Idempotency-Key`: a form edit is never retried by the server.
+
+- **Same field rules, same words.** The date, category, description, amount, payer and notes rules and messages are the table
+  above, held in one validator shared with the POST. `version` must be base64 of exactly 8 bytes, else `400` on `version` with
+  "Reload the form and try again."
+- **Step order.** The form is checked first (`400`), then the expense is found (`404`), then the caller's right to edit it (`403`),
+  then the version (`409`), then the category and payer that the form changes (`400`). The first failure answers and nothing is saved.
+- **Who may edit (D-26).** A Manager may edit any expense. An Admin may edit only one they recorded or are named as payer of;
+  otherwise `403` with the code `company-expenses.not-yours` and "Admins can edit only the expenses they recorded or paid. Ask a
+  Manager to change it." The list's `canEdit` uses the same rule. An Admin who moves the payer away from themselves on an expense
+  someone else recorded gets `200`, and from then on `canEdit` is false for them and a further `PUT` is `403`.
+- **Stale versions (SEC-07).** A `version` that is not the stored one answers `409` with the code `edit.stale` and "This was changed
+  by someone else. Reload and try again." Nothing is stored. When two people send the same version together, exactly one gets
+  `200` and the other `409`; the stored values and the list's `periodTotal` are the winner's.
+- **A saved payer or category may stay.** Only a payer or category the form changes is checked. A changed payer must pass the same
+  rule as the POST (active Admin or Manager with a password, not locked, not deleted), else `400` on `paidByUserId`. A changed
+  category must exist and not be retired, else `400` on `categoryId`. An expense keeps its retired category, and its payer after
+  that person is deactivated, while the form leaves them as they are (D-11, OQ-7).
+- **Nothing changed.** A form whose values equal the stored ones answers `200` with the same `version` and writes nothing.
+- **Who changed it comes from the server (SEC-08).** `recordedBy` stays the creator. `lastChangedBy` and `lastChangedAt` are the
+  editor and the server time. A `createdById`, `createdAt`, `updatedById` or `updatedAt` in the body is ignored. Names are read
+  from the people's own rows, so a deleted person keeps their name with `formerStaff` true.
+- A soft-deleted or unknown id answers `404` "This expense was deleted."
 
 ## Listing expenses (CEXP-01, CEXP-05, D-23, D-25, D-26)
 
