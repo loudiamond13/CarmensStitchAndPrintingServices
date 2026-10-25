@@ -5,7 +5,9 @@ import {
   AUDIT_DETAIL_SENTENCES,
   AUDIT_GROUPS,
   auditActionLabel,
+  describeAuditChange,
   describeAuditDetail,
+  describeAuditSnapshot,
 } from './auditCopy';
 
 // The audit viewer's words (AUDIT-02, D-28, D-40): a label and a group for every action the API can send, and the
@@ -50,6 +52,18 @@ const API_ACTIONS = [
   'profile.email-change-requested',
   'profile.email-changed',
   'profile.email-change-canceled',
+  'company-expense.added',
+  'company-expense.changed',
+  'company-expense.payer-changed',
+  'company-expense.deleted',
+  'company-expense.restored',
+  'company-expense.permanently-deleted',
+  'expense-category.added',
+  'expense-category.renamed',
+  'expense-category.recolored',
+  'expense-category.retired',
+  'expense-category.reactivated',
+  'expense-category.deleted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -72,8 +86,19 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('names the three groups from the UI-SPEC', () => {
-    expect(AUDIT_GROUPS).toEqual(['Sign-in and security', 'Staff accounts', 'Profile changes']);
+  it('names the five groups from the UI-SPEC', () => {
+    expect(AUDIT_GROUPS).toEqual([
+      'Sign-in and security',
+      'Staff accounts',
+      'Profile changes',
+      'Company expenses',
+      'Expense categories',
+    ]);
+  });
+
+  it('uses the UI-SPEC labels of the expense and category events', () => {
+    expect(auditActionLabel('company-expense.changed')).toBe('Expense changed');
+    expect(auditActionLabel('company-expense.payer-changed')).toBe('Expense payer changed');
   });
 
   it('shows the key itself when the action is unknown', () => {
@@ -136,6 +161,33 @@ describe('describeAuditDetail (D-40)', () => {
         expect(describeAuditDetail(action, detail) ?? '').not.toContain('@');
       }
     }
+  });
+});
+
+const NO_PEOPLE = { fromPerson: null, toPerson: null } as const;
+
+describe('describeAuditChange (D-27)', () => {
+  it('reads an amount change in pesos', () => {
+    expect(describeAuditChange({ field: 'amount', from: '1200.00', to: '1250.00', ...NO_PEOPLE })).toBe(
+      'Amount: ₱1,200.00 to ₱1,250.00',
+    );
+  });
+
+  it('reads a changed description as the fixed sentence, never as text', () => {
+    expect(describeAuditChange({ field: 'description', from: null, to: null, ...NO_PEOPLE })).toBe('Description changed');
+  });
+});
+
+describe('describeAuditSnapshot (D-27)', () => {
+  it('reads the facts of an added expense on one line', () => {
+    expect(
+      describeAuditSnapshot({
+        date: '2026-10-05',
+        category: 'Utilities',
+        amount: 8642.35,
+        payer: { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Ana Reyes', formerStaff: false },
+      }),
+    ).toBe('Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes');
   });
 });
 
