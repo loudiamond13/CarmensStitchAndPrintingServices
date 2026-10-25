@@ -7,6 +7,7 @@ import {
   formatBusinessDateTime,
   formatBusinessTime,
   formatCalendarDate,
+  formatMonthShort,
   isMoneyText,
   MONEY_TEXT,
   moneyTextToCentavos,
@@ -347,4 +348,27 @@ describe('centavosToMoneyText', () => {
       expect(centavosToMoneyText(moneyTextToCentavos(padded))).toBe(padded);
     }
   });
+});
+
+describe('formatMonthShort', () => {
+  it.for([
+    ['2026-11-01', 'Nov'],
+    ['2026-09-01', 'Sep'],
+    ['2027-01-01', 'Jan'],
+    ['2026-12-31', 'Dec'],
+  ] as const)('shows %s as the short month name', ([ymd, month]) => {
+    expect(formatMonthShort(ymd)).toBe(month);
+  });
+
+  it.for(MACHINE_ZONES)('does not move with a machine in %s', (zone) => {
+    useMachineZone(zone);
+    expect(formatMonthShort('2026-11-01')).toBe('Nov');
+  });
+
+  it.for(['2026-02-30', '2026-13-01', '', 'not a date', '2026-11', '2026-11-01T00:00:00Z'])(
+    'gives null for %j',
+    (value) => {
+      expect(formatMonthShort(value)).toBeNull();
+    },
+  );
 });

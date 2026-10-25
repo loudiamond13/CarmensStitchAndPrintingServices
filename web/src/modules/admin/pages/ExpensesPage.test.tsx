@@ -14,8 +14,10 @@ import {
   categoriesBackend,
   EXPENSE_CATEGORIES,
   expenseItem,
+  expenseKpis,
   expenseList,
   expensesBackend,
+  kpisBackend,
   LONG_DESCRIPTION,
   LONG_NAME,
   PAOLO,
@@ -823,6 +825,112 @@ describe('no matches and Clear Filters (P2, P5 05-20 rule)', () => {
     await screen.findByText('Shop rent for October');
     expect(screen.getByText('Category: Utilities')).toBeInTheDocument();
     expect(screen.getByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    await expectNoAxeViolations(view.container);
+  });
+});
+
+/** The KPI card that holds a label, found by its overline text (head, then card). */
+function kpiCard(label: string): HTMLElement {
+  const card = screen.getByText(label).parentElement?.parentElement;
+  if (card === null || card === undefined) {
+    throw new Error(`No KPI card for ${label}`);
+  }
+  return card;
+}
+
+describe('month KPIs (CEXP-03, D-24)', () => {
+  const NOVEMBER = expenseKpis({
+    today: '2026-11-14',
+    thisMonth: { month: '2026-11-01', total: 700, count: 2 },
+    lastMonth: { month: '2026-10-01', total: 300, count: 1 },
+    topCategory: { category: SUPPLIES, total: 500, sharePercent: 71 },
+  });
+
+  it("shows this month, last month and the top category as the server sends them, labelled with the server's months", async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(NOVEMBER);
+    renderPage();
+
+    await screen.findByText('This month · Nov');
+    expect(kpiCard('This month · Nov').textContent).toContain('₱700.00');
+    expect(kpiCard('This month · Nov').textContent).toContain('2 entries so far');
+    expect(kpiCard('Last month · Oct').textContent).toContain('₱300.00');
+    expect(kpiCard('Last month · Oct').textContent).toContain('Full month');
+    const top = kpiCard('Top category · Nov');
+    expect(top.textContent).toContain('Supplies');
+    expect(top.textContent).toContain('₱500.00 · 71% of this month');
+  });
+
+  it('puts the KPI row above the toolbar and reads the KPIs once, with no parameters', async () => {
+    expensesBackend(expenseList(ROWS));
+    const { calls } = kpisBackend(NOVEMBER);
+    renderPage();
+
+    await screen.findByText('This month · Nov');
+    const search = screen.getByRole('search');
+    expect(kpiCard('This month · Nov').compareDocumentPosition(search)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.search).toBe('');
+  });
+
+  it('says "1 entry so far" for one entry', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 90, count: 1 } }));
+    renderPage();
+
+    await screen.findByText('This month · Oct');
+    expect(kpiCard('This month · Oct').textContent).toContain('1 entry so far');
+  });
+
+  it('says "No entries yet" for none', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 0, count: 0 }, topCategory: null }));
+    renderPage();
+
+    await screen.findByText('This month · Oct');
+    expect(kpiCard('This month · Oct').textContent).toContain('No entries yet');
+  });
+
+  it('shows the figures the server sent and never adds, counts or rounds them itself', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(
+      expenseKpis({
+        thisMonth: { month: '2026-10-01', total: '1234.5', count: 7 },
+        topCategory: { category: SUPPLIES, total: '99.99', sharePercent: 13 },
+      }),
+    );
+    renderPage();
+
+    await screen.findByText('This month · Oct');
+    expect(kpiCard('This month · Oct').textContent).toContain('₱1,234.50');
+    expect(kpiCard('This month · Oct').textContent).toContain('7 entries so far');
+    expect(kpiCard('Top category · Oct').textContent).toContain('₱99.99 · 13% of this month');
+  });
+
+  it('does not read the KPIs again when a list filter changes', async () => {
+    const user = userEvent.setup();
+    const { calls: listCalls } = expensesBackend(expenseList(ROWS));
+    const { calls } = kpisBackend(NOVEMBER);
+    renderPage();
+    await screen.findByText('This month · Nov');
+    await screen.findByText('Shop rent for October');
+
+    await user.selectOptions(await categorySelect(), 'Utilities');
+    await waitFor(() => {
+      expect(listCalls.some((url) => url.searchParams.has('category'))).toBe(true);
+    });
+    await screen.findByText('Shop rent for October');
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it('has no axe violations with the KPI row and the rows', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(NOVEMBER);
+    const view = renderPage();
+
+    await screen.findByText('This month · Nov');
+    await screen.findByText('Shop rent for October');
     await expectNoAxeViolations(view.container);
   });
 });

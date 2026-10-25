@@ -1,7 +1,7 @@
 // Company expense list fixtures for component and service tests (plan 06-04): response builders typed from the generated
 // contract, and an MSW handler that records every request. Later expense plans reuse them. Long text for the wrap checks
 // is here too: a 200-character description and a 100-character staff name (UI-SPEC UI Considerations, long-text). Plan 06-07
-// adds the category list the filter reads.
+// adds the category list the filter reads, and plan 06-09 the month KPI figures.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
 import type { components } from '@/types/api.generated';
@@ -85,10 +85,42 @@ export type ExpenseResponder = (
 /** Answers GET /api/v1/company-expenses (and, by default, the category list) and records every list request URL. */
 export function expensesBackend(answer: ExpenseListResponseFixture | ExpenseResponder): { calls: URL[] } {
   const calls: URL[] = [];
-  // The page reads the category list for its filter; a test that cares about it calls categoriesBackend after this.
+  // The page also reads the category list and the month figures; a test that cares calls categoriesBackend or kpisBackend after this.
   categoriesBackend();
+  kpisBackend();
   server.use(
     http.get('*/api/v1/company-expenses', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return { calls };
+}
+
+export type ExpenseKpisFixture = Schemas['CompanyExpenseKpisResponse'];
+export type MonthKpiFixture = Schemas['MonthKpi'];
+
+/** The month figures the fixtures answer with: October (this month) and September, Supplies on top with 71 percent. */
+export function expenseKpis(overrides: Partial<ExpenseKpisFixture> = {}): ExpenseKpisFixture {
+  return {
+    today: EXPENSE_TODAY,
+    thisMonth: { month: '2026-10-01', total: 700, count: 2 },
+    lastMonth: { month: '2026-09-01', total: 300, count: 1 },
+    topCategory: { category: SUPPLIES, total: 500, sharePercent: 71 },
+    ...overrides,
+  };
+}
+
+/** What the fake API answers for one KPI request: the figures, or a ready-made response. */
+export type KpisResponder = (url: URL) => ExpenseKpisFixture | Response | Promise<ExpenseKpisFixture | Response>;
+
+/** Answers GET /api/v1/company-expenses/kpis and records every request URL. A later call overrides an earlier one. */
+export function kpisBackend(answer: ExpenseKpisFixture | KpisResponder = expenseKpis()): { calls: URL[] } {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/company-expenses/kpis', async ({ request }) => {
       const url = new URL(request.url);
       calls.push(url);
       const body = typeof answer === 'function' ? await answer(url) : answer;

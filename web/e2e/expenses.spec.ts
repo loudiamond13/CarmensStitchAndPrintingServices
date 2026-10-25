@@ -64,11 +64,14 @@ function isListBody(value: unknown): value is ListBody {
   );
 }
 
+/** True for the list route only; the KPI route sits under it and is read by the same page. */
+function isListUrl(url: string): boolean {
+  return new URL(url).pathname === '/api/v1/company-expenses';
+}
+
 /** Opens a Company Expenses URL and returns what the list call answered. */
 async function openList(page: Page, path: string): Promise<ListBody> {
-  const listed = page.waitForResponse(
-    (response) => response.url().includes('/api/v1/company-expenses') && response.request().method() === 'GET',
-  );
+  const listed = page.waitForResponse((response) => isListUrl(response.url()) && response.request().method() === 'GET');
   await page.goto(path);
   const body: unknown = await (await listed).json();
   if (!isListBody(body)) {
@@ -201,9 +204,7 @@ function uniqueWord(): string {
 function listAnswer(page: Page, matches: (url: URL) => boolean): Promise<ListBody> {
   const answered = page.waitForResponse(
     (response) =>
-      response.request().method() === 'GET' &&
-      response.url().includes('/api/v1/company-expenses') &&
-      matches(new URL(response.url())),
+      response.request().method() === 'GET' && isListUrl(response.url()) && matches(new URL(response.url())),
   );
   return answered.then(async (response) => {
     const body: unknown = await response.json();
@@ -324,5 +325,132 @@ test('@expenses-filters search by a payer, filter by category and dates, chips a
   await expect(page.getByLabel('To', { exact: true })).toHaveValue(defaults.to);
   await expect(page.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('10');
   await expect(page.getByText(/^(Search|Category|Dates):/)).toHaveCount(0);
+  await expectNoAxeViolations(page);
+});
+
+interface MonthBody {
+  readonly month: string;
+  readonly total: number;
+  readonly count: number;
+}
+
+interface KpisBody {
+  readonly thisMonth: MonthBody;
+  readonly lastMonth: MonthBody;
+  readonly topCategory: {
+    readonly category: { readonly name: string };
+    readonly total: number;
+    readonly sharePercent: number;
+  } | null;
+}
+
+function isMonthBody(value: unknown): value is MonthBody {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'month' in value &&
+    typeof value.month === 'string' &&
+    'total' in value &&
+    typeof value.total === 'number' &&
+    'count' in value &&
+    typeof value.count === 'number'
+  );
+}
+
+function isTopCategory(value: unknown): value is NonNullable<KpisBody['topCategory']> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'category' in value &&
+    typeof value.category === 'object' &&
+    value.category !== null &&
+    'name' in value.category &&
+    typeof value.category.name === 'string' &&
+    'total' in value &&
+    typeof value.total === 'number' &&
+    'sharePercent' in value &&
+    typeof value.sharePercent === 'number'
+  );
+}
+
+function isKpisBody(value: unknown): value is KpisBody {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'thisMonth' in value &&
+    isMonthBody(value.thisMonth) &&
+    'lastMonth' in value &&
+    isMonthBody(value.lastMonth) &&
+    'topCategory' in value &&
+    (value.topCategory === null || isTopCategory(value.topCategory))
+  );
+}
+
+/** "Oct": the short month name of a first-of-month date, in English, from the server's own month field. */
+function monthName(ymd: string): string {
+  return new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+}
+
+/** The card that holds an overline label (the label sits in the card's head). */
+function kpiCard(page: Page, label: string) {
+  return page.getByText(label, { exact: true }).locator('xpath=../..');
+}
+
+test('@expenses-kpis the three cards match the KPI answer the page received, and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(90_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  // One expense today, so this month holds at least one entry whatever the shared database held before.
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(0),
+    categoryId: SUPPLIES,
+    description: `E2E kpi ${randomUUID().slice(0, 8)}`,
+    amount: 42.5,
+  });
+  await signInAs(page, request, manager);
+
+  const answered = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/v1/company-expenses/kpis' && response.request().method() === 'GET',
+  );
+  await page.goto('/admin/expenses');
+  const body: unknown = await (await answered).json();
+  if (!isKpisBody(body)) {
+    throw new Error('GET /api/v1/company-expenses/kpis returned an unexpected body.');
+  }
+
+  // Core Value: the cards show the server's figures and the server's month names, nothing recomputed in the browser.
+  const thisMonth = kpiCard(page, `This month · ${monthName(body.thisMonth.month)}`);
+  await expect(thisMonth).toContainText(peso(body.thisMonth.total));
+  await expect(thisMonth).toContainText(
+    body.thisMonth.count === 1 ? '1 entry so far' : `${String(body.thisMonth.count)} entries so far`,
+  );
+  const lastMonth = kpiCard(page, `Last month · ${monthName(body.lastMonth.month)}`);
+  await expect(lastMonth).toContainText(peso(body.lastMonth.total));
+  await expect(lastMonth).toContainText('Full month');
+  expect(body.thisMonth.count).toBeGreaterThan(0);
+  expect(body.topCategory).not.toBeNull();
+  if (body.topCategory !== null) {
+    const top = kpiCard(page, `Top category · ${monthName(body.thisMonth.month)}`);
+    await expect(top).toContainText(body.topCategory.category.name);
+    await expect(top).toContainText(
+      `${peso(body.topCategory.total)} · ${String(body.topCategory.sharePercent)}% of this month`,
+    );
+  }
+
+  // The KPI row sits above the toolbar, and the page still fits a 320 px phone with the row in one column.
+  const rowTop = (await thisMonth.boundingBox())?.y ?? 0;
+  const toolbarTop = (await page.getByRole('search').boundingBox())?.y ?? 0;
+  expect(rowTop).toBeLessThan(toolbarTop);
+  await expectNoAxeViolations(page);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await expect(thisMonth).toBeVisible();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
 });
