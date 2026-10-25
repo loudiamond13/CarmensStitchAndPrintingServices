@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-10-25T14:00:42.519Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-10-25T14:16:45.267Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 560e70a89823cf3acc7f2c9acc842867e5731f9a
+state_head: a89a31870ef9ac467d4ad140edb649552c1a0818
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 171
+  completed_plans: 172
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T06:55:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 5 of 19 (06-01 to 06-04 and 06-11 are done; next is 06-05)
+Plan: 7 of 19 (06-01 to 06-05 and 06-11 are done; next is 06-06)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -228,6 +228,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P03 | 23 min | 3 tasks | 25 files |
 | Phase 06 P11 | 8 min | 2 tasks | 7 files |
 | Phase 06 P04 | 41 min | 2 tasks | 29 files |
+| Phase 06 P05 | 13 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -598,6 +599,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-04: ResponsiveTable has two additive props, footerLayout (a footer cell can span columns and carry its own phone label) and emptyTitle; the E1 footer spans Date to Description and the phone label is Total
 - [Phase 06]: 06-04: e2e specs on the shared CSPS_E2E database judge every row against the response it was drawn from (100 a page) and never rely on a row's page position, because earlier runs keep their rows
 - [Phase 06]: 06-04: CategoryBadge lets a long name wrap through important utilities (h-auto!, whitespace-normal!) passed as Badge className; no avatar is drawn for a System recorder
+- [Phase 06]: 06-05: the KPI share is rounded in the handler (half away from zero) and the reader returns raw decimals; KPI tests with a distant fixed clock start sessions on the clock host and mint tokens for the real now (TestSessions takes any host)
 
 ### Pending Todos
 
@@ -670,6 +672,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T14:00:41.650Z
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-10-25T14:16:44.395Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None
