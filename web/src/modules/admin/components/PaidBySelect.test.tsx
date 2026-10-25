@@ -22,7 +22,14 @@ afterEach(() => {
 
 const ME = { id: ME_ID, name: 'Carmen Reyes' };
 
-function renderSelect(props: { value?: string; onChange?: (id: string) => void; error?: string } = {}) {
+function renderSelect(
+  props: {
+    value?: string;
+    onChange?: (id: string) => void;
+    error?: string;
+    savedPayer?: { id: string; name: string; formerStaff: boolean };
+  } = {},
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <PaidBySelect
@@ -30,6 +37,7 @@ function renderSelect(props: { value?: string; onChange?: (id: string) => void; 
         onChange={props.onChange ?? (() => undefined)}
         currentUser={ME}
         error={props.error}
+        savedPayer={props.savedPayer ?? null}
       />
     </QueryClientProvider>,
   );
@@ -114,5 +122,48 @@ describe('PaidBySelect', () => {
     expect(screen.getByText('Choose who paid.')).toBeInTheDocument();
     expect(screen.queryByText('The staff member whose money paid for this.')).toBeNull();
     await expectNoAxeViolations(document.body);
+  });
+
+  describe('the saved payer of an edit (OQ-7)', () => {
+    const OLD = { id: '00000000-0000-4000-8000-0000000000b1', name: 'Old Helper', formerStaff: false };
+
+    it('keeps a saved payer the lookup no longer holds, selected as "{name} (inactive)"', async () => {
+      staffBackend();
+      renderSelect({ value: OLD.id, savedPayer: OLD });
+      const select = screen.getByRole('combobox', { name: /^Paid by/ });
+      await waitFor(() => {
+        expect(select).toBeEnabled();
+      });
+
+      expect(optionTexts(select)).toEqual([
+        'Carmen Reyes (you)',
+        'Liza Mercado',
+        'Paolo Garcia',
+        'Old Helper (inactive)',
+      ]);
+      expect(select).toHaveValue(OLD.id);
+    });
+
+    it('reads "{name} (former staff)" when the payer account was deleted', async () => {
+      staffBackend();
+      renderSelect({ value: OLD.id, savedPayer: { ...OLD, formerStaff: true } });
+      const select = screen.getByRole('combobox', { name: /^Paid by/ });
+      await waitFor(() => {
+        expect(select).toBeEnabled();
+      });
+
+      expect(optionTexts(select)).toContain('Old Helper (former staff)');
+    });
+
+    it('adds nothing when the saved payer is still in the lookup', async () => {
+      staffBackend();
+      renderSelect({ value: LIZA_ID, savedPayer: { id: LIZA_ID, name: 'Liza Mercado', formerStaff: false } });
+      const select = screen.getByRole('combobox', { name: /^Paid by/ });
+      await waitFor(() => {
+        expect(select).toBeEnabled();
+      });
+
+      expect(optionTexts(select)).toEqual(['Carmen Reyes (you)', 'Liza Mercado', 'Paolo Garcia']);
+    });
   });
 });

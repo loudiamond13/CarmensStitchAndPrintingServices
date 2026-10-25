@@ -12,8 +12,11 @@ import {
   EXPENSE_TODAY,
   expenseDetail,
   expenseDetailBackend,
+  LIZA_ID,
+  ME_ACTOR,
   ME_ID,
   problemResponse,
+  RETIRED_CATEGORY_ID,
   staffBackend,
   SUPPLIES,
   updateExpenseBackend,
@@ -440,30 +443,30 @@ describe('E2 close, reopen and keys', () => {
 
 // E2 Expense modal, edit mode (CEXP-02, CEXP-04, SEC-07, 05 D-13, D-20; plan 06-14): the detail is read fresh on every open and
 // the form keeps the row version it opened with.
+const EXPENSE_ID = expenseDetail().id;
+
+function renderEdit(handlers: { onClose?: () => void; onSaved?: (expense: unknown) => void } = {}) {
+  const onClose = handlers.onClose ?? vi.fn();
+  const onSaved = handlers.onSaved ?? vi.fn();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ExpenseModal mode="edit" expenseId={EXPENSE_ID} today={EXPENSE_TODAY} onClose={onClose} onSaved={onSaved} />
+    </QueryClientProvider>,
+  );
+  return { onClose, onSaved };
+}
+
+const saveChanges = () => screen.getByRole('button', { name: /^(Save Changes|Saving)$/ });
+
+async function loaded() {
+  await screen.findByRole('textbox', { name: /^Description/ });
+  await waitFor(() => {
+    expect(category()).toBeEnabled();
+    expect(paidBy()).toBeEnabled();
+  });
+}
+
 describe('E2 edit mode', () => {
-  const EXPENSE_ID = expenseDetail().id;
-
-  function renderEdit(handlers: { onClose?: () => void; onSaved?: (expense: unknown) => void } = {}) {
-    const onClose = handlers.onClose ?? vi.fn();
-    const onSaved = handlers.onSaved ?? vi.fn();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ExpenseModal mode="edit" expenseId={EXPENSE_ID} today={EXPENSE_TODAY} onClose={onClose} onSaved={onSaved} />
-      </QueryClientProvider>,
-    );
-    return { onClose, onSaved };
-  }
-
-  const saveChanges = () => screen.getByRole('button', { name: /^(Save Changes|Saving)$/ });
-
-  async function loaded() {
-    await screen.findByRole('textbox', { name: /^Description/ });
-    await waitFor(() => {
-      expect(category()).toBeEnabled();
-      expect(paidBy()).toBeEnabled();
-    });
-  }
-
   it('says "Loading expense…" until the detail arrives, then "Expense loaded." and fills the saved values with focus on Date', async () => {
     backends();
     expenseDetailBackend(expenseDetail({ notes: 'Bought in bulk', amount: 640 }));
@@ -591,5 +594,284 @@ describe('E2 edit mode', () => {
     await loaded();
 
     await expectNoAxeViolations(screen.getByRole('dialog', { name: 'Edit Expense' }));
+  });
+});
+
+// A stale save, a lost right and a deletion while editing keep every typed value and say what happened (SEC-07, D-26, 05 D-20).
+describe('E2 edit conflicts', () => {
+  const STALE_BODY = { code: 'edit.stale', detail: 'This was changed by someone else.' };
+  const STALE_TITLE = 'This was changed by someone else.';
+  const STALE_HELP = 'Reload and try again. Your typed changes stay here until you press Load Latest.';
+
+  async function typeAmount(user: ReturnType<typeof userEvent.setup>, text: string) {
+    await user.clear(amount());
+    await user.type(amount(), text);
+  }
+
+  it('keeps every typed value on a 409, shows the banner and puts focus on Load Latest', async () => {
+    backends();
+    expenseDetailBackend();
+    updateExpenseBackend(() => problem(409, STALE_BODY));
+    const user = userEvent.setup();
+    const { onSaved } = renderEdit();
+    await loaded();
+
+    await typeAmount(user, '700');
+    await user.type(description(), ' for the shop');
+    await user.click(saveChanges());
+
+    expect(await screen.findByText(STALE_TITLE)).toBeVisible();
+    expect(screen.getByText(STALE_HELP)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+    expect(amount().value).toContain('700');
+    expect(description()).toHaveValue('Thread and needles for the shop');
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('Load Latest replaces the values and the version, removes the banner, focuses Date and says so politely', async () => {
+    backends();
+    expenseDetailBackend();
+    let calls = 0;
+    const sent = updateExpenseBackend(() => {
+      calls += 1;
+      return calls === 1 ? problem(409, STALE_BODY) : Response.json(expenseDetail({ amount: 905 }));
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    await typeAmount(user, '700');
+    await user.click(saveChanges());
+    await screen.findByText(STALE_TITLE);
+
+    expenseDetailBackend(
+      expenseDetail({ amount: 900, description: 'Thread, needles and bobbins', version: 'AAAAAAAAB9Q=' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Load Latest' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(STALE_TITLE)).toBeNull();
+    });
+    expect(amount()).toHaveValue('900.00');
+    expect(description()).toHaveValue('Thread, needles and bobbins');
+    expect(date()).toHaveFocus();
+    expect(screen.getByText('Latest version loaded. Make your changes again.')).toBeInTheDocument();
+
+    await user.click(saveChanges());
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(2);
+    });
+    expect(sent.bodies[1]).toMatchObject({ amount: 900, version: 'AAAAAAAAB9Q=' });
+  });
+
+  it('shows the not-yours banner on a 403, disables Save and keeps the typed values', async () => {
+    backends();
+    expenseDetailBackend();
+    const sent = updateExpenseBackend(() => problem(403, { code: 'company-expenses.not-yours' }));
+    const user = userEvent.setup();
+    const { onSaved } = renderEdit();
+    await loaded();
+    await typeAmount(user, '700');
+    await user.click(saveChanges());
+
+    expect(await screen.findByText("You can't edit this expense.")).toBeVisible();
+    expect(
+      screen.getByText('Admins can edit only the expenses they recorded or paid. Ask a Manager to change it.'),
+    ).toBeVisible();
+    expect(saveChanges()).toHaveAttribute('aria-disabled', 'true');
+    expect(amount().value).toContain('700');
+
+    await user.click(saveChanges());
+    expect(sent.bodies).toHaveLength(1);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('shows "This expense was deleted." on a 404 at save, disables Save and keeps the typed values', async () => {
+    backends();
+    expenseDetailBackend();
+    const sent = updateExpenseBackend(() => problem(404, { code: 'company-expenses.not-found' }));
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    await typeAmount(user, '700');
+    await user.click(saveChanges());
+
+    expect(await screen.findByText('This expense was deleted.')).toBeVisible();
+    expect(screen.getByText('Close this and refresh the list.')).toBeVisible();
+    expect(saveChanges()).toHaveAttribute('aria-disabled', 'true');
+    expect(amount().value).toContain('700');
+    await user.click(saveChanges());
+    expect(sent.bodies).toHaveLength(1);
+  });
+
+  it('shows "This expense was deleted." when the detail is already gone on open, with Save disabled and no Try Again', async () => {
+    backends();
+    expenseDetailBackend(() => problem(404, { code: 'company-expenses.not-found' }));
+    renderEdit();
+
+    expect(await screen.findByText('This expense was deleted.')).toBeVisible();
+    expect(screen.getByText('Close this and refresh the list.')).toBeVisible();
+    expect(saveChanges()).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByRole('button', { name: 'Try Again' })).toBeNull();
+  });
+
+  it('shows "Couldn\'t load this expense." with Try Again, and Try Again loads the form', async () => {
+    backends();
+    let calls = 0;
+    expenseDetailBackend(() => {
+      calls += 1;
+      return calls === 1 ? problem(500) : expenseDetail();
+    });
+    const user = userEvent.setup();
+    renderEdit();
+
+    expect(await screen.findByText("Couldn't load this expense.")).toBeVisible();
+    expect(saveChanges()).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await loaded();
+    expect(description()).toHaveValue('Thread and needles');
+  });
+
+  it('shows a payer or category the server refused under its field and focuses the first', async () => {
+    backends();
+    expenseDetailBackend();
+    updateExpenseBackend(() =>
+      problem(400, {
+        errors: {
+          paidByUserId: ["This person can't be chosen because their account isn't active. Choose someone else."],
+          categoryId: ['This category was retired. Choose another one.'],
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    await user.click(saveChanges());
+
+    expect(await screen.findByText('This category was retired. Choose another one.')).toBeInTheDocument();
+    expect(
+      screen.getByText("This person can't be chosen because their account isn't active. Choose someone else."),
+    ).toBeInTheDocument();
+    expect(category()).toHaveFocus();
+    expect(description()).toHaveValue('Thread and needles');
+  });
+
+  it('shows one alert line for another failure and keeps the typed values', async () => {
+    backends();
+    expenseDetailBackend();
+    updateExpenseBackend(() => problem(500));
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    await typeAmount(user, '700');
+    await user.click(saveChanges());
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(amount().value).toContain('700');
+    expect(saveChanges()).toHaveFocus();
+  });
+});
+
+describe('E2 edit saved inactive payer and retired category (OQ-7, D-11)', () => {
+  const selectedText = (select: HTMLElement) => within(select).getByRole('option', { selected: true }).textContent;
+
+  it('keeps a saved payer who is no longer active as "{name} (inactive)" and a saved retired category as "{name} (retired)", and sends them unchanged', async () => {
+    backends();
+    const OLD_ID = '00000000-0000-4000-8000-0000000000b1';
+    expenseDetailBackend(
+      expenseDetail({
+        paidBy: { id: OLD_ID, name: 'Old Helper', formerStaff: false },
+        paidByActive: false,
+        category: { id: RETIRED_CATEGORY_ID, name: 'Old subscriptions', tone: 'accent', retired: true },
+      }),
+    );
+    const sent = updateExpenseBackend();
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    expect(selectedText(paidBy())).toBe('Old Helper (inactive)');
+    expect(selectedText(category())).toBe('Old subscriptions (retired)');
+    await user.click(saveChanges());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(1);
+    });
+    expect(sent.bodies[0]).toMatchObject({ paidByUserId: OLD_ID, categoryId: RETIRED_CATEGORY_ID });
+  });
+
+  it('names a saved payer whose account was deleted "{name} (former staff)"', async () => {
+    backends();
+    expenseDetailBackend(
+      expenseDetail({
+        paidBy: { id: '00000000-0000-4000-8000-0000000000b2', name: 'Gone Helper', formerStaff: true },
+        paidByActive: false,
+      }),
+    );
+    renderEdit();
+    await loaded();
+
+    expect(selectedText(paidBy())).toBe('Gone Helper (former staff)');
+  });
+});
+
+describe('E2 edit access note (D-26)', () => {
+  const NOTE =
+    "After you save, you can't edit this expense any more. Only the person who recorded it, the person who paid it, or a Manager can.";
+  const LIZA = { id: LIZA_ID, name: 'Liza Mercado', formerStaff: false };
+
+  function signInAsAdmin() {
+    clearSession();
+    acceptSession(
+      sessionResponse({
+        user: {
+          id: ME_ID,
+          email: 'carmen@example.ph',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          role: 'Admin',
+        },
+      }),
+    );
+  }
+
+  it('shows the note to an Admin who did not record the expense once Paid by moves away from them, and hides it when changed back', async () => {
+    signInAsAdmin();
+    backends();
+    expenseDetailBackend(expenseDetail({ recordedBy: LIZA, paidBy: ME_ACTOR }));
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    expect(screen.queryByText(NOTE)).toBeNull();
+
+    await user.selectOptions(paidBy(), 'Paolo Garcia');
+    expect(await screen.findByText(NOTE)).toBeVisible();
+
+    await user.selectOptions(paidBy(), 'Carmen Reyes (you)');
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
+  it('shows no note to an Admin who recorded the expense', async () => {
+    signInAsAdmin();
+    backends();
+    expenseDetailBackend(expenseDetail({ recordedBy: ME_ACTOR, paidBy: ME_ACTOR }));
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    await user.selectOptions(paidBy(), 'Paolo Garcia');
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
+  it('shows no note to a Manager', async () => {
+    backends();
+    expenseDetailBackend(expenseDetail({ recordedBy: LIZA, paidBy: ME_ACTOR }));
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    await user.selectOptions(paidBy(), 'Paolo Garcia');
+    expect(screen.queryByText(NOTE)).toBeNull();
   });
 });

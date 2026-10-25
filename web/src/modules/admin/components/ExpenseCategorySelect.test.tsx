@@ -11,6 +11,7 @@ import {
   problemResponse,
   RENT,
   RETIRED_CATEGORY_ID,
+  SUPPLIES,
 } from '@/test/expenseFixtures';
 import { ExpenseCategorySelect } from './ExpenseCategorySelect';
 
@@ -215,6 +216,18 @@ describe('ExpenseCategorySelect picker mode', () => {
 
     expect(optionTexts(select)).toContain('Old subscriptions (retired)');
     expect(select).toHaveValue(RETIRED_CATEGORY_ID);
+  });
+
+  it('hides every other retired category while the saved one is listed', async () => {
+    categoriesBackend();
+    renderPicker({ value: SUPPLIES.id, savedCategoryId: SUPPLIES.id });
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+
+    expect(optionTexts(select)).not.toContain('Old subscriptions (retired)');
+    expect(optionTexts(select)).not.toContain('Old subscriptions');
   });
 
   it('has no axe violations', async () => {

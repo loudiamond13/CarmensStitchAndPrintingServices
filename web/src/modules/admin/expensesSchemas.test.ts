@@ -159,6 +159,24 @@ describe('expenseFormSchema', () => {
     });
   });
 
+  describe('editing a saved expense (OQ-7, D-11)', () => {
+    it('accepts the saved payer and category ids whatever their state: the server decides if they are active', () => {
+      expect(
+        messages({
+          paidByUserId: '00000000-0000-4000-8000-0000000000b1',
+          categoryId: '0b1d6f6e-3c3a-4d6e-9b7a-5c1f0e2a7d11',
+        }),
+      ).toEqual({});
+    });
+
+    it('accepts a saved date in the past and keeps the 30-day limit from the business today', () => {
+      expect(messages({ date: '2025-01-31' })).toEqual({});
+      expect(messages({ date: '2026-11-25' })).toEqual({
+        date: 'Choose a date up to 30 days from today, Nov 24, 2026 at the latest.',
+      });
+    });
+  });
+
   describe('notes', () => {
     it('refuses 1,001 characters and accepts 1,000', () => {
       expect(messages({ notes: 'n'.repeat(1001) })).toEqual({ notes: 'Keep notes to 1,000 characters or fewer.' });
