@@ -8,7 +8,7 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios as navigationScenarios } from '@/dev/scenarios/groups/navigation';
 import type { Role } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { ADMIN_NAV, AUDIT_NAV_ITEM, Sidebar, type AdminSection } from '@/components/navigation';
+import { ADMIN_NAV, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM, Sidebar, type AdminSection } from '@/components/navigation';
 import {
   navTagClasses,
   sidebarClasses,
@@ -229,6 +229,7 @@ describe('Sidebar Audit Log item (USER-08, OQ-2)', () => {
       'Company Expenses',
       'UsersManager',
       'Audit LogManager',
+      'SettingsManager',
       'My Profile',
     ]);
     expect(link('Audit Log').getAttribute('href')).toBe('/admin/audit-log');
@@ -274,6 +275,67 @@ describe('Sidebar Audit Log item (USER-08, OQ-2)', () => {
 
   it('has no axe violations with the item', async () => {
     const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="audit" withAuditLog />));
+    await expectNoAxeViolations(container);
+  });
+});
+
+// SPEC-DEVIATION: OQ-3 (contract default A) the Manager-only Settings item follows the Audit Log (plan 06-17, D-14).
+describe('Sidebar Settings item (D-14, OQ-3)', () => {
+  it('defines the Settings item beside ADMIN_NAV, Manager only, with the settings icon', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).not.toContain('settings');
+    expect(SETTINGS_NAV_ITEM).toEqual({
+      id: 'settings',
+      label: 'Settings',
+      icon: 'settings',
+      to: '/admin/settings',
+      manager: true,
+    });
+  });
+
+  it('shows a Manager Settings right after the Audit Log, with the Manager tag and the settings icon', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog />));
+
+    const labels = navLinks().map((item) => item.textContent);
+    expect(labels.indexOf('SettingsManager')).toBe(labels.indexOf('Audit LogManager') + 1);
+    expect(link('Settings').getAttribute('href')).toBe('/admin/settings');
+    expect(link('Settings').querySelector('svg.lucide-settings')).not.toBeNull();
+    expect(within(link('Settings')).getByText('Manager')).toBeInTheDocument();
+  });
+
+  it('never shows an Admin Settings, with or without the prop', () => {
+    const { rerender } = render(inRouter(<Sidebar role={ADMIN} withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Settings/ })).toBeNull();
+
+    rerender(inRouter(<Sidebar withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Settings/ })).toBeNull();
+  });
+
+  it('leaves the sidebar as it was without the prop (the parity scenarios stay equal)', () => {
+    render(inRouter(<Sidebar role={MANAGER} />));
+    expect(screen.queryByRole('link', { name: /^Settings/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('marks Settings current for active "settings" and hides its Manager tag on that row', () => {
+    const active: AdminSection = 'settings';
+    render(inRouter(<Sidebar role={MANAGER} active={active} withAuditLog />));
+    const settings = link('Settings');
+
+    expect(settings.getAttribute('aria-current')).toBe('page');
+    expect(within(settings).getByText('Manager').classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([settings]);
+  });
+
+  it('names the item on the collapsed rail by its title and its label', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog defaultCollapsed />));
+
+    const settings = link('Settings');
+    expect(settings.getAttribute('title')).toBe('Settings');
+    expect(settings).toHaveAccessibleName('Settings');
+  });
+
+  it('has no axe violations with the item', async () => {
+    const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="settings" withAuditLog />));
     await expectNoAxeViolations(container);
   });
 });

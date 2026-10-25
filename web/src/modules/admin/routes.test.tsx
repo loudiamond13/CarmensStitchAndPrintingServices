@@ -10,6 +10,7 @@ import { devRoutes } from '@/modules/admin/routes';
 import type { RouteObject } from 'react-router';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
+  categoriesBackend,
   deletedExpenseItem,
   deletedExpenseList,
   deletedExpensesBackend,
@@ -144,7 +145,7 @@ describe('Manager-only routes (USER-08)', () => {
     server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
   }
 
-  it.each(['/admin/users', '/admin/audit-log'])(
+  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
     'an Admin who opens %s lands on /admin and then Signed-in devices',
     async (path) => {
       answerRefresh(adminSession());
@@ -224,7 +225,7 @@ describe('Manager-only routes (USER-08)', () => {
     });
   });
 
-  it.each(['/admin/users', '/admin/audit-log'])(
+  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
     'a visitor without a session opening %s goes to sign-in with the return path',
     async (path) => {
       answerRefresh();
@@ -334,6 +335,37 @@ describe('Deleted Expenses for Managers (D-03, D-07, OQ-2; plan 06-16)', () => {
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses/deleted')}`);
   }, 15_000);
+});
+
+describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
+  it('a Manager who opens /admin/settings stays and sees the page, with Settings the one current item and no tab current', async () => {
+    answerRefresh(sessionResponse());
+    categoriesBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/settings'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Expense categories' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/settings');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Settings']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Settings · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin sees no Settings item in the shell', async () => {
+    answerRefresh(adminSession());
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    render(<RouterProvider router={router} />);
+
+    await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+    expect(screen.queryByRole('link', { name: /^Settings/ })).toBeNull();
+  }, 30_000);
 });
 
 describe('the component showcase for Managers (D-30, D-31, D-32)', () => {

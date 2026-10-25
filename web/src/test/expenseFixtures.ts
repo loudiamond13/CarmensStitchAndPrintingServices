@@ -138,7 +138,7 @@ export function problemResponse(status: number): Response {
   });
 }
 
-function categoryItem(
+export function categoryItem(
   id: string,
   name: string,
   tone: string,

@@ -107,6 +107,11 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     expect(exports.ORDER_EXPENSE_CATEGORIES).toBeInstanceOf(Array);
   });
 
+  // SPEC-DEVIATION: OQ-3 the Manager-only Settings nav item sits beside ADMIN_NAV (plan 06-17).
+  it('exports the Settings nav item beside ADMIN_NAV', () => {
+    expect(exports.SETTINGS_NAV_ITEM).toMatchObject({ id: 'settings', to: '/admin/settings', manager: true });
+  });
+
   it('exports the useToast hook', () => {
     expect(typeof exports.useToast).toBe('function');
   });
