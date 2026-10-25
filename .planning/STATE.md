@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-09-PLAN.md
-last_updated: "2026-10-25T16:22:20.432Z"
+stopped_at: Completed 06-10-PLAN.md
+last_updated: "2026-10-25T17:07:13.121Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 3ceeb9306b0ecb156153f339ab594f179036940b
+state_head: f00be4cf5edb607650c8347230f576dff9abe118
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 176
+  completed_plans: 177
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 10 of 19 (06-01 to 06-09 and 06-11 are done; next is 06-10)
+Plan: 12 of 19 (06-01 to 06-11 are done; next is 06-12)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -233,6 +233,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P07 | 28 min | 3 tasks | 18 files |
 | Phase 06 P08 | 28 min | 3 tasks | 26 files |
 | Phase 06 P09 | 28 min | 2 tasks | 16 files |
+| Phase 06 P10 | 40 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -615,6 +616,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-09: text KPI values wrap at word boundaries (kpiTextValueClasses); numbers and counts keep the one-line look
 - [Phase 06]: 06-09: every expense mutation must invalidate expenseKpisKey ('company-expense-kpis') as well as expensesKey; the KPI query key holds no list params
 - [Phase 06]: 06-09: the e2e list helpers match the list route by pathname, because the KPI route shares the /api/v1/company-expenses prefix
+- [Phase 06]: 06-10: Soft delete, restore and permanent delete take no row version and run inside ConflictRetry plus InTransactionAsync; a lost race is read again and a vanished row answers 404
+- [Phase 06]: 06-10: The permanent delete is a tracked Remove with the audit entry recorded first in the same save, so the entry outlives the row; never ExecuteDelete
+- [Phase 06]: 06-10: The authorization matrix harness always sends an Idempotency-Key, so the restore row expects Manager 404; the missing-key 400 has its own test
 
 ### Pending Todos
 
@@ -688,6 +692,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T16:22:19.534Z
-Stopped at: Completed 06-09-PLAN.md
+Last session: 2026-10-25T17:07:12.215Z
+Stopped at: Completed 06-10-PLAN.md
 Resume file: None
