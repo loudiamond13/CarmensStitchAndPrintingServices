@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Infrastructure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.Expenses;
@@ -14,6 +15,7 @@ public static class ExpensesRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<IExpenseCategories, ExpenseCategoryStore>();
+        services.AddScoped<IStaffDirectory, StaffDirectory>();
         return services;
     }
 }

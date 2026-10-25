@@ -457,6 +457,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted
+         *     and has a password. An invited person who has not set a password is not listed. Sorted by first name, last name, then id.
+         */
+        get: operations["ListStaff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -1039,6 +1059,16 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description One person who can be named as the payer (CEXP-05): an id and a name, nothing else. */
+        StaffMember: {
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description The first and last name as saved, joined by one space. */
+            name: string;
         };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
         UpdateProfileNameRequest: {
@@ -2402,6 +2432,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+        };
+    };
+    ListStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMember"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

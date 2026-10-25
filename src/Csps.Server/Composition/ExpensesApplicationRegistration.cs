@@ -1,4 +1,5 @@
 using Csps.Application.ExpenseCategories;
+using Csps.Application.Staff;
 
 namespace Csps.Server.Composition;
 
@@ -13,6 +14,7 @@ public static class ExpensesApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<ListExpenseCategoriesHandler>();
+        services.AddScoped<ListStaffHandler>();
         return services;
     }
 }

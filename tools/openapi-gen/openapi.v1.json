@@ -893,6 +893,25 @@
         ],
         "type": "object"
       },
+      "StaffMember": {
+        "description": "One person who can be named as the payer (CEXP-05): an id and a name, nothing else.",
+        "properties": {
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The first and last name as saved, joined by one space.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "UpdateProfileNameRequest": {
         "description": "The profile name form: the names and the edit version the form was opened with (SEC-07).",
         "properties": {
@@ -3034,6 +3053,40 @@
         ]
       }
     },
+    "/api/v1/staff": {
+      "get": {
+        "operationId": "ListStaff",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffMember"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted\nand has a password. An invited person who has not set a password is not listed. Sorted by first name, last name, then id.",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "ListUsers",
@@ -4187,6 +4240,9 @@
     },
     {
       "name": "SiteSettings"
+    },
+    {
+      "name": "Staff"
     },
     {
       "name": "Users"

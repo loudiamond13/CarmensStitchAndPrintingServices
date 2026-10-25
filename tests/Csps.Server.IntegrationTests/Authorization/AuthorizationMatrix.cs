@@ -148,6 +148,8 @@ public static class AuthorizationMatrix
 
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+        // The staff who can be named as the payer (CEXP-05, D-32): Staff only, names and ids only.
+        new("GET", "/api/v1/staff", "/api/v1/staff", Anonymous: 401, Admin: 200, Manager: 200),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

@@ -15,7 +15,7 @@ progress:
   completed_plans: 166
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-19T19:45:00-05:00"
+updated: "2026-10-25T06:55:00-05:00"
 ---
 
 # Project State
@@ -596,6 +596,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [ ] **Phase 6 timing data size (open question 5):** the speed test assumes about 20 expenses a day for 5 years (~36,500 rows). Tell us if the shop's real rate is higher.
 - [ ] **Phase 6 copy review (05 D-48):** read the new expense and Settings page wording before release.
 - [ ] Any checkpoints, manual checks or package approvals that Phase 6 execution parks are added below this line.
+- [ ] **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2.
 
 ### Blockers/Concerns
 
