@@ -1,4 +1,5 @@
 using Csps.Application.Common;
+using Csps.Domain.Expenses;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
@@ -100,6 +101,65 @@ public sealed class CspsUnitOfWorkTests(CspsDatabase database) : IClassFixture<C
         await using var fresh = database.CreateContext();
         (await fresh.IdempotencyRecords.AsNoTracking().AnyAsync(r => r.Key == keyMiddle, TestContext.Current.CancellationToken)).ShouldBeTrue();
         (await fresh.IdempotencyRecords.AsNoTracking().AnyAsync(r => r.Key == keyInner, TestContext.Current.CancellationToken)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ADeadlockVictimIsALostRaceAndTheOtherSaveGoesThrough()
+    {
+        var firstId = await SaveCategoryAsync($"Dead A {Guid.NewGuid():N}"[..24]);
+        var secondId = await SaveCategoryAsync($"Dead B {Guid.NewGuid():N}"[..24]);
+        await using var contextOne = database.CreateContext();
+        await using var contextTwo = database.CreateContext();
+        var oneFirst = await contextOne.ExpenseCategories.SingleAsync(row => row.Id == firstId, TestContext.Current.CancellationToken);
+        var oneSecond = await contextOne.ExpenseCategories.SingleAsync(row => row.Id == secondId, TestContext.Current.CancellationToken);
+        var twoFirst = await contextTwo.ExpenseCategories.SingleAsync(row => row.Id == firstId, TestContext.Current.CancellationToken);
+        var twoSecond = await contextTwo.ExpenseCategories.SingleAsync(row => row.Id == secondId, TestContext.Current.CancellationToken);
+        var unitOne = new CspsUnitOfWork(contextOne);
+        var unitTwo = new CspsUnitOfWork(contextTwo);
+        var transactionOne = await contextOne.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var transactionTwo = await contextTwo.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (transactionOne)
+        await using (transactionTwo)
+        {
+            // Each transaction locks one row, then reaches for the other one's row.
+            oneFirst.Rename($"Dead A1 {Guid.NewGuid():N}"[..24]).IsSuccess.ShouldBeTrue();
+            await unitOne.SaveChangesAsync(TestContext.Current.CancellationToken);
+            twoSecond.Rename($"Dead B1 {Guid.NewGuid():N}"[..24]).IsSuccess.ShouldBeTrue();
+            await unitTwo.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            oneSecond.Rename($"Dead B2 {Guid.NewGuid():N}"[..24]).IsSuccess.ShouldBeTrue();
+            twoFirst.Rename($"Dead A2 {Guid.NewGuid():N}"[..24]).IsSuccess.ShouldBeTrue();
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            limit.CancelAfter(TimeSpan.FromSeconds(60));
+            var outcomes = await Task.WhenAll(
+                CaptureAsync(() => unitOne.SaveChangesAsync(limit.Token)),
+                CaptureAsync(() => unitTwo.SaveChangesAsync(limit.Token)));
+
+            outcomes.Count(static outcome => outcome is ConcurrencyConflictException).ShouldBe(1, string.Join(" | ", outcomes.Select(static outcome => outcome?.GetType().Name ?? "saved")));
+            outcomes.Count(static outcome => outcome is null).ShouldBe(1);
+        }
+    }
+
+    private static async Task<Exception?> CaptureAsync(Func<Task<int>> save)
+    {
+        try
+        {
+            await save();
+            return null;
+        }
+        catch (Exception error)
+        {
+            return error;
+        }
+    }
+
+    private async Task<Guid> SaveCategoryAsync(string name)
+    {
+        var category = ExpenseCategory.Create(name, CategoryTones.Info, Now).Value;
+        await using var context = database.CreateContext();
+        context.ExpenseCategories.Add(category);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return category.Id;
     }
 
     private static async Task<string> ReadContactPhoneAsync(CspsDatabase database)
