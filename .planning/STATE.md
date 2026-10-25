@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-10-25T12:34:39.966Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-10-25T13:01:37.984Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 45d6c1944d758f8cc24e8dc960e1848de2101a35
+state_head: 929cc032b13f9c1e118c7326e791a77aa516c323
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 168
+  completed_plans: 169
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T06:55:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 3 of 19
+Plan: 4 of 19
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -225,6 +225,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 05 P51 | 45 min | 3 tasks | 6 files |
 | Phase 06 P01 | 20 min | 3 tasks | 41 files |
 | Phase 06 P02 | 27 min | 3 tasks | 39 files |
+| Phase 06 P03 | 23 min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -588,6 +589,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-02: The seven CompanyExpenses indexes, the soft-delete columns and the named SoftDelete query filter ship in the first migration (D-01), so the list, the Deleted view and the Phase 10 sums need no schema change
 - [Phase 06]: 06-02: ExpenseRules.AmountMax is a static readonly decimal (a const decimal leaves an unexecuted static constructor that costs the Domain 100 percent line gate)
 - [Phase 06]: 06-02: the category and payer database checks are merged into the validator's own failures, so one 400 lists every field; the audit entry joins the create's save inside the idempotency gate's transaction
+- [Phase 06]: 06-03: a lone from or to puts 'Enter both dates, or neither.' on the missing field
+- [Phase 06]: 06-03: the list page command reads category, payer and recorder with joins; the reader runs exactly two SQL commands (measured)
+- [Phase 06]: 06-03: the Testing seeder saves first, then stamps recorder and delete marker with ExecuteUpdateAsync (the stamp interceptor overwrites CreatedById on add)
 
 ### Pending Todos
 
@@ -658,6 +662,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T12:34:39.093Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-10-25T13:01:37.120Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
