@@ -354,3 +354,83 @@ describe('E2 server answers', () => {
     await expectNoAxeViolations(document.body);
   });
 });
+
+describe('E2 close, reopen and keys', () => {
+  function tree(open: boolean, today = EXPENSE_TODAY, onClose: () => void = () => undefined) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ExpenseModal mode="add" open={open} today={today} onClose={onClose} onSaved={() => undefined} />
+      </QueryClientProvider>
+    );
+  }
+
+  it('starts again from today and the signed-in payer after the modal is closed with typed values', async () => {
+    backends();
+    const user = userEvent.setup();
+    const view = render(tree(true));
+    await ready();
+    await user.selectOptions(category(), 'Supplies');
+    await user.type(description(), 'Thread');
+    await user.type(amount(), '12');
+    await user.selectOptions(paidBy(), 'Liza Mercado');
+    fireEvent.change(date(), { target: { value: '2026-10-01' } });
+
+    view.rerender(tree(false));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    view.rerender(tree(true, '2026-10-26'));
+    await ready();
+
+    expect(date()).toHaveValue('2026-10-26');
+    expect(category()).toHaveValue('');
+    expect(description()).toHaveValue('');
+    expect(amount()).toHaveValue('');
+    expect(paidBy()).toHaveValue(ME_ID);
+  });
+
+  it('adds a line with Enter in Notes and does not submit', async () => {
+    backends();
+    const sent = createExpenseBackend();
+    const user = userEvent.setup();
+    renderModal();
+    await ready();
+    await fillValid(user);
+    const notes = screen.getByRole<HTMLTextAreaElement>('textbox', { name: /^Notes/ });
+
+    await user.type(notes, 'first{Enter}second');
+
+    expect(notes).toHaveValue('first\nsecond');
+    await delay(30);
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it('ignores Esc, the scrim and Close while the request runs, and closes once it has saved', async () => {
+    backends();
+    createExpenseBackend(async () => {
+      await delay(500);
+      return Response.json(expenseDetail(), { status: 201 });
+    });
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(tree(true, EXPENSE_TODAY, onClose));
+    await ready();
+    await fillValid(user);
+
+    await user.click(saveButton());
+    await screen.findByRole('button', { name: 'Saving' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    const scrim = screen.getByRole('dialog').parentElement;
+    if (scrim === null) {
+      throw new Error('The dialog has no scrim.');
+    }
+    fireEvent.mouseDown(scrim);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+});

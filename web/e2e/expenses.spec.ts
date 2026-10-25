@@ -5,7 +5,8 @@
 // compares the footer with the response it just read, never with a fixed number. Every test runs under the shared guard
 // (console, page errors, CSP, failed responses). @expenses-filters (plan 06-07) searches by a new payer, filters by category and a
 // custom range, reopens the same view with Back, and clears the filters. @expenses-kpis (plan 06-09) compares the three month cards with the KPI
-// response the page received.
+// response the page received. @expenses-add (plan 06-12) adds an expense as an Admin with the defaults, refuses an amount of 0 and 1,000,000.01 in the
+// browser with no request, fits the modal on a 320 px phone and finds the new row.
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
@@ -453,5 +454,97 @@ test('@expenses-kpis the three cards match the KPI answer the page received, and
   await page.setViewportSize({ width: 320, height: 800 });
   await expect(thisMonth).toBeVisible();
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
+
+// --- @expenses-add (plan 06-12) ---
+
+function addExpenseButton(page: Page) {
+  return page.getByRole('button', { name: 'Add Expense' }).first();
+}
+
+test('@expenses-add an Admin adds an expense with the defaults, bad amounts are refused in the browser, the modal fits a 320 px phone and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Ana', lastName: `Add${token}` });
+  const fullName = `Ana Add${token}`;
+  await signInAs(page, request, admin);
+  // Every create the page sends: none may go out while a rule fails in the browser.
+  const posts: string[] = [];
+  page.on('request', (sent) => {
+    if (sent.method() === 'POST' && isListUrl(sent.url())) {
+      posts.push(sent.url());
+    }
+  });
+  const list = await openList(page, '/admin/expenses?size=100');
+
+  // Opened from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved.
+  await addExpenseButton(page).focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Add Expense' });
+  await expect(dialog).toBeVisible();
+  const date = dialog.getByLabel(/^Date/);
+  await expect(date).toBeFocused();
+  await expect(date).toHaveValue(list.today);
+  const paidBy = dialog.getByRole('combobox', { name: /^Paid by/ });
+  await expect(paidBy).toBeEnabled();
+  await expect(paidBy).toHaveValue(admin.userId);
+  await expect(paidBy.locator('option').first()).toHaveText(`${fullName} (you)`);
+  await expect(dialog.getByRole('combobox', { name: /^Category/ })).toHaveValue('');
+  await expect(dialog.getByText('Recorded by', { exact: true }).locator('xpath=following-sibling::span')).toContainText(
+    `${fullName} (you)`,
+  );
+  await expectNoAxeViolations(page);
+
+  // A blank form and two bad amounts are refused in the browser, with the exact words and no request.
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+  await expect(dialog.getByText('Choose a category.')).toBeVisible();
+  await expect(dialog.getByText('Enter an amount greater than ₱0.00.')).toBeVisible();
+  await expectNoAxeViolations(page);
+  const description = `E2E add ${token}`;
+  await dialog.getByRole('combobox', { name: /^Category/ }).selectOption({ label: 'Supplies' });
+  await dialog.getByRole('textbox', { name: /^Description/ }).fill(description);
+  await dialog.getByRole('textbox', { name: /^Amount/ }).fill('0');
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+  await expect(dialog.getByText('Enter an amount greater than ₱0.00.')).toBeVisible();
+  await dialog.getByRole('textbox', { name: /^Amount/ }).fill('1000000.01');
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+  await expect(dialog.getByText('Enter an amount of ₱1,000,000.00 or less.')).toBeVisible();
+  expect(posts).toHaveLength(0);
+
+  // The modal fits a 320 px phone: it scrolls inside, the footer stays reachable and nothing scrolls sideways.
+  await page.setViewportSize({ width: 320, height: 568 });
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  expect(
+    await page.evaluate(
+      `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`,
+    ),
+  ).toBe(true);
+  await expect(dialog.getByRole('button', { name: 'Save Expense' })).toBeInViewport();
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport();
+  await expectNoAxeViolations(page);
+
+  // A good amount saves with Enter in Description: the dialog closes, focus is back on Add Expense and the toast reports it.
+  await dialog.getByRole('textbox', { name: /^Amount/ }).fill('640');
+  await dialog.getByRole('textbox', { name: /^Description/ }).press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(addExpenseButton(page)).toBeFocused();
+  await expect(page.getByText('Expense added')).toBeVisible();
+  await expect(page.getByText('₱640.00 · Supplies', { exact: true })).toBeVisible();
+  expect(posts).toHaveLength(1);
+
+  // The list read again: the new row is there, paid and recorded by the person who added it.
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText(description);
+  await expect(rows.first()).toContainText('₱640.00');
+  await expect(rows.first().locator('td[data-label="Paid by"]')).toContainText(fullName);
+  await expect(rows.first().locator('td[data-label="Recorded by"]')).toContainText(fullName);
   await expectNoAxeViolations(page);
 });

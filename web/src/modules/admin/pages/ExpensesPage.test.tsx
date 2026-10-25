@@ -15,6 +15,8 @@ import {
   CARMEN,
   categoriesBackend,
   createExpenseBackend,
+  expenseDetail,
+  RENT,
   staffBackend,
   EXPENSE_CATEGORIES,
   expenseItem,
@@ -422,8 +424,8 @@ describe('the list states', () => {
         'Nothing is recorded from Sep 25, 2026 to Nov 24, 2026. Log rent, bills, payroll and supplies here to see monthly totals and where the money goes.',
       ),
     ).toBeVisible();
-    // Only the header action so far; the first-use action arrives with the empty-state task of plan 06-12.
-    expect(screen.getAllByRole('button', { name: 'Add Expense' })).toHaveLength(1);
+    // The header action and the first-use action (OQ-14, default A).
+    expect(screen.getAllByRole('button', { name: 'Add Expense' })).toHaveLength(2);
     expect(screen.queryByRole('table')).toBeNull();
     expect(screen.queryByText(/^Showing/)).toBeNull();
     await expectNoAxeViolations(view.container);
@@ -1095,5 +1097,93 @@ describe('Add Expense (CEXP-02; plan 06-12)', () => {
     expect(invalidated).toEqual(
       expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
     );
+  });
+});
+
+describe('Add Expense from the empty list and the outside-filters note (CEXP-02, OQ-14; plan 06-12)', () => {
+  /** Fills the open dialog and saves; the fake API answers with `saved`. */
+  async function saveFromDialog(user: ReturnType<typeof userEvent.setup>) {
+    const dialog = await screen.findByRole('dialog', { name: 'Add Expense' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('combobox', { name: /^Paid by/ })).toBeEnabled();
+      expect(within(dialog).getByRole('combobox', { name: /^Category/ })).toBeEnabled();
+    });
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: /^Category/ }), 'Supplies');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Description/ }), 'Thread and needles');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Amount/ }), '640');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Expense' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Add Expense' })).toBeNull();
+    });
+  }
+
+  const SAVED_NOTE = "₱640.00 · Supplies It's outside the current filters, so it isn't listed.";
+
+  async function openAndSave(search: string, saved = expenseDetail()) {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    staffBackend();
+    createExpenseBackend(() => Response.json(saved, { status: 201 }));
+    renderPage(search);
+    await screen.findByText('Shop rent for October');
+    await user.click(screen.getByRole('button', { name: 'Add Expense' }));
+    await saveFromDialog(user);
+  }
+
+  it('shows the primary Add Expense action in the first-use empty state too, and it opens the same dialog', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList([]));
+    staffBackend();
+    renderPage();
+    await screen.findByRole('heading', { name: 'No expenses recorded' });
+
+    const buttons = screen.getAllByRole('button', { name: 'Add Expense' });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[1] as HTMLElement);
+
+    expect(await screen.findByRole('dialog', { name: 'Add Expense' })).toBeVisible();
+  });
+
+  it('does not add the note when no filter is set and the expense is inside the default window', async () => {
+    await openAndSave('');
+
+    expect(await screen.findByText('₱640.00 · Supplies')).toBeVisible();
+    expect(screen.queryByText(/outside the current filters/)).toBeNull();
+  });
+
+  it('adds the note when a search does not match the saved description or people', async () => {
+    await openAndSave('?q=rent');
+
+    expect(await screen.findByText(SAVED_NOTE)).toBeVisible();
+  });
+
+  it('does not add the note when the search matches the description, the payer or the recorder, in any letter case', async () => {
+    await openAndSave('?q=NEEDLES');
+    expect(await screen.findByText('₱640.00 · Supplies')).toBeVisible();
+  });
+
+  it('does not add the note when the search matches the payer name', async () => {
+    await openAndSave('?q=carmen');
+    expect(await screen.findByText('₱640.00 · Supplies')).toBeVisible();
+  });
+
+  it('adds the note when the category filter is another category, and not when it is the same one', async () => {
+    await openAndSave(`?category=${RENT.id}`);
+    expect(await screen.findByText(SAVED_NOTE)).toBeVisible();
+  });
+
+  it('does not add the note when the category filter is the saved category', async () => {
+    await openAndSave(`?category=${SUPPLIES.id}`);
+    expect(await screen.findByText('₱640.00 · Supplies')).toBeVisible();
+  });
+
+  it('adds the note when the dates in the URL do not hold the saved date', async () => {
+    await openAndSave('?from=2026-10-01&to=2026-10-20');
+    expect(await screen.findByText(SAVED_NOTE)).toBeVisible();
+  });
+
+  it('adds the note when the saved date is outside the default window the server used', async () => {
+    await openAndSave('', expenseDetail({ date: '2026-12-31' }));
+    expect(await screen.findByText(SAVED_NOTE)).toBeVisible();
   });
 });
