@@ -90,9 +90,19 @@ public sealed class CompanyExpenseKpisEndpointTests(CspsDatabase database) : ICl
         {
             await database.ResetAsync();
             var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var admin = await TestSessions.StartAsync(baseFactory, Roles.Admin);
-            var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
-            return new Rig(baseFactory, AuthClient.WithClock(baseFactory, new FakeTimeProvider(now)), now, admin, manager);
+            var clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(now));
+
+            // The sessions start on the fixed-clock host, so the host finds them active at the fixed date. The token lifetime is
+            // checked against the system clock, so each token is minted for the real now.
+            var admin = await SignInAsync(clockFactory, Roles.Admin);
+            var manager = await SignInAsync(clockFactory, Roles.Manager);
+            return new Rig(baseFactory, clockFactory, now, admin, manager);
+        }
+
+        private static async Task<StartedSession> SignInAsync(WebApplicationFactory<Program> clockFactory, string role)
+        {
+            var started = await TestSessions.StartAsync(clockFactory, role);
+            return started with { AccessToken = TestTokens.For(role, TimeProvider.System, started.UserId, sessionId: started.SessionId) };
         }
 
         public string TokenOf(string role) => role == Roles.Admin ? Admin.AccessToken : Manager.AccessToken;

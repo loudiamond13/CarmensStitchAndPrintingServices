@@ -20,7 +20,38 @@ public interface ICompanyExpenseReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows of the page, the total count and the period total.</returns>
     Task<CompanyExpenseListPage> ListAsync(CompanyExpenseListQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the month figures for the KPI row in two SQL commands: this month and last month together, then this month by category.
+    /// Expenses count by their date, upcoming ones included; soft-deleted expenses never count (D-01, D-24).
+    /// </summary>
+    /// <param name="months">The first and last day of this month and of last month.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The totals and counts of both months and this month's top category.</returns>
+    Task<ExpenseKpiTotals> GetKpisAsync(KpiMonths months, CancellationToken cancellationToken);
 }
+
+/// <summary>The two months the KPI row covers, as first and last days in the business zone.</summary>
+/// <param name="ThisFirst">The first day of this month.</param>
+/// <param name="ThisLast">The last day of this month.</param>
+/// <param name="LastFirst">The first day of last month.</param>
+/// <param name="LastLast">The last day of last month.</param>
+public sealed record KpiMonths(DateOnly ThisFirst, DateOnly ThisLast, DateOnly LastFirst, DateOnly LastLast);
+
+/// <summary>The month figures the read port returns for the KPI row.</summary>
+/// <param name="ThisMonthTotal">The sum of this month's expenses; 0.00 when none.</param>
+/// <param name="ThisMonthCount">How many expenses this month.</param>
+/// <param name="LastMonthTotal">The sum of last month's expenses; 0.00 when none.</param>
+/// <param name="LastMonthCount">How many expenses last month.</param>
+/// <param name="TopCategory">The category with the highest total this month, ties to the name first A to Z; null when there is none.</param>
+/// <param name="TopTotal">The top category's total this month; 0.00 when there is none.</param>
+public sealed record ExpenseKpiTotals(
+    decimal ThisMonthTotal,
+    int ThisMonthCount,
+    decimal LastMonthTotal,
+    int LastMonthCount,
+    ExpenseCategoryRef? TopCategory,
+    decimal TopTotal);
 
 /// <summary>A checked list query for the read port.</summary>
 /// <param name="From">The first expense date, included.</param>

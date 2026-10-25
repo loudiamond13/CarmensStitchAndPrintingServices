@@ -156,6 +156,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/company-expenses", "/api/v1/company-expenses", Anonymous: 401, Admin: 400, Manager: 400),
         // Listing company expenses (CEXP-01, D-25): both roles read every expense. The sample path carries a query so the list handler runs end to end.
         new("GET", "/api/v1/company-expenses", "/api/v1/company-expenses?pageSize=1", Anonymous: 401, Admin: 200, Manager: 200),
+        // The month KPIs (CEXP-03, D-25): both roles read the same figures, and the route takes no input.
+        new("GET", "/api/v1/company-expenses/kpis", "/api/v1/company-expenses/kpis", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading one expense (CEXP-02, D-25): both roles read every expense. A random id is no expense, so both meet 404 company-expenses.not-found.
         new("GET", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/9a3e6c15-4b72-4d08-b1f9-0c8d5e7a2f64", Anonymous: 401, Admin: 404, Manager: 404),
 

@@ -23,6 +23,7 @@ public static class ExpensesApplicationRegistration
         services.AddScoped<CreateCompanyExpenseHandler>();
         services.AddScoped<GetCompanyExpenseHandler>();
         services.AddScoped<ListCompanyExpensesHandler>();
+        services.AddScoped<GetCompanyExpenseKpisHandler>();
         return services;
     }
 }

@@ -154,6 +154,51 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
         return new CompanyExpenseListPage(items, totals?.Count ?? 0, totals?.Sum ?? 0m);
     }
 
+    public async Task<ExpenseKpiTotals> GetKpisAsync(KpiMonths months, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(months);
+
+        // Command 1: both months in one grouped read with conditional sums and counts. No row at all means no group, so zeros.
+        var figures = await context.CompanyExpenses.AsNoTracking()
+            .Where(expense => expense.ExpenseDate >= months.LastFirst && expense.ExpenseDate <= months.ThisLast)
+            .GroupBy(static _ => 1)
+            .Select(group => new
+            {
+                ThisTotal = group.Sum(expense => expense.ExpenseDate >= months.ThisFirst ? expense.Amount : 0m),
+                ThisCount = group.Count(expense => expense.ExpenseDate >= months.ThisFirst),
+                LastTotal = group.Sum(expense => expense.ExpenseDate <= months.LastLast ? expense.Amount : 0m),
+                LastCount = group.Count(expense => expense.ExpenseDate <= months.LastLast),
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Command 2: this month by category, highest total first, ties to the name first A to Z.
+        var top = await (
+            from expense in context.CompanyExpenses.AsNoTracking()
+            where expense.ExpenseDate >= months.ThisFirst && expense.ExpenseDate <= months.ThisLast
+            join category in context.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
+            group expense by new { category.Id, category.Name, category.Tone, Retired = category.RetiredAtUtc != null } into byCategory
+            orderby byCategory.Sum(expense => expense.Amount) descending, byCategory.Key.Name
+            select new
+            {
+                byCategory.Key.Id,
+                byCategory.Key.Name,
+                byCategory.Key.Tone,
+                byCategory.Key.Retired,
+                Total = byCategory.Sum(expense => expense.Amount),
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ExpenseKpiTotals(
+            figures?.ThisTotal ?? 0m,
+            figures?.ThisCount ?? 0,
+            figures?.LastTotal ?? 0m,
+            figures?.LastCount ?? 0,
+            top is null ? null : new ExpenseCategoryRef(top.Id, top.Name, top.Tone, top.Retired),
+            top?.Total ?? 0m);
+    }
+
     // The window, then the optional category and search. The search looks at the description and at the names of the payer and the
     // recorder, never at the notes (D-19). A typed wildcard stays literal (CWE-943).
     private IQueryable<CompanyExpense> Filter(IQueryable<CompanyExpense> expenses, CompanyExpenseListQuery query)

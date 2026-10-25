@@ -325,6 +325,42 @@
         ],
         "type": "object"
       },
+      "CompanyExpenseKpisResponse": {
+        "description": "The month figures for the expenses page (CEXP-03). They ignore the list filters.",
+        "properties": {
+          "lastMonth": {
+            "$ref": "#/components/schemas/MonthKpi",
+            "description": "The month before it."
+          },
+          "thisMonth": {
+            "$ref": "#/components/schemas/MonthKpi",
+            "description": "The business month that holds today."
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
+          "topCategory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TopCategoryKpi",
+                "description": "The top category this month; null when this month has no expenses."
+              }
+            ]
+          }
+        },
+        "required": [
+          "today",
+          "thisMonth",
+          "lastMonth",
+          "topCategory"
+        ],
+        "type": "object"
+      },
       "CompanyExpenseListItem": {
         "description": "One expense in the list. It carries no notes (D-19).",
         "properties": {
@@ -761,6 +797,40 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "MonthKpi": {
+        "description": "One month of the KPI row.",
+        "properties": {
+          "count": {
+            "description": "How many expenses the month holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "month": {
+            "description": "The first day of the month, in the business zone.",
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "description": "The sum of the month's expenses by expense date; 0.00 when none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "total",
+          "count"
         ],
         "type": "object"
       },
@@ -1242,6 +1312,39 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "TopCategoryKpi": {
+        "description": "The category with the highest total this month.",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "sharePercent": {
+            "description": "Its share of this month's total, rounded half away from zero to a whole percent.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "Its total this month.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "category",
+          "total",
+          "sharePercent"
         ],
         "type": "object"
       },
@@ -2825,6 +2928,37 @@
           }
         },
         "summary": "Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above\n0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has set a\npassword. A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/kpis": {
+      "get": {
+        "operationId": "GetCompanyExpenseKpis",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseKpisResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the month figures for the expenses page: this month and last month, each with its total and count, and this month's top\ncategory with its share. Months follow the business zone, expenses count by their date (upcoming ones included) and deleted\nexpenses never count. The list filters do not apply.",
         "tags": [
           "CompanyExpenses"
         ]

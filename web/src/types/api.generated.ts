@@ -295,6 +295,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company-expenses/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the month figures for the expenses page: this month and last month, each with its total and count, and this month's top
+         *     category with its share. Months follow the business zone, expenses count by their date (upcoming ones included) and deleted
+         *     expenses never count. The list filters do not apply.
+         */
+        get: operations["GetCompanyExpenseKpis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/company-expenses/{id}": {
         parameters: {
             query?: never;
@@ -882,6 +903,19 @@ export interface components {
             /** @description The base64 of the eight-byte row version a save must send back. */
             version: string;
         };
+        /** @description The month figures for the expenses page (CEXP-03). They ignore the list filters. */
+        CompanyExpenseKpisResponse: {
+            /** @description The month before it. */
+            lastMonth: components["schemas"]["MonthKpi"];
+            /** @description The business month that holds today. */
+            thisMonth: components["schemas"]["MonthKpi"];
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
+            topCategory: null | components["schemas"]["TopCategoryKpi"];
+        };
         /** @description One expense in the list. It carries no notes (D-19). */
         CompanyExpenseListItem: {
             /**
@@ -1066,6 +1100,24 @@ export interface components {
         InviteTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /** @description One month of the KPI row. */
+        MonthKpi: {
+            /**
+             * Format: int32
+             * @description How many expenses the month holds.
+             */
+            count: number | string;
+            /**
+             * Format: date
+             * @description The first day of the month, in the business zone.
+             */
+            month: string;
+            /**
+             * Format: double
+             * @description The sum of the month's expenses by expense date; 0.00 when none.
+             */
+            total: number | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -1266,6 +1318,21 @@ export interface components {
             id: string;
             /** @description The first and last name as saved, joined by one space. */
             name: string;
+        };
+        /** @description The category with the highest total this month. */
+        TopCategoryKpi: {
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: int32
+             * @description Its share of this month's total, rounded half away from zero to a whole percent.
+             */
+            sharePercent: number | string;
+            /**
+             * Format: double
+             * @description Its total this month.
+             */
+            total: number | string;
         };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
         UpdateProfileNameRequest: {
@@ -2186,6 +2253,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCompanyExpenseKpis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseKpisResponse"];
                 };
             };
             /** @description Unauthorized */

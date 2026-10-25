@@ -13,12 +13,13 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The record-an-expense handler.</param>
 /// <param name="get">The single-expense read handler.</param>
 /// <param name="list">The expense list handler.</param>
+/// <param name="kpis">The month KPI handler.</param>
 [ApiController]
 [Route("api/v1/company-expenses")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list) : ControllerBase
+public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create, GetCompanyExpenseHandler get, ListCompanyExpensesHandler list, GetCompanyExpenseKpisHandler kpis) : ControllerBase
 {
     /// <summary>
     /// Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
@@ -72,6 +73,23 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     {
         var result = await create.HandleAsync(body ?? CreateCompanyExpenseRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static created => TypedResults.Created($"/api/v1/company-expenses/{created.Id:D}", created));
+    }
+
+    /// <summary>
+    /// Reads the month figures for the expenses page: this month and last month, each with its total and count, and this month's top
+    /// category with its share. Months follow the business zone, expenses count by their date (upcoming ones included) and deleted
+    /// expenses never count. The list filters do not apply.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the KPIs, or 401 without a valid token.</returns>
+    [HttpGet("kpis")]
+    [EndpointName("GetCompanyExpenseKpis")]
+    [ProducesResponseType<CompanyExpenseKpisResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IResult> Kpis(CancellationToken cancellationToken)
+    {
+        var result = await kpis.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static figures => TypedResults.Ok(figures));
     }
 
     /// <summary>Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it.</summary>
