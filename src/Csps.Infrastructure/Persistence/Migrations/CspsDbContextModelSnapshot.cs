@@ -180,6 +180,148 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ExpenseCategories_NormalizedName");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ExpenseCategories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ExpenseCategories_Tone", "[Tone] IN (N'neutral', N'accent', N'info', N'mockup', N'warning', N'success')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("6869715c-a01f-4053-87d8-8fd39feebebc"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Rent",
+                            NormalizedName = "RENT",
+                            Tone = "accent"
+                        },
+                        new
+                        {
+                            Id = new Guid("51702a8f-81e4-4a20-8e39-2d4b270793de"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Utilities",
+                            NormalizedName = "UTILITIES",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("d2aa53b4-7ebd-445e-b318-94ce1d21cbf2"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Salaries",
+                            NormalizedName = "SALARIES",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("447ad32e-1433-4b70-8786-72e3dc3f9937"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Supplies",
+                            NormalizedName = "SUPPLIES",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("b9c92751-7040-4edd-bd44-de110104cb01"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Equipment",
+                            NormalizedName = "EQUIPMENT",
+                            Tone = "success"
+                        },
+                        new
+                        {
+                            Id = new Guid("b74d786b-8092-4e67-a0ba-a419e9d1ba75"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Maintenance",
+                            NormalizedName = "MAINTENANCE",
+                            Tone = "neutral"
+                        },
+                        new
+                        {
+                            Id = new Guid("b27a1f8a-5262-48c8-bca4-41e04583e015"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Government contributions",
+                            NormalizedName = "GOVERNMENT CONTRIBUTIONS",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("c8392b0c-ee0e-4a71-ba47-b137fdd1d8c0"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Taxes and permits",
+                            NormalizedName = "TAXES AND PERMITS",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb48e6a0-08a8-4509-9f5e-7b81167071de"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Transport and fuel",
+                            NormalizedName = "TRANSPORT AND FUEL",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("f85e6b1c-b46f-4a00-8c4e-5148eb3b9704"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Others",
+                            NormalizedName = "OTHERS",
+                            Tone = "neutral"
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Identity.AccountToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -824,6 +966,19 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Domain.Identity.AccountToken", b =>

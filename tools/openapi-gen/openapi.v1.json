@@ -342,6 +342,40 @@
         ],
         "type": "object"
       },
+      "ExpenseCategoryListItem": {
+        "description": "One category in the list the Add picker and the list filter read (D-11, D-15).",
+        "properties": {
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the catch-all Others category.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, or `retired` so the Add picker can hide it while the list filter keeps it.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "description": "The forgot-password form: the email the reset link goes to (D-16).",
         "properties": {
@@ -2261,6 +2295,40 @@
         ]
       }
     },
+    "/api/v1/expense-categories": {
+      "get": {
+        "operationId": "ListExpenseCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpenseCategoryListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id.\nThe Add picker hides retired ones; the list filter keeps them.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
     "/api/v1/profile": {
       "get": {
         "operationId": "GetProfile",
@@ -4098,6 +4166,9 @@
     },
     {
       "name": "AuthSession"
+    },
+    {
+      "name": "ExpenseCategories"
     },
     {
       "name": "Invite"

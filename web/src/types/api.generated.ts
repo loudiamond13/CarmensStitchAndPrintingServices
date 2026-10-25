@@ -267,6 +267,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id.
+         *     The Add picker hides retired ones; the list filter keeps them.
+         */
+        get: operations["ListExpenseCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -794,6 +814,22 @@ export interface components {
         EmailChangeTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /** @description One category in the list the Add picker and the list filter read (D-11, D-15). */
+        ExpenseCategoryListItem: {
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description True only for the catch-all Others category. */
+            isOthers: boolean;
+            /** @description The display name. */
+            name: string;
+            /** @description `active`, or `retired` so the Add picker can hide it while the list filter keeps it. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
         };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
         ForgotPasswordRequest: {
@@ -1831,6 +1867,35 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListExpenseCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

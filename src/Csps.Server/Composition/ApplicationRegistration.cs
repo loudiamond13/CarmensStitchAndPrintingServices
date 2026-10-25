@@ -61,6 +61,7 @@ public static class ApplicationRegistration
         services.AddScoped<ListAuditLogHandler>();
         services.AddScoped<ListAuditPeopleHandler>();
         services.AddScoped<IValidator<ListAuditLogRequest>, ListAuditLogRequestValidator>();
+        services.AddCspsExpenseHandlers();
         return services;
     }
 }

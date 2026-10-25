@@ -146,6 +146,9 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
+        // The expense category list (D-08, D-15): Staff only, both roles read it.
+        new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),

@@ -11,6 +11,8 @@ public sealed class ListExpenseCategoriesEndpointTests(CspsDatabase database) : 
 {
     private const string Route = "/api/v1/expense-categories";
 
+    private static readonly string[] Keys = ["id", "isOthers", "name", "status", "tone"];
+
     private static readonly string[] Order =
     [
         "Equipment", "Government contributions", "Maintenance", "Rent", "Salaries", "Supplies", "Taxes and permits", "Transport and fuel", "Utilities", "Others",
@@ -50,7 +52,7 @@ public sealed class ListExpenseCategoriesEndpointTests(CspsDatabase database) : 
         items.Select(item => item.GetProperty("name").GetString()).ShouldBe(Order);
         items.ShouldAllBe(item => item.GetProperty("status").GetString() == "active");
         items.ShouldAllBe(item => item.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)
-            .SequenceEqual(new[] { "id", "isOthers", "name", "status", "tone" }));
+            .SequenceEqual(Keys));
         items.Where(item => item.GetProperty("isOthers").GetBoolean()).Select(item => item.GetProperty("name").GetString()).ShouldBe(["Others"]);
         items.Single(item => item.GetProperty("name").GetString() == "Rent").GetProperty("tone").GetString().ShouldBe("accent");
     }

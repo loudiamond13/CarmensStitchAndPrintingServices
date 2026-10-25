@@ -1,5 +1,6 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
+using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
@@ -45,6 +46,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The stored answers of idempotent POSTs, kept 24 hours (SEC-06, D-40).</summary>
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+
+    /// <summary>The company expense categories, ten of them seeded by the migration (D-08, D-09).</summary>
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

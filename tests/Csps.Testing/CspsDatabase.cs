@@ -1,3 +1,4 @@
+using Csps.Domain.Expenses;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -120,6 +121,27 @@ public sealed class CspsDatabase : IAsyncLifetime
                 }).ConfigureAwait(false);
 
             await _respawner.ResetAsync(connection).ConfigureAwait(false);
+        }
+
+        await ReseedExpenseCategoriesAsync().ConfigureAwait(false);
+    }
+
+    // Respawn empties ExpenseCategories, but the ten migration-seeded rows belong to every database (D-09), and an expense
+    // needs its category foreign key (research Pitfall 1). Put back any that are missing, from the same seed the migration uses.
+    private async Task ReseedExpenseCategoriesAsync()
+    {
+        var context = CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var present = await context.ExpenseCategories.AsNoTracking().Select(category => category.Id).ToListAsync().ConfigureAwait(false);
+            var missing = ExpenseCategorySeed.Rows.Where(row => !present.Contains(row.Id)).ToList();
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            context.ExpenseCategories.AddRange(missing.Select(ExpenseCategory.FromSeed));
+            await context.SaveChangesAsync().ConfigureAwait(false);
         }
     }
 
