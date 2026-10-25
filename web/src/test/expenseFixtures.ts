@@ -321,3 +321,25 @@ export function codedProblemResponse(status: number, code: string): Response {
     headers: { 'Content-Type': 'application/problem+json' },
   });
 }
+
+/** What the fake API received for one delete, restore or permanent delete. */
+export interface ActionCalls {
+  ids: string[];
+  keys: (string | null)[];
+}
+
+const noContent = (): Response => new HttpResponse(null, { status: 204 });
+
+/** Answers DELETE /api/v1/company-expenses/{id} (default: 204) and records each id and Idempotency-Key. */
+export function deleteExpenseBackend(reply: (id: string) => Response | Promise<Response> = noContent): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.delete('*/api/v1/company-expenses/:id', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}

@@ -167,3 +167,17 @@ describe('expensesService.update', () => {
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 });
+
+describe('expensesService.remove', () => {
+  it('calls DELETE /api/v1/company-expenses/{id} with no body, no Idempotency-Key and no version', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await expect(service.remove('00000000-0000-4000-8000-0000000000e1')).resolves.toBeUndefined();
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe('/api/v1/company-expenses/00000000-0000-4000-8000-0000000000e1');
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+    expect(fake.calls[0]?.body).toBeUndefined();
+  });
+});

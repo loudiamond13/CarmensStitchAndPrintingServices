@@ -17,6 +17,7 @@ import {
   createExpenseBackend,
   expenseDetail,
   expenseDetailBackend,
+  deleteExpenseBackend,
   updateExpenseBackend,
   RENT,
   staffBackend,
@@ -1207,7 +1208,6 @@ describe('Edit Expense (CEXP-02, D-26; plan 06-14)', () => {
     expect(rent).toHaveAttribute('title', 'Edit Shop rent for October, Oct 6, 2026');
     expect(thread).toHaveAttribute('title', 'Edit Thread and needles, Oct 5, 2026');
     expect(screen.queryByRole('button', { name: /^View / })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
   });
 
   it('opens the Edit Expense dialog for that row and reads that expense', async () => {
@@ -1380,6 +1380,249 @@ describe('View Expense for an Admin (OQ-8, D-26; plan 06-14)', () => {
     renderPage();
     await screen.findByText('Shop rent for October');
 
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
+  const FIRST_ID = '00000000-0000-4000-8000-000000000001';
+  const SECOND_ID = '00000000-0000-4000-8000-000000000002';
+  const RENT_DELETE = 'Delete Shop rent for October, Oct 6, 2026';
+  const THREAD_DELETE = 'Delete Thread and needles, Oct 5, 2026';
+  const RENT_TITLE = 'Delete “Shop rent for October” (₱12,450.00)?';
+
+  /** The list drops the deleted rows once the DELETE has been answered. */
+  function listThatLoses(gone: Set<string>) {
+    return () => expenseList(ROWS.filter((row) => !gone.has(row.id)));
+  }
+
+  it('gives a Manager Edit and then Delete on every row, named with the description and date and with a matching title', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    const rent = rowOf('Shop rent for October');
+    const names = within(rent)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent);
+    expect(names).toEqual(['Edit Shop rent for October, Oct 6, 2026', RENT_DELETE]);
+    expect(screen.getByRole('button', { name: RENT_DELETE })).toHaveAttribute('title', RENT_DELETE);
+    expect(screen.getByRole('button', { name: THREAD_DELETE })).toHaveAttribute('title', THREAD_DELETE);
+  });
+
+  it('opens the confirmation with the quoted title, the message and Cancel focused, and sends nothing yet', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    const sent = deleteExpenseBackend();
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+
+    const dialog = await screen.findByRole('dialog', { name: RENT_TITLE });
+    expect(
+      within(dialog).getByText(
+        "It won't count in the expense list, totals or the payer's balance. You can restore it later from Deleted Expenses.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete Expense' })).toBeVisible();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(sent.ids).toEqual([]);
+  });
+
+  it('Cancel closes the confirmation, sends nothing and returns focus to that Delete button', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    const sent = deleteExpenseBackend();
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const opener = screen.getByRole('button', { name: RENT_DELETE });
+
+    await user.click(opener);
+    await user.click(
+      within(await screen.findByRole('dialog', { name: RENT_TITLE })).getByRole('button', { name: 'Cancel' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(opener).toHaveFocus();
+    expect(sent.ids).toEqual([]);
+  });
+
+  it('puts a very long description in the dialog title, which wraps anywhere', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList([expenseItem(FIRST_ID, { description: LONG_DESCRIPTION })]));
+    renderPage();
+    await screen.findByText(LONG_DESCRIPTION);
+
+    await user.click(screen.getByRole('button', { name: /^Delete / }));
+
+    const dialog = await screen.findByRole('dialog');
+    const title = within(dialog).getByRole('heading', { name: `Delete “${LONG_DESCRIPTION}” (₱12,450.00)?` });
+    expect(title.parentElement).toHaveClass('wrap-anywhere');
+  });
+
+  it('confirming sends DELETE, drops the row, moves focus to the next row first action, reads the lists and KPIs again and toasts', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    const { calls } = expensesBackend(listThatLoses(gone));
+    const { calls: kpiCalls } = kpisBackend();
+    const sent = deleteExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return new Response(null, { status: 204 });
+    });
+    const invalidated: unknown[] = [];
+    const original = queryClient.invalidateQueries.bind(queryClient);
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation((filters, options) => {
+      invalidated.push(filters?.queryKey);
+      return original(filters, options);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const listReads = calls.length;
+    const kpiReads = kpiCalls.length;
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: RENT_TITLE })).getByRole('button', { name: 'Delete Expense' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Shop rent for October')).toBeNull();
+    });
+    expect(sent.ids).toEqual([FIRST_ID]);
+    expect(sent.keys).toEqual([null]);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' })).toHaveFocus();
+    });
+    expect(await screen.findByText('Expense deleted')).toBeVisible();
+    expect(screen.getByText('Shop rent for October. You can restore it from Deleted Expenses.')).toBeVisible();
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThan(listReads);
+      expect(kpiCalls.length).toBeGreaterThan(kpiReads);
+    });
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
+    );
+  });
+
+  it('moves focus to the previous row first action when the deleted row was the last one', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    expensesBackend(listThatLoses(gone));
+    deleteExpenseBackend(() => {
+      gone.add(SECOND_ID);
+      return new Response(null, { status: 204 });
+    });
+    renderPage();
+    await screen.findByText('Thread and needles');
+
+    await user.click(screen.getByRole('button', { name: THREAD_DELETE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Expense' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Thread and needles')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Shop rent for October, Oct 6, 2026' })).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the heading when the list empties', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    expensesBackend(() => expenseList(ROWS.slice(0, 1).filter((row) => !gone.has(row.id))));
+    deleteExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return new Response(null, { status: 204 });
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Expense' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Shop rent for October')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Company Expenses' })).toHaveFocus();
+    });
+  });
+
+  it('shows the confirm button as Deleting while the request runs', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    deleteExpenseBackend(async () => {
+      await delay(150);
+      return new Response(null, { status: 204 });
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Expense' }));
+
+    expect(await screen.findByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('keeps the dialog open on a server failure, with the mapper line as an alert and focus on the confirm button', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    deleteExpenseBackend(() => problemResponse(500));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    const dialog = await screen.findByRole('dialog', { name: RENT_TITLE });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Expense' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(/Something went wrong/);
+    expect(within(dialog).getByRole('button', { name: 'Delete Expense' })).toHaveFocus();
+    expect(screen.getByText('Shop rent for October')).toBeVisible();
+  });
+
+  it('closes the dialog on a 404, reads the list again and says the expense was already deleted', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    const { calls } = expensesBackend(listThatLoses(gone));
+    deleteExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return problemResponse(404);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const reads = calls.length;
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Expense' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(await screen.findByText('Already deleted')).toBeVisible();
+    expect(screen.getByText('Someone else deleted this expense. The list is up to date.')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByText('Shop rent for October')).toBeNull();
+    });
+    expect(calls.length).toBeGreaterThan(reads);
+  });
+
+  it('has no axe violations with the delete actions in the rows and with the confirmation open', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    await expectNoAxeViolations(document.body);
+
+    await user.click(screen.getByRole('button', { name: RENT_DELETE }));
+    await screen.findByRole('dialog', { name: RENT_TITLE });
     await expectNoAxeViolations(document.body);
   });
 });
