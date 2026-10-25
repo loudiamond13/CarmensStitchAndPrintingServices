@@ -8,7 +8,9 @@
 // response the page received. @expenses-add (plan 06-12) adds an expense as an Admin with the defaults, refuses an amount of 0 and 1,000,000.01 in the
 // browser with no request, fits the modal on a 320 px phone and finds the new row. @expenses-edit (plan 06-14) edits an amount from
 // the row, meets the stale-save banner from a second page, shows an Admin View on a coworker's row and Edit on their own, and fits
-// the Edit modal on a 320 px phone.
+// the Edit modal on a 320 px phone. @expenses-delete (plan 06-16) deletes, restores and permanently deletes expenses as a Manager
+// (the row and its amount leave the list and the total), checks an Admin sees no delete action and is sent back from the deleted
+// page, and fits both confirmations on a 320 px phone.
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
@@ -789,4 +791,241 @@ test('@expenses-edit the Edit modal fits a 320 px phone: it scrolls inside, the 
   await expect(term).toBeVisible();
   await expect(recordMetaValue(dialog, 'Recorded by')).toBeVisible();
   await expectNoAxeViolations(page);
+});
+
+// --- @expenses-delete (plan 06-16) ---
+
+/** Presses a button from the keyboard (Safari does not focus a button on click, so focus-dependent dialogs open this way). */
+async function press(page: Page, button: Locator) {
+  await button.focus();
+  await page.keyboard.press('Enter');
+}
+
+/** The expense table's footer: it holds the server's period total for the search in use. */
+function footer(page: Page) {
+  return page.locator('tfoot');
+}
+
+test('@expenses-delete a Manager deletes, restores and permanently deletes expenses: the row and its amount leave the list and the total, Deleted Expenses holds the deleted one, and Restore counts it again', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mira', lastName: `Del${token}` });
+  const fullName = `Mira Del${token}`;
+  const names = { a: `E2E del ${token} a`, b: `E2E del ${token} b`, c: `E2E del ${token} c` };
+  // Three dates, so the rows sit a, b, c from the top.
+  const seeds = [
+    { key: 'a', date: manilaDate(-1), amount: 100 },
+    { key: 'b', date: manilaDate(-2), amount: 200 },
+    { key: 'c', date: manilaDate(-3), amount: 300 },
+  ] as const;
+  for (const seed of seeds) {
+    await createExpense(request, {
+      paidByUserId: manager.userId,
+      recordedByUserId: manager.userId,
+      date: seed.date,
+      categoryId: SUPPLIES,
+      description: names[seed.key],
+      amount: seed.amount,
+    });
+  }
+  await signInAs(page, request, manager);
+  await openList(page, '/admin/expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(footer(page)).toContainText(peso(600));
+
+  // Delete a: the plain confirmation names it and its amount, Cancel has focus, and nothing is sent until the confirm.
+  const deleteA = rows.getByRole('button', { name: new RegExp(`^Delete ${names.a}, [A-Z][a-z]{2} \\d{1,2}, \\d{4}$`) });
+  await press(page, deleteA);
+  const confirm = page.getByRole('dialog', { name: `Delete “${names.a}” (${peso(100)})?` });
+  await expect(confirm).toBeVisible();
+  await expect(
+    confirm.getByText(
+      "It won't count in the expense list, totals or the payer's balance. You can restore it later from Deleted Expenses.",
+    ),
+  ).toBeVisible();
+  await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expectNoAxeViolations(page);
+  await confirm.getByRole('button', { name: 'Delete Expense' }).click();
+
+  // The row and its amount leave the list and the total, the toast says where to restore it, and focus moves to the next row.
+  await expect(confirm).toBeHidden();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: names.a })).toHaveCount(0);
+  await expect(footer(page)).toContainText(peso(500));
+  await expect(page.getByText('Expense deleted', { exact: true })).toBeVisible();
+  await expect(page.getByText(`${names.a}. You can restore it from Deleted Expenses.`)).toBeVisible();
+  await expect(rows.first().getByRole('button', { name: new RegExp(`^Edit ${names.b}, `) })).toBeFocused();
+  await expectNoAxeViolations(page);
+
+  // Deleted Expenses: the link is there for a Manager, the page holds the deleted expense with who and when.
+  await page.getByRole('link', { name: 'Deleted Expenses' }).click();
+  await expect(page).toHaveURL(/\/admin\/expenses\/deleted$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeVisible();
+  await expect(page).toHaveTitle('Deleted Expenses · CSPS Admin');
+  await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]')).toContainText('Company Expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const deletedRows = page.locator('tbody tr');
+  await expect(deletedRows).toHaveCount(1);
+  await expect(deletedRows.first()).toContainText(names.a);
+  await expect(deletedRows.first()).toContainText(peso(100));
+  await expect(deletedRows.first().locator('td[data-label="Deleted by"]')).toContainText(fullName);
+  await expect(deletedRows.first().locator('time')).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  // Restore acts at once: the row leaves the deleted list, focus moves to the heading (the list is now empty for this search).
+  await deletedRows
+    .first()
+    .getByRole('button', { name: new RegExp(`^Restore ${names.a}, `) })
+    .click();
+  await expect(page.getByText('Expense restored', { exact: true })).toBeVisible();
+  await expect(page.getByText(`${names.a} counts in totals again.`)).toBeVisible();
+  await expect(deletedRows).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeFocused();
+  await expectNoAxeViolations(page);
+
+  // Back on the list the restored expense counts again.
+  await page.getByRole('link', { name: 'Back to Company Expenses' }).click();
+  await expect(page).toHaveURL(/\/admin\/expenses$/);
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  await expect(rows).toHaveCount(3);
+  await expect(footer(page)).toContainText(peso(600));
+
+  // Delete b permanently from the list: the warning says it cannot be undone, and the row and amount are gone for good.
+  const purgeB = rows.getByRole('button', { name: new RegExp(`^Delete ${names.b}, .* permanently$`) });
+  await press(page, purgeB);
+  const warning = page.getByRole('dialog', { name: `Delete “${names.b}” (${peso(200)}) permanently?` });
+  await expect(warning).toBeVisible();
+  await expect(
+    warning.getByText(
+      "This removes the expense for good. It can't be restored, and this can't be undone. The audit log keeps its date, category, amount and payer.",
+    ),
+  ).toBeVisible();
+  await expect(warning.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expectNoAxeViolations(page);
+  await warning.getByRole('button', { name: 'Delete Permanently' }).click();
+  await expect(warning).toBeHidden();
+  await expect(rows).toHaveCount(2);
+  await expect(footer(page)).toContainText(peso(400));
+  await expect(page.getByText('Expense permanently deleted', { exact: true })).toBeVisible();
+
+  // Delete c, then delete it permanently from the deleted list.
+  await press(
+    page,
+    rows.getByRole('button', { name: new RegExp(`^Delete ${names.c}, [A-Z][a-z]{2} \\d{1,2}, \\d{4}$`) }),
+  );
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete Expense' }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(footer(page)).toContainText(peso(100));
+  await page.getByRole('link', { name: 'Deleted Expenses' }).click();
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  await expect(deletedRows).toHaveCount(1);
+  await expect(deletedRows.first()).toContainText(names.c);
+  await press(
+    page,
+    deletedRows.first().getByRole('button', { name: new RegExp(`^Delete ${names.c}, .* permanently$`) }),
+  );
+  const lastWarning = page.getByRole('dialog', { name: `Delete “${names.c}” (${peso(300)}) permanently?` });
+  await expect(lastWarning).toBeVisible();
+  await lastWarning.getByRole('button', { name: 'Delete Permanently' }).click();
+  await expect(lastWarning).toBeHidden();
+  await expect(deletedRows).toHaveCount(0);
+  await expect(page.getByText('Expense permanently deleted', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toBeFocused();
+  await expectNoAxeViolations(page);
+});
+
+test('@expenses-delete an Admin sees no delete action and no Deleted Expenses link, and is sent back to the list from /admin/expenses/deleted', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mira', lastName: `Boss${token}` });
+  const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Ana', lastName: `Own${token}` });
+  await createExpense(request, {
+    paidByUserId: admin.userId,
+    recordedByUserId: admin.userId,
+    date: manilaDate(-1),
+    categoryId: SUPPLIES,
+    description: `E2E del ${token} own`,
+    amount: 120,
+  });
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-2),
+    categoryId: RENT,
+    description: `E2E del ${token} coworker`,
+    amount: 800,
+  });
+  await signInAs(page, request, admin);
+  await openList(page, '/admin/expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  await expect(page.locator('tbody tr')).toHaveCount(2);
+
+  await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Deleted Expenses' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add Expense' })).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  // The route loader sends an Admin back to the list; nothing of the deleted page shows.
+  await page.goto('/admin/expenses/deleted');
+  await expect(page).toHaveURL(/\/admin\/expenses$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Company Expenses' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Expenses' })).toHaveCount(0);
+});
+
+test('@expenses-delete both confirmations fit a 320 px phone: the dialog scrolls inside, Cancel and the confirm button stay in view and nothing scrolls sideways', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(150_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager');
+  const description = `E2E del ${token} ${'long description '.repeat(6)}`.trim().slice(0, 200);
+  await createExpense(request, {
+    paidByUserId: manager.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: SUPPLIES,
+    description,
+    amount: 75,
+  });
+  await signInAs(page, request, manager);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await openList(page, '/admin/expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  const row = page.locator('tbody tr');
+  await expect(row).toHaveCount(1);
+
+  for (const [name, confirmLabel] of [
+    [/^Delete .*, [A-Z][a-z]{2} \d{1,2}, \d{4}$/, 'Delete Expense'],
+    [/^Delete .* permanently$/, 'Delete Permanently'],
+  ] as const) {
+    await press(page, row.getByRole('button', { name }));
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+    expect(
+      await page.evaluate(
+        `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`,
+      ),
+    ).toBe(true);
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: confirmLabel })).toBeInViewport();
+    await expectNoAxeViolations(page);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+  }
 });

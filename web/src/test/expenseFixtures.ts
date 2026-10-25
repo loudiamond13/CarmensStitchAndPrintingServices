@@ -405,3 +405,17 @@ export function restoreExpenseBackend(reply: (id: string) => Response | Promise<
   );
   return calls;
 }
+
+/** Answers DELETE /api/v1/company-expenses/{id}/permanent (default: 204) and records each id and Idempotency-Key. */
+export function purgeExpenseBackend(reply: (id: string) => Response | Promise<Response> = noContent): ActionCalls {
+  const calls: ActionCalls = { ids: [], keys: [] };
+  server.use(
+    http.delete('*/api/v1/company-expenses/:id/permanent', ({ params, request }) => {
+      const id = String(params.id);
+      calls.ids.push(id);
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply(id);
+    }),
+  );
+  return calls;
+}

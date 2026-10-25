@@ -18,6 +18,7 @@ import {
   expenseDetail,
   expenseDetailBackend,
   deleteExpenseBackend,
+  purgeExpenseBackend,
   updateExpenseBackend,
   RENT,
   staffBackend,
@@ -1400,6 +1401,7 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
   const SECOND_ID = '00000000-0000-4000-8000-000000000002';
   const RENT_DELETE = 'Delete Shop rent for October, Oct 6, 2026';
   const THREAD_DELETE = 'Delete Thread and needles, Oct 5, 2026';
+  const RENT_PURGE = 'Delete Shop rent for October, Oct 6, 2026 permanently';
   const RENT_TITLE = 'Delete “Shop rent for October” (₱12,450.00)?';
 
   /** The list drops the deleted rows once the DELETE has been answered. */
@@ -1407,7 +1409,7 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
     return () => expenseList(ROWS.filter((row) => !gone.has(row.id)));
   }
 
-  it('gives a Manager Edit and then Delete on every row, named with the description and date and with a matching title', async () => {
+  it('gives a Manager Edit, then Delete, then Delete permanently on every row, named with the description and date and with a matching title', async () => {
     expensesBackend(expenseList(ROWS));
     renderPage();
     await screen.findByText('Shop rent for October');
@@ -1416,7 +1418,9 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
     const names = within(rent)
       .getAllByRole('button')
       .map((button) => button.getAttribute('aria-label') ?? button.textContent);
-    expect(names).toEqual(['Edit Shop rent for October, Oct 6, 2026', RENT_DELETE]);
+    expect(names).toEqual(['Edit Shop rent for October, Oct 6, 2026', RENT_DELETE, RENT_PURGE]);
+    expect(screen.getByRole('button', { name: RENT_PURGE })).toHaveAttribute('title', RENT_PURGE);
+    expect(screen.getByRole('button', { name: RENT_PURGE }).querySelector('svg')).toHaveClass('lucide-eraser');
     expect(screen.getByRole('button', { name: RENT_DELETE })).toHaveAttribute('title', RENT_DELETE);
     expect(screen.getByRole('button', { name: THREAD_DELETE })).toHaveAttribute('title', THREAD_DELETE);
   });
@@ -1468,7 +1472,7 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
     renderPage();
     await screen.findByText(LONG_DESCRIPTION);
 
-    await user.click(screen.getByRole('button', { name: /^Delete / }));
+    await user.click(screen.getByRole('button', { name: `Delete ${LONG_DESCRIPTION}, Oct 6, 2026` }));
 
     const dialog = await screen.findByRole('dialog');
     const title = within(dialog).getByRole('heading', { name: `Delete “${LONG_DESCRIPTION}” (₱12,450.00)?` });
@@ -1649,5 +1653,167 @@ describe('the Deleted Expenses link (D-03, D-07, OQ-2; plan 06-16)', () => {
     const add = screen.getByRole('button', { name: 'Add Expense' });
     expect(link.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(link.parentElement).toBe(add.parentElement);
+  });
+});
+
+describe('Delete permanently from the list (D-04, D-05, OQ-1; plan 06-16)', () => {
+  const FIRST_ID = '00000000-0000-4000-8000-000000000001';
+  const RENT_PURGE = 'Delete Shop rent for October, Oct 6, 2026 permanently';
+  const THREAD_PURGE = 'Delete Thread and needles, Oct 5, 2026 permanently';
+  const PURGE_TITLE = 'Delete “Shop rent for October” (₱12,450.00) permanently?';
+  const PURGE_MESSAGE =
+    "This removes the expense for good. It can't be restored, and this can't be undone. The audit log keeps its date, category, amount and payer.";
+
+  function listThatLoses(gone: Set<string>) {
+    return () => expenseList(ROWS.filter((row) => !gone.has(row.id)));
+  }
+
+  it('opens the permanent confirmation with its title and message, Cancel focused, and sends nothing yet', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    const sent = purgeExpenseBackend();
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+
+    const dialog = await screen.findByRole('dialog', { name: PURGE_TITLE });
+    expect(within(dialog).getByText(PURGE_MESSAGE)).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete Permanently' })).toBeVisible();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(sent.ids).toEqual([]);
+  });
+
+  it('confirming sends the permanent DELETE, drops the row, moves focus to the next row first action, reads the lists again and toasts', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    const { calls } = expensesBackend(listThatLoses(gone));
+    const sent = purgeExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return new Response(null, { status: 204 });
+    });
+    const invalidated: unknown[] = [];
+    const original = queryClient.invalidateQueries.bind(queryClient);
+    vi.spyOn(queryClient, 'invalidateQueries').mockImplementation((filters, options) => {
+      invalidated.push(filters?.queryKey);
+      return original(filters, options);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const reads = calls.length;
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: PURGE_TITLE })).getByRole('button', {
+        name: 'Delete Permanently',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Shop rent for October')).toBeNull();
+    });
+    expect(sent.ids).toEqual([FIRST_ID]);
+    expect(sent.keys).toEqual([null]);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Thread and needles, Oct 5, 2026' })).toHaveFocus();
+    });
+    expect(await screen.findByText('Expense permanently deleted')).toBeVisible();
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThan(reads);
+    });
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
+    );
+  });
+
+  it('shows the description alone in the toast message', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    expensesBackend(listThatLoses(gone));
+    purgeExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return new Response(null, { status: 204 });
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Permanently' }));
+
+    const title = await screen.findByText('Expense permanently deleted');
+    expect(title.parentElement?.textContent).toBe('Expense permanently deletedShop rent for October');
+  });
+
+  it('moves focus to the previous row first action when the last row was deleted for good', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    expensesBackend(listThatLoses(gone));
+    purgeExpenseBackend((id) => {
+      gone.add(id);
+      return new Response(null, { status: 204 });
+    });
+    renderPage();
+    await screen.findByText('Thread and needles');
+
+    await user.click(screen.getByRole('button', { name: THREAD_PURGE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Permanently' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Thread and needles')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Shop rent for October, Oct 6, 2026' })).toHaveFocus();
+    });
+  });
+
+  it('keeps the dialog open on a server failure, with the mapper line as an alert and focus on the confirm button', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    purgeExpenseBackend(() => problemResponse(500));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+    const dialog = await screen.findByRole('dialog', { name: PURGE_TITLE });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Permanently' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Something went wrong/);
+    expect(within(dialog).getByRole('button', { name: 'Delete Permanently' })).toHaveFocus();
+    expect(screen.getByText('Shop rent for October')).toBeVisible();
+  });
+
+  it('closes the dialog on a 404 and says the expense was already deleted', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    expensesBackend(listThatLoses(gone));
+    purgeExpenseBackend(() => {
+      gone.add(FIRST_ID);
+      return problemResponse(404);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Permanently' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(await screen.findByText('Already deleted')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByText('Shop rent for October')).toBeNull();
+    });
+  });
+
+  it('has no axe violations with the permanent confirmation open', async () => {
+    const user = userEvent.setup();
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RENT_PURGE }));
+    await screen.findByRole('dialog', { name: PURGE_TITLE });
+    await expectNoAxeViolations(document.body);
   });
 });
