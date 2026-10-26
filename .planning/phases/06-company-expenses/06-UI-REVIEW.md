@@ -57,4 +57,4 @@ Under `web/src/modules/admin/`: `pages/ExpensesPage.tsx`, `pages/DeletedExpenses
 
 ## Outcomes
 
-Pending the owner's decision for UI-06-01 to UI-06-05 and the comment note.
+Owner ruling D-60 (2026-10-26): fix all five warnings and trim the long header comments before Phase 6 closes. For UI-06-02, show the friendly date beside the native date box. Each finding's final outcome (fixed, with commit) is added when the quick task lands.
