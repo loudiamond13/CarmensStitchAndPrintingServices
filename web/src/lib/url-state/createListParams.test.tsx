@@ -401,6 +401,66 @@ describe('createListParams: search', () => {
     await advance(500);
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
+
+  it('reset during the quiet time drops the waiting search, so Clear filters is not undone later', async () => {
+    vi.useFakeTimers();
+    const { result, onUrlUpdate } = renderOrders('?page=3&status=done');
+    act(() => {
+      result.current[1].setSearch('jersey');
+    });
+    await advance(100);
+    act(() => {
+      result.current[1].reset();
+    });
+    await advance(500);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    expect(result.current[0]).toEqual(DEFAULT_STATE);
+  });
+
+  it('a filter change during the quiet time writes the waiting search in the same single update', async () => {
+    vi.useFakeTimers();
+    const { result, onUrlUpdate } = renderOrders('?page=3');
+    act(() => {
+      result.current[1].setSearch('jersey');
+    });
+    await advance(100);
+    act(() => {
+      result.current[1].setFilter('status', 'ready');
+    });
+    await advance(10);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=jersey&status=ready' }]);
+    await advance(500);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=jersey&status=ready' }]);
+    expect(result.current[0]).toMatchObject({ q: 'jersey', status: 'ready', page: 1 });
+  });
+
+  it('a page change during the quiet time pushes the page and carries the waiting search', async () => {
+    vi.useFakeTimers();
+    const { result, onUrlUpdate } = renderOrders('');
+    act(() => {
+      result.current[1].setSearch('jersey');
+    });
+    await advance(100);
+    act(() => {
+      result.current[1].setPage(2);
+    });
+    await advance(500);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'push', query: '?q=jersey&page=2' }]);
+    expect(result.current[0]).toMatchObject({ q: 'jersey', page: 2 });
+  });
+
+  it('shows the same values before and after the search is written', async () => {
+    vi.useFakeTimers();
+    const { result, onUrlUpdate } = renderOrders('?page=3');
+    act(() => {
+      result.current[1].setSearch('jersey');
+    });
+    const before = result.current[0];
+    expect(before).toMatchObject({ q: 'jersey', page: 1 });
+    await advance(400);
+    expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+    expect(result.current[0]).toEqual(before);
+  });
 });
 
 describe('createListParams: date ranges and key order (app adapter options)', () => {
