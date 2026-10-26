@@ -1,7 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Application.Users;
-using Csps.Infrastructure.Common;
 using Csps.Domain.Identity;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
