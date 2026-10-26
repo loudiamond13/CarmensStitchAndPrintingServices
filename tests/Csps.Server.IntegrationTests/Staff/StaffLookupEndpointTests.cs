@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Staff;
 
-/// <summary>CEXP-05, D-32, T-06-01, T-06-04, CWE-200, CWE-862: both roles read the staff who can pay, names and ids only; a stranger is refused.</summary>
+/// <summary>CEXP-05, D-32, D-49, T-06-01, T-06-04, CWE-200, CWE-862: both roles read the staff who can pay, names and ids only; a stranger is refused.</summary>
 public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string Route = "/api/v1/staff";
@@ -82,9 +82,9 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
-    public async Task ATemporaryPasswordPersonWhoHasNotSignedInIsListed()
+    public async Task ATemporaryPasswordPersonWhoHasNotSignedInIsNotListed()
     {
-        // A-06-01 pin: the built rule is "has a password" (option 2). Choosing option 1 or 3 flips exactly this case.
+        // D-49: a Manager-set temporary password does not mark the account; the first sign-in code does.
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -93,7 +93,45 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
 
         var items = await ReadAsync(client, manager.AccessToken);
 
+        items.Select(item => item.Id).ShouldNotContain(id);
+        (await CanPayAsync(factory, id)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ATemporaryPasswordPersonIsListedAfterTheirFirstSignInCode()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var personClient = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var email = $"tia.{Guid.NewGuid():N}@example.com";
+        var temporary = $"Tmp-{Guid.NewGuid():N}!x";
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, manager.AccessToken, email, temporary);
+
+        using (var verified = await AuthClient.SignInThroughCodeAsync(personClient, new TestStaff(id, email, temporary)))
+        {
+            verified.StatusCode.ShouldBe(HttpStatusCode.OK, await verified.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        var items = await ReadAsync(client, manager.AccessToken);
+
         items.Select(item => item.Id).ShouldContain(id);
+        (await CanPayAsync(factory, id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ALongTimeStaffMemberWhosePasswordAManagerResetStaysListed()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Rey", "Reset", Roles.Admin);
+
+        await UserFixtures.SetTemporaryPasswordAsync(client, manager.AccessToken, person.Id, $"Tmp-{Guid.NewGuid():N}!x");
+
+        var items = await ReadAsync(client, manager.AccessToken);
+        items.Select(item => item.Id).ShouldContain(person.Id);
+        (await CanPayAsync(factory, person.Id)).ShouldBeTrue();
     }
 
     [Fact]
@@ -105,7 +143,10 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
         var seed = await SeedAsync(factory);
         var temporaryId = await UserFixtures.CreateWithTemporaryPasswordAsync(
             client, caller.AccessToken, $"tia.{Guid.NewGuid():N}@example.com", $"Tmp-{Guid.NewGuid():N}!x");
-        var everyone = seed.CanPay.Concat(seed.CannotPay).Append(temporaryId).Append(caller.UserId).ToList();
+        var unmarked = await AuthClient.CreateStaffAsync(factory, StaffState.Unconfirmed, Roles.Admin);
+        var reset = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Rey", "Reset", Roles.Admin);
+        await UserFixtures.SetTemporaryPasswordAsync(client, caller.AccessToken, reset.Id, $"Tmp-{Guid.NewGuid():N}!x");
+        var everyone = seed.CanPay.Concat(seed.CannotPay).Append(temporaryId).Append(unmarked.Id).Append(reset.Id).Append(caller.UserId).ToList();
 
         var listed = (await ReadAsync(client, caller.AccessToken)).Select(item => item.Id).ToHashSet();
 
@@ -121,6 +162,9 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
 
             (await directory.GetStaffStateAsync(Guid.NewGuid(), TestContext.Current.CancellationToken)).ShouldBeNull();
         }
+
+        listed.ShouldNotContain(unmarked.Id);
+        listed.ShouldContain(reset.Id);
     }
 
     [Fact]
@@ -132,6 +176,7 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
         var invited = await UserFixtures.CreateAsync(factory, tag, "Hal", "Honrado", Roles.Admin, withPassword: false);
         var locked = await UserFixtures.CreateAsync(factory, tag, "Gina", "Garcia");
         var deleted = await UserFixtures.CreateAsync(factory, tag, "Jun", "Javier", Roles.Admin);
+        var unmarked = await AuthClient.CreateStaffAsync(factory, StaffState.Unconfirmed, Roles.Admin);
         await AuthClient.DeactivateAsync(factory, admin.Id);
         await AccountStateFixtures.ManagerLockAsync(factory, locked.Id);
         await AccountStateFixtures.MarkDeletedAsync(factory, deleted.Id);
@@ -142,12 +187,14 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
             var directory = scope.ServiceProvider.GetRequiredService<IStaffDirectory>();
             var deactivated = (await directory.GetStaffStateAsync(admin.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
             var noPassword = (await directory.GetStaffStateAsync(invited.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+            var notMarked = (await directory.GetStaffStateAsync(unmarked.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
             var managerLocked = (await directory.GetStaffStateAsync(locked.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
             var gone = (await directory.GetStaffStateAsync(deleted.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
-            (deactivated.Role, deactivated.IsActive, deactivated.HasPassword, deactivated.Name)
+            (deactivated.Role, deactivated.IsActive, deactivated.HasFinishedSetUp, deactivated.Name)
                 .ShouldBe((Roles.Admin, false, true, $"Bea{tag} Bautista{tag}"));
-            (noPassword.HasPassword, noPassword.IsActive).ShouldBe((false, true));
+            (noPassword.HasFinishedSetUp, noPassword.IsActive).ShouldBe((false, true));
+            notMarked.HasFinishedSetUp.ShouldBeFalse();
             (managerLocked.Role, managerLocked.IsManagerLocked, managerLocked.IsManager).ShouldBe((Roles.Manager, true, true));
             gone.IsDeleted.ShouldBeTrue();
         }
@@ -162,6 +209,16 @@ public sealed class StaffLookupEndpointTests(CspsDatabase database) : IClassFixt
         using var response = await GetAsync(client, null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private static async Task<bool> CanPayAsync(CspsApiFactory factory, Guid id)
+    {
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var directory = scope.ServiceProvider.GetRequiredService<IStaffDirectory>();
+            return (await directory.GetStaffStateAsync(id, TestContext.Current.CancellationToken)).ShouldNotBeNull().CanPay;
+        }
     }
 
     private static Task<HttpResponseMessage> GetAsync(HttpClient client, string? accessToken) =>

@@ -3,12 +3,12 @@ using Csps.Application.Staff;
 
 namespace Csps.Application.UnitTests.Staff;
 
-/// <summary>CEXP-05, D-32: one rule says who can be named as the payer.</summary>
+/// <summary>CEXP-05, D-32, D-49: one rule says who can be named as the payer.</summary>
 public sealed class StaffStateTests
 {
     private static StaffState State(
-        string? role = Roles.Manager, bool active = true, bool locked = false, bool deleted = false, bool hasPassword = true) =>
-        new(Guid.NewGuid(), "Ana Abad", role, active, locked, deleted, hasPassword);
+        string? role = Roles.Manager, bool active = true, bool locked = false, bool deleted = false, bool finishedSetUp = true) =>
+        new(Guid.NewGuid(), "Ana Abad", role, active, locked, deleted, HasFinishedSetUp: finishedSetUp);
 
     [Theory]
     [InlineData(Roles.Admin)]
@@ -39,7 +39,13 @@ public sealed class StaffStateTests
     [Fact]
     public void AnInvitedPersonWithNoPasswordCannotPay()
     {
-        State(hasPassword: false).CanPay.ShouldBeFalse();
+        State(finishedSetUp: false).CanPay.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void APersonWhoHasNotFinishedSetUpCannotPay()
+    {
+        new StaffState(Guid.NewGuid(), "Ana Abad", Roles.Admin, true, false, false, HasFinishedSetUp: false).CanPay.ShouldBeFalse();
     }
 
     [Theory]
