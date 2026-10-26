@@ -14,6 +14,8 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
 {
     private const int RowCount = 120;
 
+    private static readonly TimeSpan SweepWait = TimeSpan.FromSeconds(10);
+
     [Fact]
     public async Task ThePageSizeDoesNotChangeTheNumberOfSqlCommands()
     {
@@ -25,9 +27,9 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
         var large = await rig.CountAsync(() => ExpenseFixtures.ReadPageAsync(rig.Client, rig.Token, "pageSize=100"));
 
         small.Count.ShouldBeGreaterThan(0, "the counter must be attached, or this test proves nothing");
-        large.Count.ShouldBe(small.Count);
-        small.Page.Items.Count.ShouldBe(10);
-        large.Page.Items.Count.ShouldBe(100);
+        large.Count.ShouldBe(small.Count, Listing(small, large));
+        small.Result.Items.Count.ShouldBe(10);
+        large.Result.Items.Count.ShouldBe(100);
     }
 
     [Fact]
@@ -41,7 +43,28 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
         var second = await rig.CountAsync(() => ExpenseFixtures.ReadKpisAsync(rig.Client, rig.Token));
 
         first.Count.ShouldBeGreaterThan(0, "the counter must be attached, or this test proves nothing");
-        second.Count.ShouldBe(first.Count);
+        second.Count.ShouldBe(first.Count, Listing(first, second));
+    }
+
+    [Fact]
+    public async Task AnEmailSweepDuringTheRequestIsNotCounted()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedRowsAsync(database, RowCount);
+        (await ExpenseFixtures.ReadPageAsync(rig.Client, rig.Token)).Items.ShouldNotBeEmpty();
+        var plain = await rig.CountAsync(() => ExpenseFixtures.ReadPageAsync(rig.Client, rig.Token, "pageSize=10"));
+
+        // The host's email dispatcher reads the outbox every second from its own background flow; keep the window open across one read.
+        var held = await rig.CountAsync(async () =>
+        {
+            rig.Counter.Reset();
+            var page = await ExpenseFixtures.ReadPageAsync(rig.Client, rig.Token, "pageSize=10");
+            await rig.WaitForOutboxSweepAsync();
+            return page;
+        });
+
+        plain.Count.ShouldBeGreaterThan(0, "the counter must be attached, or this test proves nothing");
+        held.Count.ShouldBe(plain.Count, Listing(plain, held));
     }
 
     [Fact]
@@ -59,7 +82,8 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
         rig.Counter.Count.ShouldBeGreaterThan(0);
     }
 
-    private sealed record Counted<T>(int Count, T Page);
+    private static string Listing<T>(MeasuredCommands<T> first, MeasuredCommands<T> second) =>
+        $"first:\n{string.Join("\n", first.Commands)}\nsecond:\n{string.Join("\n", second.Commands)}";
 
     private sealed class Rig : IAsyncDisposable
     {
@@ -96,6 +120,9 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
             // ConfigureDbContext appends to the options the host registers; the create test proves the stamp interceptor survives.
             var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
                 services.ConfigureDbContext<CspsDbContext>(options => options.AddInterceptors(counter))));
+
+            // Each request runs in the caller's async flow, so the counter can tell its commands from the host's background work.
+            factory.Server.PreserveExecutionContext = true;
             var session = await TestSessions.StartAsync(factory, Roles.Manager);
             var today = await ExpenseFixtures.TodayAsync(baseFactory);
             return new Rig(baseFactory, factory, counter, session, today);
@@ -118,11 +145,17 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        public async Task<Counted<T>> CountAsync<T>(Func<Task<T>> request)
+        public Task<MeasuredCommands<T>> CountAsync<T>(Func<Task<T>> request) => Counter.MeasureAsync(request);
+
+        // Waits until the host's counter has seen the dispatcher read the outbox since the last Reset.
+        public async Task WaitForOutboxSweepAsync()
         {
-            Counter.Reset();
-            var page = await request();
-            return new Counted<T>(Counter.Count, page);
+            var waited = TimeProvider.System.GetTimestamp();
+            while (!Counter.Commands.Any(text => text.Contains("[EmailOutbox]", StringComparison.Ordinal)))
+            {
+                TimeProvider.System.GetElapsedTime(waited).ShouldBeLessThan(SweepWait, "the email dispatcher did not read the outbox");
+                await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+            }
         }
 
         public async ValueTask DisposeAsync()
