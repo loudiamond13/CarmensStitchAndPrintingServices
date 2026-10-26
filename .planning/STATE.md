@@ -4,10 +4,10 @@ current_phase: 06
 current_phase_name: Company Expenses
 status: executing
 stopped_at: Completed 06-21-PLAN.md
-last_updated: "2026-10-26T03:25:43.883Z"
+last_updated: "2026-10-26T11:53:02.815Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 0cb460c2db7471fb4055cea7e92577506e17bb63
+state_head: 540acfce216cc91d471a22adedb26303d0ae35f2
 progress:
   total_phases: 17
   completed_phases: 5
@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-26T06:09:00-05:00"
+updated: "2026-10-26T06:53:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 Phase: 06 (Company Expenses) — EXECUTING
 Plan: 21 of 21 (06-01 to 06-21 are done; all Phase 6 plans are built, verification is next)
 Status: Executing — all plans done, ready for verification
-Last activity: 2026-10-25 — Phase 06 execution started
+Last activity: 2026-10-26 - Completed quick task 261026-89i: Phase 6 UI review fixes (D-60, D-61, D-62)
 
 Progress: [███░░░░░░░] 29%
 
@@ -677,6 +677,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [x] **Ruled D-56 (owner, 2026-10-26): option 1, keep the sentence.** **Phase 6 wording for a Paid by who has not signed in (plan 06-20, 05 D-48, parked 2026-10-25):** a Manager adds Tia with a temporary password. Until her first sign-in code, choosing her as Paid by gives the existing sentence "This person can't be chosen because their account isn't active. Choose someone else." Her account is active, so the sentence can read oddly. Nothing was reworded. Pick one. (1) Recommended: keep the sentence; it is short and the person appears in the list after the first sign-in. (2) Add a second sentence for this case, for example "This person hasn't signed in yet. Choose someone else.", which needs a small change in the payer check and the web copy. (3) Show the person in the Paid by list but not selectable, with a hint. Where it changes: `ExpenseRules.PaidByInactive` and the payer check in `CreateCompanyExpenseHandler.cs` and `UpdateCompanyExpenseHandler.cs`.
 - [ ] **Quick task: log a cancelled request as cancelled, not as a server error (D-59, 2026-10-26):** a request the browser cancels (`TaskCanceledException`, for example `GET /api/v1/staff` in `StaffDirectory.ListActiveStaffAsync`) is logged as an Error with status 500 though no client saw a 500. Detail in `.planning/phases/06-company-expenses/deferred-items.md`. Run as `/gsd-quick` when convenient.
 - [ ] **Phase 6 release day (owner reminder, 2026-10-26):** do not run any SQL on production before release. On release day, after Phase 6 is merged: take `csps-migrations.sql` from that release's deploy package, apply it to the production database (it adds expense categories, company expenses and the database lock table; additive only), then press Run on the deploy (`docs/operations/deploy.md`).
+- [ ] **Phase 6 UI fixes, your visual check (quick 261026-89i, not blocking):** on your dev server at 390, 820 and 1440 px: the expense toolbar labels line up; From and To show "Sep 26, 2026" beside the box, one filter per row on phones, no sideways scroll at 320 px; the expense form Date shows the friendly date; Settings row icons line up with space at the card edge at 820 px; Category and Paid by show the required *; counts show commas ("Showing 1,687 expenses"). Tell me anything that looks off.
 - [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
 - [ ] **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 - [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
@@ -724,6 +725,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261017-j36 | Harden two load-sensitive tests (sign-in timing runs alone with warm-up; ESLint config test shares one instance with a 30 s budget) | 2026-10-17 | 8f232de | [261017-j36-harden-two-load-sensitive-tests-sign-in-](./quick/261017-j36-harden-two-load-sensitive-tests-sign-in-/) |
 | 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
 | 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
+| 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | 540acfce | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
 
 ## Deferred Items
 
