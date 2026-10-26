@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
-status: executing
-stopped_at: Completed 06-18-PLAN.md
-last_updated: "2026-10-26T00:32:55.815Z"
+status: verifying
+stopped_at: Completed 06-19-PLAN.md
+last_updated: "2026-10-26T01:38:01.740Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 12ddb4f6089b567a446aa2c599e22bc53752f41b
+state_head: 787fae2c219027a37a16290d1c38ae778367ddc4
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 184
+  completed_plans: 185
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T20:15:00-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 19 of 19 (06-01 to 06-18 are done; next is 06-19)
-Status: Ready to execute
+Plan: 19 of 19 (06-01 to 06-19 are done; the phase is ready for verification)
+Status: Phase complete — ready for verification
 Last activity: 2026-10-25 — Phase 06 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -241,6 +241,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P16 | 61 min | 3 tasks | 27 files |
 | Phase 06 P17 | 41 min | 3 tasks | 25 files |
 | Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
+| Phase 06 P19 | 56 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -644,6 +645,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-17: every category change refreshes through useRefreshCategories (categories, expenses, KPIs, deleted list); the category detail is read fresh under its own query root so a refresh never replaces an open form's version
 - [Phase 06]: 06-18: A money figure of 15 characters or more takes a smaller KPI clamp (22px floor, 13.5cqi) so 999,999,999.99 fits the card at 320 px; shorter figures keep the approved clamp
 - [Phase 06]: 06-18: The showcase section for the Phase 6 demos is titled Expenses and settings, because the E1 table region is already named Company expenses
+- [Phase 06]: 06-19: A-06-01 and the three inline SQL files are shown in the review pack as ruled (D-49, D-50) with follow-up plans 06-20 and 06-21; option 2 and option 1 stay marked built until those land
+- [Phase 06]: 06-19: npm run review reads the copy modules through a short-lived Vite server when plain Node cannot resolve the app's @/ paths (06-15 had stopped the script)
+- [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
 
 ### Pending Todos
 
@@ -718,6 +722,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T00:32:54.915Z
-Stopped at: Completed 06-18-PLAN.md
+Last session: 2026-10-26T01:37:59.517Z
+Stopped at: Completed 06-19-PLAN.md
 Resume file: None

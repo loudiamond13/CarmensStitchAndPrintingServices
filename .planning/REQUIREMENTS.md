@@ -113,12 +113,12 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Company Expenses (CEXP)
 
-- [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
+- [x] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
   - *Phase 6 note (owner decision D-23, 2026-10-25; the requirement text above is unchanged):* the "last 30 days" default is superseded by a window from 30 days before to 30 days after the business today, so early-recorded expenses still show. See `phases/06-company-expenses/06-CONTEXT.md` D-23.
-- [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
-- [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
-- [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
-- [ ] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
+- [x] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
+- [x] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
+- [x] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
+- [x] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
 
 ### Orders (ORD)
 
@@ -399,11 +399,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-08 | Phase 5 | Complete |
 | AUDIT-01 | Phase 4 | Partial: auth events done in Phase 4; user, order, expense and content events with their features |
 | AUDIT-02 | Phase 5 | Complete |
-| CEXP-01 | Phase 6 | Pending |
-| CEXP-02 | Phase 6 | Pending |
-| CEXP-03 | Phase 6 | Pending |
-| CEXP-04 | Phase 6 | Pending |
-| CEXP-05 | Phase 6 | Pending |
+| CEXP-01 | Phase 6 | Complete |
+| CEXP-02 | Phase 6 | Complete |
+| CEXP-03 | Phase 6 | Complete |
+| CEXP-04 | Phase 6 | Complete |
+| CEXP-05 | Phase 6 | Complete |
 | ORD-01 | Phase 8 | Pending |
 | ORD-02 | Phase 8 | Pending |
 | ORD-03 | Phase 7 | Pending |
