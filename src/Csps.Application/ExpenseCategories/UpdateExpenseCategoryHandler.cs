@@ -120,18 +120,16 @@ public sealed class UpdateExpenseCategoryHandler(
         return Result.Success(true);
     }
 
-    // Others keeps its name (OQ-6). Another category's name is refused unless only the letter case of this one's own name changes.
+    // Another category's name is refused unless only the letter case of this one's own name changes. Others needs no lookup:
+    // Rename refuses any new name for it (OQ-6).
     private async Task<ValidationFailure?> CheckNameAsync(ExpenseCategory category, string name, CancellationToken cancellationToken)
     {
-        var trimmed = name.Trim();
         if (category.IsOthers)
         {
-            return string.Equals(trimmed, category.Name, StringComparison.Ordinal)
-                ? null
-                : new ValidationFailure(nameof(UpdateExpenseCategoryRequest.Name), ExpenseCategoryRules.OthersNameLocked);
+            return null;
         }
 
-        var normalized = ExpenseCategory.Normalize(trimmed);
+        var normalized = ExpenseCategory.Normalize(name.Trim());
         return normalized != category.NormalizedName
             && await categories.NameTakenAsync(normalized, category.Id, cancellationToken).ConfigureAwait(false)
                 ? NameTaken()

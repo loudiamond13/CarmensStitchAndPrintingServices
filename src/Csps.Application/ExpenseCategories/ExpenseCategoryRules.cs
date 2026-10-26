@@ -27,5 +27,5 @@ public static class ExpenseCategoryRules
     public const string NameTaken = "Another category already has this name.";
 
     /// <summary>The message for renaming Others (OQ-6).</summary>
-    public const string OthersNameLocked = "The Others name can't change.";
+    public const string OthersNameLocked = ExpenseCategory.OthersNameMessage;
 }
