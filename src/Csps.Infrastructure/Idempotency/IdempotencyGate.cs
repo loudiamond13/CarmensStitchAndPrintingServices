@@ -1,4 +1,3 @@
-using System.Data.Common;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -132,17 +131,30 @@ public sealed class IdempotencyLease : IAsyncDisposable
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Never throws for a failed rollback or release, so it cannot replace the error that ended the request. The failure is
+    /// logged, and the transaction is always disposed.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
-        if (!_finished)
+        try
         {
-            _finished = true;
-            await EndUnfinishedAsync(CancellationToken.None).ConfigureAwait(false);
+            if (!_finished)
+            {
+                _finished = true;
+                await EndUnfinishedAsync(CancellationToken.None).ConfigureAwait(false);
+            }
         }
-
-        if (_transaction is not null)
+        catch (Exception exception) when (exception is InvalidOperationException || SqlErrors.IsDatabaseFailure(exception))
         {
-            await _transaction.DisposeAsync().ConfigureAwait(false);
+            _gate.LogEndFailed(exception);
+        }
+        finally
+        {
+            if (_transaction is not null)
+            {
+                await _transaction.DisposeAsync().ConfigureAwait(false);
+            }
         }
     }
 
@@ -208,7 +220,6 @@ public sealed partial class IdempotencyGate(CspsDbContext context, IDbContextFac
     private const int MaxClaimAttempts = 3;
     private const int DuplicateIndexKey = 2601;
     private const int DuplicateKey = 2627;
-    private const int DeadlockVictim = 1205;
 
     /// <summary>The name of the claim row for a key: a hash, so no request data is stored (CWE-532).</summary>
     /// <param name="key">The client's request key.</param>
@@ -331,7 +342,7 @@ public sealed partial class IdempotencyGate(CspsDbContext context, IDbContextFac
                     .ConfigureAwait(false);
                 return changed == 1;
             }
-            catch (SqlException error) when (error.Number == DeadlockVictim)
+            catch (Exception error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
             {
                 // Another caller is taking the same claim over; the key reads as in progress and the client retries.
                 return false;
@@ -353,7 +364,7 @@ public sealed partial class IdempotencyGate(CspsDbContext context, IDbContextFac
                     .ConfigureAwait(false);
             }
         }
-        catch (DbException exception)
+        catch (Exception exception) when (SqlErrors.IsDatabaseFailure(exception))
         {
             LogReleaseFailed(logger, exception);
         }
@@ -378,17 +389,23 @@ public sealed partial class IdempotencyGate(CspsDbContext context, IDbContextFac
                 .ExecuteDeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (DbException exception)
+        catch (Exception exception) when (SqlErrors.IsDatabaseFailure(exception))
         {
             LogPurgeFailed(logger, exception);
         }
     }
+
+    // A lease that could not roll back on dispose: the error is logged so it never replaces the request's own error.
+    internal void LogEndFailed(Exception exception) => LogLeaseEndFailed(logger, exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Expired idempotency records could not be removed.")]
     private static partial void LogPurgeFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "An idempotency claim could not be freed; it ends with its lease.")]
     private static partial void LogReleaseFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "An idempotency lease could not be rolled back; its transaction is disposed.")]
+    private static partial void LogLeaseEndFailed(ILogger logger, Exception exception);
 
     private async Task<(IdempotencyLeaseState State, StoredResponse? Replay)> InspectAsync(
         Guid key, string route, Guid? userId, byte[] requestHash, DateTimeOffset now, CancellationToken cancellationToken)

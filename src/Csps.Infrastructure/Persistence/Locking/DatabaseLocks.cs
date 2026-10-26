@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Security.Cryptography;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Persistence.Locking;
@@ -21,8 +20,6 @@ internal static class DatabaseLocks
     public static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(10);
 
     private const string AccountPrefix = "account-token:";
-    private const int Timeout = -2;
-    private const int DeadlockVictim = 1205;
 
     /// <summary>Gets every standing lock name: the roster lock, then the 64 account locks in order.</summary>
     public static IReadOnlyList<string> StandingNames { get; } =
@@ -79,7 +76,7 @@ internal static class DatabaseLocks
                 throw new InvalidOperationException(failureMessage);
             }
         }
-        catch (Exception error) when (IsLockFailure(error))
+        catch (Exception error) when (SqlErrors.Has(error, SqlErrors.Timeout, SqlErrors.DeadlockVictim))
         {
             throw new InvalidOperationException(failureMessage, error);
         }
@@ -87,18 +84,5 @@ internal static class DatabaseLocks
         {
             context.Database.SetCommandTimeout(previous);
         }
-    }
-
-    private static bool IsLockFailure(Exception error)
-    {
-        for (var current = error; current is not null; current = current.InnerException)
-        {
-            if (current is SqlException { Number: Timeout or DeadlockVictim })
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

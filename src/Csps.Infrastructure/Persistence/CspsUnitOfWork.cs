@@ -1,7 +1,6 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Expenses;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -11,8 +10,6 @@ namespace Csps.Infrastructure.Persistence;
 /// <param name="context">The scoped database context.</param>
 internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
 {
-    private const int DeadlockVictim = 1205;
-
     private int _savepoints;
 
     /// <inheritdoc />
@@ -91,16 +88,5 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
         return result;
     }
 
-    private static bool IsDeadlockVictim(Exception error)
-    {
-        for (var current = error; current is not null; current = current.InnerException)
-        {
-            if (current is SqlException { Number: DeadlockVictim })
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private static bool IsDeadlockVictim(Exception error) => SqlErrors.Has(error, SqlErrors.DeadlockVictim);
 }
