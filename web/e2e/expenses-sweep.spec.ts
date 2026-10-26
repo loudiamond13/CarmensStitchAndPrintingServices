@@ -314,7 +314,10 @@ const SHOWCASE_DIALOGS = [
 
 /** Runs axe over the Phase 6 cases (or the open dialog) only, with pageAxe. */
 async function axeWithin(page: Page, selectors: string[]): Promise<string[]> {
-  const results = await pageAxe(page).include(selectors).analyze();
+  // One include per selector: axe reads an array of selectors as a path into iframes.
+  const results = await selectors.reduce((axe, selector) => axe.include(selector), pageAxe(page)).analyze();
+  // A selector that matched nothing would let axe check nothing and pass.
+  expect(results.passes.length, `axe checked nothing within ${selectors.join(', ')}`).toBeGreaterThan(0);
   return results.violations.map(
     (violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(' ')).join(', ')}`,
   );
