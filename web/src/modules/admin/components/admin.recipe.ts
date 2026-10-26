@@ -20,9 +20,13 @@ export const adminSideClasses = tw('relative flex-none pg-phone:hidden');
 /** `.s-admin-main`: the topbar, the body and the phone tab bar in one column (`data-ui="s-admin-main"`). */
 export const adminMainClasses = tw('flex min-w-0 flex-1 flex-col');
 
-/** `.s-body`: 32 32 48 with 24px gaps, up to 1440px wide; 24 24 48 on tablets; 20 16 32 with 20px gaps on phones. */
+/**
+ * `.s-body`: 32 32 48 with 24px gaps, up to 1440px wide; 24 24 48 on tablets; 20 16 32 with 20px gaps on phones. When a
+ * classic scrollbar keeps a 768px or wider window in the phone layout, html cannot see that, so the controls in main carry
+ * the tab bar's bottom spacing instead; dialog contents are left out.
+ */
 export const adminBodyClasses = tw(
-  'flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-8 pb-12 pg-phone:gap-5 pg-phone:px-4 pg-phone:pt-5 pg-phone:pb-8 pg-tablet:px-6 pg-tablet:pt-6 pg-tablet:pb-12',
+  'flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-8 pb-12 pg-phone:gap-5 pg-phone:px-4 pg-phone:pt-5 pg-phone:pb-8 pg-tablet:px-6 pg-tablet:pt-6 pg-tablet:pb-12 md:pg-phone:[&_:not([aria-modal=true]_*)]:scroll-mb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
 );
 
 // ── Phone tab bar (App. C `/* mobile tab bar (admin) */`, App. E.6 `nav.s-tabbar`) ──
