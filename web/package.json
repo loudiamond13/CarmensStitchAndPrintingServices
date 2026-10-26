@@ -29,7 +29,8 @@
   "overrides": {
     "axe-core": "4.13.0",
     "http-cache-semantics": "4.3.0",
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
@@ -43,7 +44,7 @@
     "react-dom": "19.3.0",
     "react-hook-form": "7.89.0",
     "react-router": "8.4.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

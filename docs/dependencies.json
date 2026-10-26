@@ -56,6 +56,11 @@
       "date": "2026-10-16",
       "by": "owner",
       "scope": "Security workflows for the now-public repository (quick task 261016-pub), approved before any was pinned. GitHub Actions pinned by full commit SHA: github/codeql-action v4.38.2 (2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2, the commit the annotated tag points to; bundles CodeQL 2.27.1; used for init and analyze; action license MIT, and the CodeQL CLI it runs is free for open-source code on GitHub.com, which this repository now is: public, MIT-licensed) and actions/dependency-review-action v5.0.0 (a1d282b36b6f3519aa1f3fc636f609c47dddb294, MIT). Both are past the 14-day cool-down and have no known advisories. Also approved: the repository license, MIT, with the copyright line 'Copyright (c) 2026 loudiamond13'. No npm, NuGet or PyPI package is added."
+    },
+    {
+      "date": "2026-10-26",
+      "by": "owner",
+      "scope": "npm audit fixes for PR #11 (quick task 261026-au5; D-63, D-65, D-66). Exact versions approved: zod 4.6.7 as a dependency and as one top-level override that also covers chromium-bidi (D-65), vitest 5.0.4 and @vitest/coverage-v8 5.0.4 with the test-only packages they require (D-66), and the lockfile-only refreshes ip-address 10.7.4, undici 8.12.2 and 6.29.1, and fast-uri 3.1.9. undici and fast-uri skip the 14-day cool-down as security fixes (D-63). The lockfile-only packages are not pins, so they have no package entry. Accepted risk (D-65): chromium-bidi was written for zod 3, so on zod 4 a malformed command throws a TypeError instead of its own error; Lighthouse never loads chromium-bidi."
     }
   ],
   "packages": [
@@ -1208,17 +1213,17 @@
     },
     {
       "id": "zod",
-      "version": "4.6.5",
+      "version": "4.6.7",
       "kind": "npm",
       "manifest": "web",
       "scope": "runtime",
-      "purpose": "Checks every form field in the browser before anything is sent, with the same rules the server checks (OR-3).",
+      "purpose": "Checks every form field in the browser before anything is sent, with the same rules the server checks (OR-3). A top-level override at the same version also forces it onto chromium-bidi (lighthouse > puppeteer-core), D-65.",
       "license": "MIT",
       "publisher": "Colin McDonnell (npm owner colinhacks)",
-      "legitimacy": "346.9M weekly downloads; source github.com/colinhacks/zod; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36)",
-      "published": "2026-09-13",
-      "adopted": "2026-10-14",
-      "coolDown": "aged"
+      "legitimacy": "346.9M weekly downloads; source github.com/colinhacks/zod; no install script (only dev-time scripts); not deprecated; npm audit 0 at install (2026-10-14); the research seam flagged it [SUS] from latest-tag and download-API heuristics only, and the owner confirmed it is the genuine package on 2026-10-14 (plan 04-02 Task 2, D-36); 4.6.7 checked 2026-10-26: MIT, no dependencies, no install script, not deprecated; npm audit shows no zod advisory after the bump (D-63)",
+      "published": "2026-10-12",
+      "adopted": "2026-10-26",
+      "coolDown": "accepted: security fix GHSA-mrhx-c7xc-m3w5 (high, fixed in 4.6.6), owner-approved D-63 on 2026-10-26; also forced tree-wide by a top-level override (D-65); 14 days old on 2026-10-26T16:29Z."
     },
     {
       "id": "xunit.runner.visualstudio",
