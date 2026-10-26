@@ -37,6 +37,7 @@ import {
   mutedCellClasses,
   openRowClasses,
   tableClasses,
+  tableFitTabletClasses,
   tableFootRowClasses,
   tableHeadCellClasses,
   tableHeadClasses,
@@ -101,6 +102,8 @@ export interface ResponsiveTableProps<T> {
   expandedKeys?: ReadonlySet<string> | undefined;
   /** Called by the caller's toggle with the row key; kept for the caller's wiring. */
   onToggleRow?: ((key: string) => void) | undefined;
+  /** Few short columns: no 680px floor on tablets, so the table fits its card with no sideways scroll. */
+  fitTablet?: boolean | undefined;
 }
 
 export interface FooterCellLayout {
@@ -200,6 +203,7 @@ export function ResponsiveTable<T>({
   emptyTitle,
   detail,
   expandedKeys,
+  fitTablet = false,
 }: ResponsiveTableProps<T>) {
   const shown = rows ?? [];
   const hasRows = shown.length > 0;
@@ -210,7 +214,7 @@ export function ResponsiveTable<T>({
 
   let body: ReactNode = null;
   if (firstLoad) {
-    body = <SkeletonTable columns={columns} />;
+    body = <SkeletonTable columns={columns} fitTablet={fitTablet} />;
   } else if (empty) {
     body = narrowed ? (
       <EmptyState
@@ -252,7 +256,7 @@ export function ResponsiveTable<T>({
             descendants, so a dialog in a cell would be trapped and clipped. The context (no DOM) makes Modal and
             ConfirmDialog refuse to render here; see fixedLayerGuard.ts. */}
         <PaintContainmentContext value>
-          <table className={tableClasses}>
+          <table className={fitTablet ? tableFitTabletClasses : tableClasses}>
             <caption id={captionId} tabIndex={captionId === undefined ? undefined : -1} className={srOnlyClasses}>
               {caption}
             </caption>

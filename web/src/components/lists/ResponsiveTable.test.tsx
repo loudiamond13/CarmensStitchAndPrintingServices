@@ -522,6 +522,29 @@ describe('list cells and SkeletonTable re-render', () => {
   });
 });
 
+describe('table fit on tablets (fitTablet)', () => {
+  const FLOOR = 'pg-tablet:min-w-[680px]';
+
+  it('keeps the 680px tablet floor by default, in the table and the loading skeleton', () => {
+    const { container, rerender } = render(table());
+    expect(tokens(container.querySelector('table')?.className)).toContain(FLOOR);
+
+    rerender(table({ rows: undefined, pending: true }));
+    expect(tokens(container.querySelector('table')?.className)).toContain(FLOOR);
+  });
+
+  it('drops only the 680px floor with fitTablet, in the table and the loading skeleton', () => {
+    const { container, rerender } = render(table());
+    const plain = tokens(container.querySelector('table')?.className);
+
+    rerender(table({ fitTablet: true }));
+    expect(tokens(container.querySelector('table')?.className)).toEqual(plain.filter((token) => token !== FLOOR));
+
+    rerender(table({ rows: undefined, pending: true, fitTablet: true }));
+    expect(tokens(container.querySelector('table')?.className)).toEqual(plain.filter((token) => token !== FLOOR));
+  });
+});
+
 describe('SkeletonTable', () => {
   it('renders the column headers and 4 aria-hidden skeleton rows, every cell labelled', () => {
     const { container } = render(<SkeletonTable columns={COLUMNS} />);

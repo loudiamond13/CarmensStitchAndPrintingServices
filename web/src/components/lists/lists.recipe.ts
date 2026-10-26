@@ -33,6 +33,9 @@ export const tableWrapClasses = tw(
 /** `.s-rt`: full width, 14px/20px; at least 680px on tablets; a block on phones (preflight collapses the borders). */
 export const tableClasses = tw('w-full text-[14px] leading-5 pg-phone:block pg-tablet:min-w-[680px]');
 
+/** `tableClasses` without the tablet floor: a table of few short columns fits its card with no sideways scroll. */
+export const tableFitTabletClasses = tw('w-full text-[14px] leading-5 pg-phone:block');
+
 /** `.s-rt thead` on phones: hidden (each card labels its own values). */
 export const tableHeadClasses = tw('pg-phone:hidden');
 
