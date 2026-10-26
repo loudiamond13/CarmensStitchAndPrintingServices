@@ -5,11 +5,9 @@
 // sheet at 320 x 568 and at 200% zoom with the footer buttons reachable. The shared CSPS_E2E database keeps the rows earlier
 // runs made, so each check finds its own rows by a unique word. Every test runs under the shared guard (console, page errors,
 // CSP, failed responses). Cases the sweep cannot confirm are left for the owner's screenshot review (plan 06-19).
-import { AxeBuilder } from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { AXE_TAGS } from '../src/test/axeTags.ts';
 import { signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, pageAxe, test } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL, press, RENT, uniqueWord } from './helpers.ts';
 import { axeFindings, settle } from './sweep.ts';
 import { createExpense, createStaff, type TestStaff } from './testing-api.ts';
@@ -314,12 +312,9 @@ const SHOWCASE_DIALOGS = [
   { trigger: 'Open Edit Category', title: 'Edit Category', buttons: ['Save Changes', 'Cancel'] },
 ] as const;
 
-/** Runs axe over the Phase 6 cases (or the open dialog) only, with the A11Y-01 tags. */
+/** Runs axe over the Phase 6 cases (or the open dialog) only, with pageAxe. */
 async function axeWithin(page: Page, selectors: string[]): Promise<string[]> {
-  const results = await new AxeBuilder({ page })
-    .include(selectors)
-    .withTags([...AXE_TAGS])
-    .analyze();
+  const results = await pageAxe(page).include(selectors).analyze();
   return results.violations.map(
     (violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(' ')).join(', ')}`,
   );

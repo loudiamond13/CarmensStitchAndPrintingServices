@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-25T17:10:00-05:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-10-26T01:52:06-05:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -99,7 +99,7 @@ The guard is automatic. After every test it fails the test when it recorded any 
 
 If a test expects a failed response on purpose, declare it before it happens: `guard.expectStatus('/api/v1/orders/missing', 404)`. That covers both the response and the browser's own "Failed to load resource" console line for it (Chromium and WebKit write one; Firefox doesn't). Anything else still fails. A same-origin request that gets no response at all (reset, refused) is a finding too, because it never reaches the response check and Firefox logs nothing for it; declare an expected one with `guard.expectFailure('/api/v1/x')`. A cancelled request (a navigation or an AbortController) is not a failure. Every page of the test's browser context is guarded, including `context.newPage()` pages and popups (TOOL-WR-14).
 
-`expectNoAxeViolations(page)` runs axe over the whole page with the same WCAG 2.0/2.1/2.2 A and AA tags as the component tests (`web/src/test/axeTags.ts`). Unlike the jsdom tests, the colour-contrast rule is on here.
+`expectNoAxeViolations(page)` runs axe over the whole page with the same WCAG 2.0/2.1/2.2 A and AA tags as the component tests (`web/src/test/axeTags.ts`). Unlike the jsdom tests, the colour-contrast rule is on here. Every e2e axe run, including the sweeps, builds its runner with `pageAxe(page)` from `./fixtures.ts`: every rule still runs on every node, but only violations keep full detail, and axe runs in the page (legacy mode) so it never builds a selector for each passing node. The default runner did, which took about 25 s per check in WebKit on a picker of 2,300 options (debug session `expenses-add-save-slow`).
 
 ## 7. Tags
 
@@ -108,7 +108,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | Tag | What it covers | Added by |
 |---|---|---|
 | `@smoke` | The home page (the D-17 holding page) loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
-| `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404 | plan 02-09 |
+| `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404; and that the axe check finishes in under 10 s on a page with a 3,000-option picker | plan 02-09, debug `expenses-add-save-slow` |
 | `@public` | Every public path (`/`, `/products`, `/gallery`, `/contact`, a deep path) shows the one D-17 holding page: one h1, one main, no site header or footer, the phone as a `tel:` link and the Facebook page as an https link, the skip link, the 320 px fit with no sideways scroll, and page-level axe | plans 02-29, 03-09 |
 | `@admin`, `@showcase` | The admin shell and the Component Showcase, with page-level axe | plans 02-31, 02-34 |
 | `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |

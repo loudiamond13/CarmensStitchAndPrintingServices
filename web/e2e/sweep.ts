@@ -2,10 +2,8 @@
 // owner's WCAG rulings (@a11y-rulings), the font proof (@fonts) and the keyboard journeys (@keyboard). Every page the
 // e2e bundle serves in Phase 2 is here: the public shell (Blush only, D-14), the dev-only admin preview pages (each
 // an empty state, D-20) and the Component Showcase, the admin ones in both themes (D-13).
-import { AxeBuilder } from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
-import { AXE_TAGS } from '../src/test/axeTags.ts';
-import { expect } from './fixtures.ts';
+import { expect, pageAxe } from './fixtures.ts';
 
 export type Theme = 'light' | 'dark';
 
@@ -81,7 +79,7 @@ export async function settle(page: Page): Promise<void> {
  * so a sweep can collect every finding instead of stopping at the first page that has one.
  */
 export async function axeFindings(page: Page): Promise<string[]> {
-  const results = await new AxeBuilder({ page }).withTags([...AXE_TAGS]).analyze();
+  const results = await pageAxe(page).analyze();
   return results.violations
     .map((violation) => {
       const targets = violation.nodes.map((node) => node.target.join(' ')).sort((a, b) => a.localeCompare(b));
