@@ -13,3 +13,6 @@ export const settingsHeadTextClasses = tw('flex min-w-0 flex-col gap-1');
 
 /** Add Category moves under the hint at full width on phones. */
 export const settingsAddButtonClasses = tw('pg-phone:w-full');
+
+/** One fixed 36px slot of a row's actions: an action fills it, or it stays empty so the icons line up down the column. */
+export const settingsActionSlotClasses = tw('inline-block size-9 shrink-0');

@@ -1,16 +1,6 @@
-// SPEC-GAP: S1 SettingsPage. S1 Settings, /admin/settings (UI-SPEC "S1 Settings"; D-08..D-15, D-30, OQ-3..OQ-6; plan 06-17). The Manager-only
-// page for lists the whole team uses; today one card, Expense Categories (Phase 11 may add more below it, D-14): the `.s-ph` header with
-// the "Manager only" badge, then the card with a ResponsiveTable of every category in the server's order (A to Z, Others last, retired
-// rows in place with the inactive look). Add Category and each row's Edit open the Category modal; a save toasts, reads every list that
-// shows a category again (D-12) and leaves focus on the button that opened it (Add Category, or that row's Edit).
-//   - Retire and Use again act at once with no confirmation (OQ-4, OQ-5): the status and the action flip in the cache, focus stays on the
-//     flipped action, and the toast states the effect. A failure is a danger toast that stays until closed; a retry keeps its Idempotency-Key.
-//   - Delete is offered only for a category with no expense, deleted ones included, and never for Others (D-10, D-30). It sits behind the
-//     plain ConfirmDialog; if an expense started using the category meanwhile the server refuses (422), the dialog stays open with the
-//     refusal and the list reads again so Delete disappears. A removed row hands focus to the next row's Edit, else the previous, else
-//     the card heading.
-//   - The route's loader (requireManager) sends an Admin to /admin; the API answers 403 for a role lost mid-session.
-//   - The list is never empty (the seed ships ten categories and Others cannot be deleted), so it has no first-use state.
+// SPEC-GAP: S1 Settings, /admin/settings. The Manager-only page with the Expense Categories card: Add Category, and per row
+// Edit, Retire or Use again (at once, no confirmation) and Delete. Delete is offered only for a category no expense has used,
+// never for Others. Every saved change reads the lists that show a category again.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions';
@@ -26,6 +16,7 @@ import { ConfirmDialog } from '@/components/overlays';
 import { Badge } from '@/components/status';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { CategoryModal, type SavedCategory } from '@/modules/admin/components/CategoryModal';
+import { settingsActionSlotClasses } from '@/modules/admin/components/settings.recipe';
 import { expensesCaptionClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import {
   profileCardBodyClasses,
@@ -60,6 +51,11 @@ const COPY = SETTINGS_COPY;
 /** The generated type allows a number or text for a number; the server sends a number. */
 function toNumber(value: number | string): number {
   return Number(value);
+}
+
+/** An empty 36px action slot, so a row with fewer actions still lines up with the others. */
+function ActionSlot() {
+  return <span aria-hidden="true" className={settingsActionSlotClasses} />;
 }
 
 const isRetired = (category: ExpenseCategoryListItem): boolean => category.status === 'retired';
@@ -138,7 +134,9 @@ function columns(wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseCateg
               }}
             />
             {/* SPEC-GAP: OQ-4 Others is never retired, so it offers Edit only (OQ-6). One element for both states keeps focus on it. */}
-            {!item.isOthers && (
+            {item.isOthers ? (
+              <ActionSlot />
+            ) : (
               <RowAction
                 key="toggle"
                 icon={retired ? 'archive-restore' : 'archive'}
@@ -153,7 +151,7 @@ function columns(wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseCateg
               />
             )}
             {/* Only a category no expense has ever used, deleted ones included, can be deleted (D-10, D-30). */}
-            {!item.isOthers && toNumber(item.expenseCount) === 0 && (
+            {!item.isOthers && toNumber(item.expenseCount) === 0 ? (
               <RowAction
                 key="delete"
                 icon="trash-2"
@@ -164,6 +162,8 @@ function columns(wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseCateg
                   wiring.remove(item);
                 }}
               />
+            ) : (
+              <ActionSlot />
             )}
           </RowActions>
         );
@@ -383,6 +383,7 @@ export function SettingsRoute() {
             rows={categories.data}
             rowKey={(item) => item.id}
             isInactive={isRetired}
+            fitTablet
             things={COPY.things}
             pending={categories.isPending}
             failed={categories.isError}

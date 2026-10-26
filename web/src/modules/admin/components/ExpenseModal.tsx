@@ -1,19 +1,6 @@
-// E2 Expense modal, add, edit and view modes (UI-SPEC "E2 Expense modal"; App. E.11; CEXP-02, CEXP-04, D-17..D-21, D-32, OQ-9, OR-3;
-// plans 06-12, 06-14). Date (the server's business today), Category, Description, Amount, Paid by (the signed-in user to start),
-// Notes and the read-only Recorded by, then Save Expense. Every rule is checked in the browser first (expenseFormSchema); a rule
-// only the server can check (an inactive payer, a retired category) comes back under its field. A failure that belongs to no
-// field shows one alert line above the fields and keeps the typed values. While the request runs, Esc, the scrim, Close and
-// Cancel do nothing (WEB-09) and the one Idempotency-Key is kept for a retry. Each open starts clean: the form lives in a part
-// that is mounted again on every open.
-//   - Edit reads the expense fresh on every open (SkeletonText in a LoadingRegion, then focus on Date). The form keeps the row
-//     version it opened with and sends it with Save Changes; a refetch never replaces it (05 D-13, D-20). The amount cap and the
-//     length limits apply only to a value changed from the opened expense, as on the server (D-33).
-//   - A 409 keeps every typed value and shows the ConflictBanner: Load Latest reads the expense again, replaces the values and the
-//     version, and moves the cursor to Date. A 403 (an Admin who may not edit it) and a 404 (deleted meanwhile) show their banner,
-//     keep the typed values and leave Save aria-disabled. A saved payer who is no longer active, and a saved retired category,
-//     stay selectable (OQ-7, D-11). An Admin who did not record the expense and moves Paid by away from themselves is warned (D-26).
-//   - View is the read-only look an Admin gets for an expense they cannot edit (OQ-8): the saved values as text, Notes (or Not set),
-//     Recorded by and Last changed by, and a Close button only.
+// E2 Expense modal: add, edit and view. Every rule is checked in the browser first; a rule only the server can check comes back
+// under its field. Edit sends the row version it opened with, and a 409 keeps the typed values behind a banner. View is the
+// read-only look an Admin gets for an expense they cannot edit.
 import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';

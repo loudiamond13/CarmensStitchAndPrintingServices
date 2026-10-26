@@ -1,20 +1,6 @@
-// E1 Company Expenses, /admin/expenses (UI-SPEC "E1 Company Expenses"; App. E.11; CEXP-01, CEXP-02, CEXP-03, CEXP-04, CEXP-05, D-11, D-23,
-// D-24, D-25, WEB-10; plans 06-04, 06-07, 06-09, 06-12). Both roles see the same list: the `.s-ph` header, the KPI row (the
-// server's month figures, which ignore the filters), the toolbar (search, category, From and To), the result bar with one
-// chip per non-default filter, a ResponsiveTable of the server's rows with Paid by and Recorded by, Pagination with Rows
-// per page and the caption.
-//   - The search, filters, page and size live in the URL through useExpensesListParams and nowhere else; the query keys on
-//     the parsed values after useSettledListParams (WEB-08, WEB-10).
-//   - The browser adds nothing: the count, the period total (every page of the filter), the window and the business today
-//     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
-//     URL stays clean. Add Expense (the header, and the first-use empty state) opens the E2 modal with the server's today; a save
-//     reads the lists, the KPIs, the deleted list and the categories again and toasts, adding a note when the new row is outside
-//     the filters.
-//   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are), View (the
-//     eye, OQ-8) on the others; the E2 modal reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
-//     view, and the lists and KPIs read again. A Manager also gets Delete (plan 06-16, D-01, D-02): a plain ConfirmDialog, then the row leaves, focus
-//     moves to the next row's first action (else the previous, else the h1), and the lists, KPIs and deleted list read again.
-//   - A filtered empty result is "No matches" with Clear Filters, which clears Search, Category and Dates and keeps the size.
+// E1 Company Expenses, /admin/expenses. Both roles see the KPI row, the toolbar, the result bar with its filter chips, the
+// table with the period total, and pagination. Search, filters, page and size live in the URL; every figure (counts, totals,
+// the window, today) comes from the server. A Manager also gets Delete.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Button, ButtonLink } from '@/components/actions';

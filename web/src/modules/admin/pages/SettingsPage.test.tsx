@@ -11,6 +11,7 @@ import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
 import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
+import { settingsActionSlotClasses } from '@/modules/admin/components/settings.recipe';
 import { SettingsRoute } from '@/modules/admin/pages/SettingsPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
@@ -405,6 +406,48 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
       await openLive();
 
       expect(titlesIn(rowOf('Others'))).toEqual(['Edit Others']);
+    });
+
+    it('keeps three fixed slots per row: Edit, then Retire or Use again, then Delete, with an empty slot for an absent action', async () => {
+      await openLive();
+
+      const slots = (name: string): Element[] => [
+        ...(cellOf(rowOf(name), 'Actions').firstElementChild?.children ?? []),
+      ];
+      const labelOf = (slot: Element | undefined): string | null => slot?.getAttribute('title') ?? null;
+
+      for (const name of ['Rent', 'Equipment', 'Old subscriptions', 'Others']) {
+        expect(slots(name), name).toHaveLength(3);
+      }
+      expect(slots('Rent').map(labelOf)).toEqual(['Edit Rent', 'Retire Rent', null]);
+      expect(slots('Equipment').map(labelOf)).toEqual(['Edit Equipment', 'Retire Equipment', 'Delete Equipment']);
+      expect(slots('Old subscriptions').map(labelOf)).toEqual([
+        'Edit Old subscriptions',
+        'Use Old subscriptions again',
+        null,
+      ]);
+      expect(slots('Others').map(labelOf)).toEqual(['Edit Others', null, null]);
+    });
+
+    it('draws an empty slot as an aria-hidden, unfocusable box of the action size', async () => {
+      await openLive();
+
+      const [, toggle, remove] = [...(cellOf(rowOf('Others'), 'Actions').firstElementChild?.children ?? [])];
+      for (const slot of [toggle, remove]) {
+        expect(slot?.localName).toBe('span');
+        expect(slot).toHaveAttribute('aria-hidden', 'true');
+        expect(slot?.childElementCount).toBe(0);
+        expect(slot?.textContent).toBe('');
+        expect(tokens(slot?.className ?? '')).toEqual(tokens(settingsActionSlotClasses));
+      }
+    });
+
+    it('lets the categories table fit its card on tablets, with no 680px floor', async () => {
+      await openLive();
+
+      expect(tokens(screen.getByRole('table', { name: 'Expense categories' }).className)).not.toContain(
+        'pg-tablet:min-w-[680px]',
+      );
     });
 
     it('names each action for its category and marks Delete as the danger action', async () => {
