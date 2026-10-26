@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
+import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
 import { DeletedExpensesRoute } from '@/modules/admin/pages/DeletedExpensesPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
@@ -246,9 +249,7 @@ describe('Restore (D-03, OQ-5)', () => {
     await waitFor(() => {
       expect(calls.length).toBeGreaterThan(reads);
     });
-    expect(invalidated).toEqual(
-      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
-    );
+    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
   });
 
   it('moves focus to the previous Restore when the last row was restored', async () => {
@@ -504,9 +505,7 @@ describe('Delete permanently from the deleted list (D-04, D-05; plan 06-16)', ()
     await waitFor(() => {
       expect(calls.length).toBeGreaterThan(reads);
     });
-    expect(invalidated).toEqual(
-      expect.arrayContaining([['company-expenses'], ['company-expense-kpis'], ['company-expenses-deleted']]),
-    );
+    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
   });
 
   it('moves focus to the previous Restore when the last row was deleted for good', async () => {

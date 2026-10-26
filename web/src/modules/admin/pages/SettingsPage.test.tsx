@@ -9,7 +9,8 @@ import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
-import { expensesDeletedKey, expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
+import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
 import { SettingsRoute } from '@/modules/admin/pages/SettingsPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {

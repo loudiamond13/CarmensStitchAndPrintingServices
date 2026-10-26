@@ -2,7 +2,8 @@
 // resolves once all three have been asked, so a caller can move focus after the new rows are in the cache.
 import { useQueryClient } from '@tanstack/react-query';
 import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
-import { expensesDeletedKey, expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
+import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
 
 export function useRefreshExpenses(): () => Promise<unknown> {
   const queryClient = useQueryClient();

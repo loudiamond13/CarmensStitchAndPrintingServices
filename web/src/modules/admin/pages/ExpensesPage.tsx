@@ -65,7 +65,8 @@ import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
 import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
-import { expensesDeletedKey, expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
+import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
 import {
   expensesService,
   type ExpenseDetailResponse,
