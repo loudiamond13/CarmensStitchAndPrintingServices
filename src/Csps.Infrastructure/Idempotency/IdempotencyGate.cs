@@ -203,8 +203,10 @@ public sealed class IdempotencyLease : IAsyncDisposable
 /// Looks a request key up behind a claim row (SEC-06, D-40, D-50). The claim is a row of DatabaseLocks committed on its own before
 /// the request transaction, so a duplicate that arrives while the first runs finds it at once and is turned away without waiting.
 /// The claim is removed in the same commit as the stored answer, or right after a rollback. The record's unique index stays the
-/// last guard, so even a claim taken over after its lease can never store a second answer. After a crash the key answers
-/// "in progress" until <see cref="ClaimLease"/> passes.
+/// last guard, so even a claim taken over after its lease can never store a second answer. A route that keeps its change without
+/// storing an answer (<see cref="IdempotencyLease.CommitWithoutRecordAsync"/>, the profile actions that count a wrong password or
+/// spend an email-change link) has no such guard: if it runs past the lease and its claim is taken over, both requests may apply
+/// their change. After a crash the key answers "in progress" until <see cref="ClaimLease"/> passes.
 /// </summary>
 /// <param name="context">The request's scoped context.</param>
 /// <param name="contexts">Makes the short-lived contexts that write and free the claim outside the request transaction.</param>
