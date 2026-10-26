@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Context
 
-*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-25T03:08:22-05:00*
+*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-25T19:45:00-05:00*
 
 **Gathered:** 2026-10-25
 **Status:** Ready for planning
@@ -81,6 +81,10 @@ Out of scope: order expenses (Phase 7), money on hand balances and transfers (Ph
 - **D-31:** A **soft delete or restore updates "Last changed by"** to the Manager who did it, like deactivate and lock in Phase 5 (SEC-08). The stamp interceptor needs no exception. (Open question 3, option A.)
 - **D-32:** **Paid by must be signed-in staff:** an active Admin or Manager who has finished set-up (has a password). An invited person who has not finished set-up **can't** be chosen. The staff lookup and the server validator both apply this rule, and the field error stays plain English. This narrows D-18 "any active coworker". (Open question 4, option B.)
 - **D-33:** The **database checks only `Amount > 0`**. The ₱1,000,000.00 cap (D-21) lives in the zod schema and the server validators, so legacy imports can hold larger amounts and the cap can change without a migration. (Open question 6, option A.)
+
+### Execution rulings (owner, 2026-10-25, during execute-phase)
+- **D-49:** **Paid by needs a first sign-in.** A person a Manager created with a temporary password who has never signed in **can't** be chosen as Paid by (A-06-01, option 1). "Finished set-up" in D-32 now means the account is marked at the first sign-in code or accepted invite (`EmailConfirmed`), not only "has a password". Staff whose password a Manager reset stay choosable. No schema change. Applies to the staff lookup and the server payer check alike.
+- **D-50:** **No inline SQL, not even the three existing locks.** The owner does not approve `IdempotencyGate.cs`, `AccountTokenStore.cs` or `ManagerRosterLock.cs` by name (06-11 backlog item, option 2). Each lock is rebuilt with EF's own API (for example a lock row updated with `ExecuteUpdate` inside the same transaction), with race tests proving it still serializes two requests at once. `NoInlineSqlTests` then allows no file. A small additive lock table is in scope; anything beyond that (a drop, a rename, a trigger) goes back to the owner.
 
 ### Claude's Discretion
 - Page size and page-size options, URL parameter names (WEB-10), and the exact index set, as long as every filter and sort column is covered.
