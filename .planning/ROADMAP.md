@@ -697,9 +697,9 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 20/21 plans executed in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 21/21 plans executed in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
 - [x] 06-20-PLAN.md
-- [ ] 06-21-PLAN.md
+- [x] 06-21-PLAN.md
 
 **Wave 1**
 - [x] 06-01-PLAN.md — Expense categories table with the ten seeded categories, the staff lookup for Paid by, and the D-27 audit catalog (D-08, D-09, D-13, D-15, D-27, D-32)
@@ -1211,7 +1211,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
-| 6. Company Expenses | 20/21 | In Progress | - |
+| 6. Company Expenses | 21/21 | In Progress | - |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |

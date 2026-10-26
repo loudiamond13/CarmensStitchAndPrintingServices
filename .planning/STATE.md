@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-20-PLAN.md
-last_updated: "2026-10-26T02:39:21.294Z"
+stopped_at: Completed 06-21-PLAN.md
+last_updated: "2026-10-26T03:25:43.883Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: afcb60ec4459a4f13a4480ba9675e3f117db5d69
+state_head: 0cb460c2db7471fb4055cea7e92577506e17bb63
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 187
-  completed_plans: 186
+  completed_plans: 187
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-25T21:50:00-05:00"
+updated: "2026-10-25T22:35:00-05:00"
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 21 of 21 (06-01 to 06-20 are done; the next plan is 06-21, D-50 EF-only locks)
-Status: Executing — 06-21 remaining, then verification
+Plan: 21 of 21 (06-01 to 06-21 are done; all Phase 6 plans are built, verification is next)
+Status: Executing — all plans done, ready for verification
 Last activity: 2026-10-25 — Phase 06 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -243,6 +243,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
 | Phase 06 P19 | 56 min | 2 tasks | 7 files |
 | Phase 06 P20 | 38 min | 3 tasks | 20 files |
+| Phase 06 P21 | 52 min | 4 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -651,6 +652,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
 - [Phase 06]: 06-20: D-49 built as A-06-01 option 1: Paid by needs a password and the first sign-in mark (EmailConfirmed) in the staff lookup, the create and edit check, the detail paidByActive flag and the dev seed; staff after a Manager password reset stay choosable; no schema change
 - [Phase 06]: 06-20: Phase 17 legacy import must set the first sign-in mark on imported staff, or they cannot be chosen as Paid by
+- [Phase 06]: 06-21: D-50 built. The three locks are rows of the new DatabaseLocks table taken with ExecuteUpdate inside the caller's transaction; a rollback to a savepoint frees a lock taken after it (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
 
@@ -728,6 +730,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T02:39:20.390Z
-Stopped at: Completed 06-20-PLAN.md
+Last session: 2026-10-26T03:25:42.992Z
+Stopped at: Completed 06-21-PLAN.md
 Resume file: None
