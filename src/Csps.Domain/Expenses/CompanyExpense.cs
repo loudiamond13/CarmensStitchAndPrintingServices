@@ -87,7 +87,7 @@ public sealed class CompanyExpense : IAttributedRecord
         DateOnly today,
         DateTimeOffset now)
     {
-        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today);
+        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today, stored: null);
         if (checkedFields.IsFailure)
         {
             return Result.Failure<CompanyExpense>(checkedFields.Error);
@@ -104,8 +104,9 @@ public sealed class CompanyExpense : IAttributedRecord
     }
 
     /// <summary>
-    /// Applies an edit, checking every field rule again as <see cref="Create"/> does. Only values that differ are assigned, so an
-    /// identical form leaves the expense untouched. Nothing is assigned when a rule fails.
+    /// Applies an edit, checking every field rule again as <see cref="Create"/> does, except that the amount cap and the description
+    /// and notes lengths apply only to a value the edit changes, so an imported row over a limit stays editable (D-33). Only values
+    /// that differ are assigned, so an identical form leaves the expense untouched. Nothing is assigned when a rule fails.
     /// </summary>
     /// <param name="date">The day the money was spent.</param>
     /// <param name="categoryId">The category.</param>
@@ -124,7 +125,7 @@ public sealed class CompanyExpense : IAttributedRecord
         string? notes,
         DateOnly today)
     {
-        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today);
+        var checkedFields = CheckFields(date, categoryId, description, amount, paidByUserId, notes, today, stored: this);
         if (checkedFields.IsFailure)
         {
             return Result.Failure<ExpenseChanges>(checkedFields.Error);
@@ -178,6 +179,7 @@ public sealed class CompanyExpense : IAttributedRecord
         return true;
     }
 
+    // The stored expense is null on Create. On an edit, a limit is skipped for a value equal to the stored one (D-33).
     private static Result<CheckedFields> CheckFields(
         DateOnly date,
         Guid categoryId,
@@ -185,7 +187,8 @@ public sealed class CompanyExpense : IAttributedRecord
         decimal amount,
         Guid paidByUserId,
         string? notes,
-        DateOnly today)
+        DateOnly today,
+        CompanyExpense? stored)
     {
         ArgumentNullException.ThrowIfNull(description);
 
@@ -205,7 +208,8 @@ public sealed class CompanyExpense : IAttributedRecord
             return Reject(ExpenseRules.DescriptionField, ExpenseRules.DescriptionRequired);
         }
 
-        if (trimmedDescription.Length > ExpenseRules.DescriptionMaxLength)
+        if (trimmedDescription.Length > ExpenseRules.DescriptionMaxLength
+            && !string.Equals(trimmedDescription, stored?.Description, StringComparison.Ordinal))
         {
             return Reject(ExpenseRules.DescriptionField, ExpenseRules.DescriptionTooLong);
         }
@@ -215,7 +219,7 @@ public sealed class CompanyExpense : IAttributedRecord
             return Reject(ExpenseRules.AmountField, ExpenseRules.AmountTooSmall);
         }
 
-        if (amount > ExpenseRules.AmountMax)
+        if (amount > ExpenseRules.AmountMax && amount != stored?.Amount)
         {
             return Reject(ExpenseRules.AmountField, ExpenseRules.AmountTooLarge);
         }
@@ -231,7 +235,7 @@ public sealed class CompanyExpense : IAttributedRecord
         }
 
         var trimmedNotes = notes?.Trim();
-        if (trimmedNotes is { Length: > ExpenseRules.NotesMaxLength })
+        if (trimmedNotes is { Length: > ExpenseRules.NotesMaxLength } && !string.Equals(trimmedNotes, stored?.Notes, StringComparison.Ordinal))
         {
             return Reject(ExpenseRules.NotesField, ExpenseRules.NotesTooLong);
         }

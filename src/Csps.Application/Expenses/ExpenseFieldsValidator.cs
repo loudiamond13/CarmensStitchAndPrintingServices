@@ -9,7 +9,8 @@ namespace Csps.Application.Expenses;
 /// words whichever form sent it: a real <c>yyyy-MM-dd</c> date no later than thirty days after the business today, a category, a
 /// description of 1 to 200 characters after trimming, an amount above 0.00 and at most 1,000,000.00 with two decimal places, a
 /// payer, and notes of at most 1,000 characters. The business today is passed in <see cref="ValidationContext{T}.RootContextData"/>
-/// under <see cref="TodayKey"/>. Whether the category and the payer exist and may be chosen needs the database and runs in the handlers.
+/// under <see cref="TodayKey"/>. On an edit, the stored values under <see cref="StoredKey"/> exempt an unchanged amount, description
+/// or notes from its limit (D-33). Whether the category and the payer exist and may be chosen needs the database and runs in the handlers.
 /// </summary>
 public sealed class ExpenseFieldsValidator : AbstractValidator<IExpenseFieldsRequest>
 {
@@ -33,19 +34,24 @@ public sealed class ExpenseFieldsValidator : AbstractValidator<IExpenseFieldsReq
         RuleFor(request => request.Description)
             .Cascade(CascadeMode.Stop)
             .Must(static text => !string.IsNullOrWhiteSpace(text)).WithMessage(ExpenseRules.DescriptionRequired)
-            .Must(static text => text!.Trim().Length <= ExpenseRules.DescriptionMaxLength).WithMessage(ExpenseRules.DescriptionTooLong);
+            .Must(static (_, text, context) => text!.Trim().Length <= ExpenseRules.DescriptionMaxLength
+                || string.Equals(text.Trim(), Stored(context)?.Description, StringComparison.Ordinal))
+            .WithMessage(ExpenseRules.DescriptionTooLong);
 
         RuleFor(request => request.Amount)
             .Cascade(CascadeMode.Stop)
             .Must(static amount => amount is > 0m).WithMessage(ExpenseRules.AmountTooSmall)
-            .Must(static amount => amount <= ExpenseRules.AmountMax).WithMessage(ExpenseRules.AmountTooLarge)
+            .Must(static (_, amount, context) => amount <= ExpenseRules.AmountMax || amount == Stored(context)?.Amount)
+            .WithMessage(ExpenseRules.AmountTooLarge)
             .PrecisionScale(18, ExpenseRules.AmountScale, true).WithMessage(ExpenseRules.AmountDecimals);
 
         RuleFor(request => request.PaidByUserId)
             .Must(static id => id is { } value && value != Guid.Empty).WithMessage(ExpenseRules.PaidByRequired);
 
         RuleFor(request => request.Notes)
-            .Must(static text => text is null || text.Trim().Length <= ExpenseRules.NotesMaxLength).WithMessage(ExpenseRules.NotesTooLong);
+            .Must(static (_, text, context) => text is null || text.Trim().Length <= ExpenseRules.NotesMaxLength
+                || string.Equals(text.Trim(), Stored(context)?.Notes, StringComparison.Ordinal))
+            .WithMessage(ExpenseRules.NotesTooLong);
     }
 
     /// <summary>Reads a date in <c>yyyy-MM-dd</c> form, ignoring spaces around it.</summary>
@@ -58,6 +64,9 @@ public sealed class ExpenseFieldsValidator : AbstractValidator<IExpenseFieldsReq
         return text is not null
             && DateOnly.TryParseExact(text.Trim(), ExpenseRules.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
+
+    private static StoredExpenseFields? Stored(ValidationContext<IExpenseFieldsRequest> context) =>
+        context.RootContextData.TryGetValue(StoredKey, out var stored) ? stored as StoredExpenseFields : null;
 
     private static void CheckDate(string? text, ValidationContext<IExpenseFieldsRequest> context)
     {

@@ -216,7 +216,9 @@ public sealed class UpdateCompanyExpenseHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Version.ShouldBe(StoredVersionText);
         harness.Unit.Saves.ShouldBe(0);
-        await harness.Reader.Received(1).GetDetailAsync(harness.Expense.Id, Arg.Any<CancellationToken>());
+
+        // One read for the stored values the limits compare with, one for the answer.
+        await harness.Reader.Received(2).GetDetailAsync(harness.Expense.Id, Arg.Any<CancellationToken>());
     }
 
     [Fact]

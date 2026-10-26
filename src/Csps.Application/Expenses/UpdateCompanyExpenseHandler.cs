@@ -16,7 +16,8 @@ namespace Csps.Application.Expenses;
 /// save never retries on a conflict: the person reloads and decides. A form with no change saves nothing, writes no audit entry and
 /// keeps the version. A change writes <c>company-expense.changed</c> (old and new amount, date and category, field names only) and,
 /// when the payer moved, a separate <c>company-expense.payer-changed</c>, both in the same save (D-27).
-/// Who changed it and when come from the token and the clock, never from the request (SEC-08).
+/// Who changed it and when come from the token and the clock, never from the request (SEC-08). The amount cap and the description
+/// and notes lengths apply only to a value the edit changes, so an imported row over a limit stays editable (D-33).
 /// </summary>
 public sealed class UpdateCompanyExpenseHandler(
     ICompanyExpenses expenses,
@@ -51,6 +52,14 @@ public sealed class UpdateCompanyExpenseHandler(
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var context = new ValidationContext<UpdateCompanyExpenseRequest>(request);
         context.RootContextData[UpdateCompanyExpenseRequestValidator.TodayKey] = clock.Today;
+
+        // The stored values exempt an unchanged imported value from the new-expense limits (D-33). The save re-checks against the
+        // row it loads, so a change between this read and the save cannot slip past a limit.
+        if (await reader.GetDetailAsync(id, cancellationToken).ConfigureAwait(false) is { } stored)
+        {
+            context.RootContextData[UpdateCompanyExpenseRequestValidator.StoredKey] = new StoredExpenseFields(stored.Description, stored.Amount, stored.Notes);
+        }
+
         var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
