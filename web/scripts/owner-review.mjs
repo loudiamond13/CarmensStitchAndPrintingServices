@@ -2213,17 +2213,18 @@ export const PHASE6_RULINGS = Object.freeze([
       option(
         '1',
         'Approve IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs by name. Each runs one short SQL line that takes a database lock, so two requests at the same moment cannot collide. Nothing changes.',
-        { recommended: true, built: true },
+        { recommended: true },
       ),
       option(
         '2',
         'Rework the three without hand-written SQL: each lock is rebuilt with EF’s own tools (for example a lock row updated inside the same transaction). More code, and possibly a small new table.',
+        { built: true },
       ),
     ],
     ruling:
-      'Option 2 (D-50, owner, 2026-10-25): no inline SQL, not even these three. Follow-up plan 06-21 reworks them. Until then the three files keep their one SQL line each, and the guard test allows exactly these three.',
+      'Option 2 (D-50, owner, 2026-10-25): no inline SQL, not even these three. Plan 06-21 built it: each lock is now a row in the new DatabaseLocks table, taken with EF’s own tools, and the guard test allows no file.',
     whereItChanges:
-      'src/Csps.Infrastructure/Idempotency/IdempotencyGate.cs, src/Csps.Infrastructure/Identity/AccountTokenStore.cs and src/Csps.Infrastructure/Identity/ManagerRosterLock.cs. The guard test is tests/Csps.ArchitectureTests/NoInlineSqlTests.cs.',
+      'src/Csps.Infrastructure/Idempotency/IdempotencyGate.cs, src/Csps.Infrastructure/Identity/AccountTokenStore.cs and src/Csps.Infrastructure/Identity/ManagerRosterLock.cs, over the new DatabaseLocks table (migration AddDatabaseLocks). The guard test is tests/Csps.ArchitectureTests/NoInlineSqlTests.cs.',
   },
   {
     id: 'RQ-2',

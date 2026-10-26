@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-25T21:30:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-25T22:05:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -205,6 +205,7 @@ Never reach a gate by lowering a threshold, excluding production code from cover
   ```
 
   The API never runs `Database.Migrate()` at startup.
+- **Database locks (D-50):** application code takes a lock with `DatabaseLocks.TakeAsync` inside the caller's transaction. It updates a standing row of the `DatabaseLocks` table with EF and SQL Server holds it to the end of the transaction, so a second taker waits. A new lock name is a new standing row added by a migration. Hand-written SQL, table hints and triggers are not allowed, and `NoInlineSqlTests` enforces it. Phase 7's check-then-write money rules (MONEY-05, ORD-05) use this helper or a serializable transaction.
 
 ## Hosting and operations
 
