@@ -1,7 +1,9 @@
 // Shared helpers for the focus-not-obscured specs (WCAG 2.2 AA 2.4.11; quick 261026-ooe, D-70 to D-72).
 // Page scripts are strings: the e2e TypeScript program has no DOM types.
-import type { Locator, Page } from '@playwright/test';
-import { expect } from './fixtures.ts';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
+import { expect, type Guard } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 /** The box of an element in viewport coordinates. */
 export interface Box {
@@ -202,4 +204,53 @@ export async function topBarHeight(page: Page): Promise<number | null> {
     const { top } = bars();
     return top === null ? null : top.getBoundingClientRect().height;
   })()`);
+}
+
+/** Signs in a Manager and opens My Profile on the Security tab. */
+export async function openSecurity(page: Page, request: APIRequestContext, guard: Guard): Promise<void> {
+  // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.goto('/admin/profile?tab=security');
+  await expect(page.getByRole('heading', { level: 2, name: 'Change Password' })).toBeVisible();
+}
+
+export const newPassword = (page: Page): Locator => page.getByLabel('New password', { exact: true });
+export const confirmPassword = (page: Page): Locator => page.getByLabel('Confirm new password', { exact: true });
+/** The Show password button that follows a password box. */
+export const showButton = (box: Locator): Locator => box.locator('xpath=following-sibling::button');
+export const updateButton = (page: Page): Locator => page.getByRole('button', { name: 'Update Password' });
+
+/** Waits two frames so container queries and sticky layers have settled after a resize. */
+export async function nextFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))',
+  );
+}
+
+/** One reading of the bottom spacing rule at the current window size. */
+export interface SpacingRow {
+  readonly drawn: boolean;
+  /** Why the rule does not hold, or null when it does. */
+  readonly problem: string | null;
+}
+
+/**
+ * The bottom spacing is on exactly where the tab bar is drawn: with the bar, exactly one of html scroll-padding-bottom
+ * and the Confirm field's scroll-margin-bottom is set and is at least the bar's height + 18px; without it, both are 0.
+ */
+export async function readSpacingRow(page: Page, at: string): Promise<SpacingRow> {
+  await nextFrames(page);
+  const bar = await tabBarHeight(page);
+  const spacing = await readSpacing(confirmPassword(page));
+  if (bar === null) {
+    const clean = spacing.paddingBottom === 0 && spacing.marginBottom === 0;
+    return { drawn: false, problem: clean ? null : `${at}: no tab bar but ${JSON.stringify(spacing)}` };
+  }
+  const set = [spacing.paddingBottom, spacing.marginBottom].filter((value) => value > 0);
+  const fine = set.length === 1 && (set[0] ?? 0) >= bar + 18;
+  return {
+    drawn: true,
+    problem: fine ? null : `${at}: tab bar ${String(bar)}px drawn but ${JSON.stringify(spacing)}`,
+  };
 }

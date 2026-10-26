@@ -3,42 +3,26 @@
 //   - The phone tab bar (pixel and iphone): Tab from New password lands on Confirm new password clear of the bar, and a
 //     control 30px under the bar is scrolled clear. The bottom spacing is on exactly where the bar is drawn.
 // The real-scrollbar windows are in focus-scrollbars.spec.ts. Page scripts are strings (no DOM types here).
-import type { APIRequestContext, Page, TestInfo } from '@playwright/test';
-import { signInAs } from './auth.ts';
-import { expect, test, type Guard } from './fixtures.ts';
+import type { TestInfo } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 import {
+  confirmPassword,
   expectClear,
   expectPlaced,
   focusWithoutScroll,
+  newPassword,
+  openSecurity,
   placeUnderBar,
-  readSpacing,
+  readSpacingRow,
   settleAndMeasure,
-  tabBarHeight,
+  showButton,
+  updateButton,
 } from './focus.ts';
-import { createStaff } from './testing-api.ts';
 
 const DEVICE_PROJECTS = ['pixel', 'iphone'];
 const PHONE_ONLY = 'Needs the phone tab bar (pixel and iphone)';
 
 const isDevice = (testInfo: TestInfo): boolean => DEVICE_PROJECTS.includes(testInfo.project.name);
-
-/** Signs in a Manager and opens the Security tab. */
-async function openSecurity(page: Page, request: APIRequestContext, guard: Guard): Promise<void> {
-  // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
-  guard.expectStatus('/api/v1/auth/refresh', 401);
-  await signInAs(page, request, await createStaff(request, 'Manager'));
-  await page.goto('/admin/profile?tab=security');
-  await expect(page.getByRole('heading', { level: 2, name: 'Change Password' })).toBeVisible();
-}
-
-const newPassword = (page: Page) => page.getByLabel('New password', { exact: true });
-const confirmPassword = (page: Page) => page.getByLabel('Confirm new password', { exact: true });
-/** The Show password button that follows a password box. */
-const showButton = (box: ReturnType<typeof newPassword>) => box.locator('xpath=following-sibling::button');
-const updateButton = (page: Page) => page.getByRole('button', { name: 'Update Password' });
-
-/** Waits two frames so container queries and sticky layers have settled after a resize. */
-const NEXT_FRAMES = 'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))';
 
 test('@focus-not-obscured Tab from New password lands on Confirm new password clear of the tab bar', async ({
   page,
@@ -93,21 +77,14 @@ test('@focus-not-obscured the bottom spacing is on exactly where the tab bar sho
     if (width !== null) {
       await page.setViewportSize({ width, height: 600 });
     }
-    await page.evaluate(NEXT_FRAMES);
-    const bar = await tabBarHeight(page);
-    const spacing = await readSpacing(confirmPassword(page));
-    const at = `${width === null ? 'device' : String(width)}px`;
-    if (bar === null) {
-      withoutBar += 1;
-      if (spacing.paddingBottom !== 0 || spacing.marginBottom !== 0) {
-        problems.push(`${at}: no tab bar but ${JSON.stringify(spacing)}`);
-      }
-    } else {
+    const row = await readSpacingRow(page, `${width === null ? 'device' : String(width)}px`);
+    if (row.drawn) {
       withBar += 1;
-      const set = [spacing.paddingBottom, spacing.marginBottom].filter((value) => value > 0);
-      if (set.length !== 1 || (set[0] ?? 0) < bar + 18) {
-        problems.push(`${at}: tab bar ${String(bar)}px drawn but ${JSON.stringify(spacing)}`);
-      }
+    } else {
+      withoutBar += 1;
+    }
+    if (row.problem !== null) {
+      problems.push(row.problem);
     }
   }
   expect(problems, 'spacing matches the tab bar at every width').toEqual([]);
