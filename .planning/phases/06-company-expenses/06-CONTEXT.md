@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Context
 
-*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-26T05:56:00-05:00*
+*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-26T06:09:00-05:00*
 
 **Gathered:** 2026-10-25
 **Status:** Ready for planning
@@ -97,6 +97,8 @@ Out of scope: order expenses (Phase 7), money on hand balances and transfers (Ph
 - **D-58:** **The live speed check after release is a follow-up, not a Phase 6 gate** (06-UAT test 6). The local and CI timing test (D-28, 300 ms p95 on about 36,500 rows) is the speed gate for the expense list and KPI endpoints. Checking the live request logs after release (`docs/operations/list-performance.md`) moves to the ROADMAP backlog as Phase 999.4. The CI-margin backlog item (A-06-03) still stands.
 - **D-59:** **Test-side fixes confirmed** (06-UAT test 7). The slow add-expense test fix (axe trims passing nodes, a7ddcd76 and 39cc69e3) and the command-count flake fix (`CommandCounter` counts only the measured request, c0616d1c) are accepted; both debug sessions are resolved. The staff accounts that pile up in `CSPS_E2E` are left as they are. A request the browser cancels and that is logged as a server error is fixed later in a quick task, not in Phase 6.
 - **D-60:** **Fix all five UI review warnings before Phase 6 closes** (06-UI-REVIEW.md UI-06-01 to UI-06-05, plus the long header comments under OR-2). The shared `Select` gets the same required " *" mark as `Field` (app-wide); the native date inputs show the friendly en-PH date beside the box; the Settings row actions get fixed slots; counts use the en-PH number format; the E1 toolbar labels align. Done as one quick task, test first. Phase 6 is marked complete only after these land.
+- **D-61:** **On phones each date filter takes its own row** (quick 261026-89i, UI-06-02). The From and To boxes show the friendly en-PH date beside them, so on phones they no longer fit two per row. A SPEC-DEVIATION from the UI-SPEC phone toolbar rule, approved by the owner.
+- **D-62:** **Every count uses the en-PH thousands format, app-wide** (quick 261026-89i, extends UI-06-04). Not only the KPI card and the Settings column: the shared result bar ("Showing 1,687 expenses") and any other place a count shows.
 - **Review pack pictures approved** (06-UAT test 1): Company Expenses, Deleted Expenses and Settings in both themes at 390, 820 and 1440 px.
 
 ### Claude's Discretion
