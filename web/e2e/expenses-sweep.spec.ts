@@ -275,7 +275,7 @@ test('@expenses-sweep the Add Expense, Edit Expense and Add Category dialogs scr
  * drawn, and the visually hidden text (a 1 px box) is left out. Text inside a frame that is scrolling sideways right now is also
  * left out: the wide tables are meant to scroll inside their own frame.
  */
-const READ_OVERFLOWING = `(() => {
+const overflowingIn = (roots: string): string => `(() => {
   const scrolls = (element) => {
     for (let node = element; node !== null; node = node.parentElement) {
       const overflow = getComputedStyle(node).overflowX;
@@ -289,7 +289,7 @@ const READ_OVERFLOWING = `(() => {
     return node;
   };
   const found = [];
-  for (const root of document.querySelectorAll('[data-case^="expenses-"], [data-case^="settings-"]')) {
+  for (const root of document.querySelectorAll(${JSON.stringify(roots)})) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
       if ((text.textContent ?? '').trim() === '') continue;
@@ -308,6 +308,9 @@ const READ_OVERFLOWING = `(() => {
   }
   return found;
 })()`;
+
+/** The Phase 6 cases of the showcase. */
+const READ_OVERFLOWING = overflowingIn('[data-case^="expenses-"], [data-case^="settings-"]');
 
 /** The month cards' boxes: their top edge and height, in the order drawn. */
 const READ_KPI_BOXES = `(() => {
@@ -414,4 +417,38 @@ for (const theme of ['light', 'dark'] as const) {
       expect(failures).toEqual([]);
     });
   }
+}
+
+for (const width of [320, 390] as const) {
+  test(`@expenses-sweep a 200-character description wraps in the delete confirmation and in the deleted toast at ${String(width)} px`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    test.setTimeout(180_000);
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    const seeded = await seed(request);
+    await signInAs(page, request, seeded.manager);
+    await page.setViewportSize({ width, height: 844 });
+    await openPage(page, `/admin/expenses?q=${seeded.word}`, 'Company Expenses');
+    await press(
+      page,
+      page
+        .locator('tbody tr')
+        .first()
+        .getByRole('button', { name: /^Delete .*, [A-Z][a-z]{2} \d{1,2}, \d{4}$/ }),
+    );
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await settle(page);
+    expect(await page.evaluate<string[]>(overflowingIn('[role="dialog"]')), 'the confirmation title and text').toEqual(
+      [],
+    );
+    await dialog.getByRole('button', { name: 'Delete Expense', exact: true }).click();
+    await expect(page.getByText('Expense deleted', { exact: true })).toBeVisible();
+    await settle(page);
+    expect(await page.evaluate<string[]>(overflowingIn('[data-ui="s-toast-layer"]')), 'the toast text').toEqual([]);
+    expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+    await expectNoAxeViolations(page);
+  });
 }
