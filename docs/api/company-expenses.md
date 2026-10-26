@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T21:30:00-05:00
+updated: 2026-10-25T23:58:00-05:00
 ---
 
 # The company expenses API
@@ -171,6 +171,8 @@ the code `company-expenses.invalid-request` and the title "Check the highlighted
 - Lengths are counted in UTF-16 code units after trimming, the same measure a browser string length uses.
 - The database checks only that the amount is more than 0 (D-33). The 1,000,000.00 cap lives in the validators and the domain, so
   it can change without a migration.
+- On an edit, the amount cap and the description and notes lengths apply only to a value that changes. An imported expense over a
+  limit stays editable, for example to fix its category, while a changed value must meet the limit.
 - There is no vendor field (D-19).
 
 ### The answer
