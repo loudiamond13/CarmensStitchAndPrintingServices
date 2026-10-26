@@ -43,7 +43,7 @@ internal static class DatabaseLocks
     /// <param name="context">The context whose transaction takes the lock.</param>
     /// <param name="name">The standing lock name.</param>
     /// <param name="now">The current UTC time.</param>
-    /// <param name="wait">The longest to wait for the lock.</param>
+    /// <param name="wait">The longest to wait for the lock, more than zero; rounded up to whole seconds.</param>
     /// <param name="failureMessage">The message of the error when the lock is not had in time or the wait deadlocks.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes once the lock is held.</returns>
@@ -53,6 +53,7 @@ internal static class DatabaseLocks
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(failureMessage);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(wait, TimeSpan.Zero);
 
         // A lock taken outside a transaction would end at once and lock nothing.
         if (context.Database.CurrentTransaction is null)
@@ -60,8 +61,9 @@ internal static class DatabaseLocks
             throw new InvalidOperationException("A database lock can only be taken inside a transaction.");
         }
 
+        // The timeout is whole seconds and 0 means no limit, so a wait is rounded up to at least one second.
         var previous = context.Database.GetCommandTimeout();
-        context.Database.SetCommandTimeout(wait);
+        context.Database.SetCommandTimeout((int)Math.Ceiling(wait.TotalSeconds));
         try
         {
             // The update takes an exclusive row lock that SQL Server holds to the end of the transaction, so a second taker waits.
