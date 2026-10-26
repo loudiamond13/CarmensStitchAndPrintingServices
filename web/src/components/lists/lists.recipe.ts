@@ -224,7 +224,9 @@ export const searchClasses = tw('flex flex-[1_1_260px] flex-col gap-1.5');
 export const searchLabelClasses = tw('text-[12px] leading-4 font-semibold text-ink-muted');
 
 /**
- * `.s-search-box`: 40px, 12px padded, `--surface-2` with a 1px `--line-strong` border, radius 8, `--ink-muted` icon.
+ * `.s-search-box`: 42px, 12px padded, `--surface-2` with a 1px `--line-strong` border, radius 8, `--ink-muted` icon.
+ * SPEC-DEVIATION: D-60 UI-06-05 42px (spec: 40px) so it lines up with toolbar fields, whose 40px input sits inside a
+ * 1px border.
  * SPEC-DEVIATION: D-41 R2-03 (owner, 2026-10-13) a focus ring of its own, subtler than the shared field ring: while
  * the input has focus, the box's own 1px border turns `--focus` (no outer box-shadow ring, no transition, no change in
  * size). App. E.7 gave the box no focus look at all (its input has `outline: none`). `--focus` against the adjacent
@@ -233,7 +235,7 @@ export const searchLabelClasses = tw('text-[12px] leading-4 font-semibold text-i
  * flow, so the border is never obscured (2.4.11).
  */
 export const searchBoxClasses = tw(
-  'flex h-10 items-center gap-2 rounded-sm border border-line-strong bg-surface-2 px-3 text-ink-muted focus-within:border-focus',
+  'flex h-10.5 items-center gap-2 rounded-sm border border-line-strong bg-surface-2 px-3 text-ink-muted focus-within:border-focus',
 );
 
 /**

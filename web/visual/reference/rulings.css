@@ -271,6 +271,12 @@ button.csp-nav {
   border-color: var(--focus);
 }
 
+/* D-60 (owner, 2026-10-26) the list search box is 42px tall, the outside height of a toolbar field box (a 40px input
+   inside a 1px border). App. E.7 made it 40px, so its label sat 2px lower than the Category, From and To labels. */
+.s-search-box {
+  height: 42px;
+}
+
 /* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short
    window. The region becomes a column with a 16px top padding and a ::before spacer of 124px above the dialog, so the
    dialog still sits 140px down (16 + 124) wherever it fits; on a shorter window only the spacer shrinks, down to 0, and

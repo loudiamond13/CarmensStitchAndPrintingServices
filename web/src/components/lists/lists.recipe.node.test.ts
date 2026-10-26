@@ -117,7 +117,7 @@ describe('list SearchBox focus look (D-41 R2-03)', () => {
     expect(tokens).toEqual(
       [
         'flex',
-        'h-10',
+        'h-10.5',
         'items-center',
         'gap-2',
         'rounded-sm',

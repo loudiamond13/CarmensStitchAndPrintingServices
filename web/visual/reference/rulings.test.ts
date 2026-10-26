@@ -41,6 +41,7 @@ const RULING_IDS = [
   'OQ-9',
   'P5 D-35',
   'P5 long-text',
+  'D-60',
 ] as const;
 
 interface Group {
@@ -355,6 +356,13 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(groupsOfR203.map((group) => group.prelude)).toEqual(['.s-search-box:focus-within']);
     expect(normalize(groupsOfR203[0]?.body ?? '')).toBe('border-color: var(--focus);');
+  });
+
+  it('D-60: the list search box is 42px tall, matching a toolbar field box, nothing else', () => {
+    const groupsOfD60 = byRuling('D-60');
+
+    expect(groupsOfD60.map((group) => group.prelude)).toEqual(['.s-search-box']);
+    expect(normalize(groupsOfD60[0]?.body ?? '')).toBe('height: 42px;');
   });
 
   it('D-42: the Overlay region is a column whose ::before spacer (124px, 96px on phones) shrinks before the dialog does, and the backdrop scrolls', () => {
