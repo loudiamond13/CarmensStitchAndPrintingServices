@@ -1,5 +1,3 @@
-using Csps.Application.Profile;
-
 namespace Csps.Application.Common;
 
 /// <summary>
@@ -11,8 +9,8 @@ public static class RowVersions
     /// <summary>The number of bytes in a SQL Server <c>rowversion</c>.</summary>
     public const int Length = 8;
 
-    /// <summary>The message for a missing or malformed version, the same words the profile form uses.</summary>
-    public const string InvalidMessage = UpdateProfileNameRequestValidator.VersionInvalid;
+    /// <summary>The message for a missing or malformed version, shared by every edit form.</summary>
+    public const string InvalidMessage = "Reload the form and try again.";
 
     /// <summary>Writes a row version as text.</summary>
     /// <param name="rowVersion">The eight bytes.</param>
