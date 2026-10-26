@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15) (completed 2026-10-17)
 - [x] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit (completed 2026-10-17)
 - [x] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer (completed 2026-10-19)
-- [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
+- [x] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards (completed 2026-10-26)
 - [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
 - [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
@@ -697,7 +697,7 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: 21/21 plans executed in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 21/21 plans complete in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
 - [x] 06-20-PLAN.md
 - [x] 06-21-PLAN.md
 
@@ -1211,7 +1211,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
-| 6. Company Expenses | 21/21 | In Progress | - |
+| 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 0/TBD | Not started | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |

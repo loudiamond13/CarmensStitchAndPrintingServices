@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-25T02:28:52-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-26T07:02:00-05:00*
 
 ## What This Is
 
@@ -45,13 +45,14 @@ All existing production data is migrated in without loss. The API is client-agno
 
 - ✓ **Profile and user management:** own name, email change with confirmation, password change, admin theme; Manager-only users list with URL filters, invite or temporary password, edit, role, lock, deactivate, delete with last-Manager guard, session revoke on role or status change, resend invite or reset link; audit log viewer; optimistic concurrency and server-set record attribution for users (PROF-01..04, USER-01..08, AUDIT-02; Phase 5 share of SEC-07, SEC-08) — Phase 5 (2026-10-19: 52 plans, UAT 4/4 on a real phone and inbox, verification 12/12, threats_open 0; owner rulings D-50 to D-55)
 
+- ✓ **Company expenses:** add, edit, soft delete with Manager restore and permanent delete; filters, search, period totals and Manila-time month KPIs; Manager-editable categories on a Settings page; required "Paid by" with audited payer changes; rowversion 409s; fixed query counts and a 300 ms p95 list gate (CEXP-01..05, PERF-04) — Phase 6 (2026-10-26: 21 plans plus quick 261026-89i, UAT 6/6 with the live speed check deferred to backlog 999.4, verification 6/6, threats_open 0, UI review 20/24 with all five warnings fixed; owner rulings D-54 to D-62)
+
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
 - [ ] **Orders:** aggregate with items, payments, discount(s), order expenses; create, edit, delete; preview list with totals; search, filter, sort; concurrency (ORD-01..09)
 - [ ] **Order images:** Cloudinary signed server-side upload, a per-order limit, cover image, reorder, alt text, lazy responsive delivery, cleanup job (ORD-04, PRD §10)
-- [ ] **Company expenses:** CRUD with filters, search and period totals (CEXP-01..02)
 - [ ] **Admin dashboard:** KPIs, income vs expenses chart, orders by status, recent orders (UI-SPEC §8.3)
 - [ ] **Staff money (owner addition, 2026-10-07):** every payment names the staff member who received it ("Received by", the owner's "PaidTo"), and every company and order expense names the staff member who paid it ("Paid by"); each staff member has a server-computed money on hand (payments received + transfers in − transfers out − expenses paid); staff can transfer money to coworkers. An Admin sees only their own money and a Manager sees everyone's; only a Manager can delete a transfer, and every delete is audited (ORD-22, ORD-23, CEXP-05, MONEY-01..08, MIG-09, MIG-10; open rulings OD-15..OD-18, OD-20, OD-21). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover it yet and need a later update
 - [ ] **Record attribution (owner addition, 2026-10-07):** every record staff create or edit stores and shows who entered it and who last changed it, with UTC times, set by the server and never by the client ("Recorded by" / "Last changed by", SEC-08; MIG-10 for migrated records). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` need a later update
@@ -159,6 +160,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 | Owner answers on expenses and record attribution (2026-10-07): (1) an expense's "Paid by" reduces that staff member's money on hand, so the balance is payments received + transfers in − transfers out − expenses paid, computed server-side (MONEY-01); (2) every record staff create or edit stores and shows `CreatedBy`, `CreatedAt`, `UpdatedBy` and `UpdatedAt`, set by the server from the signed-in user and the clock and never from the client, with "Legacy import" for migrated records whose creator is unknown (SEC-08, MIG-10); (3) company and order expenses both have a required, server-validated "Paid by" naming an active Admin or Manager, and a payer change is audited (CEXP-05, ORD-23) | The owner asked that a payment show who received it and who entered it, and that expenses record who paid them, then answered three follow-up questions in chat. Received by (ORD-22) and Recorded by (SEC-08) are separate fields. Attribution that the client can't forge, plus audited payer changes, keeps staff balances explainable (Core Value) | ✓ Owner decided (2026-10-07) |
 | URL query-string state with nuqs (owner, 2026-10-07): (1) list and page view state (filters, search, sort, page, page size, tab, view mode) lives in the URL query string through nuqs 2.10.1 (MIT, free), approved after a check for security advisories, deprecation and the 14-day cool-down; switching to any newer version, such as a stable 2.10.2, needs the owner's approval at the Phase 2 install; (2) free-text search goes in the URL too, chosen over the privacy-conservative default of keeping it out, with mitigations: no query string in analytics, Core Web Vitals, client error reports or server logs, the strict Referrer-Policy, a 100-character server cap and no tokens or secrets in URLs; (3) the public gallery keeps its category filter in the URL as well, about 5.6 KB gz within the 150 KB public budget (WEB-10, ORD-10, GAL-01, ANL-05, SEC-03) | The owner asked for query-string URLs using nuqs. URL state lets Back, refresh, bookmarks and shared links reopen the same list view. Usage rules in WEB-10 avoid three known nuqs bugs (#1567, #1563, #1245), and ORD-10's saved view becomes the fallback when the URL has no valid view | ✓ Owner decided (2026-10-07) |
 | **Prime Directive 1 override** (owner, 2026-10-15): CSPS deploys to the live site and replaces the legacy app in Phase 3; the legacy site and database are retired then, not at the end of the project. There is no staging site (Basic plan, Phase 1 D-11) | The owner chose to surrender the legacy site now, accepting that staff have no order screens until the order phases ship. Legacy data is kept unchanged in a verified `.bak` (receipt confirmed before the delete) and imported in Phases 16 and 17. Until the owner accepts CSPS live, the legacy rollback kit (site files plus the `.bak`) can put the legacy site back | ✓ Owner decided (2026-10-15) |
+| Phase 6 owner rulings at UAT (2026-10-26, 06 D-54 to D-62): all UI-SPEC defaults confirmed; wording approved; expense notes readable by all staff; the live p95 check after release is a backlog follow-up, not a gate; every count uses the en-PH thousands format app-wide; required selects show the " *" mark; native date boxes show the friendly date beside them | Owner review of the review pack, UAT and the UI audit. Keeps the shipped screens consistent with the en-PH format rules and the spec | ✓ Owner decided (2026-10-26) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -233,4 +235,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-19T19:40:00-05:00 after Phase 5 verification and transition*
+*Last updated: 2026-10-26T07:02:00-05:00 after Phase 6 verification and transition*
