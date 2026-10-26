@@ -19,7 +19,10 @@
 //   9. Plan 05-37: signs a seeded Manager in through the Testing staff fixture and the mail sink (the Testing host the
 //      Playwright E2E run uses) and photographs the real Phase 5 screens: Users, My Profile, the Audit Log, the slide-overs,
 //      the dialogs and the confirm-email page, with a rulings page that lists only what is still open for the owner.
-//  10. Stops the host it started (that child and its own children, nothing else) and writes
+//  10. Plan 06-19: photographs the real Phase 6 screens the same way, as a Manager and as an Admin: Company Expenses and its
+//      states, the Add, Edit and View windows, both delete confirmations, Deleted Expenses, Settings and the Audit Log with an
+//      expense entry open, with a rulings page that lists what is still open for the owner and a table of every new sentence.
+//  11. Stops the host it started (that child and its own children, nothing else) and writes
 //      artifacts/owner-review/index.html, a plain-words page that shows every picture.
 // It writes nowhere but artifacts/owner-review/ (assertWritable), never into src/, web/src or the server's wwwroot.
 // Guide: docs/web/owner-review.md.
@@ -48,10 +51,10 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[], readonly phase6Review: readonly Phase6ReviewShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly phase6Review?: readonly Phase6ReviewShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly kind: 'frame' | 'menu' | 'dialog' }} AuthReviewCase
@@ -59,6 +62,10 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly id: string, readonly question: string, readonly default: string }} AuthReviewRuling
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[] }} Phase5ReviewCase
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly theme: Theme, readonly width: number, readonly file: string }} Phase5ReviewShot
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly signedInAs: 'Manager' | 'Admin' }} Phase6ReviewCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly signedInAs: 'Manager' | 'Admin', readonly theme: Theme, readonly width: number, readonly file: string }} Phase6ReviewShot
+ * @typedef {{ readonly label: string, readonly text: string, readonly recommended: boolean, readonly built: boolean }} Phase6Option
+ * @typedef {{ readonly id: string, readonly status: 'open' | 'ruled', readonly topic: string, readonly options: readonly Phase6Option[], readonly ruling?: string, readonly whereItChanges?: string }} Phase6Ruling
  * @typedef {{ readonly key: string, readonly role: 'Admin' | 'Manager', readonly state: string, readonly firstName: string, readonly lastName: string }} Phase5SeedPerson
  * @typedef {{ readonly id: string, readonly topic: string, readonly ruling: string, readonly ruledIn: string }} Phase5Ruled
  * @typedef {{ readonly id: string, readonly title: string, readonly what: string, readonly how: string }} Phase5OpenItem
@@ -92,9 +99,9 @@ const BLUSH_ONLY = Object.freeze(/** @type {Theme[]} */ (['light']));
 
 /**
  * Every page the e2e bundle serves (web/e2e/sweep.ts lists the Phase 2 ones): the public shell in Blush only (D-14), the
- * three dev-only admin preview pages (D-20), the Component Showcase, and, since plan 05-37, the three real guarded
- * pages (Users, My Profile, the Audit Log), photographed signed in as a Manager. The admin pages and the showcase are
- * shown in Blush and Espresso (D-13).
+ * two dev-only admin preview pages (D-20), the Component Showcase, and the real guarded pages (Company Expenses, Users, My
+ * Profile, the Audit Log, and, since plan 06-19, Deleted Expenses and Settings), photographed signed in as a Manager. The
+ * admin pages and the showcase are shown in Blush and Espresso (D-13).
  * @type {readonly ReviewTarget[]}
  */
 export const REVIEW_TARGETS = Object.freeze([
@@ -113,6 +120,7 @@ export const REVIEW_TARGETS = Object.freeze([
     title: 'Admin: Company Expenses',
     h1: 'Company Expenses',
     themes: BOTH,
+    signedIn: true,
   },
   { path: '/admin/users', slug: 'admin-users', title: 'Admin: Users', h1: 'Users', themes: BOTH, signedIn: true },
   {
@@ -128,6 +136,22 @@ export const REVIEW_TARGETS = Object.freeze([
     slug: 'admin-audit-log',
     title: 'Admin: Audit Log',
     h1: 'Audit Log',
+    themes: BOTH,
+    signedIn: true,
+  },
+  {
+    path: '/admin/expenses/deleted',
+    slug: 'admin-expenses-deleted',
+    title: 'Admin: Deleted Expenses',
+    h1: 'Deleted Expenses',
+    themes: BOTH,
+    signedIn: true,
+  },
+  {
+    path: '/admin/settings',
+    slug: 'admin-settings',
+    title: 'Admin: Settings',
+    h1: 'Settings',
     themes: BOTH,
     signedIn: true,
   },
@@ -283,6 +307,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
     },
     {
       kind: 'report',
@@ -612,7 +637,7 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], phase6Review?: readonly Phase6ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
 export function renderIndex({
@@ -623,6 +648,7 @@ export function renderIndex({
   beforeAfter = [],
   authReview = [],
   phase5Review = [],
+  phase6Review = [],
   parity,
   otherReports = [],
 }) {
@@ -660,6 +686,7 @@ ${pageSections(shots)}
 ${beforeAfterSection(beforeAfter)}
 ${authReviewSection(authReview)}
 ${phase5ReviewSection(phase5Review)}
+${phase6ReviewSection(phase6Review)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -1622,19 +1649,63 @@ export const PHASE5_OPEN_ITEMS = Object.freeze([
   },
 ]);
 
-// The Phase 5 copy is plain data too, loaded by address (see AUTH_COPY above).
-/** @type {unknown} */
-const usersCopyModule = await import(new URL('../src/modules/admin/usersCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const profileCopyModule = await import(new URL('../src/modules/admin/profileCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const auditCopyModule = await import(new URL('../src/modules/admin/auditCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const recordMetaCopyModule = await import(new URL('../src/components/data/copy.ts', import.meta.url).href);
-/** @type {unknown} */
-const statesCopyModule = await import(new URL('../src/components/states/copy.ts', import.meta.url).href);
-/** @type {unknown} */
-const temporaryPasswordModule = await import(new URL('../src/utils/temporaryPassword.ts', import.meta.url).href);
+// The Phase 5 and Phase 6 copy is plain data too, loaded by address (see AUTH_COPY above).
+
+/** @param {unknown} error @returns {boolean} true for Node's "cannot find that module or package". */
+function isModuleNotFound(error) {
+  return error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND';
+}
+
+/**
+ * Loads the app's copy modules. A copy module that imports the app through "@/" cannot be read by plain Node (npm run review),
+ * which knows no such path; then every module is read through one short-lived Vite server that has the same alias. Under
+ * Vitest the plain import already works. The server holds no port and no watcher, and is closed before this returns.
+ * @param {readonly string[]} files paths from web/src, like 'modules/admin/usersCopy.ts'.
+ * @returns {Promise<readonly unknown[]>} the modules, in the order asked.
+ */
+async function loadCopyModules(files) {
+  const urls = files.map((file) => new URL(`../src/${file}`, import.meta.url));
+  try {
+    /** @type {unknown[]} */
+    const loaded = await Promise.all(urls.map((url) => import(url.href)));
+    return loaded;
+  } catch (error) {
+    if (!isModuleNotFound(error)) {
+      throw error;
+    }
+  }
+  const { createServer } = await import('vite');
+  const server = await createServer({
+    configFile: false,
+    root: WEB_DIRECTORY,
+    appType: 'custom',
+    logLevel: 'error',
+    resolve: { alias: { '@': path.join(WEB_DIRECTORY, 'src') } },
+    server: { middlewareMode: true, hmr: false, watch: null },
+    optimizeDeps: { noDiscovery: true, include: [] },
+  });
+  try {
+    return await Promise.all(files.map((file) => server.ssrLoadModule(`/src/${file}`)));
+  } finally {
+    await server.close();
+  }
+}
+
+const [
+  usersCopyModule,
+  profileCopyModule,
+  auditCopyModule,
+  recordMetaCopyModule,
+  statesCopyModule,
+  temporaryPasswordModule,
+] = await loadCopyModules([
+  'modules/admin/usersCopy.ts',
+  'modules/admin/profileCopy.ts',
+  'modules/admin/auditCopy.ts',
+  'components/data/copy.ts',
+  'components/states/copy.ts',
+  'utils/temporaryPassword.ts',
+]);
 
 /**
  * The 40 words a suggested temporary password is built from (plan 05-22).
@@ -1777,6 +1848,159 @@ slide-overs, dialogs and special states are below. Nothing here is approved unti
 <p class="note">Every sentence the Phase 5 screens say. <strong>{email}</strong> stands for an address; <strong>{x}</strong>,
 <strong>{y}</strong> and <strong>{z}</strong> are values the app fills in (a name, a role, a time).</p>
 <table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
+${sections}</section>`;
+}
+
+// ───────────── Plan 06-19: the Phase 6 screens (Company Expenses, Deleted Expenses, Settings, the Audit Log) ─────────────
+
+/**
+ * The one person the Phase 6 pictures add, made through the Testing-only staff fixture: an Admin who pays and records an
+ * expense and is then deleted, so the lists read "Dario Lim (former staff)" (OQ-7, OQ-8). The fixture gives the address.
+ * @type {readonly Phase5SeedPerson[]}
+ */
+export const PHASE6_SEED_PEOPLE = Object.freeze([
+  { key: 'dario', role: 'Admin', state: 'active', firstName: 'Dario', lastName: 'Lim' },
+]);
+
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string} group
+ * @param {'Manager' | 'Admin'} [signedInAs]
+ * @returns {Phase6ReviewCase}
+ */
+function phase6Case(id, label, group, signedInAs = 'Manager') {
+  return { id, label, group, themes: BOTH, signedInAs };
+}
+
+/**
+ * The UI-SPEC "Visual Review" set for Phase 6, beyond the plain pages in REVIEW_TARGETS: the states a page alone does not
+ * show. Each is a picture of the real screen with the real server behind it, in Blush and Espresso at 390, 820 and 1440 px.
+ * The three Admin cases are signed in as an Admin; every other one as a Manager.
+ * @type {readonly Phase6ReviewCase[]}
+ */
+export const PHASE6_REVIEW_CASES = Object.freeze([
+  phase6Case(
+    'e1-manager-list',
+    'E1 as a Manager: an Upcoming row, a row by a former staff member, a retired category, and the total for both pages (10 a page)',
+    'E1 Company Expenses',
+  ),
+  phase6Case(
+    'e1-manager-empty-top-category',
+    'E1 as a Manager in a month with no expenses: the month cards with the empty Top category',
+    'E1 Company Expenses',
+  ),
+  phase6Case('e1-empty', 'E1 when nothing is recorded yet (first use)', 'E1 Company Expenses'),
+  phase6Case('e1-no-matches', 'E1 when the search matches nothing', 'E1 Company Expenses'),
+  phase6Case(
+    'e1-admin-list',
+    'E1 as an Admin: Edit on the expense they paid, View on the others, no Deleted Expenses link',
+    'E1 Company Expenses',
+    'Admin',
+  ),
+  phase6Case('e2-add', 'E2 Add Expense: Paid by starts as the signed-in person, marked "(you)"', 'E2 Expense window'),
+  phase6Case(
+    'e2-edit-record-meta',
+    'E2 Edit Expense: Recorded by and Last changed by at the bottom',
+    'E2 Expense window',
+  ),
+  phase6Case(
+    'e2-edit-access-note',
+    'E2 Edit Expense as an Admin: the note shown after Paid by is moved to someone else (D-26)',
+    'E2 Expense window',
+    'Admin',
+  ),
+  phase6Case(
+    'e2-edit-conflict',
+    'E2 Edit Expense: the banner when someone else saved first (409)',
+    'E2 Expense window',
+  ),
+  phase6Case(
+    'e2-view',
+    'E2 Expense details (View): an Admin reading a coworker’s expense',
+    'E2 Expense window',
+    'Admin',
+  ),
+  phase6Case('e3-delete', 'E3 Delete Expense: the confirmation', 'E3 Delete confirmations'),
+  phase6Case('e3-purge', 'E3 Delete Permanently: the confirmation with the warning', 'E3 Delete confirmations'),
+  phase6Case(
+    'e4-rows',
+    'E4 Deleted Expenses with deleted rows (Restore and Delete Permanently)',
+    'E4 Deleted Expenses',
+  ),
+  phase6Case('e4-empty', 'E4 Deleted Expenses with nothing deleted', 'E4 Deleted Expenses'),
+  phase6Case(
+    's1-categories',
+    'S1 Expense Categories: an active, a retired, a never-used and the Others row',
+    'S1 and S2 Settings',
+  ),
+  phase6Case('s2-add-category', 'S2 Add Category: the colour choices and the live badge preview', 'S1 and S2 Settings'),
+  phase6Case(
+    'audit-expense-expanded',
+    'A1 Audit Log: an "Expense changed" entry opened, with its change lines',
+    'A1 Audit Log',
+  ),
+]);
+
+/**
+ * One picture per case, per theme, at 390, 820 and 1440 px.
+ * @param {readonly Phase6ReviewCase[]} [cases]
+ * @returns {Phase6ReviewShot[]}
+ */
+export function planPhase6ReviewShots(cases = PHASE6_REVIEW_CASES) {
+  return cases.flatMap((entry) =>
+    entry.themes.flatMap((theme) =>
+      REVIEW_WIDTHS.map((width) => ({
+        id: entry.id,
+        label: entry.label,
+        group: entry.group,
+        signedInAs: entry.signedInAs,
+        theme,
+        width,
+        file: `phase6-review/${entry.id}-${theme}-${String(width)}.png`,
+      })),
+    ),
+  );
+}
+
+/**
+ * The Phase 6 section: every picture grouped by screen.
+ * @param {readonly Phase6ReviewShot[]} phase6Review
+ * @returns {string}
+ */
+function phase6ReviewSection(phase6Review) {
+  if (phase6Review.length === 0) {
+    return '';
+  }
+  const groups = [...new Set(phase6Review.map((shot) => shot.group))];
+  const sections = groups
+    .map((group) => {
+      const ids = [...new Set(phase6Review.filter((shot) => shot.group === group).map((shot) => shot.id))];
+      const cases = ids
+        .map((id) => {
+          const ofCase = phase6Review.filter((shot) => shot.id === id);
+          const label = ofCase[0]?.label ?? id;
+          const role = ofCase[0]?.signedInAs ?? 'Manager';
+          const figures = ofCase
+            .map(
+              (shot) =>
+                `<figure class="gap"><figcaption>${escapeHtml(themeName(shot.theme))}, ${String(shot.width)} px</figcaption>` +
+                `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+                  `${label}, ${themeName(shot.theme)}, ${String(shot.width)} px`,
+                )}"></a></figure>`,
+            )
+            .join('');
+          return `<h4>${escapeHtml(label)}</h4><p class="note">Signed in as ${escapeHtml(role === 'Admin' ? 'an Admin' : 'a Manager')}.</p><div class="row">${figures}</div>`;
+        })
+        .join('\n');
+      return `<h3>${escapeHtml(group)}</h3>\n${cases}`;
+    })
+    .join('\n');
+  return `<section><h2>Company expenses and settings (Phase 6)</h2>
+<p class="note">These pictures show the real screens, signed in as a Manager and as an Admin, with expenses made for the run (a row
+that is still ahead, a row by a member of staff who has left, a retired category, deleted expenses). Company Expenses, Deleted
+Expenses and Settings are also in the page list near the top of this report; the windows, dialogs and special states are below.
+Nothing here is approved until you say so.</p>
 ${sections}</section>`;
 }
 
@@ -1988,6 +2212,10 @@ export async function openReviewPage(browser, origin, target, problems, signedIn
     throw new Error(`${where} answered ${String(response?.status())}, not 200.`);
   }
   await page.locator('h1', { hasText: target.h1 }).first().waitFor({ timeout: 30_000 });
+  if (signedIn !== undefined) {
+    // A signed-in page loads its list after the first paint; the picture is taken once those answers are in.
+    await page.waitForLoadState('networkidle');
+  }
   await page.evaluate('document.fonts.ready.then(() => true)');
   await page.evaluate(SETTLE);
   return {
@@ -2425,9 +2653,10 @@ async function seedPhase5(browser, request, origin) {
  * @param {Phase5Seed} seed
  * @param {{ theme: Theme, width: number }} view
  * @param {string[]} problems
+ * @param {string} [who] the key of the seeded person to sign in as; the Manager unless an Admin's screen is photographed.
  * @returns {Promise<{ page: Page, close(): Promise<void> }>}
  */
-async function openSignedIn(browser, request, origin, seed, view, problems) {
+async function openSignedIn(browser, request, origin, seed, view, problems, who = 'manager') {
   const context = await browser.newContext({
     viewport: { width: view.width, height: windowHeight(view.width) },
     ignoreHTTPSErrors: true,
@@ -2437,15 +2666,18 @@ async function openSignedIn(browser, request, origin, seed, view, problems) {
     await context.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
   }
   const page = await context.newPage();
-  const manager = seed.people.manager;
-  if (manager === undefined) {
-    throw new Error('The seed has no Manager.');
+  const person = seed.people[who];
+  if (person === undefined) {
+    throw new Error(`The seed has no person "${who}".`);
   }
-  await signIn(page, request, origin, manager);
+  await signIn(page, request, origin, person);
   const where = `(${themeName(view.theme)}, ${String(view.width)} px)`;
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
-      problems.push(`${where}: ${message.text()}`);
+      const text = message.text();
+      if (!(EXPECTED_CONSOLE.get(page) ?? []).some((expected) => expected.test(text))) {
+        problems.push(`${where}: ${text}`);
+      }
     }
   });
   page.on('pageerror', (error) => {
@@ -2789,6 +3021,502 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
   }
 }
 
+// ───────────── Plan 06-19: capturing the Phase 6 screens signed in as a Manager and as an Admin ─────────────
+
+/**
+ * @typedef {{
+ *   readonly dario: MadeStaff,
+ *   readonly rows: Readonly<Record<'upcoming' | 'former' | 'retired' | 'adminPaid' | 'notes' | 'edited', string>>,
+ *   readonly editedId: string,
+ * }} Phase6Seed
+ */
+/** @typedef {CaseContext & { six: Phase6Seed }} Phase6Context */
+
+/** The ten starting categories that the pictures use; the ids are the fixed migration seed literals. */
+const SEEDED_RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
+const SEEDED_SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
+
+/**
+ * The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd.
+ * @param {number} offsetDays
+ * @returns {string}
+ */
+function manilaDate(offsetDays) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  const shifted = new Date(`${today}T00:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
+  return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * The id in an API answer.
+ * @param {unknown} body
+ * @returns {string}
+ */
+function idOf(body) {
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('The API answer has no id.');
+  }
+  return body.id;
+}
+
+/**
+ * Seeds one company expense through the Testing-only expense fixture (a chosen payer, recorder, date and delete state).
+ * @param {ApiRequest} request
+ * @param {Record<string, unknown>} input
+ * @returns {Promise<void>}
+ */
+async function seedExpense(request, input) {
+  const response = await request.post('/api/testing/expenses', { data: input });
+  if (response.status() !== 201) {
+    throw new Error(`The expense fixture answered ${String(response.status())}, not 201.`);
+  }
+}
+
+/**
+ * Makes what the Phase 6 pictures show, in the Testing database CSPS_E2E, all marked with this run's tag so a search finds only
+ * them: three categories (one used and active, one used and then retired, one never used), thirteen live expenses (one still
+ * ahead, one by a payer who is then deleted, one in the retired category, one the Admin pays but a Manager recorded, one with
+ * notes, and filler so the list has two pages at 10 a page), one expense a Manager adds and edits through the API (so the audit
+ * log has "added" and "changed" entries and Last changed by is filled) and three deleted expenses.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @returns {Promise<Phase6Seed>}
+ */
+async function seedPhase6(browser, request, origin, seed) {
+  const { tag } = seed;
+  const manager = seed.people.manager;
+  const admin = seed.people.ana;
+  const person = PHASE6_SEED_PEOPLE[0];
+  if (manager === undefined || admin === undefined || person === undefined) {
+    throw new Error('The seed has no Manager, Admin or Phase 6 payer.');
+  }
+  const managerToken = await tokenFor(browser, request, origin, manager);
+  const dario = await makeStaff(request, person, tag);
+  /** @param {string} name @param {string} tone @returns {Promise<string>} */
+  const makeCategory = async (name, tone) =>
+    idOf(await callApi(request, managerToken, 'POST', '/api/v1/expense-categories', { name: `${name} ${tag}`, tone }));
+  const apparel = await makeCategory('Apparel', 'success');
+  const abaca = await makeCategory('Abaca', 'info');
+  await makeCategory('Applique', 'warning');
+  const rows = {
+    upcoming: `Shop rent for next week ${tag}`,
+    former: `Thread and zippers ${tag}`,
+    retired: `Banner cloth ${tag}`,
+    adminPaid: `Courier fee ${tag}`,
+    notes: `Printer toner ${tag}`,
+    edited: `Sticker paper ${tag}`,
+  };
+  const by = (/** @type {MadeStaff} */ payer, /** @type {MadeStaff} */ recorder) => ({
+    paidByUserId: payer.userId,
+    recordedByUserId: recorder.userId,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(6),
+    categoryId: SEEDED_RENT,
+    description: rows.upcoming,
+    amount: 18000,
+  });
+  await seedExpense(request, {
+    ...by(dario, dario),
+    date: manilaDate(-3),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.former,
+    amount: 2450.5,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(-5),
+    categoryId: abaca,
+    description: rows.retired,
+    amount: 1320,
+  });
+  await seedExpense(request, {
+    ...by(admin, manager),
+    date: manilaDate(-2),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.adminPaid,
+    amount: 380.75,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(-4),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.notes,
+    amount: 4200,
+    notes: 'Bought in bulk for the October team orders.',
+  });
+  for (let index = 1; index <= 7; index += 1) {
+    await seedExpense(request, {
+      ...by(manager, manager),
+      date: manilaDate(-5 - index),
+      categoryId: index % 2 === 0 ? SEEDED_SUPPLIES : apparel,
+      description: `Office supplies ${String(index)} ${tag}`,
+      amount: 100 * index + 25.5,
+    });
+  }
+  for (const [index, name] of ['Old tarpaulin', 'Spare needles', 'Damaged rolls'].entries()) {
+    await seedExpense(request, {
+      ...by(manager, manager),
+      date: manilaDate(-7 - index),
+      categoryId: SEEDED_SUPPLIES,
+      description: `${name} ${tag}`,
+      amount: 250 + index * 100,
+      deleted: true,
+    });
+  }
+  // An expense a Manager adds and then edits, so the Audit Log holds both entries and Last changed by names a person.
+  const edited = await callApi(request, managerToken, 'POST', '/api/v1/company-expenses', {
+    date: manilaDate(-1),
+    categoryId: apparel,
+    description: rows.edited,
+    amount: 640,
+    paidByUserId: manager.userId,
+    notes: null,
+  });
+  const editedId = idOf(edited);
+  const version = isRecord(edited) && typeof edited.version === 'string' ? edited.version : '';
+  await callApi(request, managerToken, 'PUT', `/api/v1/company-expenses/${editedId}`, {
+    date: manilaDate(-1),
+    categoryId: apparel,
+    description: rows.edited,
+    amount: 700,
+    paidByUserId: manager.userId,
+    notes: 'Reprinted after a smudge.',
+    version,
+  });
+  await callApi(request, managerToken, 'POST', `/api/v1/expense-categories/${abaca}/retire`);
+  // Last, so the payer's expenses were saved while they were active; the lists then read "Dario Lim (former staff)".
+  await callApi(request, managerToken, 'DELETE', `/api/v1/users/${dario.userId}`);
+  return { dario, rows, editedId };
+}
+
+/** The console messages a case expects (the 409 of the stale-save picture), by page. */
+const EXPECTED_CONSOLE = /** @type {WeakMap<Page, RegExp[]>} */ (new WeakMap());
+
+/**
+ * Tells the console collector of a page that a message is expected and is not a problem.
+ * @param {Page} page
+ * @param {RegExp} pattern
+ */
+function allowConsole(page, pattern) {
+  EXPECTED_CONSOLE.set(page, [...(EXPECTED_CONSOLE.get(page) ?? []), pattern]);
+}
+
+/**
+ * Answers one API path with the real answer, changed. The answer is fetched from the server first, so its shape stays the
+ * server's own; only the part the picture needs is replaced. Call the returned function to restore the page.
+ * @param {Page} page
+ * @param {string} pathname
+ * @param {(body: Record<string, unknown>) => void} change
+ * @returns {Promise<() => Promise<void>>}
+ */
+async function answerChanged(page, pathname, change) {
+  /** @param {URL} url */
+  const matches = (url) => url.pathname === pathname;
+  /** @param {import('@playwright/test').Route} route */
+  const handler = async (route) => {
+    const response = await route.fetch();
+    /** @type {unknown} */
+    const body = await response.json();
+    if (isRecord(body)) {
+      change(body);
+    }
+    await route.fulfill({ response, json: body });
+  };
+  await page.route(matches, handler);
+  return () => page.unroute(matches, handler);
+}
+
+/**
+ * Opens a Phase 6 page and waits until its data and fonts have arrived and its motion is done.
+ * @param {Phase6Context} c
+ * @param {string} address path and query
+ * @param {string} h1
+ * @param {{ rows?: boolean }} [options] false for a page that shows no table row.
+ */
+async function openPhase6(c, address, h1, { rows = true } = {}) {
+  await c.page.goto(`${c.origin}${address}`);
+  await pageReady(c.page, h1);
+  if (rows) {
+    await c.page.locator('tbody tr').first().waitFor({ timeout: 30_000 });
+  }
+  await c.page.waitForLoadState('networkidle');
+  await c.page.evaluate(SETTLE);
+}
+
+/** @param {Phase6Context} c @returns {string} this run's expenses, 10 a page. */
+function listAddress(c) {
+  return `/admin/expenses?q=${c.seed.tag}&size=10`;
+}
+
+/**
+ * A row's action button by its name's first words and the row's description.
+ * @param {Phase6Context} c
+ * @param {string} verb Edit, View or Delete
+ * @param {string} description
+ */
+function rowAction(c, verb, description) {
+  return c.page.getByRole('button', { name: new RegExp(`^${verb} ${description}, [A-Z][a-z]{2} \\d{1,2}, \\d{4}$`) });
+}
+
+/**
+ * Opens the Edit window of a row once the expense has loaded (Recorded by shows only then).
+ * @param {Phase6Context} c
+ * @param {string} description
+ */
+async function openEditWindow(c, description) {
+  await openPhase6(c, listAddress(c), 'Company Expenses');
+  await rowAction(c, 'Edit', description).click();
+  const dialog = c.page.getByRole('dialog', { name: 'Edit Expense' });
+  await dialog.getByText('Recorded by', { exact: true }).waitFor({ timeout: 30_000 });
+  await c.page.evaluate(SETTLE);
+  return dialog;
+}
+
+/**
+ * How each Phase 6 case is photographed. Every function leaves the page where the next case can start from a page load:
+ * windows and dialogs are closed again, and a page whose answer was changed is restored.
+ * @type {Readonly<Record<string, (c: Phase6Context) => Promise<void>>>}
+ */
+const PHASE6_CAPTURES = Object.freeze({
+  'e1-manager-list': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await shootFullPage(c);
+  },
+  'e1-manager-empty-top-category': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses/kpis', (body) => {
+      const month = body.thisMonth;
+      body.thisMonth = isRecord(month) ? { ...month, count: 0, total: 0 } : month;
+      body.topCategory = null;
+    });
+    try {
+      await openPhase6(c, listAddress(c), 'Company Expenses');
+      await c.page.getByText('No expenses this month').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  'e1-empty': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses', (body) => {
+      body.items = [];
+      body.total = 0;
+      body.periodTotal = 0;
+    });
+    try {
+      await openPhase6(c, '/admin/expenses', 'Company Expenses', { rows: false });
+      await c.page.getByText('No expenses recorded').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  'e1-no-matches': async (c) => {
+    await openPhase6(c, `/admin/expenses?q=nothing-${c.seed.tag}`, 'Company Expenses', { rows: false });
+    await c.page.getByRole('heading', { name: 'No matches' }).waitFor({ timeout: 30_000 });
+    await shootFullPage(c);
+  },
+  'e1-admin-list': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await shootFullPage(c);
+  },
+  'e2-add': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await c.page.getByRole('button', { name: 'Add Expense' }).first().click();
+    const dialog = c.page.getByRole('dialog', { name: 'Add Expense' });
+    await dialog.getByRole('combobox', { name: /^Paid by/ }).waitFor({ timeout: 30_000 });
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-record-meta': async (c) => {
+    const dialog = await openEditWindow(c, c.six.rows.edited);
+    await dialog.getByText('Recorded by', { exact: true }).scrollIntoViewIfNeeded();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-access-note': async (c) => {
+    const dialog = await openEditWindow(c, c.six.rows.adminPaid);
+    await dialog.getByRole('combobox', { name: /^Paid by/ }).selectOption({ index: 1 });
+    const note = dialog.getByText('After you save', { exact: false }).first();
+    await note.waitFor({ timeout: 30_000 });
+    await note.scrollIntoViewIfNeeded();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-conflict': async (c) => {
+    allowConsole(c.page, /409/);
+    const dialog = await openEditWindow(c, c.six.rows.edited);
+    // Someone else saves first, from a second sign-in, so the window above holds an old version.
+    const manager = c.seed.people.manager;
+    if (manager === undefined) {
+      throw new Error('The seed has no Manager.');
+    }
+    const token = await tokenFor(c.browser, c.request, c.origin, manager);
+    const address = `/api/v1/company-expenses/${c.six.editedId}`;
+    const current = await callApi(c.request, token, 'GET', address);
+    if (!isRecord(current) || !isRecord(current.category) || !isRecord(current.paidBy)) {
+      throw new Error('The expense answer has an unexpected shape.');
+    }
+    await callApi(c.request, token, 'PUT', address, {
+      date: current.date,
+      categoryId: current.category.id,
+      description: current.description,
+      amount: Number(current.amount) + 5,
+      paidByUserId: current.paidBy.id,
+      notes: current.notes,
+      version: current.version,
+    });
+    await dialog.getByRole('textbox', { name: /^Amount/ }).fill('999');
+    await dialog.getByRole('button', { name: 'Save Changes' }).click();
+    await dialog.getByText('This was changed by someone else.').waitFor({ timeout: 30_000 });
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-view': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await rowAction(c, 'View', c.six.rows.notes).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Expense details' });
+    await dialog.getByText('Recorded by', { exact: true }).waitFor({ timeout: 30_000 });
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Close' }).last().click();
+  },
+  'e3-delete': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await rowAction(c, 'Delete', c.six.rows.notes).click();
+    const dialog = c.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Delete Expense' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'e3-purge': async (c) => {
+    await openPhase6(c, `/admin/expenses/deleted?q=${c.seed.tag}`, 'Deleted Expenses');
+    await c.page
+      .getByRole('button', { name: /^Delete .*permanently$/ })
+      .first()
+      .click();
+    const dialog = c.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Delete Permanently' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'e4-rows': async (c) => {
+    await openPhase6(c, `/admin/expenses/deleted?q=${c.seed.tag}`, 'Deleted Expenses');
+    await shootFullPage(c);
+  },
+  'e4-empty': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses/deleted', (body) => {
+      body.items = [];
+      body.total = 0;
+    });
+    try {
+      await openPhase6(c, '/admin/expenses/deleted', 'Deleted Expenses', { rows: false });
+      await c.page.getByText('No deleted expenses').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  's1-categories': async (c) => {
+    await openPhase6(c, '/admin/settings', 'Settings');
+    await shootFullPage(c);
+  },
+  's2-add-category': async (c) => {
+    await openPhase6(c, '/admin/settings', 'Settings');
+    await c.page.getByRole('button', { name: 'Add Category' }).first().click();
+    const dialog = c.page.getByRole('dialog', { name: 'Add Category' });
+    await dialog.getByRole('textbox', { name: /^Name/ }).fill('Embroidery thread');
+    await dialog.getByRole('radio', { name: 'Blue' }).check();
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'audit-expense-expanded': async (c) => {
+    const manager = c.seed.people.manager;
+    if (manager === undefined) {
+      throw new Error('The seed has no Manager.');
+    }
+    await openPhase6(
+      c,
+      `/admin/audit-log?range=all&action=company-expense.changed&target=${manager.userId.toLowerCase()}`,
+      'Audit Log',
+    );
+    await c.page
+      .getByRole('button', { name: /^Show details for Expense changed, / })
+      .first()
+      .click();
+    await c.page.evaluate(SETTLE);
+    await shootFullPage(c);
+  },
+});
+
+/**
+ * Takes the Phase 6 pictures: one signed-in browser context per theme, width and role, and the cases in order inside it.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @param {Phase6Seed} six
+ * @param {readonly Phase6ReviewShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function capturePhase6Review(browser, request, origin, seed, six, shots, problems) {
+  const views = [...new Set(shots.map((shot) => `${shot.theme}|${String(shot.width)}|${shot.signedInAs}`))];
+  for (const key of views) {
+    const [theme, width, role] = key.split('|');
+    const group = shots.filter(
+      (shot) => shot.theme === theme && String(shot.width) === width && shot.signedInAs === role,
+    );
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const opened = await openSignedIn(
+      browser,
+      request,
+      origin,
+      seed,
+      { theme: first.theme, width: first.width },
+      problems,
+      first.signedInAs === 'Admin' ? 'ana' : 'manager',
+    );
+    try {
+      for (const shot of group) {
+        const capture = PHASE6_CAPTURES[shot.id];
+        if (capture === undefined) {
+          throw new Error(`No capture is written for the Phase 6 case "${shot.id}"; update PHASE6_CAPTURES.`);
+        }
+        try {
+          await capture({
+            page: opened.page,
+            request,
+            origin,
+            seed,
+            six,
+            browser,
+            target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
+          });
+          process.stdout.write(`review: ${shot.file}\n`);
+        } catch (error) {
+          // One picture that cannot be taken is reported in the page's list of problems; the rest are still taken.
+          const reason = error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error);
+          problems.push(`${shot.file} could not be taken: ${reason}`);
+          process.stdout.write(`review: ${shot.file} FAILED: ${reason}\n`);
+        }
+      }
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
 /**
  * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases, then the wording
  * before/after pairs.
@@ -2797,7 +3525,7 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
  */
 async function captureShots(step) {
   const { chromium, request: playwrightRequest } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review']) {
+  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review', 'phase6-review']) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
@@ -2807,15 +3535,25 @@ async function captureShots(step) {
   // The Testing-only routes (the staff fixture and the mail sink) are called from here, not from a page.
   const request = await playwrightRequest.newContext({ baseURL: step.origin, ignoreHTTPSErrors: true });
   try {
-    const needsSignIn = step.phase5Review.length > 0 || REVIEW_TARGETS.some((target) => target.signedIn === true);
+    const needsSignIn =
+      step.phase5Review.length > 0 ||
+      step.phase6Review.length > 0 ||
+      REVIEW_TARGETS.some((target) => target.signedIn === true);
     const seed = needsSignIn ? await seedPhase5(browser, request, step.origin) : null;
+    const six = seed === null ? null : await seedPhase6(browser, request, step.origin, seed);
     for (const shot of step.shots) {
       const target = REVIEW_TARGETS.find((entry) => entry.path === shot.path);
       const manager = seed?.people.manager;
       const signedIn = target?.signedIn === true && manager !== undefined ? { request, staff: manager } : undefined;
-      // The roster is narrowed to this run's people, so they lead the list whatever earlier test runs left behind.
-      const pagePath =
-        signedIn !== undefined && shot.path === '/admin/users' ? `${shot.path}?q=review-${seed?.tag ?? ''}` : shot.path;
+      // The lists are narrowed to this run's people and expenses, so they lead whatever earlier test runs left behind.
+      const tag = seed?.tag ?? '';
+      /** @type {Readonly<Record<string, string>>} */
+      const narrowed = {
+        '/admin/users': `?q=review-${tag}`,
+        '/admin/expenses': `?q=${tag}`,
+        '/admin/expenses/deleted': `?q=${tag}`,
+      };
+      const pagePath = signedIn !== undefined ? `${shot.path}${narrowed[shot.path] ?? ''}` : shot.path;
       // My Profile's h1 is the person's name, not the words "My Profile".
       const h1 = signedIn !== undefined && shot.path === '/admin/profile' ? signedIn.staff.name : shot.h1;
       const opened = await openReviewPage(browser, step.origin, { ...shot, path: pagePath, h1 }, problems, signedIn);
@@ -2832,6 +3570,9 @@ async function captureShots(step) {
     if (seed !== null) {
       await capturePhase5Review(browser, request, step.origin, seed, step.phase5Review, problems);
     }
+    if (seed !== null && six !== null) {
+      await capturePhase6Review(browser, request, step.origin, seed, six, step.phase6Review, problems);
+    }
   } finally {
     await request.dispose();
     await browser.close();
@@ -2842,6 +3583,7 @@ async function captureShots(step) {
     beforeAfter: step.beforeAfter,
     authReview: step.authReview,
     phase5Review: step.phase5Review,
+    phase6Review: step.phase6Review,
     problems,
   };
 }
@@ -2885,6 +3627,7 @@ function writeReport(step, result) {
       beforeAfter: result.beforeAfter ?? [],
       authReview: result.authReview ?? [],
       phase5Review: result.phase5Review ?? [],
+      phase6Review: result.phase6Review ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),
