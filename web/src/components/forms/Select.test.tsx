@@ -12,6 +12,7 @@ import {
   fieldInputClasses,
   labelClasses,
   messageClasses,
+  requiredClasses,
   selectChevronClasses,
   selectOptionClasses,
 } from './field.recipe';
@@ -180,6 +181,25 @@ describe('Select label, hint and error (A11Y-01)', () => {
     expect(classTokens(container.firstElementChild)).toEqual(tokens(fieldClasses, 'col-span-2'));
   });
 
+  it('marks a required select with an aria-hidden " *" in the label and the native required attribute', () => {
+    const { container } = render(<Select label="Category" options={METHODS} required />);
+    const label = container.querySelector('label');
+    const mark = label?.querySelector('span');
+
+    expect(label?.textContent).toBe('Category *');
+    expect(mark?.textContent).toBe(' *');
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    expect(classTokens(mark)).toEqual(tokens(requiredClasses));
+    expect(select('Category')).toBeRequired();
+  });
+
+  it('shows no required mark when the select is not required', () => {
+    const { container } = render(<Select label="Category" options={METHODS} />);
+
+    expect(container.querySelector('label span')).toBeNull();
+    expect(select('Category')).not.toBeRequired();
+  });
+
   it('renders without a label when none is given (the caller names the select)', () => {
     const { container } = render(<Select aria-label="Rows per page" options={['10', '20', '50', '100']} />);
 
@@ -193,6 +213,7 @@ describe('Select label, hint and error (A11Y-01)', () => {
         <Select label="Payment method" options={METHODS} hint="Paid in full." />
         <Select label="Product type" placeholder="Choose a product type" options={PRODUCTS} error="Choose one." />
         <Select label="Status" options={['Active', 'Inactive']} disabled />
+        <Select label="Category" options={METHODS} required />
       </div>,
     );
 
