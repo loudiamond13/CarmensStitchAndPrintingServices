@@ -179,6 +179,16 @@ public sealed class CreateCompanyExpenseRequestValidatorTests
         CreateCompanyExpenseRequestValidator.TryParseDate("2026-02-30", out _).ShouldBeFalse();
     }
 
+    [Fact]
+    public void ACallerThatPassesNoBusinessTodayGetsAnErrorNamingTheKey()
+    {
+        var context = new ValidationContext<CreateCompanyExpenseRequest>(Valid());
+
+        var error = Should.Throw<InvalidOperationException>(() => new CreateCompanyExpenseRequestValidator().Validate(context));
+
+        error.Message.ShouldContain($"'{CreateCompanyExpenseRequestValidator.TodayKey}'");
+    }
+
     private static CreateCompanyExpenseRequest Valid() => new("2026-10-25", CategoryId, "Thread and needles", 640.00m, PayerId, null);
 
     private static ValidationResult Validate(CreateCompanyExpenseRequest request, DateOnly? today = null)
