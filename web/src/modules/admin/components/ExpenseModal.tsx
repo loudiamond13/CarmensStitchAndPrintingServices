@@ -6,7 +6,8 @@
 // Cancel do nothing (WEB-09) and the one Idempotency-Key is kept for a retry. Each open starts clean: the form lives in a part
 // that is mounted again on every open.
 //   - Edit reads the expense fresh on every open (SkeletonText in a LoadingRegion, then focus on Date). The form keeps the row
-//     version it opened with and sends it with Save Changes; a refetch never replaces it (05 D-13, D-20).
+//     version it opened with and sends it with Save Changes; a refetch never replaces it (05 D-13, D-20). The amount cap and the
+//     length limits apply only to a value changed from the opened expense, as on the server (D-33).
 //   - A 409 keeps every typed value and shows the ConflictBanner: Load Latest reads the expense again, replaces the values and the
 //     version, and moves the cursor to Date. A 403 (an Admin who may not edit it) and a 404 (deleted meanwhile) show their banner,
 //     keep the typed values and leave Save aria-disabled. A saved payer who is no longer active, and a saved retired category,
@@ -47,7 +48,12 @@ import {
   expensesWrapClasses,
 } from '@/modules/admin/components/expenses.recipe';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
-import { expenseFormSchema, type ExpenseFormInput, type ExpenseFormValues } from '@/modules/admin/expensesSchemas';
+import {
+  expenseFormSchema,
+  type ExpenseFormInput,
+  type ExpenseFormValues,
+  type StoredExpenseFields,
+} from '@/modules/admin/expensesSchemas';
 import { useExpenseQuery } from '@/modules/admin/hooks/useExpenseQuery';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import {
@@ -159,6 +165,11 @@ function valuesOf(expense: ExpenseDetailResponse): ExpenseFormInput {
   };
 }
 
+/** The saved values an edit compares against, so a legacy value over a limit can stay unchanged (D-33). */
+function storedOf(expense: ExpenseDetailResponse): StoredExpenseFields {
+  return { description: expense.description, amount: Number(expense.amount), notes: expense.notes ?? null };
+}
+
 interface ExpenseFormProps {
   mode: 'add' | 'edit';
   /** The expense being edited; null in add mode. */
@@ -193,7 +204,8 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
   // The polite line read out after Load Latest.
   const [status, setStatus] = useState('');
   const { control, handleSubmit, setError, reset } = useForm<ExpenseFormInput, unknown, ExpenseFormValues>({
-    resolver: zodResolver(expenseFormSchema(today)),
+    // On an edit, a limit applies only to a value changed from the opened expense (D-33).
+    resolver: zodResolver(expenseFormSchema(today, opened === null ? undefined : storedOf(opened))),
     mode: 'onBlur',
     defaultValues: {
       date: today,

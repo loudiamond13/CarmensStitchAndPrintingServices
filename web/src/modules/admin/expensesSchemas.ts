@@ -1,5 +1,5 @@
 // The Company Expenses zod schemas (OR-3): the browser checks every rule the server's validator has before a request is sent.
-// This file holds the list's date range and the Add Expense form (plan 06-12); the Edit form joins it in plan 06-14.
+// This file holds the list's date range and the Add and Edit Expense form (plans 06-12, 06-14).
 import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
@@ -84,8 +84,21 @@ function dateError(date: string, today: string): string | null {
   return null;
 }
 
-/** The message under Amount for the typed text, or null when it is acceptable (more than zero, at most the cap, 2 decimals). */
-function amountError(text: string): string | null {
+/**
+ * The saved values of the expense an Edit form opened with. On an edit the amount cap and the description and notes lengths
+ * apply only to a value that differs from these, so an imported row over a limit stays editable (D-33; ExpenseFieldsValidator).
+ */
+export interface StoredExpenseFields {
+  description: string;
+  amount: number;
+  notes: string | null;
+}
+
+/**
+ * The message under Amount for the typed text, or null when it is acceptable (more than zero, 2 decimals, and at most the cap
+ * unless it equals the stored amount).
+ */
+function amountError(text: string, storedCentavos: number | null): string | null {
   if (text === '' || text === '.') {
     return COPY.amountTooSmall;
   }
@@ -100,11 +113,15 @@ function amountError(text: string): string | null {
   if (centavos <= 0) {
     return COPY.amountTooSmall;
   }
-  return centavos > AMOUNT_MAX_CENTAVOS ? COPY.amountTooLarge : null;
+  return centavos > AMOUNT_MAX_CENTAVOS && centavos !== storedCentavos ? COPY.amountTooLarge : null;
 }
 
-/** The Add Expense form schema for the server's business `today`. The description and notes come out trimmed, empty notes as null. */
-export function expenseFormSchema(today: string) {
+/**
+ * The expense form schema for the server's business `today`. Pass `stored` on an edit (see StoredExpenseFields); Add passes
+ * nothing and every limit applies. The description and notes come out trimmed, empty notes as null.
+ */
+export function expenseFormSchema(today: string, stored?: StoredExpenseFields) {
+  const storedCentavos = stored === undefined ? null : Math.round(stored.amount * 100);
   return z.object({
     date: z.string().superRefine((date, context) => {
       const message = dateError(date, today);
@@ -113,9 +130,13 @@ export function expenseFormSchema(today: string) {
       }
     }),
     categoryId: z.string().min(1, COPY.categoryRequired),
-    description: z.string().trim().min(1, COPY.descriptionRequired).max(DESCRIPTION_MAX, COPY.descriptionTooLong),
+    description: z
+      .string()
+      .trim()
+      .min(1, COPY.descriptionRequired)
+      .refine((text) => text.length <= DESCRIPTION_MAX || text === stored?.description, COPY.descriptionTooLong),
     amount: z.string().superRefine((amount, context) => {
-      const message = amountError(amount);
+      const message = amountError(amount, storedCentavos);
       if (message !== null) {
         context.addIssue({ code: 'custom', message });
       }
@@ -124,7 +145,7 @@ export function expenseFormSchema(today: string) {
     notes: z
       .string()
       .trim()
-      .max(NOTES_MAX, COPY.notesTooLong)
+      .refine((text) => text.length <= NOTES_MAX || text === stored?.notes, COPY.notesTooLong)
       .transform((notes) => (notes === '' ? null : notes)),
   });
 }
