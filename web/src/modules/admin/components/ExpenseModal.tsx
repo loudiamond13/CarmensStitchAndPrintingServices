@@ -243,11 +243,12 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
       setConflicts((count) => count + 1);
       return;
     }
-    if (isHttpError(error) && error.status === 403 && error.code === NOT_YOURS) {
+    // The deleted and not-yours banners exist only in Edit; in Add these fall through to the mapped line.
+    if (isEdit && isHttpError(error) && error.status === 403 && error.code === NOT_YOURS) {
       setForbidden(true);
       return;
     }
-    if (isHttpError(error) && error.status === 404) {
+    if (isEdit && isHttpError(error) && error.status === 404) {
       setDeleted(true);
       return;
     }
