@@ -9,7 +9,7 @@ namespace Csps.Infrastructure.Seeding;
 /// <summary>
 /// Adds demo company expenses to an empty CompanyExpenses table so the local list has something to show (CEXP-01, PERF-04):
 /// sixty dated over the business days before today and four up to thirty days ahead, with fixed plain descriptions and
-/// invented amounts. Payer and recorder are the existing active staff with a password; the step never creates accounts or
+/// invented amounts. Payer and recorder are the existing active staff who have signed in; the step never creates accounts or
 /// categories (D-09). Everything is derived from the row number, so two runs on empty databases give the same rows.
 /// </summary>
 public sealed class CompanyExpensesSeedStep : ISeedStep
@@ -53,7 +53,7 @@ public sealed class CompanyExpensesSeedStep : ISeedStep
         var staff = await ReadPayersAsync(db, cancellationToken).ConfigureAwait(false);
         if (staff.Count == 0)
         {
-            Console.WriteLine("  CompanyExpenses skipped: no active Admin or Manager with a password. Create one, then run the seed again.");
+            Console.WriteLine("  CompanyExpenses skipped: no active Admin or Manager who has signed in. Create one, then run the seed again.");
             return false;
         }
 
@@ -91,11 +91,13 @@ public sealed class CompanyExpensesSeedStep : ISeedStep
 
     private static Guid CategoryId(string name) => ExpenseCategorySeed.Rows.Single(row => row.Name == name).Id;
 
-    // D-32: an Admin or Manager who is active, not locked, not deleted and has a password.
+    // D-32, D-49: an Admin or Manager who is active, not locked, not deleted, has a password and has signed in once.
+    // Must match StaffState.CanPay.
     private static async Task<List<Guid>> ReadPayersAsync(CspsDbContext db, CancellationToken cancellationToken) =>
         await db.Users
             .AsNoTracking()
-            .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null && user.PasswordHash != null)
+            .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null
+                && user.PasswordHash != null && user.EmailConfirmed)
             .Where(user => db.UserRoles.Any(link => link.UserId == user.Id && db.Roles.Any(role =>
                 role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))))
             .OrderBy(user => user.NormalizedEmail)

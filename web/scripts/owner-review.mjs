@@ -2176,12 +2176,11 @@ export const PHASE6_RULINGS = Object.freeze([
       option(
         '1',
         'They can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable.',
-        { recommended: true },
+        { recommended: true, built: true },
       ),
       option(
         '2',
         'Keep the rule as written ("has a password"), so a person a Manager created with a temporary password can be chosen before their first sign-in.',
-        { built: true },
       ),
       option(
         '3',
@@ -2189,9 +2188,9 @@ export const PHASE6_RULINGS = Object.freeze([
       ),
     ],
     ruling:
-      'Option 1 (D-49, owner, 2026-10-25). Follow-up plan 06-20 builds it. Until then the app still behaves as option 2.',
+      'Option 1 (D-49, owner, 2026-10-25). Plan 06-20 built it: a person a Manager adds with a temporary password can be chosen as Paid by only after their first sign-in code, and staff whose password a Manager reset stay choosable.',
     whereItChanges:
-      'The two set-up clauses in src/Csps.Infrastructure/Identity/StaffDirectory.cs. The test StaffLookupEndpointTests.ATemporaryPasswordPersonWhoHasNotSignedInIsListed pins option 2 today and changes with the follow-up.',
+      'The set-up check in src/Csps.Infrastructure/Identity/StaffDirectory.cs (two clauses), src/Csps.Infrastructure/Expenses/CompanyExpenseReader.cs and src/Csps.Infrastructure/Seeding/CompanyExpensesSeedStep.cs. The test StaffLookupEndpointTests.ATemporaryPasswordPersonWhoHasNotSignedInIsNotListed pins option 1.',
   },
   {
     id: 'A-06-02',

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T20:15:00-05:00
+updated: 2026-10-25T21:30:00-05:00
 ---
 
 # The company expenses API
@@ -119,20 +119,22 @@ as the target. Names are percent-encoded for `%`, `;`, `=` and `>`.
 
 A save that changes both name and tone writes both the renamed and the recolored entry. A no-op writes none.
 
-## Staff who can pay (CEXP-05, D-32)
+## Staff who can pay (CEXP-05, D-32, D-49)
 
 | Method and path | Body | Answers |
 |---|---|---|
 | `GET /staff` | none | `200` an array of `{ id, name }`. |
 
-A person is listed when they are an `Admin` or `Manager`, active, not locked by a Manager, not deleted and have a password. An
-invited person who has not set a password yet is never listed. A person a Manager created with a temporary password has a
-password, so they are listed before their first sign-in (the owner may change this, see the Owner backlog in the planning state).
+A person is listed when they are an `Admin` or `Manager`, active, not locked by a Manager, not deleted, and have signed in at
+least once (they entered a sign-in code or accepted an invite). An invited person who has not set a password yet is never
+listed. A person a Manager adds with a temporary password appears after their first correct sign-in code. Staff whose password
+a Manager reset stay listed, because the first sign-in mark is never cleared. A later legacy import must mark the staff it brings
+over, or they cannot be chosen as Paid by.
 
 - **Names only:** the answer holds an id and a name (`First Last`, exactly as saved). It never holds an email address, a role or
   an account state. The full roster stays Manager-only (`GET /users`).
 - The order is first name, then last name, then id, so two people with the same name always come back in the same order.
-- The list is never empty for a signed-in caller, because the caller is active staff with a password and is always in it.
+- The list is never empty for a signed-in caller, because the caller has signed in and is always in it.
 
 ## Recording and reading one expense (CEXP-02, CEXP-04, CEXP-05)
 
@@ -163,7 +165,7 @@ the code `company-expenses.invalid-request` and the title "Check the highlighted
 | | At most 1,000,000.00 | Enter an amount of ₱1,000,000.00 or less. |
 | | At most 2 decimal places (`1250.1` and `1250.10` pass, `1250.123` does not) | Use at most 2 decimal places. |
 | `paidByUserId` | Required | Choose who paid. |
-| | An active Admin or Manager with a password, not locked and not deleted (D-17, D-32); never "the company" | This person can't be chosen because their account isn't active. Choose someone else. |
+| | An active Admin or Manager who has signed in at least once, not locked and not deleted (D-17, D-32, D-49); never "the company" | This person can't be chosen because their account isn't active. Choose someone else. |
 | `notes` | Optional; trimmed; empty means none; at most 1,000 characters (D-19) | Keep notes to 1,000 characters or fewer. |
 
 - Lengths are counted in UTF-16 code units after trimming, the same measure a browser string length uses.
@@ -182,7 +184,8 @@ recordedBy { id, name, formerStaff } | null, recordedAt, lastChangedBy | null, l
   with no creator.
 - **Recorded by is not Paid by.** An expense recorded by A and paid by B reads `paidBy` B and `recordedBy` A. The recorder may also
   be the payer; both fields then name that person.
-- `paidByActive` is false when the saved payer can no longer be chosen (deactivated, locked or deleted since). The payer still
+- `paidByActive` is false when the saved payer can no longer be chosen (deactivated, locked or deleted since, or has not signed
+  in yet). The payer still
   shows, with "(former staff)" when `formerStaff` is true.
 - `version` is the base64 of the 8-byte row version. A later edit sends it back; text that is not base64 of exactly 8 bytes is
   not a version.
@@ -223,7 +226,7 @@ The body is the Add form plus the `version` the form was opened with (the `versi
   by someone else. Reload and try again." Nothing is stored. When two people send the same version together, exactly one gets
   `200` and the other `409`; the stored values and the list's `periodTotal` are the winner's.
 - **A saved payer or category may stay.** Only a payer or category the form changes is checked. A changed payer must pass the same
-  rule as the POST (active Admin or Manager with a password, not locked, not deleted), else `400` on `paidByUserId`. A changed
+  rule as the POST (active Admin or Manager who has signed in at least once, not locked, not deleted), else `400` on `paidByUserId`. A changed
   category must exist and not be retired, else `400` on `categoryId`. An expense keeps its retired category, and its payer after
   that person is deactivated, while the form leaves them as they are (D-11, OQ-7).
 - **Nothing changed.** A form whose values equal the stored ones answers `200` with the same `version` and writes nothing.
