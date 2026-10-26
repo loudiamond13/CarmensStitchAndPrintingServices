@@ -807,16 +807,16 @@
     },
     {
       "id": "@vitest/coverage-v8",
-      "version": "5.0.1",
+      "version": "5.0.4",
       "kind": "npm",
       "manifest": "web",
       "scope": "test",
       "purpose": "Coverage for Vitest (thresholds: web 90%, core/api 100%).",
       "license": "MIT",
       "publisher": "Vitest team (npm owners antfu, ariperkkio, hiogawa)",
-      "legitimacy": "50.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
-      "published": "2026-09-15",
-      "adopted": "2026-10-08",
+      "legitimacy": "50.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08); 5.0.4 checked 2026-10-26: MIT, not deprecated, no install script; bumped for the @vitest/mocker advisories GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp (D-63); 5.0.5 skipped under the cool-down",
+      "published": "2026-10-12",
+      "adopted": "2026-10-26",
       "coolDown": "aged"
     },
     {
@@ -1199,16 +1199,16 @@
     },
     {
       "id": "vitest",
-      "version": "5.0.1",
+      "version": "5.0.4",
       "kind": "npm",
       "manifest": "web",
       "scope": "test",
       "purpose": "Unit and component test runner.",
       "license": "MIT",
       "publisher": "Vitest team (npm owners antfu, ariperkkio, hiogawa)",
-      "legitimacy": "142.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08)",
-      "published": "2026-09-15",
-      "adopted": "2026-10-08",
+      "legitimacy": "142.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08); 5.0.4 checked 2026-10-26: MIT, not deprecated, no install script; bumped for the @vitest/mocker advisories GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp (D-63); 5.0.5 skipped under the cool-down",
+      "published": "2026-10-12",
+      "adopted": "2026-10-26",
       "coolDown": "aged"
     },
     {
