@@ -8,7 +8,8 @@
 //   - The browser adds nothing: the count, the period total (every page of the filter), the window and the business today
 //     all come from the answer (Core Value, D-23). With no dates in the URL, From and To show the server's window and the
 //     URL stays clean. Add Expense (the header, and the first-use empty state) opens the E2 modal with the server's today; a save
-//     reads the lists, the KPIs and the deleted list again and toasts, adding a note when the new row is outside the filters.
+//     reads the lists, the KPIs, the deleted list and the categories again and toasts, adding a note when the new row is outside
+//     the filters.
 //   - The Actions column (plan 06-14): Edit on every row the server says the caller may edit (a Manager's rows all are), View (the
 //     eye, OQ-8) on the others; the E2 modal reads the expense fresh. After a save the row's Edit button takes focus back, or the table caption when the row left the
 //     view, and the lists and KPIs read again. A Manager also gets Delete (plan 06-16, D-01, D-02): a plain ConfirmDialog, then the row leaves, focus
@@ -64,8 +65,7 @@ import { useRefreshExpenses } from '@/modules/admin/hooks/useRefreshExpenses';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useExpensesListParams } from '@/modules/admin/hooks/useExpensesListParams';
-import { expenseKpisKey, useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
-import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { useExpenseKpisQuery } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expensesKey, useExpensesQuery } from '@/modules/admin/hooks/useExpensesQuery';
 import {
   expensesService,
@@ -242,7 +242,7 @@ export function ExpensesRoute() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState(false);
   const rowFocus = useRowFocus();
-  // Every expense change reads the lists, the month figures and the deleted list again (UI-SPEC Freshness).
+  // Every expense change reads the lists, the month figures, the deleted list and the categories again (UI-SPEC Freshness).
   const refreshAll = useRefreshExpenses();
   const { user: me } = useSession();
   const isManager = me?.role === 'manager';
@@ -341,9 +341,7 @@ export function ExpensesRoute() {
         COPY.add.toast.message(formatPeso(expense.amount), expense.category.name) +
         (outside ? COPY.add.toast.outsideFilters : ''),
     });
-    void queryClient.invalidateQueries({ queryKey: expenseKpisKey });
-    void queryClient.invalidateQueries({ queryKey: expensesDeletedKey });
-    void queryClient.invalidateQueries({ queryKey: expensesKey }).then(() => {
+    void refreshAll().then(() => {
       // A trigger that left the page with the list (the first-use action) cannot take focus back: the header button does.
       if (document.activeElement === null || document.activeElement === document.body) {
         addRef.current?.focus();
@@ -358,9 +356,7 @@ export function ExpensesRoute() {
       title: COPY.edit.toast.title,
       message: COPY.add.toast.message(formatPeso(expense.amount), expense.category.name),
     });
-    void queryClient.invalidateQueries({ queryKey: expenseKpisKey });
-    void queryClient.invalidateQueries({ queryKey: expensesDeletedKey });
-    void queryClient.invalidateQueries({ queryKey: expensesKey }).then(() => {
+    void refreshAll().then(() => {
       // The answer is in the cache before the table redraws, so ask it (not the DOM) whether the row is still listed.
       const listed = queryClient
         .getQueriesData<ExpenseListResponse>({ queryKey: expensesKey, type: 'active' })
