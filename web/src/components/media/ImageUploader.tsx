@@ -19,6 +19,7 @@
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import type { OrderImage } from '@/utils/csps';
+import { formatCount } from '@/utils/format';
 import { Icon, MediaPlaceholder } from '@/components/brand';
 import { tw } from '@/ui/tw';
 import {
@@ -205,7 +206,7 @@ export function ImageUploader({ images, defaultImages = [], onChange, onFiles, m
           </button>
         </p>
         <p className={dropHintClasses}>
-          JPG, PNG or WEBP · up to 10 MB each · {list.length}/{max}
+          JPG, PNG or WEBP · up to 10 MB each · {formatCount(list.length)}/{formatCount(max)}
         </p>
         <input
           ref={inputRef}

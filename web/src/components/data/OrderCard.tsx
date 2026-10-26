@@ -21,7 +21,7 @@
 // Attributes only; no visual change.
 import clsx from 'clsx';
 import { ORDER_STATUSES, type Order, type Totals } from '@/utils/csps';
-import { formatCalendarDate } from '@/utils/format';
+import { formatCalendarDate, formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
 import { Icon, MediaPlaceholder } from '@/components/brand';
 import { OrderTotals } from '@/components/money';
@@ -65,7 +65,11 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
   const qty = (o.items ?? []).reduce((sum, item) => sum + (item.quantity || 0), 0);
   // What the cover shows, in words: the status badge's text, then the image count chip when there is one.
   const statusLabel = isOrderStatus(o.status) ? ORDER_STATUSES[o.status] : o.status;
-  const coverName = [`View order ${o.number}`, statusLabel, images.length > 1 ? `${String(images.length)} images` : '']
+  const coverName = [
+    `View order ${o.number}`,
+    statusLabel,
+    images.length > 1 ? `${formatCount(images.length)} images` : '',
+  ]
     .filter(Boolean)
     .join(', ');
   return (
@@ -87,7 +91,7 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
         {images.length > 1 && (
           <span className={orderCountClasses}>
             <Icon name="image" size={14} />
-            {images.length}
+            {formatCount(images.length)}
           </span>
         )}
       </button>

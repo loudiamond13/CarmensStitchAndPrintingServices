@@ -15,6 +15,7 @@ import clsx from 'clsx';
 import { Children, type ReactNode } from 'react';
 import { targetAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
+import { formatCount } from '@/utils/format';
 import { LISTS_COPY, nounFor } from './copy';
 import {
   chipGroupClasses,
@@ -69,7 +70,8 @@ export function ResultBar({ count, thing, things, sortLabel, orderNote, children
     <div className={resultBarClasses}>
       {count > 0 && (
         <span>
-          {LISTS_COPY.showing} <strong className={resultCountClasses}>{count}</strong> {nounFor(count, thing, things)}
+          {LISTS_COPY.showing} <strong className={resultCountClasses}>{formatCount(count)}</strong>{' '}
+          {nounFor(count, thing, things)}
           {sortLabel !== undefined && LISTS_COPY.sortedBy(sortLabel)}
           {orderNote !== undefined && LISTS_COPY.orderNote(orderNote)}
         </span>

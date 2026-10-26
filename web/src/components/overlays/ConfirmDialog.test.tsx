@@ -102,6 +102,12 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
   });
 
+  it('shows large cascade counts with a thousands separator in the tally', () => {
+    render(<DeleteOrder counts={{ expenses: 1235 }} />);
+    const items = [...within(screen.getByRole('alert')).getAllByRole('listitem')].map((item) => item.textContent);
+    expect(items).toContain('1,235expenses');
+  });
+
   it('renders the danger tile, the message and the cascade box with the sentence, the tally and the warning', () => {
     render(<DeleteOrder />);
     const dialog = screen.getByRole('dialog');

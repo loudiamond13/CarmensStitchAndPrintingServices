@@ -177,6 +177,16 @@ describe('the page', () => {
     expect(total?.textContent).toBe('₱99,999.50');
   });
 
+  it('shows a large total with a thousands separator in the result bar and the footer', async () => {
+    expensesBackend(expenseList(ROWS, { total: 1687 }));
+    renderPage();
+
+    await screen.findByText('Shop rent for October');
+    expect(screen.getByText(/^Showing/).textContent).toBe('Showing 1,687 expenses · newest first');
+    const foot = screen.getByRole('table', { name: 'Company expenses' }).querySelector('tfoot');
+    expect(foot?.textContent).toContain('1,687 expenses · Sep 25, 2026 to Nov 24, 2026');
+  });
+
   it('says 1 expense in the result bar and the footer for exactly one', async () => {
     expensesBackend(expenseList(ROWS.slice(0, 1)));
     renderPage();

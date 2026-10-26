@@ -66,7 +66,7 @@ import type {
 } from '@/modules/admin/services/expensesService';
 import type { ExpenseCategoryListItem } from '@/modules/admin/services/expenseCategoriesService';
 import { formatPeso } from '@/utils/csps';
-import { formatBusinessDateTime, formatCalendarDate, formatMonthShort } from '@/utils/format';
+import { formatBusinessDateTime, formatCalendarDate, formatCount, formatMonthShort } from '@/utils/format';
 
 const COPY = EXPENSES_COPY;
 const DEMO = SHOWCASE_COPY.expenses;
@@ -383,7 +383,7 @@ function categoryColumns(): readonly ResponsiveTableColumn<ExpenseCategoryListIt
       key: 'expenses',
       header: SETTINGS.columns.expenses,
       money: true,
-      cell: (item) => String(toNumber(item.expenseCount)),
+      cell: (item) => formatCount(toNumber(item.expenseCount)),
     },
     {
       key: 'actions',

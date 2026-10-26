@@ -80,7 +80,7 @@ export const EXPENSES_COPY = {
     totalLabel: 'Total',
     /** "45 expenses · Sep 25, 2026 to Nov 24, 2026" */
     summary: (count: number, thing: string, things: string, from: string, to: string): string =>
-      `${String(count)} ${count === 1 ? thing : things} · ${from} to ${to}`,
+      `${formatCount(count)} ${count === 1 ? thing : things} · ${from} to ${to}`,
   },
   // SPEC-DEVIATION: OQ-13 the first-use message names the window the server used; its action is Add Expense (OQ-14, plan 06-12).
   empty: {
