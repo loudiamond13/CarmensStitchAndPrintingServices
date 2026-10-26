@@ -623,6 +623,41 @@ describe('E2 edit mode', () => {
     expect(sent.bodies).toHaveLength(0);
   });
 
+  it('saves an imported expense over the amount cap when the amount is unchanged (D-33)', async () => {
+    backends();
+    expenseDetailBackend(expenseDetail({ amount: 1_500_000 }));
+    const sent = updateExpenseBackend();
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+    expect(amount()).toHaveValue('1500000.00');
+
+    await user.clear(description());
+    await user.type(description(), 'Bulk thread');
+    await user.click(saveChanges());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(1);
+    });
+    expect(sent.bodies[0]).toMatchObject({ description: 'Bulk thread', amount: 1_500_000 });
+  });
+
+  it('blocks an imported expense changed to another amount over the cap before sending', async () => {
+    backends();
+    expenseDetailBackend(expenseDetail({ amount: 1_500_000 }));
+    const sent = updateExpenseBackend();
+    const user = userEvent.setup();
+    renderEdit();
+    await loaded();
+
+    await user.clear(amount());
+    await user.type(amount(), '1600000');
+    await user.click(saveChanges());
+
+    expect(await screen.findByText('Enter an amount of ₱1,000,000.00 or less.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
   it('has no axe violations once loaded', async () => {
     backends();
     expenseDetailBackend();

@@ -184,3 +184,59 @@ describe('expenseFormSchema', () => {
     });
   });
 });
+
+// An edit applies the amount cap and the description and notes lengths only to a value it changes, so an imported row over a
+// limit stays editable (D-33, A-WR-01). It mirrors ExpenseFieldsValidator with the stored values.
+describe('expenseFormSchema on an edit with stored values over a limit (D-33)', () => {
+  const STORED = { description: 'd'.repeat(250), amount: 1_500_000, notes: 'n'.repeat(1200) };
+  const LEGACY = { ...VALID, description: STORED.description, amount: '1500000.00', notes: STORED.notes };
+
+  function editMessages(overrides: Partial<typeof VALID>, stored = STORED): Record<string, string> {
+    const result = expenseFormSchema(TODAY, stored).safeParse({ ...LEGACY, ...overrides });
+    const found: Record<string, string> = {};
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        found[String(issue.path[0])] ??= issue.message;
+      }
+    }
+    return found;
+  }
+
+  it('passes the legacy over-cap amount, description and notes when they are unchanged', () => {
+    expect(editMessages({})).toEqual({});
+    expect(editMessages({ categoryId: '0b1d6f6e-3c3a-4d6e-9b7a-5c1f0e2a7d11' })).toEqual({});
+  });
+
+  it('compares after the trim, as the server does', () => {
+    expect(editMessages({ description: `  ${STORED.description}  `, notes: ` ${STORED.notes} ` })).toEqual({});
+  });
+
+  it('blocks a change to another amount over the cap', () => {
+    expect(editMessages({ amount: '1500000.01' })).toEqual({ amount: 'Enter an amount of ₱1,000,000.00 or less.' });
+    expect(editMessages({ amount: '2000000' })).toEqual({ amount: 'Enter an amount of ₱1,000,000.00 or less.' });
+  });
+
+  it('passes a change to an amount at or under the cap', () => {
+    expect(editMessages({ amount: '1000000.00' })).toEqual({});
+  });
+
+  it('blocks a changed description or notes over its limit', () => {
+    expect(editMessages({ description: 'e'.repeat(201) })).toEqual({
+      description: 'Keep the description to 200 characters or fewer.',
+    });
+    expect(editMessages({ notes: 'm'.repeat(1001) })).toEqual({ notes: 'Keep notes to 1,000 characters or fewer.' });
+  });
+
+  it('keeps the other rules for an unchanged amount: it still needs at most 2 decimals and more than zero', () => {
+    expect(editMessages({ amount: '12.345' })).toEqual({ amount: 'Use at most 2 decimal places.' });
+    expect(editMessages({ amount: '0' })).toEqual({ amount: 'Enter an amount greater than ₱0.00.' });
+  });
+
+  it('keeps every limit on Add, where nothing is stored', () => {
+    expect(messages({ amount: '1500000.00' })).toEqual({ amount: 'Enter an amount of ₱1,000,000.00 or less.' });
+    expect(messages({ description: STORED.description })).toEqual({
+      description: 'Keep the description to 200 characters or fewer.',
+    });
+    expect(messages({ notes: STORED.notes })).toEqual({ notes: 'Keep notes to 1,000 characters or fewer.' });
+  });
+});
