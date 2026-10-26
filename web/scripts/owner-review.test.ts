@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
+import { EXPENSES_COPY } from '../src/modules/admin/expensesCopy.ts';
+import { SETTINGS_COPY } from '../src/modules/admin/settingsCopy.ts';
 import { scenarios as authGapScenarios } from '../src/dev/scenarios/groups/auth-gaps.ts';
 import {
   assertSwapsApplied,
@@ -29,9 +31,12 @@ import {
   PHASE5_REVIEW_CASES,
   PHASE5_RULED,
   PHASE5_SEED_PEOPLE,
+  PHASE6_LOOK_AT,
   PHASE6_REVIEW_CASES,
+  PHASE6_RULINGS,
   PHASE6_SEED_PEOPLE,
   phase5Words,
+  phase6Words,
   planAuthReviewShots,
   planBeforeAfterShots,
   planPhase5ReviewShots,
@@ -1376,4 +1381,189 @@ describe('loading the script (how npm run review starts it)', () => {
     expect(result.stdout).toBe('loaded');
     expect(result.status).toBe(0);
   }, 150_000);
+});
+
+// --- Plan 06-19 task 2: the Phase 6 rulings page and the words table ---
+
+/** Every string in plain copy, however deeply it nests. */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).flatMap(stringLeaves);
+  }
+  return [];
+}
+
+describe('the Phase 6 rulings page content (plan 06-19)', () => {
+  it('lists OQ-1 to OQ-15 first, each with its options and the one that is built', () => {
+    const oq = PHASE6_RULINGS.filter((entry) => entry.id.startsWith('OQ-'));
+
+    expect(oq.map((entry) => entry.id)).toEqual(Array.from({ length: 15 }, (_, index) => `OQ-${String(index + 1)}`));
+    expect(PHASE6_RULINGS.slice(0, 15).map((entry) => entry.id)).toEqual(oq.map((entry) => entry.id));
+    for (const entry of oq) {
+      expect(entry.topic.trim(), entry.id).not.toBe('');
+      expect(entry.options.length, entry.id).toBeGreaterThan(0);
+      expect(
+        entry.options.filter((candidate) => candidate.built),
+        entry.id,
+      ).toHaveLength(1);
+      expect(entry.options[0]?.recommended, entry.id).toBe(true);
+      expect(entry.status, entry.id).toBe('open');
+    }
+  });
+
+  it('holds A-06-01, A-06-02, the inline SQL item, research questions 2 and 5 and the deleted and restored snapshot line', () => {
+    const ids = PHASE6_RULINGS.map((entry) => entry.id);
+
+    expect(ids.slice(15)).toEqual(['A-06-01', 'A-06-02', 'SQL-06-11', 'RQ-2', 'RQ-5', 'SNAP-06-15']);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives A-06-01 three options, recommended first, with option 2 ("has a password") the one built, and names where the rule changes', () => {
+    const entry = PHASE6_RULINGS.find((candidate) => candidate.id === 'A-06-01');
+
+    expect(entry?.options).toHaveLength(3);
+    expect(entry?.options.map((option) => option.label)).toEqual(['1', '2', '3']);
+    expect(entry?.options.filter((option) => option.recommended).map((option) => option.label)).toEqual(['1']);
+    expect(entry?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['2']);
+    expect(entry?.options[1]?.text).toContain('has a password');
+    expect(entry?.whereItChanges).toContain('StaffDirectory.cs');
+    expect(entry?.whereItChanges).toContain('StaffLookupEndpointTests');
+  });
+
+  it('records the owner’s rulings D-49 and D-50 as rulings with their follow-up, not as approvals', () => {
+    const payer = PHASE6_RULINGS.find((candidate) => candidate.id === 'A-06-01');
+    const sql = PHASE6_RULINGS.find((candidate) => candidate.id === 'SQL-06-11');
+
+    expect(payer).toMatchObject({ status: 'ruled' });
+    expect(payer?.ruling).toContain('D-49');
+    expect(payer?.ruling).toContain('06-20');
+    expect(sql).toMatchObject({ status: 'ruled' });
+    expect(sql?.ruling).toContain('D-50');
+    expect(sql?.ruling).toContain('06-21');
+    for (const file of ['IdempotencyGate.cs', 'AccountTokenStore.cs', 'ManagerRosterLock.cs']) {
+      expect(JSON.stringify(sql), file).toContain(file);
+    }
+  });
+
+  it('marks nothing as approved on the owner’s behalf and keeps the other items open', () => {
+    expect(JSON.stringify(PHASE6_RULINGS)).not.toMatch(/approved/i);
+    expect(PHASE6_RULINGS.filter((entry) => entry.status === 'ruled').map((entry) => entry.id)).toEqual([
+      'A-06-01',
+      'SQL-06-11',
+    ]);
+    expect(PHASE6_RULINGS.filter((entry) => entry.status === 'open')).toHaveLength(PHASE6_RULINGS.length - 2);
+  });
+
+  it('keeps what the tests could not show for the owner’s own eyes', () => {
+    expect(PHASE6_LOOK_AT.map((item) => item.id)).toEqual(['total-999', 'former-staff-real', 'zoom', 'ci-speed']);
+    for (const item of PHASE6_LOOK_AT) {
+      expect(item.what.trim(), item.id).not.toBe('');
+      expect(item.how.trim(), item.id).not.toBe('');
+    }
+  });
+});
+
+describe('phase6Words (the words table, 05 D-48)', () => {
+  it('has every string of the Company Expenses copy and the Settings copy, and no place or text is empty', () => {
+    const words = phase6Words();
+    const texts = words.map((row) => row.text);
+
+    for (const leaf of [...stringLeaves(EXPENSES_COPY), ...stringLeaves(SETTINGS_COPY)]) {
+      expect(texts, leaf).toContain(leaf);
+    }
+    expect(words.every((row) => row.place.trim() !== '' && row.text.trim() !== '')).toBe(true);
+  });
+
+  it('shows what a function says with placeholders, and the empty and single forms of the entries line', () => {
+    const texts = phase6Words().map((row) => row.text);
+
+    expect(texts).toContain('Edit {x}, {y}');
+    expect(texts).toContain('No entries yet');
+    expect(texts).toContain('1 entry so far');
+    expect(texts).toContain('{x} · {y}% of this month');
+  });
+
+  it('has the Phase 6 additions of the Audit Log copy: the groups, the twelve labels, the change lines and the snapshot line', () => {
+    const texts = phase6Words().map((row) => row.text);
+
+    for (const text of [
+      'Company expenses',
+      'Expense categories',
+      'Expense added',
+      'Expense changed',
+      'Expense payer changed',
+      'Expense deleted',
+      'Expense restored',
+      'Expense permanently deleted',
+      'Category added',
+      'Category renamed',
+      'Category color changed',
+      'Category retired',
+      'Category back in use',
+      'Category deleted',
+      'Amount: ₱8,642.35 to ₱9,100.00',
+      'Date: Oct 5, 2026 to Oct 6, 2026',
+      'Category: {x} to a deleted category',
+      'Paid by: {x} (former staff) to {y}',
+      'Description changed',
+      'Notes changed',
+      'Name: {x}',
+      'Color: Blue',
+      'Oct 5, 2026 · {x} · ₱8,642.35 · Paid by {y}',
+    ]) {
+      expect(texts, text).toContain(text);
+    }
+  });
+
+  it('has no em dash or en dash anywhere (OR-4)', () => {
+    for (const row of phase6Words()) {
+      expect(row.text, row.place).not.toMatch(/[–—]/);
+    }
+  });
+});
+
+describe('renderIndex: the Phase 6 rulings page (plan 06-19)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const render = () =>
+    renderIndex({ generatedAt: 'now', shots: [], problems: [], phase6Review: planPhase6ReviewShots() });
+
+  it('puts what is still open before what the owner has ruled since, then the things to look at and the words', () => {
+    const html = render();
+    const open = html.indexOf('Phase 6: still open for you');
+    const ruled = html.indexOf('Phase 6: ruled by you since the plan was written');
+
+    expect(open).toBeGreaterThan(html.indexOf('Company expenses and settings (Phase 6)'));
+    expect(ruled).toBeGreaterThan(open);
+    expect(html.indexOf('Words on the Phase 6 screens')).toBeGreaterThan(ruled);
+    for (const entry of PHASE6_RULINGS) {
+      const at = html.indexOf(`<td>${entry.id}</td>`);
+      expect(at, entry.id).toBeGreaterThan(entry.status === 'open' ? open : ruled);
+      if (entry.status === 'open') {
+        expect(at, entry.id).toBeLessThan(ruled);
+      }
+      expect(html, entry.id).toContain(escaped(entry.topic));
+    }
+  });
+
+  it('marks the recommended option and the one built now, and shows the owner’s rulings and the swap point', () => {
+    const html = render();
+
+    expect(html).toContain('<em>(recommended)</em>');
+    expect(html).toContain('<em>(built now)</em>');
+    expect(html).toContain(escaped('Option 1 (D-49, owner, 2026-10-25).'));
+    expect(html).toContain('StaffDirectory.cs');
+    expect(html).toContain('IdempotencyGate.cs');
+    expect(html).toContain('Words on the Phase 6 screens');
+    expect(html).toContain(escaped('Amount: ₱8,642.35 to ₱9,100.00'));
+    expect(html).not.toMatch(/<script/i);
+  });
 });
