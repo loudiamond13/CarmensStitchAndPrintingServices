@@ -11,21 +11,17 @@ namespace Csps.Testing;
 public sealed class CommandCounter : DbCommandInterceptor
 {
     private readonly AsyncLocal<ConcurrentQueue<string>?> _measured = new();
+    // The one record of commands since the last Reset; Count and Commands both read it, so they always agree.
     private ConcurrentQueue<string> _all = new();
-    private int _count;
 
     /// <summary>How many commands ran since the last <see cref="Reset"/>.</summary>
-    public int Count => Volatile.Read(ref _count);
+    public int Count => Volatile.Read(ref _all).Count;
 
     /// <summary>The text of every command since the last <see cref="Reset"/>, oldest first.</summary>
     public IReadOnlyList<string> Commands => [.. Volatile.Read(ref _all)];
 
-    /// <summary>Sets the count back to zero and clears <see cref="Commands"/>.</summary>
-    public void Reset()
-    {
-        Volatile.Write(ref _all, new ConcurrentQueue<string>());
-        Interlocked.Exchange(ref _count, 0);
-    }
+    /// <summary>Sets the count back to zero and clears <see cref="Commands"/> in one step.</summary>
+    public void Reset() => Volatile.Write(ref _all, new ConcurrentQueue<string>());
 
     /// <summary>
     /// Runs <paramref name="work"/> and returns the commands that ran in its own async flow. Commands from other flows on the same
@@ -94,7 +90,6 @@ public sealed class CommandCounter : DbCommandInterceptor
 
     private void Record(DbCommand command)
     {
-        Interlocked.Increment(ref _count);
         Volatile.Read(ref _all).Enqueue(command.CommandText);
         _measured.Value?.Enqueue(command.CommandText);
     }
