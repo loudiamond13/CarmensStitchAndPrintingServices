@@ -3728,12 +3728,20 @@ async function seedPhase6(browser, request, origin, seed) {
 const EXPECTED_CONSOLE = /** @type {WeakMap<Page, RegExp[]>} */ (new WeakMap());
 
 /**
- * Tells the console collector of a page that a message is expected and is not a problem.
+ * Tells the console collector of a page that a message is expected and is not a problem. Call the returned function when the
+ * step that expects it is over, so a later message that happens to match is reported again.
  * @param {Page} page
  * @param {RegExp} pattern
+ * @returns {() => void}
  */
 function allowConsole(page, pattern) {
   EXPECTED_CONSOLE.set(page, [...(EXPECTED_CONSOLE.get(page) ?? []), pattern]);
+  return () => {
+    EXPECTED_CONSOLE.set(
+      page,
+      (EXPECTED_CONSOLE.get(page) ?? []).filter((expected) => expected !== pattern),
+    );
+  };
 }
 
 /**
@@ -3879,34 +3887,50 @@ const PHASE6_CAPTURES = Object.freeze({
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   },
   'e2-edit-conflict': async (c) => {
-    allowConsole(c.page, /409/);
-    const dialog = await openEditWindow(c, c.six.rows.edited);
-    // Someone else saves first, from a second sign-in, so the window above holds an old version.
-    const manager = c.seed.people.manager;
-    if (manager === undefined) {
-      throw new Error('The seed has no Manager.');
+    // Only this step expects the 409 in the console.
+    const stopAllowing = allowConsole(c.page, /409/);
+    try {
+      const dialog = await openEditWindow(c, c.six.rows.edited);
+      // Someone else saves first, from a second sign-in, so the window above holds an old version.
+      const manager = c.seed.people.manager;
+      if (manager === undefined) {
+        throw new Error('The seed has no Manager.');
+      }
+      const token = await tokenFor(c.browser, c.request, c.origin, manager);
+      const address = `/api/v1/company-expenses/${c.six.editedId}`;
+      const current = await callApi(c.request, token, 'GET', address);
+      if (!isRecord(current) || !isRecord(current.category) || !isRecord(current.paidBy)) {
+        throw new Error('The expense answer has an unexpected shape.');
+      }
+      const original = {
+        date: current.date,
+        categoryId: current.category.id,
+        description: current.description,
+        amount: Number(current.amount),
+        paidByUserId: current.paidBy.id,
+        notes: current.notes,
+      };
+      // A fixed rival amount, so every view makes the same change; the seeded values are put back after the picture.
+      const rival = await callApi(c.request, token, 'PUT', address, {
+        ...original,
+        amount: original.amount === 705 ? 710 : 705,
+        version: current.version,
+      });
+      try {
+        await dialog.getByRole('textbox', { name: /^Amount/ }).fill('999');
+        await dialog.getByRole('button', { name: 'Save Changes' }).click();
+        await dialog.getByText('This was changed by someone else.').waitFor({ timeout: 30_000 });
+        await c.page.evaluate(SETTLE);
+        await shoot(c);
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      } finally {
+        // The list, the month cards and the next view then show the same figures as before this step.
+        const version = isRecord(rival) && typeof rival.version === 'string' ? rival.version : '';
+        await callApi(c.request, token, 'PUT', address, { ...original, version });
+      }
+    } finally {
+      stopAllowing();
     }
-    const token = await tokenFor(c.browser, c.request, c.origin, manager);
-    const address = `/api/v1/company-expenses/${c.six.editedId}`;
-    const current = await callApi(c.request, token, 'GET', address);
-    if (!isRecord(current) || !isRecord(current.category) || !isRecord(current.paidBy)) {
-      throw new Error('The expense answer has an unexpected shape.');
-    }
-    await callApi(c.request, token, 'PUT', address, {
-      date: current.date,
-      categoryId: current.category.id,
-      description: current.description,
-      amount: Number(current.amount) + 5,
-      paidByUserId: current.paidBy.id,
-      notes: current.notes,
-      version: current.version,
-    });
-    await dialog.getByRole('textbox', { name: /^Amount/ }).fill('999');
-    await dialog.getByRole('button', { name: 'Save Changes' }).click();
-    await dialog.getByText('This was changed by someone else.').waitFor({ timeout: 30_000 });
-    await c.page.evaluate(SETTLE);
-    await shoot(c);
-    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   },
   'e2-view': async (c) => {
     await openPhase6(c, listAddress(c), 'Company Expenses');
