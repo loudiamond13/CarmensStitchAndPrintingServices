@@ -1,10 +1,10 @@
 ---
 phase: 06-company-expenses
 verified: 2026-10-26T07:40:00Z
-status: human_needed
+status: passed
 score: 6/6 must-haves verified
 created: "2026-10-26T02:40:00-05:00"
-updated: "2026-10-26T02:40:00-05:00"
+updated: "2026-10-26T05:54:00-05:00"
 covered_files:
   - ".planning/phases/06-company-expenses/06-01-PLAN.md"
   - ".planning/phases/06-company-expenses/06-01-SUMMARY.md"
@@ -241,7 +241,7 @@ human_verification:
 
 # Phase 6: Company Expenses Verification Report
 
-*Created: 2026-10-26T02:40:00-05:00 · Updated: 2026-10-26T02:40:00-05:00*
+*Created: 2026-10-26T02:40:00-05:00 · Updated: 2026-10-26T05:54:00-05:00*
 
 **Phase Goal:** Staff can record, find and total the shop's company expenses, with month KPIs that are correct in Manila time. This is the simplest aggregate, so it proves the slice pattern before the order aggregate: rowversion 409s, filters, period totals, query-count guards and ConfirmDialog.
 **Verified:** 2026-10-26T07:40:00Z

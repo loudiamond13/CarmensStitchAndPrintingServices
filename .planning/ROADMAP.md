@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-25T21:50:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-26T05:53:00-05:00*
 
 ## Overview
 
@@ -1250,6 +1250,14 @@ Plans:
 **Deferred at:** 2026-10-08 during /gsd-verify-work 2 session completion
 **Follow-ups:**
 - [ ] Test 8: Review the shared list-query defaults (staleTime 30 s, gcTime 5 min, refetchOnWindowFocus true, retry false) per list screen as later phases build them, and override per query where needed (02-08 D10). (deferred 2026-10-08)
+
+### Phase 999.4: Follow-up — Phase 06 deferred UAT follow-up: Test 6 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 06 verification
+**Source phase:** 06
+**Deferred at:** 2026-10-26 during /gsd-verify-work 6 session completion
+**Follow-ups:**
+- [ ] Test 6: Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58). (deferred 2026-10-26)
 
 ---
 *Roadmap created: 2026-10-07*

@@ -3,7 +3,7 @@ status: complete
 phase: 06-company-expenses
 source: [06-VERIFICATION.md]
 started: "2026-10-26T02:50:00-05:00"
-updated: 2026-10-26T10:52:36.904Z
+updated: "2026-10-26T05:53:00-05:00"
 created: "2026-10-26T02:50:00-05:00"
 ---
 
@@ -41,7 +41,7 @@ ruling: D-57 option 2, keep as built (owner, 2026-10-26)
 ### 6. Live speed check after release (D-28)
 expected: p95 under 300 ms for GET /api/v1/company-expenses and /kpis in the live request logs (procedure in docs/operations/list-performance.md). This can only be done after release.
 result: skipped
-reason: "Owner skipped the post-release live log check (D-58, 2026-10-26). The local and CI timing test is the speed gate."
+reason: "Deferred follow-up: Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58)."
 
 ### 7. Confirm the two test-side fixes
 expected: The owner confirms the slow add-expense test fix and the command-count flake fix (recommended), and decides on the accumulated CSPS_E2E staff accounts and the cancelled request logged as a server error.
@@ -58,3 +58,9 @@ skipped: 1
 blocked: 0
 
 ## Gaps
+
+## Deferred Follow-Ups
+
+- test: 6
+  idea: "Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58)."
+  deferred_at: 2026-10-26
