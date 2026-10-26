@@ -361,21 +361,24 @@ describe('createListParams: search', () => {
   });
 
   // nuqs starts one 300 ms timer per URL key, and under load the q flush can run before the page timer fires (D-68).
-  function delayLaterSearchTimers() {
+  function delayLaterSearchTimers(): () => void {
     const fakeSetTimeout = globalThis.setTimeout;
     let searchTimers = 0;
-    return vi.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: () => void, delay?: number) => {
+    globalThis.setTimeout = ((handler: () => void, delay?: number) => {
       if (delay === SEARCH_DEBOUNCE_MS) {
         searchTimers += 1;
         if (searchTimers > 1) return fakeSetTimeout(handler, SEARCH_DEBOUNCE_MS + 10);
       }
       return fakeSetTimeout(handler, delay);
-    }) as typeof setTimeout);
+    }) as typeof setTimeout;
+    return () => {
+      globalThis.setTimeout = fakeSetTimeout;
+    };
   }
 
   it('writes the search and the page reset in one URL update even when their timers fire apart (D-68)', async () => {
     vi.useFakeTimers();
-    const spy = delayLaterSearchTimers();
+    const restore = delayLaterSearchTimers();
     try {
       const { result, onUrlUpdate } = renderOrders('?page=3');
       act(() => {
@@ -384,7 +387,7 @@ describe('createListParams: search', () => {
       await advance(400);
       expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=jersey' }]);
     } finally {
-      spy.mockRestore();
+      restore();
     }
   });
 
