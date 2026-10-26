@@ -1,5 +1,7 @@
 // The words of Company Expenses (UI-SPEC Copywriting Contract, E1; plan 06-04): one module, no wording in JSX. App. E.11
 // strings are verbatim except where OQ-13 amends them; the rest are SPEC-GAP wording the owner reviews. No long dash (OR-4).
+import { formatCount } from '@/utils/format';
+
 export const EXPENSES_COPY = {
   /** The document title is "{title} · CSPS Admin". */
   documentTitle: 'Company Expenses',
@@ -92,7 +94,7 @@ export const EXPENSES_COPY = {
     lastMonth: (month: string | null): string => (month === null ? 'Last month' : `Last month · ${month}`),
     topCategory: (month: string | null): string => (month === null ? 'Top category' : `Top category · ${month}`),
     entries: (count: number): string =>
-      count === 0 ? 'No entries yet' : count === 1 ? '1 entry so far' : `${String(count)} entries so far`,
+      count === 0 ? 'No entries yet' : count === 1 ? '1 entry so far' : `${formatCount(count)} entries so far`,
     fullMonth: 'Full month',
     /** "₱18,000.00 · 47% of this month" */
     topFoot: (amount: string, percent: number): string => `${amount} · ${String(percent)}% of this month`,

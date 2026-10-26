@@ -7,6 +7,7 @@ import {
   formatBusinessDateTime,
   formatBusinessTime,
   formatCalendarDate,
+  formatCount,
   formatMonthShort,
   isMoneyText,
   MONEY_TEXT,
@@ -371,4 +372,17 @@ describe('formatMonthShort', () => {
       expect(formatMonthShort(value)).toBeNull();
     },
   );
+});
+
+describe('formatCount', () => {
+  it.for([
+    [0, '0'],
+    [7, '7'],
+    [999, '999'],
+    [1235, '1,235'],
+    [1687, '1,687'],
+    [1234567, '1,234,567'],
+  ] as const)('shows %s as %s', ([count, text]) => {
+    expect(formatCount(count)).toBe(text);
+  });
 });

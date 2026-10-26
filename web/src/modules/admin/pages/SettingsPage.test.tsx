@@ -185,6 +185,16 @@ describe('S1 the page', () => {
     expect(cellOf(rowOf('Equipment'), 'Expenses').textContent).toBe('0');
   });
 
+  it('shows a large usage count with a thousands separator', async () => {
+    categoriesBackend([
+      categoryItem('b74d786b-8092-4e67-a0ba-a419e9d1ba75', 'Maintenance', 'neutral', { expenseCount: 1235 }),
+    ]);
+    renderPage();
+    await screen.findByRole('table', { name: 'Expense categories' });
+
+    expect(cellOf(rowOf('Maintenance'), 'Expenses').textContent).toBe('1,235');
+  });
+
   it('gives a retired row the surface-2 look on its cells and an active row none', async () => {
     await openPage();
 

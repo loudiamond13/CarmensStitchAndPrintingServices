@@ -53,6 +53,7 @@ import {
 } from '@/modules/admin/services/expenseCategoriesService';
 import { SETTINGS_COPY } from '@/modules/admin/settingsCopy';
 import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
+import { formatCount } from '@/utils/format';
 
 const COPY = SETTINGS_COPY;
 
@@ -111,7 +112,7 @@ function columns(wiring: RowWiring): readonly ResponsiveTableColumn<ExpenseCateg
       key: 'expenses',
       header: COPY.columns.expenses,
       money: true,
-      cell: (item) => String(toNumber(item.expenseCount)),
+      cell: (item) => formatCount(toNumber(item.expenseCount)),
     },
     {
       key: 'actions',

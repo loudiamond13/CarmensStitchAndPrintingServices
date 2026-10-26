@@ -189,3 +189,10 @@ export function centavosToMoneyText(centavos: number): string {
   const fraction = centavos % 100;
   return `${String((centavos - fraction) / 100)}.${String(fraction).padStart(2, '0')}`;
 }
+
+const countFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 });
+
+/** 1,687: a whole count with en-PH thousands separators. */
+export function formatCount(n: number): string {
+  return countFormatter.format(n);
+}

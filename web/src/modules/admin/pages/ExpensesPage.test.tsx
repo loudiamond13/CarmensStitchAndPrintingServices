@@ -902,6 +902,15 @@ describe('month KPIs (CEXP-03, D-24)', () => {
     expect(kpiCard('This month · Oct').textContent).toContain('1 entry so far');
   });
 
+  it('shows a large entry count with a thousands separator', async () => {
+    expensesBackend(expenseList(ROWS));
+    kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 90, count: 1687 } }));
+    renderPage();
+
+    await screen.findByText('This month · Oct');
+    expect(kpiCard('This month · Oct').textContent).toContain('1,687 entries so far');
+  });
+
   it('says "No entries yet" for none', async () => {
     expensesBackend(expenseList(ROWS));
     kpisBackend(expenseKpis({ thisMonth: { month: '2026-10-01', total: 0, count: 0 }, topCategory: null }));
