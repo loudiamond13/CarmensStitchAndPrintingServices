@@ -5,8 +5,14 @@
 // rail) are `in-data-[ui=s-admin-side]:` / `in-data-[ui=s-admin-main]:` variants in the navigation recipes.
 import { tw } from '@/ui/tw';
 
-/** `.s-admin`: the sidebar column and the main column side by side. */
-export const adminClasses = tw('flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh');
+/**
+ * `.s-admin`: the sidebar column and the main column side by side. On phone viewports the page (html) also gets bottom
+ * scroll padding, so a focused or scrolled-to control stops 24px above the tab bar (WCAG 2.4.11); it is a utility
+ * because the D-33 contract keeps html out of the stylesheets.
+ */
+export const adminClasses = tw(
+  'flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh vp-lt-md:[:root:has(&)]:scroll-pb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
+);
 
 /** `.s-admin-side`: the sidebar column (`data-ui="s-admin-side"`), hidden on phones. */
 export const adminSideClasses = tw('relative flex-none pg-phone:hidden');
