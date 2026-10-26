@@ -2,12 +2,11 @@
 // SEC-03, T-02-67). Exactly the App. E.7 look: a 12px `--ink-muted` "Search" label over the 40px `.s-search-box` (the
 // 18px search icon and a `type="search"` input, 14px text, 16px on phones by D-01), with the list's placeholder. The
 // text is capped at 100 characters (maxLength, the server's limit).
-// `onSearch` is the list hook's setSearch: every edit calls it, and it writes the URL with nuqs
-// `limitUrlUpdates: debounce(300)` (createListParams, SEARCH_DEBOUNCE_MS), so typing "jersey" makes one replace that
-// resets the page; Enter calls it with `{ immediate: true }`, which writes at once. The list query keys on
-// `useSettledListParams(values, 300)` (the search through useDebouncedValue, the page reset held with it), never on the
-// box. The box keeps the text as typed (the hook trims what it stores,
-// so the space in "red jersey" survives while typing) and takes a new value from outside (a cleared chip, Back, a
+// `onSearch` is the list hook's setSearch: every edit calls it, and it writes the URL after SEARCH_DEBOUNCE_MS (300 ms)
+// of quiet (createListParams), so typing "jersey" makes one replace that holds the search and the page reset; Enter
+// calls it with `{ immediate: true }`, which writes at once. The list query keys on `useSettledListParams(values, 300)`
+// (the search through useDebouncedValue, the page reset held with it), never on the box. The box keeps the text as
+// typed (the hook trims what it stores, so the space in "red jersey" survives while typing) and takes a new value from outside (a cleared chip, Back, a
 // reset) only when it differs from the typed text once trimmed: the URL stays the one source of the search.
 import { useId, useState } from 'react';
 import { Icon } from '@/components/brand';
