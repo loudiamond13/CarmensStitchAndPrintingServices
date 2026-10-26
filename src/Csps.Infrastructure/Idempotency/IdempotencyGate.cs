@@ -340,7 +340,16 @@ public sealed partial class IdempotencyGate(CspsDbContext context, IDbContextFac
                             .SetProperty(claim => claim.HolderId, holderId),
                         cancellationToken)
                     .ConfigureAwait(false);
-                return changed == 1;
+                if (changed == 1)
+                {
+                    return true;
+                }
+
+                // Another request's purge may have removed the stale claim after the read: then the key is free to claim again.
+                var stillHeld = await claimContext.Set<DatabaseLock>()
+                    .AnyAsync(claim => claim.Name == name, cancellationToken)
+                    .ConfigureAwait(false);
+                return stillHeld ? false : null;
             }
             catch (Exception error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
             {
