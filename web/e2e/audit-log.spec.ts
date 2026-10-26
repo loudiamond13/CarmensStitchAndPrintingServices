@@ -9,13 +9,8 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press, SUPPLIES } from './helpers.ts';
 import { createExpense, createStaff } from './testing-api.ts';
-
-/** The seeded Supplies category (the id is the fixed migration seed literal). */
-const SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
 
 function query(page: Page): URLSearchParams {
   return new URL(page.url()).searchParams;
@@ -34,12 +29,6 @@ async function centerFirstEntry(page: Page): Promise<void> {
 /** The description-list value that follows a term inside one expanded detail. */
 function detailValue(scope: Locator, term: string): Locator {
   return scope.locator('dt', { hasText: new RegExp(`^${term}$`) }).locator('xpath=following-sibling::dd[1]');
-}
-
-/** Presses a button from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved. */
-async function press(page: Page, button: Locator): Promise<void> {
-  await button.focus();
-  await page.keyboard.press('Enter');
 }
 
 /**
@@ -257,14 +246,6 @@ test('@audit the Edit User panel links to the log filtered to that person, and a
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
 });
-
-/** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
-function manilaDate(offsetDays: number): string {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-  const shifted = new Date(`${today}T00:00:00Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
-  return shifted.toISOString().slice(0, 10);
-}
 
 test('@audit a Manager edits an expense amount and payer, then finds both entries by Action and Done to with the amount and payer lines and no description', async ({
   page,

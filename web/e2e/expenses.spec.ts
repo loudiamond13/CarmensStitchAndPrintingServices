@@ -15,22 +15,8 @@ import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press, RENT, SUPPLIES, uniqueWord } from './helpers.ts';
 import { createExpense, createStaff } from './testing-api.ts';
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
-
-/** Two of the seeded categories (the ids are the fixed migration seed literals). */
-const RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
-const SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
-
-/** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
-function manilaDate(offsetDays: number): string {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-  const shifted = new Date(`${today}T00:00:00Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
-  return shifted.toISOString().slice(0, 10);
-}
 
 /** "₱12,450.00": the figure as the page shows money (no float arithmetic, only formatting). */
 function peso(amount: number): string {
@@ -196,14 +182,6 @@ function chipDate(ymd: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
-}
-
-/** A word no other run has used, letters only: it is a staff member's first name, so searching it finds only this run's rows. */
-function uniqueWord(): string {
-  const letters = Array.from(randomUUID().replaceAll('-', '').slice(0, 8), (digit) =>
-    String.fromCharCode(97 + Number.parseInt(digit, 16)),
-  );
-  return `Zq${letters.join('')}`;
 }
 
 /** Starts waiting for a list answer whose request passes the check (start it before the action that causes the request). */
@@ -794,12 +772,6 @@ test('@expenses-edit the Edit modal fits a 320 px phone: it scrolls inside, the 
 });
 
 // --- @expenses-delete (plan 06-16) ---
-
-/** Presses a button from the keyboard (Safari does not focus a button on click, so focus-dependent dialogs open this way). */
-async function press(page: Page, button: Locator) {
-  await button.focus();
-  await page.keyboard.press('Enter');
-}
 
 /** The expense table's footer: it holds the server's period total for the search in use. */
 function footer(page: Page) {

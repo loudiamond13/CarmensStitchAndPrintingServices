@@ -8,27 +8,8 @@ import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press, RENT } from './helpers.ts';
 import { createExpense, createStaff } from './testing-api.ts';
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
-
-/** The seeded Rent category (the id is the fixed migration seed literal). */
-const RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
-
-/** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
-function manilaDate(offsetDays: number): string {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-  const shifted = new Date(`${today}T00:00:00Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
-  return shifted.toISOString().slice(0, 10);
-}
-
-/** Presses a button from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved. */
-async function press(page: Page, button: Locator) {
-  await button.focus();
-  await page.keyboard.press('Enter');
-}
 
 /** Opens Settings from the navigation: the sidebar, or the drawer on a phone. */
 async function openSettings(page: Page) {

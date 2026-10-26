@@ -34,12 +34,14 @@ import { fileURLToPath } from 'node:url';
 import {
   acquireLock,
   E2E_PORT,
+  LOCALDB_E2E_CONNECTION,
   LOCK_PATH,
   lockTimeoutMessage,
   PORT_BUSY_MESSAGE,
   REPO_ROOT,
   WEB_DIRECTORY,
 } from './e2e.mjs';
+import { manilaDate, RENT as SEEDED_RENT, SUPPLIES as SEEDED_SUPPLIES } from '../e2e/helpers.ts';
 import { portIsBusy, startHost, stopRunningHostsSync } from './lighthouse.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentional-differences.ts';
@@ -187,7 +189,7 @@ const HOST_ENV = Object.freeze({
   Csps__Testing__LoadUserSecrets: 'true',
   App__PublicBaseUrl: ORIGIN,
   Email__Dispatcher__SweepInterval: '00:00:01',
-  ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+  ConnectionStrings__Csps: LOCALDB_E2E_CONNECTION,
   RateLimits__Auth__SignIn__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Verify__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Resend__PermitLimit: NO_THROTTLE,
@@ -3561,22 +3563,6 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
  * }} Phase6Seed
  */
 /** @typedef {CaseContext & { six: Phase6Seed }} Phase6Context */
-
-/** The ten starting categories that the pictures use; the ids are the fixed migration seed literals. */
-const SEEDED_RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
-const SEEDED_SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
-
-/**
- * The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd.
- * @param {number} offsetDays
- * @returns {string}
- */
-function manilaDate(offsetDays) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-  const shifted = new Date(`${today}T00:00:00Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
-  return shifted.toISOString().slice(0, 10);
-}
 
 /**
  * The id in an API answer.

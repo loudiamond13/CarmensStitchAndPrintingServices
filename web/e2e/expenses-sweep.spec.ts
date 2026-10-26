@@ -5,39 +5,14 @@
 // sheet at 320 x 568 and at 200% zoom with the footer buttons reachable. The shared CSPS_E2E database keeps the rows earlier
 // runs made, so each check finds its own rows by a unique word. Every test runs under the shared guard (console, page errors,
 // CSP, failed responses). Cases the sweep cannot confirm are left for the owner's screenshot review (plan 06-19).
-import { randomUUID } from 'node:crypto';
 import { AxeBuilder } from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { AXE_TAGS } from '../src/test/axeTags.ts';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press, RENT, uniqueWord } from './helpers.ts';
 import { axeFindings, settle } from './sweep.ts';
 import { createExpense, createStaff, type TestStaff } from './testing-api.ts';
-
-/** The seeded Rent category (the id is the fixed migration seed literal). */
-const RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
-
-/** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
-function manilaDate(offsetDays: number): string {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-  const shifted = new Date(`${today}T00:00:00Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
-  return shifted.toISOString().slice(0, 10);
-}
-
-/** A word no other run has used, letters only: it starts the payer's first name and the descriptions, so a search finds only this run's rows. */
-function uniqueWord(): string {
-  const letters = Array.from(randomUUID().replaceAll('-', '').slice(0, 8), (digit) =>
-    String.fromCharCode(97 + Number.parseInt(digit, 16)),
-  );
-  return `Zq${letters.join('')}`;
-}
-
-/** Presses a button from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved. */
-async function press(page: Page, button: Locator) {
-  await button.focus();
-  await page.keyboard.press('Enter');
-}
 
 const WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
 const PORTRAIT_HEIGHTS = new Map<number, number>([
@@ -65,9 +40,6 @@ const READ_SIDEWAYS = `(() => ({
   htmlOverflowX: getComputedStyle(document.documentElement).overflowX,
   bodyOverflowX: getComputedStyle(document.body).overflowX,
 }))()`;
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
 
 /** True when the open dialog's panel holds its content without scrolling sideways. */
 const PANEL_FITS = `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`;
