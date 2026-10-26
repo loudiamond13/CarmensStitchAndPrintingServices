@@ -25,7 +25,10 @@ type FilterKey<P extends ListParserMap> = Exclude<keyof P & string, 'page' | 'q'
 type Arg<P extends ListParserMap, K extends string> = K extends keyof P ? Values<P>[K] | null : never;
 type Patch<P extends ListParserMap> = Partial<Nullable<Values<P>>>;
 
-/** The list's setters. Every one but setPage replaces the history entry and resets the page in the same update. */
+/**
+ * The list's setters. Every one but setPage replaces the history entry and resets the page in the same update. A write
+ * made while a search waits carries that search in the same update; reset drops it.
+ */
 export interface ListParamsSetters<P extends ListParserMap> {
   /** Adds a history entry (push). Anything but an integer of at least 1 means page 1. */
   setPage: (page: number) => void;
@@ -153,19 +156,21 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
       }
     }, [raw, setParams]);
 
-    const write = (patch: Record<string, unknown>, options: Options): void => {
-      void setParams(patch as Patch<P>, options);
-    };
-    // Every change but a page change replaces the history entry and resets the page in the same single URL update.
-    const replaceAndResetPage = (patch: Record<string, unknown>, extra: Options = {}): void => {
-      write({ ...patch, ...pageReset }, { history: 'replace', ...extra });
-    };
-
     const stopWait = (): void => {
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = null;
       waitingPatch.current = null;
       setWaiting(null);
+    };
+    // One URL update. A search still waiting joins it (under the setter's own patch and options) and the wait ends.
+    const write = (patch: Record<string, unknown>, options: Options): void => {
+      const carried = waitingPatch.current;
+      stopWait();
+      void setParams({ ...carried, ...patch } as Patch<P>, options);
+    };
+    // Every change but a page change replaces the history entry and resets the page in the same single URL update.
+    const replaceAndResetPage = (patch: Record<string, unknown>, extra: Options = {}): void => {
+      write({ ...patch, ...pageReset }, { history: 'replace', ...extra });
     };
 
     const setters: ListParamsSetters<P> = {
@@ -177,17 +182,15 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
       },
       setSearch: (text, options) => {
         const q = normalizeSearch(text);
-        stopWait();
         if (options?.immediate === true) {
           replaceAndResetPage({ q });
           return;
         }
+        stopWait();
         waitingPatch.current = { q, ...pageReset };
         setWaiting({ q, ...pageShownAfterReset });
         timer.current = setTimeout(() => {
-          const patch = waitingPatch.current;
-          stopWait();
-          if (patch !== null) write(patch, { history: 'replace' });
+          write({}, { history: 'replace' });
         }, SEARCH_DEBOUNCE_MS);
       },
       setFilter: (key, value) => {
@@ -205,6 +208,7 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
         }
       },
       reset: () => {
+        stopWait();
         void setParams(null, { history: 'replace' });
       },
     };
