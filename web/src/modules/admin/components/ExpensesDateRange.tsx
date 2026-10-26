@@ -5,6 +5,7 @@
 // once a date has been touched, so the inputs never open with errors.
 import { useState } from 'react';
 import { DateInput } from '@/components/forms';
+import { expensesDateFieldClasses } from '@/modules/admin/components/expenses.recipe';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { expenseRangeErrors } from '@/modules/admin/expensesSchemas';
 
@@ -48,6 +49,8 @@ export function ExpensesDateRange({ from, to, onApply }: ExpensesDateRangeProps)
       <DateInput
         label={COPY.from}
         value={draft.from}
+        readableDate
+        className={expensesDateFieldClasses}
         error={touched ? (errors.from ?? '') : ''}
         onChange={(value) => {
           change('from', value);
@@ -56,6 +59,8 @@ export function ExpensesDateRange({ from, to, onApply }: ExpensesDateRangeProps)
       <DateInput
         label={COPY.to}
         value={draft.to}
+        readableDate
+        className={expensesDateFieldClasses}
         error={touched ? (errors.to ?? '') : ''}
         onChange={(value) => {
           change('to', value);

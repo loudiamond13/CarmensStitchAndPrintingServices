@@ -86,6 +86,18 @@ describe('E2 add mode', () => {
     await ready();
   });
 
+  it('writes the date out beside the Date box, keeps the hint under it and follows what is typed (D-60)', async () => {
+    backends();
+    renderModal();
+    const besideBox = () => date().parentElement?.parentElement ?? null;
+
+    expect(besideBox()).toHaveTextContent('Oct 25, 2026');
+    expect(screen.getByText("Up to 30 days ahead is fine for a cost you'll pay soon.")).toBeInTheDocument();
+    fireEvent.change(date(), { target: { value: '2026-11-02' } });
+    expect(besideBox()).toHaveTextContent('Nov 2, 2026');
+    await ready();
+  });
+
   it('starts with no category chosen, Paid by as the signed-in user, and empty Description, Amount and Notes', async () => {
     backends();
     renderModal();

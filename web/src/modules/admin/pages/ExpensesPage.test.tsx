@@ -653,6 +653,24 @@ describe('date range (D-23, OR-3)', () => {
     expect(calls[0]?.searchParams.has('to')).toBe(false);
   });
 
+  it('writes each date out beside its box and follows what is typed (D-60)', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage();
+    await screen.findByText('Shop rent for October');
+    const besideBox = (name: string): HTMLElement | null =>
+      screen.getByLabelText(name).parentElement?.parentElement ?? null;
+
+    await waitFor(() => {
+      expect(besideBox('From')).toHaveTextContent('Sep 25, 2026');
+    });
+    expect(besideBox('To')).toHaveTextContent('Nov 24, 2026');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+    expect(besideBox('From')).toHaveTextContent('Oct 1, 2026');
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } });
+    expect(besideBox('From')).not.toHaveTextContent('2026');
+  });
+
   it('a shared link with a pair fills the inputs, sends the pair and shows the Dates chip', async () => {
     const { calls } = expensesBackend(expenseList(ROWS, { from: '2026-10-01', to: '2026-10-31' }));
     renderPage('?from=2026-10-01&to=2026-10-31');

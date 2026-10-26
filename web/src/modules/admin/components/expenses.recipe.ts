@@ -68,3 +68,12 @@ export const expensesHeadActionsClasses = tw('flex flex-wrap items-center gap-2 
 
 /** The back link above the Deleted Expenses header, 16px clear of it. */
 export const expensesBackRowClasses = tw('mb-4 flex');
+
+/**
+ * The From and To fields of the toolbar: wide enough for the date box and the date written out beside it. Each width sits
+ * after the plain toolbar width in the CSS, so it wins (expenses.recipe.node.test.ts).
+ * SPEC-DEVIATION: D-61 on phones each date field takes its own row (UI-SPEC: toolbar fields wrap two per row).
+ */
+export const expensesDateFieldClasses = tw(
+  'in-data-[ui=s-toolbar]:flex-[0_1_232px] pg-phone:in-data-[ui=s-toolbar]:basis-full pg-tablet:in-data-[ui=s-toolbar]:flex-[1_1_232px]',
+);
