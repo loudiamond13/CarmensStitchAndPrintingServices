@@ -25,4 +25,19 @@ public sealed class DatabaseLock
 
     /// <summary>Gets who holds a claim row; null for a standing lock.</summary>
     public Guid? HolderId { get; private set; }
+
+    /// <summary>Creates a claim row for an idempotency key: taken now, counted until the lease ends.</summary>
+    /// <param name="name">The claim name.</param>
+    /// <param name="holderId">The request that holds the claim.</param>
+    /// <param name="now">The current UTC time.</param>
+    /// <param name="lease">How long the claim counts.</param>
+    /// <returns>The new, unsaved row.</returns>
+    public static DatabaseLock Claim(string name, Guid holderId, DateTimeOffset now, TimeSpan lease)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(name.Length, NameMaxLength);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lease, TimeSpan.Zero);
+
+        return new DatabaseLock { Name = name, TakenAtUtc = now, ExpiresAtUtc = now + lease, HolderId = holderId };
+    }
 }

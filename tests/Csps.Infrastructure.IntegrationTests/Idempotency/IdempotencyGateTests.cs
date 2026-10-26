@@ -44,10 +44,11 @@ public sealed class IdempotencyGateTests(CspsDatabase database) : IClassFixture<
             await proceed.StoreAndCommitAsync(200, "{}", ContentType, null, TestContext.Current.CancellationToken);
 
             await using var third = NewGate();
-            await using var replay = await third.Gate.BeginAsync(key, Route, null, hash, Now, TestContext.Current.CancellationToken);
+            var replay = await third.Gate.BeginAsync(key, Route, null, hash, Now, TestContext.Current.CancellationToken);
             replay.State.ShouldBe(IdempotencyLeaseState.Replay);
             replay.Replay.ShouldNotBeNull().StatusCode.ShouldBe(200);
 
+            await replay.DisposeAsync();
             foreach (var lease in leases)
             {
                 await lease.DisposeAsync();
