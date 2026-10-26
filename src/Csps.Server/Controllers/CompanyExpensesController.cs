@@ -60,8 +60,8 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
 
     /// <summary>
     /// Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above
-    /// 0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has set a
-    /// password. A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the
+    /// 0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has signed in at least once.
+    /// A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the
     /// body is ignored. A retry with the same <c>Idempotency-Key</c> and body answers with the stored 201 and records nothing more.
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
@@ -101,7 +101,7 @@ public sealed class CompanyExpensesController(CreateCompanyExpenseHandler create
     /// Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A
     /// version that is not the stored one answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried. A Manager
     /// may edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager
-    /// who has set a password, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it
+    /// who has signed in at least once, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it
     /// and when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.
     /// </summary>
     /// <param name="id">The expense id.</param>

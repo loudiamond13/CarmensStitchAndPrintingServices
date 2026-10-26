@@ -49,11 +49,13 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
                  PayerLast = payer.LastName,
                  PayerFormer = payer.DeletedAtUtc != null,
 
-                 // D-32, the same set as StaffState.CanPay, evaluated in SQL.
+                 // D-32, D-49: the same set as StaffState.CanPay (a password and the first sign-in mark), evaluated in SQL.
+                 // Keep in step with StaffDirectory and the dev seed.
                  PayerActive = payer.IsActive
                      && payer.ManagerLockedAtUtc == null
                      && payer.DeletedAtUtc == null
                      && payer.PasswordHash != null
+                     && payer.EmailConfirmed
                      && db.UserRoles.Any(link => link.UserId == payer.Id && db.Roles.Any(role =>
                          role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))),
                  RecorderFirst = (string?)recorder.FirstName,
