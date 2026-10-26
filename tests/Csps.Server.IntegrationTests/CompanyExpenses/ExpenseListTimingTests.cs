@@ -107,12 +107,27 @@ public sealed class ExpenseListTimingTests(CspsDatabase database) : IClassFixtur
         {
             await database.ResetAsync();
             var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(FixedNow));
+            WebApplicationFactory<Program>? clockFactory = null;
+            try
+            {
+                clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(FixedNow));
 
-            // The session starts on the fixed-clock host; the token lifetime is checked against the system clock, so the token is minted for the real now.
-            var started = await TestSessions.StartAsync(clockFactory, Roles.Manager);
-            var token = TestTokens.For(Roles.Manager, TimeProvider.System, started.UserId, sessionId: started.SessionId);
-            return new Rig(baseFactory, clockFactory, token);
+                // The session starts on the fixed-clock host; the token lifetime is checked against the system clock, so the token is minted for the real now.
+                var started = await TestSessions.StartAsync(clockFactory, Roles.Manager);
+                var token = TestTokens.For(Roles.Manager, TimeProvider.System, started.UserId, sessionId: started.SessionId);
+                return new Rig(baseFactory, clockFactory, token);
+            }
+            catch
+            {
+                // The rig owns both hosts only once it exists; before that a failed setup stops them here.
+                if (clockFactory is not null)
+                {
+                    await clockFactory.DisposeAsync();
+                }
+
+                await baseFactory.DisposeAsync();
+                throw;
+            }
         }
 
         public async Task<JsonElement> ReadAsync(string path)

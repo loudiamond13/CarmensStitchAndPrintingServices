@@ -459,9 +459,25 @@ public sealed class ListCompanyExpensesEndpointTests(CspsDatabase database) : IC
         {
             await database.ResetAsync();
             var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var admin = await TestSessions.StartAsync(baseFactory, Roles.Admin);
-            var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
-            return new Rig(baseFactory, AuthClient.WithClock(baseFactory, new FakeTimeProvider(FixedNow)), admin, manager);
+            WebApplicationFactory<Program>? clockFactory = null;
+            try
+            {
+                var admin = await TestSessions.StartAsync(baseFactory, Roles.Admin);
+                var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
+                clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(FixedNow));
+                return new Rig(baseFactory, clockFactory, admin, manager);
+            }
+            catch
+            {
+                // The rig owns both hosts only once it exists; before that a failed setup stops them here.
+                if (clockFactory is not null)
+                {
+                    await clockFactory.DisposeAsync();
+                }
+
+                await baseFactory.DisposeAsync();
+                throw;
+            }
         }
 
         // Writes one expense with the defaults of these tests: today, paid by the Admin, recorded by the Manager, in Supplies.

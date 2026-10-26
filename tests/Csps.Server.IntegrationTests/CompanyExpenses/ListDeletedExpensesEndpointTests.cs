@@ -258,10 +258,19 @@ public sealed class ListDeletedExpensesEndpointTests(CspsDatabase database) : IC
         {
             await database.ResetAsync();
             var host = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var admin = await TestSessions.StartAsync(host, Roles.Admin);
-            var manager = await TestSessions.StartAsync(host, Roles.Manager);
-            var payer = await UserFixtures.CreateAsync(host, UserFixtures.NewTag(), "Pat", "Payer", Roles.Admin);
-            return new Rig(database, host, admin, manager, payer);
+            try
+            {
+                var admin = await TestSessions.StartAsync(host, Roles.Admin);
+                var manager = await TestSessions.StartAsync(host, Roles.Manager);
+                var payer = await UserFixtures.CreateAsync(host, UserFixtures.NewTag(), "Pat", "Payer", Roles.Admin);
+                return new Rig(database, host, admin, manager, payer);
+            }
+            catch
+            {
+                // The rig owns the host only once it exists; before that a failed setup stops it here.
+                await host.DisposeAsync();
+                throw;
+            }
         }
 
         // Writes one soft-deleted expense: paid by the default payer, recorded and deleted by the Manager unless told otherwise.

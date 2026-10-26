@@ -119,13 +119,28 @@ public sealed class CompanyExpenseKpisEndpointTests(CspsDatabase database) : ICl
         {
             await database.ResetAsync();
             var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(now));
+            WebApplicationFactory<Program>? clockFactory = null;
+            try
+            {
+                clockFactory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(now));
 
-            // The sessions start on the fixed-clock host, so the host finds them active at the fixed date. The token lifetime is
-            // checked against the system clock, so each token is minted for the real now.
-            var admin = await SignInAsync(clockFactory, Roles.Admin);
-            var manager = await SignInAsync(clockFactory, Roles.Manager);
-            return new Rig(baseFactory, clockFactory, now, admin, manager);
+                // The sessions start on the fixed-clock host, so the host finds them active at the fixed date. The token lifetime is
+                // checked against the system clock, so each token is minted for the real now.
+                var admin = await SignInAsync(clockFactory, Roles.Admin);
+                var manager = await SignInAsync(clockFactory, Roles.Manager);
+                return new Rig(baseFactory, clockFactory, now, admin, manager);
+            }
+            catch
+            {
+                // The rig owns both hosts only once it exists; before that a failed setup stops them here.
+                if (clockFactory is not null)
+                {
+                    await clockFactory.DisposeAsync();
+                }
+
+                await baseFactory.DisposeAsync();
+                throw;
+            }
         }
 
         private static async Task<StartedSession> SignInAsync(WebApplicationFactory<Program> clockFactory, string role)
