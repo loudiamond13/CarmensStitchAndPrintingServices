@@ -432,6 +432,7 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     ['visual/.reference-src/ui/index.tsx'],
     ['src/modules/admin/pages/AdminPreviewPage.tsx'],
     ['src/modules/admin/previewCopy.ts'],
+    ['src/modules/public/pages/PublicLayoutCheckPage.tsx'],
   ])('fails a production chunk that contains %s', (moduleId) => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
@@ -586,6 +587,7 @@ describe('evaluateBudgets: the showcase in production (D-33, D-41 Q3)', () => {
     ['visual/parity/page.tsx'],
     ['src/modules/admin/pages/AdminPreviewPage.tsx'],
     ['src/modules/admin/previewCopy.ts'],
+    ['src/modules/public/pages/PublicLayoutCheckPage.tsx'],
   ])('fails %s even inside the showcase chunks', (moduleId) => {
     const report = evaluateBudgets(withModule(showcaseGraph(), KIT_CHUNK, moduleId), production);
     expect(report.ok).toBe(false);
