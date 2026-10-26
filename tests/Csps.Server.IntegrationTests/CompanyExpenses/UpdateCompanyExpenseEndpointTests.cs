@@ -12,6 +12,9 @@ namespace Csps.Server.IntegrationTests.CompanyExpenses;
 /// <summary>CEXP-02, CEXP-04, SEC-07: a staff member edits an expense with the version they opened it with; the next read shows the change.</summary>
 public sealed class UpdateCompanyExpenseEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
+    private const decimal LegacyAmount = 1500000.00m;
+    private static readonly Guid RentId = ExpenseCategorySeed.Rows.Single(row => row.Name == "Rent").Id;
+
     [Fact]
     public async Task AManagerEditsAnExpenseAndTheNextReadShowsTheChangeANewVersionAndWhoChangedIt()
     {
@@ -263,6 +266,43 @@ public sealed class UpdateCompanyExpenseEndpointTests(CspsDatabase database) : I
     }
 
     [Fact]
+    public async Task ALegacyAmountOverTheCapStaysEditableWhenTheEditLeavesItUnchanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var legacy = await LegacyOverCapAsync(factory, client, manager);
+        var body = ExpenseFixtures.BodyFrom(legacy);
+        body["categoryId"] = RentId;
+
+        using var response = await ExpenseFixtures.PutAsync(client, manager.AccessToken, legacy.GetProperty("id").GetGuid(), body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        document.RootElement.GetProperty("amount").GetDecimal().ShouldBe(LegacyAmount);
+        document.RootElement.GetProperty("category").GetProperty("id").GetGuid().ShouldBe(RentId);
+    }
+
+    [Fact]
+    public async Task ALegacyAmountOverTheCapCannotBeChangedToAnotherAmountOverTheCap()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var legacy = await LegacyOverCapAsync(factory, client, manager);
+        var body = ExpenseFixtures.BodyFrom(legacy);
+        body["amount"] = LegacyAmount + 0.01m;
+
+        using var response = await ExpenseFixtures.PutAsync(client, manager.AccessToken, legacy.GetProperty("id").GetGuid(), body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ExpenseFixtures.ErrorFields(problem).ShouldBe(["amount"]);
+        ExpenseFixtures.FieldErrors(problem, "amount").ShouldBe([ExpenseRules.AmountTooLarge]);
+    }
+
+    [Fact]
     public async Task SavingTheFormUnchangedReturnsTheSameVersionAndChangesNothing()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -278,5 +318,22 @@ public sealed class UpdateCompanyExpenseEndpointTests(CspsDatabase database) : I
         using var document = JsonDocument.Parse(text);
         document.RootElement.GetProperty("version").GetString().ShouldBe(created.GetProperty("version").GetString());
         ExpenseFixtures.IsNull(document.RootElement, "lastChangedBy").ShouldBeTrue();
+    }
+
+    // An imported row may hold an amount over the new-expense cap (D-33): the database checks only that it is above zero.
+    private async Task<JsonElement> LegacyOverCapAsync(CspsApiFactory factory, HttpClient client, StartedSession manager)
+    {
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today));
+        var id = created.GetProperty("id").GetGuid();
+        await using (var context = database.CreateContext())
+        {
+            await context.CompanyExpenses.Where(row => row.Id == id)
+                .ExecuteUpdateAsync(set => set.SetProperty(row => row.Amount, LegacyAmount), TestContext.Current.CancellationToken);
+        }
+
+        var legacy = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        legacy.GetProperty("amount").GetDecimal().ShouldBe(LegacyAmount);
+        return legacy;
     }
 }

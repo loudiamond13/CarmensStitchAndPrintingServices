@@ -303,6 +303,45 @@ public sealed class CompanyExpenseTests
     }
 
     [Fact]
+    public void ALegacyRowOverTheLimitsKeepsItsUnchangedValuesWhenAnotherFieldChanges()
+    {
+        var longDescription = new string('d', 250);
+        var longNotes = new string('n', 1200);
+        var expense = Legacy(1500000.00m, longDescription, longNotes);
+        var otherCategory = Guid.Parse("0f4b8d27-6a31-4c95-9e02-5d7a1c3b8e46");
+
+        var result = expense.Update(Today, otherCategory, $" {longDescription} ", 1500000m, PayerId, longNotes, Today);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Category.ShouldBe(new ValueChange<Guid>(CategoryId, otherCategory));
+        result.Value.Amount.ShouldBeNull();
+        result.Value.DescriptionChanged.ShouldBeFalse();
+        result.Value.NotesChanged.ShouldBeFalse();
+        expense.Amount.ShouldBe(1500000.00m);
+        expense.CategoryId.ShouldBe(otherCategory);
+    }
+
+    [Fact]
+    public void ALegacyRowOverTheLimitsStillAppliesThemToAChangedValue()
+    {
+        var longDescription = new string('d', 250);
+        var longNotes = new string('n', 1200);
+
+        ShouldFailChanges(
+            Legacy(1500000.00m, longDescription, longNotes).Update(Today, CategoryId, longDescription, 1500000.01m, PayerId, longNotes, Today),
+            ExpenseRules.AmountField,
+            ExpenseRules.AmountTooLarge);
+        ShouldFailChanges(
+            Legacy(1500000.00m, longDescription, longNotes).Update(Today, CategoryId, longDescription + "x", 1500000.00m, PayerId, longNotes, Today),
+            ExpenseRules.DescriptionField,
+            ExpenseRules.DescriptionTooLong);
+        ShouldFailChanges(
+            Legacy(1500000.00m, longDescription, longNotes).Update(Today, CategoryId, longDescription, 1500000.00m, PayerId, longNotes + "x", Today),
+            ExpenseRules.NotesField,
+            ExpenseRules.NotesTooLong);
+    }
+
+    [Fact]
     public void ASoftDeleteMarksTheTimeAndTheManagerAndReturnsTrue()
     {
         var expense = Create().Value;
@@ -372,6 +411,16 @@ public sealed class CompanyExpenseTests
         Guid? paidByUserId = null,
         string? notes = null) =>
         CompanyExpense.Create(date ?? Today, categoryId ?? CategoryId, description, amount, paidByUserId ?? PayerId, notes, Today, Now);
+
+    // An imported row may hold values over the new-expense limits (D-33), so they are written past Create.
+    private static CompanyExpense Legacy(decimal amount, string description, string? notes)
+    {
+        var expense = Create().Value;
+        typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Amount))!.SetValue(expense, amount);
+        typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Description))!.SetValue(expense, description);
+        typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Notes))!.SetValue(expense, notes);
+        return expense;
+    }
 
     private static void ShouldFail(Result<CompanyExpense> result, string field, string message)
     {

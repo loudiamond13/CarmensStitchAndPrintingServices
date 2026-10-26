@@ -13,6 +13,9 @@ public sealed class UpdateCompanyExpenseRequestValidator : AbstractValidator<Upd
     /// <summary>The <see cref="ValidationContext{T}.RootContextData"/> key that holds the business today as a <see cref="DateOnly"/>.</summary>
     public const string TodayKey = ExpenseFieldsValidator.TodayKey;
 
+    /// <summary>The <see cref="ValidationContext{T}.RootContextData"/> key that holds the <see cref="StoredExpenseFields"/> of the edited expense.</summary>
+    public const string StoredKey = ExpenseFieldsValidator.StoredKey;
+
     /// <summary>Creates the validator.</summary>
     public UpdateCompanyExpenseRequestValidator()
     {

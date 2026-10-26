@@ -172,6 +172,41 @@ public sealed class UpdateCompanyExpenseHandlerTests
     }
 
     [Fact]
+    public async Task ALegacyRowOverTheLimitsSavesACategoryChangeAndKeepsItsOtherValues()
+    {
+        var harness = new Harness();
+        var description = new string('d', 250);
+        var notes = new string('n', 1200);
+        harness.MakeLegacy(1500000.00m, description, notes);
+        harness.Categories.GetStateAsync(NewCategoryId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ExpenseCategoryState?>(new ExpenseCategoryState(NewCategoryId, "Rent", Retired: false)));
+
+        var result = await harness.Handler.HandleAsync(
+            harness.Expense.Id,
+            Valid(category: NewCategoryId) with { Amount = 1500000.00m, Description = description, Notes = notes },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Expense.CategoryId.ShouldBe(NewCategoryId);
+        harness.Expense.Amount.ShouldBe(1500000.00m);
+    }
+
+    [Fact]
+    public async Task AChangedValueOverALimitOnALegacyRowIsA400AndNothingIsSaved()
+    {
+        var harness = new Harness();
+        harness.MakeLegacy(1500000.00m, "Thread and needles", null);
+
+        var result = await harness.Handler.HandleAsync(harness.Expense.Id, Valid() with { Amount = 1500000.01m }, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.FieldErrors.ShouldNotBeNull()["amount"].ShouldBe([ExpenseRules.AmountTooLarge]);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Expense.Amount.ShouldBe(1500000.00m);
+    }
+
+    [Fact]
     public async Task AnUnchangedFormSavesNothingAndReturnsTheCurrentDetail()
     {
         var harness = new Harness();
@@ -422,6 +457,16 @@ public sealed class UpdateCompanyExpenseHandlerTests
         public SaveAwareAudit Audit { get; }
 
         public UpdateCompanyExpenseHandler Handler { get; }
+
+        // An imported row may hold values over the new-expense limits (D-33); the store and the reader both show them.
+        public void MakeLegacy(decimal amount, string description, string? notes)
+        {
+            typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Amount))!.SetValue(Expense, amount);
+            typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Description))!.SetValue(Expense, description);
+            typeof(CompanyExpense).GetProperty(nameof(CompanyExpense.Notes))!.SetValue(Expense, notes);
+            Reader.GetDetailAsync(Expense.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<CompanyExpenseDetailView?>(
+                Detail(Expense.Id, Expense.PaidByUserId, RecorderId) with { Amount = amount, Description = description, Notes = notes }));
+        }
 
         private static CompanyExpenseDetailView Detail(Guid id, Guid payerId, Guid recorderId) => new(
             id,

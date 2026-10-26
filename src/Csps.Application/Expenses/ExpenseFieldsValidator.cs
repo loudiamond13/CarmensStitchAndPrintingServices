@@ -16,6 +16,12 @@ public sealed class ExpenseFieldsValidator : AbstractValidator<IExpenseFieldsReq
     /// <summary>The <see cref="ValidationContext{T}.RootContextData"/> key that holds the business today as a <see cref="DateOnly"/>.</summary>
     public const string TodayKey = "today";
 
+    /// <summary>
+    /// The <see cref="ValidationContext{T}.RootContextData"/> key that holds the <see cref="StoredExpenseFields"/> of the edited
+    /// expense. Absent on Add, where every limit applies.
+    /// </summary>
+    public const string StoredKey = "stored";
+
     /// <summary>Creates the validator.</summary>
     public ExpenseFieldsValidator()
     {

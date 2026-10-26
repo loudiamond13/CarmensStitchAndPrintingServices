@@ -62,12 +62,43 @@ public sealed class UpdateCompanyExpenseRequestValidatorTests
         Messages(result, "Version").ShouldBeEmpty();
     }
 
+    [Fact]
+    public void AStoredValueOverALimitIsAcceptedWhenTheEditLeavesItUnchanged()
+    {
+        var description = new string('d', 250);
+        var notes = new string('n', 1200);
+        var stored = new StoredExpenseFields(description, 1500000.00m, notes);
+
+        var result = Validate(Valid() with { Description = $" {description} ", Amount = 1500000m, Notes = notes }, stored);
+
+        result.IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AChangedValueOverALimitIsStillRefusedOnAnEdit()
+    {
+        var description = new string('d', 250);
+        var notes = new string('n', 1200);
+        var stored = new StoredExpenseFields(description, 1500000.00m, notes);
+
+        var result = Validate(Valid() with { Description = description + "x", Amount = 1500000.01m, Notes = notes + "x" }, stored);
+
+        Messages(result, "Amount").ShouldBe(["Enter an amount of ₱1,000,000.00 or less."]);
+        Messages(result, "Description").ShouldBe(["Keep the description to 200 characters or fewer."]);
+        Messages(result, "Notes").ShouldBe(["Keep notes to 1,000 characters or fewer."]);
+    }
+
     private static UpdateCompanyExpenseRequest Valid() => new("2026-10-25", CategoryId, "Thread and needles", 640.00m, PayerId, null, GoodVersion);
 
-    private static ValidationResult Validate(UpdateCompanyExpenseRequest request)
+    private static ValidationResult Validate(UpdateCompanyExpenseRequest request, StoredExpenseFields? stored = null)
     {
         var context = new ValidationContext<UpdateCompanyExpenseRequest>(request);
         context.RootContextData[UpdateCompanyExpenseRequestValidator.TodayKey] = Today;
+        if (stored is not null)
+        {
+            context.RootContextData[UpdateCompanyExpenseRequestValidator.StoredKey] = stored;
+        }
+
         return new UpdateCompanyExpenseRequestValidator().Validate(context);
     }
 
