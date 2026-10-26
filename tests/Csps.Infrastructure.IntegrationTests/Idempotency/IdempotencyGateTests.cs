@@ -1,10 +1,15 @@
+using System.Data.Common;
 using System.Security.Cryptography;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
 using Csps.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Idempotency;
 
@@ -233,12 +238,154 @@ public sealed class IdempotencyGateTests(CspsDatabase database) : IClassFixture<
         replaced.State.ShouldBe(IdempotencyLeaseState.Proceed);
     }
 
+    [Fact]
+    public async Task APurgeThatFailsWithAWrappedDatabaseErrorIsLoggedAndTheRequestGoesOn()
+    {
+        var failure = await DatabaseFailureAsync();
+        var logger = new FakeLogger<IdempotencyGate>();
+        await using var handle = NewGate(requestHooks: [new NonQueryHook("DELETE", () => throw failure)], logger: logger);
+
+        await using var lease = await handle.Gate.BeginAsync(Guid.NewGuid(), Route, null, Hash(), Now, TestContext.Current.CancellationToken);
+
+        lease.State.ShouldBe(IdempotencyLeaseState.Proceed);
+        logger.Collector.GetSnapshot().ShouldContain(record => record.Level == LogLevel.Warning && record.Message.Contains("Expired idempotency records", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AReleaseThatFailsWithAWrappedDatabaseErrorNeverFailsTheEndOfTheLease()
+    {
+        var failure = await DatabaseFailureAsync();
+        foreach (var ending in new[] { "rollback", "dispose" })
+        {
+            var key = Guid.NewGuid();
+            var logger = new FakeLogger<IdempotencyGate>();
+            await using var handle = NewGate(claimHooks: [new NonQueryHook("DELETE", () => throw failure)], logger: logger);
+            var lease = await handle.Gate.BeginAsync(key, Route, null, Hash(), Now, TestContext.Current.CancellationToken);
+            lease.State.ShouldBe(IdempotencyLeaseState.Proceed);
+
+            if (ending == "rollback")
+            {
+                await lease.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+
+            await lease.DisposeAsync();
+
+            handle.Context.Database.CurrentTransaction.ShouldBeNull(ending);
+            (await ClaimCountAsync(key)).ShouldBe(1, "a claim that cannot be freed ends with its lease");
+            logger.Collector.GetSnapshot().ShouldContain(record => record.Level == LogLevel.Warning, ending);
+        }
+    }
+
+    [Fact]
+    public async Task ARollbackThatFailsOnDisposeNeverReplacesTheRequestErrorAndStillFreesEverything()
+    {
+        var key = Guid.NewGuid();
+        var logger = new FakeLogger<IdempotencyGate>();
+        await using var handle = NewGate(requestHooks: [new FailingRollback()], logger: logger);
+        var lease = await handle.Gate.BeginAsync(key, Route, null, Hash(), Now, TestContext.Current.CancellationToken);
+        lease.State.ShouldBe(IdempotencyLeaseState.Proceed);
+
+        await lease.DisposeAsync();
+
+        handle.Context.Database.CurrentTransaction.ShouldBeNull();
+        (await ClaimCountAsync(key)).ShouldBe(0);
+        logger.Collector.GetSnapshot().ShouldContain(record => record.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task ADeadlockWhileTakingOverAStaleClaimReadsAsInProgress()
+    {
+        var deadlock = await DeadlockAsync();
+        var key = Guid.NewGuid();
+        await WriteClaimAsync(key, Now - IdempotencyGate.ClaimLease - TimeSpan.FromMinutes(1));
+        await using var handle = NewGate(claimHooks: [new NonQueryHook("UPDATE", () => throw deadlock)]);
+
+        // The claim step itself, so the request's purge does not remove the stale claim first.
+        var won = await handle.Gate.TryClaimAsync(IdempotencyGate.ClaimName(key, Route, null), Guid.NewGuid(), Now, TestContext.Current.CancellationToken);
+
+        won.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AStaleClaimPurgedBetweenTheReadAndTheTakeoverLeavesTheKeyFreeToClaim()
+    {
+        var key = Guid.NewGuid();
+        var name = IdempotencyGate.ClaimName(key, Route, null);
+        await WriteClaimAsync(key, Now - IdempotencyGate.ClaimLease - TimeSpan.FromMinutes(1));
+        var purged = false;
+        var purgeFirst = new NonQueryHook("UPDATE", async () =>
+        {
+            if (purged)
+            {
+                return;
+            }
+
+            purged = true;
+            await using var other = database.CreateContext();
+            await other.Set<DatabaseLock>().Where(claim => claim.Name == name).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+        });
+        await using var handle = NewGate(claimHooks: [purgeFirst]);
+        var holder = Guid.NewGuid();
+
+        var won = await handle.Gate.TryClaimAsync(name, holder, Now, TestContext.Current.CancellationToken);
+
+        purged.ShouldBeTrue();
+        won.ShouldBeTrue();
+        await using var check = database.CreateContext();
+        (await check.Set<DatabaseLock>().AsNoTracking().SingleAsync(claim => claim.Name == name, TestContext.Current.CancellationToken)).HolderId.ShouldBe(holder);
+    }
+
     private static byte[] Hash() => RandomNumberGenerator.GetBytes(32);
 
-    private GateHandle NewGate()
+    // A real SQL error wrapped the way EF's SQL Server strategy wraps a transient one: a duplicate standing lock row.
+    private async Task<Exception> DatabaseFailureAsync()
     {
-        var context = database.CreateContext();
-        return new GateHandle(context, new IdempotencyGate(context, new TestContextFactory(database), NullLogger<IdempotencyGate>.Instance));
+        await using var context = database.CreateContext();
+        context.Add(DatabaseLock.Claim(DatabaseLocks.ActiveManagers, Guid.NewGuid(), Now, IdempotencyGate.ClaimLease));
+        var error = await Should.ThrowAsync<DbUpdateException>(() => context.SaveChangesAsync(TestContext.Current.CancellationToken));
+        return new InvalidOperationException("An exception has been raised that is likely due to a transient failure.", error.InnerException.ShouldBeOfType<SqlException>());
+    }
+
+    // A real deadlock as EF reports it: two transactions each update one standing lock row, then reach for the other's.
+    private async Task<Exception> DeadlockAsync()
+    {
+        await using var one = database.CreateContext();
+        await using var two = database.CreateContext();
+        var first = await one.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var second = await two.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (first)
+        await using (second)
+        {
+            await TouchAsync(one, "account-token:60");
+            await TouchAsync(two, "account-token:61");
+            var outcomes = await Task.WhenAll(CaptureAsync(() => TouchAsync(one, "account-token:61")), CaptureAsync(() => TouchAsync(two, "account-token:60")))
+                .WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+            return outcomes.Single(outcome => outcome is not null).ShouldNotBeNull();
+        }
+
+        static Task TouchAsync(CspsDbContext context, string lockName) =>
+            context.Set<DatabaseLock>().Where(row => row.Name == lockName)
+                .ExecuteUpdateAsync(set => set.SetProperty(row => row.TakenAtUtc, Now), TestContext.Current.CancellationToken);
+
+        static async Task<Exception?> CaptureAsync(Func<Task> work)
+        {
+            try
+            {
+                await work();
+                return null;
+            }
+            catch (InvalidOperationException error) when (error.InnerException is SqlException { Number: 1205 })
+            {
+                return error;
+            }
+        }
+    }
+
+    private GateHandle NewGate(IInterceptor[]? requestHooks = null, IInterceptor[]? claimHooks = null, ILogger<IdempotencyGate>? logger = null)
+    {
+        var context = database.CreateContext(requestHooks ?? []);
+        var gate = new IdempotencyGate(context, new TestContextFactory(database, claimHooks ?? []), logger ?? NullLogger<IdempotencyGate>.Instance);
+        return new GateHandle(context, gate);
     }
 
     private async Task AssertProceedsAsync(Guid key)
@@ -269,15 +416,40 @@ public sealed class IdempotencyGateTests(CspsDatabase database) : IClassFixture<
         return await context.Set<IdempotencyRecord>().CountAsync(record => record.Key == key, TestContext.Current.CancellationToken);
     }
 
-    private sealed class TestContextFactory(CspsDatabase database) : IDbContextFactory<CspsDbContext>
+    private sealed class TestContextFactory(CspsDatabase database, IInterceptor[] hooks) : IDbContextFactory<CspsDbContext>
     {
-        public CspsDbContext CreateDbContext() => database.CreateContext();
+        public CspsDbContext CreateDbContext() => database.CreateContext(hooks);
     }
 
     private sealed class GateHandle(CspsDbContext context, IdempotencyGate gate) : IAsyncDisposable
     {
         public IdempotencyGate Gate { get; } = gate;
 
-        public ValueTask DisposeAsync() => context.DisposeAsync();
+        public CspsDbContext Context { get; } = context;
+
+        public ValueTask DisposeAsync() => Context.DisposeAsync();
+    }
+
+    // Runs a step before each ExecuteUpdate or ExecuteDelete whose SQL starts with the verb; the step may throw.
+    private sealed class NonQueryHook(string verb, Func<Task> step) : DbCommandInterceptor
+    {
+        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.TrimStart().StartsWith(verb, StringComparison.OrdinalIgnoreCase))
+            {
+                await step();
+            }
+
+            return result;
+        }
+    }
+
+    // A rollback that fails, as on a broken connection.
+    private sealed class FailingRollback : DbTransactionInterceptor
+    {
+        public override ValueTask<InterceptionResult> TransactionRollingBackAsync(
+            DbTransaction transaction, TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The rollback failed.");
     }
 }
