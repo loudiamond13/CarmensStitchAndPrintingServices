@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Context
 
-*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-25T21:10:00-05:00*
+*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-26T05:52:00-05:00*
 
 **Gathered:** 2026-10-25
 **Status:** Ready for planning
@@ -88,6 +88,15 @@ Out of scope: order expenses (Phase 7), money on hand balances and transfers (Ph
 - **D-51:** **Month KPI edge cases confirmed** (A-06-02, option 1). The cards follow the business time zone in Site settings (Asia/Manila today); no other case needs its own rule.
 - **D-52:** **Timing data size confirmed** (RESEARCH open question 5). The shop's real rate is below about 20 expenses a day, so the 5-year set of about 36,500 rows stays as a safe upper bound.
 - **D-53:** **Audit viewer option A confirmed** (RESEARCH open question 2). The server turns the stored detail into change lines and names payer and category, and "Done to" also matches expense payers, as built in 06-15.
+
+### UAT rulings (owner, 2026-10-26, during verify-work)
+- **D-54:** **UI-SPEC OQ-1 to OQ-15 confirmed as built** (06-UAT test 2). Every open question in `06-UI-SPEC.md` keeps its recommended default: eraser as a third row icon, a separate Deleted Expenses page, Settings after Audit Log, retired categories can be used again, no confirm on Restore, Retire and Use again, Others protected, an inactive saved payer may stay, an eye View for Admins, no preselected category, limits 200 and 40, per-row button names, five new icons, the amended wording, both primary buttons in the first-use empty state, and the SPEC-GAP strings as written (subject to the copy review, UAT test 3).
+- **D-55:** **Phase 6 wording approved as built** (05 D-48 copy review, 06-UAT test 3). Every string in the review pack table "Words on the Phase 6 screens" (Company Expenses, Deleted Expenses, Settings and the Audit Log labels and change lines) stays as written.
+- **D-56:** **Paid by wording for someone not yet signed in stays as is** (plan 06-20 backlog item, option 1; 06-UAT test 4). A person who has not had a first sign-in is left out of the Paid by list, and a save that names them anyway gets the existing sentence "This person can't be chosen because their account isn't active. Choose someone else." No new sentence and no change to `ExpenseRules.PaidByInactive`.
+- **D-57:** **Every staff member may read every expense's notes** (code review A-IN-03, option 2; 06-UAT test 5). The View window shows Notes to an Admin even on expenses they cannot edit. Kept as built; `CompanyExpenseDetailResponse.From` and the View modal do not change. Notes stay out of the list and search (D-19).
+- **D-58:** **No live speed check after release for Phase 6** (06-UAT test 6, owner chose skip). The local and CI timing test (D-28, 300 ms p95 on about 36,500 rows) is the only speed gate for the expense list and KPI endpoints; the post-release log check in `docs/operations/list-performance.md` is not a Phase 6 requirement. The CI-margin backlog item (A-06-03) still stands.
+- **D-59:** **Test-side fixes confirmed** (06-UAT test 7). The slow add-expense test fix (axe trims passing nodes, a7ddcd76 and 39cc69e3) and the command-count flake fix (`CommandCounter` counts only the measured request, c0616d1c) are accepted; both debug sessions are resolved. The staff accounts that pile up in `CSPS_E2E` are left as they are. A request the browser cancels and that is logged as a server error is fixed later in a quick task, not in Phase 6.
+- **Review pack pictures approved** (06-UAT test 1): Company Expenses, Deleted Expenses and Settings in both themes at 390, 820 and 1440 px.
 
 ### Claude's Discretion
 - Page size and page-size options, URL parameter names (WEB-10), and the exact index set, as long as every filter and sort column is covered.

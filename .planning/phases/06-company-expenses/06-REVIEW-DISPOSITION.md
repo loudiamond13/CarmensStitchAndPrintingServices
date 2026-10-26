@@ -2,12 +2,12 @@
 phase: 06-company-expenses
 review: 06-REVIEW.md
 created: "2026-10-26T00:03:00-05:00"
-updated: "2026-10-26T01:18:00-05:00"
+updated: "2026-10-26T05:52:00-05:00"
 ---
 
 # Phase 6: Code Review Disposition
 
-*Created: 2026-10-26T00:03:00-05:00 · Updated: 2026-10-26T01:18:00-05:00*
+*Created: 2026-10-26T00:03:00-05:00 · Updated: 2026-10-26T05:52:00-05:00*
 
 One row per finding of `06-REVIEW.md`. The backend fixes ran as a code-fix pass with the owner away; nothing here was approved on
 the owner's behalf. Each behavior change was made test first (a failing test commit, then the fix commit). The web findings
@@ -21,7 +21,7 @@ away.
 | A-WR-01 | fixed | `81922385` (tests, red), `cb5a5a69` (fix), `05ee8a77` (API guide); web: `5a06a1e4` (tests, red), `0a772026` (fix) | On an edit, the amount cap and the description and notes lengths apply only to a value that changes, in both the validator and the domain. Add is unchanged. The handler reads the stored values before the form check, so a bad form still answers 400 with every field before the 404, 403 and 409 steps (one extra read per edit). Tests: legacy over-cap amount unchanged with a category change gives 200; a changed amount over the cap gives 400. **Web side (web fix pass):** `expenseFormSchema` takes the opened expense's stored description, amount and notes on an edit and applies each limit only to a changed value (compared after the trim, as the server does); Add passes nothing and keeps every limit (OR-3). Tests: an unchanged legacy amount of 1,500,000.00 passes and saves from the Edit modal; a change to 1,600,000 is blocked with no request. |
 | A-IN-01 | fixed | `85d54dd8` (test, red), `2b2601e2` (fix) | A missing business today now throws an error that names the `today` key, instead of a bare dictionary error. |
 | A-IN-02 | parked for owner | none | Already covered by the Owner backlog item "Phase 6 wording for a Paid by who has not signed in" (D-49 wording, options recorded there). No change made. |
-| A-IN-03 | parked for owner | `4db32f44` (backlog item) | Who may read expense notes. Parked in the STATE.md Owner backlog under the "Any checkpoints..." line, option (1) recommended: only someone who can edit the expense sees its notes. No change made. |
+| A-IN-03 | accepted by owner (D-57, 2026-10-26: option 2, keep as built) | `4db32f44` (backlog item) | Who may read expense notes. Parked in the STATE.md Owner backlog under the "Any checkpoints..." line, option (1) recommended: only someone who can edit the expense sees its notes. No change made. |
 | A-IN-04 | fixed | `bc4f434e` | `ExpenseCategoryRules.OthersNameLocked` points at `ExpenseCategory.OthersNameMessage`; the edit handler leaves the Others rename refusal to `ExpenseCategory.Rename`. Existing Others tests pass unchanged. |
 | A-IN-05 | fixed | `c2d078b8` | `RowVersions.InvalidMessage` owns the text and the profile validator reads it, so `Common` no longer depends on `Profile`. The `TargetType` doc lists `CompanyExpense` and `ExpenseCategory`. |
 | A-IN-06 | fixed | `79812741` | Kept the branch (a test covers it) with a comment that it only guards a tracked entity already marked deleted in memory, as the review allowed. |

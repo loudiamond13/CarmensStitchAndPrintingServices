@@ -1,9 +1,9 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "Playwright @expenses-add (web/e2e/expenses.spec.ts) times out at 150 s on [webkit] and [iphone] in a full `npm --prefix web run e2e -- --grep \"@expenses|@settings\"` run; the snapshot shows the Save button at \"Saving\". Alone it passes but takes about 2 minutes. Find the real root cause before changing anything."
 goal: find_and_fix
 created: 2026-10-26T01:10:00-05:00
-updated: 2026-10-26T02:21:00-05:00
+updated: 2026-10-26T05:52:00-05:00
 ---
 
 # Debug: @expenses-add save is slow

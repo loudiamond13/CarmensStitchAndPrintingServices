@@ -1,9 +1,9 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "CompanyExpenseListQueryCountTests.ThePageSizeDoesNotChangeTheNumberOfSqlCommands fails in about 2 of 3 full Server integration runs (large.Count 4 vs expected 3); TheKpisRunTheSameNumberOfSqlCommandsEachTime failed once the same way. Both pass alone."
 goal: find_and_fix
 created: 2026-10-25T22:20:00-05:00
-updated: 2026-10-25T22:58:00-05:00
+updated: 2026-10-26T05:52:00-05:00
 ---
 
 # Debug: expense list command count flake
