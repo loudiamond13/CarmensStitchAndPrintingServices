@@ -4,7 +4,7 @@ baseline: 06-UI-SPEC.md, with owner rulings D-54 to D-59
 overall: 20/24
 status: provisional
 created: 2026-10-26T05:56:00-05:00
-updated: 2026-10-26T05:56:00-05:00
+updated: 2026-10-26T06:44:00-05:00
 ---
 
 # Phase 6 UI review
@@ -57,4 +57,15 @@ Under `web/src/modules/admin/`: `pages/ExpensesPage.tsx`, `pages/DeletedExpenses
 
 ## Outcomes
 
-Owner ruling D-60 (2026-10-26): fix all five warnings and trim the long header comments before Phase 6 closes. For UI-06-02, show the friendly date beside the native date box. Each finding's final outcome (fixed, with commit) is added when the quick task lands.
+Owner ruling D-60 (2026-10-26): fix all five warnings and trim the long header comments before Phase 6 closes. For UI-06-02, show the friendly date beside the native date box. Each finding's outcome and commit are in the table below.
+
+| ID | Outcome | Commit |
+| --- | --- | --- |
+| UI-06-01 | Fixed: a required Select now shows the same red " *" in its label as Field. | 379c9ef9 |
+| UI-06-02 | Fixed: From, To and the expense Date show the chosen date as "Sep 26, 2026" beside the box. On phones each date filter takes its own row (D-61). | 52f36365 (shared), 2f8aa10f (screens) |
+| UI-06-03 | Fixed: Settings rows keep three fixed action slots and the categories table fits its card on tablets. | 1eaf4e95 (shared), 5961e7be (screen) |
+| UI-06-04 | Fixed: counts use the en-PH thousands format. D-62 widened this to every count in the web app. | 08f33cf0, 0be5f426 (D-62) |
+| UI-06-05 | Fixed: the list search box is 42px tall like a toolbar field box, so the labels share one baseline (ruling D-60 in the reference rulings). | d23c4a04 |
+| Header comments | Fixed: the headers of the expenses page, Settings page and expense modal are a few plain lines. | 5961e7be |
+
+The visual check at 390, 820 and 1440 px is the owner's, on their own dev server.
