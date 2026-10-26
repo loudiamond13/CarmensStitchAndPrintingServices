@@ -6,15 +6,21 @@ import { BUSINESS_ZONE } from '@/utils/format';
 /** Plain base-10 digits with no sign, no leading zero, no spaces, no exponent and no fraction. */
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
 
+/** The highest page the server lists (MaxPage in the list request validators). */
+export const MAX_PAGE = 100_000;
+
 function parsePositiveInteger(value: string): number | null {
   if (!POSITIVE_INTEGER.test(value)) return null;
   const number = Number(value);
   return Number.isSafeInteger(number) ? number : null;
 }
 
-/** The page number: a plain integer of at least 1; anything else ('0', '-3', '2.5', '1e3', ' 2') is page 1. */
+/** The page number: a plain integer from 1 to MAX_PAGE; anything else ('0', '-3', '2.5', '1e3', ' 2', '100001') is page 1. */
 export const pageParser = createParser<number>({
-  parse: parsePositiveInteger,
+  parse: (value) => {
+    const page = parsePositiveInteger(value);
+    return page !== null && page <= MAX_PAGE ? page : null;
+  },
   serialize: (page) => String(page),
 }).withDefault(1);
 
@@ -242,12 +248,14 @@ export function businessToday(now: Date, zone: string = BUSINESS_ZONE): string {
 
 /** A GUID in the dashed form the server accepts. */
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The all-zero GUID, which no record has and the server refuses as a filter. */
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
 /**
- * An id filter (a category, a person) as a dashed GUID, lower-cased (CWE-20). Anything else, an email or a name
- * included, is no filter. The list that reads it still checks the id against the list it came from.
+ * An id filter (a category, a person) as a dashed GUID, lower-cased (CWE-20). Anything else, the all-zero GUID, an email
+ * or a name included, is no filter. The list that reads it still checks the id against the list it came from.
  */
 export const guidParser = createParser<string>({
-  parse: (value) => (GUID.test(value) ? value.toLowerCase() : null),
+  parse: (value) => (GUID.test(value) && value !== EMPTY_GUID ? value.toLowerCase() : null),
   serialize: (id) => id,
 });
