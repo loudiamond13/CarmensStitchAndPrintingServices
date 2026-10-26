@@ -18,6 +18,31 @@ public sealed class IdempotencyProbe
     /// <summary>Records one run.</summary>
     /// <returns>The run number, starting at 1.</returns>
     public int Run() => Interlocked.Increment(ref _runs);
+
+    private TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Gets a task that completes when a <c>hold</c> request has started.</summary>
+    public Task Started => _started.Task;
+
+    /// <summary>Prepares the next <c>hold</c> request: it will signal <see cref="Started"/> and wait for <see cref="Release"/>.</summary>
+    public void Arm()
+    {
+        _started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    /// <summary>Lets the held request go on.</summary>
+    public void Release() => _release.TrySetResult();
+
+    /// <summary>Signals that the request started and waits until the test releases it.</summary>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>A task that completes on release.</returns>
+    public async Task HoldAsync(CancellationToken cancellationToken)
+    {
+        _started.TrySetResult();
+        await _release.Task.WaitAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -65,6 +90,20 @@ public sealed class IdempotencyProbeController(IdempotencyProbe probe, CspsDbCon
         await context.SaveChangesAsync(cancellationToken);
         IdempotencyOutcome.KeepChanges(HttpContext);
         return new ObjectResult(new { runs }) { StatusCode = code };
+    }
+
+    /// <summary>Counts a run, signals that it started, waits until the test releases it, adds a business row and answers 201.</summary>
+    /// <param name="write">The key of the business row to add.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>201 with the run number.</returns>
+    [HttpPost("hold")]
+    public async Task<IActionResult> Hold([FromQuery] Guid write, CancellationToken cancellationToken)
+    {
+        var runs = probe.Run();
+        await probe.HoldAsync(cancellationToken);
+        context.Add(IdempotencyRecord.Create(write, null, "POST /probe/business-row", new byte[32], StatusCodes.Status200OK, null, null, null, TimeProvider.System.GetUtcNow()));
+        await context.SaveChangesAsync(cancellationToken);
+        return Created("/api/test/idempotency/items/7", new { runs });
     }
 
     /// <summary>Answers a text body over 1 MB.</summary>

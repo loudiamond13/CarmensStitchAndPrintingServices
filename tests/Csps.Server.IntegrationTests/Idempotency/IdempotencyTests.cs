@@ -224,6 +224,89 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
     }
 
     [Fact]
+    public async Task ADuplicateWhileTheFirstIsHeldGetsInProgressEveryRoundAndTheKeyThenReplays()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+
+        for (var round = 0; round < 20; round++)
+        {
+            var key = Guid.NewGuid();
+            var rowKey = Guid.NewGuid();
+            var runsBefore = probe.Runs;
+            probe.Arm();
+
+            var first = SendAsync(client, $"{ProbePrefix}/hold?write={rowKey:D}", key.ToString("D"));
+            await probe.Started.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+            // Both duplicates finish while the first is still held.
+            for (var duplicate = 0; duplicate < 2; duplicate++)
+            {
+                using var busy = await SendAsync(client, $"{ProbePrefix}/hold?write={rowKey:D}", key.ToString("D"));
+                busy.StatusCode.ShouldBe(HttpStatusCode.Conflict, $"round {round}");
+                (await ProblemJson.ReadAsync(busy, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.in-progress");
+            }
+
+            first.IsCompleted.ShouldBeFalse($"round {round}: the first request must still be held");
+            probe.Release();
+            using var created = await first.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            created.StatusCode.ShouldBe(HttpStatusCode.Created, $"round {round}");
+
+            using var replayed = await SendAsync(client, $"{ProbePrefix}/hold?write={rowKey:D}", key.ToString("D"));
+            replayed.StatusCode.ShouldBe(HttpStatusCode.Created, $"round {round}");
+            replayed.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+
+            (probe.Runs - runsBefore).ShouldBe(1, $"round {round}");
+            (await ReadRecordsAsync(key)).ShouldHaveSingleItem();
+            (await ReadRecordsAsync(rowKey)).ShouldHaveSingleItem();
+            await DeleteRecordsAsync(key, rowKey);
+        }
+    }
+
+    [Fact]
+    public async Task SameKeyPostsSentTogetherRunTheHandlerOnceEveryRound()
+    {
+        var probe = new IdempotencyProbe();
+        await using var host = ProbeHost(probe);
+        using var client = host.Factory.CreateClient();
+
+        for (var round = 0; round < 20; round++)
+        {
+            var key = Guid.NewGuid();
+            var rowKey = Guid.NewGuid();
+            var runsBefore = probe.Runs;
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var sends = Enumerable.Range(0, 4).Select(_ => Task.Run(async () =>
+            {
+                await gate.Task.ConfigureAwait(false);
+                return await SendAsync(client, $"{ProbePrefix}/status/201?write={rowKey:D}", key.ToString("D")).ConfigureAwait(false);
+            })).ToArray();
+            gate.SetResult();
+            var responses = await Task.WhenAll(sends).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            try
+            {
+                responses.Select(static response => (int)response.StatusCode).ShouldAllBe(code => code == 201 || code == 409, $"round {round}");
+                responses.Count(static response => response.StatusCode == HttpStatusCode.Created && !response.Headers.Contains(AuthClient.ReplayedHeader))
+                    .ShouldBe(1, $"round {round}");
+            }
+            finally
+            {
+                foreach (var response in responses)
+                {
+                    response.Dispose();
+                }
+            }
+
+            (probe.Runs - runsBefore).ShouldBe(1, $"round {round}");
+            (await ReadRecordsAsync(key)).ShouldHaveSingleItem();
+            (await ReadRecordsAsync(rowKey)).ShouldHaveSingleItem();
+            await DeleteRecordsAsync(key, rowKey);
+        }
+    }
+
+    [Fact]
     public async Task AnInputErrorIsStoredAndReplayed()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -688,6 +771,13 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         }
 
         return rows;
+    }
+
+    // The round tests add many rows; the purge tests count on a small table, so each round removes its own.
+    private async Task DeleteRecordsAsync(params Guid[] keys)
+    {
+        await using var context = database.CreateContext();
+        await context.Set<IdempotencyRecord>().Where(record => keys.Contains(record.Key)).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<int> CountRecordsAsync(string route)
